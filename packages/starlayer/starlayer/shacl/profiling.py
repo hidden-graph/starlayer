@@ -38,26 +38,25 @@ implementation *can* do that this module provides:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
-from rdflib import Graph, URIRef
-from rdflib.namespace import RDF
+import pyoxigraph as ox
 
-if TYPE_CHECKING:
-    from starlayer.graph import StarLayerGraph
+from starlayer.shacl_engine.graphs import new_graph
+from starlayer.shacl_engine.terms import RDF, SH, engine_view, to_engine
 
 _SH = "http://www.w3.org/ns/shacl#"
-_SH_ValidationReport = URIRef(_SH + "ValidationReport")
-_SH_validationReport = URIRef(_SH + "validationReport")
-_SH_usedDataGraph = URIRef(_SH + "usedDataGraph")
-_SH_usedShapesGraph = URIRef(_SH + "usedShapesGraph")
-_SH_conformsTo = URIRef(_SH + "conformsTo")
-_DCTERMS_conformsTo = URIRef("http://purl.org/dc/terms/conformsTo")
+_SH_ValidationReport = SH.ValidationReport
+_SH_validationReport = SH.validationReport
+_SH_usedDataGraph = SH.usedDataGraph
+_SH_usedShapesGraph = SH.usedShapesGraph
+_SH_conformsTo = SH.conformsTo
+_DCTERMS_conformsTo = ox.NamedNode("http://purl.org/dc/terms/conformsTo")
 
 # starlayer.shacl's own resource inside the profiles document
 # (starontology.get_conformance_profiles()); declared_conformance_profile()
 # returns just that resource's triples.
-_SHACL_SUBJECT = URIRef(
+_SHACL_SUBJECT = ox.NamedNode(
     "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl"
 )
 
@@ -100,7 +99,7 @@ WHERE {
 """
 
 
-def declared_conformance_profile(*, as_oxigraph: bool = False) -> StarLayerGraph:
+def declared_conformance_profile() -> Any:
     """A fresh copy of starlayer.shacl's self-declared SHACL 1.2
     conformance statement (S3) - the starlayer.shacl resource in the
     library's one conformance file. Parses the bundled asset fresh on every
@@ -108,29 +107,14 @@ def declared_conformance_profile(*, as_oxigraph: bool = False) -> StarLayerGraph
     elsewhere (see starontology/__init__.py::_file_graph) of never
     sharing one mutable graph object across callers.
 
-    Returns a ``StarLayerGraph``, not a plain ``rdflib.Graph`` - this is a
-    public, caller-facing result meant to be inspected/serialized/merged,
-    not internal plumbing fed straight to pySHACL.
-
     Returns:
-        A fresh StarLayerGraph containing the bundled conformance
-        statement; an ``OxGraph`` with ``as_oxigraph=True``.
+        A fresh ``OxGraph`` containing the bundled conformance statement.
     """
     from starlayer import starontology
-    from starlayer.graph import (
-        StarLayerGraph,  # lazy: avoids a circular-import deadlock
-    )
 
     whole = starontology.get_conformance_profiles()
-    graph = StarLayerGraph()
-    for prefix, namespace in whole.namespaces():
-        graph.bind(prefix, namespace)
-    for triple in whole.triples((_SHACL_SUBJECT, None, None)):
-        graph.add(triple)
-    if as_oxigraph:
-        from starlayer.graph.oxgraph._rdflib_bridge import ox_result
-
-        return ox_result(graph)
+    graph = new_graph(whole)
+    graph.extend(list(whole.triples((_SHACL_SUBJECT, None, None))))
     return graph
 
 
@@ -141,70 +125,34 @@ def _find_report_node(report_graph: Any) -> Any:
 
 
 def _bind_derived_namespaces(graph: Any, *sources: Any) -> None:
-    """Give ``graph`` a clean, deliberate namespace table instead of
-    whatever ``StarLayerGraph()``'s own bare-construction default happens
-    to be - same pattern (and same motivation) as ``validator.py``'s own
-    ``_rebuild_report_namespaces()``, just scoped to what's actually
-    available in this module (no ``data_graph``/``shacl_graph``/
-    ``ont_graph`` graph objects here, only IRIs - ``report_graph``/
-    ``specification_graph`` are the only real graphs this function ever
-    sees).
-
-    Args:
-        graph: The graph to bind namespaces onto, in place.
-        *sources: Graphs whose own bound prefixes are layered on top of
-            ``sh``/``prof``/``dcterms`` (bound unconditionally first,
-            since every triple this module derives uses at least one of
-            them), in the order given, first-bound-wins.
-    """
-    from rdflib import Namespace
-    from rdflib.namespace import NamespaceManager
-
-    from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
-
-    if is_oxigraph_input(graph):  # an OxGraph keeps its prefixes in a plain dict (first bound wins)
-        for prefix, namespace in (("sh", _SH), ("prof", "http://www.w3.org/ns/dx/prof/"), ("dcterms", "http://purl.org/dc/terms/")):
-            graph.prefixes[prefix] = str(namespace)
-        for source in sources:
-            if source is None:
-                continue
-            source_nm = getattr(source, "namespace_manager", None)  # the sources were read as rdflib graphs
-            for prefix, namespace in source_nm.namespaces() if source_nm is not None else ():
-                graph.prefixes.setdefault(prefix, str(namespace))
-        return
-
-    nm = NamespaceManager(graph, bind_namespaces="core")
-    nm.bind("sh", Namespace(_SH))
-    nm.bind("prof", Namespace("http://www.w3.org/ns/dx/prof/"))
-    nm.bind("dcterms", Namespace("http://purl.org/dc/terms/"))
-    graph.namespace_manager = nm
-
+    """Give ``graph`` a deliberate namespace table: ``sh``/``prof``/``dcterms`` (every triple this module derives uses at least one
+    of them), then the prefixes of ``sources`` in the order given, first bound wins."""
+    for prefix, namespace in (("sh", _SH), ("prof", "http://www.w3.org/ns/dx/prof/"), ("dcterms", "http://purl.org/dc/terms/")):
+        graph.prefixes[prefix] = namespace
     for source in sources:
         if source is None:
             continue
-        source_nm = getattr(source, "namespace_manager", None)
-        if source_nm is None:
-            continue
-        for prefix, namespace in source_nm.namespaces():
-            if nm.store.namespace(prefix) is None:
-                nm.bind(prefix, namespace)
+        for prefix, namespace in source.namespaces():
+            graph.prefixes.setdefault(prefix, namespace)
 
 
-def _iri_text(value: Any) -> Any:
-    """A pyoxigraph ``NamedNode`` as its rdflib ``URIRef``; anything else unchanged."""
-    from starlayer.graph.oxgraph._rdflib_bridge import from_engine_if_ox
-
-    return from_engine_if_ox(value)
+def _iri(value: Any) -> Any:
+    """An IRI given as a ``str``, a pyoxigraph ``NamedNode`` or an rdflib ``URIRef``, as a ``NamedNode``."""
+    if isinstance(value, ox.NamedNode):
+        return value
+    if type(value) is str:
+        return ox.NamedNode(value)
+    return to_engine(value)
 
 
 def derive_conforms_to(
     report_graph: Any,
     *,
-    data_graph: str | URIRef | None = None,
-    shapes_graph: str | URIRef | None = None,
+    data_graph: Any | None = None,
+    shapes_graph: Any | None = None,
     specification_graph: Any | None = None,
     conforms_only: bool = False,
-) -> StarLayerGraph:
+) -> Any:
     """Derive ``sh:conformsTo`` triples from a validation report, per
     SHACL 1.2 Profiling S5.5.
 
@@ -263,7 +211,7 @@ def derive_conforms_to(
             reference.
 
     Returns:
-        A new ``StarLayerGraph``. ``report_graph``/``specification_graph``
+        A new ``OxGraph``. ``report_graph``/``specification_graph``
         are read, never mutated.
 
     Raises:
@@ -271,104 +219,59 @@ def derive_conforms_to(
             node, or if a graph identity (``data_graph``/``shapes_graph``)
             is neither supplied nor recoverable from the report.
     """
-    from starlayer.graph.oxgraph._rdflib_bridge import (
-        as_rdflib_graph,
-        is_oxigraph_input,
-        merge_into,
-        ox_result,
-    )
-
-    # an OxGraph / OxDataset / Store argument is read as a snapshot of rdflib terms, and the result comes back as an OxGraph
-    from_oxigraph = is_oxigraph_input(report_graph)
-    if from_oxigraph:
-        return ox_result(derive_conforms_to(
-            as_rdflib_graph(report_graph),
-            data_graph=_iri_text(data_graph),
-            shapes_graph=_iri_text(shapes_graph),
-            specification_graph=as_rdflib_graph(specification_graph) if specification_graph is not None else None,
-            conforms_only=conforms_only,
-        ), report_graph, specification_graph)
+    report_graph = engine_view(report_graph, "report graph")
     if specification_graph is not None:
-        specification_graph = as_rdflib_graph(specification_graph)
-    report_graph = as_rdflib_graph(report_graph)
+        specification_graph = engine_view(specification_graph, "specification graph")
     report_node = _find_report_node(report_graph)
     if report_node is None:
         raise ValueError("report_graph has no sh:ValidationReport node - nothing to derive sh:conformsTo from.")
 
     if data_graph is None:
-        data_graph = next(report_graph.objects(report_node, _SH_usedDataGraph), None)
+        data_graph = next(iter(report_graph.objects(report_node, _SH_usedDataGraph)), None)
         if data_graph is None:
             raise ValueError(
                 "data_graph not supplied and report_graph has no sh:usedDataGraph - "
                 "pass data_graph= explicitly, or re-run validate(..., data_graph_iri=...)."
             )
     if shapes_graph is None:
-        shapes_graph = next(report_graph.objects(report_node, _SH_usedShapesGraph), None)
+        shapes_graph = next(iter(report_graph.objects(report_node, _SH_usedShapesGraph)), None)
         if shapes_graph is None:
             raise ValueError(
                 "shapes_graph not supplied and report_graph has no sh:usedShapesGraph - "
                 "pass shapes_graph= explicitly, or re-run validate(..., shapes_graph_resource=...)."
             )
 
-    data_graph_iri = data_graph if isinstance(data_graph, URIRef) else URIRef(str(data_graph))
-    shapes_graph_iri = shapes_graph if isinstance(shapes_graph, URIRef) else URIRef(str(shapes_graph))
+    data_graph_iri = _iri(data_graph)
+    shapes_graph_iri = _iri(shapes_graph)
 
-    # scratch is pure internal working state, never returned or exposed
-    # to the caller - a plain Graph is fine here on purpose; only
-    # `derived` (the actual return value) needs to be a StarLayerGraph.
-    scratch = Graph()
-    merge_into(scratch, report_graph)
+    # scratch is pure internal working state, never returned or exposed to the caller
+    scratch = new_graph()
+    scratch.extend(list(report_graph.triples((None, None, None))))
     scratch.add((data_graph_iri, _SH_validationReport, report_node))
     scratch.add((report_node, _SH_usedShapesGraph, shapes_graph_iri))
     if specification_graph is not None:
-        merge_into(scratch, specification_graph)
+        scratch.extend(list(specification_graph.triples((None, None, None))))
 
-    # the result is the same kind of graph as ``report_graph`` (an rdflib-based one here; an OxGraph input returned above)
-    from starlayer.graph.graph.starlayer_graph import (
-        StarLayerGraph,  # lazy: avoids a circular-import deadlock
-    )
-
-    new_triples = StarLayerGraph()
-    # The data-graph-resource -> report link itself is "genuinely new
-    # identity this function adds" (see module docstring) - without it,
-    # the sh:conformsTo triple the rule below derives would have no RDF
-    # path back to the report that justified it. Added to new_triples
-    # (not just scratch), so it actually survives into the result rather
-    # than only existing long enough for the query below to fire.
-    new_triples.add((data_graph_iri, _SH_validationReport, report_node))
-    for triple in scratch.query(_CONFORMS_TO_SHAPES_GRAPH_RULE):
-        new_triples.add(triple)
+    # The data-graph-resource -> report link itself is "genuinely new identity this function adds" (see module docstring):
+    # without it, the sh:conformsTo triple the rule below derives would have no RDF path back to the report that justified it.
+    new_triples: list[tuple[Any, Any, Any]] = [(data_graph_iri, _SH_validationReport, report_node)]
+    new_triples.extend(tuple(t) for t in scratch.query(_CONFORMS_TO_SHAPES_GRAPH_RULE))
 
     if specification_graph is not None:
-        merge_into(scratch, new_triples)
-        for triple in scratch.query(_CONFORMS_TO_SPECIFICATION_RULE):
-            new_triples.add(triple)
+        scratch.extend(new_triples)
+        new_triples.extend(tuple(t) for t in scratch.query(_CONFORMS_TO_SPECIFICATION_RULE))
 
-    # conforms_only=True: ONLY the sh:conformsTo/dcterms:conformsTo
-    # triples themselves - not report_graph, and not even the
-    # sh:validationReport link new_triples otherwise carries (that link
-    # exists to justify the claim with a path back to the report, which
-    # conforms_only says isn't wanted). The default merges the full
-    # new_triples - link included - into a fresh copy of report_graph
-    # (never mutating the caller's own object) - self-contained, so that
-    # link resolves to a real node instead of a dangling blank-node
-    # reference when printed/serialized on its own.
+    # conforms_only=True: ONLY the sh:conformsTo/dcterms:conformsTo triples themselves - not report_graph, and not even the
+    # sh:validationReport link. The default merges the full new triples - link included - into a fresh copy of report_graph
+    # (never mutating the caller's own object), so that link resolves to a real node instead of a dangling reference.
+    result = new_graph()
     if conforms_only:
-        result = StarLayerGraph()
-        for triple in new_triples:
-            if triple[1] in (_SH_conformsTo, _DCTERMS_conformsTo):
-                result.add(triple)
+        result.extend([t for t in new_triples if t[1] in (_SH_conformsTo, _DCTERMS_conformsTo)])
     else:
-        result = StarLayerGraph()
-        merge_into(result, report_graph)
-        merge_into(result, new_triples)
+        result.extend(list(report_graph.triples((None, None, None))))
+        result.extend(new_triples)
 
-    # specification_graph first (the caller's own most deliberately-
-    # chosen vocabulary - e.g. a business-policy namespace), then
-    # report_graph (already reasonably populated if it came from
-    # validate(), via that function's own forwarding) - same priority
-    # order validator.py's _rebuild_report_namespaces() already settled
-    # on for the identical "which source wins a prefix collision" choice.
+    # specification_graph first (the caller's own most deliberately-chosen vocabulary), then report_graph
     _bind_derived_namespaces(result, specification_graph, report_graph)
 
     return result

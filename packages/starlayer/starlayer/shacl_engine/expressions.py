@@ -34,8 +34,6 @@ from starlayer.shacl_engine.terms import (
     TRUE,
     XSD,
     Literal,
-    Triple,
-    from_engine,
     text,
 )
 from starlayer.shacl_engine.terms import BlankNode as BNode
@@ -537,38 +535,28 @@ _INFIX = {
 }  # fmt: skip
 _PREFIX = {"logical-not": "!", "unary-plus": "+", "unary-minus": "-"}
 
-_scratch: Any = None
+_SCRATCH_STORE = None  # an empty store: a call needs no data, only the argument values
 
 
 def _run_call(template: str, values: list) -> list:
-    from rdflib import BNode as RBNode
-    from rdflib.namespace import RDF as RRDF
+    import pyoxigraph as ox
 
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-    from starlayer.shacl_engine.sparql_support import starlayer_sparql_query
-
-    global _scratch
-    if _scratch is None:
-        _scratch = StarLayerGraph()
-    graph = (
-        StarLayerGraph() if any(isinstance(v, Triple) for v in values) else _scratch
-    )
-    for (
-        v
-    ) in values:  # the query layer resolves a triple term only if its graph has seen it
-        if isinstance(v, Triple):
-            graph.add((RBNode(), RRDF.value, from_engine(v)))
+    global _SCRATCH_STORE
+    if _SCRATCH_STORE is None:
+        _SCRATCH_STORE = ox.Store()
+    names = [f"a{i}" for i in range(len(values))]
     try:
-        rows = starlayer_sparql_query(  # engine terms in and out; converted inside (the query-layer boundary)
-            graph,
-            f"SELECT ({template} AS ?result) WHERE {{}}",  # str-ok: template is the SPARQL text
-            {f"a{i}": v for i, v in enumerate(values)},
-        ).rows
+        # the arguments are projected as well: Oxigraph applies a pre-binding only to a variable the SELECT lists
+        result = _SCRATCH_STORE.query(
+            f"SELECT {' '.join('?' + n for n in names)} ({template} AS ?result) WHERE {{}}",  # str-ok: template is the SPARQL text
+            substitutions={ox.Variable(n): v for n, v in zip(names, values, strict=True)} or None,
+        )
+        rows = [sol["result"] for sol in result]
     except Exception as exc:  # noqa: BLE001  (a SPARQL evaluation error is an evaluation failure)
         raise EvaluationFailure(f"SPARQL error in {template}: {exc}") from exc  # str-ok: SPARQL text
-    if not rows or "result" not in rows[0]:
+    if not rows or rows[0] is None:
         raise EvaluationFailure(f"SPARQL error in {template}")  # str-ok: SPARQL text
-    return [rows[0]["result"]]
+    return [rows[0]]
 
 
 _ERROR, _UNBOUND, _VALUE = "error", "unbound", "value"

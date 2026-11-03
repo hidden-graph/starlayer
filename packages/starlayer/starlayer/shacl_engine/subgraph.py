@@ -24,8 +24,6 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-from rdflib.term import Node
-
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
 from starlayer.shacl_engine.entailment import resolve_data_view
 from starlayer.shacl_engine.executor import Context
@@ -36,7 +34,6 @@ from starlayer.shacl_engine.terms import (
     RDFS,
     check_graphs,
     engine_view,
-    from_engine_triple,
     text,
     to_engine,
     with_term_policy,
@@ -339,7 +336,7 @@ def extract_subgraph(
 ) -> Any:
     """The subgraph covered by one ``(shape, focus_node)`` pair, or by every entry point the shapes graph declares.
 
-    Same signature and return contract as ``starlayer.shacl.extract_subgraph``: a new ``StarLayerGraph`` that is the
+    Same signature and return contract as ``starlayer.shacl.extract_subgraph``: a new ``OxGraph`` that is the
     union of every conforming pair's extraction, empty (never ``None``) when nothing conforms. ``shacl_graph`` defaults to
     ``data_graph``. ``shape`` alone: that shape's own targets; ``focus_node`` alone: every shape that targets the node;
     both: that pair, whether or not the shape targets the node. ``include_targets`` adds the triples that make each
@@ -348,10 +345,11 @@ def extract_subgraph(
     with a ``UserWarning`` (SPARQL targets are not part of SHACL 1.2).
     """
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
-        if value is not None and not isinstance(value, Node):
-            raise TypeError(f"{argument} must be an rdflib term such as URIRef, not {type(value).__name__}: {value!r}")
+        if value is not None and type(value) is str:  # a bare str is not a term (an rdflib ``URIRef`` is a str subclass)
+            raise TypeError(f"{argument} must be an RDF term such as a NamedNode or URIRef, not {type(value).__name__}: {value!r}")
     check_graphs((data_graph, "data graph"), (shacl_graph, "shapes graph"), (ont_graph, "ontology graph"))
-    shapes = engine_view(shacl_graph if shacl_graph is not None else data_graph, "shapes graph")
+    data_graph = engine_view(data_graph, "data graph")
+    shapes = engine_view(shacl_graph, "shapes graph") if shacl_graph is not None else data_graph
     shape, focus_node = to_engine(shape), to_engine(focus_node)
     plan = Plan(shapes_graph=shapes)
     view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
@@ -388,13 +386,10 @@ def extract_subgraph(
             if include_targets:
                 found |= ex.target_triples(sobj, focus)
 
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    from starlayer.shacl_engine.graphs import new_graph
 
-    out = StarLayerGraph()
-    for t in found:
-        rt = from_engine_triple(t)  # engine terms -> the caller's term model
-        if rt in data_graph:
-            out.add(rt)
+    out = new_graph(data_graph)
+    out.extend([t for t in found if t in data_graph])  # only stored triples: an entailed-only triple never appears
     return out
 
 

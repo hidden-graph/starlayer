@@ -7,20 +7,17 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import URIRef
+import pyoxigraph as ox
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
 from starlayer.shacl_engine.executor import Context, Result, run
 from starlayer.shacl_engine.fidelity import check_lexical_fidelity
-from starlayer.shacl_engine.plan import Path, Plan
+from starlayer.shacl_engine.plan import Plan
 from starlayer.shacl_engine.report import annotate_provenance, build_report, conforms
 from starlayer.shacl_engine.terms import (
-    LegacyTermView,
     StarLayerFidelityWarning,
     check_graphs,
     engine_view,
-    from_engine,
-    from_engine_triple,
     to_engine,
     with_term_policy,
 )
@@ -61,35 +58,33 @@ class Outcome:
         return ExecutionDiagnostics(report_triples=len(self.report_graph), recursion_revisits=self.recursion_revisits, inplace_data_triples=len(self.data_graph) if self.data_graph is not None else 0)
 
 
-def legacy_path(p: Path | None) -> Path | None:
-    """A ``Path`` with rdflib terms (the public ``Outcome.results`` speak the caller's term model)."""
-    if p is None:
-        return None
-    return Path(kind=p.kind, iri=from_engine(p.iri), args=tuple(legacy_path(a) for a in p.args), node=from_engine(p.node))
-
-
-def legacy_result(r: Result) -> Result:
-    """A ``Result`` with rdflib / StarLayer terms: the term-model boundary of ``Outcome.results``."""
-    return Result(
-        focus=from_engine(r.focus),
-        path=legacy_path(r.path),
-        value=from_engine(r.value),
-        has_value=r.has_value,
-        component=from_engine(r.component),
-        shape=from_engine(r.shape),
-        severity=from_engine(r.severity),
-        messages=tuple(from_engine(m) for m in r.messages),
-        source_constraint=from_engine(r.source_constraint),
-        annotations=tuple((from_engine(p), from_engine(v)) for p, v in r.annotations),
-        details=tuple(legacy_result(d) for d in r.details),
-    )
-
-
 def _identity_of(graph: Any) -> Any:
-    """A graph's own IRI (``graph.identifier``) when it has a real one; the anonymous blank node every rdflib graph
-    gets carries no identity worth reporting."""
+    """A graph's own IRI (``graph.identifier``) when it has a real one."""
     ident = getattr(graph, "identifier", None)
-    return ident if isinstance(ident, URIRef) else None
+    return ident if isinstance(ident, ox.NamedNode) else None
+
+
+def _iri_or_none(value: Any) -> Any:
+    """A graph identity the caller passed (a term of either term model, or an IRI as a ``str``) as an engine term."""
+    if value is None or isinstance(value, (ox.NamedNode, ox.Literal)):
+        return value
+    from starlayer.shacl_engine.report import identity_term
+
+    return identity_term(value)
+
+
+def _write_back(view: Any, original: Any) -> None:
+    """``inplace=True``: add the triples of ``view`` (the data plus the inferred and entailed triples) that ``original`` lacks."""
+    triples = list(view.triples((None, None, None)))
+    original = engine_view(original) if isinstance(original, ox.Store) else original
+    if getattr(original, "engine_terms", False):
+        original.extend([t for t in triples if t not in original])
+        return
+    from starlayer.shacl_engine.terms import from_engine_triple
+
+    for triple in map(from_engine_triple, triples):  # a plain rdflib / StarLayerGraph: the caller's term model
+        if triple not in original:
+            original.add(triple)
 
 
 @with_term_policy
@@ -160,10 +155,14 @@ def validate(
     # One up-front check of the caller's graphs for terms that are not RDF terms (``terms.TermError``): raises, or under
     # ``invalid_terms="lenient"`` lists them on ``Outcome.invalid_terms``.
     invalid = check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
-    shapes = shapes_graph
     cache_key = (id(shapes_graph), shapes_graph_resource) if plan_cache is not None and shapes_graph is not None else None
     if plan is None and cache_key is not None:
         plan = plan_cache.get(cache_key)
+    # the term-model boundary: an rdflib / StarLayerGraph input becomes an OxGraph copy; engine terms inside
+    original_data = data_graph
+    data_graph = engine_view(data_graph, "data graph")
+    shapes = engine_view(shapes_graph, "shapes graph")
+    ont_graph = engine_view(ont_graph, "ontology graph")
     # TODO(wiring): the seam for ``imports.resolve_imports`` and ``meta.meta_validate`` (separate modules). Lazy and
     # guarded by ImportError. Imports are resolved only when a loader is given: calling it with none would make the
     # default raise on any unresolved owl:imports, which the lead decides when wiring the old validator's default
@@ -185,6 +184,7 @@ def validate(
                 shapes if shapes is not None else data_graph, meta_shacl=meta_shacl, meta_shapes_extra=meta_shapes_extra
             ).raise_if_invalid()
 
+    data_graph_iri, shapes_graph_iri = _iri_or_none(data_graph_iri), _iri_or_none(shapes_graph_iri)
     if data_graph_iri is None:
         data_graph_iri = _identity_of(data_graph)
     if shapes_graph_resource is not None:
@@ -195,8 +195,8 @@ def validate(
             shapes_graph_iri = resolved
     elif shapes_graph_iri is None and shapes is not None:
         shapes_graph_iri = _identity_of(shapes)
-    original_data = data_graph
-    shapes = engine_view(shapes if shapes is not None else data_graph, "shapes graph")  # the term-model boundary: engine terms inside
+    if shapes is None:
+        shapes = data_graph
     conformance_disallows = to_engine(conformance_disallows)
     data_graph = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
     rule_result = None
@@ -224,9 +224,8 @@ def validate(
     if fidelity is not None:
         run_warnings.append(fidelity)
         warnings.warn(fidelity, StarLayerFidelityWarning, stacklevel=3)
-    shapes_view, data_view = LegacyTermView(shapes), LegacyTermView(data_graph)
     report = build_report(
-        results, shapes, data_graph, conformance_disallows, messages_for=lambda r: result_messages(legacy_result(r), shapes_view, data_view)
+        results, shapes, data_graph, conformance_disallows, messages_for=lambda r: result_messages(r, shapes, data_graph)
     )
     annotate_provenance(
         report,
@@ -243,20 +242,17 @@ def validate(
         specification_graph=specification_graph,
     )
     if inplace and data_graph is not original_data:
-        for triple in list(data_graph.triples((None, None, None))):
-            triple = from_engine_triple(triple)
-            if triple not in original_data:
-                original_data.add(triple)
+        _write_back(data_graph, original_data)
     return Outcome(
         conforms=conforms(results, conformance_disallows),
         report_graph=report,
-        results=[legacy_result(r) for r in results],
+        results=results,
         rule_result=rule_result,
         invalid_terms=invalid,
         warnings=tuple(run_warnings),
         data_graph=original_data if inplace else None,
         recursion_revisits=stats.get("recursion_revisits", 0),
-        _text_inputs=(shapes_view, data_view, data_graph_iri),
+        _text_inputs=(shapes, data_graph, data_graph_iri),
     )
 
 
@@ -276,7 +272,8 @@ def validate_each(
     graphs = list(data_graphs)
     if shapes_graph is None or not graphs:
         return {i: validate(g, None, ont_graph=ont_graph, **kwargs) for i, g in enumerate(graphs)}
-    shapes = shapes_graph
+    shapes = engine_view(shapes_graph, "shapes graph")  # converted once for the whole batch
+    ont_graph = engine_view(ont_graph, "ontology graph")
     shapes_iri = kwargs.pop("shapes_graph_iri", None)
     loader, ignore_imports = kwargs.pop("shapes_graph_loader", None), kwargs.pop("ignore_imports", False)
     meta_shacl, extra = kwargs.pop("meta_shacl", None), kwargs.pop("meta_shapes_extra", ())
@@ -296,7 +293,7 @@ def validate_each(
         shapes_iri = shapes_iri if shapes_iri is not None else resolved
     elif shapes_iri is None:
         shapes_iri = _identity_of(shapes)
-    shared = Plan(shapes_graph=engine_view(shapes, "shapes graph"))
+    shared = Plan(shapes_graph=shapes)
     return {
         i: validate(g, shapes, ont_graph=ont_graph, shapes_graph_iri=shapes_iri, plan=shared, **kwargs)
         for i, g in enumerate(graphs)
@@ -308,13 +305,14 @@ def target_nodes(
     data_graph: Any, shapes_graph: Any, shape_node: Any, *, ont_graph: Any = None, inference: Any = None
 ) -> list:
     """The focus nodes ``shape_node`` targets in ``data_graph`` (the nodes ``validate`` reports on for that shape), in target
-    order and without duplicates. ``shapes_graph=None`` reads the shapes from ``data_graph``. The entailment of ``inference`` and
+    order and without duplicates, as engine (pyoxigraph) terms. ``shapes_graph=None`` reads the shapes from ``data_graph``. The entailment of ``inference`` and
     of the shapes graph's own ``sh:entailment`` is applied first, over the data and ``ont_graph``, without changing either."""
     from starlayer.shacl_engine.entailment import resolve_data_view
 
     check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
-    shapes = engine_view(shapes_graph if shapes_graph is not None else data_graph, "shapes graph")
+    data_graph = engine_view(data_graph, "data graph")
+    shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
     data = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
     plan = Plan(shapes_graph=shapes)
     context = Context(data=data, plan=plan)
-    return [from_engine(node) for node in context.shape_focus(plan.shape(to_engine(shape_node)))]
+    return list(context.shape_focus(plan.shape(to_engine(shape_node))))

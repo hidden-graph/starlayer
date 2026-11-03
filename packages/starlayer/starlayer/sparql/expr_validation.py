@@ -68,4 +68,4 @@ def shapes_graph(*, as_oxigraph: bool = False) -> Graph:
 def ontology_graph(*, as_oxigraph: bool = False) -> Graph:
     """A fresh graph of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression``
     and the variable and path classes). ``as_oxigraph=True`` gives an ``OxGraph`` instead."""
-    return starontology.get_ontology_graph("spexpr_owl", as_oxigraph=as_oxigraph)
+    return starontology.get_ontology_graph("spexpr_owl")

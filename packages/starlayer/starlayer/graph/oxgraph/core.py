@@ -545,9 +545,9 @@ class _Base:
 
         return OxigraphGraph(self.store, self._engine_graph_name(UNION, DEFAULT))
 
-    def sparql_query(self, text: str, init_bindings: Mapping[str, Any] | None = None) -> Any:
-        """The engine's ``SparqlCapable`` hook."""
-        return self.engine_view().sparql_query(text, init_bindings)
+    def sparql_query(self, text: str, init_bindings: Mapping[str, Any] | None = None, custom_functions: Any = None) -> Any:
+        """The engine's ``SparqlCapable`` hook (``custom_functions``: function IRI -> Python callable, as pyoxigraph takes them)."""
+        return self.engine_view().sparql_query(text, init_bindings, custom_functions)
 
     def _engine_graph_name(self, union: Any, default: Any) -> Any:
         raise NotImplementedError

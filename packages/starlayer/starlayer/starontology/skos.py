@@ -43,15 +43,12 @@ logic the way ``srl.srl_validate()`` does for ``srl:``+``salg:``.
 
 from __future__ import annotations
 
-from rdflib import Graph
-
-from starlayer._ox_out import ox_out
+from typing import Any
 
 from . import get_ontology_graph
 
 
-@ox_out("data_graph")
-def skos_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
+def skos_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """Validate ``data_graph`` against the shapes in ``skos_shapes.ttl``.
 
     Deliberately no ``ont_graph``/``inference`` - see this module's own

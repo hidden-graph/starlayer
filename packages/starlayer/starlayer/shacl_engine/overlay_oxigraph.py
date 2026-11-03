@@ -22,7 +22,6 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.shacl_engine.rules import InferredView, Triple
-from starlayer.shacl_engine.terms import from_engine_triple
 
 _SCRATCH = ox.Store()
 _SAFE: dict[tuple, bool] = {}
@@ -100,7 +99,7 @@ class OxigraphOverlay(InferredView):
             except (TypeError, ValueError):
                 return super().add(triple)  # a term pyoxigraph cannot hold: keep it on the Python side
             if self._mat is not None:
-                self._mat.add(from_engine_triple(triple))
+                self._mat.add(triple)
             return True
         return super().add(triple)
 
@@ -179,16 +178,14 @@ class OxigraphOverlay(InferredView):
         s, p, o = triple
         return next(iter(self._store_quads(s, p, o)), None) is not None
 
-    # -- SPARQL: the materialised union stays a StarLayerGraph (it holds the source literals exactly)
+    # -- SPARQL: the materialised union is an OxGraph (the store normalises its literals, as for any query on a store)
     def materialised(self) -> Any:
         if self._mat is None:
-            from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+            from starlayer.shacl_engine.graphs import new_graph
 
-            mat = StarLayerGraph()
-            for tr in self.base.triples((None, None, None)):
-                mat.add(from_engine_triple(tr))
-            for tr in self.inferred:
-                mat.add(from_engine_triple(tr))
+            mat = new_graph()
+            mat.extend(list(self.base.triples((None, None, None))))
+            mat.extend(list(self.inferred))
             self._mat = mat
         return self._mat
 

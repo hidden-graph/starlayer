@@ -40,8 +40,8 @@ _BOOLEAN_PARAMS = ("uniqueLang", "closed", "qualifiedValueShapesDisjoint")
 MESSAGE = (
     "The data graph does not preserve literal lexical forms (Oxigraph normalises them on storage: \"04\"^^xsd:integer "
     "becomes \"4\", \"1\"^^xsd:boolean becomes \"true\"), and the shapes use constraints whose result depends on the "
-    "original lexical form or datatype: {kinds}. Results may differ from validating the same data in a graph that keeps "
-    "lexical forms (an rdflib-backed StarLayerGraph). See StarLayer issue #190; upstream oxigraph#526, oxigraph#1989, PR #2010."
+    "original lexical form or datatype: {kinds}. Results may differ from validating the same data with its lexical forms "
+    "as written. See StarLayer issue #190; upstream oxigraph#526, oxigraph#1989, PR #2010."
 )
 
 

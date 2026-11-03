@@ -1,6 +1,6 @@
 """Entailment regimes for the SHACL engine: ``entailed_view`` and ``resolve_data_view``.
 
-The closure is the project's own (``StarLayerGraph.infer``: the RDFS closure by ``owlrl``'s ``RDFS_Semantics``, the OWL 2 RL
+The closure is the project's own (``OxGraph.infer``: the RDFS closure by ``owlrl``'s ``RDFS_Semantics``, the OWL 2 RL
 fragment by ``owlrl`` for ``OWL-RDF-Based``), computed over the data graph plus ``ont_graph`` and kept as an
 ``InferredView`` overlay: only the newly entailed triples are held, the caller's graphs are never mutated, and
 ``ont_graph``'s own triples are visible to the reasoning but never copied into the view. Class targets and ``sh:class`` read
@@ -16,18 +16,16 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from rdflib import URIRef
+import pyoxigraph as ox
 
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT, SUPPORTED_REGIMES
+from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT, SUPPORTED_REGIMES
 from starlayer.shacl_engine.rules import new_overlay
 from starlayer.shacl_engine.terms import (
     RDF,
     SH,
     engine_view,
-    from_engine,
-    from_engine_triple,
     text,
-    to_engine_triple,
+    to_engine,
 )
 
 _NATIVE = {ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}
@@ -36,15 +34,16 @@ _NATIVE = {ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}
 def normalise_regimes(regime: Any) -> frozenset:
     """The entailment regime IRIs of ``regime``: ``None`` (no entailment), a regime IRI (the W3C entailment regime
     IRIs ``sh:entailment`` uses, e.g. ``ENTAILMENT.RDFS``), or an iterable of them. A plain string must itself be such an IRI;
-    names such as ``'rdfs'`` or ``'owlrl'`` are not accepted. An unsupported regime raises ``ValueError``."""
+    names such as ``'rdfs'`` or ``'owlrl'`` are not accepted. An unsupported regime raises ``ValueError``. The IRIs come
+    back as pyoxigraph ``NamedNode``s (an rdflib ``URIRef`` or an IRI string is accepted)."""
     if regime is None:
         return frozenset()
-    items: Iterable = [regime] if isinstance(regime, (str, URIRef)) else regime
-    out = {URIRef(item) if type(item) is str else item for item in items}
+    items: Iterable = [regime] if isinstance(regime, str) or not hasattr(regime, "__iter__") else regime
+    out = {ox.NamedNode(item) if isinstance(item, str) and type(item) is str else to_engine(item) for item in items}
     unsupported = {r for r in out if r not in _NATIVE}
     if unsupported:
-        supported = sorted(str(r) for r in _NATIVE)  # str-ok: entailment regime IRIs are plain rdflib URIRefs
-        raise ValueError(f"Unsupported entailment regime(s) {sorted(str(r) for r in unsupported)!r}; use one of {supported!r}")  # str-ok: as above
+        supported = sorted(text(r) for r in _NATIVE)
+        raise ValueError(f"Unsupported entailment regime(s) {sorted(text(r) for r in unsupported)!r}; use one of {supported!r}")
     return frozenset(out)
 
 
@@ -55,19 +54,17 @@ def entailed_view(data_graph: Any, regime: Any = ENTAILMENT.RDFS, ont_graph: Any
     data_graph = engine_view(data_graph)
     if not regimes:
         return data_graph
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph, legal_rdf_triples
+    from starlayer.shacl_engine.graphs import new_graph
 
-    data_graph = engine_view(data_graph)
-    combined = StarLayerGraph()
-    for t in data_graph.triples((None, None, None)):  # engine terms -> the closure's rdflib terms (the boundary)
-        combined.add(from_engine_triple(t))
+    combined = new_graph()
+    combined.extend(list(data_graph.triples((None, None, None))))
     if ont_graph is not None:
-        for t in ont_graph.triples((None, None, None)) if hasattr(ont_graph, "triples") else ont_graph:
-            combined.add(t)
+        ont_triples = engine_view(ont_graph, "ontology graph").triples((None, None, None)) if hasattr(ont_graph, "triples") else ont_graph
+        combined.extend([tuple(to_engine(x) for x in t) for t in ont_triples])
     delta = combined.infer(entailment=regimes, mode="delta")
     view = new_overlay(data_graph)
-    for t in legal_rdf_triples(delta):
-        view.add(to_engine_triple(tuple(t)))
+    for t in delta.triples((None, None, None)):
+        view.add(t)
     return view
 
 
@@ -80,10 +77,9 @@ def declared_regimes(shapes: Any) -> frozenset:
     for _s, _p, o in shapes.triples((None, SH.entailment, None)):
         if o == SH.RulesEntailment or (o, RDF.type, SH.RuleSet) in shapes:
             continue
-        regime = from_engine(o)
-        if regime not in SUPPORTED_REGIMES:
+        if text(o) not in SUPPORTED_REGIMES:
             raise ValueError(f"Unsupported entailment regime {text(o)!r}")
-        out.add(regime)
+        out.add(o)
     return frozenset(out)
 
 

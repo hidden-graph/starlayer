@@ -2,67 +2,44 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import Dataset, Graph
-
 
 def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: bool = False) -> Any:
-    """Normalize input graph to StarLayerGraph.
+    """Normalize an input graph to an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``).
 
-    A plain rdflib.Graph, an OxGraph / OxDataset or a bare pyoxigraph Store is always converted (to a snapshot copy). Existing StarLayerGraph
-    instances are returned as-is.
+    An ``OxGraph`` or ``OxDataset`` is returned as it is; a bare ``pyoxigraph.Store`` becomes an ``OxDataset`` over it. A plain
+    ``rdflib.Graph`` or an old-style ``StarLayerGraph`` is converted to an ``OxGraph`` copy (``from_rdflib``: a supported input;
+    literals Oxigraph normalises on insert, such as ``"04"^^xsd:integer``, come out normalised).
 
     Args:
-        value: The graph to normalize - a StarLayerGraph, a plain
-            rdflib.Graph, or an rdflib.Dataset/StarLayerDataset.
-        name: The parameter name to use in a TypeError message, so callers
-            get an error naming their own argument rather than this
-            helper's.
-        force_default_union: When ``value`` is an ``rdflib.Dataset`` (or
-            ``StarLayerDataset``, a subclass), setting this mutates
-            ``value.default_union = True`` before conversion - matching
-            pySHACL's own native behavior when given a raw ``Dataset``
-            directly as ``ont_graph`` (``pyshacl/validator.py``: ``if
-            isinstance(self.ont_graph, rdflib.Dataset):
-            self.ont_graph.default_union = True``), so ontology triples
-            across all named graphs are visible for inference regardless
-            of how the caller constructed the dataset. Not used for
-            ``data_graph``/``shacl_graph`` - pySHACL doesn't auto-union
-            those either, only ``ont_graph``.
-
-    Returns:
-        The normalized StarLayerGraph.
+        value: The graph to normalize.
+        name: The parameter name to use in a TypeError message, so callers get an error naming their own argument.
+        force_default_union: Whether a dataset's named graphs must all be visible (the ontology graph: its axioms count wherever
+            they sit). An ``OxDataset`` without ``default_union`` is viewed through one that has it (the caller's object is not
+            changed); a rdflib dataset has ``default_union`` set on it, as before.
 
     Raises:
-        TypeError: If ``value`` is neither a StarLayerGraph nor an
-            rdflib.Graph, or if starlayer.graph is unavailable.
+        TypeError: If ``value`` is not a graph the library accepts.
     """
-    try:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-    except ImportError as exc:
-        raise TypeError(
-            f"{name} must be a StarLayerGraph, but starlayer.graph is unavailable."
-        ) from exc
+    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
 
-    if isinstance(value, StarLayerGraph):
+    if isinstance(value, OxDataset):
+        if force_default_union and not value.default_union:
+            return OxDataset(store=value.store, prefixes=value.prefixes)
         return value
+    if isinstance(value, OxGraph):
+        return value
+    if force_default_union and hasattr(value, "default_union") and hasattr(value, "graphs"):  # an rdflib Dataset
+        value.default_union = True
+    from starlayer.shacl_engine.terms import engine_view
 
-    from starlayer.graph.oxgraph._rdflib_bridge import (
-        is_oxigraph_input,
-        to_starlayer_graph,
-    )
-
-    if is_oxigraph_input(value):
-        # an OxGraph / OxDataset / pyoxigraph Store: the rdflib-based machinery runs on a snapshot copy
-        return to_starlayer_graph(value)
-
-    if isinstance(value, Graph):
-        if force_default_union and isinstance(value, Dataset):
-            value.default_union = True
-        return StarLayerGraph.from_rdflib(value)
-
-    raise TypeError(
-        f"{name} must be a StarLayerGraph or rdflib.Graph. Got {type(value).__name__}."
-    )
+    try:
+        return engine_view(value, name)
+    except TypeError as exc:
+        if not hasattr(value, "triples"):
+            raise TypeError(
+                f"{name} must be an OxGraph, OxDataset, StarLayerGraph or rdflib.Graph. Got {type(value).__name__}."
+            ) from exc
+        raise
 
 
 def normalize_graph_inputs(
@@ -71,7 +48,7 @@ def normalize_graph_inputs(
     ont_graph: Any | None = None,
 ) -> tuple[Any, Any | None, Any | None]:
     """Normalizes a data/shapes/ontology graph, in any shape a caller may
-    pass, to ``StarLayerGraph`` (or ``None``) via ``normalize_to_starlayer_graph()``.
+    pass, to an Oxigraph-backed graph (or ``None``) via ``normalize_to_starlayer_graph()``.
     """
     data = normalize_to_starlayer_graph(data_graph, name="data_graph")
     shapes = normalize_to_starlayer_graph(shacl_graph, name="shacl_graph") if shacl_graph is not None else None

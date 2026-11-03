@@ -50,7 +50,6 @@ from starlayer.shacl_engine.terms import (
     Literal,
     NamedNode,
     Triple,
-    from_engine_triple,
 )
 from starlayer.shacl_engine.terms import BlankNode as BNode
 from starlayer.shacl_engine.terms import NamedNode as URIRef
@@ -464,17 +463,16 @@ class SerializedPlan(Plan):
 
 
 def plan_from_json(obj: dict, shapes_graph: Any = None) -> Plan:
-    """Rebuild a plan. With ``shapes_graph=None`` a ``StarLayerGraph`` is filled from the ``graph`` term store; else the
+    """Rebuild a plan. With ``shapes_graph=None`` an ``OxGraph`` is filled from the ``graph`` term store; else the
     given graph is used for expressions, lists and SPARQL nodes (it must be the graph the plan was built from)."""
     version = obj.get("format_version")
     if version != FORMAT_VERSION:
         raise ValueError(f"unsupported plan format_version {version!r} (this reader reads {FORMAT_VERSION})")
     if shapes_graph is None:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from starlayer.shacl_engine.graphs import new_graph
 
-        shapes_graph = StarLayerGraph()
-        for s, p, o in obj["graph"]:
-            shapes_graph.add(from_engine_triple((term_from_json(s), term_from_json(p), term_from_json(o))))
+        shapes_graph = new_graph()
+        shapes_graph.extend([(term_from_json(s), term_from_json(p), term_from_json(o)) for s, p, o in obj["graph"]])
     plan = SerializedPlan(
         shapes_graph=shapes_graph,
         declared=[term_from_json(t) for t in obj["declared"]],
@@ -490,11 +488,11 @@ def plan_from_json(obj: dict, shapes_graph: Any = None) -> Plan:
 
 
 def load_shapes_graph(location: str) -> Any:
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    from starlayer.shacl_engine.graphs import new_graph
 
-    g = StarLayerGraph()
+    g = new_graph()
     fmt = "turtle12" if location.endswith((".ttl", ".turtle")) else None
-    g.parse(location=location, format=fmt)
+    g.parse(location, format=fmt)
     return g
 
 

@@ -27,7 +27,6 @@ import pyoxigraph as ox
 from starlayer.shacl_engine.terms import (
     check_graphs,
     from_engine,
-    from_engine_triple,
     to_engine,
 )
 
@@ -157,60 +156,55 @@ class OxigraphGraph:
         return sum(1 for _ in self.triples((None, None, None)))
 
     # ---- SPARQL -------------------------------------------------------------------------------------------------
-    def sparql_query(self, text: str, init_bindings: dict[str, Any] | None = None) -> Any:
-        """The ``SparqlCapable`` hook (see ``interface.py``): SELECT/ASK with pre-bound variables, run natively.
-        Oxigraph requires a substituted variable to be projected; when it is not, the query is run through
-        StarLayer's query layer on a StarLayerGraph copy instead (slower, same answer)."""
-        from starlayer.shacl_engine.interface import Solutions
-
+    def _run(self, text: str, init_bindings: dict[str, Any] | None, base_iri: str | None, custom_functions: Any) -> Any:
+        """The raw pyoxigraph result. Pre-bound variables use ``substitutions``; Oxigraph requires a substituted variable to
+        be projected, so for one that is not, the binding goes in as ``VALUES`` (a blank node, which cannot be written there,
+        is added to the projection and dropped again): the same fallback as ``OxGraph.query``."""
         subs = {ox.Variable(str(k).lstrip("?$")): to_ox(v) for k, v in (init_bindings or {}).items()} or None
-        kwargs: dict[str, Any] = {"substitutions": subs}
+        kwargs: dict[str, Any] = {}
+        if base_iri is not None:
+            kwargs["base_iri"] = base_iri
+        if custom_functions:
+            kwargs["custom_functions"] = custom_functions
         if self._graph is None:
             kwargs["use_default_graph_as_union"] = True
         else:
             kwargs["default_graph"] = self._graph
         try:
-            result = self.store.query(text, **kwargs)
-        except RuntimeError:
-            from starlayer.shacl_engine.sparql_support import starlayer_sparql_query
+            return self.store.query(text, **kwargs, **({"substitutions": subs} if subs else {}))
+        except RuntimeError as exc:
+            if not subs or "projection" not in f"{exc}":  # str-ok: an exception message
+                raise
+            from starlayer.graph.backends.native import inject_init_bindings
+            from starlayer.graph.oxgraph import run as oxrun
 
-            return starlayer_sparql_query(self.to_starlayer_graph(), text, init_bindings)
+            if any(oxrun._has_blank(v) for v in subs.values()):
+                return oxrun._query_widening(self.store, text, kwargs, subs, exc)
+            injected = inject_init_bindings(text, {k.value: oxrun._Inline(v) for k, v in subs.items()})
+            return self.store.query(injected, **kwargs)
+
+    def sparql_query(self, text: str, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None) -> Any:
+        """The ``SparqlCapable`` hook (see ``interface.py``): SELECT/ASK with pre-bound variables, run natively.
+        ``custom_functions`` maps function IRIs to Python callables (pyoxigraph ``custom_functions``)."""
+        from starlayer.shacl_engine.interface import Solutions
+
+        result = self._run(text, init_bindings, None, custom_functions)
         if isinstance(result, ox.QueryBoolean):
             return Solutions(boolean=bool(result))
         names = tuple(v.value for v in result.variables)
         rows = tuple({n: sol[n] for n in names if sol[n] is not None} for sol in result)
         return Solutions(variables=names, rows=rows)
 
-    def to_starlayer_graph(self) -> Any:
-        """A StarLayerGraph copy of this view (cached until the store changes size)."""
-        cached = getattr(self, "_sl_copy", None)
-        if cached is not None and cached[0] == len(self):
-            return cached[1]
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-        g = StarLayerGraph()
-        for s, p, o in self.triples((None, None, None)):
-            g.add(from_engine_triple((s, p, o)))
-        self._sl_copy = (len(self), g)
-        return g
-
-    def query(self, text: str, init_bindings: dict[str, Any] | None = None, *, base_iri: str | None = None) -> Any:
+    def query(
+        self, text: str, init_bindings: dict[str, Any] | None = None, *, base_iri: str | None = None, custom_functions: Any = None
+    ) -> Any:
         """Run SPARQL natively. SELECT -> ``list[dict[str, term]]`` (unbound variables absent); ASK -> ``bool``;
         CONSTRUCT/DESCRIBE -> ``list[(s, p, o)]``. ``init_bindings`` maps variable names (with or without ``?``/``$``)
-        to engine terms and uses pyoxigraph ``substitutions``."""
-        subs = {ox.Variable(str(k).lstrip("?$")): to_ox(v) for k, v in (init_bindings or {}).items()} or None
-        kwargs: dict[str, Any] = {"base_iri": base_iri, "substitutions": subs}
-        if self._graph is None:
-            kwargs["use_default_graph_as_union"] = True
-        else:
-            kwargs["default_graph"] = self._graph
-        result = self.store.query(text, **kwargs)
+        to engine terms."""
+        result = self._run(text, init_bindings, base_iri, custom_functions)
         if isinstance(result, ox.QueryBoolean):
             return bool(result)
-        if isinstance(result, ox.QuerySolutions):
+        if hasattr(result, "variables"):
             names = [v.value for v in result.variables]
-            return [
-                {n: sol[n] for n in names if sol[n] is not None}
-                for sol in result
-            ]
+            return [{n: sol[n] for n in names if sol[n] is not None} for sol in result]
         return [(t.subject, t.predicate, t.object) for t in result]

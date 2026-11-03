@@ -9,17 +9,14 @@ old preflight (``allow_warnings=True``).
 The engine's ``validate`` is imported lazily (``api`` may import this module).
 """
 
-# str-ok-file: formats boundary results (legacy_result): rdflib terms only
-
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import Namespace
+from starlayer.shacl_engine.terms import SH, engine_view, iri_text, text
 
-SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: this module works on the caller's graphs
 META_ERROR_PREFIX = "SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file."
 
 
@@ -44,10 +41,10 @@ def _report_text(conforms: bool, results: list) -> str:
     if results:
         lines.append(f"Results ({len(results)}):")
     for r in results:
-        sev = str(r.severity).rsplit("#", 1)[-1]
-        msg = "; ".join(str(m) for m in r.messages)
-        lines.append(f"{sev} in {str(r.component).rsplit('#', 1)[-1]} ({r.shape}):\n\tFocus Node: {r.focus}"
-                     + (f"\n\tValue Node: {r.value}" if r.has_value else "")
+        sev = iri_text(r.severity).rsplit("#", 1)[-1]
+        msg = "; ".join(text(m) for m in r.messages)
+        lines.append(f"{sev} in {iri_text(r.component).rsplit('#', 1)[-1]} ({text(r.shape)}):\n\tFocus Node: {text(r.focus)}"  # str-ok: report text
+                     + (f"\n\tValue Node: {text(r.value)}" if r.has_value else "")
                      + (f"\n\tMessage: {msg}" if msg else ""))
     return "\n".join(lines)
 
@@ -72,7 +69,6 @@ def meta_validate(
     ``meta_shapes_extra`` is an alias of ``extra`` and ``meta_shacl`` the validate-option spelling: when ``meta_shacl`` is
     truthy the call raises ``MetaShaclError`` on an invalid shapes graph (the preflight form ``api.validate`` uses).
     """
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
     from starlayer.shacl.meta_shapes import (
         load_meta_shapes_graph,
         parameter_value_shapes,
@@ -81,15 +77,14 @@ def meta_validate(
     if engine_validate is None:
         from starlayer.shacl_engine.api import validate as engine_validate
 
+    shapes_graph = engine_view(shapes_graph, "shapes graph")
+
     meta = load_meta_shapes_graph(tuple(meta_shapes_extra if meta_shapes_extra is not None else extra))
     meta += parameter_value_shapes(shapes_graph)
-    meta_view = StarLayerGraph()
-    for t in meta:
-        meta_view.add(t)
     # old preflight: allow_warnings tolerates Warning and Info, allow_infos only Info; passing None/False (what
     # ``validate(allow_warnings=None)`` forwards) makes them count
     disallows = SH.Violation if allow_warnings else SH.Warning if allow_infos else SH.Info
-    outcome = engine_validate(shapes_graph, meta_view, conformance_disallows=disallows, rules=False,
+    outcome = engine_validate(shapes_graph, meta, conformance_disallows=disallows, rules=False,
                               meta_shacl=False, ignore_imports=True)
     result = MetaResult(
         conforms=outcome.conforms,

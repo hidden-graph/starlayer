@@ -21,12 +21,19 @@ from collections import OrderedDict
 from collections.abc import Iterable, Iterator
 from typing import Any
 
-from rdflib import RDF, Graph, Literal, Namespace, URIRef
-from rdflib.namespace import OWL
+import pyoxigraph as ox
 
-from starlayer._ox_out import ox_out
-
-SH = Namespace("http://www.w3.org/ns/shacl#")
+from starlayer.shacl_engine.graphs import new_graph
+from starlayer.shacl_engine.terms import (
+    OWL,
+    RDF,
+    SH,
+    XSD,
+    engine_view,
+    integer,
+    text,
+    to_engine,
+)
 
 # check_sparql_query_text()'s own SALG structural-validation result cache -
 # salg.validate_query() is a real pySHACL validation pass (shapes/ontology
@@ -44,8 +51,8 @@ _SPARQL_STRUCTURE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
 
 
 
-def parameter_value_shapes(shapes_graph: Any) -> Graph:
-    """Shapes that check what a shapes graph gives for the parameters of its constraint components.
+def parameter_value_shapes(shapes_graph: Any) -> Any:
+    """Shapes that check what a shapes graph gives for the parameters of its constraint components, as an ``OxGraph``.
 
     SPARQL Extensions 4.2.1: "Shapes that do not conform with the constraints declared for the parameters are ill-formed." A parameter
     of a ``sh:ConstraintComponent`` is a property shape (``sh:datatype``, ``sh:nodeKind``, ``sh:class``, ``sh:in``, ...) for the values a
@@ -57,11 +64,10 @@ def parameter_value_shapes(shapes_graph: Any) -> Graph:
     Only a parameter whose path is an IRI is used; the parameter's own triples (and what hangs from its blank nodes) are copied, so the
     returned graph shares no blank node with ``shapes_graph`` beyond the parameter's own label.
     """
-    from rdflib import BNode, URIRef
-    from rdflib.namespace import RDF
+    from starlayer.shacl_engine.sparql_support import is_true
 
-    sh = Namespace("http://www.w3.org/ns/shacl#")
-    result = Graph()
+    shapes_graph = engine_view(shapes_graph, "shapes graph")
+    out: list[tuple[Any, Any, Any]] = []
 
     def copy_constraints(parameter: Any) -> None:
         pending, seen = [parameter], set()
@@ -71,64 +77,67 @@ def parameter_value_shapes(shapes_graph: Any) -> Graph:
                 continue
             seen.add(node)
             for s_, p_, o_ in shapes_graph.triples((node, None, None)):
-                if p_ in (sh.optional, sh.keyParameter, sh.name, sh.description, sh.order, sh.group):
+                if p_ in (SH.optional, SH.keyParameter, SH.name, SH.description, SH.order, SH.group):
                     continue  # (what a parameter says about itself, not a constraint on its values)
-                result.add((s_, p_, o_))
-                if isinstance(o_, BNode):
+                out.append((s_, p_, o_))
+                if isinstance(o_, ox.BlankNode):
                     pending.append(o_)
-        result.add((parameter, RDF.type, sh.PropertyShape))
+        out.append((parameter, RDF.type, SH.PropertyShape))
 
-    components = set(shapes_graph.subjects(RDF.type, sh.ConstraintComponent))
+    def iri_paths(parameter: Any) -> list[Any]:
+        return [p for p in shapes_graph.objects(parameter, SH.path) if isinstance(p, ox.NamedNode)]
+
+    components = set(shapes_graph.subjects(RDF.type, SH.ConstraintComponent))
     for component in components:
-        for parameter in shapes_graph.objects(component, sh.parameter):
-            paths = [p for p in shapes_graph.objects(parameter, sh.path) if isinstance(p, URIRef)]
+        for parameter in shapes_graph.objects(component, SH.parameter):
+            paths = iri_paths(parameter)
             if len(paths) != 1:
                 continue
             copy_constraints(parameter)
-            result.add((parameter, sh.targetSubjectsOf, paths[0]))
+            out.append((parameter, SH.targetSubjectsOf, paths[0]))
 
     # A rule template (Inference Rules 12): its instances give each parameter as a property. The values must satisfy the parameter's own
     # constraints (a violation); an instance takes one value of each (a violation) and needs one of each required parameter (a warning: an
     # instance is typed before its values are given, so a missing value must not refuse the edit that is half way there).
-    from rdflib import Literal
-
-    for template in set(shapes_graph.subjects(RDF.type, sh.SPARQLRuleTemplate)):
-        instance_shape = BNode()
-        result.add((instance_shape, RDF.type, sh.NodeShape))
-        result.add((instance_shape, sh.targetClass, template))
-        for parameter in shapes_graph.objects(template, sh.parameter):
-            paths = [p for p in shapes_graph.objects(parameter, sh.path) if isinstance(p, URIRef)]
+    for template in set(shapes_graph.subjects(RDF.type, SH.SPARQLRuleTemplate)):
+        instance_shape = ox.BlankNode()
+        out.append((instance_shape, RDF.type, SH.NodeShape))
+        out.append((instance_shape, SH.targetClass, template))
+        for parameter in shapes_graph.objects(template, SH.parameter):
+            paths = iri_paths(parameter)
             if len(paths) != 1:
                 continue
             copy_constraints(parameter)
-            result.add((instance_shape, sh.property, parameter))
-            at_most = BNode()
-            result.add((instance_shape, sh.property, at_most))
-            result.add((at_most, sh.path, paths[0]))
-            result.add((at_most, sh.maxCount, Literal(1)))
-            result.add((at_most, sh.message, Literal(f"An instance of {template} takes one value of {paths[0]}.", lang="en")))
-            if not any(isinstance(v, Literal) and bool(v.value) for v in shapes_graph.objects(parameter, sh.optional)):
-                required = BNode()
-                result.add((instance_shape, sh.property, required))
-                result.add((required, sh.path, paths[0]))
-                result.add((required, sh.minCount, Literal(1)))
-                result.add((required, sh.severity, sh.Warning))
-                result.add((required, sh.message, Literal(f"An instance of {template} needs a value of {paths[0]}.", lang="en")))
+            out.append((instance_shape, SH.property, parameter))
+            at_most = ox.BlankNode()
+            out.append((instance_shape, SH.property, at_most))
+            out.append((at_most, SH.path, paths[0]))
+            out.append((at_most, SH.maxCount, integer(1)))
+            out.append((at_most, SH.message, ox.Literal(f"An instance of {text(template)} takes one value of {text(paths[0])}.", language="en")))
+            if not any(isinstance(v, ox.Literal) and is_true(v) for v in shapes_graph.objects(parameter, SH.optional)):
+                required = ox.BlankNode()
+                out.append((instance_shape, SH.property, required))
+                out.append((required, SH.path, paths[0]))
+                out.append((required, SH.minCount, integer(1)))
+                out.append((required, SH.severity, SH.Warning))
+                out.append((required, SH.message, ox.Literal(f"An instance of {text(template)} needs a value of {text(paths[0])}.", language="en")))
 
     # A template's query is run with each parameter bound as a variable named after the local name of its path; $this is the focus node. A variable
     # the query builds a triple from that neither the parameters nor its own pattern bind is never bound, so the rule infers nothing (a warning).
-    for template in sorted(set(shapes_graph.subjects(RDF.type, sh.SPARQLRuleTemplate)), key=str):
+    for template in sorted(set(shapes_graph.subjects(RDF.type, SH.SPARQLRuleTemplate)), key=text):
         unbound = _template_unbound_variables(shapes_graph, template)
         if unbound:
-            warn = BNode()
-            result.add((warn, RDF.type, sh.NodeShape))
-            result.add((warn, sh.targetNode, template))
-            empty = BNode()
-            result.add((warn, sh["not"], empty))
-            result.add((empty, RDF.type, sh.NodeShape))   # (an empty shape always holds, so its negation never does: the warning is reported on the template)
-            result.add((warn, sh.severity, sh.Warning))
+            warn = ox.BlankNode()
+            out.append((warn, RDF.type, SH.NodeShape))
+            out.append((warn, SH.targetNode, template))
+            empty = ox.BlankNode()
+            out.append((warn, SH["not"], empty))
+            out.append((empty, RDF.type, SH.NodeShape))   # (an empty shape always holds, so its negation never does: the warning is reported on the template)
+            out.append((warn, SH.severity, SH.Warning))
             names = ", ".join("$" + name for name in unbound)
-            result.add((warn, sh.message, Literal(f"The query builds triples from {names}, which no parameter binds and its pattern does not, so no triple is made from it.", lang="en")))
+            out.append((warn, SH.message, ox.Literal(f"The query builds triples from {names}, which no parameter binds and its pattern does not, so no triple is made from it.", language="en")))
+    result = new_graph()
+    result.extend(out)
     return result
 
 
@@ -137,11 +146,11 @@ def _template_unbound_variables(shapes_graph: Any, template: Any) -> list[str]:
     the query's own pattern. Empty when the query does not parse (that is reported elsewhere) or the template has no single query."""
     import starlayer.sparql
 
-    texts = [str(t) for t in shapes_graph.objects(template, SH.construct) if isinstance(t, Literal)]
+    texts = [t.value for t in shapes_graph.objects(template, SH.construct) if isinstance(t, ox.Literal)]
     if len(texts) != 1:
         return []
     try:
-        query = starlayer.sparql.prepare_query_12(texts[0], initNs={**{str(p): URIRef(str(ns)) for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, template)})
+        query = starlayer.sparql.prepare_query_12(texts[0], initNs={**{p: ns for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, template)})
         algebra = query.algebra
         if algebra.name != "ConstructQuery":
             return []
@@ -149,12 +158,12 @@ def _template_unbound_variables(shapes_graph: Any, template: Any) -> list[str]:
         bound = {str(v) for v in getattr(algebra.p, "_vars", ())}
     except Exception:  # noqa: BLE001 - a query that cannot be read is reported by sparql_query_problems
         return []
-    local = lambda iri: re.split(r"[#/]", str(iri))[-1]  # noqa: E731
+    local = lambda iri: re.split(r"[#/]", text(iri))[-1]  # noqa: E731
     parameters = {local(path) for parameter in shapes_graph.objects(template, SH.parameter) for path in shapes_graph.objects(parameter, SH.path)}
     return sorted(used - bound - parameters - {"this"})
 
 
-def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
+def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
     """The meta-shapes graph ``meta_validate()`` checks against, read from
     the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl_shacl"``
     entry) rather than reassembled from the Working Group's meta-shapes and
@@ -167,37 +176,33 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Graph:
     file with a fresh build and fails on drift.
 
     The file is parsed once per process by ``starontology`` and cached there;
-    each call returns a fresh copy, so ``extra_graphs`` can be added (plain
+    each call returns a fresh ``OxGraph`` copy, so ``extra_graphs`` can be added (plain
     triple addition) without affecting later calls.
     """
     # Lazy: starontology must finish importing before this module reads it.
     from starlayer import starontology
 
-    graph = Graph()
-    from starlayer.graph.oxgraph._rdflib_bridge import merge_into
-
-    merge_into(graph, starontology.get_ontology_graph("shacl_shacl"))
+    stored = starontology.get_ontology_graph("shacl_shacl")
+    graph = new_graph(stored)
+    graph.extend(list(stored.triples((None, None, None))))
     for extra in extra_graphs:
-        for triple in extra:
-            graph.add(triple)
+        triples = engine_view(extra, "extra meta-shapes graph").triples((None, None, None)) if hasattr(extra, "triples") else extra
+        graph.extend([tuple(to_engine(x) for x in triple) for triple in triples])
     return graph
 
 
 
 
-@ox_out("shapes_graph")
 def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwargs: Any) -> tuple[bool, Any, str]:
     """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
 
     Returns ``(conforms, report_graph, report_text)`` and raises ``MetaShaclError`` (message starting "SHACL File does not validate
     against the SHACL Shapes SHACL (MetaSHACL) file.") when the shapes graph does not conform. A warning-severity meta-shape is
     advice: it appears in the report but does not make the graph invalid (``allow_warnings=True``; pass ``allow_warnings=False`` to
-    count warnings, ``allow_infos=True`` to tolerate infos only). ``extra_graphs`` are added to the meta-shapes. An ``OxGraph`` is
-    validated as a snapshot and the report comes back as an ``OxGraph``."""
-    from starlayer.graph.oxgraph._rdflib_bridge import read_boundary
+    count warnings, ``allow_infos=True`` to tolerate infos only). ``extra_graphs`` are added to the meta-shapes. The report is
+    an ``OxGraph``."""
     from starlayer.shacl_engine.meta import meta_validate as engine_meta_validate
 
-    (shapes_graph,) = read_boundary(shapes_graph)
     result = engine_meta_validate(
         shapes_graph,
         extra=extra_graphs,
@@ -210,7 +215,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     return result.conforms, result.report_graph, result.report_text
 
 
-def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any]:
+def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str]:
     """Resolve the prefix map a ``sh:select``/``sh:ask``/``sh:construct``
     query at ``query_node`` would actually see at real execution time -
     same algorithm as pySHACL's own
@@ -221,18 +226,18 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any
 
     Only ``sh:prefixes`` / ``sh:declare`` declare prefixes (SHACL SPARQL Extensions); there is no ambient lookup.
     """
-    prefixes: dict[str, Any] = {
-        "rdf": URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#"),
-        "rdfs": URIRef("http://www.w3.org/2000/01/rdf-schema#"),
-        "owl": URIRef("http://www.w3.org/2002/07/owl#"),
+    prefixes: dict[str, str] = {
+        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "owl": "http://www.w3.org/2002/07/owl#",
     }
 
     prefixes_vals = set(shapes_graph.objects(query_node, SH.prefixes))
     if not prefixes_vals:
         return prefixes
 
-    g_name = shapes_graph.identifier
-    ng_declares = set(shapes_graph.objects(g_name, SH.declare)) if g_name else set()
+    g_name = getattr(shapes_graph, "identifier", None)
+    ng_declares = set(shapes_graph.objects(g_name, SH.declare)) if g_name is not None else set()
     onts = set(shapes_graph.subjects(RDF.type, OWL.Ontology))
     ont_declares: set = set()
     for o in onts:
@@ -246,11 +251,11 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, Any
             prefix_vals = list(shapes_graph.objects(dec, SH.prefix))
             ns_vals = list(shapes_graph.objects(dec, SH.namespace))
             if len(prefix_vals) == 1 and len(ns_vals) == 1:
-                prefixes[str(prefix_vals[0])] = URIRef(str(ns_vals[0]))
+                prefixes[text(prefix_vals[0])] = text(ns_vals[0])
     return prefixes
 
 
-def _sparql_structure_cache_key(predicate: Any, text_literal: Literal, prefixes: dict, is_target: bool) -> tuple:
+def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dict, is_target: bool) -> tuple:
     """Cache key for one query's structural-validation outcome - the exact
     inputs the *effective* (exemption-applied) result depends on for this
     one embedded query: which predicate carried it (part of the error
@@ -266,8 +271,8 @@ def _sparql_structure_cache_key(predicate: Any, text_literal: Literal, prefixes:
     """
     return (
         predicate,
-        str(text_literal),
-        tuple(sorted(((str(k), str(v)) for k, v in prefixes.items()))),
+        text(text_literal),
+        tuple(sorted(prefixes.items())),
         is_target,
     )
 
@@ -297,7 +302,7 @@ def _sparql_structure_cache_key(predicate: Any, text_literal: Literal, prefixes:
 _SHACL_PREBOUND_VARIABLE_NAMES = frozenset({"this", "value", "PATH"})
 
 
-def _is_prebound_variable_only_report(report_graph: Graph) -> bool:
+def _is_prebound_variable_only_report(report_graph: Any) -> bool:
     """True iff every violation in a ``salg.validate_query()`` report is a
     ``salg:noUnboundProjectedVariables`` hit naming only a SHACL pre-bound
     pseudo-variable (``$this``/``$value``/``$PATH``) - a false positive
@@ -308,15 +313,17 @@ def _is_prebound_variable_only_report(report_graph: Graph) -> bool:
     """
     from starlayer.sparql import SALG
 
+    report_graph = engine_view(report_graph, "SALG report")  # whatever graph class the SPARQL layer returns
+    unbound_component = f"{SALG.NoUnboundProjectedVariablesConstraintComponent}"  # str-ok: an IRI of an rdflib Namespace
     results = list(report_graph.subjects(RDF.type, SH.ValidationResult))
     if not results:
         return False
     for result in results:
         component = report_graph.value(result, SH.sourceConstraintComponent)
-        if component != SALG.NoUnboundProjectedVariablesConstraintComponent:
+        if component is None or text(component) != unbound_component:
             return False
         value = report_graph.value(result, SH.value)
-        if value is None or str(value) not in _SHACL_PREBOUND_VARIABLE_NAMES:
+        if value is None or text(value) not in _SHACL_PREBOUND_VARIABLE_NAMES:
             return False
     return True
 
@@ -393,15 +400,16 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
     import starlayer.sparql
     from starlayer.sparql import salg
 
+    shapes_graph = engine_view(shapes_graph, "shapes graph")
     for predicate in (SH.select, SH.ask, SH.construct):
-        name = predicate.n3(shapes_graph.namespace_manager)
+        name = shapes_graph.qname_term(predicate)
         for query_node, text_literal in shapes_graph.subject_objects(predicate):
-            if not isinstance(text_literal, Literal) or not isinstance(text_literal.value, str):
+            if not isinstance(text_literal, ox.Literal) or not (text_literal.language or text_literal.datatype == XSD.string):
                 continue  # not xsd:string - already caught by the meta-shapes structural check
             # The engine also resolves a prefix the graph itself binds (a file's @prefix, with no sh:declare), so this does too.
-            prefixes = {**{str(p): URIRef(str(ns)) for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, query_node)}
+            prefixes = {**{p: ns for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, query_node)}
             try:
-                query = starlayer.sparql.prepare_query_12(str(text_literal), initNs=prefixes)
+                query = starlayer.sparql.prepare_query_12(text_literal.value, initNs=prefixes)
             except Exception as exc:
                 yield query_node, predicate, f"{name} value is not valid SPARQL: {exc}"
                 continue

@@ -24,19 +24,9 @@ from starlayer.shacl_engine.plan import SH, Plan
 from starlayer.shacl_engine.terms import (
     check_graphs,
     engine_view,
-    from_engine_triple,
     to_engine,
     with_term_policy,
 )
-
-
-def _new_graph(like: Any) -> Any:
-    try:
-        return type(like)()
-    except Exception:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-        return StarLayerGraph()
 
 
 @with_term_policy
@@ -57,12 +47,13 @@ def evaluate(
     to that closure only); entailed triples count as stored triples. ``rules_entailment`` also runs the rules the
     shapes graph's ``sh:entailment`` selects, before evaluating. ``focus_nodes`` restricts evaluation to those nodes (the
     shapes' targets are still resolved over the whole data graph); ``properties`` to property shapes whose ``sh:path`` is one
-    of those predicates. Returns a new graph of the data graph's type, prefixes copied.
+    of those predicates. Returns a new graph (an ``OxGraph``) with the data graph's prefixes.
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 
     check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
-    shapes = engine_view(shapes_graph if shapes_graph is not None else data_graph, "shapes graph")
+    data_graph = engine_view(data_graph, "data graph")
+    shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
     view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
     if rules_entailment:
         from starlayer.shacl_engine.rules import apply_rules, entailment_selection
@@ -76,9 +67,10 @@ def evaluate(
     wanted_focus = None if focus_nodes is None else frozenset(to_engine(n) for n in focus_nodes)
     wanted_predicates = None if properties is None else frozenset(to_engine(p) for p in properties)
 
-    out = _new_graph(data_graph)
-    for prefix, ns in getattr(data_graph, "namespaces", lambda: ())():
-        out.bind(prefix, ns)
+    from starlayer.shacl_engine.graphs import new_graph
+
+    out = new_graph(data_graph)
+    found: list = []
 
     candidates = dict.fromkeys([*plan.all_shape_nodes(), *shapes.subjects(SH.path, None)])
     for node in candidates:
@@ -99,6 +91,7 @@ def evaluate(
             if deactivated_at(ctx, pshape, focus):
                 continue
             for value in ctx.value_nodes(pshape, focus):
-                out.add(from_engine_triple((focus, predicate, value)))
+                found.append((focus, predicate, value))
+    out.extend(found)
     return out
 

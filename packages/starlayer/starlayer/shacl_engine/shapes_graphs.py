@@ -16,41 +16,32 @@ includes those triples. It turns a production shape into the strict form a fragm
 project extension; SHACL has no such operation.
 """
 
-# str-ok-file: works on the caller's rdflib graphs (rdflib terms only; no engine terms)
-
 from __future__ import annotations
 
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, Literal, Namespace, URIRef
-from rdflib.collection import Collection
+from starlayer.shacl_engine.graphs import add_list, copy_cbd, list_items, new_graph
+from starlayer.shacl_engine.terms import (
+    OWL,
+    RDF,
+    RDFS,
+    SH,
+    BlankNode,
+    NamedNode,
+    engine_view,
+    n3,
+    text,
+    to_engine,
+)
+from starlayer.shacl_engine.terms import boolean as _boolean_literal
 
-SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: this module reads and writes the caller's graphs
 _GRAPH_TYPES = (SH.Graph, SH.ShapesGraph, SH.DataGraph, SH.RulesGraph)
 _SHAPE_REFERENCES = ("node", "property", "not", "qualifiedValueShape", "reifierShape", "someValue", "memberShape")
 _SHAPE_LIST_REFERENCES = ("and", "or", "xone")
 
 
-def _new_graph(source: Any) -> Any:
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    out = StarLayerGraph()
-    if hasattr(source, "namespaces"):
-        for prefix, ns in source.namespaces():
-            out.bind(prefix, ns)
-    return out
-
-
 def _items(graph: Any, head: Any) -> list:
-    out, seen = [], set()
-    while head is not None and head != RDF.nil and head not in seen:
-        seen.add(head)
-        first = next(iter(graph.objects(head, RDF.first)), None)
-        if first is None:
-            break
-        out.append(first)
-        head = next(iter(graph.objects(head, RDF.rest)), None)
-    return out
+    return list_items(graph, head)
 
 
 def _graph_types(graph: Any) -> set:
@@ -81,7 +72,7 @@ def module_nodes(graph: Any, shapes_graph: Any) -> set:
                 continue
             if not _is_graph_node(graph, imported):
                 raise ValueError(
-                    f"{current!r} declares owl:imports {imported!r}, but {imported!r} is not typed `a sh:Graph` (or "
+                    f"{text(current)} declares owl:imports {text(imported)}, but {text(imported)} is not typed `a sh:Graph` (or "
                     "sh:ShapesGraph, sh:DataGraph, sh:RulesGraph) in this graph: it has no triples describing it, or is not a "
                     "packaging module (resolve the import first)."
                 )
@@ -120,21 +111,10 @@ def referenced_shapes(graph: Any, starting_points: Any) -> set:
             if target in seen:
                 continue
             seen.add(target)
-            if not isinstance(target, BNode):
+            if not isinstance(target, BlankNode):
                 result.add(target)
             stack.append(target)
     return result
-
-
-def _copy_cbd(src: Any, dst: Any, node: Any, seen: set) -> None:
-    """The concise bounded description of ``node``: its triples, recursing into blank-node objects."""
-    if node in seen:
-        return
-    seen.add(node)
-    for p, o in src.predicate_objects(node):
-        dst.add((node, p, o))
-        if isinstance(o, BNode):
-            _copy_cbd(src, dst, o, seen)
 
 
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
@@ -144,18 +124,20 @@ def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_re
     ``shapes_graph`` is ``None``. The input is never changed."""
     if shapes_graph is None:
         raise ValueError("extract_shapes_graph() needs a shapes graph")
+    shapes_graph = engine_view(shapes_graph, "shapes graph")
+    shapes_graph_iri = to_engine(shapes_graph_iri)
     members = shapes_graph_members(shapes_graph, shapes_graph_iri)
     if members is None:
         return None
-    result = _new_graph(shapes_graph)
+    result = new_graph(shapes_graph)
     seen: set = set()
     for node in module_nodes(shapes_graph, shapes_graph_iri):
-        _copy_cbd(shapes_graph, result, node, seen)
+        copy_cbd(shapes_graph, result, node, seen)
     for member in members:
-        _copy_cbd(shapes_graph, result, member, seen)
+        copy_cbd(shapes_graph, result, member, seen)
     if include_referenced:
         for shape in referenced_shapes(shapes_graph, members) - set(members):
-            _copy_cbd(shapes_graph, result, shape, seen)
+            copy_cbd(shapes_graph, result, shape, seen)
     return result
 
 
@@ -173,7 +155,7 @@ def _path_iris(graph: Any, path: Any, seen: set | None = None) -> set:
     if path in seen:
         return set()
     seen.add(path)
-    if isinstance(path, URIRef):
+    if isinstance(path, NamedNode):
         return {path}
     found: set = set()
     for pred in (SH.inversePath, SH.zeroOrMorePath, SH.oneOrMorePath, SH.zeroOrOnePath):
@@ -193,7 +175,7 @@ def _property_shape_predicates(graph: Any, prop: Any) -> set:
     for path in graph.objects(prop, SH.path):
         found |= _path_iris(graph, path)
     for pred in (SH.equals, SH.disjoint, SH.lessThan, SH.lessThanOrEquals):
-        found |= {o for o in graph.objects(prop, pred) if isinstance(o, URIRef)}
+        found |= {o for o in graph.objects(prop, pred) if isinstance(o, NamedNode)}
     return found
 
 
@@ -207,9 +189,10 @@ def close_shape(shapes_graph: Any, shape: Any) -> Any:
     input is never changed. ``ValueError`` when ``shapes_graph`` is ``None``."""
     if shapes_graph is None:
         raise ValueError("close_shape() needs a bound shapes graph")
-    result = _new_graph(shapes_graph)
-    for t in shapes_graph.triples((None, None, None)):
-        result.add(t)
+    shapes_graph = engine_view(shapes_graph, "shapes graph")
+    shape = to_engine(shape)
+    result = new_graph(shapes_graph)
+    result.extend(list(shapes_graph.triples((None, None, None))))
 
     to_close: set = set()
     visited: set = set()
@@ -257,18 +240,16 @@ def close_shape(shapes_graph: Any, shape: Any) -> Any:
 
     for node in to_close:
         result.remove((node, SH.closed, None))
-        result.add((node, SH.closed, Literal(True)))
+        result.add((node, SH.closed, _boolean_literal(True)))
         own = {
             path
             for prop in result.objects(node, SH.property)
             for path in result.objects(prop, SH.path)
-            if isinstance(path, URIRef)
+            if isinstance(path, NamedNode)
         }
         node_allowed = allowed | (group_of[node] - own)
         if node_allowed:
-            ignored = BNode()
-            Collection(result, ignored, sorted(node_allowed, key=str))
-            result.add((node, SH.ignoredProperties, ignored))
+            result.add((node, SH.ignoredProperties, add_list(result, sorted(node_allowed, key=n3))))
     return result
 
 

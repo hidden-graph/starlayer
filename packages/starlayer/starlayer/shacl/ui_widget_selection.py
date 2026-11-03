@@ -115,11 +115,15 @@ def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: 
         probe_shapes.add((wrapper, SH.targetNode, node))
     result = validate(base_graph, probe_shapes, meta_shacl=False, ignore_imports=True)
     violating: set[Any] = set()
-    report_node = _find_genuine_report_node(result.report_graph)
+    from starlayer.shacl_engine.terms import from_engine, to_engine
+
+    report = result.report_graph  # an OxGraph: pyoxigraph terms, which this module's rdflib terms are converted from
+    report_node = _find_genuine_report_node(report)
     if report_node is not None:
-        for result_node in result.report_graph.objects(report_node, SH.result):
-            if wrapper in set(result.report_graph.objects(result_node, SH.sourceShape)):
-                violating.update(result.report_graph.objects(result_node, SH.focusNode))
+        wrapper_term = to_engine(wrapper)
+        for result_node in report.objects(report_node, SH.result):
+            if wrapper_term in set(report.objects(result_node, SH.sourceShape)):
+                violating.update(from_engine(n) for n in report.objects(result_node, SH.focusNode))
     return frozenset(n for n in nodes if n not in violating)
 
 

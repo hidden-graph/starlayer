@@ -19,7 +19,7 @@ Supported (SHACL 1.2 forms only; no SHACL-AF 2017 behaviour, no JS rules, no pyS
 The algorithm is the draft's pseudocode: layers ascending; per layer one pass over run-once rules (by order group), then
 the iterating rules (by order group) repeated until nothing new is inferred.
 
-Performance note: SPARQL runs on a materialised ``StarLayerGraph`` (base copy plus inferred), built once per
+Performance note: SPARQL runs on a materialised ``OxGraph`` (base copy plus inferred), built once per
 ``InferredView`` and kept in step incrementally. A native overlay query (union dataset, or the backend's own
 ``sparql_query``) is the follow-up.
 """
@@ -36,9 +36,7 @@ from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.interface import Solutions, Term
 from starlayer.shacl_engine.plan import SH, Plan, ShapeError
 from starlayer.shacl_engine.sparql_support import (
-    _prepare,
     is_true,
-    starlayer_sparql_query,
     with_prefixes,
 )
 from starlayer.shacl_engine.terms import (
@@ -47,11 +45,8 @@ from starlayer.shacl_engine.terms import (
     Literal,
     check_graphs,
     engine_view,
-    from_engine,
-    from_engine_triple,
     text,
     to_engine,
-    to_engine_triple,
     with_term_policy,
 )
 from starlayer.shacl_engine.terms import BlankNode as BNode
@@ -95,7 +90,7 @@ class InferredView:
         for idx, term in zip(self._index, triple, strict=True):
             idx.setdefault(term, set()).add(triple)
         if self._mat is not None:
-            self._mat.add(from_engine_triple(triple))
+            self._mat.add(triple)
         return True
 
     def remove(self, triple: Triple) -> None:
@@ -148,18 +143,12 @@ class InferredView:
                 seen.add(s)
                 yield s
 
-    @property
-    def namespace_manager(self) -> Any:
+    def namespaces(self) -> Iterator[tuple[str, str]]:
         """The base graph's prefixes (report text and report graphs print prefixed names)."""
-        return self.base.namespace_manager
-
-    def namespaces(self) -> Iterator[tuple[str, Any]]:
         return iter(self.base.namespaces())
 
     def items(self, head: Term) -> Iterator[Term]:
-        """The members of the RDF list at ``head`` (as ``rdflib.Graph.items``)."""
-        from rdflib.namespace import RDF
-
+        """The members of the RDF list at ``head``."""
         seen: set = set()
         while head is not None and head != RDF.nil and head not in seen:
             seen.add(head)
@@ -178,26 +167,28 @@ class InferredView:
 
     # -- SPARQL: through the materialised union
     def materialised(self) -> Any:
+        """An ``OxGraph`` holding the base and the inferred triples (built once, then kept in step by ``add`` / ``remove``)."""
         if self._mat is None:
-            from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+            from starlayer.shacl_engine.graphs import new_graph
 
-            mat = StarLayerGraph()
-            for tr in self.base.triples((None, None, None)):
-                mat.add(from_engine_triple(tr))
-            for tr in self._inferred:
-                mat.add(from_engine_triple(tr))
+            mat = new_graph()
+            mat.extend(list(self.base.triples((None, None, None))))
+            mat.extend(list(self._inferred))
             self._mat = mat
         return self._mat
 
-    def sparql_query(self, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions:
-        return starlayer_sparql_query(self.materialised(), text, init_bindings)
+    def sparql_query(
+        self, text: str, init_bindings: Mapping[str, Term] | None = None, custom_functions: Any = None
+    ) -> Solutions:
+        return self.materialised().sparql_query(text, init_bindings, custom_functions)
 
     def construct(self, text: str, init_bindings: Mapping[str, Term] | None) -> list[Triple]:
-        bindings = {k: from_engine(v) for k, v in (init_bindings or {}).items()}
-        result = self.materialised().query(_prepare(text), initBindings=bindings or None)
-        if result.type != "CONSTRUCT":
+        import pyoxigraph as ox
+
+        raw = self.materialised().engine_view()._run(text, dict(init_bindings or {}), None, None)
+        if not isinstance(raw, ox.QueryTriples):
             raise RuleError("sh:construct must be a CONSTRUCT query")
-        return [to_engine_triple(tuple(t)) for t in result]  # query-layer terms -> engine terms
+        return [(t.subject, t.predicate, t.object) for t in raw]
 
 
 _OXIGRAPH_OVERLAY = os.environ.get("STARLAYER_SHACL_OVERLAY", "").strip().lower() == "oxigraph"
@@ -600,7 +591,7 @@ def apply_rules(
     every rule of the shapes graph. A failing rule fails the whole rule set: ``RuleError`` is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
     check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"))
-    data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, engine terms inside
+    data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, an OxGraph copy inside
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
     rule_sets = None if rule_sets is None else [to_engine(s) for s in rule_sets]
     view = new_overlay(data_graph)
@@ -639,9 +630,9 @@ def apply_rules(
             raise exc if isinstance(exc, RuleError) else RuleError(str(exc)) from exc
         failures.append(str(exc))
     kept = set(view.inferred)  # temporary triples are gone: a rule's record follows its triple
-    recorded = tuple(dict.fromkeys((from_engine_triple(t), from_engine(rule)) for t, rule in (run.source_rules or ()) if t in kept))
+    recorded = tuple(dict.fromkeys((t, rule) for t, rule in (run.source_rules or ()) if t in kept))
     return RuleResult(
-        inferred=frozenset(from_engine_triple(t) for t in view.inferred),
+        inferred=frozenset(view.inferred),
         view=view,
         failures=failures,
         iterations=run.iterations,

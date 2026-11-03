@@ -10,11 +10,20 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, Literal, Namespace, URIRef
-
+from starlayer.shacl_engine.graphs import copy_cbd, new_graph
 from starlayer.shacl_engine.plan import ShapeError
+from starlayer.shacl_engine.terms import (
+    OWL,
+    RDF,
+    RDFS,
+    SH,
+    BlankNode,
+    engine_view,
+    text,
+    to_engine,
+)
+from starlayer.shacl_engine.terms import NamedNode as URIRef
 
-SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: this module works on the caller's graphs
 _GRAPH_TYPES = (SH.Graph, SH.ShapesGraph, SH.DataGraph, SH.RulesGraph)
 
 
@@ -43,7 +52,7 @@ def _module_nodes(graph: Any, module: Any) -> set:
             if imported in nodes:
                 continue
             if not _is_graph_node(graph, imported):
-                raise ShapeError(f"{current!r} declares owl:imports {imported!r}, which is not a sh:Graph in this graph")
+                raise ShapeError(f"{text(current)} declares owl:imports {text(imported)}, which is not a sh:Graph in this graph")
             nodes.add(imported)
             pending.append(imported)
     return nodes
@@ -60,31 +69,17 @@ def module_members(graph: Any, module: Any) -> frozenset | None:
     return frozenset(members)
 
 
-def _copy_cbd(src: Any, dst: Any, node: Any, seen: set) -> None:
-    if node in seen:
-        return
-    seen.add(node)
-    for p, o in src.predicate_objects(node):
-        dst.add((node, p, o))
-        if isinstance(o, BNode):
-            _copy_cbd(src, dst, o, seen)
-
-
 def extract_module(shapes: Any, module: Any) -> Any | None:
     """The module as a standalone graph, or ``None`` when ``module`` is not a ``sh:ShapesGraph``-like node of ``shapes``."""
     members = module_members(shapes, module)
     if members is None:
         return None
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    out = StarLayerGraph()
-    for prefix, ns in shapes.namespaces():
-        out.bind(prefix, ns)
+    out = new_graph(shapes)
     seen: set = set()
     for node in (*_module_nodes(shapes, module), *members):
-        _copy_cbd(shapes, out, node, seen)
+        copy_cbd(shapes, out, node, seen)
     for s, o in list(out.subject_objects(SH.property)):
-        if not isinstance(o, BNode) and (o, SH.path, None) not in out:
+        if not isinstance(o, BlankNode) and (o, SH.path, None) not in out:
             out.remove((s, SH.property, o))
     return out
 
@@ -94,6 +89,7 @@ def resolve_shapes_resource(shapes: Any, resource: Any) -> tuple[Any, Any]:
     identity; any other IRI is only a provenance tag and the whole graph is used. Same two meanings as the old validator."""
     if shapes is None:
         raise ValueError("shapes_graph_resource= needs a shapes graph to check against")
-    iri = resource if isinstance(resource, (URIRef, Literal)) or not isinstance(resource, str) else URIRef(resource)
+    shapes = engine_view(shapes, "shapes graph")
+    iri = URIRef(resource) if type(resource) is str else to_engine(resource)
     extracted = extract_module(shapes, iri)
     return (extracted, iri) if extracted is not None else (shapes, iri)

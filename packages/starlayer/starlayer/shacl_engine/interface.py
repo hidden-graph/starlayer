@@ -1,8 +1,7 @@
-"""The only graph surface the engine touches. A narrow protocol: rdflib graphs and ``StarLayerGraph`` satisfy it as is;
-an Oxigraph- or Rust-backed implementation would provide the same five methods, and optionally ``sparql_query``
-(``SparqlCapable``, below).
+"""The only graph surface the engine touches. A narrow protocol: ``OxGraph`` / ``OxDataset`` and the engine's own views satisfy it, and
+every view also provides ``sparql_query`` (``SparqlCapable``, below).
 
-Terms are ``rdflib`` nodes plus ``starlayer.graph.model`` ``TripleTerm`` / ``DirLangString``. Equality is RDF term
+Terms are pyoxigraph terms (``shacl_engine.terms``). Equality is RDF term
 equality. ``preserves_lexical_forms`` says whether literals come back exactly as stored (parked issue: Oxigraph
 normalizes them).
 """
@@ -45,12 +44,10 @@ class SparqlCapable(Protocol):
     defines it: the same as joining the one-row table of those bindings into every basic graph pattern, property path
     and GRAPH pattern of the query. The engine has already rejected queries it must not run (MINUS, VALUES, SERVICE,
     ``AS`` of a pre-bound variable), so implementations need not. The method name is not ``query`` because
-    ``StarLayerGraph.query`` and rdflib's ``Graph.query`` already exist with a different signature.
-
-    A graph that lacks this method is queried through ``starlayer.shacl_engine.sparql_support.starlayer_sparql_query``,
-    which runs the text through StarLayer's own query layer (``starlayer.graph.query.sparql_api.prepareQuery`` and the
-    graph's ``.query()``). A native backend (Oxigraph, later Rust) provides the method itself and sets the
-    ``native_sparql`` capability flag.
+    ``OxGraph.query`` already exists with a different signature. ``custom_functions`` maps function IRIs to Python
+    callables (pyoxigraph's ``custom_functions``): the shapes graph's SHACL functions.
     """
 
-    def sparql_query(self, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions: ...
+    def sparql_query(
+        self, text: str, init_bindings: Mapping[str, Term] | None = None, custom_functions: Mapping[Term, Any] | None = None
+    ) -> Solutions: ...

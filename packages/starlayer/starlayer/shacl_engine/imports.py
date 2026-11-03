@@ -1,8 +1,8 @@
 """``owl:imports`` resolution of a shapes graph (SHACL 1.2 Core), same semantics as the old validator.
 
 ``resolve_imports(shapes_graph, loader, ignore_imports)`` returns the graph to validate against. The caller's graph is
-never modified: the result is the caller's graph itself when nothing is added, else a new graph (a copy of the caller's
-triples plus the imported ones).
+never modified: the result is the caller's graph itself when nothing is added (an ``OxGraph``; an rdflib / StarLayer input is
+converted first), else a new ``OxGraph`` (a copy of the caller's triples plus the imported ones).
 
 Semantics (``StarLayerGraph.resolve_imports`` and ``validate(shapes_graph_loader=, ignore_imports=)``):
 
@@ -23,8 +23,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from rdflib import Graph
-from rdflib.namespace import OWL
+from starlayer.shacl_engine.graphs import new_graph
+from starlayer.shacl_engine.terms import OWL, engine_view, text
 
 Loader = Callable[[Any], Any]
 
@@ -41,32 +41,18 @@ def _has_subject(graph: Any, iri: Any) -> bool:
     return any(True for _ in graph.triples((iri, None, None)))
 
 
-def _new_graph_like(graph: Any) -> Any:
-    try:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-        new = StarLayerGraph()
-    except ImportError:  # pragma: no cover
-        new = Graph()
-    try:
-        for prefix, ns in graph.namespaces():
-            new.bind(prefix, ns)
-    except AttributeError:
-        pass
-    return new
-
-
 def resolve_imports(
     shapes_graph: Any, loader: Loader | None = None, ignore_imports: bool = False, *, shapes_graph_loader: Loader | None = None
 ) -> Any:
     """The shapes graph extended with its ``owl:imports`` closure (see the module docstring). Never mutates its input."""
     loader = loader if loader is not None else shapes_graph_loader  # (``shapes_graph_loader``: the validate() spelling)
+    shapes_graph = engine_view(shapes_graph, "shapes graph")
     if loader is None:
         if not ignore_imports:
             missing = [o for o in declared_imports(shapes_graph) if not _has_subject(shapes_graph, o)]
             if missing:
                 raise ValueError(
-                    f"shacl_graph declares owl:imports {missing!r} that aren't already "
+                    f"shacl_graph declares owl:imports {[text(m) for m in missing]!r} that aren't already "
                     "locally satisfied, but no shapes_graph_loader was given to resolve them. "
                     "Pass shapes_graph_loader=... to resolve them, or ignore_imports=True if "
                     "you've already resolved them yourself (or don't need them)."
@@ -84,7 +70,7 @@ def resolve_imports(
         fetched.add(iri)
         if _has_subject(shapes_graph, iri):
             continue
-        graph = loader(iri)
+        graph = engine_view(loader(iri), "imported graph")  # a loader may return an rdflib / StarLayer graph or an OxGraph
         if graph is None:
             continue
         canonical = next((s for s, _, o in graph.triples((None, OWL.versionIRI, None)) if o == iri), iri)
@@ -92,7 +78,7 @@ def resolve_imports(
             continue
         canonical_seen.add(canonical)
         fetched.add(canonical)
-        for t in graph:
+        for t in graph.triples((None, None, None)):
             imported.add(t)
         for _, _, nxt in graph.triples((None, OWL.imports, None)):
             if nxt not in fetched:
@@ -101,11 +87,9 @@ def resolve_imports(
     delta = [t for t in imported if t not in shapes_graph]
     if not delta:
         return shapes_graph
-    result = _new_graph_like(shapes_graph)
-    for t in shapes_graph:
-        result.add(t)
-    for t in delta:
-        result.add(t)
+    result = new_graph(shapes_graph)
+    result.extend(list(shapes_graph.triples((None, None, None))))
+    result.extend(delta)
     return result
 
 

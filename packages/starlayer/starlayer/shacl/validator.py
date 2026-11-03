@@ -10,19 +10,13 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from rdflib import BNode, Namespace
-from rdflib.namespace import RDF
-
-from starlayer._ox_out import ox_out
 from starlayer.shacl import _adapter
 from starlayer.shacl.normalization import normalize_to_starlayer_graph
 from starlayer.shacl.results import RulesResult, ValidationResult
 from starlayer.shacl.validation_modes import ValidationMode
+from starlayer.shacl_engine.terms import RDF, SH, BlankNode, n3
 
-SH = Namespace("http://www.w3.org/ns/shacl#")
 
-
-@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def validate(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -42,7 +36,8 @@ def validate(
     """Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``ValidationResult``.
 
     Args:
-        data_graph: The RDF data to validate (any graph the library accepts; it is never changed unless ``inplace=True``).
+        data_graph: The RDF data to validate: an ``OxGraph`` / ``OxDataset`` (used as it is) or an rdflib / old-style ``StarLayerGraph``
+            (copied into an ``OxGraph``). It is never changed unless ``inplace=True``.
         shacl_graph: The shapes graph. ``None`` reads the shapes from ``data_graph`` itself.
         ont_graph: An optional ontology graph. Its axioms (``rdfs:domain``, ``rdfs:subClassOf`` ...) are visible to entailment, but
             its triples are never copied into ``data_graph``.
@@ -64,7 +59,7 @@ def validate(
             relative IRI, as opaque stand-ins instead of raising ``TermError``). An unknown option is a ``TypeError``.
 
     Returns:
-        A ``ValidationResult``: ``conforms``, ``report_graph`` and ``report_text``, ``data_graph`` (the caller's graph when
+        A ``ValidationResult``: ``conforms``, ``report_graph`` (an ``OxGraph``) and ``report_text``, ``data_graph`` (the caller's graph when
         ``inplace=True``, else ``None``) and ``diagnostics``.
     """
     return _adapter.validate(
@@ -85,7 +80,6 @@ def validate(
     )
 
 
-@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def validate_each(
     data_graphs: Iterable[Any],
     shacl_graph: Any | None = None,
@@ -98,7 +92,6 @@ def validate_each(
         return {i: validate(data_graph, shacl_graph, ont_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
 
 
-@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def evaluate(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -137,7 +130,6 @@ def evaluate(
     )
 
 
-@ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs")
 def apply_rules(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -152,8 +144,7 @@ def apply_rules(
     ``data_graph`` is never changed.
 
     Args:
-        data_graph: The data the rules run over: a ``StarLayerGraph`` or an Oxigraph-backed graph (``TypeError`` otherwise, since
-            rule execution needs RDF 1.2 triple terms).
+        data_graph: The data the rules run over: an Oxigraph-backed graph (an rdflib / old-style ``StarLayerGraph`` is copied into one).
         shacl_graph: The shapes graph holding the rules; ``None`` reads them from ``data_graph``.
         ont_graph: An optional ontology graph, visible to entailment only.
         include_source_rule_provenance: Record, for every inferred triple, a reifier ``_:r rdf:reifies <<( s p o )>>`` with
@@ -167,15 +158,6 @@ def apply_rules(
         A ``RulesResult``: ``inferred_graph`` holds only the triples the rules produced (and the ``sh:sourceRule`` reifiers);
         ``validation`` is the ``ValidationResult`` over the complete evaluation graph: base, inferred and entailed triples.
     """
-    data_graph = _oxigraph_to_starlayer(data_graph)
-    shacl_graph = _oxigraph_to_starlayer(shacl_graph)
-    ont_graph = _oxigraph_to_starlayer(ont_graph)
-    if not _is_starlayer_graph(data_graph):
-        raise TypeError(
-            "apply_rules() requires data_graph to be an OxGraph / OxDataset / pyoxigraph Store or a StarLayerGraph, since "
-            f"rule execution needs RDF-1.2 triple-term support - got {type(data_graph).__name__}. "
-            "Convert first, e.g. OxGraph() filled with the triples, or StarLayerGraph.from_rdflib(data_graph)."
-        )
     return _adapter.apply_rules(
         data_graph=data_graph,
         shacl_graph=shacl_graph,
@@ -213,27 +195,9 @@ def _drop_nonmember_property_shape_refs(module_graph: Any) -> Any:
     shape without ``sh:path`` is an ill-formed shapes graph. A non-member's constraints are not part of the module, so the link is
     dropped for validation only (GitHub issue #94)."""
     for s, o in list(module_graph.subject_objects(SH.property)):
-        if not isinstance(o, BNode) and not any(True for _ in module_graph.triples((o, SH.path, None))):
+        if not isinstance(o, BlankNode) and not any(True for _ in module_graph.triples((o, SH.path, None))):
             module_graph.remove((s, SH.property, o))
     return module_graph
-
-
-def _oxigraph_to_starlayer(value: Any) -> Any:
-    """An ``OxGraph`` / ``OxDataset`` / bare ``pyoxigraph.Store`` as a snapshot ``StarLayerGraph``; anything else unchanged."""
-    if value is None:
-        return None
-    from starlayer.graph.oxgraph._rdflib_bridge import (
-        is_oxigraph_input,
-        to_starlayer_graph,
-    )
-
-    return to_starlayer_graph(value) if is_oxigraph_input(value) else value
-
-
-def _is_starlayer_graph(value: Any) -> bool:
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    return isinstance(value, StarLayerGraph)
 
 
 def _find_genuine_report_node(report_graph: Any) -> Any | None:
@@ -243,7 +207,7 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
     The genuine report is a fresh node that nothing in the graph refers to, except possibly a ``sh:validationReport`` link;
     among several candidates the one with the most ``sh:result`` wins, ties broken by identifier, so the answer never depends on
     iteration order. ``None`` when there is no report node at all."""
-    candidates = sorted({s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))}, key=str)  # str-ok: a tie-break
+    candidates = sorted({s for s, _, _ in report_graph.triples((None, RDF.type, SH.ValidationReport))}, key=n3)  # str-ok: a tie-break
     if len(candidates) <= 1:
         return candidates[0] if candidates else None
 
@@ -254,7 +218,7 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
     if len(roots) == 1:
         return roots[0]
     pool = roots or candidates
-    return max(pool, key=lambda n: (len(list(report_graph.objects(n, SH.result))), str(n)))  # str-ok: a tie-break
+    return max(pool, key=lambda n: (len(list(report_graph.objects(n, SH.result))), n3(n)))
 
 
 class StarShaclSchema:
@@ -292,11 +256,17 @@ class StarShaclSchema:
         source = self._sources[name]
         if source is None:
             return None
+        batch = _adapter._PLAN_CACHE.get()
+        if batch is not None:  # inside a batch: one conversion of a foreign graph, so the shapes are parsed once for the whole batch
+            key = ("bound", name, id(source))
+            if key not in batch:
+                batch[key] = (source, normalize_to_starlayer_graph(source, name=name, force_default_union=name == "ont_graph"))
+            return batch[key][1]
         return normalize_to_starlayer_graph(source, name=name, force_default_union=name == "ont_graph")
 
     @property
     def shacl_graph(self) -> Any | None:
-        """The shapes graph, as a ``StarLayerGraph``."""
+        """The shapes graph, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
         return self._bound("shacl_graph")
 
     @shacl_graph.setter
@@ -305,7 +275,7 @@ class StarShaclSchema:
 
     @property
     def ont_graph(self) -> Any | None:
-        """The ontology graph, as a ``StarLayerGraph``."""
+        """The ontology graph, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
         return self._bound("ont_graph")
 
     @ont_graph.setter
@@ -314,7 +284,7 @@ class StarShaclSchema:
 
     @property
     def data_graph(self) -> Any | None:
-        """The default data graph, as a ``StarLayerGraph``."""
+        """The default data graph, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
         return self._bound("data_graph")
 
     @data_graph.setter
@@ -323,7 +293,7 @@ class StarShaclSchema:
 
     @property
     def scoring_graph(self) -> Any | None:
-        """The scoring graph of ``shui:WidgetScore`` entries, as a ``StarLayerGraph``."""
+        """The scoring graph of ``shui:WidgetScore`` entries, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
         return self._bound("scoring_graph")
 
     @scoring_graph.setter
@@ -368,7 +338,6 @@ class StarShaclSchema:
             inference=self.inference,
         )
 
-    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def validate(
         self,
         data_graph: Any | None = None,
@@ -408,7 +377,6 @@ class StarShaclSchema:
             include_used_configuration=include_used_configuration,
         )
 
-    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def validate_each(self, data_graphs: Iterable[Any] | None = None, **kwargs: Any) -> dict[int, ValidationResult]:
         """Validates each graph of ``data_graphs`` (default: just the bound data graph) with :meth:`validate`; the shapes are parsed
         once for the whole batch. Returns ``{index: ValidationResult}``."""
@@ -417,7 +385,6 @@ class StarShaclSchema:
         with _adapter.shared_plans():
             return {i: self.validate(data_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
 
-    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def apply_rules(
         self,
         data_graph: Any | None = None,
@@ -439,7 +406,6 @@ class StarShaclSchema:
             **kwargs,
         )
 
-    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def evaluate(
         self,
         data_graph: Any | None = None,
@@ -514,13 +480,9 @@ class StarShaclSchema:
             per=per,  # type: ignore[arg-type]
         )
 
-    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
         """The bound shapes graph reduced to ``shape`` and every shape it references (directly or through ``sh:property``,
         ``sh:node``, ``sh:and``/``sh:or``/``sh:xone``/``sh:not``, ``sh:qualifiedValueShape`` ...): a self-contained shapes graph."""
-        from starlayer.graph.oxgraph._rdflib_bridge import from_engine_if_ox
-
-        shape = from_engine_if_ox(shape)
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
         if shacl_graph_input is None:
             raise ValueError(
@@ -528,7 +490,6 @@ class StarShaclSchema:
             )
         return _adapter.close_shape(shacl_graph_input, shape)
 
-    @ox_out("data_graph", "shacl_graph", "ont_graph", "data_graphs", owner_sources="_sources")
     def extract_shapes_graph(self, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
         """Extracts the ``sh:ShapesGraph`` named ``shapes_graph_iri`` as a standalone graph (its members, with their blank-node
         closures and the declared prefixes), or ``None`` when the bound shapes graph has no such resource.

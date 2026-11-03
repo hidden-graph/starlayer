@@ -327,3 +327,306 @@ def legal_rdf_triples(triples: Iterable[tuple[Any, Any, Any]]) -> Iterator[tuple
         if isinstance(s, RLiteral) or not isinstance(p, URIRef):
             continue
         yield from_rdflib_term(s), from_rdflib_term(p), from_rdflib_term(o)
+
+
+# ---- rdflib / StarLayer terms <-> engine terms (moved from ``shacl_engine.terms``, which delegates here) -------------------------
+
+_CACHE_MAX = 200_000
+_TO_ENGINE: dict = {}
+_FROM_ENGINE: dict = {}
+
+
+def _T() -> Any:
+    from starlayer.shacl_engine import terms
+
+    return terms
+
+
+def _rdflib_text(term: Any) -> str:
+    """``str()`` of an rdflib / StarLayer term (IRI text, lexical form, blank node id): the one place the boundary reads one."""
+    return str(term)  # str-ok: an rdflib term, whose str() is its lexical value
+
+
+def show(term: Any) -> str:
+    """A short, never-raising rendering of an rdflib term for messages (``URIRef.n3()`` refuses an invalid IRI)."""
+    from rdflib import BNode, URIRef
+    from rdflib import Literal as RLiteral
+
+    if isinstance(term, URIRef):
+        return f"<{_rdflib_text(term)}>"
+    if isinstance(term, BNode):
+        return f"_:{_rdflib_text(term)}"
+    if isinstance(term, RLiteral):
+        suffix = f"@{term.language}" if term.language else (f"^^<{_rdflib_text(term.datatype)}>" if term.datatype else "")
+        return f"{_rdflib_text(term)!r}{suffix}"
+    if isinstance(term, tuple):
+        return "(" + " ".join(show(t) for t in term) + ")"
+    return repr(term)
+
+
+def foreign_to_engine(term: Any) -> Any:
+    """rdflib / StarLayer term (or a 3-tuple, a triple term) -> pyoxigraph term. ``shacl_engine.terms.to_engine`` calls this for
+    anything that is not already a pyoxigraph term. A term pyoxigraph rejects raises ``TermError`` (a ``ValueError``), or under
+    ``term_policy("lenient")`` becomes an opaque stand-in that ``engine_to_foreign`` maps back (see ``TermError``)."""
+    from rdflib import BNode, URIRef, Variable
+    from rdflib import Literal as RLiteral
+
+    from starlayer.graph.model.dirlangstring import DirLangString
+    from starlayer.graph.model.triple import TripleTerm
+
+    T = _T()
+    cls = type(term)
+    if cls is URIRef or cls is BNode:
+        out = _TO_ENGINE.get(term)
+        if out is None:
+            out = T._iri_or_stand_in(_rdflib_text(term), term) if cls is URIRef else T._bnode_or_stand_in(_rdflib_text(term), term)
+            if out.value.startswith((T._INVALID_IRI_PREFIX, T._INVALID_BNODE_PREFIX)) and T._POLICY.get() == "lenient":
+                return out  # a stand-in is not cached: the strict policy must still reject the original
+            if len(_TO_ENGINE) >= _CACHE_MAX:
+                _TO_ENGINE.clear()
+            _TO_ENGINE[term] = out
+        return out
+    if isinstance(term, URIRef):
+        return T._iri_or_stand_in(_rdflib_text(term), term)
+    if isinstance(term, BNode):
+        return T._bnode_or_stand_in(_rdflib_text(term), term)
+    if isinstance(term, DirLangString):
+        return T._lang_literal_or_stand_in(term.value, term.language, term, T._DIRECTIONS[term.direction])
+    if isinstance(term, RLiteral):
+        if term.language:
+            return T._lang_literal_or_stand_in(_rdflib_text(term), term.language, term)
+        if term.datatype is not None:
+            return ox.Literal(_rdflib_text(term), datatype=T._iri_or_stand_in(_rdflib_text(term.datatype), term.datatype))
+        return ox.Literal(_rdflib_text(term))
+    if isinstance(term, Variable):  # SPARQL-algebra graphs (salg) store query variables as terms: no oxrdf equivalent
+        return ox.NamedNode(T._VARIABLE_PREFIX + _rdflib_text(term))
+    if isinstance(term, TripleTerm):
+        return ox.Triple(T.to_engine(term.subject), T.to_engine(term.predicate), T.to_engine(term.object))
+    if isinstance(term, tuple) and len(term) == 3:
+        return ox.Triple(*(T.to_engine(t) for t in term))
+    raise TypeError(f"cannot convert {term!r} ({type(term).__name__}) to an engine term")
+
+
+def engine_to_foreign(term: Any) -> Any:
+    """pyoxigraph term -> rdflib / StarLayer term (``URIRef``, ``BNode``, ``Literal(..., normalize=False)``, ``DirLangString``,
+    ``TripleTerm``)."""
+    if isinstance(term, ox.Triple):
+        from starlayer.graph.model.triple import TripleTerm
+
+        return TripleTerm(engine_to_foreign(term.subject), engine_to_foreign(term.predicate), engine_to_foreign(term.object))
+    out = _FROM_ENGINE.get(term)
+    if out is None:
+        out = _engine_to_foreign(term)
+        if len(_FROM_ENGINE) >= _CACHE_MAX:
+            _FROM_ENGINE.clear()
+        _FROM_ENGINE[term] = out
+    return out
+
+
+def _engine_to_foreign(term: Any) -> Any:
+    from urllib.parse import unquote
+
+    from rdflib import BNode, URIRef
+    from rdflib import Literal as RLiteral
+
+    T = _T()
+    if isinstance(term, ox.NamedNode):
+        if term.value.startswith(T._VARIABLE_PREFIX):
+            from rdflib import Variable
+
+            return Variable(term.value[len(T._VARIABLE_PREFIX) :])
+        if term.value.startswith(T._INVALID_IRI_PREFIX):
+            return URIRef(unquote(term.value[len(T._INVALID_IRI_PREFIX) :]))
+        return URIRef(term.value)
+    if isinstance(term, ox.BlankNode):
+        if term.value.startswith(T._INVALID_BNODE_PREFIX):
+            return BNode(bytes.fromhex(term.value[len(T._INVALID_BNODE_PREFIX) :]).decode("utf-8", "surrogatepass"))
+        return BNode(term.value)
+    if term.language:
+        if term.direction is not None:
+            from starlayer.graph.model.dirlangstring import DirLangString
+
+            return DirLangString(term.value, term.language, str(term.direction))
+        return RLiteral(term.value, lang=term.language)
+    dt = term.datatype.value
+    if dt.startswith(T._INVALID_LANG_PREFIX):
+        return RLiteral(term.value, lang=unquote(dt[len(T._INVALID_LANG_PREFIX) :]))
+    if dt.startswith(T._INVALID_IRI_PREFIX):
+        return RLiteral(term.value, datatype=URIRef(unquote(dt[len(T._INVALID_IRI_PREFIX) :])), normalize=False)
+    return RLiteral(term.value) if dt == T._XSD + "string" else RLiteral(term.value, datatype=URIRef(dt), normalize=False)
+
+
+def _ill_formed(term: Any) -> Any:
+    """The ``TermError`` ``to_engine`` raises for ``term`` under the strict policy, or None if it converts."""
+    T = _T()
+    with T.term_policy("error"):
+        try:
+            T.to_engine(term)
+        except T.TermError as exc:
+            return exc
+    return None
+
+
+_SCANNED: Any = None  # graph -> (len, errors): a graph is scanned once per size (a WeakKeyDictionary, made on first use)
+_MAX_ERRORS = 100
+
+
+def scan_graph(graph: Any, where: str = "graph") -> tuple[Any, ...]:
+    """Every ill-formed term of an rdflib / StarLayer graph (first ``_MAX_ERRORS``), each located by ``where``, position and the
+    first triple it occurs in. Distinct terms are checked once. A graph already scanned at the same size is not scanned again."""
+    import contextlib
+    import weakref
+
+    global _SCANNED
+    if _SCANNED is None:
+        _SCANNED = weakref.WeakKeyDictionary()
+    try:
+        size = len(graph)
+        cached = _SCANNED.get(graph)
+        if cached is not None and cached[0] == size:
+            return tuple(e.located(where, e.position, e.triple) for e in cached[1])
+    except TypeError:
+        size = None
+    seen: set = set()
+    errors: list = []
+    for triple in graph.triples((None, None, None)):
+        for position, term in zip(("subject", "predicate", "object"), triple, strict=True):
+            if term in seen:
+                continue
+            seen.add(term)
+            err = _ill_formed(term)
+            if err is None:
+                continue
+            if err.kind == "iri" and err.term != term and getattr(term, "datatype", None) == err.term:
+                position = "datatype of the object"  # noqa: PLW2901
+            errors.append(err.located(where, position, triple))
+            if len(errors) >= _MAX_ERRORS:
+                break
+        if len(errors) >= _MAX_ERRORS:
+            break
+    if size is not None:
+        with contextlib.suppress(TypeError):
+            _SCANNED[graph] = (size, tuple(errors))
+    return tuple(errors)
+
+
+def check_graphs(*labelled: tuple[Any, str]) -> tuple[Any, ...]:
+    """The single up-front check of a run: scan each ``(graph, label)`` that is an rdflib / StarLayer graph (Oxigraph-backed
+    graphs and ``None`` hold only well-formed terms) and, under the strict policy, raise one aggregate ``TermError`` naming every
+    offender with its graph label. Under ``term_policy("lenient")`` return the offenders instead."""
+    T = _T()
+    errors: list = []
+    done: set[int] = set()
+    for graph, where in labelled:
+        if graph is None or getattr(graph, "engine_terms", False) or isinstance(graph, ox.Store) or id(graph) in done:
+            continue
+        done.add(id(graph))
+        errors.extend(scan_graph(graph, where))
+    if errors and T._POLICY.get() != "lenient":
+        raise T.TermError(errors[0].term, errors[0].kind, errors[0].reason, errors=tuple(errors))
+    return tuple(errors)
+
+
+def to_oxgraph(value: Any, where: str = "graph") -> Any:
+    """An Oxigraph-backed graph for any graph a caller may pass: an ``OxGraph`` / ``OxDataset`` as it is, a bare ``pyoxigraph.Store``
+    as an ``OxDataset``, and a plain rdflib graph or an old-style ``StarLayerGraph`` (``from_rdflib``: a supported public input)
+    as an ``OxGraph`` copy with its prefixes and, when it has an IRI identifier, that identifier. ``None`` stays ``None``.
+
+    A term that is not an RDF term (a relative IRI ...) raises ``TermError`` naming every offender (``where`` labels the graph),
+    or, under ``term_policy("lenient")``, is stored as the opaque stand-in (``Outcome.invalid_terms`` lists it; the stand-in, not
+    the original, is what an Oxigraph result holds). Oxigraph normalises some literals on insert (``"04"^^xsd:integer`` becomes
+    ``"4"``): ``preserves_lexical_forms`` is False on the result, as for any ``OxGraph``."""
+    if value is None:
+        return None
+    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+
+    if isinstance(value, (OxGraph, OxDataset)):
+        return value
+    if isinstance(value, ox.Store):
+        return OxDataset(store=value)
+    if not hasattr(value, "triples") or not hasattr(value, "namespaces"):
+        raise TypeError(
+            f"{where} must be an OxGraph, OxDataset, pyoxigraph Store, StarLayerGraph or rdflib Graph; got {type(value).__name__}"
+        )
+    T = _T()
+    check_graphs((value, where))
+    from rdflib import URIRef
+
+    ident = getattr(value, "identifier", None)
+    out = OxGraph(identifier=T.to_engine(ident)) if type(ident) is URIRef else OxGraph()
+    for prefix, ns in value.namespaces():
+        out.bind(prefix, str(ns))
+    to_engine = T.to_engine
+    out.extend([(to_engine(s), to_engine(p), to_engine(o)) for s, p, o in value.triples((None, None, None))])
+    return out
+
+
+class LegacyTermView:
+    """A view over an engine-term graph that speaks rdflib terms (for the component owners that still are rdflib code: salg)."""
+
+    def __init__(self, view: Any) -> None:
+        self.view = view
+
+    @staticmethod
+    def _in(t: Any) -> Any:
+        return _T().to_engine(t)
+
+    def triples(self, pattern: tuple[Any, Any, Any]) -> Iterator[tuple[Any, Any, Any]]:
+        s, p, o = pattern
+        for t in self.view.triples((self._in(s), self._in(p), self._in(o))):
+            yield tuple(engine_to_foreign(x) for x in t)
+
+    def objects(self, subject: Any = None, predicate: Any = None) -> Iterator[Any]:
+        for o in self.view.objects(self._in(subject), self._in(predicate)):
+            yield engine_to_foreign(o)
+
+    def subjects(self, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: A002
+        for s in self.view.subjects(self._in(predicate), self._in(object)):
+            yield engine_to_foreign(s)
+
+    def predicate_objects(self, subject: Any = None) -> Iterator[tuple[Any, Any]]:
+        for p, o in self.view.predicate_objects(self._in(subject)):
+            yield engine_to_foreign(p), engine_to_foreign(o)
+
+    def __contains__(self, triple: tuple[Any, Any, Any]) -> bool:
+        return tuple(self._in(t) for t in triple) in self.view
+
+    def __len__(self) -> int:
+        return len(self.view)
+
+    def predicates(self, subject: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: A002
+        seen: set = set()
+        for _s, p, _o in self.triples((subject, None, object)):
+            if p not in seen:
+                seen.add(p)
+                yield p
+
+    def items(self, head: Any) -> Iterator[Any]:
+        """Members of the rdf:list at ``head`` (as ``rdflib.Graph.items``)."""
+        T = _T()
+        rdf_nil, rdf_first, rdf_rest = (engine_to_foreign(x) for x in (T.RDF.nil, T.RDF.first, T.RDF.rest))
+        seen: set = set()
+        while head is not None and head != rdf_nil and head not in seen:
+            seen.add(head)
+            first = next(self.objects(head, rdf_first), None)
+            if first is None:
+                return
+            yield first
+            head = next(self.objects(head, rdf_rest), None)
+
+    def query(self, text: str, init_bindings: dict[str, Any] | None = None, **kwargs: Any) -> Any:
+        """``OxigraphGraph.query`` with rdflib terms in and out (SELECT rows, ASK bool, CONSTRUCT triples)."""
+        out = self.view.query(text, {k: self._in(v) for k, v in (init_bindings or {}).items()} or None, **kwargs)
+        if isinstance(out, list):
+            return [
+                {k: engine_to_foreign(v) for k, v in row.items()}
+                if isinstance(row, dict)
+                else tuple(engine_to_foreign(x) for x in row)
+                for row in out
+            ]
+        return out
+
+    def __getattr__(self, name: str) -> Any:
+        if name in ("namespaces", "namespace_manager", "identifier", "store"):
+            return getattr(self.view, name)
+        raise AttributeError(name)

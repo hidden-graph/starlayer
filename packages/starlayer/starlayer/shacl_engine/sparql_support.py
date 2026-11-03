@@ -2,8 +2,8 @@
 
 * Prefix declarations (``sh:prefixes`` / ``sh:declare`` / ``owl:imports``, with the ontology fallback).
 * Query checking: the queries the spec forbids (MINUS, VALUES over a pre-bound variable, SERVICE, ``AS ?prebound``) raise ``ShapeError``.
-* Running a query on the data graph with pre-bound variables: through the graph's own ``sparql_query`` if it has one
-  (``interface.SparqlCapable``), else through StarLayer's query layer (``starlayer_sparql_query``).
+* Running a query on the data graph with pre-bound variables: through the graph's own ``sparql_query``
+  (``interface.SparqlCapable``; every engine graph is Oxigraph-backed and has one).
 * Mapping solutions to validation results, message templates, the ``$PATH`` substitution, and the two SPARQL node
   expressions (``sh:select``, ``sh:sparqlExpr``); ``expressions.py`` dispatches to them.
 """
@@ -11,15 +11,14 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Iterable, Iterator, Mapping
-from contextlib import contextmanager
+from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from typing import Any
 
 from starlayer.shacl_engine.components.registry import Violation
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
-from starlayer.shacl_engine.terms import OWL, RDF, Literal, from_engine, to_engine
+from starlayer.shacl_engine.terms import OWL, RDF, Literal
 from starlayer.shacl_engine.terms import NamedNode as URIRef
 from starlayer.shacl_engine.terms import text as text_of
 
@@ -83,14 +82,6 @@ def with_prefixes(plan: Plan, holder: Term, text: str) -> str:
 
 # --------------------------------------------------------------------------------------------------------------------
 # Query checking (the forbidden constructs of the spec's pre-binding appendix)
-
-
-@lru_cache(maxsize=512)
-def _prepare(text: str) -> Any:
-    """The prepared query (rdflib algebra) for EXECUTION through the query layer; the checks use ``_analyse``."""
-    from starlayer.graph.query.sparql_api import prepareQuery
-
-    return prepareQuery(text)
 
 
 @lru_cache(maxsize=512)
@@ -182,97 +173,61 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
 
 
 def _var_name(variable: Any) -> str:
-    """The name of a query-layer variable (an rdflib ``Variable`` is a ``str``)."""
-    return str(variable)  # str-ok: an rdflib Variable (a str subclass), never an engine term
+    """The name of a variable of the parser's AST (a ``str`` subclass)."""
+    return str(variable)  # str-ok: a query variable, never an engine term
 
 
-def starlayer_sparql_query(graph: Any, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions:
-    """Run ``text`` through StarLayer's query layer: its own SPARQL 1.2 parse (``prepareQuery``) and the graph's
-    ``.query()``. Works for a ``StarLayerGraph`` / ``StarLayerDataset`` (and any rdflib-style graph)."""
-    bindings = {k: from_engine(v) for k, v in (init_bindings or {}).items()}  # engine terms -> query-layer terms
-    try:
-        result = graph.query(_prepare(text), initBindings=bindings or None)
-    except NotImplementedError:
-        # A native (store-backed) graph applies pre-bound variables by injecting them into the query text, so it cannot take a prepared query.
-        result = graph.query(text, initBindings=bindings or None)
-    if result.type == "ASK":
-        return Solutions(boolean=bool(result.askAnswer))
-    rows = tuple({_var_name(k): to_engine(v) for k, v in b.items() if v is not None} for b in result.bindings)
-    return Solutions(variables=tuple(_var_name(v) for v in result.vars), rows=rows)
+def run_query(
+    graph: Any, text: str, init_bindings: Mapping[str, Term] | None = None, custom_functions: Mapping[Any, Any] | None = None
+) -> Solutions:
+    """Run ``text`` on ``graph`` through its ``sparql_query`` (every engine graph has one: Oxigraph runs the text).
+    ``custom_functions`` maps function IRIs to Python callables."""
+    return graph.sparql_query(text, init_bindings, custom_functions)
 
 
-def run_query(graph: Any, text: str, init_bindings: Mapping[str, Term] | None = None) -> Solutions:
-    native = getattr(graph, "sparql_query", None)
-    if native is not None:
-        return native(text, init_bindings)
-    return starlayer_sparql_query(getattr(graph, "graph", graph), text, init_bindings)  # RdflibTermView -> its rdflib graph
-
-
-@contextmanager
-def _shacl_functions(ctx: Any) -> Iterator[None]:
-    """Make the shapes graph's ``sh:ListParameterExpressionFunction`` instances callable by IRI from the query being run
+def shacl_functions(ctx: Any) -> dict[Any, Any]:
+    """The shapes graph's ``sh:ListParameterExpressionFunction`` instances as callables by IRI, for the query being run
     (SPARQL Extensions 7.3: "SHOULD register a function"). The call's arguments become the scope ``0, 1, ...`` of the
-    body expression, which must have exactly one output node, else the call is a SPARQL error. Only for graphs queried
-    through rdflib's evaluator (a native backend has no such registry)."""
-    from rdflib.plugins.sparql.operators import (
-        register_custom_function,
-        unregister_custom_function,
-    )
-    from rdflib.plugins.sparql.sparql import SPARQLError
-
-    from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
-
+    body expression, which must have exactly one output node, else the call is a SPARQL error (the function call gives no
+    value). Read once per plan: the shapes graph does not change during a run."""
     shapes = ctx.shapes
-    active = ctx.plan.sparql_cache
-    if getattr(ctx.data, "sparql_query", None) is not None or active.get(("shacl-functions-active",)):
-        yield  # a native backend, or already registered by an enclosing query (a body that itself runs SPARQL)
-        return
-    registered: list[tuple[Any, Any]] = []
+    cache = ctx.plan.sparql_cache
+    functions = cache.get(("shacl-functions",))
+    if functions is not None:
+        return functions
+    from starlayer.shacl_engine.expressions import (
+        EvaluationFailure,
+        evaluate_expression,
+    )
 
     def make(fn: Term, body: Term) -> Any:
-        def call(*args: Term) -> Term:
+        def call(*args: Term) -> Term | None:
             try:
-                out = evaluate_expression(ctx, body, None, {i: [to_engine(a)] for i, a in enumerate(args)})
-            except (EvaluationFailure, ShapeError) as exc:
-                raise SPARQLError(str(exc)) from exc
-            if len(out) != 1:
-                raise SPARQLError(f"{text_of(fn)}: the body must have exactly one output node, found {len(out)}")
-            return from_engine(out[0])
+                out = evaluate_expression(ctx, body, None, {i: [a] for i, a in enumerate(args)})
+            except (EvaluationFailure, ShapeError):
+                return None
+            return out[0] if len(out) == 1 else None
 
         return call
 
-    active[("shacl-functions-active",)] = True
-    try:
-        declared = active.get(("shacl-function-decls",))
-        if declared is None:  # read once per plan: the shapes graph does not change during a run
-            declared = active[("shacl-function-decls",)] = [
-                (fn, body)
-                for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
-                if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
-            ]
-        for fn, body in declared:
-            func = make(fn, body)
-            register_custom_function(from_engine(fn), func, override=True)
-            registered.append((from_engine(fn), func))
-        yield
-    finally:
-        active[("shacl-functions-active",)] = False
-        for fn, func in registered:
-            unregister_custom_function(fn, func)
+    functions = cache[("shacl-functions",)] = {
+        fn: make(fn, body)
+        for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
+        if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
+    }
+    return functions
 
 
 def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_this: bool = True) -> Solutions:
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
         raise ShapeError("a SHACL SPARQL SELECT query must project ?this")
-    with _shacl_functions(ctx):
-        return run_query(ctx.data, text, bindings)
+    return run_query(ctx.data, text, bindings, shacl_functions(ctx))
 
 
 def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
     check_query(ctx.plan, text, bindings, ask=True)
-    with _shacl_functions(ctx):
-        return bool(run_query(ctx.data, text, bindings).boolean)
+    return bool(run_query(ctx.data, text, bindings, shacl_functions(ctx)).boolean)
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -432,6 +387,5 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         var = "result"
     else:
         raise ShapeError(f"{expr!r}: not a SPARQL node expression")
-    with _shacl_functions(ctx):
-        rows = run_query(ctx.data, text, bindings).rows
+    rows = run_query(ctx.data, text, bindings, shacl_functions(ctx)).rows
     return [row[var] for row in rows if var in row]

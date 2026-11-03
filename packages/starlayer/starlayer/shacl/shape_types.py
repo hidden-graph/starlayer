@@ -23,12 +23,13 @@ from __future__ import annotations
 
 from typing import Any
 
-from rdflib import RDF, RDFS, Namespace, URIRef
+import pyoxigraph as ox
 
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
+from starlayer.shacl_engine.graphs import new_graph
+from starlayer.shacl_engine.terms import RDF, RDFS, SH, engine_view
 
-SH = Namespace("http://www.w3.org/ns/shacl#")
+_SH_NS = str(SH)
 
 # Left out of the vocabulary: their domain is sh:Shape, which would make a property group a shape.
 _PREDICATES_WITHOUT_VOCABULARY_DOMAIN = (SH.name, SH.description, SH.order)
@@ -37,32 +38,24 @@ __all__ = ["infer_types"]
 
 
 def _is_vocabulary_term(node: Any) -> bool:
-    return isinstance(node, URIRef) and str(node).startswith(str(SH))
+    return isinstance(node, ox.NamedNode) and node.value.startswith(_SH_NS)
 
 
-def _copy(graph: Any) -> StarLayerGraph:
-    result = StarLayerGraph()
-    for prefix, namespace in graph.namespaces():
-        result.bind(prefix, namespace)
-    for triple in graph:
-        result.add(triple)
+def _copy(graph: Any) -> Any:
+    result = new_graph(graph)
+    result.extend(list(graph.triples((None, None, None))))
     return result
 
 
-def infer_types(shapes_graph: Any) -> StarLayerGraph:
-    """The ``rdf:type`` triples ``shapes_graph``'s structure entails and it does not already state.
+def infer_types(shapes_graph: Any) -> Any:
+    """The ``rdf:type`` triples ``shapes_graph``'s structure entails and it does not already state, as an ``OxGraph``.
 
-    ``shapes_graph`` is read as data and left unchanged. Needs the optional ``owlrl`` dependency (for the RDFS step). An
-    ``OxGraph`` / ``OxDataset`` / ``pyoxigraph.Store`` in gives an ``OxGraph`` out; any other graph gives a ``StarLayerGraph``.
+    ``shapes_graph`` is read as data and left unchanged. Needs the optional ``owlrl`` dependency (for the RDFS step).
     """
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
-    if _ox.is_oxigraph_input(shapes_graph):
-        return _ox.ox_result(infer_types(_ox.to_starlayer_graph(shapes_graph)), shapes_graph)
     from starlayer import starontology
     from starlayer.shacl.validator import apply_rules
 
-    data = _copy(shapes_graph)
+    data = _copy(engine_view(shapes_graph, "shapes graph"))
 
     # 1. RDFS entailment over the shapes graph and the SHACL vocabulary; keep the new sh: types of nodes in the shapes graph.
     vocabulary = _copy(starontology.get_ontology_graph("shacl_vocabulary"))
@@ -71,27 +64,31 @@ def infer_types(shapes_graph: Any) -> StarLayerGraph:
             for value in list(vocabulary.objects(predicate, axiom)):
                 vocabulary.remove((predicate, axiom, value))
     combined = _copy(data)
-    for triple in vocabulary:
-        combined.add(triple)
+    combined.extend(list(vocabulary.triples((None, None, None))))
     # Not the vocabulary's own terms: an object such as sh:NodeShape (from an earlier pass's output) is a class, not a shape.
     nodes = {n for n in set(data.subjects()) | set(data.objects()) if not _is_vocabulary_term(n)}
-    entailed = StarLayerGraph()
-    for s, p, o in combined.infer(ENTAILMENT.RDFS, mode="delta"):
-        if p == RDF.type and s in nodes and str(o).startswith(str(SH)):
-            entailed.add((s, p, o))
+    entailed = new_graph()
+    entailed.extend(
+        [
+            (s, p, o)
+            for s, p, o in combined.infer(ENTAILMENT.RDFS, mode="delta").triples((None, None, None))
+            if p == RDF.type and s in nodes and isinstance(o, ox.NamedNode) and o.value.startswith(_SH_NS)
+        ]
+    )
 
     # 2. The rules, over the shapes graph with those types added (a value of sh:property is already a sh:PropertyShape).
     working = _copy(data)
-    for triple in entailed:
-        working.add(triple)
+    working.extend(list(entailed.triples((None, None, None))))
     rules = _copy(starontology.get_ontology_graph("shacl_shacl_rules"))
     ruled = apply_rules(working, shacl_graph=rules).inferred_graph
 
-    result = StarLayerGraph()
-    for prefix, namespace in data.namespaces():
-        result.bind(prefix, namespace)
+    result = new_graph(data)
     for graph in (entailed, ruled):
-        for s, p, o in graph:
-            if p == RDF.type and not _is_vocabulary_term(s) and (s, p, o) not in data:
-                result.add((s, p, o))
+        result.extend(
+            [
+                (s, p, o)
+                for s, p, o in graph.triples((None, None, None))
+                if p == RDF.type and not _is_vocabulary_term(s) and (s, p, o) not in data
+            ]
+        )
     return result

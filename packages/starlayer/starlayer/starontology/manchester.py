@@ -1205,8 +1205,7 @@ def _known_classes() -> frozenset:
     )
 
 
-@ox_out("data_graph")
-def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
+def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """Validate ``data_graph`` against the shapes in
     ``manchester_shapes.ttl``. Which shapes to check against is this
     module's own, fixed concern, not a parameter.
@@ -1249,8 +1248,8 @@ def manchester_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    (data_graph,) = _ox.read_boundary(data_graph)  # an OxGraph is validated as a snapshot; the report comes back as an OxGraph
-    problems = _preflight(data_graph)
+    (snapshot,) = _ox.read_boundary(data_graph)  # the pre-flight reads rdflib terms: an OxGraph is read as a snapshot
+    problems = _preflight(snapshot)
     if any("cycle" in message for _, message in problems):
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.
         return False, _preflight_report(problems, None), _preflight_text(problems, "")
@@ -1283,7 +1282,9 @@ def _preflight_report(problems, report_graph):
 
     sh = Namespace(_SH)
     if report_graph is None:
-        report_graph = Graph()
+        from starlayer.graph.oxgraph.core import OxGraph
+
+        report_graph = OxGraph()
         report_graph.add((BNode(), RDF.type, sh.ValidationReport))
     report_node = report_graph.value(None, RDF.type, sh.ValidationReport)
     for focus, message in problems:

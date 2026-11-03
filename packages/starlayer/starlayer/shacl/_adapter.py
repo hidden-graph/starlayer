@@ -12,10 +12,11 @@ import contextvars
 from collections.abc import Iterator
 from typing import Any
 
-from rdflib import BNode, Namespace, URIRef
+import pyoxigraph as ox
 
-SH = Namespace("http://www.w3.org/ns/shacl#")  # rdflib terms: the adapter speaks the caller's term model
-_RDF_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+from starlayer.shacl_engine.terms import RDF, SH, term_policy, to_engine
+
+_RDF_REIFIES = RDF.reifies
 
 # The keywords ``validate()`` (and so ``apply_rules()``) take besides its named parameters: the option presets of
 # ``validation_modes`` and their per-call overrides. ``advanced=False`` turns rule execution off; ``debug`` is accepted and ignored;
@@ -56,7 +57,7 @@ def shared_plans() -> Iterator[dict]:
 # option translation
 
 
-def conformance_disallows_for(allow_warnings: Any, allow_infos: Any) -> URIRef | None:
+def conformance_disallows_for(allow_warnings: Any, allow_infos: Any) -> Any:
     """The engine's ``conformance_disallows`` (the lowest severity that blocks conformance) for ``allow_warnings`` /
     ``allow_infos``: allowing warnings also allows infos (only violations block); allowing infos alone lets Info through
     (Warning and Violation block); neither: ``None`` (Info and above block, the draft's default)."""
@@ -111,10 +112,15 @@ def _check_imports(shapes: Any, loader: Any, ignore_imports: bool) -> None:
         resolve_imports(shapes, None, False)
 
 
-def _normalise(data: Any, shapes: Any, ont: Any) -> tuple[Any, Any, Any]:
+def _normalise(data: Any, shapes: Any, ont: Any, invalid_terms: Any = None) -> tuple[Any, Any, Any]:
+    """The three graphs as Oxigraph-backed graphs (an rdflib / StarLayerGraph input is copied by the ``from_rdflib`` bridge, under
+    the ``invalid_terms`` policy)."""
+    import contextlib
+
     from starlayer.shacl.normalization import normalize_graph_inputs
 
-    return normalize_graph_inputs(data, shapes, ont)
+    with term_policy(invalid_terms) if invalid_terms else contextlib.nullcontext():
+        return normalize_graph_inputs(data, shapes, ont)
 
 
 def _meta_preflight(shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
@@ -137,9 +143,7 @@ def _annotate_conformance_disallows(report: Any, floor: Any) -> None:
     """``sh:conformanceDisallows`` as the report states it: always the explicit set of blocking severities (Violation; Warning
     unless warnings are allowed; Info unless warnings or infos are allowed), where the engine writes the property only for a
     non-default floor."""
-    from rdflib.namespace import RDF
-
-    node = next(report.subjects(RDF.type, SH.ValidationReport), None)
+    node = next(iter(report.subjects(RDF.type, SH.ValidationReport)), None)
     if node is None:
         return
     disallowed = [SH.Violation]
@@ -185,7 +189,7 @@ def validate(
     engine_kwargs = translate_validate_options(resolved)
 
     original = data_graph
-    data, shapes, ont = _normalise(data_graph, shacl_graph, ont_graph)
+    data, shapes, ont = _normalise(data_graph, shacl_graph, ont_graph, options.get("invalid_terms"))
     cache = _PLAN_CACHE.get()
     if cache is not None and shacl_graph is not None:
         # keep the caller's shapes object alive next to its normalised form, so the (id-keyed) Plan cache stays valid and
@@ -223,10 +227,8 @@ def validate(
     out_data = None
     if engine_kwargs.get("inplace"):
         out_data = original
-        if data is not original:  # a plain graph was converted: write the inferred triples back
-            for t in list(data.triples((None, None, None))):
-                if t not in original:
-                    original.add(t)
+        if data is not original:  # a graph was converted (or a Store wrapped): write the inferred triples back
+            api._write_back(data, original)
     return ValidationResult(
         conforms=outcome.conforms,
         report_graph=outcome.report_graph,
@@ -243,11 +245,11 @@ def validate(
 def _rule_set_iris(rule_set: Any) -> list[Any] | None:
     if rule_set is None:
         return None
-    if isinstance(rule_set, (str, URIRef)) or not hasattr(rule_set, "__iter__"):
+    if isinstance(rule_set, (str, ox.NamedNode)) or not hasattr(rule_set, "__iter__"):
         members = [rule_set]
     else:
         members = list(rule_set)
-    return [URIRef(m) if type(m) is str else m for m in members]  # a plain string is an IRI
+    return [ox.NamedNode(m) if type(m) is str else to_engine(m) for m in members]  # a plain string is an IRI
 
 
 # validate()'s own keywords, which ``apply_rules()`` forwards to its final validation pass
@@ -286,7 +288,9 @@ def apply_rules(
     engine_kwargs.pop("inplace", None)
     engine_kwargs["rules"] = False  # the rules have run: the final pass validates the evaluation graph only
     inference = options.get("inference")
-    data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
+    data, shapes, ont = _normalise(
+        data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph, options.get("invalid_terms")
+    )
     # "before rules" entailment pass: the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
     base = resolve_data_view(data, shapes, inference=inference, ont_graph=ont)
     result = rules.apply_rules(
@@ -309,14 +313,13 @@ def apply_rules(
         data_graph=None,
         diagnostics=outcome.diagnostics,
     )
-    inferred = type(data)()
-    for prefix, ns in data.namespaces():
-        inferred.bind(prefix, ns)
-    for t in result.inferred:
-        inferred.add(t)
+    from starlayer.shacl_engine.graphs import new_graph
+
+    inferred = new_graph(data)
+    inferred.extend(list(result.inferred))
     for triple, rule_node in result.source_rules:  # SHACL 1.2 Inference Rules 9: _:r rdf:reifies <<( s p o )>> ; sh:sourceRule <rule>
-        reifier = BNode()
-        inferred.add((reifier, _RDF_REIFIES, triple))  # a plain 3-tuple is a triple term in object position
+        reifier = ox.BlankNode()
+        inferred.add((reifier, _RDF_REIFIES, ox.Triple(*triple)))
         inferred.add((reifier, SH.sourceRule, rule_node))
     return RulesResult(inferred_graph=inferred, validation=validation)
 
@@ -360,7 +363,7 @@ def extract_subgraph(
     inference: Any,
     include_targets: bool,
 ) -> Any:
-    """``extract_subgraph()`` on the engine (a ``StarLayerGraph``)."""
+    """``extract_subgraph()`` on the engine (an ``OxGraph``)."""
     from starlayer.shacl_engine.subgraph import extract_subgraph as engine_extract
 
     return engine_extract(
