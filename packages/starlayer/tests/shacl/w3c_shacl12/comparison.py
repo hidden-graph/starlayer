@@ -22,6 +22,20 @@ from .namespaces import SH
 TermKey = tuple
 
 
+def as_rdflib(graph, *nodes):
+    """``graph`` (and the ``nodes`` of it) in rdflib terms: the engine's reports are OxGraphs of pyoxigraph terms, the vendored
+    expected reports are rdflib graphs. Blank node ids are kept, so a node of the one is a node of the other."""
+    if not getattr(graph, "engine_terms", False):
+        return (graph, *nodes)
+    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    from starlayer.shacl_engine.terms import from_engine
+
+    out = StarLayerGraph()
+    for s, p, o in graph.triples((None, None, None)):
+        out.add((from_engine(s), from_engine(p), from_engine(o)))
+    return (out, *(from_engine(n) for n in nodes))
+
+
 def term_key(graph: Graph, term: Node | None) -> TermKey | None:
     if term is None:
         return None
@@ -49,6 +63,7 @@ def find_report_node(graph: Graph) -> Node:
     an incidental one was pulled in specifically because something else
     references it.
     """
+    graph, = as_rdflib(graph)
     nodes = list(graph.subjects(RDF.type, SH.ValidationReport))
     if len(nodes) == 1:
         return nodes[0]
@@ -60,6 +75,7 @@ def find_report_node(graph: Graph) -> Node:
 
 
 def conforms_of(graph: Graph, report_node: Node) -> bool:
+    graph, report_node = as_rdflib(graph, report_node)
     values = list(graph.objects(report_node, SH.conforms))
     if len(values) != 1:
         raise AssertionError(f"expected exactly one sh:conforms value, found {len(values)}: {values}")
@@ -77,6 +93,7 @@ def result_multiset(graph: Graph, report_node: Node) -> Counter:
     two different shapes can be structurally different yet both correctly
     produce a given violation.
     """
+    graph, report_node = as_rdflib(graph, report_node)
     counter: Counter = Counter()
     for result_node in graph.objects(report_node, SH.result):
         focus = next(graph.objects(result_node, SH.focusNode), None)

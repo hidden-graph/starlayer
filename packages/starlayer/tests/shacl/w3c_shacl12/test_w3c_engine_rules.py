@@ -62,5 +62,7 @@ def test_engine_rules(entry: ManifestEntry) -> None:
     result = apply_rules(data, shapes)
     assert set(data.triples((None, None, None))) == before, "the caller's data graph was modified"
     added = set(LegacyTermView(result.view).triples((None, None, None))) - before
-    assert added == set(result.inferred)
+    from starlayer.shacl_engine.terms import from_engine
+
+    assert added == {tuple(from_engine(t) for t in triple) for triple in result.inferred}  # the engine speaks pyoxigraph terms
     assert _same_triples(added, expected), f"expected added: {expected}\nactual added: {added}"

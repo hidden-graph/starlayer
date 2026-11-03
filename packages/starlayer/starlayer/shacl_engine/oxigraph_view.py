@@ -18,6 +18,7 @@ several graphs; ``graph_name=DEFAULT`` reads the default graph; an IRI/blank nod
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any
@@ -39,6 +40,63 @@ DEFAULT = object()
 # ``from_ox`` convert the rdflib / StarLayer terms a caller may still pass (graph names, ``add``, pre-bindings).
 to_ox = to_engine
 from_ox = from_engine
+
+
+_WORD = re.compile(r"[A-Za-z_]+")
+_SELECT_NEXT = re.compile(r"(?:\s|#[^\n]*\n)*SELECT\b", re.I)
+
+
+def inject_everywhere(text: str, values: str) -> str:
+    """``text`` with the ``values`` clause (``VALUES (?x) { (t) }``) put at the start of every group graph pattern, so a pre-bound
+    variable is bound inside nested groups too, as SHACL 1.2 SPARQL Appendix A defines pre-binding (Oxigraph's ``substitutions``
+    do not reach a group that holds only a ``FILTER``). Not in a sub-select's opening brace, a ``VALUES`` data block or a
+    ``CONSTRUCT`` template. Strings, IRIs and comments are skipped."""
+    from starlayer.graph.oxgraph.run import _IRI_AT, _STRING_AT
+
+    out: list[str] = []
+    i, n = 0, len(text)
+    after_values = construct = construct_where = False
+    while i < n:
+        c = text[i]
+        if c == "#":
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append(text[i:j])
+            i = j
+            continue
+        m = _STRING_AT.match(text, i) if c in "\"'" else _IRI_AT.match(text, i) if c == "<" else None
+        if m is not None:
+            out.append(m.group(0))
+            i = m.end()
+            continue
+        if c.isalpha() or c == "_":
+            w = _WORD.match(text, i)
+            word = w.group(0) if w else c
+            j = i + len(word)
+            upper = word.upper()
+            if text[i - 1 : i] not in "?$:" or i == 0:
+                if upper == "VALUES":
+                    after_values = True
+                elif upper == "CONSTRUCT":
+                    construct = True
+                elif upper == "WHERE" and construct:
+                    construct, construct_where = False, True
+            out.append(text[i:j])
+            i = j
+            continue
+        out.append(c)
+        i += 1
+        if c == "{":
+            skip = after_values or construct or construct_where or _SELECT_NEXT.match(text, i) is not None
+            if after_values:
+                after_values = False
+            elif construct:
+                construct = False
+            elif construct_where:
+                construct_where = False
+            if not skip:
+                out.append(" " + values + " ")
+    return "".join(out)
 
 
 class OxigraphGraph:
@@ -170,6 +228,13 @@ class OxigraphGraph:
             kwargs["use_default_graph_as_union"] = True
         else:
             kwargs["default_graph"] = self._graph
+        from starlayer.graph.oxgraph import run as oxrun
+
+        if subs and not any(oxrun._has_blank(v) for v in subs.values()):
+            # pre-binding as the draft defines it: the binding is part of every group (see ``inject_everywhere``)
+            header = " ".join("?" + v.value for v in subs)
+            row = " ".join(oxrun._sparql_term(t) for t in subs.values())
+            return self.store.query(inject_everywhere(text, f"VALUES ({header}) {{ ({row}) }}"), **kwargs)  # str-ok: SPARQL text
         try:
             return self.store.query(text, **kwargs, **({"substitutions": subs} if subs else {}))
         except RuntimeError as exc:

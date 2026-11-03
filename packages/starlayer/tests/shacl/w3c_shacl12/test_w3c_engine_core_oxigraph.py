@@ -20,17 +20,9 @@ from .comparison import conforms_of, find_report_node, result_multiset
 from .ids import portable_id
 from .manifest import ManifestEntry
 from .namespaces import MF, SH, SHT
+from .known_failures import STORE_NORMALIZATION as KNOWN_FAILURES
 from .test_w3c_engine_core import _ENTRIES, _graph
 from .test_w3c_validate import VENDOR_ROOT
-
-# portable entry id -> literal that changes and why. All are Oxigraph literal normalization on storage (starlayer #190).
-KNOWN_FAILURES: dict[str, str] = {
-    "tests/core/node/maxExclusive-001::maxExclusive-001": '"4.0"^^xsd:decimal is stored as "4"; the report echoes the value',
-    "tests/core/node/minExclusive-001::minExclusive-001": '"4.0"^^xsd:decimal is stored as "4"; the report echoes the value',
-    "tests/core/property/datatype-ill-formed::datatype-ill-formed": '"300"^^xsd:byte (out of range) is rewritten to "300"^^xsd:integer',
-    "tests/core/property/uniqueLang-002::uniqueLang-002": '"1"^^xsd:boolean becomes "true", so sh:uniqueLang is wrongly activated',
-}
-
 
 def pytest_generate_tests(metafunc):
     if "entry" in metafunc.fixturenames:

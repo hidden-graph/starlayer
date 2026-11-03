@@ -13,6 +13,7 @@ from starlayer.shacl_engine import validate
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
 from .ids import portable_id
+from .known_failures import STORE_NORMALIZATION
 from .manifest import (
     ManifestEntry,
     clone_graph,
@@ -39,7 +40,12 @@ _ENTRIES = _entries()
 
 def pytest_generate_tests(metafunc):
     if "entry" in metafunc.fixturenames:
-        metafunc.parametrize("entry", _ENTRIES, ids=[portable_id(e, VENDOR_ROOT) for e in _ENTRIES])
+        params = []
+        for e in _ENTRIES:
+            pid = portable_id(e, VENDOR_ROOT)
+            marks = [pytest.mark.xfail(strict=True, reason=STORE_NORMALIZATION[pid])] if pid in STORE_NORMALIZATION else []
+            params.append(pytest.param(e, id=pid, marks=marks))
+        metafunc.parametrize("entry", params)
 
 
 def _graph(entry: ManifestEntry, predicate) -> StarLayerGraph:

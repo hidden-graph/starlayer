@@ -137,7 +137,9 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
     validator = StarShaclSchema(shacl_graph=shapes_graph)
     result = validator.apply_rules(data_graph=data_graph, meta_shacl=False)
 
-    after = set(result.inferred_graph.triples((None, None, None)))
+    from starlayer.shacl_engine.terms import from_engine
+
+    after = {tuple(from_engine(t) for t in triple) for triple in result.inferred_graph.triples((None, None, None))}
     added = after - before
 
     assert _same_triples(added, expected), (

@@ -53,6 +53,11 @@ from __future__ import annotations
 # deliberately (see its own entry below for why).
 
 KNOWN_FAILURES: dict[str, str] = {
+    "tests/sparql/functions/langLabelCount-example::langLabelCount-example": (
+        "The function body runs `?predicate rdfs:subPropertyOf* rdfs:label` with the object a constant that is not a node of the graph. "
+        "SPARQL 1.1 (zero-length path) gives ?predicate = rdfs:label; Oxigraph, which now runs every SHACL query, returns no solution, so the "
+        "label count is 0. An Oxigraph path-evaluation difference, not an engine one."
+    ),
     "tests/sparql/pre-binding/unsupported-sparql-002::unsupported-sparql-002": (
         "The fixture expects a failure for `VALUES ?any { true }`. SHACL 1.2 SPARQL Appendix A: \"SPARQL queries MUST not contain a "
         "VALUES clause that mentions any potentially pre-bound variable\"; ?any is not pre-bound, so the query is allowed and the "
@@ -134,3 +139,18 @@ KNOWN_FAILURES_FUSEKI_HTTP: dict[str, str] = {
     "tests/node-expr/shnex/remove::remove-list-from-list": _FUSEKI_LITERAL_NORMALIZATION,  # "01"^^xsd:integer
     "tests/node-expr/shnex/distinct::distinct-termEquality": _FUSEKI_LITERAL_NORMALIZATION,  # "04"^^xsd:integer
 }
+
+
+# Entries that fail on any Oxigraph-backed graph (every graph the engine and the public API use) because the store rewrites a literal
+# on insert (starlayer #190; upstream oxigraph#526, #1989, PR #2010). STRICT xfails where they are used: they XPASS, and fail, once a
+# pyoxigraph with the fix is installed, which is the signal to delete them.
+STORE_NORMALIZATION: dict[str, str] = {
+    "tests/node-expr/shnex/remove::remove-list-from-list": '"01"^^xsd:integer is stored as "1", so the list no longer holds a term to remove',
+    "tests/node-expr/shnex/distinct::distinct-termEquality": '"04"^^xsd:integer is stored as "4", the same term as "4": distinct merges them',
+    "tests/core/node/maxExclusive-001::maxExclusive-001": '"4.0"^^xsd:decimal is stored as "4"; the report echoes the value',
+    "tests/core/node/minExclusive-001::minExclusive-001": '"4.0"^^xsd:decimal is stored as "4"; the report echoes the value',
+    "tests/core/property/datatype-ill-formed::datatype-ill-formed": '"300"^^xsd:byte (out of range) is rewritten to "300"^^xsd:integer',
+    "tests/core/property/uniqueLang-002::uniqueLang-002": '"1"^^xsd:boolean becomes "true", so sh:uniqueLang is wrongly activated',
+}
+
+

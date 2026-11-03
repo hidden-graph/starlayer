@@ -14,7 +14,7 @@ from starlayer.shacl import StarShaclSchema  # noqa: E402
 from .closure import node_closure  # noqa: E402
 from .comparison import conforms_of, find_report_node, result_multiset  # noqa: E402
 from .ids import portable_id  # noqa: E402
-from .known_failures import KNOWN_FAILURES, KNOWN_FAILURES_OXIGRAPH_STORE  # noqa: E402
+from .known_failures import KNOWN_FAILURES, KNOWN_FAILURES_OXIGRAPH_STORE, STORE_NORMALIZATION  # noqa: E402
 from .manifest import (  # noqa: E402
     ManifestEntry,
     clone_graph,
@@ -88,6 +88,8 @@ def _check_validate(entry: ManifestEntry, new_graph, known_failures) -> None:
     entry_key = portable_id(entry, VENDOR_ROOT)
     if entry_key in known_failures:
         pytest.xfail(known_failures[entry_key])
+    if entry_key in STORE_NORMALIZATION:
+        pytest.xfail(STORE_NORMALIZATION[entry_key])
 
     data_graph = _resolve_action_graph(entry, SHT.dataGraph, new_graph)
     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph, new_graph)
