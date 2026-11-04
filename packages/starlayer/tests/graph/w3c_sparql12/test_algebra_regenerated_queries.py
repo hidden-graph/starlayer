@@ -1,6 +1,6 @@
 """Isolated regression cases for a specific, narrow class of bug: the
 *original* W3C SPARQL 1.2 query text for these 6 fixtures already passes
-cleanly against StarLayerGraph's in-memory backend (see
+cleanly against OxGraph's in-memory backend (see
 test_w3c_sparql12_eval.py's own test_eval_select_original_query/
 test_eval_construct_original_query for those same 6 IDs) - but the
 *algebra-regenerated* text the downstream starlayer.sparql project's own
@@ -32,8 +32,8 @@ fixed here directly.
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph import isomorphic
+from starlayer.graph.oxgraph import OxDataset, OxGraph
 
 from .harness import bindings_match
 
@@ -205,10 +205,10 @@ CONSTRUCT_CASES = [
 ]
 
 
-def _new_graph(data_format: str | None) -> StarLayerGraph | StarLayerDataset:
+def _new_graph(data_format: str | None) -> OxGraph | OxDataset:
     if data_format in ("trig12", "nq12"):
-        return StarLayerDataset()
-    return StarLayerGraph()
+        return OxDataset()
+    return OxGraph()
 
 
 @pytest.mark.parametrize("name,data,fmt,original,regenerated", SELECT_CASES, ids=[c[0] for c in SELECT_CASES])
@@ -239,7 +239,8 @@ def test_regenerated_construct_matches_original(name, data, fmt, original, regen
     original_triples = set(original_graph)
     regenerated_triples = set(regenerated_graph)
 
-    assert original_triples == regenerated_triples, (
+    # the store mints fresh blank node labels for a construct template per query: compare up to isomorphism
+    assert isomorphic(original_graph, regenerated_graph), (
         f"[{name}] original and regenerated disagree against starlayer.graph's in-memory backend.\n"
         f"original Q:\n{original}\nregenerated Q':\n{regenerated}\n"
         f"original triples: {original_triples}\nregenerated triples: {regenerated_triples}"

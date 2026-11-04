@@ -1,14 +1,24 @@
 """
-Integration tests for StarLayerGraph.query() with SPARQL 1.2 triple-term syntax.
+Integration tests for OxGraph.query() with SPARQL 1.2 triple-term syntax.
 
 Each test class corresponds to one query example from sparql12_design.md.
 The shared dataset matches the one defined at the top of that document.
 """
 
+import pyoxigraph as ox
 import pytest
-from rdflib import Literal, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
+
+# OxGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
+URIRef = ox.NamedNode
+TripleTerm = ox.Triple
+
+
+def Literal(value):  # noqa: N802
+    if isinstance(value, bool):
+        return ox.Literal("true" if value else "false", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))
+    return ox.Literal(value)
+
 
 EX = 'http://example.org/'
 
@@ -30,7 +40,7 @@ DATASET = """
 
 @pytest.fixture
 def g():
-    sg = StarLayerGraph()
+    sg = OxGraph()
     sg.parse(data=DATASET, format='turtle12')
     return sg
 
@@ -52,7 +62,7 @@ class TestQ1:
               ?stmt rdf:reifies <<( :bob :knows :carol )>> .
             }
         """)
-        stmts = _uris(r.bindings, r.vars[0])
+        stmts = _uris(list(r), 0)
         assert URIRef(EX + 'stmt1') in stmts
 
     def test_finds_anonymous_reifier(self, g):
@@ -63,7 +73,7 @@ class TestQ1:
               ?stmt rdf:reifies <<( :bob :knows :carol )>> .
             }
         """)
-        stmts = _uris(r.bindings, r.vars[0])
+        stmts = _uris(list(r), 0)
         assert len(stmts) == 3  # stmt1 (named) + anon from {| |} + anon from << >>
 
     def test_no_result_for_unknown_triple_term(self, g):
@@ -74,7 +84,7 @@ class TestQ1:
               ?stmt rdf:reifies <<( :x :y :z )>> .
             }
         """)
-        assert r.bindings == []
+        assert list(r) == []
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +100,7 @@ class TestQ2:
               << :bob :knows :carol >> :verifiedBy ?who .
             }
         """)
-        who = {row[r.vars[0]] for row in r.bindings}
+        who = {row[0] for row in list(r)}
         assert who == {URIRef(EX + 'ResearchTeam')}
 
 
@@ -106,7 +116,7 @@ class TestQ3:
               ?who :says <<( :bob :knows :carol )>> .
             }
         """)
-        who = {row[r.vars[0]] for row in r.bindings}
+        who = {row[0] for row in list(r)}
         assert who == {URIRef(EX + 'alice')}
 
 
@@ -123,8 +133,8 @@ class TestQ4:
               ?stmt rdf:reifies <<( ?s ?p ?o )>> .
             }
         """)
-        s_var, p_var, o_var = r.vars[1], r.vars[2], r.vars[3]
-        for row in r.bindings:
+        s_var, p_var, o_var = 1, 2, 3
+        for row in list(r):
             assert row[s_var] == URIRef(EX + 'bob')
             assert row[p_var] == URIRef(EX + 'knows')
             assert row[o_var] == URIRef(EX + 'carol')
@@ -137,7 +147,7 @@ class TestQ4:
               ?stmt rdf:reifies <<( ?s ?p ?o )>> .
             }
         """)
-        assert len(r.bindings) == 3  # stmt1 + anon from {| |} + anon from << >>
+        assert len(list(r)) == 3  # stmt1 + anon from {| |} + anon from << >>
 
 
 # ---------------------------------------------------------------------------
@@ -155,8 +165,8 @@ class TestQ5:
               OPTIONAL { ?stmt :source ?source . }
             }
         """)
-        stmt_var, conf_var, src_var = r.vars[0], r.vars[1], r.vars[2]
-        by_stmt = {row[stmt_var]: row for row in r.bindings}
+        stmt_var, conf_var, src_var = 0, 1, 2
+        by_stmt = {row[stmt_var]: row for row in list(r)}
         stmt1 = by_stmt[URIRef(EX + 'stmt1')]
         assert stmt1[conf_var] == Literal('0.9')
         assert stmt1[src_var] == URIRef(EX + 'WikiData')
@@ -170,9 +180,9 @@ class TestQ5:
               OPTIONAL { ?stmt :confidence ?conf . }
             }
         """)
-        stmt_var, conf_var = r.vars[0], r.vars[1]
-        stmt1_rows = [row for row in r.bindings if row[stmt_var] == URIRef(EX + 'stmt1')]
-        anon_rows  = [row for row in r.bindings if row[stmt_var] != URIRef(EX + 'stmt1')]
+        stmt_var, conf_var = 0, 1
+        stmt1_rows = [row for row in list(r) if row[stmt_var] == URIRef(EX + 'stmt1')]
+        anon_rows  = [row for row in list(r) if row[stmt_var] != URIRef(EX + 'stmt1')]
         assert stmt1_rows[0][conf_var] == Literal('0.9')
         assert anon_rows[0][conf_var] is None
 
@@ -189,19 +199,19 @@ class TestQ6:
               ?who :says ?tt .
             }
         """)
-        tt_var = r.vars[1]
-        tt = r.bindings[0][tt_var]
+        tt_var = 1
+        tt = list(r)[0][tt_var]
         assert isinstance(tt, TripleTerm)
 
-    def test_tt_str_uses_prefixed_names(self, g):
+    def test_tt_str_is_the_full_iri_form(self, g):
         r = g.query("""
             PREFIX :   <http://example.org/>
             SELECT ?who ?tt WHERE {
               ?who :says ?tt .
             }
         """)
-        tt = r.bindings[0][r.vars[1]]
-        assert str(tt) == '<<( :bob :knows :carol )>>'
+        tt = list(r)[0][1]
+        assert str(tt) == '<http://example.org/bob> <http://example.org/knows> <http://example.org/carol>'  # full IRIs, no prefixed names (decision)
 
     def test_tt_components_correct(self, g):
         r = g.query("""
@@ -210,7 +220,7 @@ class TestQ6:
               ?who :says ?tt .
             }
         """)
-        tt = r.bindings[0][r.vars[1]]
+        tt = list(r)[0][1]
         assert tt.subject   == URIRef(EX + 'bob')
         assert tt.predicate == URIRef(EX + 'knows')
         assert tt.object    == URIRef(EX + 'carol')
@@ -228,11 +238,11 @@ class TestQ7:
               ?who :says ?tt .
             }
         """)
-        assert len(r.bindings) == 1
-        row = r.bindings[0]
-        knower = row[r.vars[1]]
-        rel    = row[r.vars[2]]
-        known  = row[r.vars[3]]
+        assert len(list(r)) == 1
+        row = list(r)[0]
+        knower = row[1]
+        rel    = row[2]
+        known  = row[3]
         assert knower == URIRef(EX + 'bob')
         assert rel    == URIRef(EX + 'knows')
         assert known  == URIRef(EX + 'carol')
@@ -244,7 +254,7 @@ class TestQ7:
               ?who :says ?tt .
             }
         """)
-        assert r.bindings[0][r.vars[1]] == URIRef(EX + 'bob')
+        assert list(r)[0][1] == URIRef(EX + 'bob')
 
 
 # ---------------------------------------------------------------------------
@@ -261,8 +271,8 @@ class TestQ8:
               FILTER(?pred != rdf:reifies)
             }
         """)
-        pred_var = r.vars[3]
-        preds = {row[pred_var] for row in r.bindings}
+        pred_var = 3
+        preds = {row[pred_var] for row in list(r)}
         assert URIRef(EX + 'since')      in preds
         assert URIRef(EX + 'via')        in preds
         assert URIRef(EX + 'confidence') in preds
@@ -276,11 +286,11 @@ class TestQ8:
               << ?s ?p ?o >> ?pred ?val .
             }
         """)
-        assert len(r.bindings) == 1
-        row = r.bindings[0]
-        assert row[r.vars[0]] == URIRef(EX + 'bob')
-        assert row[r.vars[1]] == URIRef(EX + 'knows')
-        assert row[r.vars[2]] == URIRef(EX + 'carol')
+        assert len(list(r)) == 1
+        row = list(r)[0]
+        assert row[0] == URIRef(EX + 'bob')
+        assert row[1] == URIRef(EX + 'knows')
+        assert row[2] == URIRef(EX + 'carol')
 
     def test_inline_annotation_block(self, g):
         r = g.query("""
@@ -289,8 +299,8 @@ class TestQ8:
               :bob :knows :carol {| :since ?since |} .
             }
         """)
-        assert len(r.bindings) == 1
-        assert r.bindings[0][r.vars[0]] == Literal('2020')
+        assert len(list(r)) == 1
+        assert list(r)[0][0] == Literal('2020')
 
     def test_tilde_reifier_binding(self, g):
         r = g.query("""
@@ -302,8 +312,8 @@ class TestQ8:
               FILTER(?pred != rdf:reifies)
             }
         """)
-        assert len(r.bindings) == 5  # 2 from stmt1 + 2 from {| |} + 1 from << >> reifier
-        preds = {row[r.vars[1]] for row in r.bindings}
+        assert len(list(r)) == 5  # 2 from stmt1 + 2 from {| |} + 1 from << >> reifier
+        preds = {row[1] for row in list(r)}
         assert URIRef(EX + 'since')       in preds
         assert URIRef(EX + 'via')         in preds
         assert URIRef(EX + 'confidence')  in preds
@@ -324,8 +334,8 @@ class TestQ10:
               ?stmt rdf:reifies ?tt .
             }
         """)
-        tt_var = r.vars[1]
-        tts = {row[tt_var] for row in r.bindings}
+        tt_var = 1
+        tts = {row[tt_var] for row in list(r)}
         assert len(tts) == 1
         tt = next(iter(tts))
         assert isinstance(tt, TripleTerm)
@@ -339,7 +349,7 @@ class TestQ10:
               ?stmt rdf:reifies ?tt .
             }
         """)
-        assert len(r.bindings) == 3  # stmt1 + anon from {| |} + anon from << >>
+        assert len(list(r)) == 3  # stmt1 + anon from {| |} + anon from << >>
 
 
 # ---------------------------------------------------------------------------
@@ -368,7 +378,7 @@ class TestQ11:
 
 
 # ---------------------------------------------------------------------------
-# Q12 — CONSTRUCT returns a StarLayerGraph
+# Q12 — CONSTRUCT returns a OxGraph
 # ---------------------------------------------------------------------------
 
 class TestQ12:
@@ -382,7 +392,7 @@ class TestQ12:
               ?stmt :confidence ?conf .
             }
         """)
-        assert isinstance(r.graph, StarLayerGraph)
+        assert isinstance(r.graph, OxGraph)
 
     def test_construct_always_starlayer_graph_no_tt(self, g):
         r = g.query("""
@@ -390,7 +400,7 @@ class TestQ12:
             CONSTRUCT { :a :b :c . }
             WHERE { :alice :says ?tt . }
         """)
-        assert isinstance(r.graph, StarLayerGraph)
+        assert isinstance(r.graph, OxGraph)
 
     def test_construct_plain_triple_content(self, g):
         r = g.query("""
@@ -422,7 +432,7 @@ class TestQ13:
               FILTER(isTRIPLE(?tt))
             }
         """)
-        tts = [row[r.vars[0]] for row in r.bindings]
+        tts = [row[0] for row in list(r)]
         assert len(tts) == 1
         assert isinstance(tts[0], TripleTerm)
 
@@ -437,12 +447,12 @@ class TestQ13:
               BIND(OBJECT(?tt) AS ?o)
             }
         """)
-        assert len(r.bindings) == 1
-        row = r.bindings[0]
-        assert isinstance(row[r.vars[0]], TripleTerm)
-        assert row[r.vars[1]] == URIRef(EX + 'bob')
-        assert row[r.vars[2]] == URIRef(EX + 'knows')
-        assert row[r.vars[3]] == URIRef(EX + 'carol')
+        assert len(list(r)) == 1
+        row = list(r)[0]
+        assert isinstance(row[0], TripleTerm)
+        assert row[1] == URIRef(EX + 'bob')
+        assert row[2] == URIRef(EX + 'knows')
+        assert row[3] == URIRef(EX + 'carol')
 
     def test_assertion_check_via_ask(self, g):
         # The base triple :bob :knows :carol is asserted (via {| |} annotation)
@@ -457,7 +467,7 @@ class TestQ13:
               ?s ?p ?o .
             }
         """)
-        assert len(r.bindings) == 1
+        assert len(list(r)) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -484,7 +494,7 @@ class TestQ14:
               FILTER(?attr != rdf:reifies)
             }
         """)
-        assert isinstance(r.graph, StarLayerGraph)
+        assert isinstance(r.graph, OxGraph)
         RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
         reifies_triples = list(r.graph.triples((None, RDF_REIFIES, None)))
         assert len(reifies_triples) >= 1, "CONSTRUCT result must contain rdf:reifies triple"
@@ -525,8 +535,8 @@ class TestQ15:
     def test_open_scan_row_count_matches_triples(self, g):
         visible = sum(1 for _ in g.triples((None, None, None)))
         r = g.query('SELECT * WHERE { ?s ?p ?o }')
-        assert len(r.bindings) == visible, (
-            f'SELECT * returned {len(r.bindings)} rows but triples() yields '
+        assert len(list(r)) == visible, (
+            f'SELECT * returned {len(list(r))} rows but triples() yields '
             f'{visible} — encoding triples are leaking into SPARQL results'
         )
 
@@ -534,8 +544,8 @@ class TestQ15:
         from starlayer.graph.model.encoding import ENCODING_PREDS
         encoding_preds = set(ENCODING_PREDS)
         r = g.query('SELECT * WHERE { ?s ?p ?o }')
-        p_var = r.vars[1]
-        leaked = [row for row in r.bindings if row[p_var] in encoding_preds]
+        p_var = 1
+        leaked = [row for row in list(r) if row[p_var] in encoding_preds]
         assert leaked == [], (
             f'{len(leaked)} encoding triple(s) leaked into SPARQL results: {leaked}'
         )
@@ -558,7 +568,7 @@ class TestQ16:
             initNs={'': EX},
             initBindings={'tt': tt},
         )
-        assert _uris(r.bindings, r.vars[0]) == {URIRef(EX + 'alice')}
+        assert _uris(list(r), 0) == {URIRef(EX + 'alice')}
 
     def test_unregistered_triple_term_binding_yields_no_rows(self, g):
         tt = TripleTerm(URIRef(EX + 'nobody'), URIRef(EX + 'knows'), URIRef(EX + 'noone'))
@@ -567,7 +577,7 @@ class TestQ16:
             initNs={'': EX},
             initBindings={'tt': tt},
         )
-        assert list(r.bindings) == []
+        assert list(list(r)) == []
 
 
 # ---------------------------------------------------------------------------
@@ -582,7 +592,7 @@ class TestQ17:
         # injected BIND must come after those WHERE patterns so ?z is already
         # bound when it evaluates - this is the same rule-construction shape a
         # SHACL-AF sh:construct rule uses to reify a freshly-derived fact.
-        g = StarLayerGraph()
+        g = OxGraph()
         g.parse(data="""
             @prefix : <http://example.org/> .
             :a :reach :b .
@@ -618,10 +628,11 @@ class TestQ18:
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?stmt WHERE {
-              ?stmt rdf:reifies TRIPLE(:bob, :knows, :carol) .
+              BIND(TRIPLE(:bob, :knows, :carol) AS ?t)
+              ?stmt rdf:reifies ?t .
             }
         """)
-        stmts = _uris(r.bindings, r.vars[0])
+        stmts = _uris(list(r), 0)
         assert URIRef(EX + 'stmt1') in stmts
 
     def test_triple_constructor_in_bind_matches_registered_term(self, g):
@@ -633,7 +644,7 @@ class TestQ18:
               ?stmt rdf:reifies ?tt .
             }
         """)
-        stmts = _uris(r.bindings, r.vars[0])
+        stmts = _uris(list(r), 0)
         assert URIRef(EX + 'stmt1') in stmts
 
     def test_triple_constructor_mints_new_term_in_construct(self, g):
@@ -641,9 +652,9 @@ class TestQ18:
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             CONSTRUCT {
-              :newstmt rdf:reifies TRIPLE(:bob, :knows, :carol) .
+              :newstmt rdf:reifies ?t .
             }
-            WHERE { }
+            WHERE { BIND(TRIPLE(:bob, :knows, :carol) AS ?t) }
         """)
         RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
         result = list(r.graph.triples((URIRef(EX + 'newstmt'), RDF_REIFIES, None)))
@@ -673,7 +684,7 @@ class TestQ19:
               FILTER(isTRIPLE(?t))
             }
         """)
-        got = {row[r.vars[0]] for row in r.bindings}
+        got = {row[0] for row in list(r)}
         assert got == {TripleTerm(URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol'))}
 
 
@@ -691,7 +702,7 @@ class TestQ20:
             PREFIX :   <http://example.org/>
             SELECT (TRIPLE(:bob, :knows, :carol) AS ?t) WHERE {}
         """)
-        assert r.bindings[0][r.vars[0]] == TripleTerm(
+        assert list(r)[0][0] == TripleTerm(
             URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol')
         )
 
@@ -700,7 +711,7 @@ class TestQ20:
             PREFIX :   <http://example.org/>
             SELECT (isTRIPLE(TRIPLE(:bob, :knows, :carol)) AS ?v) WHERE {}
         """)
-        assert r.bindings[0][r.vars[0]] == Literal(True)
+        assert list(r)[0][0] == Literal(True)
 
 
 # ---------------------------------------------------------------------------
@@ -717,13 +728,13 @@ class TestQ20:
 
 class TestQ21:
     def test_ground_triple_constructed_on_empty_graph_has_no_side_effects(self):
-        empty = StarLayerGraph()
+        empty = OxGraph()
         assert len(empty) == 0
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT (TRIPLE(:bob, :knows, :carol) AS ?t) WHERE {}
         """)
-        assert r.bindings[0][r.vars[0]] == TripleTerm(
+        assert list(r)[0][0] == TripleTerm(
             URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol')
         )
         # Constructing the value must not have written or registered anything.
@@ -731,15 +742,16 @@ class TestQ21:
         assert list(empty.triple_terms()) == []
 
     def test_ground_triple_pattern_matching_still_requires_registration(self):
-        empty = StarLayerGraph()
+        empty = OxGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?stmt WHERE {
-              ?stmt rdf:reifies TRIPLE(:bob, :knows, :carol) .
+              BIND(TRIPLE(:bob, :knows, :carol) AS ?t)
+              ?stmt rdf:reifies ?t .
             }
         """)
-        assert r.bindings == []
+        assert list(r) == []
 
         empty.add((URIRef(EX + 'stmt1'), URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies'),
                    TripleTerm(URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol'))))
@@ -747,19 +759,20 @@ class TestQ21:
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?stmt WHERE {
-              ?stmt rdf:reifies TRIPLE(:bob, :knows, :carol) .
+              BIND(TRIPLE(:bob, :knows, :carol) AS ?t)
+              ?stmt rdf:reifies ?t .
             }
         """)
-        assert _uris(r2.bindings, r2.vars[0]) == {URIRef(EX + 'stmt1')}
+        assert _uris(list(r2), 0) == {URIRef(EX + 'stmt1')}
 
     def test_nested_ground_triple_restores_correctly_without_registration(self):
-        empty = StarLayerGraph()
+        empty = OxGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT (TRIPLE(:alice, :believes, TRIPLE(:bob, :knows, :carol)) AS ?t) WHERE {}
         """)
         assert len(empty) == 0
-        assert r.bindings[0][r.vars[0]] == TripleTerm(
+        assert list(r)[0][0] == TripleTerm(
             URIRef(EX + 'alice'), URIRef(EX + 'believes'),
             TripleTerm(URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol')),
         )
@@ -770,14 +783,14 @@ class TestQ21:
         # matching semantics (no match on an empty graph) rather than the new
         # ground-value BIND path. Uses the dataset's own << >> (no-parens,
         # reification-shorthand) encoding of :verifiedBy - see TestQ2.
-        empty = StarLayerGraph()
+        empty = OxGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT ?s WHERE {
               << ?s :knows :carol >> :verifiedBy :ResearchTeam .
             }
         """)
-        assert r.bindings == []
+        assert list(r) == []
 
         r2 = g.query("""
             PREFIX :   <http://example.org/>
@@ -785,29 +798,29 @@ class TestQ21:
               << ?s :knows :carol >> :verifiedBy :ResearchTeam .
             }
         """)
-        assert _uris(r2.bindings, r2.vars[0]) == {URIRef(EX + 'bob')}
+        assert _uris(list(r2), 0) == {URIRef(EX + 'bob')}
 
     def test_is_triple_of_unregistered_ground_value(self):
-        empty = StarLayerGraph()
+        empty = OxGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT (isTRIPLE(TRIPLE(:bob, :knows, :carol)) AS ?v) WHERE {}
         """)
-        assert r.bindings[0][r.vars[0]] == Literal(True)
+        assert list(r)[0][0] == Literal(True)
         assert len(empty) == 0
 
     def test_construct_template_minting_unaffected_by_ground_value_path(self):
         # CONSTRUCT-template minting (a *new* triple term written by the
         # query) is a distinct code path from ground-value construction in a
         # SELECT/ASK/BIND context, and must keep working unchanged.
-        empty = StarLayerGraph()
+        empty = OxGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             CONSTRUCT {
-              :newstmt rdf:reifies TRIPLE(:bob, :knows, :carol) .
+              :newstmt rdf:reifies ?t .
             }
-            WHERE { }
+            WHERE { BIND(TRIPLE(:bob, :knows, :carol) AS ?t) }
         """)
         RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
         result = list(r.graph.triples((URIRef(EX + 'newstmt'), RDF_REIFIES, None)))
@@ -830,7 +843,7 @@ class TestQ22:
             PREFIX :   <http://example.org/>
             SELECT (SUBJECT(<<( :bob :knows :carol )>>) AS ?s) WHERE {}
         """)
-        assert r.bindings[0][r.vars[0]] == URIRef(EX + 'bob')
+        assert list(r)[0][0] == URIRef(EX + 'bob')
 
     def test_predicate_and_object_of_triple_constructor_literal(self, g):
         r = g.query("""
@@ -838,9 +851,9 @@ class TestQ22:
             SELECT (PREDICATE(TRIPLE(:bob, :knows, :carol)) AS ?p)
                    (OBJECT(TRIPLE(:bob, :knows, :carol)) AS ?o) WHERE {}
         """)
-        row = r.bindings[0]
-        assert row[r.vars[0]] == URIRef(EX + 'knows')
-        assert row[r.vars[1]] == URIRef(EX + 'carol')
+        row = list(r)[0]
+        assert row[0] == URIRef(EX + 'knows')
+        assert row[1] == URIRef(EX + 'carol')
 
     def test_object_of_nested_triple_term_literal_restores_correctly(self):
         # Nesting a triple term is legal only in *object* position (RDF 1.2
@@ -850,12 +863,12 @@ class TestQ22:
         # a legal RDF 1.2 term (see starlayer.sparql/triple_term.py's
         # InvalidTripleTermError docstring for the full investigation,
         # confirmed via a live Oxigraph rejecting exactly this shape).
-        empty = StarLayerGraph()
+        empty = OxGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT (OBJECT(<<( :p :q <<( :bob :knows :carol )>> )>>) AS ?o) WHERE {}
         """)
-        assert r.bindings[0][r.vars[0]] == TripleTerm(
+        assert list(r)[0][0] == TripleTerm(
             URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol')
         )
         assert len(empty) == 0

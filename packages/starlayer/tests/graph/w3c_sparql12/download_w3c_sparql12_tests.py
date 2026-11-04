@@ -19,7 +19,7 @@ reliably.
 
 Populates tests/w3c_sparql12/data/ for this repo's own
 test_w3c_sparql12_eval.py, which runs the *original* W3C query text directly
-through StarLayerGraph (no starlayer.sparql translation pipeline involved at
+through OxGraph (no starlayer.sparql translation pipeline involved at
 all) and compares against the suite's own official expected results - the
 "does starlayer.graph itself correctly execute these queries" check, independent
 of anything the downstream starlayer.sparql project's own translation adds
