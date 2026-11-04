@@ -6,7 +6,7 @@ What StarLayer does today, and what is planned.
 
 - Manage RDF 1.2 graphs, including triple terms and direction-tagged literals. ([rdf12-concepts](https://www.w3.org/TR/rdf12-concepts))
 - In-memory graph management through rdflib using an RDF 1.1 transformation of RDF 1.2 graphs (the default backend).
-- Parse and serialize various RDF formats including both 1.1 and 1.2 versions of Turtle, LongTurtle, N-Triples, N-Quads, TriG, RDF/XML, and TriX 1.2. Parse and serialize JSON-LD 1.1 (1.2 pending). ([rdf12-n-triples](https://www.w3.org/TR/rdf12-n-triples), [rdf12-turtle](https://www.w3.org/TR/rdf12-turtle), [rdf12-xml](https://www.w3.org/TR/rdf12-xml))
+- Parse and serialize various RDF formats including both 1.1 and 1.2 versions of Turtle, LongTurtle, N-Triples, N-Quads, TriG and RDF/XML. Parse and serialize JSON-LD 1.1 (1.2 pending). ([rdf12-n-triples](https://www.w3.org/TR/rdf12-n-triples), [rdf12-turtle](https://www.w3.org/TR/rdf12-turtle), [rdf12-xml](https://www.w3.org/TR/rdf12-xml))
 - Multi-graph datasets with named graphs. ([rdf12-concepts](https://www.w3.org/TR/rdf12-concepts))
 - Storage backends: the default in-memory rdflib store; Oxigraph in memory, on disk or as a server; Fuseki as a server; and SQLAlchemy-backed storage through a store plugin. Oxigraph and Fuseki use their own RDF 1.2 support when available.
 - RDF-1.2-aware graph isomorphism and comparison. ([rdf12-concepts](https://www.w3.org/TR/rdf12-concepts))
