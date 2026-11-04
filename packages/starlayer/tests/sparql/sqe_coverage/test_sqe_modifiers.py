@@ -1,13 +1,13 @@
 """sqe coverage set: solution modifiers, SELECT *, CONSTRUCT WHERE.
 
 Opt-in (``pytest --sqe-coverage``): each query is parsed to an sqe tree,
-decoded and run, and the rows are compared with plain rdflib on the same
+decoded and run (the decoded form is a prepared rdflib query, so it runs on a
+plain ``rdflib.Graph``), and the rows are compared with the original text on the same
 data. Unsupported constructs must raise, never be silently dropped.
 """
 
 import pytest
-from rdflib import Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from rdflib import Graph, Literal, Namespace
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_query,
@@ -24,7 +24,7 @@ P = "PREFIX ex: <http://x/>\n"
 
 @pytest.fixture(scope="module")
 def data():
-    g = OxGraph()
+    g = Graph()
     for i in range(12):
         g.add((EX[f"s{i}"], EX.p, Literal(i)))
         g.add((EX[f"s{i}"], EX.q, Literal(f"name{i % 4}")))
@@ -92,5 +92,6 @@ def test_negative_limit_is_rejected():
     graph, root = sqe_parse_to_tree(P + "SELECT ?s WHERE { ?s ex:p ?n } LIMIT 3")
     from starlayer.sparql.sqe.vocab import LIMIT
 
-    graph.set((root, LIMIT, Literal(-1)))
+    graph.remove((root, LIMIT, None))
+    graph.add((root, LIMIT, Literal(-1)))
     assert not sqe_validate(graph)[0]

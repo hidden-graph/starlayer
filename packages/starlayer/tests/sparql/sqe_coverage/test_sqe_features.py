@@ -1,5 +1,5 @@
 """sqe feature coverage: one small query per SPARQL feature, each parsed to an
-sqe tree and compared with the same query run on a OxDataset holding a synthetic dataset, three
+sqe tree and compared with the same query run on a StarLayerDataset holding a synthetic dataset, three
 ways: the decoded query, the regenerated text, and the text re-parsed. Every
 tree is also checked against the sqe shapes and for stray salg: terms.
 
@@ -8,7 +8,7 @@ Opt-in (``pytest --sqe-coverage``).
 
 import pytest
 from rdflib import Literal, Namespace
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph import StarLayerDataset
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_query,
@@ -55,7 +55,7 @@ def build_dataset(dataset=None, rdf12=True):
     """The synthetic data. Everything is in the default graph (so ordinary queries see it) and the same
     triples are also in named graphs (so GRAPH queries see them): a dataset that held the triples only in
     named graphs made every default-graph query return nothing, and the comparisons vacuous."""
-    ds = dataset if dataset is not None else OxDataset()
+    ds = dataset if dataset is not None else StarLayerDataset()
     g = ds.graph(EX.g1)
     h = ds.graph(EX.g2)
     triples, tags = synthetic_triples()
