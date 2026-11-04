@@ -216,8 +216,20 @@ def result_messages(r: Result, shapes: Any, data: Any) -> list:
         except Exception:  # noqa: BLE001  (a message is never worth failing a validation for)
             generic = None
         if generic is not None:
-            return [ox.Literal(generic)]
-    return messages
+            return [ox.Literal(T.unmask(generic))]
+    return [_unmasked(m) for m in messages]
+
+
+def _unmasked(m: Any) -> Any:
+    """A message with the lenient-mode stand-in IRIs in its text mapped back to the original terms (``terms.unmask``)."""
+    if isinstance(m, str):
+        return T.unmask(m)
+    if isinstance(m, ox.Literal) and T._INVALID_IRI_PREFIX in m.value:
+        text = T.unmask(m.value)
+        if m.language:
+            return ox.Literal(text, language=m.language, direction=m.direction)
+        return ox.Literal(text, datatype=m.datatype)
+    return m
 
 
 def _message_text(m: Any) -> str:
@@ -288,4 +300,4 @@ def report_text(
     text += "".join(sorted(_result_block(r, shapes, data) for r in results))
     if report is not None:
         text += provenance_text(report, data_graph_iri, data, shapes)
-    return text
+    return T.unmask(text)

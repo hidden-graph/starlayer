@@ -284,3 +284,42 @@ def test_the_public_entry_points_reject_a_graph_with_an_ill_formed_term(entry):
     data, shapes = _pairs()
     with pytest.raises(TermError, match="ill-formed"):
         getattr(shacl, entry)(data, shapes)
+
+
+# ---- lenient: text shows the original term ----------------------------------------------------------------------------------
+
+_TEXT_SHAPES = (
+    PFX + "ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:p ; sh:nodeKind sh:BlankNode ;"
+    " sh:property [ sh:path ex:p ; sh:class ex:C ; sh:in ( ex:a ) ] ."
+)
+
+
+def _relative_iri_outcome():
+    data = Graph()
+    data.add((URIRef("relative/s"), URIRef(EX + "p"), Literal("v")))
+    data.add((URIRef(EX + "t"), URIRef(EX + "p"), URIRef("rel/o")))
+    return validate(data, Graph().parse(data=_TEXT_SHAPES, format="turtle"), invalid_terms="lenient")
+
+
+def test_lenient_report_text_and_messages_show_the_original_term():
+    out = _relative_iri_outcome()
+    assert "urn:starlayer:invalid-iri:" not in out.report_text
+    assert "Focus Node: <relative/s>" in out.report_text and "Value Node: <rel/o>" in out.report_text
+    assert "Value <rel/o> not in list" in out.report_text
+    assert not any("urn:starlayer:invalid-iri:" in m for r in out.results for m in r.messages)
+    assert any("rel/o" in m for r in out.results for m in r.messages)
+    texts = [str(o) for o in out.report_graph.objects(None, URIRef("http://www.w3.org/ns/shacl#resultMessage"))]
+    assert texts and not any("urn:starlayer:invalid-iri:" in t for t in texts)
+    # the report graph still holds the stand-ins as terms; invalid_terms names the originals
+    assert {e.term for e in out.invalid_terms} == {URIRef("relative/s"), URIRef("rel/o")}
+
+
+def test_lenient_report_text_through_the_public_validator():
+    from starlayer.shacl import StarShaclSchema
+
+    data = Graph()
+    data.add((URIRef("relative/s"), URIRef(EX + "p"), Literal("v")))
+    shapes = Graph().parse(data=_TEXT_SHAPES, format="turtle")
+    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, invalid_terms="lenient")
+    assert "Focus Node: <relative/s>" in result.report_text
+    assert "urn:starlayer:invalid-iri:" not in result.report_text
