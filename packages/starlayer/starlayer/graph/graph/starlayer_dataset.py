@@ -606,9 +606,6 @@ class StarLayerDataset(Dataset):
         text = self._read_source(source, publicID, location, file, data)
 
         if format == 'trig12':
-            from starlayer.graph.parsers.trig12 import (
-                extract_version_directive as _trig_version,
-            )
             from starlayer.graph.parsers.trig12 import parse_trig12_named
             for graph_id, triples, namespaces in parse_trig12_named(text, base=_effective_base(publicID, location), require_final_dot=strict_turtle):
                 identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
@@ -635,14 +632,10 @@ class StarLayerDataset(Dataset):
                         _raw_graph_add(sg, triple)
                     sg._build_registry_from_store()
                 self._register_sg(sg)
-            self._check_document_version_conformance(_trig_version(text), context='TriG document')
 
         elif format == 'nq12':
             from collections import defaultdict
 
-            from starlayer.graph.parsers.ntriples12 import (
-                extract_version_directive as _nq_version,
-            )
             from starlayer.graph.parsers.ntriples12 import parse_nquads12
             by_graph: dict = defaultdict(list)
             for s, p, o, graph_id in parse_nquads12(text):
@@ -653,26 +646,9 @@ class StarLayerDataset(Dataset):
                 for triple in triples:
                     sg.add(triple)
                 self._register_sg(sg)
-            self._check_document_version_conformance(_nq_version(text), context='N-Quads document')
 
         self._raw_execution_graph = None
         return self
-
-    def _check_document_version_conformance(self, declared_version, *, context: str) -> None:
-        """Warn (RDF12ConformanceWarning, never a hard error) if a document-
-        level VERSION directive declares "1.2-basic"/"1.1" but any graph in
-        this dataset actually uses a triple term or dirLangString.
-
-        The directive applies to the whole document, not per named graph
-        (see trig12.py's extract_version_directive()), so this checks the
-        union across every context rather than each one independently -
-        see check_version_conformance_for_graphs(), shared with
-        StarLayerGraph.parse()'s equivalent per-format checks.
-        """
-        from starlayer.graph.model.conformance import (
-            check_version_conformance_for_graphs,
-        )
-        check_version_conformance_for_graphs(declared_version, self.contexts(), context=context)
 
     # ------------------------------------------------------------------
     # Query / Update with SPARQL-star support

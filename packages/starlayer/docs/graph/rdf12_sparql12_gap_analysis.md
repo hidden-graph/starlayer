@@ -32,7 +32,7 @@ Existing project docs ([starlayergraph_vs_rdflib.md](starlayergraph_vs_rdflib.md
 | Content-addressing / term equality by structural equality | §3.6 | `tt_hash()` in `starlayergraph/model/encoding.py`, SHA-256 over `(s,p,o)` string forms | ✅ Match |
 | `rdf:dirLangString`, base direction (`ltr`/`rtl`), 4-component literal identity | §3.4 | `DirLangString` in `starlayergraph/model/dirlangstring.py`; encoded as a `Literal` with an internal `dirlang:` datatype URI, decoded transparently at the `StarLayerGraph` boundary | ✅ Match |
 | Language tag case-folding (`"chat"@fr` ≡ `"chat"@FR`) | §3.4.1 | Delegates to rdflib's `Literal`, which already lowercases language tags | ✅ Match (incidental) |
-| Version/conformance levels ("1.2", "1.2-basic", "1.1") | §2, §2.1 | Accepts RDF 1.2 syntax unconditionally regardless of declared level (correct per spec — the directive is "merely a hint"); warns (`RDF12ConformanceWarning`, never a hard error) on a declared/actual-usage mismatch. See `starlayergraph/model/conformance.py` | ✅ Match |
+| Version/conformance levels ("1.2", "1.2-basic", "1.1") | §2, §2.1 | Accepts RDF 1.2 syntax unconditionally regardless of declared level (correct per spec — the directive is "merely a hint"); does not check an RDF document's label against what it uses (the RDF warning was dropped). See `starlayergraph/model/conformance.py` | ✅ Match |
 
 ---
 
@@ -76,7 +76,7 @@ Scope limits (documented in the parser's own docstring): only node elements dire
 | `<<( s p o )>>` valid directly in `BIND(...)`, same as Turtle | Spec's own example: `BIND( <<( ?s ?p ?o )>> AS ?tt )` | ✅ Match |
 | Reification/annotation shorthand (`~`, `{| |}`, `<< >>`) valid in WHERE-clause graph patterns | 2026-09-13 WD's full grammar (previously truncated in the fetch) confirms this directly: `TriplesSameSubjectPath ::= ... \| ReifiedTripleBlockPath` [87], `Object ::= GraphNode Annotation` [86], `Annotation ::= ( Reifier \| AnnotationBlock )*` [111], `GraphNode ::= VarOrTerm \| TriplesNode \| ReifiedTriple` [113] | ✅ Match |
 | `LANGDIR`, `hasLANGDIR`, `STRLANGDIR`; `LANG`/`hasLANG` upgraded for dirLangString | Rewrite to plain SPARQL 1.1 built-ins / a registered constructor function; `_rewrite_dirlang_and_strlangdir()` is recursive-descent, so nested calls resolve correctly | ✅ Match |
-| `VERSION "1.2"` query prologue directive | Stripped by `_strip_version_directive()` before any further rewriting, with the same warning-only conformance check as the Turtle side — its own `SPARQL12ConformanceWarning` class, not `RDF12ConformanceWarning`, per sec 4.3's own note that the SPARQL and RDF version labels check different kinds of conformance | ✅ Match |
+| `VERSION "1.2"` query prologue directive | Stripped by `_strip_version_directive()` before any further rewriting, with a warning-only conformance check (`SPARQL12ConformanceWarning`) | ✅ Match |
 
 ---
 

@@ -55,6 +55,7 @@ __all__ = [
     "encode_directions",
     "decode_directions",
     "export_rdf11",
+    "to_rdf11",
     "has_triple_terms",
 ]
 
@@ -381,6 +382,22 @@ _FORMATS = {
 _TRIPLE_FORMATS = {ox.RdfFormat.TURTLE, ox.RdfFormat.N_TRIPLES, ox.RdfFormat.RDF_XML}
 
 
+def to_rdf11(
+    store_or_quads,
+    *,
+    bnode_prefix: str | None = None,
+    direction_policy: _Lit["datatype", "error", "drop"] = "datatype",
+) -> list[ox.Quad]:
+    """RDF 1.2 as RDF 1.1, in memory: :func:`to_basic` (triple terms) then :func:`encode_directions`
+    (base-direction literals). The returned quads hold no triple term and no directional literal, so any
+    RDF 1.1 consumer (an rdflib graph, an RDF 1.1 writer) can take them. Same caveats as :func:`export_rdf11`."""
+    quads = encode_directions(to_basic(store_or_quads, bnode_prefix=bnode_prefix), direction_policy)
+    for q in quads:
+        assert not isinstance(q.object, ox.Triple), "triple term survived the basic encoding"
+        assert not (isinstance(q.object, ox.Literal) and q.object.direction is not None), "directional literal survived"
+    return quads
+
+
 def export_rdf11(
     store_or_quads,
     format,
@@ -400,10 +417,7 @@ def export_rdf11(
     fmt = _FORMATS[format.lower()] if isinstance(format, str) else format
     if fmt not in _TRIPLE_FORMATS and fmt not in (ox.RdfFormat.TRIG, ox.RdfFormat.N_QUADS):
         raise ValueError(f"not an RDF 1.1 format supported here: {fmt}")
-    quads = encode_directions(to_basic(store_or_quads, bnode_prefix=bnode_prefix), direction_policy)
-    for q in quads:
-        assert not isinstance(q.object, ox.Triple), "triple term survived the basic encoding"
-        assert not (isinstance(q.object, ox.Literal) and q.object.direction is not None), "directional literal survived"
+    quads = to_rdf11(store_or_quads, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
     if fmt in _TRIPLE_FORMATS:
         if any(not isinstance(q.graph_name, ox.DefaultGraph) for q in quads):
             raise ValueError(f"{fmt} cannot hold named graphs; use TriG or N-Quads")

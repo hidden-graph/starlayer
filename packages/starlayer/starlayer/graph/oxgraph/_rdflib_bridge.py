@@ -86,6 +86,42 @@ def to_rdflib_graph(value: Any) -> Any:
     return g
 
 
+def to_rdflib_rdf11(value: Any, *, bnode_prefix: str | None = None, direction_policy: str = "datatype") -> Any:
+    """A snapshot of an ``OxGraph`` as a plain ``rdflib.Graph`` (identifier and prefixes kept), of an ``OxDataset`` / bare ``Store``
+    as an ``rdflib.Dataset`` (named graphs, also empty ones; ``default_union`` kept). RDF 1.2 is presented as RDF 1.1
+    (``interop.to_rdf11``): a triple term becomes a blank node described by the ``rdf:PropositionForm`` basic encoding, a
+    base-direction literal the datatype-IRI form. ``from_rdflib`` restores the directional literals, not the triple terms
+    (a plain ``turtle`` parse does not adopt the basic encoding either; ``interop.from_basic`` does)."""
+    from rdflib import BNode, Dataset, Graph, URIRef
+
+    from starlayer.graph import interop
+    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+
+    if isinstance(value, ox.Store):
+        value = OxDataset(store=value)
+    quads = interop.to_rdf11(list(value.quads()), bnode_prefix=bnode_prefix, direction_policy=direction_policy)
+
+    def name(g: Any) -> Any:
+        return None if isinstance(g, ox.DefaultGraph) else URIRef(g.value) if isinstance(g, ox.NamedNode) else BNode(g.value)
+
+    if isinstance(value, OxGraph):
+        ident = name(value.identifier)
+        out: Any = Graph(identifier=ident) if ident is not None else Graph()
+        for q in quads:
+            out.add((to_rdflib_term(q.subject), to_rdflib_term(q.predicate), to_rdflib_term(q.object)))
+    else:
+        out = Dataset(default_union=value.default_union)
+        for g in value.store.named_graphs():
+            out.graph(name(g))
+        for q in quads:
+            n = name(q.graph_name)
+            target = out.default_graph if n is None else out.graph(n)
+            target.add((to_rdflib_term(q.subject), to_rdflib_term(q.predicate), to_rdflib_term(q.object)))
+    for prefix, ns in dict(value.prefixes).items():
+        out.bind(prefix, ns)
+    return out
+
+
 def _with_identifier(graph: Any, identifier: Any) -> Any:
     from rdflib import Graph
 
@@ -544,7 +580,7 @@ def check_graphs(*labelled: tuple[Any, str]) -> tuple[Any, ...]:
     return tuple(errors)
 
 
-def to_oxgraph(value: Any, where: str = "graph") -> Any:
+def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = False) -> Any:
     """An Oxigraph-backed graph for any graph a caller may pass: an ``OxGraph`` / ``OxDataset`` as it is, a bare ``pyoxigraph.Store``
     as an ``OxDataset``, and a plain rdflib graph or an old-style ``StarLayerGraph`` (``from_rdflib``: a supported public input)
     as an ``OxGraph`` copy with its prefixes and, when it has an IRI identifier, that identifier. ``None`` stays ``None``.
@@ -552,7 +588,8 @@ def to_oxgraph(value: Any, where: str = "graph") -> Any:
     A term that is not an RDF term (a relative IRI ...) raises ``TermError`` naming every offender (``where`` labels the graph),
     or, under ``term_policy("lenient")``, is stored as the opaque stand-in (``Outcome.invalid_terms`` lists it; the stand-in, not
     the original, is what an Oxigraph result holds). Oxigraph normalises some literals on insert (``"04"^^xsd:integer`` becomes
-    ``"4"``): ``preserves_lexical_forms`` is False on the result, as for any ``OxGraph``."""
+    ``"4"``): ``preserves_lexical_forms`` is False on the result, as for any ``OxGraph``. ``restore_directions=True`` turns a
+    directional literal decomposed to its datatype-IRI form (``interop.encode_directions``) back into a real one."""
     if value is None:
         return None
     from starlayer.graph.oxgraph.core import OxDataset, OxGraph
@@ -573,8 +610,45 @@ def to_oxgraph(value: Any, where: str = "graph") -> Any:
     out = OxGraph(identifier=T.to_engine(ident)) if type(ident) is URIRef else OxGraph()
     for prefix, ns in value.namespaces():
         out.bind(prefix, str(ns))
-    to_engine = T.to_engine
+    to_engine = from_rdflib_term if restore_directions else T.to_engine
     out.extend([(to_engine(s), to_engine(p), to_engine(o)) for s, p, o in value.triples((None, None, None))])
+    return out
+
+
+def to_oxdataset(value: Any, where: str = "dataset") -> Any:
+    """A new ``OxDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / StarLayer dataset (every graph, empty named graphs
+    too, ``default_union`` kept) or from a plain graph (its triples go to the default graph, whatever its identifier). Terms are
+    converted and checked as in ``to_oxgraph``, and a decomposed directional literal is restored. Prefixes are copied."""
+    from starlayer.graph.oxgraph.core import OxDataset
+
+    if isinstance(value, (OxDataset, ox.Store)) or not hasattr(value, "namespaces"):
+        raise TypeError(f"{where} must be an rdflib Dataset, ConjunctiveGraph, Graph or StarLayerDataset; got {type(value).__name__}")
+    if hasattr(value, "graphs") or hasattr(value, "contexts"):
+        import warnings
+
+        graphs = list(value.graphs() if hasattr(value, "graphs") else value.contexts())
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            default = getattr(value, "default_graph", None)
+            if default is None:
+                default = getattr(value, "default_context", None)
+        default_id = getattr(default, "identifier", None)
+        union = bool(getattr(value, "default_union", True))
+    else:
+        graphs, default_id, union = [value], value.identifier, True
+    check_graphs(*((g, f"{where} graph {g.identifier}") for g in graphs))
+    out = OxDataset(default_union=union)
+    for prefix, ns in value.namespaces():
+        out.bind(prefix, str(ns))
+    for g in graphs:
+        if g.identifier == default_id:
+            name: Any = ox.DefaultGraph()
+        else:
+            name = from_rdflib_term(g.identifier)
+            out.store.add_graph(name)
+        out.store.extend(
+            ox.Quad(from_rdflib_term(s), from_rdflib_term(p), from_rdflib_term(o), name) for s, p, o in g.triples((None, None, None))
+        )
     return out
 
 

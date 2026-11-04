@@ -49,6 +49,15 @@ flipped class). By directory: `graph/unit` 223, `sparql/unit` 132, `graph/oxgrap
 | B5 | Property paths: a zero-length path to a constant that is not a node (`:zzz :p* ?y`) matches nothing (already `oxigraph-upstream-issues.md` section 1); `!(:p\|^:q)` returns each pair once where the spec translation (`!(:p) UNION ^!(:q)`) is a bag with `(b,a)` twice | 2 | `SELECT ?y { :zzz :p* ?y }` -> no rows | upstream. First is already tracked; add the second to the doc |
 | B6 | `COPY` / `ADD` from a graph that does not exist, without `SILENT`, do not raise (`MOVE`, `DROP`, `CLEAR` do) | 2 | `OxDataset().update('COPY <urn:nope> TO <urn:g1>')` -> no error, target emptied | upstream; or the wrapper checks `has_graph` before COPY/ADD (5 lines, but needs the parsed operation; defer to upstream) |
 
+**Status after `mig-b1-gaps` (2026-11-06; owner decision: fidelity to the old rdflib `StarLayerGraph` is not a goal, Oxigraph's canonical
+forms are accepted).** Tests are in `tests/graph/oxgraph/test_migration_gaps.py` and `test_oxigraph_deviations.py`.
+
+| # | Result |
+|---|---|
+| B1 | **done.** `OxGraph` / `OxDataset` support `pickle`, `copy.copy`, `copy.deepcopy` (O2). A graph opened with `path=` is not pickled (`TypeError`, with the reason); its `copy.copy` / `deepcopy` is an in-memory copy |
+| B2 | `from_rdflib` **done** on both classes, and `to_rdflib` (RDF 1.2 as RDF 1.1 through `interop.to_rdf11`) added. `reduce_prefixes`, `add_reifier_annotation`, prepared queries, tuple wildcards, `triples_choices`, `Graph.isomorphic` and the store lifecycle are **not ported**; migration notes for the tests are in `oxgraph-wrapper.md` ("Migration gaps") |
+| B3 to B6 | each has a strict xfail (`test_oxigraph_deviations.py`), a bare-pyoxigraph reproduction and a section (6 to 9) in `oxigraph-upstream-issues.md`, and a row in `non-spec-behaviour.md` (disposition: decide at the end). B3 correction: `\p{L}+` is accepted by Oxigraph and is valid XPath; the real deviations are listed in section 6 of that file |
+
 Total B: 4 + 6 + 5 + 1 + 2 + 2 = 20. Only B1 and B2 are wrapper work (10 tests); B3 to B6 are Oxigraph deviations the plan did not know about
 and that the old rdflib evaluator (and its patches, `evaluate_patches.py` etc.) had hidden. Nothing in class B is a wrong result from
 the native path that the old class got right by luck of the test data: all six reproduce on `pyoxigraph` or `OxGraph` directly.
@@ -68,7 +77,7 @@ Columns: file (under `packages/starlayer/`), failures, class counts (`class:subr
 | `tests/graph/oxgraph/test_conformance.py` | 5 | D:old-vs-new comparator x5 | runs each scenario on old and new class and compares; goes with the old class (keep scenarios as golden data if wanted) |
 | `tests/graph/oxgraph/test_engine_adapter.py` | 6 | X:xpass x6 | strict xfails for the Oxigraph lexical rewrite (#190) pass because the flipped old loader hands over rdflib literals; flip artefact |
 | `tests/graph/oxgraph/test_helpers_conformance.py` | 14 | D:old-vs-new comparator x14 | helpers compared against the old class; goes with it |
-| `tests/graph/unit/test_conformance.py` | 9 | D:hand-parser warnings (O3) x9 | RDF12ConformanceWarning from the hand-written parsers (VERSION / @version); Oxigraph parsers do not warn (O3) |
+| `tests/graph/unit/test_conformance.py` | 9 | D:hand-parser warnings (O3) x9 | RDF12ConformanceWarning from the hand-written parsers (VERSION / @version); Oxigraph parsers do not warn (O3). **Done 2026-11-06:** the warning class and its emitters are removed and 16 tests deleted (the 9 that expected the warning, 7 that expected none); one test now pins that a mismatched label is read silently. SPARQL12ConformanceWarning stays |
 | `tests/graph/unit/test_contracts_hunt3.py` | 9 | B:pickle x4, B:xpath-regex x5 | 4 deepcopy/pickle of OxGraph (B-pickle); 5 REPLACE / REGEX XPath semantics Oxigraph does not follow (B-xpath) |
 | `tests/graph/unit/test_dataset.py` | 16 | D:rdflib-store x11, M:old-class API: row access, identifiers, isomorphic, str of triple terms, bnode labels x2, M:old-wrapper artefact: identifier scoping, tuple wildcards, prefixes x3 | 11 rdflib store open/close/cache tests (D); 5 old-class API (n3 on a None wildcard, default graph, serialize) (M) |
 | `tests/graph/unit/test_dataset_hunt2.py` | 1 | M:old-class API: row access, identifiers, isomorphic, str of triple terms, bnode labels x1 | default-union remove; OxDataset has its own union tests (M) |
@@ -82,9 +91,9 @@ Columns: file (under `packages/starlayer/`), failures, class counts (`class:subr
 | `tests/graph/unit/test_parser_fixes.py` | 3 | D:hand parser x3 | hand-written Turtle/TriG parser fixes; the W3C RDF 1.2 suites cover Oxigraph (D) |
 | `tests/graph/unit/test_parser_fixes_hunt2.py` | 2 | D:hand parser x2 | hand-written parser fixes (D) |
 | `tests/graph/unit/test_parsers_r4.py` | 2 | M:old-class API: row access, identifiers, isomorphic, str of triple terms, bnode labels x1, M:old-wrapper artefact: identifier scoping, tuple wildcards, prefixes x1 | JSON-LD round trip uses Graph.isomorphic; a prefix test on the old class (M) |
-| `tests/graph/unit/test_prefixes.py` | 2 | B:api-reduce_prefixes x1, M:old-wrapper artefact: identifier scoping, tuple wildcards, prefixes x1 | reduce_prefixes() missing on OxGraph (B-api); a plain-rdflib used_prefixes test (M) |
+| `tests/graph/unit/test_prefixes.py` | 2 | B:api-reduce_prefixes (not ported, see `oxgraph-wrapper.md`) x1, M:old-wrapper artefact: identifier scoping, tuple wildcards, prefixes x1 | reduce_prefixes() missing on OxGraph (B-api); a plain-rdflib used_prefixes test (M) |
 | `tests/graph/unit/test_property_paths_hunt2.py` | 2 | B:paths x2 | Oxigraph: zero-length path to an absent constant (upstream issue 1), NPS with an inverse arm gives a set not a bag (B-upstream) |
-| `tests/graph/unit/test_proposition_form_encoding.py` | 7 | M:basic-encoding input (O4) x7 | plain `turtle` parse used to adopt the basic encoding as triple terms; OxGraph needs interop.from_basic (M, O4) |
+| `tests/graph/unit/test_proposition_form_encoding.py` | 7 | M:basic-encoding input (O4) x7 | plain `turtle` parse used to adopt the basic encoding as triple terms; OxGraph needs interop.from_basic (M, O4). **Decided 2026-11-06:** `OxGraph` does not adopt (confirmed: 5 triples, no triple term); the 7 tests assert old-class behaviour and are deleted with the old class at D1 (not before: they still pass on it). Replaced by `test_turtle_parse_does_not_adopt_the_basic_encoding` and `test_from_basic_is_the_way_to_decode_it` |
 | `tests/graph/unit/test_query_prepare_cache.py` | 10 | D:prepared-query cache x10 | rdflib prepared-query cache (D) |
 | `tests/graph/unit/test_rdf12_formats.py` | 5 | D:hand writers (O3) x5 | hand-written writers and the VERSION line (D; VERSION output is O3) |
 | `tests/graph/unit/test_rdfc_native.py` | 3 | D:old-vs-new comparator x3 | native vs old rdfc agreement properties (D) |
@@ -94,7 +103,7 @@ Columns: file (under `packages/starlayer/`), failures, class counts (`class:subr
 | `tests/graph/unit/test_sparql12_update.py` | 1 | M:old-class API: row access, identifiers, isomorphic, str of triple terms, bnode labels x1 | basic-encoding triple left behind by DELETE DATA (M) |
 | `tests/graph/unit/test_sparql_builtins_hunt3.py` | 1 | B:boolean-order x1 | false < true is unbound in Oxigraph (B-upstream) |
 | `tests/graph/unit/test_sparql_r4_remainders.py` | 1 | M:old-class API: row access, identifiers, isomorphic, str of triple terms, bnode labels x1 | the old wrapper leaks a skolem IRI from STR(bnode); OxGraph already gives unbound as the test wants (M) |
-| `tests/graph/unit/test_starlayer_graph.py` | 23 | B:api-from_rdflib x5, D:rdflib-store x6, M:old-class API: row access, identifiers, isomorphic, str of triple terms, bnode labels x3, M:old-wrapper artefact: identifier scoping, tuple wildcards, prefixes x9 | 6 rdflib store lifecycle (D); 5 from_rdflib (B-api: OxGraph.from_rdflib is missing); 12 tuple wildcards, str of triple terms (M) |
+| `tests/graph/unit/test_starlayer_graph.py` | 23 | B:api-from_rdflib (done) x5, D:rdflib-store x6, M:old-class API: row access, identifiers, isomorphic, str of triple terms, bnode labels x3, M:old-wrapper artefact: identifier scoping, tuple wildcards, prefixes x9 | 6 rdflib store lifecycle (D); 5 from_rdflib (B-api: OxGraph.from_rdflib is missing); 12 tuple wildcards, str of triple terms (M) |
 | `tests/graph/unit/test_trig_graph_blocks.py` | 2 | D:hand parser x2 | compares the hand TriG parser with rdflib (D) |
 | `tests/graph/unit/test_turtle12_serializer.py` | 17 | D:hand writer x17 | hand-written Turtle 1.2 writer (D) |
 | `tests/graph/unit/test_turtle_parser.py` | 3 | D:hand parser x3 | hand-written Turtle parser (D) |
@@ -200,15 +209,15 @@ dies in step 4.
 
 - **O1** Lexical forms: accept Oxigraph's canonical forms for the default class (reverses the faithful-parse decision), or keep the
   spelling (cost: a side table and a custom serializer; Oxigraph cannot).
-- **O2** Keep pickle and `deepcopy` of the graph classes (adds about 30 lines), or drop them with the old class.
+- **O2** Keep pickle and `deepcopy` of the graph classes (adds about 30 lines), or drop them with the old class. **Decided: keep (done).**
 - **O3** `RDF12ConformanceWarning` and the `VERSION` line on write: drop with the hand-written parsers and writers, or re-implement in the
-  wrapper (`ntversion.py` already validates the directive for N-Triples).
-- **O4** Should `parse(format='turtle')` keep adopting the RDF 1.2 basic encoding as triple terms, or is `interop.from_basic` the only way?
-- **O5** Exception types (`SyntaxError`) and the used-graph line for the default graph in SHACL reports.
+  wrapper (`ntversion.py` already validates the directive for N-Triples). **Decided: the warning is dropped (done); the `VERSION` line is kept on write (done, rules in `oxgraph-wrapper.md`).**
+- **O4** Should `parse(format='turtle')` keep adopting the RDF 1.2 basic encoding as triple terms, or is `interop.from_basic` the only way? **Decided: `from_basic` only (confirmed).**
+- **O5** Exception types (`SyntaxError`) and the used-graph line for the default graph in SHACL reports. **Decided: `SyntaxError`; no used-graph line unless the caller names one (confirmed, tested).**
 - **O6** Old-class API with no `OxGraph` counterpart: prepared query objects, tuple wildcards for triple terms, `triples_choices`,
-  `isomorphic`, rdflib store lifecycle. Drop all (the plan's "give-ups"), or port any.
+  `isomorphic`, rdflib store lifecycle. Drop all (the plan's "give-ups"), or port any. **Decided: only `from_rdflib` ported (plus `to_rdflib`); the rest dropped, with equivalents listed in `oxgraph-wrapper.md`.**
 - **O7** The Oxigraph deviations B3 to B6 (REPLACE and REGEX XPath rules, boolean `<`, negated property set bag, COPY/ADD of an absent graph):
-  accept with strict xfails and an upstream issue, or patch client-side.
+  accept with strict xfails and an upstream issue, or patch client-side. **Decided: strict xfails, project notes only (done); no client-side patch.**
 - **O8** `import starlayer.graph` stops installing rdflib patches (`d1-readiness.md` section 6 item 3). Accept (the earlier plan did).
 - Sequencing: confirm that B1 is folded into D1 (section 4, answer 2) rather than run as its own branch.
 

@@ -10,10 +10,10 @@ known limit. Nothing here is posted to any outside forum. Add items as they are 
 | 2 | Derived numeric datatypes stored as `xsd:integer` | the datatype is part of the term | same | Manchester shapes use `xsd:integer` plus `sh:minInclusive 0` | restore `xsd:nonNegativeInteger` after the fix |
 | 3 | A default graph built from several graphs counts a triple once per graph | several `FROM` graphs form the RDF merge, a set (SPARQL 1.1, 13.2) | upstream-issues section 5 | wrapper keeps a deduplicated copy for `default_union` datasets; a query with its own `FROM g1 FROM g2` still double-counts; the SHACL engine's own union view counts a repeated triple once (tested for `sh:maxCount`) | decide whether to report upstream; consider query-shape check (skip the copy for duplicate-insensitive queries) |
 | 4 | Zero-length property path to a constant not in the data matches nothing | a zero-length path always matches the constant | upstream-issues section 1 | strict xfail in the W3C suite; the entailment rewrite avoids `*` on constants | report or wait for upstream |
-| 5 | `REPLACE` / `REGEX` do not follow the XPath rules (`REPLACE('abc','x*','-')` gives `-a-b-c-`; invalid `$` replacement accepted) | F&O: error | b1-classification.md class B3 | to be given strict xfails | address upstream or accept |
-| 6 | `false < true` unbound | boolean ordering is defined | b1-classification.md B4 | to be given a strict xfail | same |
-| 7 | `!(:p\|^:q)` returns a set where the spec gives a bag | bag semantics | b1-classification.md B5 | to be given a strict xfail | same |
-| 8 | `COPY` / `ADD` from an absent graph does not raise without `SILENT` | error | b1-classification.md B6 | to be given a strict xfail | same |
+| 5 | `REPLACE` / `REGEX` do not follow the XPath rules (`REPLACE('abc','x*','-')` gives `-a-b-c-`; invalid `$` replacement accepted) | F&O: error | b1-classification.md class B3; upstream-issues section 6 | strict xfail `test_replace_and_regex_follow_xpath` (`tests/graph/oxgraph/test_oxigraph_deviations.py`); also `\b` accepted, `\p{Is...}` rejected | decide at the end |
+| 6 | `false < true` unbound | boolean ordering is defined | b1-classification.md B4; upstream-issues section 7 | strict xfail `test_boolean_ordering_false_before_true` | decide at the end |
+| 7 | `!(:p\|^:q)` (forward and inverse members) returns a set where the spec gives a bag | bag semantics (18.2: a UNION) | b1-classification.md B5; upstream-issues section 8 | strict xfail `test_negated_property_set_with_both_directions_is_a_bag` | decide at the end |
+| 8 | `COPY` / `ADD` from an absent graph does not raise without `SILENT` | error | b1-classification.md B6; upstream-issues section 9 | strict xfail `test_copy_and_add_of_an_absent_graph_fail_without_silent`; an unchecked `COPY` from a mistyped name empties the target | decide at the end |
 | 9 | `FILTER EXISTS` with an inner FILTER on an outer variable is evaluated per outer row (6x to 400x slower) | performance, not semantics | upstream-issues section 2 | sqe-tree rewrite on by default (`STARLAYER_EXISTS_REWRITE=0` to turn off) | keep the rewrite; maybe report |
 | 10 | N-Triples / N-Quads `VERSION` directive rejected | RDF 1.2 syntax | phase-c-parser-measurement.md | handled in the wrapper (`oxgraph/ntversion.py`) | wrapper fix stays |
 | 11 | XMLLiteral canonicalisation keeps in-scope namespaces | exclusive canonical form | upstream-issues section 4 | pinned known gaps | report or accept |
@@ -28,6 +28,10 @@ known limit. Nothing here is posted to any outside forum. Add items as they are 
 | 20 | `LOAD <file://...>` in UPDATE not supported | optional | migration plan section 4 | use `Store.load(path=...)` | document |
 | 21 | rdflib stores, `Resource`, the prefix manager with 29 default bindings, TriX are gone | - | migration plan section 4 | decided | document |
 | 22 | Oxigraph has no reasoner; OWL-RL runs through `owlrl` on an rdflib copy, RDFS by query rewrite | - | inference-on-oxigraph.md | decided (2026-11-05): keep owlrl; Rust reasoner later | revisit |
+| 23 | RDF 1.2 triple terms handed to plain rdflib (`to_rdflib`) are the basic encoding (`rdf:PropositionForm` blank nodes) and directional literals a datatype IRI; `from_rdflib` restores the literals, not the triple terms | RDF 1.2 Interoperability (draft, non-normative): the encoding is not semantically equivalent | oxgraph-wrapper.md | decided (2026-11-06) | document |
+| 24 | A plain `turtle` parse does not read the basic encoding as triple terms (`interop.from_basic` does) | the encoding is ordinary RDF 1.1 triples | b1-classification.md O4 | decided (2026-11-06) | document |
+| 25 | A graph opened with `path=` cannot be pickled (`TypeError`); `copy.copy` / `deepcopy` of it is an in-memory copy | - | oxgraph-wrapper.md | decided (2026-11-06) | document |
+| 26 | The `VERSION "1.2"` line is written only when the data uses a 1.2 feature or `rdf_version="1.2"` is given; a document's own label is never checked (`RDF12ConformanceWarning` dropped) | the label is a hint (RDF 1.2 Concepts 2.1) | oxgraph-wrapper.md | decided (2026-11-06) | document |
 
 ## Process
 

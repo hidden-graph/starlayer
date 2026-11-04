@@ -2175,15 +2175,7 @@ class StarLayerGraph(Graph):
                     self._build_registry_from_store()
                     self._on_mutated()
 
-                from starlayer.graph.model.conformance import (
-                    check_version_conformance_for_graphs,
-                )
-                check_version_conformance_for_graphs(
-                    getattr(raw, '_declared_version', None), [self], context='Turtle document',
-                )
-
             elif format in ('nt12', 'nq12'):
-                from starlayer.graph.parsers.ntriples12 import extract_version_directive
                 if format == 'nt12':
                     from starlayer.graph.parsers.ntriples12 import parse_ntriples12
                     triples = parse_ntriples12(text)
@@ -2200,17 +2192,7 @@ class StarLayerGraph(Graph):
                     for triple in triples:
                         self.add(triple)
 
-                from starlayer.graph.model.conformance import (
-                    check_version_conformance_for_graphs,
-                )
-                check_version_conformance_for_graphs(
-                    extract_version_directive(text), [self], context='N-Triples/N-Quads document',
-                )
-
             elif format == 'trig12':
-                from starlayer.graph.parsers.trig12 import (
-                    extract_version_directive as _trig_version,
-                )
                 from starlayer.graph.parsers.trig12 import parse_trig12_named
                 named = parse_trig12_named(text, base=_effective_base(publicID, location))
                 # exclude prefix/VERSION-only chunks (no actual triples) -
@@ -2243,15 +2225,7 @@ class StarLayerGraph(Graph):
                     self._build_registry_from_store()
                     self._on_mutated()
 
-                from starlayer.graph.model.conformance import (
-                    check_version_conformance_for_graphs,
-                )
-                check_version_conformance_for_graphs(_trig_version(text), [self], context='TriG document')
-
             elif format == 'rdfxml12':
-                from starlayer.graph.parsers.rdfxml12 import (
-                    extract_version_directive as _rx_version,
-                )
                 from starlayer.graph.parsers.rdfxml12 import parse_rdfxml12
                 triples = parse_rdfxml12(text)
                 if self._is_native:
@@ -2259,11 +2233,6 @@ class StarLayerGraph(Graph):
                 else:
                     for triple in triples:
                         self.add(triple)
-
-                from starlayer.graph.model.conformance import (
-                    check_version_conformance_for_graphs,
-                )
-                check_version_conformance_for_graphs(_rx_version(text), [self], context='RDF/XML document')
 
             elif format in ('manchester', 'omn'):
                 from starlayer.graph.parsers.manchester_parser import parse_manchester

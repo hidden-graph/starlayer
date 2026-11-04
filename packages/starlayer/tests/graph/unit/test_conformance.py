@@ -1,6 +1,5 @@
 """
-End-to-end tests for VERSION-directive handling, RDF12ConformanceWarning,
-and SPARQL12ConformanceWarning.
+End-to-end tests for VERSION-directive handling and SPARQL12ConformanceWarning.
 
 RDF 1.2 Concepts sec 2.1 and SPARQL 1.2 Query sec 4.3 define three version
 labels - "1.2" (full), "1.2-basic" (excludes triple terms and dirLangString),
@@ -9,12 +8,8 @@ processor "is not required to reject features that are outside the
 announced version (but could signal them with a warning)". StarLayer signals
 via a warning, never a hard error - see starlayer.graph/model/conformance.py.
 
-Two distinct warning classes are used: RDF12ConformanceWarning for RDF
-document formats (Turtle, TriG, N-Triples/N-Quads, RDF/XML) and
-SPARQL12ConformanceWarning for a SPARQL query/update's own VERSION directive
-- per SPARQL 1.2 Query sec 4.3's own distinction that "the SPARQL version
-labels refer to SPARQL syntax and semantics, while the RDF version labels
-refer to RDF syntax and semantics".
+A SPARQL query/update's own VERSION directive can warn (SPARQL12ConformanceWarning). An RDF document's VERSION label
+never does (the RDF warning was dropped, 2026-11-06): it is a hint, and a mismatch is not signalled.
 
 Also regression-tests a real bug found while checking this against the live
 spec text: a SPARQL 1.2 query starting with VERSION "1.2" (the spec's own
@@ -29,10 +24,7 @@ from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from starlayer.graph.backends.native import check_native_version_conformance
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.model.conformance import (
-    RDF12ConformanceWarning,
-    SPARQL12ConformanceWarning,
-)
+from starlayer.graph.model.conformance import SPARQL12ConformanceWarning
 
 EX = 'http://example.org/'
 
@@ -344,152 +336,6 @@ class TestNativeIdentifierDefault:
         assert isinstance(g.identifier, BNode)
 
 
-class TestTurtleVersionDirective:
-    def test_1_2_basic_with_triple_term_warns(self):
-        data = f"""@version "1.2-basic" .
-            @prefix : <{EX}> .
-            :stmt rdf:reifies <<( :bob :knows :carol )>> .
-        """
-        g = StarLayerGraph()
-        with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
-            g.parse(data=data, format='turtle12')
-
-    def test_1_2_full_with_triple_term_does_not_warn(self, recwarn):
-        data = f"""@version "1.2" .
-            @prefix : <{EX}> .
-            :stmt rdf:reifies <<( :bob :knows :carol )>> .
-        """
-        g = StarLayerGraph()
-        g.parse(data=data, format='turtle12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
-
-    def test_no_version_directive_does_not_warn(self, recwarn):
-        data = f'@prefix : <{EX}> .\n:s :p :o .\n'
-        g = StarLayerGraph()
-        g.parse(data=data, format='turtle12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
-
-    def test_unrecognized_version_label_warns(self):
-        data = f'@version "9.9" .\n@prefix : <{EX}> .\n:s :p :o .\n'
-        g = StarLayerGraph()
-        with pytest.warns(RDF12ConformanceWarning, match='unrecognized'):
-            g.parse(data=data, format='turtle12')
-
-    def test_1_1_with_triple_term_warns(self):
-        # "1.1" excludes RDF 1.2 features at least as strictly as
-        # "1.2-basic" - see TestSparqlVersionDirective.test_version_1_1_with_triple_term_warns.
-        data = f"""@version "1.1" .
-            @prefix : <{EX}> .
-            :stmt rdf:reifies <<( :bob :knows :carol )>> .
-        """
-        g = StarLayerGraph()
-        with pytest.warns(RDF12ConformanceWarning, match='1.1'):
-            g.parse(data=data, format='turtle12')
-
-
-class TestNTriplesNQuadsVersionDirective:
-    """N-Triples/N-Quads: the VERSION line was already recognized by the
-    parser but only to discard it like a comment, never extracting the
-    label - found by asking "does our VERSION support extend to other
-    formats?" and actually checking, same day as the Turtle/SPARQL fix."""
-
-    def test_1_2_basic_with_triple_term_warns_nt(self):
-        data = (
-            'VERSION "1.2-basic"\n'
-            f'<{EX}stmt> <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> '
-            f'<<( <{EX}a> <{EX}b> <{EX}c> )>> .\n'
-        )
-        g = StarLayerGraph()
-        with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
-            g.parse(data=data, format='nt12')
-
-    def test_1_2_basic_with_triple_term_warns_nq(self):
-        data = (
-            'VERSION "1.2-basic"\n'
-            f'<{EX}stmt> <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> '
-            f'<<( <{EX}a> <{EX}b> <{EX}c> )>> <{EX}g> .\n'
-        )
-        g = StarLayerGraph()
-        with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
-            g.parse(data=data, format='nq12')
-
-    def test_no_version_directive_does_not_warn(self, recwarn):
-        data = f'<{EX}s> <{EX}p> <{EX}o> .\n'
-        g = StarLayerGraph()
-        g.parse(data=data, format='nt12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
-
-    def test_version_1_2_full_does_not_warn(self, recwarn):
-        data = (
-            'VERSION "1.2"\n'
-            f'<{EX}stmt> <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> '
-            f'<<( <{EX}a> <{EX}b> <{EX}c> )>> .\n'
-        )
-        g = StarLayerGraph()
-        g.parse(data=data, format='nt12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
-
-    def test_dataset_nq12_warns(self):
-        data = (
-            'VERSION "1.2-basic"\n'
-            f'<{EX}stmt> <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> '
-            f'<<( <{EX}a> <{EX}b> <{EX}c> )>> <{EX}g> .\n'
-        )
-        ds = StarLayerDataset()
-        with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
-            ds.parse(data=data, format='nq12')
-
-
-class TestTrigVersionDirective:
-    """TriG: the document-level VERSION directive was silently dropped
-    entirely - the per-GRAPH-block Turtle parser calls never surfaced it to
-    either StarLayerGraph.parse() or StarLayerDataset.parse()."""
-
-    def test_starlayer_graph_trig12_warns(self):
-        data = f"""VERSION "1.2-basic"
-            PREFIX : <{EX}>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            GRAPH :g1 {{
-              :stmt rdf:reifies <<( :bob :knows :carol )>> .
-            }}
-        """
-        g = StarLayerGraph()
-        with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
-            g.parse(data=data, format='trig12')
-
-    def test_starlayer_dataset_trig12_warns(self):
-        data = f"""VERSION "1.2-basic"
-            PREFIX : <{EX}>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            GRAPH :g1 {{
-              :stmt rdf:reifies <<( :bob :knows :carol )>> .
-            }}
-        """
-        ds = StarLayerDataset()
-        with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
-            ds.parse(data=data, format='trig12')
-
-    def test_no_version_directive_does_not_warn(self, recwarn):
-        data = f"""PREFIX : <{EX}>
-            GRAPH :g1 {{ :s :p :o . }}
-        """
-        g = StarLayerGraph()
-        g.parse(data=data, format='trig12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
-
-    def test_version_1_2_full_does_not_warn(self, recwarn):
-        data = f"""VERSION "1.2"
-            PREFIX : <{EX}>
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            GRAPH :g1 {{
-              :stmt rdf:reifies <<( :bob :knows :carol )>> .
-            }}
-        """
-        g = StarLayerGraph()
-        g.parse(data=data, format='trig12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
-
-
 class TestRdfXmlVersionAttribute:
     """RDF/XML's version mechanism is structurally different from every
     other format's - an rdf:version XML attribute on a node/property
@@ -535,19 +381,17 @@ class TestRdfXmlVersionAttribute:
         from starlayer.graph.parsers.rdfxml12 import extract_version_directive
         assert extract_version_directive(self._OXIGRAPH_OUTPUT) == '1.2'
 
-    def test_1_2_basic_with_triple_term_warns(self):
-        data = self._OXIGRAPH_OUTPUT.replace('rdf:version="1.2"', 'rdf:version="1.2-basic"')
-        g = StarLayerGraph()
-        with pytest.warns(RDF12ConformanceWarning, match='1.2-basic'):
-            g.parse(data=data, format='rdfxml12')
 
-    def test_no_version_attribute_does_not_warn(self, recwarn):
-        data = self._OXIGRAPH_OUTPUT.replace(' rdf:version="1.2"', '')
-        g = StarLayerGraph()
-        g.parse(data=data, format='rdfxml12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
+class TestVersionLabelIsAHint:
+    """A VERSION label is only a hint (RDF 1.2 Concepts sec 2.1): a document labelled "1.2-basic" that uses a triple term
+    is read as it stands, with no warning and no error."""
 
-    def test_version_1_2_full_does_not_warn(self, recwarn):
+    def test_1_2_basic_with_triple_term_is_read(self, recwarn):
+        data = f"""@version "1.2-basic" .
+            @prefix : <{EX}> .
+            :stmt <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> <<( :bob :knows :carol )>> .
+        """
         g = StarLayerGraph()
-        g.parse(data=self._OXIGRAPH_OUTPUT, format='rdfxml12')
-        assert not any(issubclass(w.category, RDF12ConformanceWarning) for w in recwarn.list)
+        g.parse(data=data, format='turtle12')
+        assert g.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
+        assert not [w for w in recwarn.list if 'VERSION' in str(w.message)]

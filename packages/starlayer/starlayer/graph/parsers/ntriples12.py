@@ -309,9 +309,8 @@ def extract_version_directive(text: str) -> str | None:
     _parse_nt_line() already recognizes a VERSION line but only to discard it
     like a comment - it never surfaces the label. This is a separate,
     lightweight scan so parse_ntriples12()/parse_nquads12() keep their
-    existing list[tuple] return signature; StarLayerGraph.parse() calls this
-    alongside them for the RDF12ConformanceWarning check (see
-    starlayer.graph.model.conformance). Per the grammar, VERSION - if present -
+    existing list[tuple] return signature; a caller that wants the label calls this
+    alongside them. Per the grammar, VERSION - if present -
     must be the first statement, so only the first non-blank/comment line is
     examined.
 

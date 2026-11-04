@@ -376,10 +376,7 @@ def extract_version_directive(text: str) -> str | None:
     StarLayerTurtleParser by _split_trig_blocks*() never includes this
     leading directive as such (it either lands, stripped of significance,
     in the default-graph chunk, or is absent from every GRAPH-block chunk
-    entirely), so callers need this dedicated top-level scan instead - see
-    StarLayerGraph.parse()/StarLayerDataset.parse()'s 'trig12' branches,
-    which use it for the RDF12ConformanceWarning check
-    (starlayer.graph.model.conformance). Reuses starlayer.graph.parsers.syntax's
+    entirely), so callers need this dedicated top-level scan instead. Reuses starlayer.graph.parsers.syntax's
     existing statement splitter/classifier rather than duplicating that
     grammar.
 

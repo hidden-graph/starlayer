@@ -27,7 +27,7 @@ reuses `graph/query/direct.py` (`_guard`) and `graph/backends/native.py` (`check
 | Write | `add(triple)`, `extend(triples)` (one transaction), `addN(quads)`, `remove(pattern)` (wildcards), `clear()` |
 | Read | `__contains__`, `__len__`, `__iter__`, `triples(pattern)`, `quads(pattern)`, `objects`, `subjects`, `predicates`, `predicate_objects`, `subject_objects`, `subject_predicates` (all with `unique=`), `value(s, p, o, default, any)`, `items(head)` |
 | Datasets | `graph(identifier)`, `graphs()`, `graph_names()`, `has_graph`, `remove_graph`, `clear`, `default_union` |
-| I/O | `parse(source=, data=, file=, format=, base=)`, `serialize(destination=None, format=, base=, prefixes=, only_used=, rdf_version=)` |
+| I/O | `parse(source=, data=, file=, format=, base=)`, `serialize(destination=None, format=, base=, prefixes=, only_used=, rdf_version=)`, `from_rdflib(x)` (classmethod), `to_rdflib()`; `pickle`, `copy.copy`, `copy.deepcopy` |
 | Prefixes | `prefixes` (plain dict), `bind`, `unbind`, `used_prefixes()` |
 | SPARQL | `query(text, initNs, initBindings, base)` and `update(text, initNs, base)`, sent to Oxigraph as text |
 | Operators | `+ - & ^` (`graph/setops.py`), `+=`, `copy()`, `__eq__` by identity |
@@ -180,6 +180,60 @@ Differences from the old writer (11 fixture cases compared byte for byte; 3 iden
 - A named or shared reifier folds too (`~ :r {| |}`, `~ _:b`); `rdf:nil` is `()` only where the grammar allows a collection (the old writer wrote `()` as a predicate or inside a triple term, which does not parse).
 - A list or annotation block with a nested `[ ]` breaks over lines; `width` wraps long object lists and `( )` (the old one never wrapped; `width=None` is its behaviour).
 - A long string inside a triple term is written in the short quoted form: Oxigraph's parser rejects `"""` there (an Oxigraph limitation).
+
+## Migration gaps (branch `mig-b1-gaps`, 2026-11-06)
+
+Owner decision of 2026-11-06: fidelity to the old rdflib `StarLayerGraph` is not a goal; Oxigraph's canonical lexical forms are
+accepted. Tests: `tests/graph/oxgraph/test_migration_gaps.py` and `test_oxigraph_deviations.py`.
+
+- **Pickle and copy (O2).** `pickle`, `copy.copy` and `copy.deepcopy` work on `OxGraph` and `OxDataset` (`pyoxigraph.Store` is not
+  picklable, so the state is the quads). A graph view pickles only its own graph (identifier, quads, a copy of the prefixes); a
+  dataset pickles every quad, its empty named graphs, `default_union` and the prefixes. `copy.copy` and `copy.deepcopy` are
+  `.copy()`: an independent in-memory copy. `OxGraph.copy()` now keeps the identifier of a named-graph view (it used to put the
+  triples in the default graph). **A graph opened with `path=` is not pickled: `TypeError`.** Reopening the path read-only in the
+  unpickling process was rejected: a second opener of one RocksDB path is not safe while the first is open, and the path may not
+  exist where the pickle is read; pickling the whole store silently would put an arbitrarily large database in the pickle. The error
+  names `.copy()` (then pickle the copy) and `serialize(format='nq')`. A store passed as `store=` cannot be told from an in-memory
+  one, so it is pickled as quads.
+- **`from_rdflib` (B2, O6).** `OxGraph.from_rdflib(rdflib_graph)` and `OxDataset.from_rdflib(rdflib_dataset)` are classmethods over the
+  bridge (`_rdflib_bridge.to_oxgraph`, `to_oxdataset`). They copy triples, prefixes, an IRI identifier (graph) or every graph, empty
+  ones too, and `default_union` (dataset; a plain graph goes to the default graph). StarLayer `TripleTerm`s become triple terms; a
+  directional literal in the datatype-IRI form (what `to_rdflib` writes) is restored; an ill-formed term raises `TermError`
+  (`term_policy("lenient")` stores a stand-in). The basic encoding is left as triples. An `OxGraph` / `OxDataset` argument is copied.
+- **`to_rdflib` (owner's out-direction decision).** `g.to_rdflib()` returns a plain `rdflib.Graph` (an `OxGraph`, keeping its IRI
+  identifier) or `rdflib.Dataset` (an `OxDataset`, with `default_union`), prefixes bound, as a snapshot. RDF 1.2 is presented as RDF 1.1
+  through the new `interop.to_rdf11(quads, bnode_prefix=, direction_policy=)` (the in-memory half of `export_rdf11`): each triple term
+  is a blank node described by `rdf:PropositionForm` triples, each directional literal its datatype-IRI form. `to_rdflib_graph` in the
+  bridge (a decomposed reification fragment, for the old reasoner paths) is unchanged and is not the public method.
+- **`VERSION` on write (O3).** Oxigraph's `turtle`, `trig`, `nt` and `nq` writers do not write a version declaration (checked
+  with triple terms and with `rdf_version="1.2"`). The wrapper writes it, as the first line, for the four syntaxes that define one:
+  `@version "1.2" .` (Turtle, TriG) and `VERSION "1.2"` (N-Triples, N-Quads). **Rule:** written when the data has a triple term or a
+  base-direction literal, or when `rdf_version="1.2"` is given (then also for plain data); not written for plain RDF 1.1 data
+  otherwise, never for `rdf_version="1.1"`, never for RDF/XML or JSON-LD. `pretty=True` already wrote it for 1.2 data (same text;
+  not doubled). The exact test reads the terms; a quick byte test (`<<(`, `--ltr`, `--rtl`) skips it for most data. Output
+  round-trips through `parse` in all four (the wrapper's `ntversion` filter reads the N-Triples / N-Quads line).
+- **`RDF12ConformanceWarning` dropped.** The class, `check_version_conformance_for_graphs` and the old classes' seven call sites are
+  removed, with 16 tests of `tests/graph/unit/test_conformance.py` (the 9 that expected the warning, 7 that expected none). A
+  document's `VERSION` label is a hint and is never checked; hard errors (a malformed directive in N-Triples / N-Quads) stay.
+  `SPARQL12ConformanceWarning` for a query's own `VERSION` is a different check and stays (`oxgraph/sparql_text.py`).
+- **Basic encoding on a plain `turtle` parse (O4).** Not adopted, confirmed: parsing `_:b a rdf:PropositionForm ; ...` gives the
+  ordinary triples and no triple term. `interop.from_basic` decodes. The 7 old-class tests that assert adoption
+  (`test_proposition_form_encoding.py`) are deleted with the old class at D1.
+- **Exception types (O5).** Parse, query and update syntax errors are `SyntaxError` (with a position); an unknown format is
+  `ValueError`; a literal subject or predicate is `TypeError`. A SHACL report on an `OxGraph` has no `Used Data Graph` line (and no
+  provenance block) unless the caller passes `data_graph_iri=` / `shapes_graph_iri=`; the default graph has no IRI to show.
+
+### Old-class API that is not ported, and what a migrated test uses
+
+| Old API | OxGraph / OxDataset equivalent |
+|---|---|
+| `reduce_prefixes(keep=())` | `used_prefixes()` lists what the data uses; `for p in set(g.prefixes) - {p for p, _ in g.used_prefixes()} - set(keep): g.unbind(p)`; or `serialize(only_used=True)` for output only |
+| `add_reifier_annotation(pred, obj, name=None)` | `r = name or BlankNode(); g.add((r, pred, obj)); g.add_reification(r, triple_term)`; read back with `reifier_annotations(TT)` |
+| prepared-query objects (`prepareQuery`, the cache) | pass the text to `query()` / `update()` (`initNs=`, `initBindings=`); there is no cache to warm |
+| tuple wildcards for triple terms (`triples((None, None, (None, None, None)))`) | `triple_terms(s, p, o)` (wildcards allowed), or a SPARQL pattern; a full `ox.Triple` in a pattern matches that exact term |
+| `triples_choices` | loop over `triples()`, or `VALUES` in SPARQL |
+| `Graph.isomorphic`, `isomorphic(a, b)` | `starlayer.graph.isomorphic(a, b)` takes an `OxGraph` (checked); for quads, `starlayer.graph.rdfc_native.isomorphic(a.quads(), b.quads())` |
+| store lifecycle (`open`, `close`, `store=`, `destroy`) | `OxGraph(path=...)` / `OxDataset(path=...)`; there is no `close`: drop the object before reopening the path (`test_persistence.py`) |
 
 ## NOT built (follow-ups, with where the old code lives)
 

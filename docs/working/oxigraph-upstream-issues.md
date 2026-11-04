@@ -216,3 +216,113 @@ copy. (c), an `sqe` tree or text rewrite, is exact only for BGP matching: every 
 Limits of (b): the cost is O(n) on the first union query after a write when a triple is in two graphs (about 1.3 s per 100k triples), a write straight on the
 store through a kept reference is not seen until `union.touch()`, a query with its own `FROM` clauses is unchanged, and the SHACL engine's own union view
 (`engine_view()`, used by `validate`) is not covered.
+
+## 6. REPLACE and REGEX do not follow the XPath rules
+
+Project note, not for posting. Checked 2026-11-06 on pyoxigraph 0.5.13. SPARQL 1.1 (17.4.3.14, 17.4.3.15) defines `REGEX` and
+`REPLACE` by `fn:matches` and `fn:replace` (XPath F&O 3.1), whose dialect is the XSD regular expression with a few additions.
+Oxigraph runs the Rust `regex` crate with its own replacement syntax.
+
+```python
+import pyoxigraph as ox
+
+store = ox.Store()
+for expr in [
+    "REPLACE('abc', 'x*', '-')",            # a pattern that can match the empty string
+    "REPLACE('abc', '', '-')",
+    "REPLACE('abc', 'b', '$')",             # '$' not followed by a digit
+    r"REPLACE('abc', 'b', '\\x')",          # '\' not followed by '\' or '$'
+    r"REPLACE('abc', 'b', '\\$')",          # '\$' is a literal '$'
+    r"REGEX('a b', '\\bb')",                # \b is not in the XSD dialect
+    r"REGEX('abc', '\\p{IsBasicLatin}+')",  # an XSD block escape
+]:
+    (row,) = list(store.query(f"SELECT ({expr} AS ?r) {{}}"))
+    print(expr, "->", None if row["r"] is None else row["r"].value)
+```
+
+| Expression | XPath gives | Oxigraph |
+|---|---|---|
+| `REPLACE('abc','x*','-')` and `REPLACE('abc','','-')` | error (FORX0003, a match of length zero), so unbound | `-a-b-c-` |
+| `REPLACE('abc','b','$')` | error (FORX0004), unbound | `a$c` |
+| `REPLACE('abc','b','\x')` | error (FORX0004), unbound | `a\xc` |
+| `REPLACE('abc','b','\$')` | `a$c` | `a\$c` |
+| `REGEX('a b','\bb')` | error (FORX0002, `\b` is not in the dialect), unbound | `true` |
+| `REGEX('abc','\p{IsBasicLatin}+')` | `true` (block escapes are in the dialect) | unbound (rejected) |
+
+Valid XSD constructs such as `\p{L}`, `\d` and `\w` work, and a lookahead `(?=...)` is rejected, as XPath does. So the deviation
+runs both ways: Rust-only syntax (`\b`, and others the crate accepts) is accepted, and XSD-only syntax (`\p{Is...}` block escapes,
+`\i`, `\c`, character-class subtraction `[a-z-[aeiou]]`) is not. The B1 classification said `\p{L}+` is rejected; that was wrong,
+it is accepted and gives `true`.
+
+Where it surfaces: the old rdflib evaluator was patched toward the XPath rules (`tests/graph/unit/test_contracts_hunt3.py`, five
+tests); on Oxigraph they differ. Recorded as the strict xfail `test_replace_and_regex_follow_xpath` in
+`tests/graph/oxgraph/test_oxigraph_deviations.py`. It stays an expected failure until every row above agrees with XPath, so a
+partial fix is visible only in this table. No client-side patch (it would need a translator from the XSD dialect to the `regex`
+crate's).
+
+## 7. Boolean ordering: `false < true` is an error
+
+Project note, not for posting. Checked 2026-11-06 on pyoxigraph 0.5.13. SPARQL 1.1 17.3 maps `<`, `>`, `<=`, `>=` on two
+`xsd:boolean` values to `op:boolean-less-than` and `op:boolean-greater-than` (`false` before `true`).
+
+```python
+import pyoxigraph as ox
+
+store = ox.Store()
+for expr in ["false < true", "true > false", "false <= true", "true >= false", "true < false", "true < true"]:
+    (row,) = list(store.query(f"SELECT ({expr} AS ?r) {{}}"))
+    print(expr, "->", None if row["r"] is None else row["r"].value)
+```
+
+Expected `true, true, true, true, false, false`. Actual: the first five are unbound (an error), only `true < true` gives `false`.
+`ORDER BY` over booleans does put `false` first, so the engine knows the order; only the comparison operators lack it.
+Recorded as the strict xfail `test_boolean_ordering_false_before_true`.
+
+## 8. A negated property set with forward and inverse members is returned as a set, not a bag
+
+Project note, not for posting. Checked 2026-11-06 on pyoxigraph 0.5.13. SPARQL 1.1 18.2 translates a negated property set with
+both forward and inverse members to the union of the forward set and the inverse of the reverse set, a bag: a pair found twice is
+two solutions.
+
+```python
+import pyoxigraph as ox
+
+store = ox.Store()
+for s, p, o in [("a", "p", "b"), ("b", "q", "c"), ("c", "p", "d"), ("d", "p", "a"), ("x", "p", "b"), ("a", "r", "b")]:
+    store.add(ox.Quad(ox.NamedNode("urn:" + s), ox.NamedNode("urn:" + p), ox.NamedNode("urn:" + o)))
+n = lambda q: next(iter(store.query(q)))["n"].value
+print(n("SELECT (COUNT(*) AS ?n) { ?s !(<urn:p>|^<urn:q>) ?o }"))                                   # 6
+print(n("SELECT (COUNT(*) AS ?n) { { ?s !(<urn:p>) ?o } UNION { ?s ^!(<urn:q>) ?o } }"))          # 7
+```
+
+The inverse arm finds `(b, a)` twice (through `a :p b` and through `a :r b`); the union keeps both, Oxigraph returns it once.
+Expected 7, actual 6. A set with members in one direction only is a bag in Oxigraph, as the specification has it
+(`?s !(:q) ?o` returns `(a, b)` twice here); only the mixed form drops duplicates, also `?s !(:q|^:q) ?o`. Recorded as the strict
+xfail `test_negated_property_set_with_both_directions_is_a_bag`; it compares the path against its own UNION translation on the same
+data, so it needs no hand-computed rows.
+
+## 9. COPY and ADD from a graph that does not exist do not fail
+
+Project note, not for posting. Checked 2026-11-06 on pyoxigraph 0.5.13. `CLEAR`, `DROP` and `MOVE` of a graph that does not
+exist raise `The graph <...> does not exist` unless `SILENT`; `COPY` and `ADD` do not. The repository's tests and the reading in
+`b1-classification.md` (B6) take that as against SPARQL 1.1 Update 3.2 (the source graph must exist unless `SILENT`); the section
+has not been re-read for this note, so check it before anyone relies on it.
+
+```python
+import pyoxigraph as ox
+
+for op in ("COPY", "ADD", "MOVE"):
+    store = ox.Store()
+    store.add(ox.Quad(ox.NamedNode("urn:t"), ox.NamedNode("urn:p"), ox.NamedNode("urn:o"), ox.NamedNode("urn:g1")))
+    try:
+        store.update(f"{op} <urn:nope> TO <urn:g1>")
+        held = len(list(store.quads_for_pattern(None, None, None, ox.NamedNode("urn:g1"))))
+        print(op, "no error; <urn:g1> now holds", held, "quad(s)")
+    except Exception as e:
+        print(op, "error:", e)
+```
+
+Actual: `COPY` raises nothing and empties `<urn:g1>` (its content is deleted, nothing is copied in); `ADD` raises nothing and changes
+nothing; `MOVE` raises. So the visible harm is that a `COPY` from a mistyped graph name wipes the target. Recorded as the strict
+xfail `test_copy_and_add_of_an_absent_graph_fail_without_silent`. A wrapper-side check would need the update parsed to learn the
+source graphs; not done.

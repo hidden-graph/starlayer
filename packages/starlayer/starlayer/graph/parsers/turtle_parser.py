@@ -1124,8 +1124,7 @@ class StarLayerTurtleParser:
             An rdflib.Graph using the starlayer.graph internal blank-node
             encoding for RDF 1.2 triple terms and reification. The graph
             also carries a `_declared_version` attribute (the document's
-            declared VERSION label, or None) for
-            StarLayerGraph.parse()'s RDF12ConformanceWarning check.
+            declared VERSION label, or None).
         """
         # line_map[k] is the 1-based line number *in the original data* of the
         # k-th surviving line in data_clean, so a line number computed against
@@ -1299,9 +1298,6 @@ class StarLayerTurtleParser:
         # return type, to avoid touching any of the several existing call
         # sites that unpack the return value directly as a plain Graph (see
         # starlayer_graph.py, trig12.py, tests/unit/test_turtle12_serializer.py).
-        # Consumed by StarLayerGraph.parse() for the RDF12ConformanceWarning
-        # check (starlayer.graph.model.conformance) - a Turtle document may
-        # declare VERSION "1.2-basic" but still use a triple term/
-        # dirLangString, which that label excludes (RDF 1.2 Concepts sec 2.1).
+        # The document's declared VERSION label (no parse path warns on it any more).
         g._declared_version = declared_version
         return g

@@ -39,8 +39,7 @@ attribute" shorthand, so an untouched rdf:version asserts a bogus extra
 triple (subject rdf:version "value") into the graph - including on the
 property element wrapping rdf:parseType="Triple", not just a node element.
 See extract_version_directive() for the standalone scan used to surface the
-value for StarLayerGraph.parse()'s RDF12ConformanceWarning check
-(starlayer.graph.model.conformance).
+value (no parse path checks it any more).
 
 Entry point:
     parse_rdfxml12(text) -> list of (s, p, o)

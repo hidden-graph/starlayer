@@ -22,6 +22,22 @@ require_supported_pyoxigraph()
 
 _ABSOLUTE_IRI = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:")
 _TURTLE_LIKE = (ox.RdfFormat.TURTLE, ox.RdfFormat.TRIG)
+# The syntaxes that define a version declaration (RDF 1.2 Turtle, TriG, N-Triples, N-Quads): the line written for "1.2".
+_VERSION_LINE = {
+    ox.RdfFormat.TURTLE: b'@version "1.2" .\n',
+    ox.RdfFormat.TRIG: b'@version "1.2" .\n',
+    ox.RdfFormat.N_TRIPLES: b'VERSION "1.2"\n',
+    ox.RdfFormat.N_QUADS: b'VERSION "1.2"\n',
+}
+
+
+def _uses_rdf12(items: Iterable[Any]) -> bool:
+    """True when a triple or quad has a triple term as its object or a base-direction literal: what RDF 1.1 cannot say."""
+    for i in items:
+        o = i.object
+        if isinstance(o, ox.Triple) or (isinstance(o, ox.Literal) and o.direction is not None):
+            return True
+    return False
 
 
 def as_store(x: Any) -> ox.Store:
@@ -111,12 +127,14 @@ class _Base:
 
     store: ox.Store
     prefixes: dict[str, str]
+    _path: str | None = None
 
     # ---- construction ------------------------------------------------------------------------------------------
     def _init_store(self, store: Any, path: Any, prefixes: dict[str, str] | None) -> None:
         if store is not None and path is not None:
             raise ValueError("give a store or a path, not both")
         self.store = as_store(store) if store is not None else ox.Store(os.fspath(path) if path is not None else None)
+        self._path = os.fspath(path) if path is not None else None
         self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
 
     def as_store(self) -> ox.Store:
@@ -406,7 +424,12 @@ class _Base:
         Prefixes are the graph's dict plus ``prefixes`` (the per-call override); ``only_used=True`` declares only those the
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
         triple terms), so the output contains no triple term. ``pretty=True`` lays Turtle / TriG out with
-        ``oxgraph.pretty`` (nested blank nodes, lists, annotations; see that module)."""
+        ``oxgraph.pretty`` (nested blank nodes, lists, annotations; see that module).
+
+        A Turtle, TriG, N-Triples or N-Quads document that uses an RDF 1.2 feature (a triple term, a base-direction literal)
+        starts with the version declaration (``@version "1.2" .`` / ``VERSION "1.2"``), as does any such document written with
+        ``rdf_version="1.2"``; plain RDF 1.1 data gets none unless asked. ``rdf_version="1.1"`` never writes one. Oxigraph's
+        writers do not write it, so the wrapper adds it."""
         if formats.is_manchester(format):
             from starlayer.graph.oxgraph import _rdflib_bridge
             from starlayer.graph.serializers.manchester import serialize_manchester
@@ -436,6 +459,14 @@ class _Base:
             raw = ox.serialize(items, None, fmt, prefixes=pfx or None, base_iri=base)
         if only_used and fmt in _TURTLE_LIKE and pfx:
             raw = _strip_unused_prefixes(raw.decode("utf-8")).encode("utf-8")
+        line = _VERSION_LINE.get(fmt)
+        if line is not None and rdf_version not in ("1.1", "rdf-1.1") and not raw.startswith(line):
+            # a quick byte test rules out most data; the exact test then reads the terms (a literal may contain "<<(")
+            marked = rdf_version in ("1.2", "rdf-1.2") or (
+                (b"<<(" in raw or b"--ltr" in raw or b"--rtl" in raw) and _uses_rdf12(self._serial_items(fmt))
+            )
+            if marked:
+                raw = line + raw
         return self._write(raw, destination, encoding)
 
     @staticmethod
@@ -648,6 +679,31 @@ class _Base:
         """An in-memory copy (new store) with a copy of the prefixes."""
         raise NotImplementedError
 
+    def __copy__(self) -> Any:
+        return self.copy()
+
+    def __deepcopy__(self, memo: dict) -> Any:
+        return self.copy()
+
+    def to_rdflib(self, *, bnode_prefix: str | None = None, direction_policy: str = "datatype") -> Any:
+        """A snapshot as plain rdflib (``rdflib.Graph`` for an ``OxGraph``, ``rdflib.Dataset`` for an ``OxDataset``), with
+        RDF 1.2 presented as RDF 1.1 (``interop.to_rdf11``): each triple term becomes a blank node described by the
+        ``rdf:PropositionForm`` basic encoding, each base-direction literal its datatype-IRI form (``direction_policy`` as in
+        ``interop.encode_directions``). rdflib terms keep their lexical form as stored. Writes to the result do not reach
+        this graph."""
+        from starlayer.graph.oxgraph import _rdflib_bridge
+
+        return _rdflib_bridge.to_rdflib_rdf11(self, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
+
+    def _refuse_path_pickle(self) -> None:
+        if self._path is not None:
+            raise TypeError(
+                f"cannot pickle an {type(self).__name__} opened with path={self._path!r}: its data lives in an on-disk store. "
+                "The unpickled object cannot reopen that path (a second opener of one RocksDB path is unsafe while this one is "
+                "open, and the path may not exist where the pickle is read), and silently pickling the whole store would copy it "
+                "into the pickle. Use .copy() for an in-memory copy, or serialize(format='nq') / parse() to move the data."
+            )
+
     __hash__ = object.__hash__
 
     def __eq__(self, other: Any) -> bool:
@@ -663,6 +719,21 @@ class OxGraph(_Base):
         _no_backend(backend)
         self._init_store(store, path, prefixes)
         self._g = terms.graph_name(identifier)
+
+    @classmethod
+    def from_rdflib(cls, graph: Any) -> OxGraph:
+        """A new in-memory ``OxGraph`` with the triples, prefixes and (when it is an IRI) identifier of an rdflib ``Graph`` or an
+        old-style ``StarLayerGraph``; a ``TripleTerm`` becomes a triple term, a directional literal in its datatype-IRI form
+        (what ``to_rdflib`` writes) is restored, and the basic encoding is left as triples (``interop.from_basic`` decodes it).
+        A term RDF does not allow raises ``TermError`` (``term_policy("lenient")`` stores a stand-in). An ``OxGraph`` is copied.
+        For an rdflib dataset's named graphs use ``OxDataset.from_rdflib``."""
+        from starlayer.graph.oxgraph import _rdflib_bridge
+
+        if isinstance(graph, OxGraph):
+            return graph.copy()
+        if isinstance(graph, (OxDataset, ox.Store)):
+            raise TypeError(f"OxGraph.from_rdflib takes an rdflib graph, not {type(graph).__name__}")
+        return _rdflib_bridge.to_oxgraph(graph, "graph", restore_directions=True)
 
     @property
     def identifier(self) -> Any:
@@ -713,11 +784,19 @@ class OxGraph(_Base):
         return OxGraph(store=fn(a, b))
 
     def copy(self) -> OxGraph:
-        g = OxGraph()
-        g.extend(self.triples())
+        """An independent in-memory copy of this graph (same identifier, own copy of the prefixes). ``copy.copy`` and
+        ``copy.deepcopy`` do the same, also for a graph opened with ``path=``."""
+        g = OxGraph(identifier=self._g)
+        g.store.extend(self._quads(None, None, None))
         g.prefixes.clear()
         g.prefixes.update(self.prefixes)
         return g
+
+    def __reduce__(self) -> Any:
+        """Pickle: the quads of this graph, its identifier and prefixes (``pyoxigraph.Store`` is not picklable). A graph opened
+        with ``path=`` is refused (``TypeError``), see ``_refuse_path_pickle``."""
+        self._refuse_path_pickle()
+        return (_rebuild_graph, (self._g, dict(self.prefixes), list(self._quads(None, None, None))))
 
     def __repr__(self) -> str:
         return f"<OxGraph {self._g} ({len(self)} triples)>"
@@ -735,6 +814,17 @@ class OxDataset(_Base):
         self._init_store(store, path, prefixes)
         self._union = default_union
         self._overlap = union.Overlap()
+
+    @classmethod
+    def from_rdflib(cls, dataset: Any) -> OxDataset:
+        """A new in-memory ``OxDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / ``StarLayerDataset`` (every graph, empty
+        named graphs too, prefixes, ``default_union``) or from a plain graph (its triples go to the default graph). Terms as in
+        ``OxGraph.from_rdflib``. An ``OxDataset`` is copied."""
+        from starlayer.graph.oxgraph import _rdflib_bridge
+
+        if isinstance(dataset, OxDataset):
+            return dataset.copy()
+        return _rdflib_bridge.to_oxdataset(dataset)
 
     def _query_store(self) -> ox.Store:
         """The store SPARQL runs on: for a union default graph, one in which a triple held by several graphs is one triple
@@ -889,5 +979,25 @@ class OxDataset(_Base):
         d.prefixes.update(self.prefixes)
         return d
 
+    def __reduce__(self) -> Any:
+        """Pickle: every quad, the named graphs (also empty ones), ``default_union`` and the prefixes. A dataset opened with
+        ``path=`` is refused (``TypeError``), see ``_refuse_path_pickle``."""
+        self._refuse_path_pickle()
+        return (_rebuild_dataset, (self._union, dict(self.prefixes), list(self.store), list(self.store.named_graphs())))
+
     def __repr__(self) -> str:
         return f"<OxDataset ({len(self.store)} quads)>"
+
+
+def _rebuild_graph(identifier: Any, prefixes: dict[str, str], quads: list[ox.Quad]) -> OxGraph:
+    g = OxGraph(identifier=identifier, prefixes=prefixes)
+    g.store.extend(quads)
+    return g
+
+
+def _rebuild_dataset(default_union: bool, prefixes: dict[str, str], quads: list[ox.Quad], names: list[Any]) -> OxDataset:
+    d = OxDataset(default_union=default_union, prefixes=prefixes)
+    d.store.extend(quads)
+    for name in names:
+        d.store.add_graph(name)
+    return d
