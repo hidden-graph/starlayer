@@ -74,6 +74,14 @@ def test_the_file_holds_every_layer(kg):
 
 
 @pytest.mark.deferred
+def test_the_union_default_graph_is_a_set(kg):
+    """A triple stored in two module graphs counts once: COUNT(*) over the union is the number of distinct triples."""
+    n = int(next(iter(kg.query("SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }")))[0].value)
+    assert n == len(kg) == len(set(kg.triples((None, None, None))))
+    assert len(kg.store) > n, "the file has triples in more than one graph, or this test shows nothing"
+
+
+@pytest.mark.deferred
 def test_an_agent_can_read_a_query_from_the_graph_and_run_it(kg):
     """The documented flow: find the query's text in the graph, bind its parameter, run it."""
     find = f"SELECT ?t WHERE {{ ?q a <{CODEKG_NS}NamedQuery> ; <{CODEKG_NS}queryText> ?t . FILTER(STRENDS(STR(?q), '#find-symbol')) }}"
@@ -90,9 +98,7 @@ def test_every_query_in_the_graph_gives_the_answer_the_query_tool_gives(kg):
         required = {p.name: p.example for p in described.parameters if p.required}
         optional = {p.name: p.example for p in described.parameters if not p.required}
         for given in ([required] + ([{**required, **optional}] if optional else [])):
-            # Oxigraph's union default graph returns a triple once per named graph that holds it (373 triples are in more than one
-            # graph here), where rdflib's union held each once and the query tool queries the merged graph: compare distinct rows.
-            from_graph = list({tuple(row) for row in kg.query(texts[described.name], initBindings={k: Literal(v) for k, v in given.items()})})
+            from_graph = [tuple(row) for row in kg.query(texts[described.name], initBindings={k: Literal(v) for k, v in given.items()})]
             from_tool = queries.run_query(described.name, limit=500, **given)
             assert len(from_graph) == from_tool.total, f"{described.name} with {sorted(given)}: {len(from_graph)} rows from the graph's text, {from_tool.total} from the tool"
             assert len(from_graph) > 0, f"{described.name} returned nothing for its own examples"

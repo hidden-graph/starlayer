@@ -1,8 +1,10 @@
-"""used_prefixes() and the namespace handling around it (GitHub issue #29)."""
+"""used_prefixes() and the namespace handling around it (GitHub issue #29). The function is no longer a public export of
+starlayer.graph (the graph and dataset methods are the API); it is imported from its module here."""
 
 import pytest
 from rdflib import Graph, Namespace
-from starlayer.graph import StarLayerGraph, used_prefixes
+from starlayer.graph import StarLayerGraph
+from starlayer.graph.graph.prefixes import used_prefixes
 
 EX = Namespace("http://e/")
 TTL = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix unused: <http://unused/> . ex:S a sh:NodeShape ; sh:name 'x' ."

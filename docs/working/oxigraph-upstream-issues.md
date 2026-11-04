@@ -189,4 +189,30 @@ Project note, not for posting. Checked 2026-11-05 on pyoxigraph 0.5.13 with one 
 An RDF graph is a set, so the merge of two graphs holding the same triple holds it once; counts, aggregates and non-DISTINCT
 SELECTs over a union default graph are wrong. Our wrapper's `len`, `triples` and `iter` already deduplicate; SPARQL run through
 the wrapper does not. In the code-KG data this is 373 duplicate triples (`starlayer_kg.load()`).
-Handling in this project: see the union work on branch `mig-union-fixes` (decided 2026-11-05: fix in the wrapper, not document-only).
+Handling in this project (decided 2026-11-05: fix in the wrapper, not document-only): `graph/oxgraph/union.py`. A dataset with
+`default_union=True` that holds a triple in more than one graph (detected with `COUNT(*)` against `COUNT(DISTINCT)`; free when at most one graph holds data) runs its
+queries and `sparql_query` on a cached in-memory copy of the store whose default graph is the set of all triples (the named graphs are copied as they are), and
+a SPARQL Update reads the union from a scratch graph filled by the engine (`INSERT ... WHERE { {?s ?p ?o} UNION {GRAPH ?g {?s ?p ?o}} }`).
+The copy is dropped by every write through the wrapper (`union.touch()`, also called by `as_store()`).
+
+Options measured (pyoxigraph 0.5.13, 5 graphs, 2% of the triples in a second graph; one run each, this machine):
+
+| | 1k triples | 100k | 1M | code-KG data (168,362 quads, 160,941 distinct) |
+|---|---|---|---|---|
+| Oxigraph `COUNT(*)` on the union (wrong when duplicates exist) | 1 ms | 58 ms | 0.3 s | 0.1 s |
+| detect overlap (`COUNT` vs `COUNT(DISTINCT)`) | 1 ms | 0.14 s | 1.8 s | 0.3 s |
+| (b) build the merged copy (engine `INSERT` into the copy) | ~0.1 s | 1.3 s (first query 1.28 s) | ~10 s | 2.3 s |
+| (b) a query on the cached copy | 14 ms | 30 ms | - | 80 ms (a point query 0.3 ms) |
+| (b) first query after a write, duplicates present | 11 ms | 1.5 s | ~10 s | 2.6 s |
+| (b) same, no duplicates (only detection) | ~1 ms | 0.2 s | ~2 s | - |
+| (a) build a merged graph in the store once | 15 ms | 1.1 s | 12 s | - |
+| (a) 1000 single adds with write-through | 2 -> 17 ms | 1.8 -> 10 ms | 2.3 -> 11 ms | - |
+
+(a), a merged default graph kept in the store write-through, is cheaper after a write but is not exact here: a `pyoxigraph.Store` takes no attributes, so the
+merged graph would be a hidden named graph in the store, visible to `len(store)`, TriG output and any other client of the file, and a write that does not go
+through the wrapper (the engine view, a second client of a persisted store, `ds.store`) leaves it wrong with no way to notice. SPARQL Update would still need the
+copy. (c), an `sqe` tree or text rewrite, is exact only for BGP matching: every triple pattern would need a `SELECT DISTINCT` over `GRAPH ?g`, and property paths
+(`a/b`, `a|b`, `^a`) multiply by the duplicates inside the path, aggregates, `MINUS` and `EXISTS` see different multiplicities; not adopted.
+Limits of (b): the cost is O(n) on the first union query after a write when a triple is in two graphs (about 1.3 s per 100k triples), a write straight on the
+store through a kept reference is not seen until `union.touch()`, a query with its own `FROM` clauses is unchanged, and the SHACL engine's own union view
+(`engine_view()`, used by `validate`) is not covered.

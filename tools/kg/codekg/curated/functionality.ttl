@@ -447,7 +447,7 @@ cur:cap-shacl-9 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate", "infer" ;
     rdfs:comment "Entailment during validation: a shapes graph's sh:entailment declarations, or an inference option, run the same entailment regimes as graph reasoning." ;
-    slkg:implementedByIdentifier "starlayer.shacl.entailment.apply_entailment" .
+    slkg:implementedByIdentifier "starlayer.shacl_engine.entailment.resolve_data_view" .
 
 cur:cap-shacl-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;

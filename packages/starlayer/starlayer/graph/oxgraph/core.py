@@ -15,7 +15,7 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.graph.backends._versions import require_supported_pyoxigraph
-from starlayer.graph.oxgraph import config, formats, ntversion, run, terms
+from starlayer.graph.oxgraph import config, formats, ntversion, run, terms, union
 from starlayer.graph.oxgraph.result import Result
 
 require_supported_pyoxigraph()
@@ -120,6 +120,7 @@ class _Base:
         self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
 
     def as_store(self) -> ox.Store:
+        union.touch()  # the caller may write to it: a deduplicated copy of the union is stale from now on
         return self.store
 
     # ---- StarLayer helpers (thin delegates; the code lives in oxgraph/helpers/) -------------------------------------
@@ -316,17 +317,24 @@ class _Base:
 
     def add(self, triple: Any) -> Any:
         self.store.add(self._quad(triple, self._add_graph()))
+        union.touch()
         return self
 
     def extend(self, triples: Iterable[Any]) -> Any:
         """Add many triples (or quads on a dataset) in one transaction."""
         g = self._add_graph()
-        self.store.extend(self._quad(t, g) for t in triples)
+        try:
+            self.store.extend(self._quad(t, g) for t in triples)
+        finally:
+            union.touch()
         return self
 
     def addN(self, quads: Iterable[Any]) -> Any:  # noqa: N802
         """rdflib's name: add ``(s, p, o, graph)`` quads. On a graph view only quads for this graph are added."""
-        self.store.extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
+        try:
+            self.store.extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
+        finally:
+            union.touch()
         return self
 
     def _accepts(self, quad: ox.Quad) -> bool:
@@ -338,6 +346,7 @@ class _Base:
         doomed = list(self._quads_in(*pattern[:3], terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else ...))
         for q in doomed:
             self.store.remove(q)
+        union.touch()
         return self
 
     # ---- parse / serialize --------------------------------------------------------------------------------------
@@ -358,11 +367,14 @@ class _Base:
         parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra,
                           **ntversion.accept_version_directive(kw, fmt))
         try:
-            if direct:
-                self.store.extend(parser)
-            else:
-                move = self._retarget(self._add_graph())
-                self.store.extend(move(q) for q in parser)
+            try:
+                if direct:
+                    self.store.extend(parser)
+                else:
+                    move = self._retarget(self._add_graph())
+                    self.store.extend(move(q) for q in parser)
+            finally:
+                union.touch()
         except SyntaxError as e:
             if "named graph" in str(e).lower():
                 raise ValueError("the document has named graphs; parse it into an OxDataset") from e
@@ -509,8 +521,8 @@ class _Base:
                 raise ValueError(f"infer must be one of ['always', 'cached', 'changed'], got {infer!r}")
             kw = {"engine": engine, "timeout": ent.DEFAULT_TIMEOUT if timeout is None else timeout}
             return self._entailed_copy(regime, **kw).query(text, initNs=initNs, initBindings=initBindings, base=base)
-        return run.query(self.store, text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,
-                         default_graph=self._query_default_graph(), union=self._union, entailment=regime)
+        return run.query(self._query_store(), text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,
+                         default_graph=self._query_default_graph(), union=self._union and not self._merged(), entailment=regime)
 
     def _entailed_copy(self, regime: str, **kw: Any) -> Any:
         """A throwaway copy of the whole store (every graph) with the ``regime`` closure added to the graph this wrapper
@@ -524,6 +536,12 @@ class _Base:
         copy.infer(ox.NamedNode(regime), mode="in-place", **kw)
         return copy
 
+    def _query_store(self) -> ox.Store:
+        return self.store
+
+    def _merged(self) -> bool:
+        return False
+
     def _query_default_graph(self) -> Any:
         return None
 
@@ -532,7 +550,11 @@ class _Base:
         or ``GRAPH`` in the text to aim it). On a ``default_union`` dataset the ``WHERE`` of an ``INSERT`` / ``DELETE`` operation
         reads the union of all graphs, as ``query()`` does (done by adding ``USING`` clauses; see
         ``run.union_update_text`` for how, and its limits)."""
-        run.update(self.store, text, prefixes=self.prefixes, init_ns=initNs, base=base, union=self._union)
+        try:
+            run.update(self.store, text, prefixes=self.prefixes, init_ns=initNs, base=base, union=self._union,
+                       overlap=self._overlap if self._union else None)
+        finally:
+            union.touch()
 
     # ---- RDF 1.2 reifiers (thin functions in reification.py) -----------------------------------------------------
     def add_reification(self, reifier: Any, triple_term: Any) -> Any:
@@ -583,7 +605,10 @@ class _Base:
 
     def sparql_query(self, text: str, init_bindings: Mapping[str, Any] | None = None, custom_functions: Any = None) -> Any:
         """The engine's ``SparqlCapable`` hook (``custom_functions``: function IRI -> Python callable, as pyoxigraph takes them)."""
-        return self.engine_view().sparql_query(text, init_bindings, custom_functions)
+        return self._sparql_view().sparql_query(text, init_bindings, custom_functions)
+
+    def _sparql_view(self) -> Any:
+        return self.engine_view()
 
     def _engine_graph_name(self, union: Any, default: Any) -> Any:
         raise NotImplementedError
@@ -678,6 +703,7 @@ class OxGraph(_Base):
 
     def clear(self) -> OxGraph:
         self.store.clear_graph(self._g)
+        union.touch()
         return self
 
     def _combine(self, fn: Any, other: OxGraph) -> OxGraph:
@@ -708,6 +734,15 @@ class OxDataset(_Base):
         _no_backend(backend)
         self._init_store(store, path, prefixes)
         self._union = default_union
+        self._overlap = union.Overlap()
+
+    def _query_store(self) -> ox.Store:
+        """The store SPARQL runs on: for a union default graph, one in which a triple held by several graphs is one triple
+        (see ``union.py``)."""
+        return self._overlap.store(self.store) if self._union else self.store
+
+    def _merged(self) -> bool:
+        return self._union and self._overlap.overlapping(self.store)
 
     @property
     def default_union(self) -> bool:
@@ -753,6 +788,7 @@ class OxDataset(_Base):
         g = terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else self._pattern_graph()
         for q in list(self._quads(s, p, o, g)):
             self.store.remove(q)
+        union.touch()
         return self
 
     @property
@@ -820,14 +856,23 @@ class OxDataset(_Base):
             self.store.clear_graph(name)
         else:
             self.store.remove_graph(name)
+        union.touch()
         return self
 
     def clear(self) -> OxDataset:
         self.store.clear()
+        union.touch()
         return self
 
     def _engine_graph_name(self, union: Any, default: Any) -> Any:
         return union if self._union else default
+
+    def _sparql_view(self) -> Any:
+        from starlayer.shacl_engine.oxigraph_view import DEFAULT, OxigraphGraph
+
+        if self._merged():  # a triple in two graphs: its SPARQL runs on the merged copy, where it is one triple
+            return OxigraphGraph(self._overlap.store(self.store), DEFAULT)
+        return self.engine_view()
 
     def _query_default_graph(self) -> Any:
         return None

@@ -12,7 +12,7 @@ one in the table is gone (so D1 progress is a shrinking `ALLOWED` dict).
 | File | What it imports | Who needs it | What unblocks it |
 |---|---|---|---|
 | `starlayer/__init__.py` | `StarLayerGraph`, `StarLayerDataset` from `starlayer.graph` (re-export) | the public API names | D1 points the names at `OxGraph` / `OxDataset` |
-| `starlayer/graph/__init__.py` | the old classes, `used_prefixes` (`graph.prefixes`), `query.custom_functions`, the rdflib query patches (`algebra_translator_patches`, `builtin_error_patches`, `evaluate_patches`, `operator_patches`, `path_patches`, `result_patches`, `update_patches`), `parseQuery` / `prepareQuery` / `parseUpdate` / `prepareUpdate` / `processUpdate` (`query.sparql_api`) | facade; importing `starlayer.graph` installs the patches into rdflib | D1 rewrites it. `used_prefixes` needs a decision (it is public: re-implement over `OxGraph` or drop) |
+| `starlayer/graph/__init__.py` | the old classes, `query.custom_functions`, the rdflib query patches (`algebra_translator_patches`, `builtin_error_patches`, `evaluate_patches`, `operator_patches`, `path_patches`, `result_patches`, `update_patches`), `parseQuery` / `prepareQuery` / `parseUpdate` / `prepareUpdate` / `processUpdate` (`query.sparql_api`) | facade; importing `starlayer.graph` installs the patches into rdflib | D1 rewrites it. `used_prefixes` is no longer exported (`mig-union-fixes`: its only caller was its own test) |
 | `starlayer/graph/graph/__init__.py` | the two old classes | facade | D1 |
 | `starlayer/graph/query/__init__.py` | `sparql_api` | facade | goes with the package |
 | `starlayer/graph/serializers/__init__.py` | `ntriples12`, `rdfxml12`, `trig12`, `turtle12` | facade | goes with the package |
@@ -97,15 +97,14 @@ Also D1 work that is not a deletion of source:
 5. **`manchester_tree_to_owl`** returns an `OxGraph` for every input.
 6. **Code-KG dataset.** `get_codekg_dataset()` returns an `OxDataset` (`get_context` -> `graph`, `contexts()` -> `graph_names()`;
    read terms with `.value`). The dataset's union default graph returns a triple once for each named graph that holds it
-   (373 triples are in more than one graph), where the old class's union held each once. `test_combined_kg.py` compares distinct
-   rows for this reason. `starlayer_kg.load()` has the same duplicates.
+   (7,421 of 168,362 quads repeat a triple), where the old class's union held each once. Fixed on branch `mig-union-fixes`
+   (`graph/oxgraph/union.py`, see `oxigraph-upstream-issues.md` section 5); `test_combined_kg.py` compares rows again.
 
 ## 5. Found, not fixed
 
-- Pre-existing, unrelated to the move: `tests/kg/unit/test_curated.py::test_every_implementing_symbol_of_a_capability_exists_in_the_code_graph`
-  (`functionality.ttl` cites `starlayer.shacl.entailment.apply_entailment`, gone before 194db92) and
-  `test_upstream_issues.py::test_every_workaround_exists_in_the_code_graph` (cites `shacl.native_components.*` and two
-  `shacl.validator._patch_*` functions, removed with pySHACL). Both are `deferred` tests, so a plain run skips them; CI runs them.
+- Fixed on branch `mig-union-fixes`: the stale citations of `test_curated.py::test_every_implementing_symbol_of_a_capability_exists_in_the_code_graph`
+  (now `starlayer.shacl_engine.entailment.resolve_data_view`) and `test_upstream_issues.py::test_every_workaround_exists_in_the_code_graph`
+  (pyshacl issues 3 to 7 are `documented-only`: pySHACL is no longer a dependency, the workarounds are gone).
 - 29 modules under `starlayer/sparql/` still import rdflib (parse12 and `_grammar12`, the sqe / srl / salg tree codecs, `expr_text`,
   `serialize12`, `star_query`, `triple_term`, `vocab`). That is plan item B3, not a D1 blocker; it is the D4 list.
 - `graph/graph/entailment_regimes.py` (constants, five live importers) stays where it is.
@@ -114,20 +113,19 @@ Also D1 work that is not a deletion of source:
 
 1. `oxgraph/helpers/shapes.py` + `shape_derivation.py` (branch `mig-small-ports`): until it lands, `_rdflib_bridge.starlayer_graph()`
    imports the old class.
-2. `used_prefixes` is exported from `starlayer.graph` (see table 1): decide before the facade is rewritten.
+2. `used_prefixes`: decided on branch `mig-union-fixes`; the export is gone (no caller needs it), `OxGraph.used_prefixes()` stays.
 3. The facade `starlayer/graph/__init__.py` installs the rdflib patches on import; deleting `graph/query` changes what a plain
    `import starlayer.graph` does to rdflib for any third-party code that relied on it.
 
 ## 7. Decisions needed
 
-1. **Union duplicates.** `OxDataset(default_union=True)` (and so `starlayer_kg.load()` and D1's `StarLayerDataset`) returns a triple
-   once per graph that holds it. Dedupe in the wrapper (an extra `DISTINCT`-like step is not possible per query; the options are to
-   materialise a merged default graph, or to document it)? The code-KG query tool avoids it by querying a merged `OxGraph`.
+1. **Union duplicates.** Decided and done on branch `mig-union-fixes`: the wrapper deduplicates (cached merged copy; cost in
+   `oxigraph-upstream-issues.md` section 5).
 2. **Lexical forms in trees.** Accept that the default `OxGraph` tree normalises `9.0` to `9` (decimal), or make the tree builders
    keep the rdflib spelling by default (pass an rdflib `Graph`)? The meaning is the same either way.
 3. **`StarQuery` on an `OxGraph`** has no entailment or timeout: port query-time entailment (plan section 3, B1 says it was
    deferred) or drop those options at D1?
-4. **`used_prefixes`:** keep (re-implement over `OxGraph.used_prefixes()`, which exists) or remove with `graph.prefixes`.
+4. **`used_prefixes`:** removed with `graph.prefixes` (the method on `OxGraph` / `OxDataset` is the API).
 
 ## 8. Gate at the end of this branch
 
