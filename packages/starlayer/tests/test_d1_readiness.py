@@ -54,7 +54,7 @@ OLD_NAMES = frozenset({"StarLayerGraph", "StarLayerDataset"})
 #: module (or script path) -> what it still imports and why D1 has to touch it
 ALLOWED: dict[str, str] = {
     "starlayer": "facade: re-exports StarLayerGraph / StarLayerDataset; D1 points the names at OxGraph / OxDataset",
-    "starlayer.graph": "facade: re-exports the old classes, `used_prefixes`, the rdflib query patches and the old `prepareQuery` family; D1 rewrites it",
+    "starlayer.graph": "facade: re-exports the old classes, the rdflib query patches and the old `prepareQuery` family; D1 rewrites it",
     "starlayer.graph.graph": "facade: re-exports the old classes; D1 rewrites it",
     "starlayer.graph.query": "facade: re-exports `parseQuery` / `prepareQuery` / ... from `sparql_api` (rdflib engine); deleted with the package",
     "starlayer.graph.serializers": "facade: re-exports the hand-written Turtle / N-Triples / RDF-XML / TriG writers; deleted with them",

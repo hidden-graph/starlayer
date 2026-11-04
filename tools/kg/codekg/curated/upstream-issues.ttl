@@ -158,40 +158,35 @@ ui:pyshacl-3 a slkg:UpstreamIssue ;
     slkg:upstreamProject "pyshacl" ;
     slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
     slkg:issueNumber 3 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.shacl.native_components._build_closed_component" .
+    slkg:issueStatus "documented-only" .
 
 ui:pyshacl-4 a slkg:UpstreamIssue ;
     rdfs:label "`sh:filterShape` node expression crashes with an `AttributeError`" ;
     slkg:upstreamProject "pyshacl" ;
     slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
     slkg:issueNumber 4 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.shacl.validator._patch_shape_validate_for_filter_shape" .
+    slkg:issueStatus "documented-only" .
 
 ui:pyshacl-5 a slkg:UpstreamIssue ;
     rdfs:label "`RdfLibDataGraph.clone()` discards a caller-supplied `Graph` subclass's identity and extra state" ;
     slkg:upstreamProject "pyshacl" ;
     slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
     slkg:issueNumber 5 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.shacl.validator._patch_rdflib_data_graph_clone_preserves_tt_adapter" .
+    slkg:issueStatus "documented-only" .
 
 ui:pyshacl-6 a slkg:UpstreamIssue ;
     rdfs:label "`sh:sparql`'s own constraint node ignores its own `sh:severity`" ;
     slkg:upstreamProject "pyshacl" ;
     slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
     slkg:issueNumber 6 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.shacl.native_components._build_sparql_constraint_component" .
+    slkg:issueStatus "documented-only" .
 
 ui:pyshacl-7 a slkg:UpstreamIssue ;
     rdfs:label "A self-referencing shape is cut after two levels on acyclic data, so a violation 3+ steps down a chain is reported as conforming" ;
     slkg:upstreamProject "pyshacl" ;
     slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
     slkg:issueNumber 7 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.shacl.native_components.register_native_components" .
+    slkg:issueStatus "documented-only" .
 
 ui:fuseki-1 a slkg:UpstreamIssue ;
     rdfs:label "ARQ rejects an invalid triple-term predicate, but not an invalid triple-term subject" ;
