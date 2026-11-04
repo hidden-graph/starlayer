@@ -269,10 +269,6 @@ class TestRdfXmlVersionAttribute:
         rdf_version = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#version')
         assert list(g.triples((None, rdf_version, None))) == []
 
-    def test_real_oxigraph_output_extracts_declared_version(self):
-        from starlayer.graph.parsers.rdfxml12 import extract_version_directive
-        assert extract_version_directive(self._OXIGRAPH_OUTPUT) == '1.2'
-
 
 class TestVersionLabelIsAHint:
     """A VERSION label is only a hint (RDF 1.2 Concepts sec 2.1): a document labelled "1.2-basic" that uses a triple term

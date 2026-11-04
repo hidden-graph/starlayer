@@ -171,3 +171,17 @@ class TestNativeIdentifierDefault:
 
 
 
+
+
+class TestRdfXmlHandParserVersionExtraction:
+    """Moved from test_conformance.py: the hand-written RDF/XML parser helper goes with the parsers at D1."""
+
+    def test_real_oxigraph_output_extracts_declared_version(self):
+        from starlayer.graph.parsers.rdfxml12 import extract_version_directive
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">\n'
+            '<rdf:Description rdf:about="http://example.org/stmt">'
+            '<rdf:reifies rdf:version="1.2" rdf:parseType="Triple"></rdf:reifies></rdf:Description></rdf:RDF>'
+        )
+        assert extract_version_directive(xml) == '1.2'
