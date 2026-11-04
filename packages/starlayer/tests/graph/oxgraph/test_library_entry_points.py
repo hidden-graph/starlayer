@@ -145,24 +145,30 @@ def test_extract_subgraph_with_pyoxigraph_shape_and_focus_node():
     assert (ox.NamedNode(EX + "alice"), ox.NamedNode(EX + "name"), ox.Literal("Alice")) in got
 
 
-def test_normalize_to_starlayer_graph_snapshots_oxigraph_input(kind):
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+def test_normalize_to_starlayer_graph_keeps_oxigraph_input_and_wraps_a_store(kind):
     from starlayer.shacl import normalize_to_starlayer_graph
 
     graph = normalize_to_starlayer_graph(kind(DATA), name="data_graph")
-    assert isinstance(graph, StarLayerGraph)
+    assert isinstance(graph, (OxGraph, OxDataset))
+    assert len(graph) == 3
+
+
+def test_normalize_to_starlayer_graph_converts_an_old_style_graph_to_an_oxgraph():
+    from starlayer.shacl import normalize_to_starlayer_graph
+
+    graph = normalize_to_starlayer_graph(_old(DATA), name="data_graph")
+    assert isinstance(graph, OxGraph)
     assert len(graph) == 3
 
 
 def test_normalize_keeps_a_named_graph_identifier():
-    from rdflib import URIRef
     from starlayer.shacl import normalize_to_starlayer_graph
 
     ds = _ox(OxDataset, "")
     named = ds.graph(ox.NamedNode(EX + "g"))
     named.parse(data=DATA, format="turtle")
     graph = normalize_to_starlayer_graph(named, name="data_graph")
-    assert graph.identifier == URIRef(EX + "g")
+    assert graph.identifier == ox.NamedNode(EX + "g")
 
 
 def test_unsupported_input_still_names_the_argument():

@@ -70,9 +70,6 @@ def sqe_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
         A ``(conforms, report_graph, report_text)`` tuple.
     """
 
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
-    (data_graph,) = _ox.read_boundary(data_graph)  # an OxGraph is validated as a snapshot
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 

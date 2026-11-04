@@ -1,9 +1,9 @@
-"""An Oxigraph graph in -> an ``OxGraph`` (pyoxigraph terms) out; an old-style or rdflib graph in -> the old class, unchanged.
+"""Every library function that takes a graph and returns one gives an ``OxGraph`` (pyoxigraph terms), whatever class went in
+(an old-style ``StarLayerGraph`` input is converted; since Phase A nothing returns the old class).
 
 Covers every library function that takes a graph and returns one (or a result holding one): SHACL ``validate`` /
 ``apply_rules`` / ``evaluate`` / ``extract_subgraph`` / ``derive_conforms_to`` / ``infer_types`` / ``meta_validate``, the
-SQE / SRL / Manchester tree and validate functions, and the ``starontology`` getters (which take no graph and so have
-``as_oxigraph=``). The results carry the prefixes of the input and those their IRIs use, not the 29 StarLayerGraph defaults.
+SQE / SRL / Manchester tree and validate functions, and the ``starontology`` getters. The results carry the prefixes of the input and those their IRIs use, not the 29 StarLayerGraph defaults.
 """
 
 from __future__ import annotations
@@ -75,11 +75,11 @@ def test_validate_with_a_bare_store():
     assert_ox(validate(store, shacl_graph=_ox(SHAPES)).report_graph)
 
 
-def test_validate_old_class_in_old_class_out():
+def test_validate_old_class_in_ox_out():
     from starlayer.shacl import validate
 
     result = validate(_old(DATA), shacl_graph=_old(SHAPES))
-    assert isinstance(result.report_graph, StarLayerGraph)
+    assert_ox(result.report_graph, max_prefixes=40)  # the old shapes graph's 29 default prefixes come along
 
 
 def test_validate_inplace_keeps_the_callers_graph():
@@ -103,15 +103,15 @@ def test_schema_with_old_shapes_and_ox_data_returns_ox():
     from starlayer.shacl import StarShaclSchema
 
     result = StarShaclSchema(shacl_graph=_old(SHAPES)).validate(data_graph=_ox(DATA))
-    assert_ox(result.report_graph)
+    assert_ox(result.report_graph, max_prefixes=40)  # the old shapes graph's 29 default prefixes come along
 
 
-def test_schema_old_in_old_out():
+def test_schema_old_in_ox_out():
     from starlayer.shacl import StarShaclSchema
 
     schema = StarShaclSchema(shacl_graph=_old(SHAPES))
-    assert isinstance(schema.validate(data_graph=_old(DATA)).report_graph, StarLayerGraph)
-    assert isinstance(schema.apply_rules(data_graph=_old(DATA)).inferred_graph, StarLayerGraph)
+    assert_ox(schema.validate(data_graph=_old(DATA)).report_graph, max_prefixes=40)
+    assert_ox(schema.apply_rules(data_graph=_old(DATA)).inferred_graph, max_prefixes=40)
 
 
 @pytest.mark.parametrize("cls", [OxGraph, OxDataset])
@@ -128,12 +128,13 @@ def test_apply_rules_inferred_and_report_graphs(cls):
         assert {t[1] for t in result.inferred_graph} >= {kind}
 
 
-def test_apply_rules_with_a_plain_rdflib_graph_names_the_ox_classes_in_its_error():
+def test_apply_rules_accepts_a_plain_rdflib_graph_and_names_the_accepted_classes_for_anything_else():
     import rdflib
     from starlayer.shacl import apply_rules
 
+    assert_ox(apply_rules(rdflib.Graph(), shacl_graph=_old(RULES)).inferred_graph, max_prefixes=40)
     with pytest.raises(TypeError, match="OxGraph"):
-        apply_rules(rdflib.Graph(), shacl_graph=_old(RULES))
+        apply_rules(42, shacl_graph=_old(RULES))
 
 
 def test_evaluate_and_close_shape():
@@ -144,7 +145,7 @@ def test_evaluate_and_close_shape():
     schema = StarShaclSchema(shacl_graph=shapes)
     assert_ox(schema.evaluate(_ox(DATA)))
     assert_ox(schema.close_shape(ox.NamedNode("http://example.org/PersonShape")))
-    assert isinstance(evaluate(_old(DATA), _old(SHAPES)), StarLayerGraph)
+    assert_ox(evaluate(_old(DATA), _old(SHAPES)), max_prefixes=40)
 
 
 def test_extract_subgraph():
@@ -153,7 +154,7 @@ def test_extract_subgraph():
     got = extract_subgraph(_ox(DATA), _ox(SHAPES))
     assert_ox(got)
     assert len(got) > 0
-    assert isinstance(extract_subgraph(_old(DATA), _old(SHAPES)), StarLayerGraph)
+    assert_ox(extract_subgraph(_old(DATA), _old(SHAPES)), max_prefixes=40)
 
 
 def test_derive_conforms_to():
@@ -164,7 +165,7 @@ def test_derive_conforms_to():
     got = derive_conforms_to(report, data_graph="http://example.org/d", shapes_graph="http://example.org/s")
     assert_ox(got)
     old = validate(_old(DATA.replace("ex:bob a ex:Person", "ex:bob a ex:Thing")), shacl_graph=_old(SHAPES)).report_graph
-    assert isinstance(derive_conforms_to(old, data_graph="http://example.org/d", shapes_graph="http://example.org/s"), StarLayerGraph)
+    assert_ox(derive_conforms_to(old, data_graph="http://example.org/d", shapes_graph="http://example.org/s"), max_prefixes=40)
 
 
 def test_infer_types_and_meta_validate():
@@ -172,35 +173,32 @@ def test_infer_types_and_meta_validate():
     from starlayer.shacl.shape_types import infer_types
 
     assert_ox(infer_types(_ox(SHAPES)))
-    assert isinstance(infer_types(_old(SHAPES)), StarLayerGraph)
+    assert_ox(infer_types(_old(SHAPES)), max_prefixes=40)
     conforms, report, _text = meta_validate(_ox(SHAPES))
     assert isinstance(conforms, bool)
-    assert_ox(report)
+    assert_ox(report, max_prefixes=15)  # the meta shapes graph's own prefixes come along
 
 
 # ---------------------------------------------------------------------------------------------------------------------
 # starontology getters (no graph input: a keyword picks the class)
 
 
-def test_starontology_getters_as_oxigraph():
+def test_starontology_getters_return_oxgraphs():
     from starlayer import starontology
 
-    graph = starontology.get_ontology_graph("shacl_shacl", as_oxigraph=True)
+    graph = starontology.get_ontology_graph("shacl_shacl")
     assert_ox(graph, max_prefixes=15)
-    assert len(graph) == len(starontology.get_ontology_graph("shacl_shacl"))
-    assert isinstance(starontology.get_ontology_graph("shacl_shacl"), StarLayerGraph)
-    assert_ox(starontology.get_conformance_profiles(as_oxigraph=True), max_prefixes=15)
-    assert isinstance(starontology.get_conformance_profiles(), StarLayerGraph)
+    assert len(graph) > 0
+    assert_ox(starontology.get_conformance_profiles(), max_prefixes=15)
 
 
 def test_declared_conformance_profile_and_expr_validation_getters():
     from starlayer.shacl.profiling import declared_conformance_profile
     from starlayer.sparql import expr_validation
 
-    assert_ox(declared_conformance_profile(as_oxigraph=True), max_prefixes=15)
-    assert isinstance(declared_conformance_profile(), StarLayerGraph)
-    assert_ox(expr_validation.shapes_graph(as_oxigraph=True), max_prefixes=15)
-    assert_ox(expr_validation.ontology_graph(as_oxigraph=True), max_prefixes=15)
+    assert_ox(declared_conformance_profile(), max_prefixes=15)
+    assert_ox(expr_validation.shapes_graph(), max_prefixes=15)
+    assert_ox(expr_validation.ontology_graph(), max_prefixes=15)
 
 
 def test_ontology_graph_validates_as_data():
@@ -208,7 +206,7 @@ def test_ontology_graph_validates_as_data():
     from starlayer import starontology
     from starlayer.shacl import validate
 
-    shapes = starontology.get_ontology_graph("shacl_shacl", as_oxigraph=True)
+    shapes = starontology.get_ontology_graph("shacl_shacl")
     result = validate(_ox(SHAPES), shacl_graph=shapes, ignore_imports=True)
     assert_ox(result.report_graph, max_prefixes=20)  # the shapes graph's own prefixes come along
 
@@ -231,8 +229,8 @@ def test_sqe_tree_and_validate():
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
     old_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }")
-    assert isinstance(old_graph, StarLayerGraph)
-    assert isinstance(sqe_validate(old_graph)[1], StarLayerGraph)
+    assert isinstance(old_graph, StarLayerGraph)  # the tree builders still default to the old class
+    assert_ox(sqe_validate(old_graph)[1], max_prefixes=40)
 
 
 def test_srl_tree_and_validate():
@@ -245,8 +243,8 @@ def test_srl_tree_and_validate():
     ok, report, _text = srl_validate(graph)
     assert_ox(report)
     old_graph, _ = srl_parse_to_tree(text)
-    assert isinstance(old_graph, StarLayerGraph)
-    assert isinstance(srl_validate(old_graph)[1], StarLayerGraph)
+    assert isinstance(old_graph, StarLayerGraph)  # the tree builders still default to the old class
+    assert_ox(srl_validate(old_graph)[1], max_prefixes=40)
 
 
 def test_srl_infer_with_schema_returns_ox_parts():
@@ -280,7 +278,7 @@ def test_manchester_tree_functions():
     old_tree = manchester.manchester_parse_to_tree(MANCHESTER)
     assert not isinstance(old_tree, OxGraph)
     assert isinstance(manchester.manchester_tree_to_owl(old_tree), StarLayerGraph)
-    assert isinstance(manchester.manchester_validate(old_tree)[1], StarLayerGraph)
+    assert_ox(manchester.manchester_validate(old_tree)[1], max_prefixes=40)
     assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(old_tree)
 
 
@@ -290,7 +288,7 @@ def test_skos_validate():
     data = _ox("@prefix skos: <http://www.w3.org/2004/02/skos/core#> . <http://e/c> a skos:Concept ; skos:prefLabel 'c'@en .")
     ok, report, _text = skos.skos_validate(data)
     assert_ox(report)
-    assert isinstance(skos.skos_validate(StarLayerGraph())[1], StarLayerGraph)
+    assert_ox(skos.skos_validate(StarLayerGraph())[1], max_prefixes=40)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

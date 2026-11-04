@@ -497,11 +497,12 @@ class RuleSet:
         resolved_schema = schema if isinstance(schema, StarShaclSchema) else StarShaclSchema(shacl_graph=schema)
         # the evaluation graph (base plus inferred), as StarShaclSchema.apply_rules() validates: validating the inferred
         # triples alone reported violations for constraints the base graph satisfies (GitHub issue #96)
-        evaluation = type(inferred)()
-        for triple in base_graph:
-            evaluation.add(triple)
-        for triple in inferred:
-            evaluation.add(triple)
+        # (an OxGraph with no prefixes of its own, so the report does not carry an old graph's 29 default prefixes)
+        from starlayer.shacl_engine.graphs import new_graph
+
+        evaluation = new_graph()
+        evaluation.extend(list(base_graph))
+        evaluation.extend(list(inferred))
         validation = resolved_schema.validate(data_graph=evaluation)
         if from_oxigraph:
             converted = _ox.convert_result(RulesResult(inferred_graph=inferred, validation=validation), original_graph)

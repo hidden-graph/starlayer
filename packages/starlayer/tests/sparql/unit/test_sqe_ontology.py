@@ -557,4 +557,4 @@ class TestSqeDoesNotDependOnSalg:
 
         salg = "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#"
         for graph in (expr_validation.shapes_graph(), expr_validation.ontology_graph()):
-            assert not {str(t) for triple in graph for t in triple if str(t).startswith(salg)}
+            assert not {t.value for triple in graph for t in triple if hasattr(t, "value") and t.value.startswith(salg)}
