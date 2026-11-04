@@ -531,9 +531,10 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:DAnd .
 
     manch:DExactShape a sh:NodeShape ;
-        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+        sh:property [ sh:datatype xsd:integer ;
                 sh:maxCount 1 ;
                 sh:minCount 1 ;
+                sh:minInclusive 0 ;
                 sh:path manch:cardinality ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -546,9 +547,10 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:DExact .
 
     manch:DMaxShape a sh:NodeShape ;
-        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+        sh:property [ sh:datatype xsd:integer ;
                 sh:maxCount 1 ;
                 sh:minCount 1 ;
+                sh:minInclusive 0 ;
                 sh:path manch:cardinality ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -561,9 +563,10 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:DMax .
 
     manch:DMinShape a sh:NodeShape ;
-        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+        sh:property [ sh:datatype xsd:integer ;
                 sh:maxCount 1 ;
                 sh:minCount 1 ;
+                sh:minInclusive 0 ;
                 sh:path manch:cardinality ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -648,9 +651,10 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:Document .
 
     manch:ExactShape a sh:NodeShape ;
-        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+        sh:property [ sh:datatype xsd:integer ;
                 sh:maxCount 1 ;
                 sh:minCount 1 ;
+                sh:minInclusive 0 ;
                 sh:path manch:cardinality ],
             [ sh:maxCount 1 ;
                 sh:minCount 1 ;
@@ -713,9 +717,10 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:Inverse .
 
     manch:MaxShape a sh:NodeShape ;
-        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+        sh:property [ sh:datatype xsd:integer ;
                 sh:maxCount 1 ;
                 sh:minCount 1 ;
+                sh:minInclusive 0 ;
                 sh:path manch:cardinality ],
             [ sh:maxCount 1 ;
                 sh:node manch:ClassExpressionOrNameShape ;
@@ -727,9 +732,10 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:Max .
 
     manch:MinShape a sh:NodeShape ;
-        sh:property [ sh:datatype xsd:nonNegativeInteger ;
+        sh:property [ sh:datatype xsd:integer ;
                 sh:maxCount 1 ;
                 sh:minCount 1 ;
+                sh:minInclusive 0 ;
                 sh:path manch:cardinality ],
             [ sh:maxCount 1 ;
                 sh:node manch:ClassExpressionOrNameShape ;
@@ -3443,7 +3449,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:ndd5450bbf7f3487b8e852f9a95973629b225 ;
+        sh:in _:nbbcbf1265dce4806bb8eef3e2f14786ab225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3843,7 +3849,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:ndd5450bbf7f3487b8e852f9a95973629b225 ;
+        sh:in _:nbbcbf1265dce4806bb8eef3e2f14786ab225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4370,7 +4376,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:ndd5450bbf7f3487b8e852f9a95973629b225 ;
+        sh:in _:nbbcbf1265dce4806bb8eef3e2f14786ab225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5996,11 +6002,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:ndd5450bbf7f3487b8e852f9a95973629b226 rdf:first sh:IRI ;
+    _:nbbcbf1265dce4806bb8eef3e2f14786ab226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:ndd5450bbf7f3487b8e852f9a95973629b225 rdf:first sh:BlankNode ;
-        rdf:rest _:ndd5450bbf7f3487b8e852f9a95973629b226 .
+    _:nbbcbf1265dce4806bb8eef3e2f14786ab225 rdf:first sh:BlankNode ;
+        rdf:rest _:nbbcbf1265dce4806bb8eef3e2f14786ab226 .
 }
 
 starontology:shacl12-shacl.ttl {

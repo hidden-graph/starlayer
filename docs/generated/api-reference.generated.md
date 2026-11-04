@@ -3168,7 +3168,7 @@ own shapes rely on would fail. ``salg-ontology.ttl`` on its own has no
 opinion about expressions/variables/paths at all - entirely
 ``spexpr:``'s concern.
 
-**Returns:** `Graph` - A fresh ``rdflib.Graph`` combining both ontologies (callers get their own copy, not a shared module-level instance).
+**Returns:** `Graph` - A fresh ``OxGraph`` combining both ontologies (callers get their own copy, not a shared module-level instance).
 
 **Source:** [starlayer.sparql.salg.sparql_ontology.ontology_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/sparql_ontology.py#L120-L142)
 
