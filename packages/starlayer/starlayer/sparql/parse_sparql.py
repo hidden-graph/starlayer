@@ -46,13 +46,23 @@ from __future__ import annotations
 
 import re
 from typing import NamedTuple
+from urllib.parse import urljoin
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, XSD
 
-from starlayer.graph.parsers.turtle_parser import _join
 from starlayer.sparql.vocab import encode_dirlang_datatype
+
+
+def _join(base_uri, ref):
+    """RFC 3986 reference resolution. ``urllib.parse.urljoin`` drops an empty fragment (``urljoin("http://b/x", "#")`` is
+    ``http://b/x``), which turns a relative ``<#>`` into the wrong IRI (GitHub issue #132); it is put back."""
+    joined = urljoin(base_uri, ref)
+    if ref.endswith('#') and not joined.endswith('#'):
+        joined += '#'
+    return joined
+
 
 # ---------------------------------------------------------------------------
 # Errors

@@ -3,8 +3,7 @@
 ``substitutions=`` with the documented ``VALUES`` fallback when the variable is not projected.
 
 ``direct.run_direct`` itself returns rdflib terms and an rdflib ``Result``, and cannot select a default graph, so this module
-reuses its helpers (``_prefix_dict``) and ``backends.native`` (``check_native_version_conformance``,
-``inject_init_bindings``) and builds the wrapper's ``Result`` over pyoxigraph terms. They are imported lazily.
+builds the wrapper's ``Result`` over pyoxigraph terms.
 """
 
 from __future__ import annotations
@@ -17,16 +16,10 @@ import pyoxigraph as ox
 
 from starlayer.graph.oxgraph import terms
 from starlayer.graph.oxgraph.result import HiddenColumns, Result
-
-
-class _Inline:
-    """What ``inject_init_bindings`` needs of a term: ``.n3()``. A pyoxigraph term prints as SPARQL syntax."""
-
-    def __init__(self, t: Any) -> None:
-        self._t = t
-
-    def n3(self) -> str:
-        return _sparql_term(self._t)
+from starlayer.graph.oxgraph.sparql_text import (
+    check_native_version_conformance,
+    inject_init_bindings,
+)
 
 
 def _sparql_term(t: Any) -> str:
@@ -90,11 +83,6 @@ def merge_prefixes(*maps: Mapping[str, str] | None) -> dict[str, str] | None:
 def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
           init_bindings: Mapping[Any, Any] | None = None, base: str | None = None, default_graph: Any = None,
           union: bool = False) -> Result:
-    from starlayer.graph.backends.native import (
-        check_native_version_conformance,
-        inject_init_bindings,
-    )
-
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs query text, not a prepared Query object")
     check_native_version_conformance(text)
@@ -127,15 +115,13 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
         if any(_has_blank(v) for v in subs.values()):
             raw = _query_widening(store, sent, kwargs, subs, e)
         else:
-            injected = inject_init_bindings(sent, {k.value: _Inline(v) for k, v in subs.items()})
+            injected = inject_init_bindings(sent, {k.value: _sparql_term(v) for k, v in subs.items()})
             raw = store.query(injected, **kwargs)
     return Result(raw, text)
 
 
 def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
            base: str | None = None, union: bool = False) -> None:
-    from starlayer.graph.backends.native import check_native_version_conformance
-
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs update text, not a prepared Update object")
     check_native_version_conformance(text)

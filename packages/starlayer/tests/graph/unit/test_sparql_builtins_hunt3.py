@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 from rdflib import Literal, URIRef
 from starlayer import StarLayerGraph
-from starlayer.graph.query.version_directive import strip_version_directive
+from starlayer.graph.oxgraph.sparql_text import strip_version_directive
 
 PRE = "PREFIX : <http://e/> PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
 XSD_NS = "http://www.w3.org/2001/XMLSchema#"

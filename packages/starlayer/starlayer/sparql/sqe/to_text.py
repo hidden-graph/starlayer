@@ -501,7 +501,7 @@ def _namespace_manager_for(prefixes: dict):
 
 
 def _abbreviate(iri: str, prefixes: dict) -> str:
-    from ...graph.serializers.turtle12 import _PN_LOCAL
+    from ...graph.oxgraph.pretty import _PN_LOCAL
 
     for label, namespace in prefixes.items():
         if iri.startswith(namespace) and iri != namespace:

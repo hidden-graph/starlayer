@@ -240,12 +240,12 @@ class OxigraphGraph:
         except RuntimeError as exc:
             if not subs or "projection" not in f"{exc}":  # str-ok: an exception message
                 raise
-            from starlayer.graph.backends.native import inject_init_bindings
             from starlayer.graph.oxgraph import run as oxrun
+            from starlayer.graph.oxgraph.sparql_text import inject_init_bindings
 
             if any(oxrun._has_blank(v) for v in subs.values()):
                 return oxrun._query_widening(self.store, text, kwargs, subs, exc)
-            injected = inject_init_bindings(text, {k.value: oxrun._Inline(v) for k, v in subs.items()})
+            injected = inject_init_bindings(text, {k.value: oxrun._sparql_term(v) for k, v in subs.items()})
             return self.store.query(injected, **kwargs)
 
     def sparql_query(self, text: str, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None) -> Any:

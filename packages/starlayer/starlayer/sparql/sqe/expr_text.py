@@ -72,7 +72,7 @@ def _is_plain_string(value) -> bool:
 
 
 def _abbreviate(iri: str, prefixes: dict) -> str:
-    from ...graph.serializers.turtle12 import _PN_LOCAL
+    from ...graph.oxgraph.pretty import _PN_LOCAL
 
     for label, namespace in prefixes.items():
         if iri.startswith(namespace) and iri != namespace:
