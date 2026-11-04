@@ -98,9 +98,9 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs query text, not a prepared Query object")
     check_native_version_conformance(text)
-    sent = text
     kwargs: dict[str, Any] = {}
     pfx = merge_prefixes(prefixes, init_ns)
+    sent = text
     if pfx:
         kwargs["prefixes"] = pfx
     if base:
@@ -112,6 +112,10 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
     subs = None
     if init_bindings:
         subs = {ox.Variable(str(getattr(k, "value", k)).lstrip("?$")): terms.term(v) for k, v in init_bindings.items()}
+    else:  # a correlated FILTER [NOT] EXISTS is much faster as a join (sparql/sqe/rewrite.py); same rows
+        from starlayer.sparql.sqe.rewrite import rewrite_exists_text
+
+        sent = rewrite_exists_text(text, prefixes=pfx, base=base)
     try:
         raw = store.query(sent, **kwargs, **({"substitutions": subs} if subs else {}))
     except RuntimeError as e:
