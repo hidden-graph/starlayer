@@ -20,6 +20,7 @@ from pathlib import Path
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import rdfc_native
+from starlayer.graph.oxgraph import ntversion
 from starlayer.graph.oxgraph.core import OxDataset
 
 DATA = Path(__file__).parent / "data"
@@ -41,7 +42,6 @@ MANIFESTS = [
 
 #: test id -> why Oxigraph (0.5.13) fails it
 KNOWN_GAPS = {
-    "rdf-n-triples/syntax:ntriples-version-1": "N-Triples has no VERSION directive in Oxigraph (Turtle and TriG have)",
     "rdf-xml/eval:rdf12-xml-an-13": "XMLLiteral keeps the in-scope namespace declarations (no exclusive canonicalisation)",
     "rdf-xml/eval:rdf12-xml-an-14": "XMLLiteral keeps the in-scope namespace declarations (no exclusive canonicalisation)",
 }
@@ -90,7 +90,10 @@ def _all(*kinds_suffix: str, exclude_known: bool = False, only_known: bool = Fal
 
 
 def _parse(t: dict) -> list[ox.Quad]:
-    return list(ox.parse(input=t["file"].read_bytes(), format=t["format"], base_iri=t["base"]))
+    """Oxigraph's parser behind the wrapper's N-Triples / N-Quads ``VERSION`` handling (``oxgraph/ntversion.py``): Oxigraph
+    itself rejects that directive, so these two syntaxes are the wrapper's parser, the others are Oxigraph's own."""
+    kw = ntversion.accept_version_directive({"input": t["file"].read_bytes()}, t["format"])
+    return list(ox.parse(format=t["format"], base_iri=t["base"], **kw))
 
 
 def _expected(t: dict) -> list[ox.Quad]:
@@ -143,3 +146,15 @@ def test_known_gap_still_fails(t: dict) -> None:
     except SyntaxError:
         ok = False
     assert not ok, f"{t['id']} now passes; remove it from KNOWN_GAPS ({KNOWN_GAPS[t['id']]})"
+
+
+def test_ntriples_version_negatives_are_rejected_for_the_right_reason() -> None:
+    """Each ``ntriples-version-bad-*`` is rejected, and the directive check is what rejects the ones that are directives."""
+    base = DATA / "rdf-n-triples" / "syntax"
+    for n, message in ((1, None), (2, "VERSION directive"), (3, "VERSION directive"), (4, None)):
+        text = (base / f"ntriples-version-bad-{n}.nt").read_bytes()
+        with pytest.raises(SyntaxError) as e:
+            list(ox.parse(format=ox.RdfFormat.N_TRIPLES, **ntversion.accept_version_directive({"input": text}, ox.RdfFormat.N_TRIPLES)))
+        assert (message is None) or (message in str(e.value)), (n, str(e.value))
+    # wrong case and the Turtle-style directive are not VERSION directives: Oxigraph rejects them as statements
+    assert ntversion.accept_version_directive({"input": b'version "1.2"\n'}, ox.RdfFormat.N_TRIPLES) == {"input": b'version "1.2"\n'}

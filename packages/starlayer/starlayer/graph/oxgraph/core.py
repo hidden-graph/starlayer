@@ -15,7 +15,7 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.graph.backends._versions import require_supported_pyoxigraph
-from starlayer.graph.oxgraph import config, formats, run, terms
+from starlayer.graph.oxgraph import config, formats, ntversion, run, terms
 from starlayer.graph.oxgraph.result import Result
 
 require_supported_pyoxigraph()
@@ -355,7 +355,8 @@ class _Base:
         fmt = formats.to_format(format, default=guessed or ox.RdfFormat.TURTLE)
         direct = isinstance(self._add_graph(), ox.DefaultGraph)  # quads can go to the store untouched (the fast path)
         extra = {"without_named_graphs": True} if (direct and not isinstance(self, OxDataset)) else {}
-        parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra, **kw)
+        parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra,
+                          **ntversion.accept_version_directive(kw, fmt))
         try:
             if direct:
                 self.store.extend(parser)

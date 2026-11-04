@@ -145,3 +145,31 @@ emits `nonNegativeInteger`.
 Revisit when the store keeps derived types (upstream PR #2010): restore `xsd:nonNegativeInteger` in those shapes, regenerate
 `starontology.trig` and the Manchester snapshot, and drop the related strict xfails. Any other shape that names a derived
 numeric `sh:datatype` will hit the same rewrite.
+
+## 4. `rdf:parseType="Literal"` keeps in-scope namespace declarations (no exclusive canonicalisation)
+
+Project note, not for posting. RDF 1.2 XML Syntax says the lexical form of an `rdf:XMLLiteral` is the exclusive XML
+canonicalisation of the element content, so a namespace declaration that the content does not use is not written. Oxigraph's
+RDF/XML parser copies every in-scope declaration onto the literal's top element.
+
+```python
+import pyoxigraph as ox
+
+doc = b"""<?xml version="1.0"?>
+<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:eg="http://example.org/" xml:base="http://example.com/">
+  <rdf:Description rdf:about="http://www.example.org/a"><eg:prop rdf:parseType="Literal"><br /></eg:prop></rdf:Description>
+</rdf:RDF>"""
+print(next(iter(ox.parse(input=doc, format=ox.RdfFormat.RDF_XML))).object.value)
+```
+
+Expected (exclusive canonical form): `<br></br>`. Actual (pyoxigraph 0.5.13):
+`<br xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:eg="http://example.org/"></br>`.
+
+Where it surfaces here: the W3C RDF 1.2 RDF/XML evaluation tests `rdf12-xml-an-13` and `rdf12-xml-an-14` (pinned as known gaps in
+`tests/graph/w3c_rdf12/test_w3c_rdf12_oxigraph.py`, `KNOWN_GAPS`). The owner also named `xml-canon-test001` and
+`xml-canon-test002`; they are not in the vendored `rdf12` suite (`tests/graph/w3c_rdf12/data/`), so they are not exercised
+here. The cause is the same: the literal differs only in namespace declarations that the content does not use.
+
+Consequence for users: two XMLLiterals that are equal under exclusive canonicalisation can be different terms after an RDF/XML
+parse, depending on the declarations in scope at the point of the literal. No workaround in the wrapper (it would mean
+re-canonicalising XML on every RDF/XML parse).
