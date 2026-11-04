@@ -3,7 +3,7 @@
 Each test states the outcome the specification gives and is a strict expected failure: it fails today because Oxigraph does
 something else, and it XPASSes (a failure, ``strict=True``) when a release fixes it, which is the signal to delete the xfail and
 revisit the row in ``docs/working/non-spec-behaviour.md``. The wrapper adds no client-side patch. The write-ups, with the bare
-pyoxigraph reproductions, are sections 6 to 9 of ``docs/working/oxigraph-upstream-issues.md``. Nothing is posted anywhere.
+pyoxigraph reproductions, are sections 6 to 8 of ``docs/working/oxigraph-upstream-issues.md``. Nothing is posted anywhere.
 
 A test lists every deviation it knows in its failure message; a release that fixes only some keeps the test an expected
 failure, so the document says which cases a release must fix before the xfail goes.
@@ -62,15 +62,18 @@ def test_negated_property_set_with_both_directions_is_a_bag():
     assert rows("?s !(:p|^:q) ?o") == rows("{ ?s !(:p) ?o } UNION { ?s ^!(:q) ?o }")
 
 
-@pytest.mark.xfail(strict=True, reason="Oxigraph COPY / ADD from an absent graph do not raise without SILENT (oxigraph-upstream-issues.md section 9)")
-def test_copy_and_add_of_an_absent_graph_fail_without_silent():
-    silent_ones = []
-    for op in ("COPY", "ADD"):
-        ds = OxDataset()
-        ds.update(f"{P}INSERT DATA {{ GRAPH :g1 {{ :a :p :b }} }}")
-        try:
-            ds.update(f"{P}{op} :nope TO :g1")
-        except Exception:  # noqa: BLE001  the type is not the point, only that it fails like MOVE, CLEAR and DROP do
-            continue
-        silent_ones.append(op)
-    assert not silent_ones, f"no error from {silent_ones}, as there is for MOVE / CLEAR / DROP of an absent graph"
+def test_copy_and_add_of_an_absent_graph_are_allowed_to_succeed():
+    """Not a deviation. SPARQL 1.1 Update (3.2.3 COPY, 3.2.5 ADD): "By default, the service MAY return failure if the input graph
+    does not exist", so success is allowed. COPY is defined as DROP SILENT of the target followed by an INSERT, so a COPY from an
+    absent graph empties the target; ADD changes nothing. Pinned so a change in Oxigraph is noticed."""
+
+    def held(ds: OxDataset) -> int:
+        (row,) = list(ds.query(f"{P}SELECT (COUNT(*) AS ?n) {{ GRAPH :g1 {{ ?s ?p ?o }} }}"))
+        return int(row["n"].value)
+
+    ds = OxDataset()
+    ds.update(f"{P}INSERT DATA {{ GRAPH :g1 {{ :a :p :b }} }}")
+    ds.update(f"{P}ADD :nope TO :g1")
+    assert held(ds) == 1
+    ds.update(f"{P}COPY :nope TO :g1")
+    assert held(ds) == 0

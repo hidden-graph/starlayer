@@ -301,28 +301,15 @@ Expected 7, actual 6. A set with members in one direction only is a bag in Oxigr
 xfail `test_negated_property_set_with_both_directions_is_a_bag`; it compares the path against its own UNION translation on the same
 data, so it needs no hand-computed rows.
 
-## 9. COPY and ADD from a graph that does not exist do not fail
+## 9. COPY and ADD from a graph that does not exist: not a deviation
 
-Project note, not for posting. Checked 2026-11-06 on pyoxigraph 0.5.13. `CLEAR`, `DROP` and `MOVE` of a graph that does not
-exist raise `The graph <...> does not exist` unless `SILENT`; `COPY` and `ADD` do not. The repository's tests and the reading in
-`b1-classification.md` (B6) take that as against SPARQL 1.1 Update 3.2 (the source graph must exist unless `SILENT`); the section
-has not been re-read for this note, so check it before anyone relies on it.
+Project note, not for posting. Checked 2026-11-06 on pyoxigraph 0.5.13; the spec text re-read 2026-11-06 (SPARQL 1.1 Update, W3C
+Recommendation 21 March 2013). `CLEAR`, `DROP` and `MOVE` of a graph that does not exist raise `The graph <...> does not exist`
+unless `SILENT`; `COPY` and `ADD` do not. **The earlier reading of this as against the spec was wrong.** Sections 3.2.3 (COPY),
+3.2.4 (MOVE) and 3.2.5 (ADD) say: "By default, the service _MAY_ return _failure_ if the input graph does not exist." Failure is
+permitted, not required, so Oxigraph succeeding is allowed. COPY is defined by the equivalence
+`DROP SILENT (GRAPH <to> | DEFAULT); INSERT { ... } WHERE { ... }`, so a `COPY` from an absent graph empties the target, which
+is what Oxigraph does; the spec does not address that case explicitly, but the equivalence gives it. There is nothing to report.
 
-```python
-import pyoxigraph as ox
-
-for op in ("COPY", "ADD", "MOVE"):
-    store = ox.Store()
-    store.add(ox.Quad(ox.NamedNode("urn:t"), ox.NamedNode("urn:p"), ox.NamedNode("urn:o"), ox.NamedNode("urn:g1")))
-    try:
-        store.update(f"{op} <urn:nope> TO <urn:g1>")
-        held = len(list(store.quads_for_pattern(None, None, None, ox.NamedNode("urn:g1"))))
-        print(op, "no error; <urn:g1> now holds", held, "quad(s)")
-    except Exception as e:
-        print(op, "error:", e)
-```
-
-Actual: `COPY` raises nothing and empties `<urn:g1>` (its content is deleted, nothing is copied in); `ADD` raises nothing and changes
-nothing; `MOVE` raises. So the visible harm is that a `COPY` from a mistyped graph name wipes the target. Recorded as the strict
-xfail `test_copy_and_add_of_an_absent_graph_fail_without_silent`. A wrapper-side check would need the update parsed to learn the
-source graphs; not done.
+What remains is a usage warning: an unchecked `COPY` from a mistyped graph name wipes the target. Pinned by
+`test_copy_and_add_of_an_absent_graph_are_allowed_to_succeed` (not an xfail).
