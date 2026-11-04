@@ -20,32 +20,12 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 RULE { ?x :exposedTo ?v } WHERE { ?x :hasVulnerability ?v . }
 RULE { ?x :exposedTo ?v } WHERE { ?x :dependsOn ?y . ?y :exposedTo ?v . }
 RULE { ?x :status :criticallyExposed }
-WHERE { ?x :exposedTo ?v . ?v :severity ?s . FILTER(?s >= 9.5) }
+WHERE { ?x :exposedTo ?v . ?v :severity ?s . FILTER(?s >= 9.0) }
 RULE { ?x :status :safeToDeploy }
 WHERE { ?x rdf:type :Component . NOT { ?x :status :criticallyExposed } }
 RULE { [] rdf:type :Notification ; :concerns ?x }
 WHERE { ?x :status :criticallyExposed . }
 """
-
-
-def _canon(value):
-    """``value`` with every dataclass, list and rdflib ``CompValue`` as plain data, a ``CompValue``'s keys sorted: the tree read
-    back from an ``OxGraph`` lists a node's properties in the store's order, not the order the parser wrote them in."""
-    import dataclasses
-
-    from rdflib.plugins.sparql.parserutils import CompValue
-
-    if dataclasses.is_dataclass(value) and not isinstance(value, type):
-        return (type(value).__name__, tuple((f.name, _canon(getattr(value, f.name))) for f in dataclasses.fields(value) if f.compare))
-    if isinstance(value, CompValue):
-        return (value.name, tuple(sorted(((k, _canon(v)) for k, v in dict.items(value)), key=lambda kv: kv[0])))
-    if isinstance(value, (list, tuple)):
-        return tuple(_canon(v) for v in value)
-    return value
-
-
-def _same(a, b):
-    return _canon(a) == _canon(b)
 
 
 def _roundtrip(text):
@@ -55,17 +35,9 @@ def _roundtrip(text):
     return rs, rs2, graph
 
 
-# The default tree is an OxGraph, and Oxigraph stores a literal in its canonical lexical form ("9.0"^^xsd:decimal becomes "9"): the
-# rule sets below use canonical forms (9.5) so that they compare equal after the round trip.
-def test_noncanonical_decimal_is_stored_in_its_canonical_form():
-    rs, rs2, _ = _roundtrip("PREFIX : <http://example.org/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y . FILTER(?y >= 9.0) }")
-    assert not _same(rs, rs2)
-    assert rs2.rules[0].body[1].expr["other"].toPython() == rs.rules[0].body[1].expr["other"].toPython()
-
-
 def test_full_worked_example_roundtrips():
     rs, rs2, _ = _roundtrip(WORKED_EXAMPLE_RULES)
-    assert _same(rs, rs2)
+    assert rs == rs2
 
 
 def test_data_block_roundtrips():
@@ -74,7 +46,7 @@ def test_data_block_roundtrips():
     DATA { :db :hasVulnerability :vuln1 . :vuln1 :severity 9.1 . }
     """
     rs, rs2, _ = _roundtrip(text)
-    assert _same(rs, rs2)
+    assert rs == rs2
     assert len(rs2.data) == 1
 
 
@@ -87,10 +59,10 @@ def test_imports_roundtrips():
 def test_assignment_and_filter_expression_roundtrip():
     text = """
     PREFIX : <http://example.org/>
-    RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.5) }
+    RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.0) }
     """
     rs, rs2, _ = _roundtrip(text)
-    assert _same(rs, rs2)
+    assert rs == rs2
     (rule,) = rs2.rules
     assert rule.evaldata is False  # WHERE DATA matches the base graph only
 
@@ -101,7 +73,7 @@ def test_negation_with_data_flag_roundtrips():
     RULE { ?x :safe true } WHERE { ?x :seen true . NOT DATA { ?x :flagged true . } }
     """
     rs, rs2, _ = _roundtrip(text)
-    assert _same(rs, rs2)
+    assert rs == rs2
     (rule,) = rs2.rules
     neg = rule.body[1]
     assert neg.evaldata is False  # NOT DATA matches the base graph only

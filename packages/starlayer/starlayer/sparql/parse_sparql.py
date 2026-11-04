@@ -2095,9 +2095,7 @@ def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=
     """
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    if graph is None:  # encode on a scratch rdflib graph, return a fresh OxGraph
-        return _ox.default_boundary(lambda g, r: _ast_to_rdflib_tree(q, g, r, triple_order), root)
-    if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it; root is pyoxigraph
+    if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it; root is pyoxigraph
         return _ox.write_boundary(graph, lambda g, r: _ast_to_rdflib_tree(q, g, r, triple_order), root)
     return _ast_to_rdflib_tree(q, graph, root, triple_order)
 

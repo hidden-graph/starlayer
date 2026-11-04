@@ -12,7 +12,7 @@ Two directions get tested:
 """
 
 import pytest
-from rdflib import RDF, BNode
+from rdflib import RDF, BNode, Graph
 from rdflib.collection import Collection
 from starlayer import starontology
 from starlayer.starontology import manchester as ms
@@ -44,7 +44,7 @@ def _encode_data_prop_range():
         '    Domain: Person\n'
         '    Range: xsd:integer\n'
     )
-    return manchester_parse_to_tree(text)
+    return manchester_parse_to_tree(text, graph=Graph())  # edited below with rdflib's Collection and set
 
 
 def test_wrong_item_type_under_data_prop_range_clause_fails():
@@ -80,7 +80,7 @@ def test_misc_axiom_item_of_wrong_family_fails():
         'Prefix: : <http://example.org/>\n'
         'EquivalentClasses: Cat, Feline\n'
     )
-    graph = manchester_parse_to_tree(text)
+    graph = manchester_parse_to_tree(text, graph=Graph())  # edited with rdflib's Collection
     misc = next(graph.subjects(RDF.type, MANCH.MiscEquivalentClassesAxiom))
     items_list = next(graph.objects(misc, MANCH.items))
     coll = Collection(graph, items_list)

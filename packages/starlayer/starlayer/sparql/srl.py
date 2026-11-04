@@ -277,18 +277,17 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tup
 
     Args:
         ruleset: The RuleSet to encode.
-        graph: Graph to add the encoding to (an ``OxGraph`` or an rdflib graph); a fresh ``OxGraph`` if not given.
+        graph: Graph to add the encoding to (an ``OxGraph``, which gets pyoxigraph terms, or an rdflib graph); a fresh
+            ``rdflib.Graph`` if not given.
 
     Returns:
         A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node (a pyoxigraph term for an ``OxGraph``).
     """
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    if graph is None:  # encode on a scratch rdflib graph, return a fresh OxGraph
-        return _ox.default_boundary(lambda g: _ruleset_to_rdflib_tree(ruleset, _new_tree_graph()))
-    if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+    if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
         return _ox.write_boundary(graph, lambda g: _ruleset_to_rdflib_tree(ruleset, _new_tree_graph()))
-    return _ruleset_to_rdflib_tree(ruleset, graph)
+    return _ruleset_to_rdflib_tree(ruleset, graph if graph is not None else _new_tree_graph())
 
 
 def _ruleset_to_rdflib_tree(ruleset: srl_ast.RuleSet, graph: Graph) -> tuple[Graph, BNode]:
@@ -576,7 +575,7 @@ def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) 
 def srl_parse_to_tree(text: str, base: str | None = None, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
     ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (an ``OxGraph``, which gives pyoxigraph terms,
-    or an rdflib graph) is where the tree is written, a fresh ``OxGraph`` when omitted."""
+    or an rdflib graph) is where the tree is written, a fresh ``rdflib.Graph`` when omitted."""
     return ruleset_to_tree(parse_ruleset(text, base), graph)
 
 

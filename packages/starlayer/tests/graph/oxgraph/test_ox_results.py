@@ -246,10 +246,8 @@ def test_srl_tree_and_validate():
     ok, report, _text = srl_validate(graph)
     assert_ox(report)
     default_graph, _ = srl_parse_to_tree(text)
-    assert isinstance(default_graph, OxGraph)  # the tree builders default to an OxGraph
-    rdflib_graph, _ = srl_parse_to_tree(text, graph=RdflibGraph())
-    assert isinstance(rdflib_graph, RdflibGraph) and not isinstance(rdflib_graph, OxGraph)  # an rdflib graph is filled as it is
-    assert_ox(srl_validate(rdflib_graph)[1], max_prefixes=40)
+    assert isinstance(default_graph, RdflibGraph) and not isinstance(default_graph, OxGraph)  # the default is a plain rdflib Graph
+    assert_ox(srl_validate(default_graph)[1], max_prefixes=40)
 
 
 def test_srl_infer_with_schema_returns_ox_parts():
