@@ -6,9 +6,13 @@ starlayer.sparql.salg.find_unbound_projected_variables() function
 (test_semantic_checks.py already covers that path directly).
 """
 
+import pyoxigraph as ox
 import starlayer.sparql
 import starlayer.sparql.salg
-from rdflib.namespace import SH
+from starlayer.shacl_engine.terms import SH
+
+# the report is an OxGraph: pyoxigraph terms. An rdflib ``Variable`` crosses the boundary as this IRI prefix + its name.
+_VARIABLE_IRI = "urn:starlayer:variable:"
 
 
 def _validate(query_text):
@@ -30,18 +34,16 @@ class TestNativeComponentCatchesUnboundProjectedVariable:
         )
         SALG = starlayer.sparql.SALG
         components = set(report_graph.objects(None, SH.sourceConstraintComponent))
-        assert SALG.NoUnboundProjectedVariablesConstraintComponent in components
+        assert ox.NamedNode(str(SALG.NoUnboundProjectedVariablesConstraintComponent)) in components
 
     def test_report_names_the_unbound_variable_as_the_value_node(self):
-        # A rdflib.Variable isn't a valid RDF term for real triple storage -
-        # once added to the report graph, it round-trips as a URIRef of the
-        # same name (confirmed empirically, not assumed) rather than
-        # staying a Variable instance.
+        # A variable isn't a valid RDF term for real triple storage: in the (Oxigraph-backed) report graph it is the
+        # IRI "urn:starlayer:variable:<name>".
         _conforms, report_graph, _report_text = _validate(
             "SELECT ?x ?y WHERE { ?x a <http://example.org/Foo> }"
         )
-        values = {str(v) for v in report_graph.objects(None, SH.value)}
-        assert "y" in values
+        values = set(report_graph.objects(None, SH.value))
+        assert ox.NamedNode(_VARIABLE_IRI + "y") in values
 
     def test_ordinary_fully_bound_query_conforms(self):
         conforms, _report_graph, _report_text = _validate(

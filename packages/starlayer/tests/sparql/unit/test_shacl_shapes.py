@@ -104,9 +104,12 @@ def test_expression_shape_relies_on_rdfs_reasoning_not_enumeration():
     node = BNode()
     data.add((node, RDF.type, SPEXPR.Builtin_STR))
 
+    from starlayer.graph.oxgraph import _rdflib_bridge
+
+    (ontology,) = _rdflib_bridge.read_boundary(ontology_graph())  # an OxGraph; owlrl runs on rdflib terms
     merged = RGraph()
     merged += data
-    merged += ontology_graph()
+    merged += ontology
 
     import owlrl
 

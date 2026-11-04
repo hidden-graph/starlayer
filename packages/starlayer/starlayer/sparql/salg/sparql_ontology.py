@@ -134,7 +134,7 @@ def ontology_graph() -> Graph:
     ``spexpr:``'s concern.
 
     Returns:
-        A fresh ``rdflib.Graph`` combining both ontologies (callers get
+        A fresh ``OxGraph`` combining both ontologies (callers get
         their own copy, not a shared module-level instance).
     """
     g = starontology.get_ontology_graph("sparql_owl")
