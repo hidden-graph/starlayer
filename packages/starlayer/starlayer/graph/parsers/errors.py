@@ -57,8 +57,8 @@ class Turtle12SyntaxError(SyntaxError):
 
 
 class MultipleGraphsError(ValueError):
-    """A quad-shaped document (nquads/trig/trix, bare or the RDF 1.2
-    nq12/trig12/trix12 variants) names more than one distinct graph, but
+    """A quad-shaped document (nquads/trig, bare or the RDF 1.2
+    nq12/trig12 variants) names more than one distinct graph, but
     was parsed via StarLayerGraph.parse() - not StarLayerDataset.parse() -
     which can only ever resolve to a single graph. Flattening the input
     would silently mix unrelated graphs' triples together with no way for

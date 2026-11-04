@@ -84,13 +84,13 @@ class TestRdflibCompat:
 
 
 # ---------------------------------------------------------------------------
-# Bare (RDF 1.1) nquads/trig/trix parsing - multi-graph-capable formats
+# Bare (RDF 1.1) nquads/trig parsing - multi-graph-capable formats
 # parsed into a single graph. Added 2026-10-04: plain rdflib delegation
 # would silently yield zero triples the moment any named graph appears at
 # all (a non-context-aware Graph's parser plugins can't place quads
 # anywhere) - this project instead resolves at most one distinct graph
 # (dropping its name) or raises MultipleGraphsError for two or more,
-# matching the same rule nq12/trig12/trix12 enforce (see test_rdf12_formats.py).
+# matching the same rule nq12/trig12 enforce (see test_rdf12_formats.py).
 # ---------------------------------------------------------------------------
 
 class TestBareQuadFormatsParsing:
@@ -122,33 +122,18 @@ class TestBareQuadFormatsParsing:
         with pytest.raises(MultipleGraphsError):
             sg.parse(data=trig, format='trig')
 
-    def test_trix_multiple_graphs_raises(self, sg):
-        from starlayer.graph.parsers.errors import MultipleGraphsError
-        xml = (
-            '<?xml version="1.0"?>'
-            '<TriX xmlns="http://www.w3.org/2004/03/trix/trix-1/">'
-            f'<graph><uri>{EX}g1</uri>'
-            f'<triple><uri>{EX}a</uri><uri>{EX}b</uri><uri>{EX}c</uri></triple>'
-            '</graph>'
-            f'<graph><uri>{EX}g2</uri>'
-            f'<triple><uri>{EX}x</uri><uri>{EX}y</uri><uri>{EX}z</uri></triple>'
-            '</graph></TriX>'
-        )
-        with pytest.raises(MultipleGraphsError):
-            sg.parse(data=xml, format='trix')
-
 
 # ---------------------------------------------------------------------------
-# Bare (RDF 1.1) nquads/trig/trix serializing - a single graph always has
+# Bare (RDF 1.1) nquads/trig serializing - a single graph always has
 # somewhere to go (its own identifier), so unlike parse() there's no
 # raise-for-2+-graphs case here; the fix is purely about not raising for the
-# single-graph case either. Added 2026-10-04: rdflib's own NQuads/TriX
-# serializer plugins raise "...only makes sense for context-aware stores"
+# single-graph case either. Added 2026-10-04: rdflib's own NQuads
+# serializer plugin raises "...only makes sense for context-aware stores"
 # for any non-context-aware store (no single-graph fallback, unlike
 # TrigSerializer's own - see rdflib.plugins.serializers.trig), which
 # StarLayerGraph used to just inherit via blind delegation. Now wraps the
 # graph as the one context of a real Dataset first, so all six dataset
-# formats (nquads/trig/trix, nq12/trig12/trix12) behave consistently.
+# formats (nquads/trig, nq12/trig12) behave consistently.
 # ---------------------------------------------------------------------------
 
 class TestBareQuadFormatsSerializing:
@@ -160,12 +145,15 @@ class TestBareQuadFormatsSerializing:
         assert str(identifier) in text
         assert f'<{EX}s>' in text and f'<{EX}p>' in text and f'<{EX}o>' in text
 
-    def test_trix_assigns_graph_name_from_identifier(self):
-        identifier = URIRef(EX + 'mygraph')
-        sg = StarLayerGraph(identifier=identifier)
+    @pytest.mark.parametrize('fmt', ['trix', 'trix12'])
+    def test_trix_is_refused(self, fmt):
+        """TriX was dropped (decision 2026-10-31): a clear error, not rdflib's plugin."""
+        sg = StarLayerGraph(identifier=URIRef(EX + 'mygraph'))
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
-        text = sg.serialize(format='trix')
-        assert str(identifier) in text
+        with pytest.raises(ValueError, match='TriX is not supported'):
+            sg.serialize(format=fmt)
+        with pytest.raises(ValueError, match='TriX is not supported'):
+            sg.parse(data='<trix/>', format=fmt)
 
     def test_nquads_serialize_returns_self_when_destination_given(self, tmp_path):
         sg = StarLayerGraph(identifier=URIRef(EX+'mygraph'))

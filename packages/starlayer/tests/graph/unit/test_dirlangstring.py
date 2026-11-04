@@ -256,7 +256,7 @@ class TestTrig12:
 # ---------------------------------------------------------------------------
 
 class TestOtherFormats:
-    @pytest.mark.parametrize('fmt', ['rdfxml12', 'trix12'])
+    @pytest.mark.parametrize('fmt', ['rdfxml12'])
     def test_round_trip(self, fmt):
         g = StarLayerGraph()
         g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))

@@ -98,11 +98,3 @@ def test_triples_can_be_restricted_to_one_graph():
     assert set(ds.triples((None, None, None), context=named)) == {(E.c, E.p, E.d)}
     assert set(ds.triples((None, None, None), context=E.g)) == {(E.c, E.p, E.d)}
     assert set(ds.triples((None, None, None), context=ds.default_graph)) == {(E.a, E.p, E.b)}
-
-
-def test_a_label_in_two_trix_documents_is_two_blank_nodes():
-    doc = '<TriX xmlns="http://www.w3.org/2004/03/trix/trix-1/"><graph><triple><id>b</id><uri>http://e/p</uri><uri>http://e/o</uri></triple></graph></TriX>'
-    ds = StarLayerDataset(default_union=True)
-    ds.parse(data=doc, format="trix12")
-    ds.parse(data=doc, format="trix12")
-    assert len(_subjects(ds)) == 2

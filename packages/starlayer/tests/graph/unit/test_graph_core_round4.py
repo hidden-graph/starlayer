@@ -67,5 +67,4 @@ def test_native_serializers_include_the_default_graph(native_dataset):
     d.get_context(E("g1")).add((E("s"), E("p"), E("o2")))
     assert "<http://e/s> <http://e/p> <http://e/o> ." in d.serialize(format="nq12")
     assert "ns1:o ." in d.serialize(format="trig12")
-    assert "http://e/o</uri>" in d.serialize(format="trix12")
     assert len(list(d.quads())) == 2

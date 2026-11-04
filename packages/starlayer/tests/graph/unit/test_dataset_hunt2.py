@@ -8,10 +8,6 @@ from starlayer.graph import StarLayerDataset, TripleTerm
 
 warnings.simplefilter("ignore")
 E = lambda n: URIRef("http://e/" + n)  # noqa: E731
-TRIX = (
-    '<?xml version="1.0"?><TriX xmlns="http://www.w3.org/2004/03/trix/trix-1/"><graph><uri>http://e/g</uri>'
-    "<triple><uri>http://e/a</uri><uri>http://e/p</uri><uri>http://e/b</uri></triple></graph></TriX>"
-)
 
 
 def _with_graph():
@@ -46,7 +42,6 @@ def test_a_removed_graph_can_be_recreated():
         ("trig", "GRAPH <http://e/g> { <http://e/a> <http://e/p> <http://e/b> }"),
         ("nquads", "<http://e/a> <http://e/p> <http://e/b> <http://e/g> ."),
         ("nq", "<http://e/a> <http://e/p> <http://e/b> <http://e/g> ."),
-        ("trix", TRIX),
     ],
 )
 def test_rdflib_names_of_the_multi_graph_formats_parse(fmt, data):
@@ -95,7 +90,7 @@ def test_remove_of_a_triple_follows_default_union():
     assert len(isolated) == 1  # the default graph only
 
 
-@pytest.mark.parametrize("fmt", ["trig12", "nq12", "trix12"])
+@pytest.mark.parametrize("fmt", ["trig12", "nq12"])
 def test_default_graph_is_written_without_a_name_and_read_back_as_default(fmt):
     ds = StarLayerDataset()
     ds.add((E("a"), E("p"), E("b")))

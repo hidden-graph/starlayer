@@ -255,7 +255,7 @@ def test_an_empty_named_graph_block_is_a_graph_of_the_dataset(text):
     assert _graph_names(d) == ['urn:g']
 
 
-@pytest.mark.parametrize('fmt', ['trig12', 'trix12'])
+@pytest.mark.parametrize('fmt', ['trig12'])
 def test_an_empty_named_graph_survives_a_round_trip(fmt):
     d = StarLayerDataset()
     d.graph(URIRef('urn:empty'))

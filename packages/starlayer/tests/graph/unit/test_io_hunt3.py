@@ -257,24 +257,17 @@ def test_dataset_trig_keeps_a_control_character_in_a_literal() -> None:
 
 
 @pytest.mark.parametrize("char", ["\x00", "\x08", "\x0b", "\x0c", "\x1f"])
-@pytest.mark.parametrize("fmt", ["trix12", "rdfxml12"])
-def test_xml_writers_refuse_a_character_xml_cannot_carry(char: str, fmt: str) -> None:
+def test_xml_writers_refuse_a_character_xml_cannot_carry(char: str) -> None:
     g = StarLayerGraph()
     g.add((_e("s"), _e("p"), Literal(f"a{char}b")))
     with pytest.raises(ValueError, match="XML 1.0"):
-        g.serialize(format=fmt)
-    ds = StarLayerDataset()
-    ds.graph(_e("g")).add((_e("s"), _e("p"), Literal(f"a{char}b")))
-    if fmt == "trix12":
-        with pytest.raises(ValueError, match="XML 1.0"):
-            ds.serialize(format=fmt)
+        g.serialize(format="rdfxml12")
 
 
 def test_xml_writers_still_write_tab_newline_and_cr() -> None:
     g = StarLayerGraph()
     g.add((_e("s"), _e("p"), Literal("a\tb\nc\rd")))
-    for fmt in ("trix12", "rdfxml12"):
-        assert {str(o) for _s, _p, o in StarLayerGraph().parse(data=g.serialize(format=fmt), format=fmt)} == {"a\tb\nc\rd"}
+    assert {str(o) for _s, _p, o in StarLayerGraph().parse(data=g.serialize(format="rdfxml12"), format="rdfxml12")} == {"a\tb\nc\rd"}
 
 
 # --- bytes in, bytes out, base (#133, #132)

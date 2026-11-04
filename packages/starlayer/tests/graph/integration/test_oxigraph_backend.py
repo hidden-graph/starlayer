@@ -616,25 +616,6 @@ class TestOxigraphNq12Parse:
 
 
 @oxigraph
-class TestOxigraphTrix12Parse:
-
-    def test_triple_term_decodes_correctly(self, sg):
-        xml = (
-            '<?xml version="1.0"?>'
-            '<trix xmlns="http://www.w3.org/2004/03/trix/trix-1/">'
-            '<graph>'
-            f'<triple><uri>{EX}stmt</uri>'
-            f'<uri>{RDF_NS}reifies</uri>'
-            f'<triple><uri>{EX}alice</uri><uri>{EX}knows</uri><uri>{EX}bob</uri></triple>'
-            '</triple></graph></trix>'
-        )
-        sg.parse(data=xml, format='trix12')
-        results = list(sg.triples((URIRef(EX+'stmt'), RDF_REIF, None)))
-        assert len(results) == 1
-        assert results[0][2] == TripleTerm(URIRef(EX+'alice'), URIRef(EX+'knows'), URIRef(EX+'bob'))
-
-
-@oxigraph
 class TestOxigraphRdfxml12Parse:
 
     def test_triple_term_decodes_correctly(self, sg):

@@ -53,7 +53,7 @@ cur:cap-rdf-graph-3 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "interchange" ;
     slkg:implementsSpecification tr:rdf12-turtle, tr:rdf12-n-triples, tr:rdf12-xml ;
-    rdfs:comment "Parse and serialize various RDF formats including both 1.1 and 1.2 versions of Turtle, LongTurtle, N-Triples, N-Quads, TriG, RDF/XML, and TriX 1.2. Parse and serialize JSON-LD 1.1 (1.2 pending)." ;
+    rdfs:comment "Parse and serialize various RDF formats including both 1.1 and 1.2 versions of Turtle, LongTurtle, N-Triples, N-Quads, TriG and RDF/XML. Parse and serialize JSON-LD 1.1 (1.2 pending)." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse",
         "starlayer.graph.graph.starlayer_graph.StarLayerGraph.serialize" .

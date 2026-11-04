@@ -423,14 +423,20 @@ def _effective_base(publicID, location) -> str | None:
     return None
 
 
+def _reject_trix(format) -> None:  # noqa: A002
+    """TriX is not supported (dropped by decision, 2026-10-31): a clear error instead of rdflib's plugin."""
+    if isinstance(format, str) and format.lower() in ('trix', 'trix12', 'application/trix+xml'):
+        raise ValueError("TriX is not supported; use TriG, N-Quads or RDF/XML")
+
+
 def _check_single_graph(graph_ids, *, format: str) -> None:
     """Raise MultipleGraphsError if graph_ids - the distinct graph
-    identifiers found while parsing a quad-shaped (nquads/trig/trix,
+    identifiers found while parsing a quad-shaped (nquads/trig,
     bare or 12-variant) document - names more than one graph.
 
     Shared by every quad-format branch of StarLayerGraph.parse() (nq12,
-    trig12, trix12, and the bare nquads/trig/trix fallback below) so all
-    six formats enforce the identical rule: at most one distinct graph
+    trig12, and the bare nquads/trig fallback below) so all
+    four formats enforce the identical rule: at most one distinct graph
     (including the trivial all-default-graph case, graph_ids == {None})
     parses normally into this graph; two or more raises, since flattening
     them together would silently mix unrelated graphs with no way for the
@@ -2059,7 +2065,6 @@ class StarLayerGraph(Graph):
         format='nt12'      — N-Triples 1.2 with <<( )>> triple terms
         format='nq12'      — N-Quads 1.2
         format='trig12'    — TriG 1.2
-        format='trix12'    — TriX 1.2 XML
         format='rdfxml12'  — RDF/XML 1.2 with rdf:parseType="Triple" and
                              rdf:annotation/rdf:annotationNodeID (RDF 1.2 XML Syntax)
         format='manchester' (alias 'omn') — OWL 2 Manchester Syntax; see
@@ -2073,8 +2078,8 @@ class StarLayerGraph(Graph):
                              syntax at all. The input must be valid
                              Turtle/Turtle 1.2.
 
-        'nq12'/'trig12'/'trix12' above, and the bare (RDF 1.1) 'nquads'/
-        'trig'/'trix' handled by the fallback below, all name quad-shaped
+        'nq12'/'trig12' above, and the bare (RDF 1.1) 'nquads'/
+        'trig' handled by the fallback below, all name quad-shaped
         (multi-graph-capable) formats being parsed into a single graph.
         A document resolving to at most one distinct graph - including the
         trivial case of everything being in the default graph - parses
@@ -2084,7 +2089,7 @@ class StarLayerGraph(Graph):
         use StarLayerDataset.parse() to keep each graph separate.
 
         All other formats delegate to rdflib (no triple-term support) -
-        except bare 'nquads'/'trig'/'trix', which this project still routes
+        except bare 'nquads'/'trig', which this project still routes
         through the single-vs-multiple-graph check above (plain rdflib
         delegation would otherwise silently yield zero triples the moment
         any named graph appears at all, even just one).
@@ -2105,9 +2110,10 @@ class StarLayerGraph(Graph):
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
+        _reject_trix(format)
         requested_format = format
         format = _faithful_parse_format(format, source, location, file, data)
-        if format in ('turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'manchester', 'omn'):
+        if format in ('turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'rdfxml12', 'manchester', 'omn'):
             text = _read_source_text(source=source, file=file, location=location, data=data)
 
             if format in ('turtle12', 'longturtle12'):
@@ -2242,19 +2248,6 @@ class StarLayerGraph(Graph):
                 )
                 check_version_conformance_for_graphs(_trig_version(text), [self], context='TriG document')
 
-            elif format == 'trix12':
-                from starlayer.graph.parsers.trix12 import parse_trix12_named
-                named = parse_trix12_named(text)
-                _check_single_graph({gid for gid, _triples in named}, format='trix12')
-                # at most one distinct graph, per the check above - flatten
-                # the (single) graph's chunks together
-                triples = [t for _gid, chunk_triples in named for t in chunk_triples]
-                if self._is_native:
-                    self._native_add_many(list(triples))
-                else:
-                    for triple in triples:
-                        self.add(triple)
-
             elif format == 'rdfxml12':
                 from starlayer.graph.parsers.rdfxml12 import (
                     extract_version_directive as _rx_version,
@@ -2290,7 +2283,7 @@ class StarLayerGraph(Graph):
                 # document (rdf:reifies / rdf:PropositionForm) as real triple terms; it still does
                 self._adopt_basic_encoding()
             return self
-        if format in ('nquads', 'trig', 'trix'):
+        if format in ('nquads', 'trig'):
             # Plain rdflib delegation (what every other format below still
             # gets) would silently yield zero triples the moment any named
             # graph appears at all in one of these - a non-context-aware
@@ -2298,7 +2291,7 @@ class StarLayerGraph(Graph):
             # this project routes through a real Dataset first instead,
             # purely to see the per-graph structure before deciding whether
             # to flatten (at most one distinct graph) or raise (two or
-            # more) - the same rule nq12/trig12/trix12 enforce above.
+            # more) - the same rule nq12/trig12 enforce above.
             text = _read_source_text(source=source, file=file, location=location, data=data)
             from rdflib import Dataset
             ds = Dataset()
@@ -2849,8 +2842,6 @@ class StarLayerGraph(Graph):
                 - ``'nt12'`` — N-Triples 1.2 with ``<<( )>>`` triple terms.
                 - ``'nq12'`` — N-Quads 1.2 (graph name from ``self.identifier``).
                 - ``'trig12'`` — TriG 1.2 (GRAPH block wrapper around Turtle 1.2).
-                - ``'trix12'`` — TriX 1.2 XML (``<graph>`` block with
-                  ``<triple>`` elements).
                 - ``'manchester'`` (alias ``'omn'``) — OWL 2 Manchester
                   Syntax; see ``starlayer.graph.serializers.manchester``'s
                   module docstring for the supported subset and known
@@ -2870,7 +2861,8 @@ class StarLayerGraph(Graph):
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
-        _RDF12_FORMATS = {'turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'trix12', 'rdfxml12', 'manchester', 'omn'}
+        _reject_trix(format)
+        _RDF12_FORMATS = {'turtle12', 'longturtle12', 'nt12', 'nq12', 'trig12', 'rdfxml12', 'manchester', 'omn'}
         if format in _RDF12_FORMATS:
             base = kwargs.get('base')
             if format == 'turtle12':
@@ -2888,9 +2880,6 @@ class StarLayerGraph(Graph):
             elif format == 'trig12':
                 from starlayer.graph.serializers.trig12 import serialize_trig12
                 text = serialize_trig12(self, base=base)
-            elif format == 'trix12':
-                from starlayer.graph.serializers.trix12 import serialize_trix12
-                text = serialize_trix12(self)
             elif format == 'rdfxml12':
                 from starlayer.graph.serializers.rdfxml12 import serialize_rdfxml12
                 text = serialize_rdfxml12(self)
@@ -2903,11 +2892,11 @@ class StarLayerGraph(Graph):
         # For 1.1 formats: de-skolemize internal URIRefs to blank nodes so
         # rdflib's serializer produces clean output without exposing tt:/rr: URIs.
         deskolemized = self._deskolemize_to_graph()
-        if format in ('nquads', 'trix'):
+        if format == 'nquads':
             # Unlike TrigSerializer (which falls back to treating a
             # non-context-aware store as its own single context - see
             # rdflib.plugins.serializers.trig.TrigSerializer.__init__), the
-            # NQuads/TriX serializer plugins just raise "...only makes
+            # NQuads serializer plugin just raises "...only makes
             # sense for context-aware stores" for one. Wrap the
             # de-skolemized graph as the one context of a real Dataset, so
             # these two formats get the same single-graph fallback trig

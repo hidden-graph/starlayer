@@ -237,7 +237,7 @@ class StarLayerDataset(Dataset):
 
     def _contexts_with_default(self) -> list[StarLayerGraph]:
         """contexts() plus the default graph: a native store lists only its named graphs, so the default graph's triples
-        were missing from quads() and from the TriG / N-Quads / TriX output (GitHub issue #98)."""
+        were missing from quads() and from the TriG / N-Quads output (GitHub issue #98)."""
         found = list(self.contexts())
         default_id = self.default_graph.identifier
         if all(sg.identifier != default_id for sg in found):
@@ -541,7 +541,6 @@ class StarLayerDataset(Dataset):
         format='trig12'   — TriG 1.2; each GRAPH block becomes a StarLayerGraph.
                             Plain Turtle content (no GRAPH blocks) goes into the default graph.
         format='nq12'     — N-Quads 1.2; each distinct graph name becomes a StarLayerGraph.
-        format='trix12'   — TriX 1.2 XML; each <graph> block becomes a StarLayerGraph.
         format='longturtle12'/'nt12'/'rdfxml12'/'manchester' (alias 'omn') —
                             no multi-graph syntax exists for these (same reasoning
                             as turtle12 above, just without a GRAPH-block
@@ -566,10 +565,11 @@ class StarLayerDataset(Dataset):
 
         # rdflib's names for the multi-graph formats go through this class's own parsers: rdflib's per-context
         # delegation hands StarLayerGraph.parse() an already-wrapped source it cannot read (GitHub issue #99).
-        from starlayer.graph.graph.starlayer_graph import _faithful_parse_format
+        from starlayer.graph.graph.starlayer_graph import _faithful_parse_format, _reject_trix
+        _reject_trix(format)
         format = _faithful_parse_format(format, source, location, file, data)  # turtle/nt/nquads/trig: the faithful parsers
         format = {'trig': 'trig12', 'nquads': 'nq12', 'nq': 'nq12', 'application/n-quads': 'nq12',
-                  'application/trig': 'trig12', 'trix': 'trix12'}.get(format, format)
+                  'application/trig': 'trig12'}.get(format, format)
 
         # turtle12 is Turtle-only (no GRAPH blocks); trig12 is a strict superset,
         # so routing turtle12 through the trig12 path is correct and safe.
@@ -590,7 +590,7 @@ class StarLayerDataset(Dataset):
             self._raw_execution_graph = None
             return self
 
-        if format not in ('trig12', 'nq12', 'trix12'):
+        if format not in ('trig12', 'nq12'):
             # a query must see what rdflib's own parse added (GitHub issue #99)
             try:
                 return super().parse(
@@ -651,17 +651,6 @@ class StarLayerDataset(Dataset):
                     sg.add(triple)
                 self._register_sg(sg)
             self._check_document_version_conformance(_nq_version(text), context='N-Quads document')
-
-        elif format == 'trix12':
-            from starlayer.graph.parsers.trix12 import parse_trix12_named
-            for graph_id, triples in parse_trix12_named(text):
-                identifier = DATASET_DEFAULT_GRAPH_ID if graph_id is None else graph_id
-                sg = self._load_context(identifier)
-                if not triples and graph_id is not None:
-                    self.store.add_graph(sg)
-                for triple in triples:
-                    sg.add(triple)
-                self._register_sg(sg)
 
         self._raw_execution_graph = None
         return self
@@ -1128,7 +1117,6 @@ class StarLayerDataset(Dataset):
 
         format='trig12' (default) — TriG 1.2 with GRAPH blocks and <<( )>> triple terms.
         format='nq12'   — N-Quads 1.2 with <<( )>> triple terms; one quad per line.
-        format='trix12' — TriX 1.2 XML with <graph> blocks and <tripleTerm> elements.
         format='turtle12'/'longturtle12'/'nt12'/'rdfxml12' — no
             multi-graph syntax exists for these, so every quad is flattened
             into one StarLayerGraph (see to_graph()) and serialized with
@@ -1140,10 +1128,12 @@ class StarLayerDataset(Dataset):
         """
         if format in ('n3', 'n3-12', 'text/n3'):
             format = 'turtle12'
+        from starlayer.graph.graph.starlayer_graph import _reject_trix
+        _reject_trix(format)
         if format in self._SINGLE_GRAPH_RDF12_FORMATS:
             text = self.to_graph().serialize(format=format, base=kwargs.get('base'))
 
-        elif format not in ('trig12', 'nq12', 'trix12'):
+        elif format not in ('trig12', 'nq12'):
             if any(sg._is_native or sg._tt_registry for sg in self.contexts()):
                 # rdflib's writers would see the internal triple-term encoding (or, for a native store, a term they cannot
                 # write: JSON-LD gave `null`). Hand them a plain dataset in which each graph holds the RDF 1.2 Interoperability
@@ -1171,10 +1161,6 @@ class StarLayerDataset(Dataset):
                 if chunk.strip():
                     lines.append(chunk.rstrip('\n'))
             text = header + '\n'.join(lines) + ('\n' if lines else '')
-
-        elif format == 'trix12':
-            from starlayer.graph.serializers.trix12 import serialize_trix12_dataset
-            text = serialize_trix12_dataset(self)
 
         else:  # trig12
             from starlayer.graph.serializers.turtle12 import (

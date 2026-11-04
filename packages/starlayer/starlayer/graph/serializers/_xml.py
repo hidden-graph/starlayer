@@ -1,4 +1,4 @@
-"""Shared helpers for the XML writers (RDF/XML 1.2, TriX 1.2)."""
+"""Shared helpers for the XML writers (RDF/XML 1.2)."""
 
 from __future__ import annotations
 
