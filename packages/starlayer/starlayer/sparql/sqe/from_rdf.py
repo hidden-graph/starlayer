@@ -25,8 +25,8 @@ from rdflib.plugins.sparql.algebra import translateQuery
 from rdflib.plugins.sparql.parserutils import CompValue, Expr
 from rdflib.plugins.sparql.sparql import Query
 
-from ..from_rdf import _DECODE_HOOK, _EXPR_EVALFNS
-from ..from_rdf import _decode as _decode_generic
+from ..spexpr_codec import _DECODE_HOOK, _EXPR_EVALFNS
+from ..spexpr_codec import _decode as _decode_generic
 from .vocab import (
     ALIAS,
     ASK_QUERY,

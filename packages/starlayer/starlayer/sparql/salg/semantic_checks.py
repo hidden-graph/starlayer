@@ -78,7 +78,7 @@ from rdflib.namespace import RDF
 from rdflib.plugins.sparql.algebra import _addVars, _traverseAgg, analyse
 from rdflib.plugins.sparql.parserutils import CompValue
 
-from .. import from_rdf
+from .. import spexpr_codec
 from ..vocab import SALG
 
 
@@ -160,8 +160,8 @@ def _unbound_projected_variables_for_node(project_node, graph: Graph) -> list[Un
         return []
 
     try:
-        pattern = from_rdf._decode(p_node, graph)
-        pv = from_rdf._decode_list_field(pv_node, graph)
+        pattern = spexpr_codec._decode(p_node, graph)
+        pv = spexpr_codec._decode_list_field(pv_node, graph)
     except Exception:
         return []
 

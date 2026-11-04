@@ -2891,7 +2891,7 @@ is needed here for that.
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)`` — ``root`` is a dedicated container node holding ``salg:queries`` (an ``rdf:List`` of the member queries' own ``salg:Query``-typed roots, in the order given — order isn't semantically meaningful for a collection, but is preserved anyway since ``rdf:List`` is ordered regardless).
 
-**Source:** [starlayer.sparql.to_rdf.queries_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L210-L241)
+**Source:** [starlayer.sparql.to_rdf.queries_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L98-L129)
 
 ---
 
@@ -2917,7 +2917,7 @@ form.
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
 
-**Source:** [starlayer.sparql.to_rdf.query_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L136-L164)
+**Source:** [starlayer.sparql.to_rdf.query_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L24-L52)
 
 ---
 
@@ -2948,7 +2948,7 @@ itself goes through the generic walker there).
 
 **Returns:** `list[Query]` - The member queries, in the order they were encoded.
 
-**Source:** [starlayer.sparql.from_rdf.rdf_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L215-L238)
+**Source:** [starlayer.sparql.from_rdf.rdf_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L113-L136)
 
 ---
 
@@ -2977,7 +2977,7 @@ so its output stays full-IRI-only regardless.
 
 **Returns:** `Query` - A fully reconstructed, evaluator-ready ``Query``.
 
-**Source:** [starlayer.sparql.from_rdf.rdf_to_query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L135-L174)
+**Source:** [starlayer.sparql.from_rdf.rdf_to_query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L33-L72)
 
 ---
 
@@ -3009,7 +3009,7 @@ of them in a real ``prepareUpdate`` result too.
 
 **Returns:** `Update` - A fully reconstructed ``Update``.
 
-**Source:** [starlayer.sparql.from_rdf.rdf_to_update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L177-L212)
+**Source:** [starlayer.sparql.from_rdf.rdf_to_update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L75-L110)
 
 ---
 
@@ -3093,7 +3093,7 @@ is additionally typed ``salg:UpdateOperation`` (see
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
 
-**Source:** [starlayer.sparql.to_rdf.update_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L167-L207)
+**Source:** [starlayer.sparql.to_rdf.update_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L55-L95)
 
 ---
 
@@ -3187,7 +3187,7 @@ granularities, "this specific failure" vs. "any ``sqe:`` failure",
 the same two-tier shape ``srl.py``'s own ``SRLError``/
 ``SRLParseError`` already established for the identical reason.
 
-**Source:** [starlayer.sparql.sqe.to_rdf.SQEError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L153-L158)
+**Source:** [starlayer.sparql.sqe.to_rdf.SQEError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L82-L87)
 
 ---
 
@@ -3212,7 +3212,7 @@ Attributes:
     report_text: The same report, rendered as text (this
         exception's own ``str()`` is a short prefix plus this text).
 
-**Source:** [starlayer.sparql.sqe.to_rdf.SQEValidationError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L161-L184)
+**Source:** [starlayer.sparql.sqe.to_rdf.SQEValidationError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L90-L113)
 
 ---
 
@@ -3220,14 +3220,14 @@ Attributes:
 ### `sqe_parse_to_tree`  _(function)_
 
 ```python
-def sqe_parse_to_tree(text: str, graph: Graph | None=None, root: IdentifiedNode | None=None, *, parser: str='owned') -> tuple[Graph, IdentifiedNode]
+def sqe_parse_to_tree(text: str, graph: Graph | None=None, root: IdentifiedNode | None=None) -> tuple[Graph, IdentifiedNode]
 ```
 
 Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT`` query text as
 ``sqe:`` RDF, and validate the result. The one public encoding entry
-point - parses ``text`` with the same ``parseQuery`` every other
-SPARQL 1.2 entry point in this package uses, delegates to
-``_query_to_sqe_rdf`` below, then validates via :func:`sqe_validate`
+point - parses ``text`` with StarLayer's own SPARQL 1.2 parser
+(``sparql.parse_sparql``: every query form, FROM / FROM NAMED, SERVICE,
+VERSION, and Update), then validates via :func:`sqe_validate`
 before returning - a caller only ever gets back a tree already
 confirmed to satisfy ``sqe:``'s own shapes (including the
 unbound-projected-variable check), never one silently known to fail.
@@ -3242,11 +3242,10 @@ yourself again after editing a tree directly.
 - `text: str` - The SPARQL query text to encode.
 - `graph: Graph | None = None` - The graph to add the ``sqe:`` RDF to. Defaults to a fresh ``StarLayerGraph`` (see ``to_rdf._new_starlayer_graph``).
 - `root: IdentifiedNode | None = None` - The node to use as the query's own root - any ``URIRef``/ ``BNode``. Defaults to a fresh ``BNode()``. Give a real ``URIRef`` to make the query findable by that identity later (e.g. ``graph.value(my_iri, RDF.type, SQE.Query)``), rather than only via the ``root`` value this function itself returns - useful once a graph accumulates more than one encoded query (via repeated calls sharing one ``graph=``), where a bare `?s a sqe:Query` lookup can no longer tell them apart on its own.
-- `parser: str = 'owned'` - ``"owned"`` (default) reads the text with StarLayer's own SPARQL 1.2 parser (``sparql.parse_sparql``), which also covers DESCRIBE, FROM / FROM NAMED, SERVICE and ``VERSION``. ``"rdflib"`` keeps the old route through rdflib's grammar and the shared salg-era encoder (no DESCRIBE, FROM or SERVICE), so the two can be compared; it goes when salg is retired.
 
 **Returns:** `tuple[Graph, IdentifiedNode]` - A ``(graph, root)`` tuple.
 
-**Source:** [starlayer.sparql.sqe.to_rdf.sqe_parse_to_tree](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L193-L286)
+**Source:** [starlayer.sparql.sqe.to_rdf.sqe_parse_to_tree](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L122-L184)
 
 ---
 

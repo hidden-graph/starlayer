@@ -4,11 +4,8 @@ from __future__ import annotations
 
 from rdflib import BNode, Graph, URIRef
 from rdflib.collection import Collection
-from rdflib.compare import isomorphic
 from rdflib.namespace import RDF
 from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
-from starlayer.graph.query.version_directive import strip_version_directive
-from starlayer.sparql.sqe import sqe_parse_to_tree
 from starlayer.sparql.sqe.vocab import TRIPLE_PATTERN
 from tests.sparql.w3c_sparql12.harness import load_index
 
@@ -62,15 +59,6 @@ def canonical_graph(g: Graph) -> Graph:
             node = nxt
         Collection(out, head, new)
     return out
-
-
-def same_tree(new: tuple, old: tuple) -> bool:
-    return isomorphic(canonical_graph(new[0]), canonical_graph(old[0]))
-
-
-def current_tree(text: str):
-    text, _ = strip_version_directive(text)
-    return sqe_parse_to_tree(text, parser="rdflib")
 
 
 # ---------------------------------------------------------------------------

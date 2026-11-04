@@ -108,30 +108,11 @@ sibling files:
 
 from __future__ import annotations
 
-from functools import partial
-
-from pyparsing import CaselessKeyword as Keyword
-from pyparsing import Group, Optional, Suppress, ZeroOrMore
-from pyparsing import Literal as _PPLiteral
 from rdflib import RDF, BNode, Graph, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import NamespaceManager
 from rdflib.plugins.sparql import algebra
-from rdflib.plugins.sparql.parser import (
-    BaseDecl,
-    Constraint,
-    Expression,
-    PrefixDecl,
-    String,
-    TriplesSameSubject,
-    TriplesSameSubjectPath,
-    Var,
-    iri,
-)
-from rdflib.plugins.sparql.parser import expandUnicodeEscapes as _expand_unicode_escapes
-from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
-from rdflib.plugins.sparql.pyparsing_compat import rest_of_line
-from rdflib.plugins.sparql.sparql import Prologue
+from rdflib.plugins.sparql.parserutils import CompValue
 
 from starlayer._ox_out import ox_out
 
@@ -144,12 +125,11 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     RuleSet,
     TriplePattern,
 )
-from .from_rdf import _decode
+from .spexpr_codec import _NS_OVERRIDES, _decode, _encode, _new_starlayer_graph
 from .sqe.expr_text import expr_text as _sqe_expr_text
 from .sqe.to_rdf import _encode_expr
 from .sqe.vocab import SQE as _SQE
 from .srl_semantic_checks import _check_ruleset
-from .to_rdf import _NS_OVERRIDES, _encode, _new_starlayer_graph
 from .triple_term import TripleTermNode
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
@@ -191,139 +171,11 @@ _VAR = SRL.var
 _NEGATION_EVALDATA_FLAG = SRL.negationEvaldata
 
 
-# ---------------------------------------------------------------------------
-# Grammar - reuses rdflib's own real SPARQL 1.2 grammar
-# productions directly for everything the spec's own grammar text says is
-# unchanged from SPARQL; only the genuinely new SRL-specific productions are
-# hand-written here.
-#
-# Triple groups use rdflib's own TriplesSameSubject (see ``_SameSubject`` below), so the
-# whole SPARQL 1.2 triple syntax is available. Property paths in rule bodies are limited to
-# `/` and `^`, as the spec says, and are expanded into triple patterns.
-# ---------------------------------------------------------------------------
-
-_VersionDecl = Comp("VersionDecl", Keyword("VERSION") + Param("version", String))
-_ImportsDecl = Comp("ImportsDecl", Keyword("IMPORTS") + Param("iri", iri))
-_Prologue1Decl = BaseDecl | PrefixDecl | _VersionDecl | _ImportsDecl
-
-_Period = Suppress(_PPLiteral("."))
-_BoolFlag = lambda keyword: Optional(Keyword(keyword)).set_parse_action(lambda t: bool(t))  # noqa: E731
-
-
-# A group of triples sharing a subject, written exactly as in SPARQL 1.2: rdflib's own
-# TriplesSameSubject production, extended in place by this project's SPARQL 1.2 grammar
-# (``_grammar12.install()``), expands `,` object lists, `;` property lists, `[ ... ]`
-# blank-node property lists, `( ... )` collections, RDF 1.2 triple terms `<<( s p o )>>`,
-# reified triples `<< s p o >>`, reifiers `~ r` and annotations `{| ... |}` into a flat
-# sequence of (subject, predicate, object) terms. The same production is used for DATA
-# blocks (where `_check_ruleset` then rejects variables), head templates and body patterns.
-_SameSubject = Comp("SameSubject", Param("terms", Group(TriplesSameSubject)))
-_SameSubjectData = _SameSubject
-# Rule bodies (and the bodies of NOT) may also use a property path as a predicate; the head
-# and DATA blocks may not (§7.6: only `Verb` there). SRL allows only the `/` and `^`
-# path operators; they are expanded into plain triple patterns when the rule is built.
-_SameSubjectPattern = Comp("SameSubject", Param("terms", Group(TriplesSameSubjectPath)))
-
-
 def _merge_into(dst, src):
     """``dst += src`` for graphs of either kind (the ontology loaders return whatever class ``StarLayerGraph`` is)."""
     from starlayer.graph.oxgraph._rdflib_bridge import merge_into
 
     merge_into(dst, src)
-
-
-def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
-    """Expand a property path into the triple patterns it stands for (§5: "Property
-    path syntax only covers paths with / and ^. These can be expanded into triple
-    patterns"). ``s p/q o`` becomes ``s p _:m . _:m q o``; ``s ^p o`` becomes ``o p s``.
-    A blank node introduced here behaves as a variable in a rule body.
-
-    Raises:
-        SRLParseError: For any other path operator (``|``, ``*``, ``+``, ``?``, ``!``).
-    """
-    from rdflib.paths import InvPath, Path, SequencePath
-
-    if isinstance(predicate, CompValue):  # the parse tree of a path, with prefixed names resolved
-        predicate = algebra.traverse(predicate, visitPost=algebra.translatePath)
-    if isinstance(predicate, SequencePath):
-        nodes = [subject, *(BNode() for _ in predicate.args[:-1]), obj]
-        return [t for i, arg in enumerate(predicate.args) for t in _expand_path(nodes[i], arg, nodes[i + 1])]
-    if isinstance(predicate, InvPath):
-        return _expand_path(obj, predicate.arg, subject)
-    if isinstance(predicate, Path):
-        raise SRLParseError(
-            f"SRL: property path {predicate.n3()} is not allowed: SRL property paths use only the / and ^ operators "
-            "(write a repeated or optional step with a recursive rule instead)"
-        )
-    return [srl_ast.TriplePattern(subject=subject, predicate=predicate, object=obj)]
-
-
-def _expand_same_subject(cv: CompValue) -> list[srl_ast.TriplePattern]:
-    terms = list(cv["terms"])
-    return [t for i in range(0, len(terms), 3) for t in _expand_path(terms[i], terms[i + 1], terms[i + 2])]
-
-
-def _group_end(production):
-    """What may follow a triple group: a ``.``, or anything that is not another triple group.
-
-    The grammar's ``TriplesBlock ::= TriplesSameSubject ( '.' TriplesBlock? )?`` needs the ``.`` between two
-    groups; reading it as optional made ``?x :a ?y ?y :b ?z`` parse as two triples.
-    """
-    return _Period | ~production
-
-
-_DataTriplesBlock = ZeroOrMore(Param("subjects", _SameSubjectData, isList=True) + _group_end(_SameSubjectData))
-_SRLData = Comp("Data", Keyword("DATA") + Suppress("{") + _DataTriplesBlock + Suppress("}"))
-
-_HeadTemplateBlock = ZeroOrMore(Param("subjects", _SameSubject, isList=True) + _group_end(_SameSubject))
-_HeadTemplate = Comp("HeadTemplate", Suppress("{") + _HeadTemplateBlock + Suppress("}"))
-
-_Filter = Comp("Filter", Keyword("FILTER") + Param("expr", Constraint))
-
-_Assignment = Comp(
-    "Assignment",
-    Keyword("SET") + Suppress("(") + Param("var", Var) + Suppress(":=") + Param("expr", Expression) + Suppress(")"),
-)
-
-# Negation bodies are grammatically restricted to triple patterns + filters
-# only (no nested negation/assignment) - enforced structurally: this
-# alternation has no Negation/Assignment branch.
-_NegationBodyItem = (Param("inner", _SameSubjectPattern, isList=True) + _group_end(_SameSubjectPattern)) | (
-    Param("inner", _Filter, isList=True) + Optional(_Period)
-)
-_Negation = Comp(
-    "Negation",
-    Keyword("NOT") + Param("data", _BoolFlag("DATA")) + Suppress("{") + ZeroOrMore(_NegationBodyItem) + Suppress("}"),
-)
-
-_BodyItem = (Param("body", _SameSubjectPattern, isList=True) + _group_end(_SameSubjectPattern)) | (
-    Param("body", _Filter | _Negation | _Assignment, isList=True) + Optional(_Period)
-)
-_BodyPattern = Comp("BodyPattern", Suppress("{") + ZeroOrMore(_BodyItem) + Suppress("}"))
-
-_SRLRule = Comp(
-    "Rule",
-    Keyword("RULE")
-    + Optional(Param("id", iri))
-    + Param("head", _HeadTemplate)
-    + Keyword("WHERE")
-    + Param("data", _BoolFlag("DATA"))
-    + Param("body", _BodyPattern),
-)
-
-# RuleSet ::= RuleOrDataBlock - simplified (documented, behaviourally
-# equivalent for well-formed input): prologue declarations and Rule/Data
-# items are matched in one flat ZeroOrMore regardless of interleaving, then
-# bucketed by kind, since Prologue accumulation is order-independent the
-# same way rdflib's own translatePrologue already is.
-_RuleOrData = _SRLRule | _SRLData
-_RuleSetGrammar = Comp(
-    "RuleSet",
-    ZeroOrMore(Param("prologue", _Prologue1Decl, isList=True) | Param("body", _RuleOrData, isList=True)),
-)
-_RuleSetGrammar.ignore("#" + rest_of_line)
-# pyparsing expands tabs to spaces before parsing unless told not to, which silently changed a tab inside a string literal.
-_RuleSetGrammar.parse_with_tabs()
 
 
 class SRLError(ValueError):
@@ -353,179 +205,6 @@ class SRLImportError(SRLError):
     """Raised by :func:`resolve_imports` when an ``IMPORTS`` document cannot be
     read, or is not a valid rule set (§4.5: a processor MUST signal an error in
     either case)."""
-
-
-def _list_field(cv: CompValue, key: str) -> list:
-    """``CompValue.get(key, default)``'s second positional parameter is
-    *not* a default value - it's ``variables`` - so ``cv.get(key, [])``
-    silently does something else entirely; worse, an absent key falls back
-    to returning ``key`` itself (rdflib's own ``OrderedDict.get`` "hack"),
-    not ``None``/``[]``. A ``Param(..., isList=True)`` field is only ever
-    set at all if at least one occurrence matched, so an absent key
-    genuinely means "zero occurrences" - this is the correct way to read
-    that as ``[]``.
-
-    Args:
-        cv: The CompValue to read the field from.
-        key: The list-valued field name.
-
-    Returns:
-        The field's values as a list, or ``[]`` if the key is absent.
-    """
-    return list(cv[key]) if key in cv else []
-
-
-def _opt_field(cv: CompValue, key: str):
-    """See :func:`_list_field` for why ``cv.get(key)`` is unsafe here too."""
-    return cv[key] if key in cv else None
-
-
-# SPARQL built-ins that rdflib's shared expression grammar accepts but SRL's BuiltInCall (spec [118]) does not
-# list. RAND is non-deterministic, which a fixpoint evaluation cannot allow, and EXISTS has no defined meaning
-# in a rule; the rest are simply outside the draft's function set.
-_NOT_IN_SRL = {
-    "Builtin_BOUND": "BOUND",
-    "Builtin_COALESCE": "COALESCE",
-    "Builtin_RAND": "RAND",
-    "Builtin_MD5": "MD5",
-    "Builtin_SHA1": "SHA1",
-    "Builtin_SHA256": "SHA256",
-    "Builtin_SHA384": "SHA384",
-    "Builtin_SHA512": "SHA512",
-    "Builtin_EXISTS": "EXISTS",
-    "Builtin_NOTEXISTS": "NOT EXISTS",
-}
-
-
-def _reject_non_srl_builtins(tree) -> None:
-    def visit(node):
-        name = getattr(node, "name", None)
-        if name in _NOT_IN_SRL:
-            raise SRLParseError(f"SRL: {_NOT_IN_SRL[name]} is not part of SRL's built-in function set (spec BuiltInCall)")
-
-    algebra.traverse(tree, visitPost=visit)
-
-
-def _resolve_pnames(tree, prologue: Prologue):
-    return algebra.traverse(tree, visitPost=partial(algebra.translatePName, prologue=prologue))
-
-
-_PASS_THROUGH_EXPRESSIONS = frozenset(
-    {
-        "ConditionalOrExpression",
-        "ConditionalAndExpression",
-        "RelationalExpression",
-        "AdditiveExpression",
-        "MultiplicativeExpression",
-        "UnaryPlus",
-    }
-)
-
-
-def _unwrap_pass_through(value):
-    """``TRIPLE(?s, :p, ?o)`` parses its three arguments as full expressions, so a plain term arrives wrapped in a
-    chain of single-operand expression nodes. Strip that chain so the triple term has the same shape as ``<<( ?s :p ?o )>>``."""
-    while isinstance(value, CompValue) and value.name in _PASS_THROUGH_EXPRESSIONS and "expr" in value:
-        if any(value.get(key) is not None and key != value.get(key) for key in ("other", "op")):
-            break
-        value = value["expr"]
-    return value
-
-
-def _simplify_triple_term_expressions(tree):
-    def visit(node):
-        if isinstance(node, TripleTermNode):
-            for key in ("subject", "predicate", "object"):
-                if key in node:
-                    node[key] = _unwrap_pass_through(node[key])
-        return None
-
-    return algebra.traverse(tree, visitPost=visit)
-
-
-def _build_prologue(decls: list[CompValue], base: str | None = None) -> Prologue:
-    from rdflib.plugins.sparql.algebra import translatePrologue
-
-    # ``base`` is only the initial base; a BASE declaration in the document replaces it (SPARQL 1.1 section 4.1.1)
-    return translatePrologue(decls, base=base)
-
-
-def _canonical(expr):
-    """The expression in canonical (minimal) form.
-
-    rdflib's parser wraps every operand in the full precedence chain (``ConditionalOr`` > ``ConditionalAnd`` > ...
-    > ``Multiplicative``), so the literal ``1`` arrives as five nested single-child nodes. ``simplifyFilters``
-    collapses them, and it is what rdflib itself applies before evaluating a query. The AST keeps the collapsed
-    form so that it equals what the ``srl:`` tree (which stores the same form) decodes back to, and the same
-    expression always has the same tree.
-    """
-    return algebra.simplifyFilters(expr)
-
-
-def _build_negation_inner(items: list) -> list[srl_ast.NegationBodyElement]:
-    out: list[srl_ast.NegationBodyElement] = []
-    for item in items:
-        if item.name == "SameSubject":
-            out.extend(_expand_same_subject(item))
-        elif item.name == "Filter":
-            out.append(srl_ast._FilterElement(expr=_canonical(item["expr"])))
-        else:  # pragma: no cover - grammar structurally forbids anything else
-            raise SRLParseError(f"illegal negation body element: {item!r}")
-    return out
-
-
-def _build_body_elements(items: list) -> list[srl_ast.BodyElement]:
-    out: list[srl_ast.BodyElement] = []
-    for cv in items:
-        if cv.name == "SameSubject":
-            out.extend(_expand_same_subject(cv))
-        elif cv.name == "Filter":
-            out.append(srl_ast._FilterElement(expr=_canonical(cv["expr"])))
-        elif cv.name == "Assignment":
-            out.append(srl_ast._AssignmentElement(var=cv["var"], expr=_canonical(cv["expr"])))
-        elif cv.name == "Negation":
-            out.append(srl_ast._NegationElement(inner=_build_negation_inner(_list_field(cv, "inner")), evaldata=not bool(cv["data"])))
-        else:
-            raise SRLParseError(f"unknown rule body element: {cv!r}")  # pragma: no cover
-    return out
-
-
-def _build_rule(cv: CompValue) -> srl_ast._Rule:
-    head = [t for grp in _list_field(cv["head"], "subjects") for t in _expand_same_subject(grp)]
-    body = _build_body_elements(_list_field(cv["body"], "body"))
-    rule_id = _opt_field(cv, "id")
-    return srl_ast._Rule(
-        head=head,
-        body=body,
-        evaldata=not bool(cv["data"]),  # the grammar's DATA keyword means evaldata is false
-        id=URIRef(rule_id) if rule_id is not None else None,
-    )
-
-
-def _build_data(cv: CompValue) -> srl_ast._Data:
-    return srl_ast._Data(triples=[t for grp in _list_field(cv, "subjects") for t in _expand_same_subject(grp)])
-
-
-def _build_ruleset(cv: CompValue) -> srl_ast.RuleSet:
-    imports: list[URIRef] = []
-    for decl in _list_field(cv, "prologue"):
-        if decl.name == "ImportsDecl":
-            imports.append(URIRef(decl["iri"]))
-        # BaseDecl/PrefixDecl were already consumed to build the Prologue
-        # used for name resolution before this function ran; VersionDecl
-        # is informative only.
-
-    rules: list[srl_ast._Rule] = []
-    data_blocks: list[srl_ast._Data] = []
-    for item in _list_field(cv, "body"):
-        if item.name == "Rule":
-            rules.append(_build_rule(item))
-        elif item.name == "Data":
-            data_blocks.append(_build_data(item))
-        else:  # pragma: no cover
-            raise SRLParseError(f"unknown top-level rule set item: {item!r}")
-
-    return srl_ast.RuleSet(rules=rules, data=data_blocks, imports=imports)
 
 
 def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) -> srl_ast.RuleSet:
@@ -566,26 +245,9 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
             §4.2 well-formedness check, or (with ``validate=True``) a rule set
             that does not conform to the ``srl:`` shapes.
     """
-    try:
-        from starlayer.sparql.parse12 import parse_serialized
+    from .parse_srl import parse_srl
 
-        parsed = parse_serialized(lambda: _RuleSetGrammar.parse_string(_expand_unicode_escapes(text), parse_all=True))
-    except Exception as exc:  # pyparsing.ParseException et al.
-        raise SRLParseError(str(exc)) from exc
-
-    root: CompValue = parsed[0]
-    _reject_non_srl_builtins(root)
-    prologue = _build_prologue(_list_field(root, "prologue"), base)
-    try:
-        resolved = _resolve_pnames(root, prologue)
-    except SRLError:
-        raise
-    except Exception as exc:  # rdflib raises a bare Exception for an undeclared prefix
-        raise SRLParseError(f"SRL: {exc}") from exc
-    ruleset = _build_ruleset(_simplify_triple_term_expressions(resolved))
-    ruleset.prefixes.update(
-        {str(getattr(d, "prefix", None) or ""): str(prologue.absolutize(d["iri"])) for d in _list_field(root, "prologue") if d.name == "PrefixDecl"}
-    )
+    ruleset = parse_srl(text, base)
 
     issues = _check_ruleset(ruleset)
     if issues:
