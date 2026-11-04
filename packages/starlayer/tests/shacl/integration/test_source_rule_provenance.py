@@ -13,8 +13,8 @@ these build on.
 """
 
 from rdflib import Literal, Namespace, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import from_engine
 
@@ -31,8 +31,8 @@ def _source_rule_for(graph, triple_term) -> set:
     return values
 
 
-def _two_rule_shapes() -> StarLayerGraph:
-    shapes = StarLayerGraph()
+def _two_rule_shapes() -> OxGraph:
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -61,8 +61,8 @@ def _two_rule_shapes() -> StarLayerGraph:
     return shapes
 
 
-def _two_rule_data() -> StarLayerGraph:
-    data = StarLayerGraph()
+def _two_rule_data() -> OxGraph:
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -106,7 +106,7 @@ def test_source_rule_provenance_attributes_each_triple_to_its_own_rule() -> None
 
 
 def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -120,7 +120,7 @@ def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
         """,
         format="turtle",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -147,7 +147,7 @@ def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
     clause here specifically looks for any sh:sourceRule triple - if
     provenance were added mid-execution rather than deferred to the very
     end, this rule would spuriously fire and produce ex:Leak."""
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -174,7 +174,7 @@ def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
         """,
         format="turtle",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

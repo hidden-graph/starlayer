@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Namespace, URIRef
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import RuleError, ShapeError, apply_rules, validate
 
 from ._rdflib_view import rd
@@ -21,8 +21,8 @@ PREFIXES = (
 )
 
 
-def g(text: str) -> StarLayerGraph:
-    return StarLayerGraph().parse(data=PREFIXES + text, format="turtle12")
+def g(text: str) -> OxGraph:
+    return OxGraph().parse(data=PREFIXES + text, format="turtle12")
 
 
 # --- #136 -----------------------------------------------------------------------------------------------------------

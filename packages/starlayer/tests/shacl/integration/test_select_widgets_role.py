@@ -7,7 +7,7 @@ written per role."""
 import pytest
 from rdflib import Namespace, URIRef
 from starlayer import starontology
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
 
@@ -25,8 +25,8 @@ ex:S a sh:NodeShape ; sh:property ex:P . ex:P a sh:PropertyShape ; sh:path ex:ni
 PREFIX = "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix ex: <http://example.org/> .\n"
 
 
-def _graph(ttl: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(ttl: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=PREFIX + ttl, format="turtle12")
     return g
 

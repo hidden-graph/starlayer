@@ -1,5 +1,5 @@
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import from_engine
 
@@ -34,14 +34,14 @@ def _shapes_with_metadata_only_annotations() -> str:
 
 
 def test_metadata_only_predicates_do_not_interfere_with_validation() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Person ; ex:heightCm 170 .
         ex:bob a ex:Person .
     """, format="turtle")
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=_shapes_with_metadata_only_annotations(), format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -51,13 +51,13 @@ def test_metadata_only_predicates_do_not_interfere_with_validation() -> None:
 
 
 def test_metadata_only_predicates_do_not_break_meta_shacl_preflight() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Person ; ex:heightCm 170 .
     """, format="turtle")
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=_shapes_with_metadata_only_annotations(), format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
@@ -73,7 +73,7 @@ def test_conforms_to_shapes_graph_does_not_interfere_with_validation() -> None:
     inert-metadata case worth its own regression test rather than assuming
     the shape-annotation coverage above extends to it.
     """
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -86,7 +86,7 @@ def test_conforms_to_shapes_graph_does_not_interfere_with_validation() -> None:
         format="turtle",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -106,13 +106,13 @@ def test_conforms_to_shapes_graph_does_not_interfere_with_validation() -> None:
 
 
 def test_metadata_only_predicates_do_not_interfere_with_rule_application() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:parent ex:carol .
     """, format="turtle")
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .

@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -20,10 +20,10 @@ def _violation_components(result) -> list:
 
 
 def test_conforms_with_only_own_and_superclass_properties() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_closed_by_types.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -39,10 +39,10 @@ def test_conforms_with_only_own_and_superclass_properties() -> None:
 
 
 def test_violates_with_a_property_from_neither_shape() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_closed_by_types.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -59,7 +59,7 @@ def test_violates_with_a_property_from_neither_shape() -> None:
 
 
 def test_sibling_shape_reached_via_target_class_extends_allowed_properties() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -77,7 +77,7 @@ def test_sibling_shape_reached_via_target_class_extends_allowed_properties() -> 
         format="turtle",
     )
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -122,27 +122,27 @@ class TestClosedMalformedValueRejectedCleanly:
         """
 
     def test_string_literal_false_is_rejected_not_silently_coerced_to_true(self) -> None:
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(data=self._shape('"false"'), format="turtle")
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data=self._data(), format="turtle")
 
         with pytest.raises(ValueError, match="sh:closed must be an xsd:boolean"):
             StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     def test_iri_value_is_still_rejected_cleanly(self) -> None:
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(data=self._shape("ex:NotEvenARealValue"), format="turtle")
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data=self._data(), format="turtle")
 
         with pytest.raises(ValueError, match="sh:closed must be an xsd:boolean"):
             StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     def test_real_boolean_true_still_works(self) -> None:
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(data=self._shape("true"), format="turtle")
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -156,9 +156,9 @@ class TestClosedMalformedValueRejectedCleanly:
         assert SH.ClosedConstraintComponent in _violation_components(result)
 
     def test_real_boolean_false_still_works(self) -> None:
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(data=self._shape("false"), format="turtle")
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -172,7 +172,7 @@ class TestClosedMalformedValueRejectedCleanly:
 
 
 def test_linked_shape_via_sh_node_extends_allowed_properties() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -190,7 +190,7 @@ def test_linked_shape_via_sh_node_extends_allowed_properties() -> None:
         format="turtle",
     )
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

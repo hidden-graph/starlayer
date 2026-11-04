@@ -35,7 +35,7 @@ test_shnex_node_expressions.py and test_node_by_expression.py).
 """
 
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
@@ -54,7 +54,7 @@ class TestTargetNodeExpression:
         # ex:EstonianCompanyShape's targets are computed dynamically as
         # every ex:Company instance whose ex:headQuarterCountry is
         # ex:Estonia.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -63,7 +63,7 @@ class TestTargetNodeExpression:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -83,7 +83,7 @@ class TestTargetNodeExpression:
         # shnex:nodesMatching - the spec's own alternative to
         # sh:targetWhere, "usable in arbitrary node expressions" (unlike
         # sh:targetWhere, which is a fixed SHACL Core predicate).
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -92,7 +92,7 @@ class TestTargetNodeExpression:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -110,9 +110,9 @@ class TestTargetNodeExpression:
         # A node expression legitimately producing zero target nodes must
         # mean "this shape targets nothing" - not fall back to treating the
         # node expression's own blank node as a (bogus) literal target.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Thing .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -134,7 +134,7 @@ class TestTargetNodeExpression:
         # picked up because data graph and shapes graph share content) was
         # wrongly mis-evaluated by pySHACL's old-form node-expression
         # fallback before the shnex:/sparql:-only gate was added.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -143,7 +143,7 @@ class TestTargetNodeExpression:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -163,9 +163,9 @@ class TestTargetNodeExpression:
 
 class TestExpressionScope:
     def test_value_binds_to_current_value_node(self) -> None:
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:score 42 .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -178,9 +178,9 @@ class TestExpressionScope:
         assert result.conforms is True
 
     def test_focusnode_is_the_real_focus_not_the_value(self) -> None:
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:score 42 .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -196,9 +196,9 @@ class TestExpressionScope:
         # Mutation-style guard: if focusNode were still (wrongly) bound to
         # the value node, this assertion would flip - confirms the test
         # above is actually discriminating, not vacuously true.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:score 42 .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -213,7 +213,7 @@ class TestExpressionScope:
     def test_spec_iban_worked_example(self) -> None:
         # The spec's own worked example under sh:expression's own
         # definition, using both "value" and "focusNode" together.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -224,7 +224,7 @@ class TestExpressionScope:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -253,7 +253,7 @@ class TestDeactivatedExpression:
         # globally and would have deactivated the *whole* shape for every
         # target, or none - never varying per node the way this test proves
         # it now does.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -262,7 +262,7 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -287,7 +287,7 @@ class TestDeactivatedExpression:
         # shape *loading* outright (pySHACL: "must be a Literal") - this
         # confirms the fix produces a real, correctly-active shape, not just
         # "doesn't crash".
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -295,7 +295,7 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -315,7 +315,7 @@ class TestDeactivatedExpression:
         # every target the same way - the correct per-node mechanism still
         # supports a shape-wide toggle, it's just no longer the *only*
         # thing it can express.
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -328,7 +328,7 @@ class TestDeactivatedExpression:
             format="turtle",
         )
 
-        flag_off = StarLayerGraph()
+        flag_off = OxGraph()
         flag_off.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -341,7 +341,7 @@ class TestDeactivatedExpression:
         result_off = StarShaclSchema(shacl_graph=shapes).validate(data_graph=flag_off, meta_shacl=False)
         assert result_off.conforms is True
 
-        flag_on = StarLayerGraph()
+        flag_on = OxGraph()
         flag_on.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -358,7 +358,7 @@ class TestDeactivatedExpression:
     def test_plain_literal_deactivated_still_works(self) -> None:
         # Regression guard: ordinary (non-expression) sh:deactivated must be
         # completely unaffected by this new candidate-detection logic.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -366,7 +366,7 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """

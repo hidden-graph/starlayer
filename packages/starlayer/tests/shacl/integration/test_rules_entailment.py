@@ -7,7 +7,7 @@ caller's data is not changed. Both used to be refused as unsupported entailment 
 
 import pytest
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import text
 
@@ -32,9 +32,9 @@ ex:GiveQ a sh:TripleRule ; sh:subject ex:n ; sh:predicate ex:q ; sh:object ex:b 
 
 def _validate(*entailment: str):
     declared = "".join(f"ex:Shapes sh:entailment {value} .\n" for value in entailment)
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=PREFIXES + "ex:Shapes a sh:ShapesGraph .\n" + declared + SHAPES, format="turtle")
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data=PREFIXES + "ex:n ex:marker true .", format="turtle")
     before = set(data)
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)
@@ -72,7 +72,7 @@ def test_rules_entailment_among_other_values_runs_every_rule() -> None:
 def test_rules_entailment_combines_with_an_entailment_regime() -> None:
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + """
@@ -83,7 +83,7 @@ def test_rules_entailment_combines_with_an_entailment_regime() -> None:
         """.replace("{entailment}", str(ENTAILMENT.RDFS)),
         format="turtle",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data=PREFIXES + "ex:Dog rdfs:subClassOf ex:Animal . ex:rex a ex:Dog .", format="turtle")
 
     assert StarShaclSchema(shacl_graph=shapes).validate(data_graph=data).conforms
@@ -95,9 +95,9 @@ def test_an_iri_that_is_neither_a_regime_nor_a_rule_set_is_still_refused() -> No
 
 
 def test_apply_rules_on_such_a_shapes_graph_does_not_run_the_rules_twice_over() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=PREFIXES + "ex:Shapes a sh:ShapesGraph ; sh:entailment sh:RulesEntailment .\n" + SHAPES, format="turtle")
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data=PREFIXES + "ex:n ex:marker true .", format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
@@ -113,7 +113,7 @@ class TestEvaluateWithRulesEntailment:
     def _evaluate(**kwargs):
         from starlayer.shacl import evaluate
 
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -124,7 +124,7 @@ class TestEvaluateWithRulesEntailment:
             """,
             format="turtle",
         )
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data=PREFIXES + 'ex:n ex:name "Nina" .', format="turtle")
         return evaluate(data, shapes, **kwargs)
 
@@ -137,7 +137,7 @@ class TestEvaluateWithRulesEntailment:
         assert [text(o) for o in result.objects(EX.n, EX.name)] == ["Nina"]
 
     def test_the_schema_method_takes_the_flag_too(self) -> None:
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -148,7 +148,7 @@ class TestEvaluateWithRulesEntailment:
             """,
             format="turtle",
         )
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data=PREFIXES + 'ex:n ex:name "Nina" .', format="turtle")
         schema = StarShaclSchema(shacl_graph=shapes, data_graph=data)
 

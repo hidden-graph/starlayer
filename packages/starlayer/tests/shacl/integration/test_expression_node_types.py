@@ -6,7 +6,8 @@ argument lists had none, so a tool that finds shapes by target found nothing for
 
 import pytest
 from rdflib import RDF, BNode, Namespace
-from starlayer import StarLayerGraph, starontology
+from starlayer import starontology
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shape_types import infer_types
 
@@ -22,8 +23,8 @@ PREFIXES = (
 )
 
 
-def _graph(ttl: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(ttl: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=PREFIXES + ttl, format="turtle12")
     return g
 
@@ -43,21 +44,21 @@ ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
 def test_every_expression_under_sh_values_is_typed_including_the_nested_ones() -> None:
     graph = _graph(EXAMPLE)
     expressions = _typed(graph, SH.NodeExpression)
-    functions = {s for s, p, _ in graph if str(p).endswith(("concat", "year"))}
-    path_values = {s for s, p, _ in graph if str(p).endswith("pathValues")}
+    functions = {s for s, p, _ in rd(graph) if str(p).endswith(("concat", "year"))}
+    path_values = {s for s, p, _ in rd(graph) if str(p).endswith("pathValues")}
     assert functions <= expressions and path_values <= expressions
     assert len(expressions) == 5  # concat, year, and three pathValues
 
 
 def test_the_cells_of_the_argument_lists_are_typed_rdf_list() -> None:
     graph = _graph(EXAMPLE)
-    cells = {s for s, p, _ in graph if p == RDF.first}
+    cells = {s for s, p, _ in rd(graph) if p == RDF.first}
     assert len(cells) == 4 and _typed(graph, RDF.List) == cells
 
 
 def test_every_node_under_sh_values_has_a_shape_that_targets_it_once_typed() -> None:
     graph = _graph(EXAMPLE)
-    typed = StarLayerGraph()
+    typed = OxGraph()
     for triple in graph:
         typed.add(triple)
     for triple in rd(infer_types(graph)):
@@ -98,7 +99,7 @@ def test_the_other_places_an_expression_can_start_are_typed_too(predicate) -> No
 def test_a_path_is_not_an_expression() -> None:
     graph = _graph("ex:S sh:property [ sh:path ex:p ; sh:values [ shnex:pathValues [ sh:inversePath ex:q ] ] ] .")
     expressions = _typed(graph, SH.NodeExpression)
-    inverse = next(s for s, p, _ in graph if p == SH.inversePath)
+    inverse = next(s for s, p, _ in rd(graph) if p == SH.inversePath)
     assert len(expressions) == 1 and inverse not in expressions
 
 
@@ -107,7 +108,7 @@ def test_a_shape_or_a_class_given_to_a_function_is_not_an_expression() -> None:
         "ex:S sh:property [ sh:path ex:p ; sh:values [ shnex:nodesMatching [ sh:class ex:C ] ] ] , "
         "[ sh:path ex:r ; sh:values [ shnex:filterShape [ sh:class ex:C ] ] ] ."
     )
-    shape_args = {s for s, p, _ in graph if p == SH["class"]}
+    shape_args = {s for s, p, _ in rd(graph) if p == SH["class"]}
     assert not shape_args & _typed(graph, SH.NodeExpression)
 
 
@@ -119,7 +120,7 @@ def test_constants_are_not_typed() -> None:
 
 def test_lists_outside_expressions_are_not_typed_rdf_list() -> None:
     graph = _graph("ex:S sh:or ( [ sh:class ex:A ] [ sh:class ex:B ] ) ; sh:property [ sh:path ex:p ; sh:values [ sparql:str ( 1 ) ] ] .")
-    cells_of_or = {o for s, p, o in graph if p == SH["or"]}
+    cells_of_or = {o for s, p, o in rd(graph) if p == SH["or"]}
     assert cells_of_or and not cells_of_or & _typed(graph, RDF.List)
 
 

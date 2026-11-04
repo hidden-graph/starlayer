@@ -3,7 +3,7 @@ a malformed score or an ``owl:imports`` in the catalog does not stop the selecti
 made to the graphs it was given."""
 
 from rdflib import RDF, XSD, Graph, Literal, Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema, validate
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
 
@@ -19,7 +19,7 @@ PRE = (
 
 
 def graph(text):
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=PRE + text, format="turtle")
     return g
 
@@ -158,16 +158,16 @@ def test_extract_subgraph_with_unknown_shape_is_a_value_error():
 
     sg = graph("ex:S a sh:NodeShape ; sh:targetClass ex:C .")
     with pytest.raises(ValueError, match="not a shape"):
-        extract_subgraph(StarLayerGraph(), sg, shape=EX.Nope, focus_node=EX.x)
+        extract_subgraph(OxGraph(), sg, shape=EX.Nope, focus_node=EX.x)
 
 
 def test_shacl_shacl_ui_scores_languagein_and_path_are_not_iri_editors():
     from starlayer.starontology import get_ontology_graph
 
     ui = rd(get_ontology_graph("shacl_shacl_ui"))
-    catalog = StarLayerGraph()
-    catalog += rd(get_ontology_graph("shacl_ui_baseline"))
-    catalog += rd(get_ontology_graph("shacl_shacl_ui_scores"))
+    catalog = OxGraph()
+    catalog += get_ontology_graph("shacl_ui_baseline")
+    catalog += get_ontology_graph("shacl_shacl_ui_scores")
     chosen = {}
     for form in ui.subjects(RDF.type, SH.NodeShape):
         for prop, widget in select_widgets(shape_node=form, shapes_graph=ui, scoring_graph=catalog, role="editor").items():

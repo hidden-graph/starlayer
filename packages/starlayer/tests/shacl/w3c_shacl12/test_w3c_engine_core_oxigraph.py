@@ -1,6 +1,6 @@
 """The vendored W3C SHACL 1.2 ``tests/core`` Validate entries run through the native engine reading straight from
 Oxigraph: data and shapes graphs are loaded into separate in-memory ``pyoxigraph.Store`` objects and handed to
-``validate()`` as ``OxigraphGraph`` views (``preserves_lexical_forms = False``; the rdflib/StarLayerGraph path in
+``validate()`` as ``OxigraphGraph`` views (``preserves_lexical_forms = False``; the rdflib/OxGraph path in
 ``test_w3c_engine_core.py`` has it True).
 
 ``KNOWN_FAILURES`` lists entries that fail only because Oxigraph rewrites literals when it stores them (upstream:

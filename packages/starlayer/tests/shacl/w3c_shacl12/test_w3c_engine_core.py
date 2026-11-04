@@ -7,7 +7,7 @@ progress measure; see ``docs/working/shacl-engine-design.md``.
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine import validate
 
 from .closure import node_closure
@@ -48,9 +48,9 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("entry", params)
 
 
-def _graph(entry: ManifestEntry, predicate) -> StarLayerGraph:
+def _graph(entry: ManifestEntry, predicate) -> OxGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
-    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), StarLayerGraph)
+    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), OxGraph)
 
 
 def test_engine_core(entry: ManifestEntry) -> None:

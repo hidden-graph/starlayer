@@ -1,25 +1,26 @@
 import pyoxigraph as ox
 import pytest
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import to_engine
 
+from ._rdflib_view import rd
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 
 
-def _build_reach_graph() -> StarLayerGraph:
-    g = StarLayerGraph()
+def _build_reach_graph() -> OxGraph:
+    g = OxGraph()
     g.add((EX.a, EX.reach, EX.b))
     g.add((EX.b, EX.reach, EX.c))
     g.add((EX.c, EX.reach, EX.d))
     return g
 
 
-def _build_reach_shapes() -> StarLayerGraph:
-    shapes = StarLayerGraph()
+def _build_reach_shapes() -> OxGraph:
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rules_reach_sparql.ttl"), format="turtle")
     return shapes
 
@@ -44,13 +45,13 @@ def test_rule_iteration_converges_with_cyclic_triple_term_identity() -> None:
     # triple-term identity (the same (s, ex:reach, o) fact re-derived across
     # iterations must collapse to the same content-addressed value, not
     # duplicate or grow without bound).
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.a, EX.reach, EX.b))
     data.add((EX.b, EX.reach, EX.c))
     data.add((EX.c, EX.reach, EX.d))
     data.add((EX.d, EX.reach, EX.a))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rules_reach_witness_triple_term.ttl"), format="turtle")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -73,7 +74,7 @@ def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
     # cycle also holds for ordinary branching/merging structure with no
     # cycle at all, and that a-reaches-d (derivable via two distinct paths)
     # appears exactly once, not duplicated per path.
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.a, EX.reach, EX.b))
     data.add((EX.a, EX.reach, EX.c))
     data.add((EX.b, EX.reach, EX.d))
@@ -86,13 +87,13 @@ def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
         data_graph=data, mode="rules", meta_shacl=False
     )
 
-    a_reaches = {o for _, _, o in data.triples((EX.a, EX.reach, None))}
+    a_reaches = {o for _, _, o in rd(data).triples((EX.a, EX.reach, None))}
     assert a_reaches == {EX.b, EX.c, EX.d}
     assert len(list(data.triples((EX.a, EX.reach, EX.d)))) == 1
 
 
-def _build_linear_chain(length: int) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _build_linear_chain(length: int) -> OxGraph:
+    g = OxGraph()
     for i in range(length):
         g.add((EX[f"n{i}"], EX.base, EX[f"n{i + 1}"]))
         g.add((EX[f"n{i}"], EX.reach, EX[f"n{i + 1}"]))
@@ -106,7 +107,7 @@ def _build_linear_chain(length: int) -> StarLayerGraph:
 def _linear_rules(data, max_iterations):
     from starlayer.shacl_engine.rules import apply_rules
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
     return apply_rules(data, shapes, max_iterations=max_iterations)
 

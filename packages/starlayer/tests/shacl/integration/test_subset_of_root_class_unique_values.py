@@ -1,5 +1,5 @@
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -16,10 +16,10 @@ def _violation_components(result) -> list:
 
 
 def test_subset_of_conforms_when_value_is_among_comparison_path_values() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_subset_of.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -35,10 +35,10 @@ def test_subset_of_conforms_when_value_is_among_comparison_path_values() -> None
 
 
 def test_subset_of_violates_when_value_is_not_among_comparison_path_values() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_subset_of.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -58,7 +58,7 @@ def test_subset_of_conforms_with_compound_sequence_path_comparison() -> None:
     # sh:subsetOf's own comparison argument can be any SHACL property path,
     # not just a simple IRI - here a sequence path ( ex:p1 ex:p2 ), matching
     # the W3C SHACL 1.2 test suite's subsetOf-002 fixture shape.
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -73,7 +73,7 @@ def test_subset_of_conforms_with_compound_sequence_path_comparison() -> None:
         format="turtle",
     )
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -90,7 +90,7 @@ def test_subset_of_conforms_with_compound_sequence_path_comparison() -> None:
 
 
 def test_subset_of_violates_with_compound_sequence_path_comparison() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -105,7 +105,7 @@ def test_subset_of_violates_with_compound_sequence_path_comparison() -> None:
         format="turtle",
     )
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -123,10 +123,10 @@ def test_subset_of_violates_with_compound_sequence_path_comparison() -> None:
 
 
 def test_root_class_conforms_for_self_and_transitive_subclass() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_root_class.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -146,10 +146,10 @@ def test_root_class_conforms_for_self_and_transitive_subclass() -> None:
 
 
 def test_root_class_violates_for_unrelated_class() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_root_class.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -174,10 +174,10 @@ def test_unique_values_for_flags_only_duplicates_among_target_nodes() -> None:
     # Matches the spec's own worked example exactly: Record2/Record3 both
     # violate (duplicate "Two"), Record1 does not (its "One" is only
     # duplicated by ex:UnrelatedNode, which isn't a target of this shape).
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_unique_values_for.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

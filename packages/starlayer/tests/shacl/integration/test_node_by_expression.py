@@ -6,7 +6,7 @@ notion of this predicate at all.
 """
 
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -14,7 +14,7 @@ from ._rdflib_view import rd
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 def test_node_by_expression_at_node_shape_violates_when_value_does_not_conform() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -27,7 +27,7 @@ def test_node_by_expression_at_node_shape_violates_when_value_does_not_conform()
         """,
         format="turtle12",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -48,7 +48,7 @@ def test_node_by_expression_at_node_shape_violates_when_value_does_not_conform()
 
 
 def test_node_by_expression_at_property_shape_violates_when_value_does_not_conform() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -63,7 +63,7 @@ def test_node_by_expression_at_property_shape_violates_when_value_does_not_confo
         """,
         format="turtle12",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -83,7 +83,7 @@ def test_node_by_expression_at_property_shape_violates_when_value_does_not_confo
 
 
 def test_node_by_expression_conforms_when_value_conforms() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -96,7 +96,7 @@ def test_node_by_expression_conforms_when_value_conforms() -> None:
         """,
         format="turtle12",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

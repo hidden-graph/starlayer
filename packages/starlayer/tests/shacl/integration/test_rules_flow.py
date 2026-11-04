@@ -1,5 +1,5 @@
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
@@ -8,7 +8,7 @@ EX = Namespace("http://example.org/")
 
 
 def test_apply_rules_adds_inferred_triple() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -18,7 +18,7 @@ def test_apply_rules_adds_inferred_triple() -> None:
     )
     original_triples = set(data)
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rules_infer_target_class.ttl"), format="turtle")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -34,12 +34,12 @@ def test_apply_rules_adds_inferred_triple() -> None:
 
 
 def test_apply_rules_preserves_existing_triple_terms() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.type, EX.Person))
     original_triples = set(data)
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rules_infer_target_node.ttl"), format="turtle")
 
     validator = StarShaclSchema(shacl_graph=shapes)

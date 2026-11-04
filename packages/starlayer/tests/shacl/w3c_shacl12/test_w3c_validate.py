@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema  # noqa: E402
 
 from .closure import node_closure  # noqa: E402
@@ -59,7 +59,7 @@ def pytest_generate_tests(metafunc):
         )
 
 
-def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=StarLayerGraph) -> StarLayerGraph:
+def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=OxGraph) -> OxGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
     target_iri = next(entry.graph.objects(action, predicate))
     # Fresh copies, not the cached document objects directly - see
@@ -68,7 +68,7 @@ def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=StarLayerGr
     return clone_graph(load_document(uri_to_path(target_iri)), new_graph)
 
 
-def _conformance_disallows_kwargs(expected_graph: StarLayerGraph, expected_report_node) -> dict:
+def _conformance_disallows_kwargs(expected_graph: OxGraph, expected_report_node) -> dict:
     """Translate mf:result's sh:conformanceDisallows into validate() kwargs.
 
     sh:conformanceDisallows X means "only a result at severity X blocks
@@ -158,7 +158,7 @@ def _check_validate(entry: ManifestEntry, new_graph, known_failures, strict_bugs
 
 
 def test_w3c_validate(entry: ManifestEntry) -> None:
-    _check_validate(entry, StarLayerGraph, KNOWN_FAILURES, OXIGRAPH_QUERY_BUGS)
+    _check_validate(entry, OxGraph, KNOWN_FAILURES, OXIGRAPH_QUERY_BUGS)
 
 
 @pytest.mark.store_matrix

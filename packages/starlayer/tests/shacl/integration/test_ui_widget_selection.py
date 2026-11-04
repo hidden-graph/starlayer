@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
 
 EX = Namespace("http://example.org/")
@@ -36,8 +36,8 @@ _SHAPES_NO_EXPLICIT_WIDGET = """
 """
 
 
-def _graph(turtle: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(turtle: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=turtle, format="turtle")
     return g
 
@@ -247,9 +247,9 @@ def test_select_widgets_on_shape_with_no_properties_returns_empty_dict() -> None
 
 
 def test_scoring_graph_is_optional_when_widgets_are_fixed() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data=_DATA, format="turtle")
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=_SHAPES_EXPLICIT_WIDGET, format="turtle")
     widget = select_widget(
         shape_node=EX.BirthDateProp, focus_node=EX.alice, data_graph=data, shapes_graph=shapes, role="editor",
@@ -262,9 +262,9 @@ def test_scoring_graph_is_optional_when_widgets_are_fixed() -> None:
 
 
 def test_without_a_scoring_graph_a_property_with_no_explicit_widget_gets_none() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data=_DATA, format="turtle")
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=_SHAPES_NO_EXPLICIT_WIDGET, format="turtle")
     assert select_widget(
         shape_node=EX.BirthDateProp, focus_node=EX.alice, data_graph=data, shapes_graph=shapes, role="editor",
@@ -276,7 +276,7 @@ def test_without_a_scoring_graph_a_property_with_no_explicit_widget_gets_none() 
 
 
 def test_focus_node_and_data_graph_are_optional() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=_SHAPES_EXPLICIT_WIDGET, format="turtle")
     assert select_widget(shape_node=EX.BirthDateProp, shapes_graph=shapes, role="editor") == SHUI.DatePickerEditor
     assert select_widgets(shape_node=EX.PersonShape, shapes_graph=shapes, role="editor") == {
@@ -285,7 +285,7 @@ def test_focus_node_and_data_graph_are_optional() -> None:
 
 
 def test_focus_node_without_data_graph_is_rejected() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=_SHAPES_EXPLICIT_WIDGET, format="turtle")
     with pytest.raises(ValueError):
         select_widget(shape_node=EX.BirthDateProp, focus_node=EX.alice, shapes_graph=shapes, role="editor")
@@ -401,7 +401,7 @@ def test_schema_scoring_graph_can_be_bound_and_overridden_per_call() -> None:
     )[EX.BirthDateProp] == SHUI.TextAreaEditor
     # an empty graph switches the bound catalog off for one call
     assert schema.select_widgets(
-        shape_node=EX.PersonShape, role="editor", scoring_graph=StarLayerGraph()
+        shape_node=EX.PersonShape, role="editor", scoring_graph=OxGraph()
     )[EX.BirthDateProp] is None
 
 

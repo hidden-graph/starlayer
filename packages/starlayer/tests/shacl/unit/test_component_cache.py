@@ -1,7 +1,7 @@
 """A constraint component is built once per shape, not once per focus node (slow parts hunt, sh:in over many nodes)."""
 
 import rdflib
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import validate
 from starlayer.shacl_engine.terms import text
 
@@ -10,7 +10,7 @@ N = 40
 
 
 def _graph(ttl):
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=ttl, format="turtle12")
     return g
 

@@ -966,12 +966,12 @@ class TestNodeExpressionWellFormedness:
         # rdf12_node_expression_function.ttl, in SHACL 1.2 forms), run through the
         # full apply_rules() pipeline with meta_shacl=True, confirming the
         # new well-formedness rule doesn't reject real, working shapes.
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from starlayer.graph.oxgraph import OxGraph
 
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:says \"hello\" .", format="turtle")
 
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(data=_FUNCTION_CALL_SHAPES, format="turtle12")
 
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=True)

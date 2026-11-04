@@ -14,10 +14,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
-from rdflib import URIRef
+import pyoxigraph as ox
+from rdflib import Graph, URIRef
 from rdflib.namespace import RDF
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
+from starlayer.shacl_engine.terms import from_engine
 
+from ..integration._rdflib_view import RdflibView
 from .namespaces import MF
 
 # Parsed-graph cache keyed by resolved absolute path - a leaf test file is
@@ -25,7 +28,7 @@ from .namespaces import MF
 # cache across walks (e.g. Phase 1's sht:Validate walk and a later phase's
 # sht:EvalNodeExpr walk both starting from tests/manifest.ttl) avoids
 # reparsing shared ancestor manifests.
-_DOCUMENT_CACHE: dict[Path, StarLayerGraph] = {}
+_DOCUMENT_CACHE: dict[Path, Graph] = {}
 
 
 def file_uri(path: Path) -> URIRef:
@@ -39,10 +42,10 @@ def uri_to_path(iri: URIRef) -> Path:
     return Path(unquote(parsed.path))
 
 
-def load_document(path: Path) -> StarLayerGraph:
+def load_document(path: Path) -> Graph:
     """Parse ``path`` as Turtle 1.2, cached, with its own file:// IRI as base.
 
-    Uses ``format="turtle12"`` (StarLayerGraph's own RDF-1.2-aware parser,
+    Uses ``format="turtle12"`` (OxGraph's own RDF-1.2-aware parser,
     ``starlayer.graph.parsers.turtle_parser.StarLayerTurtleParser``), not plain
     ``"turtle"`` - confirmed empirically that several suite fixtures use
     genuine RDF 1.2 Turtle syntax plain rdflib's parser rejects outright:
@@ -58,17 +61,20 @@ def load_document(path: Path) -> StarLayerGraph:
     """
     path = path.resolve()
     if path not in _DOCUMENT_CACHE:
-        graph = StarLayerGraph()
-        graph.parse(location=str(path), format="turtle12", publicID=str(file_uri(path)))
+        # Parsed with pyoxigraph's parser directly and kept as rdflib terms: the parser keeps the lexical forms as written
+        # ("4.0"^^xsd:decimal), which an OxGraph would rewrite on storage; a W3C expected report must be read as written.
+        graph = RdflibView()
+        for quad in ox.parse(path=str(path), format=ox.RdfFormat.TURTLE, base_iri=str(file_uri(path))):
+            graph.add((from_engine(quad.subject), from_engine(quad.predicate), from_engine(quad.object)))
         _DOCUMENT_CACHE[path] = graph
     return _DOCUMENT_CACHE[path]
 
 
-def clone_graph(source: StarLayerGraph, new_graph=StarLayerGraph) -> StarLayerGraph:
-    """Return an independent copy of a StarLayerGraph.
+def clone_graph(source: Graph, new_graph=OxGraph) -> OxGraph:
+    """Return an independent copy of a OxGraph.
 
     ``new_graph`` is the factory for the empty graph copied into - the default
-    in-memory ``StarLayerGraph`` unless a suite is being run through another
+    in-memory ``OxGraph`` unless a suite is being run through another
     store (see stores.py).
 
     Round-trips through the public ``.triples()`` view (real, decoded
@@ -102,7 +108,7 @@ def clone_graph(source: StarLayerGraph, new_graph=StarLayerGraph) -> StarLayerGr
 class ManifestEntry:
     iri: URIRef
     entry_type: URIRef | None
-    graph: StarLayerGraph | None
+    graph: Graph | None
     source_path: Path
     # Set (with entry_type=None, graph=None) instead of raising when an
     # mf:include target fails to parse - see iter_manifest_entries. A test

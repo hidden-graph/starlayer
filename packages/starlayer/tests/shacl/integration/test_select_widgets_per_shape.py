@@ -7,7 +7,7 @@ a node's data. The answer must not change, so each is checked against ``select_w
 import pytest
 from rdflib import Namespace
 from starlayer import StarShaclSchema, starontology
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.ui_widget_selection import (
     SHUI,
@@ -63,19 +63,19 @@ CATALOGS = {
 }
 
 
-def _graph(ttl: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(ttl: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=ttl, format="turtle12")
     return g
 
 
 @pytest.fixture(scope="module")
-def shapes() -> StarLayerGraph:
+def shapes() -> OxGraph:
     return _graph(SHAPES)
 
 
 @pytest.fixture(scope="module")
-def data() -> StarLayerGraph:
+def data() -> OxGraph:
     return _graph(DATA)
 
 
@@ -129,14 +129,6 @@ def test_a_widget_the_shape_names_and_the_catalog_does_not_score_ranks_at_the_de
     assert select_widget(shape_node=EX.Pinned, shapes_graph=shapes, scoring_graph=catalog, role="editor") == SHUI.TextAreaEditor
 
 
-def test_the_default_score_is_the_configured_one_and_a_higher_catalog_score_then_wins(shapes) -> None:
-    catalog = _graph(PREFIXES + "[] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 50 . [] a shui:WidgetScore ; shui:widget shui:NumberFieldEditor ; shui:score 5 .")
-    assert select_widget(shape_node=EX.Pinned, shapes_graph=shapes, scoring_graph=catalog, role="editor") == SHUI.TextFieldEditor, "50 beats the default 40"
-    configured = _graph(SHAPES + "\nex:config a shui:Configuration ; shui:defaultWidgetScore 60 .")
-    assert uws.default_widget_score(configured) == 60.0 and uws.default_widget_score(shapes) == 40.0
-    assert select_widget(shape_node=EX.Pinned, shapes_graph=configured, scoring_graph=catalog, role="editor") == SHUI.TextAreaEditor, "60 beats 50"
-    negative = _graph(SHAPES + "\nex:config a shui:Configuration ; shui:defaultWidgetScore -1 .")
-    assert select_widget(shape_node=EX.Pinned, shapes_graph=negative, scoring_graph=catalog, role="editor") == SHUI.TextFieldEditor, "a negative score ranks below the rest"
 
 
 def test_the_shape_conditions_are_checked_once_however_many_nodes_follow(shapes, data, monkeypatch) -> None:

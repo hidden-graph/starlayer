@@ -10,7 +10,7 @@ this test immediately instead of sitting broken until something happened to
 execute them.
 
 Only *parses* each embedded query (via `starlayer.sparql.parse12.prepare_query_12`
-- the same grammar `StarLayerGraph.query()` uses at runtime), doesn't
+- the same grammar `OxGraph.query()` uses at runtime), doesn't
 execute it - fast, and needs no fixture data or focus/value bindings.
 """
 
@@ -21,7 +21,7 @@ import os
 
 import pytest
 from rdflib import Graph, Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.sparql.parse12 import prepare_query_12
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -41,7 +41,7 @@ def _parse_ttl(path: str) -> Graph:
         return g
     except Exception:
         pass
-    sl = StarLayerGraph()
+    sl = OxGraph()
     sl.parse(path, format="turtle12")
     return sl
 

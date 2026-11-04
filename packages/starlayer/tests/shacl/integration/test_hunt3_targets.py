@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Namespace, URIRef
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema, apply_rules, target_nodes, validate
 
 from ._rdflib_view import rd, rdn
@@ -22,8 +22,8 @@ PREFIXES = (
 )
 
 
-def g(text: str) -> StarLayerGraph:
-    return StarLayerGraph().parse(data=PREFIXES + text, format="turtle12")
+def g(text: str) -> OxGraph:
+    return OxGraph().parse(data=PREFIXES + text, format="turtle12")
 
 
 DATA = """
@@ -49,7 +49,7 @@ FORMS = {
 }
 
 
-def _validated_focus_nodes(data: StarLayerGraph, shapes: StarLayerGraph) -> set:
+def _validated_focus_nodes(data: OxGraph, shapes: OxGraph) -> set:
     result = validate(data, shapes, advanced=True)
     return {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))}
 
