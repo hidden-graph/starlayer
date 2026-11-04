@@ -3,6 +3,11 @@
 > **Decision (2026-11-05, owner):** keep `owlrl` on an rdflib copy (through `_rdflib_bridge.py`) for RDFS and OWL 2 RL reasoning. `reasonable` is **not**
 > supported for now; revisit it later. The recommendations below that add it as an optional backend are deferred, not adopted.
 > The native SRL evaluator on Oxigraph (no rdflib) is a separate piece of work and is not affected by this decision.
+>
+> **Direction (2026-11-05, owner):** the likely end state is a Rust reasoner that works on Oxigraph directly (reasoning speed, and no
+> copy to rdflib and back). Query-time RDFS inference by rewriting the SPARQL query (today `sparql/entailment_rdfs.py`, to be moved onto the
+> sqe tree) stays as a separate, supported route. Not started; needs a scoping spike (see the chat summary of 2026-11-05: how a Rust
+> reasoner shares a store with pyoxigraph, and whether to build on `reasonable`'s core, the closed `oxreason` PR #1692 code, or new work).
 
 Branch `shacl-engine`, written 2026-11-04. Research only: no code was changed. Sources are cited inline with URLs;
 anything from memory and not re-checked this session is marked **(memory, unverified)**. Page fetches this session
