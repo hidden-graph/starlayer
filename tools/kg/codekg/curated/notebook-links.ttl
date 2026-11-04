@@ -232,8 +232,8 @@ nl:appendix-34b06f8c a slkg:NotebookExample ;
 nl:05-da3100e0 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05-starlayer-schemas-and-ontologies.ipynb" ;
     slkg:cellId "da3100e0" ;
-    slkg:cellHash "0cc45b40a390fd75" ;
-    slkg:reviewedOn "2026-11-02"^^xsd:date ;
+    slkg:cellHash "275b8974ff9bf259" ;
+    slkg:reviewedOn "2026-11-03"^^xsd:date ;
     rdfs:comment "Loads the bundled SKOS shapes graph and validates a SKOS concept scheme against it with a StarShaclSchema." ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.skos" .
@@ -241,8 +241,8 @@ nl:05-da3100e0 a slkg:NotebookExample ;
 nl:05d-2957fd17 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05d-shacl-library-registry.ipynb" ;
     slkg:cellId "2957fd17" ;
-    slkg:cellHash "59eecb0ec91bc29e" ;
-    slkg:reviewedOn "2026-11-02"^^xsd:date ;
+    slkg:cellHash "e768675e75541c26" ;
+    slkg:reviewedOn "2026-11-03"^^xsd:date ;
     rdfs:comment "Loads StarLayer's profiles document with get_conformance_profiles() and queries which resources each profile has." ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.__init__.get_conformance_profiles" .
