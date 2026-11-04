@@ -46,7 +46,7 @@ triple terms or annotations.)
 
 | Test | Cause | Class |
 |---|---|---|
-| `ntriples-version-1` (N-Triples 1.2) | The `VERSION "1.2"` directive is read by Oxigraph's Turtle and TriG parsers but not by its N-Triples/N-Quads parsers (`The subject of a triple must be an IRI or a blank node`). The four `ntriples-version-bad-*` negative tests pass, but only because every `VERSION` line is rejected. | Unsupported feature (a one-line workaround is to strip a leading `VERSION` line before parsing; not done) |
+| `ntriples-version-1` (N-Triples 1.2) | The `VERSION "1.2"` directive is read by Oxigraph's Turtle and TriG parsers but not by its N-Triples/N-Quads parsers. **Resolved in the wrapper (2026-11-04)**: `OxGraph/OxDataset.parse` validates the directive itself (`oxgraph/ntversion.py`) and hands Oxigraph the text with the directive line emptied, line numbers kept; the four `ntriples-version-bad-*` negatives are rejected for their own reasons (wrong case and `@version` are not directives and stay Oxigraph's errors; a numeric or IRI specifier fails the directive check). | Fixed in the wrapper |
 | `rdf12-xml-an-13`, `rdf12-xml-an-14` (RDF/XML 1.2, `rdf:annotation` with `parseType="Literal"`) | The XMLLiteral keeps the in-scope namespace declarations (`<br xmlns:rdf=... xmlns:eg=...></br>`) instead of the exclusive canonical form `<br></br>`. | Oxigraph bug (exclusive XML canonicalisation missing) |
 | `xml-canon-test001`, `xml-canon-test002` (RDF/XML 1.1) | The same defect. The hand-written front door fails the same two tests. | Oxigraph bug |
 
