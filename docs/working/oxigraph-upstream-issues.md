@@ -129,3 +129,19 @@ EXISTS subquery decorrelation (unnesting), as in relational engines. For a group
 where `?v...` are the variables `A` and `Q` share (so `A`'s own variables, bound in every solution, make the join exact; NOT EXISTS needs at least one shared variable for MINUS to remove anything). It is a semi-join / anti-join, so it can also be done inside the planner as a semi-join operator instead of a textual rewrite, which would not need the copy of `A`. Cases to leave alone (the rewrite is not exact): variables of `A` that may be unbound (OPTIONAL, UNION), `Q` with BIND, sub-selects or non-deterministic functions, a group that is the right side of OPTIONAL (its FILTER sees left-side variables), a group inside GRAPH or another EXISTS (outer bindings are visible), and EXISTS used inside a larger expression. A cost-based version could pick the join only when the outer side is large.
 
 The StarLayer implementation is `packages/starlayer/starlayer/sparql/sqe/rewrite.py` with a differential test against the original text on Oxigraph (`tests/sparql/unit/test_exists_rewrite.py`); it can be used as a reference for the conditions above.
+
+## 3. The store rewrites derived numeric datatypes to `xsd:integer` (issue #190)
+
+Project note, not a draft for posting. Oxigraph normalises literals on insert: `"3"^^xsd:nonNegativeInteger` is stored as
+`"3"^^xsd:integer`, and `"4.0"^^xsd:decimal` as `"4"`. The parser keeps the written form; the store does not. Reproduced on a
+bare `pyoxigraph.Store` (0.5.13).
+
+Where it surfaces here: the six cardinality shapes in `packages/starlayer/starlayer/starontology/manchester_shapes.ttl`
+(`manch:ExactShape`, `MaxShape`, `MinShape`, `DMinShape` and two more) named `sh:datatype xsd:nonNegativeInteger`, which the
+stored data can never match. **Decision (2026-11-04): keep the workaround.** They now say `sh:datatype xsd:integer` with
+`sh:minInclusive 0`. The checking is looser (a literal written as `xsd:integer` now passes). The Manchester encoder still
+emits `nonNegativeInteger`.
+
+Revisit when the store keeps derived types (upstream PR #2010): restore `xsd:nonNegativeInteger` in those shapes, regenerate
+`starontology.trig` and the Manchester snapshot, and drop the related strict xfails. Any other shape that names a derived
+numeric `sh:datatype` will hit the same rewrite.
