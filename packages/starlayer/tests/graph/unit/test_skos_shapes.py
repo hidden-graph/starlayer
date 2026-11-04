@@ -15,7 +15,7 @@ above).
 """
 
 import owlrl
-from rdflib import RDF, RDFS, BNode, Graph, Literal, Namespace
+from rdflib import RDF, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import SKOS
 from starlayer import starontology

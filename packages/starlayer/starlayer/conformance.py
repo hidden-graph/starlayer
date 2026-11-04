@@ -128,7 +128,6 @@ import pyoxigraph as ox
 from starlayer.shacl_engine.graphs import new_graph
 from starlayer.shacl_engine.terms import NS
 
-
 DCTERMS = NS("http://purl.org/dc/terms/")
 
 CONFORMANCE = NS("https://github.com/hidden-graph/starlayer/ns/conformance#")
