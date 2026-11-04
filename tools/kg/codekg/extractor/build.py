@@ -42,7 +42,7 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
             constant. Exists for testability (so a test never touches the real, checked-in file).
         tests_trig_path: Override for ``testskg.trig``; with ``trig_path`` given it defaults to ``testskg.trig`` beside it.
     """
-    from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
+    from starlayer.graph.oxgraph import OxDataset
 
     from . import stamp, symbol_index, visitor
 
@@ -50,8 +50,8 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
     if tests_trig_path is None:
         tests_trig_path = TESTSKG_TRIG_PATH if trig_path is None else trig_path.with_name("testskg.trig")
 
-    ds = StarLayerDataset()
-    tests_ds = StarLayerDataset()
+    ds = OxDataset()
+    tests_ds = OxDataset()
     index = symbol_index.build_symbol_index(target_paths, repo_root)
 
     for target_path in target_paths:
@@ -64,6 +64,6 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
 
     path.parent.mkdir(parents=True, exist_ok=True)
     ds.serialize(destination=str(path), format="trig12")
-    if len(list(tests_ds.contexts())) > 0:
+    if len(tests_ds.graph_names()) > 0:
         tests_ds.serialize(destination=str(tests_trig_path), format="trig12")
     return ds, tests_ds

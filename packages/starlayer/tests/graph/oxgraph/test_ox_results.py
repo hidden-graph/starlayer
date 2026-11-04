@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from rdflib import Graph as RdflibGraph
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.oxgraph import OxDataset, OxGraph
 
@@ -228,9 +229,11 @@ def test_sqe_tree_and_validate():
     graph, root = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=OxGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
-    old_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }")
-    assert isinstance(old_graph, StarLayerGraph)  # the tree builders still default to the old class
-    assert_ox(sqe_validate(old_graph)[1], max_prefixes=40)
+    default_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }")
+    assert isinstance(default_graph, OxGraph)  # the tree builders default to an OxGraph
+    rdflib_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=RdflibGraph())
+    assert isinstance(rdflib_graph, RdflibGraph) and not isinstance(rdflib_graph, OxGraph)  # an rdflib graph is filled as it is
+    assert_ox(sqe_validate(rdflib_graph)[1], max_prefixes=40)
 
 
 def test_srl_tree_and_validate():
@@ -242,9 +245,9 @@ def test_srl_tree_and_validate():
     assert isinstance(root, ox.BlankNode)
     ok, report, _text = srl_validate(graph)
     assert_ox(report)
-    old_graph, _ = srl_parse_to_tree(text)
-    assert isinstance(old_graph, StarLayerGraph)  # the tree builders still default to the old class
-    assert_ox(srl_validate(old_graph)[1], max_prefixes=40)
+    default_graph, _ = srl_parse_to_tree(text)
+    assert isinstance(default_graph, RdflibGraph) and not isinstance(default_graph, OxGraph)  # the default is a plain rdflib Graph
+    assert_ox(srl_validate(default_graph)[1], max_prefixes=40)
 
 
 def test_srl_infer_with_schema_returns_ox_parts():
@@ -275,11 +278,14 @@ def test_manchester_tree_functions():
     ok, report, _text = manchester.manchester_validate(tree)
     assert ok is True
     assert_ox(report)
-    old_tree = manchester.manchester_parse_to_tree(MANCHESTER)
-    assert not isinstance(old_tree, OxGraph)
-    assert isinstance(manchester.manchester_tree_to_owl(old_tree), StarLayerGraph)
-    assert_ox(manchester.manchester_validate(old_tree)[1], max_prefixes=40)
-    assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(old_tree)
+    default_tree = manchester.manchester_parse_to_tree(MANCHESTER)
+    assert isinstance(default_tree, OxGraph)  # the default is an OxGraph
+    rdflib_tree = manchester.manchester_parse_to_tree(MANCHESTER, graph=RdflibGraph())
+    assert isinstance(rdflib_tree, RdflibGraph) and not isinstance(rdflib_tree, OxGraph)  # an rdflib graph is filled as it is
+    assert isinstance(manchester.manchester_tree_to_owl(rdflib_tree), OxGraph)
+    assert_ox(manchester.manchester_validate(rdflib_tree)[1], max_prefixes=40)
+    assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(rdflib_tree)
+    assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(default_tree)
 
 
 def test_skos_validate():

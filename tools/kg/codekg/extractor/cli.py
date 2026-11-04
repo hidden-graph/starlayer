@@ -58,9 +58,9 @@ def main(argv: list[str] | None = None) -> int:
     dataset, tests_dataset = build.refresh(target_paths, repo_root)
 
     print(f"Extracted {len(target_paths)} file(s).")
-    print(f"codekg.trig now contains {len(dataset)} triple(s) across {len(list(dataset.contexts()))} named graph(s).")
+    print(f"codekg.trig now contains {len(dataset)} triple(s) across {len(dataset.graph_names())} named graph(s).")
     if len(tests_dataset):
-        print(f"testskg.trig now contains {len(tests_dataset)} triple(s) across {len(list(tests_dataset.contexts()))} named graph(s).")
+        print(f"testskg.trig now contains {len(tests_dataset)} triple(s) across {len(tests_dataset.graph_names())} named graph(s).")
 
     return 0
 

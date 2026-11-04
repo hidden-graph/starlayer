@@ -58,11 +58,11 @@ def main() -> int:
     subprocess.run([sys.executable, str(ROOT / "scripts/build.py"), "--only", "codekg", "kg"], cwd=ROOT, check=True)
 
     sys.path.insert(0, str(ROOT / "packages/starlayer"))
-    from starlayer import StarLayerDataset
+    from starlayer.graph.oxgraph import OxDataset
 
-    kg = StarLayerDataset()
+    kg = OxDataset()
     kg.parse(str(TRIG), format="trig12")
-    graphs = [g for g in kg.contexts() if len(g)]
+    graphs = [g for g in map(kg.graph, kg.graph_names()) if len(g)]
     info = {
         "starlayer_version": lib_version,
         "commit": _git("rev-parse", "HEAD"),

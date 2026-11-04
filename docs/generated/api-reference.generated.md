@@ -44,7 +44,7 @@ Public API additions vs Dataset:
                                   matching triples, still scoped to the
                                   named graph each one came from
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L76-L1223)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L76-L1226)
 
 ---
 
@@ -316,7 +316,7 @@ All other formats delegate to rdflib (no triple-term support).
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.parse](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L528-L656)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.parse](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L528-L659)
 
 ---
 
@@ -381,7 +381,7 @@ starlayer.graph.backends.native's module docstring).
 
 **Returns:** `Result`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L906-L972)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L909-L975)
 
 ---
 
@@ -404,7 +404,7 @@ A copy, not a change to this dataset: rdflib cannot remove a binding from a stor
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reduce_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L808-L828)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reduce_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L811-L831)
 
 ---
 
@@ -427,7 +427,7 @@ graph in this dataset - see StarLayerGraph.reifications().
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L851-L867)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L854-L870)
 
 ---
 
@@ -449,7 +449,7 @@ graph. See StarLayerGraph.reified_triples().
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L888-L904)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L891-L907)
 
 ---
 
@@ -472,7 +472,7 @@ rdf:reifies itself - see StarLayerGraph.reifier_annotations().
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L869-L886)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L872-L889)
 
 ---
 
@@ -498,7 +498,7 @@ triples stay in the named graph they came from.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L830-L849)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L833-L852)
 
 ---
 
@@ -572,7 +572,7 @@ All other formats delegate to rdflib.
 
 **Returns:** `str | StarLayerDataset`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1115-L1223)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.serialize](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1118-L1226)
 
 ---
 
@@ -618,7 +618,7 @@ isomorphism, hash it, etc. - rather than a serialized string.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1100-L1113)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1103-L1116)
 
 ---
 
@@ -694,7 +694,7 @@ store's own prefix map (in-memory and ``OxigraphStore`` stores; any other raises
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.unbind](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L792-L798)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.unbind](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L795-L801)
 
 ---
 
@@ -738,7 +738,7 @@ itself, via starlayer.sparql).
 
 **Returns:** `None`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1002-L1086)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L1005-L1089)
 
 ---
 
@@ -755,7 +755,7 @@ prefixes nothing uses are left out - see ``StarLayerGraph.used_prefixes()``.
 
 **Returns:** `list[tuple[str, URIRef]]`
 
-**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.used_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L800-L806)
+**Source:** [starlayer.graph.graph.starlayer_dataset.StarLayerDataset.used_prefixes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/graph/starlayer_dataset.py#L803-L809)
 
 ---
 
@@ -1834,7 +1834,7 @@ A SPARQL query, prepared once, bound with the options
 ``StarLayerGraph.query()`` otherwise takes per call - run it against as
 many graphs as you like via :meth:`run`.
 
-**Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/star_query.py#L62-L155)
+**Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/star_query.py#L62-L170)
 
 ---
 
@@ -1858,7 +1858,7 @@ changed.
 
 **Returns:** `Result` - Whatever ``graph.query()`` itself returns for this query.
 
-**Source:** [starlayer.sparql.star_query.StarQuery.run](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/star_query.py#L114-L155)
+**Source:** [starlayer.sparql.star_query.StarQuery.run](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/star_query.py#L114-L170)
 
 ---
 
@@ -2839,7 +2839,7 @@ is needed here for that.
 **Parameters:**
 
 - `queries: list[Query]` - The independent queries to encode.
-- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)`` — ``root`` is a dedicated container node holding ``salg:queries`` (an ``rdf:List`` of the member queries' own ``salg:Query``-typed roots, in the order given — order isn't semantically meaningful for a collection, but is preserved anyway since ``rdf:List`` is ordered regardless).
 
@@ -2865,7 +2865,7 @@ form.
 **Parameters:**
 
 - `query: Query` - The prepared query to encode.
-- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
 
@@ -3041,7 +3041,7 @@ is additionally typed ``salg:UpdateOperation`` (see
 **Parameters:**
 
 - `update: Update` - The prepared update to encode.
-- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
 
 **Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
 
@@ -3192,12 +3192,12 @@ yourself again after editing a tree directly.
 **Parameters:**
 
 - `text: str` - The SPARQL query text to encode.
-- `graph: Graph | None = None` - The graph to add the ``sqe:`` RDF to. Defaults to a fresh ``StarLayerGraph`` (see ``to_rdf._new_starlayer_graph``).
+- `graph: Graph | None = None` - The graph to add the ``sqe:`` RDF to: an ``OxGraph`` (pyoxigraph terms) or an rdflib graph (rdflib terms). Defaults to a fresh ``OxGraph``.
 - `root: IdentifiedNode | None = None` - The node to use as the query's own root - any ``URIRef``/ ``BNode``. Defaults to a fresh ``BNode()``. Give a real ``URIRef`` to make the query findable by that identity later (e.g. ``graph.value(my_iri, RDF.type, SQE.Query)``), rather than only via the ``root`` value this function itself returns - useful once a graph accumulates more than one encoded query (via repeated calls sharing one ``graph=``), where a bare `?s a sqe:Query` lookup can no longer tell them apart on its own.
 
-**Returns:** `tuple[Graph, IdentifiedNode]` - A ``(graph, root)`` tuple.
+**Returns:** `tuple[Graph, IdentifiedNode]` - A ``(graph, root)`` tuple; with no ``graph`` given, an ``OxGraph`` and a pyoxigraph ``root``.
 
-**Source:** [starlayer.sparql.sqe.to_rdf.sqe_parse_to_tree](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L122-L184)
+**Source:** [starlayer.sparql.sqe.to_rdf.sqe_parse_to_tree](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L122-L170)
 
 ---
 
@@ -3830,7 +3830,7 @@ property with none gets ``None``.
 
 **Returns:** `URIRef | None`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L316-L402)
+**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L315-L401)
 
 ---
 
@@ -3876,7 +3876,7 @@ answer (``choice.widget_without_data``) serves every node. The result of ``resol
 
 **Returns:** `dict[Any, Any]`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L516-L582)
+**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L513-L579)
 
 ---
 

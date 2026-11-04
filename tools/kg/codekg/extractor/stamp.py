@@ -86,9 +86,10 @@ def freshness(graph, repo_root: Path) -> Freshness | None:
     node = next(graph.subjects(RDF.type, CODEKG_NS.KGBuild), None)
     if node is None:
         return None
-    built_at = str(graph.value(node, CODEKG_NS.builtAt) or "")
+    built_at_value = graph.value(node, CODEKG_NS.builtAt)
+    built_at = built_at_value.value if built_at_value is not None else ""
     commit_value = graph.value(node, CODEKG_NS.builtFromCommit)
-    commit = str(commit_value) if commit_value is not None else None
+    commit = commit_value.value if commit_value is not None else None
     since = uncommitted = None
     if commit:
         counted = _git(repo_root, "rev-list", "--count", f"{commit}..HEAD", "--", *SOURCE_PATHSPECS)

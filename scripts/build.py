@@ -81,15 +81,21 @@ def _same(path: Path, before: bytes | None) -> bool:
 
 
 def _trig_isomorphic(a: bytes, b: bytes) -> bool:
+    import pyoxigraph as ox
     from codekg import BUILD_GRAPH_IRI
-    from rdflib.compare import isomorphic
-    from starlayer.graph import StarLayerDataset
+    from starlayer.graph.oxgraph import OxDataset
+    from starlayer.graph.rdfc_native import isomorphic
 
     def graphs(data: bytes) -> dict:
-        ds = StarLayerDataset()
+        ds = OxDataset()
         ds.parse(data=data.decode("utf-8"), format="trig12")
         # The build stamp (time, commit) differs on every build by design; it is not part of what was extracted.
-        return {str(g.identifier): g for g in ds.graphs() if len(g) and g.identifier != BUILD_GRAPH_IRI}
+        out = {}
+        for name in ds.graph_names():
+            graph = ds.graph(name)
+            if len(graph) and name.value != str(BUILD_GRAPH_IRI):
+                out[name.value] = [ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in graph]
+        return out
 
     ga, gb = graphs(a), graphs(b)
     return ga.keys() == gb.keys() and all(isomorphic(ga[k], gb[k]) for k in ga)

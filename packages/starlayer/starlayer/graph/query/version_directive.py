@@ -39,70 +39,7 @@ straight through to the endpoint unmodified instead of stripping it.
 
 from __future__ import annotations
 
-import re
-
-# Whitespace and ``#`` comments (a comment runs to the end of the line; SPARQL
-# treats both as whitespace between tokens, so a header comment may precede
-# or sit between prologue declarations).
-_LEADING_WS_RE = re.compile(r'(?:\s|#[^\n\r]*)*')
-# VersionSpecifier ::= STRING_LITERAL1 | STRING_LITERAL2: one quote character
-# on each side, no raw newline, backslash escapes allowed inside. A
-# triple-quoted form is not a VersionSpecifier, so it is excluded here and left
-# for the parser to reject with its own error.
-_VERSION_DECL_RE = re.compile(
-    r"""VERSION\s+(?!\"\"\"|\'\'\')(?:"((?:[^"\\\n\r]|\\.)*)"|'((?:[^'\\\n\r]|\\.)*)')""",
-    re.IGNORECASE,
-)
-# BaseDecl/PrefixDecl recognized just well enough to skip over them intact -
-# not a full IRIREF/PN_PREFIX grammar (this module's own design note above:
-# a deliberately simple scanner). "BASE <iri>" and "PREFIX name: <iri>",
-# the overwhelming real-world shape of both (a bare, unescaped IRIREF - no
-# SPARQL grammar permits a literal ">" inside one at all, so the naive
-# "up to the next '>'" delimiter is exactly as safe as a real IRIREF scan).
-_BASE_DECL_RE = re.compile(r'BASE\s*<[^>]*>', re.IGNORECASE)
-_PREFIX_DECL_RE = re.compile(r'PREFIX\s+[^\s:]*:\s*<[^>]*>', re.IGNORECASE)
-
-
-def strip_version_directive(query: str) -> tuple[str, str | None]:
-    """Strip every ``VERSION "label"`` directive out of the leading
-    prologue, leaving any ``BASE``/``PREFIX`` declarations - and their
-    original relative order - untouched.
-
-    If more than one ``VersionDecl`` is present (legal per the grammar's own
-    ``( ... )*``, though the spec gives no precedence rule for it), the
-    *last* one scanned is returned - an arbitrary but documented choice for
-    a case real queries are not expected to actually use.
-
-    Args:
-        query: The raw SPARQL 1.2 query/update text, possibly carrying one
-            or more leading ``VERSION`` directives.
-
-    Returns:
-        A ``(stripped_query, label)`` tuple: the query text with every
-        ``VersionDecl`` removed, and the declared version label, or
-        ``None`` if no ``VERSION`` directive was present.
-    """
-    out_parts: list[str] = []
-    pos = 0
-    label: str | None = None
-    while True:
-        pos = _LEADING_WS_RE.match(query, pos).end()
-        m = _VERSION_DECL_RE.match(query, pos)
-        if m:
-            raw = m.group(1) if m.group(1) is not None else m.group(2)
-            label = re.sub(r'\\(.)', r'\1', raw)
-            pos = m.end()
-            continue
-        m = _BASE_DECL_RE.match(query, pos) or _PREFIX_DECL_RE.match(query, pos)
-        if m:
-            out_parts.append(query[pos:m.end()])
-            pos = m.end()
-            continue
-        break
-    if label is None:
-        return query, None
-    out_parts.append(query[pos:])
-    return ' '.join(out_parts), label
+from starlayer.graph.oxgraph.sparql_text import strip_version_directive  # noqa: F401  (moved; re-exported)
 
 
 def contains_triple_term(node) -> bool:

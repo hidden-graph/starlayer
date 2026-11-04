@@ -397,45 +397,7 @@ def resolve_store_http(store, backend: str) -> tuple:
     return q, u, extra_headers
 
 
-def check_native_version_conformance(text: str) -> None:
-    """Run the same SPARQL12ConformanceWarning check the in-memory backend's
-    rewrite pipeline runs, for a native (rdf-1.2) backend's raw SPARQL text.
-
-    The native backend sends text straight through to a real endpoint via
-    HTTP with zero rewriting (see this module's docstring) - correct, since
-    Fuseki/Oxigraph both understand VERSION natively and execute a
-    VERSION-declared query normally regardless of a conformance mismatch.
-    But neither surfaces any warning back to the caller for a mismatch -
-    both just return a normal 200 response with no signal anywhere in it.
-    Without this check, a native-backend graph or dataset would silently
-    never emit SPARQL12ConformanceWarning at all, while the default
-    in-memory backend does for the identical query - an inconsistency
-    between backends this project otherwise takes care to avoid (see
-    tests/integration/test_cross_backend_parity.py). Only the *warning* is
-    replicated here, never the VERSION-stripping - the native endpoint
-    needs to see the directive itself, unlike rdflib's SPARQL 1.1 parser.
-
-    Args:
-        text: The raw SPARQL query or update text to check.
-    """
-    from starlayer.graph.model.conformance import (
-        SPARQL12ConformanceWarning,
-        check_version_conformance,
-    )
-    from starlayer.graph.query.version_directive import strip_version_directive
-
-    _, declared_version = strip_version_directive(text)
-    if declared_version is None:
-        return
-    check_version_conformance(
-        declared_version,
-        uses_triple_term=bool(
-            "<<(" in text or re.search(r'<<[^(]|\{\|', text) or '~' in text
-        ),
-        uses_dirlangstring='--' in text,
-        context='SPARQL query',
-        warning_class=SPARQL12ConformanceWarning,
-    )
+from starlayer.graph.oxgraph.sparql_text import check_native_version_conformance  # noqa: E402,F401  (moved; D1 deletes this module)
 
 
 def _in_process(store) -> bool:
@@ -580,67 +542,15 @@ def execute_construct(store, backend: str, sparql: str, default_union: bool = Fa
 
 
 def inject_init_bindings(sparql: str, init_bindings: dict) -> str:
-    """The query with ``init_bindings`` applied as ``VALUES (?a ?b) { (x y) }`` at the start of the outermost ``WHERE`` group.
-
-    A native store has no engine-level way to pre-bind a variable, and silently ignoring ``initBindings`` gave answers that
-    disagree with the bindings; SHACL's SPARQL constraints (``sh:sparql``, ``$this``) pass the focus node this way
-    (GitHub issue #98). ``VALUES`` at the head of the group joins to everything that follows, which is what a pre-binding
-    means. Strings, IRIs and comments are skipped when looking for the group.
-    """
-    import re
-
+    """``starlayer.graph.oxgraph.sparql_text.inject_init_bindings`` over rdflib terms."""
     from rdflib import Variable
 
-    names, terms = [], []
-    for key, value in init_bindings.items():
-        names.append(str(key.n3() if isinstance(key, Variable) else '?' + str(key).lstrip('?$')))
-        terms.append(sparql_term(value))
-    values = f" VALUES ({' '.join(names)}) {{ ({' '.join(terms)}) }} "
+    from starlayer.graph.oxgraph.sparql_text import inject_init_bindings as inject
 
-    iri = re.compile(r'<[^<>"{}|^`\\\s]*>')
-    n, i, depth = len(sparql), 0, 0
-    template_pending = False  # CONSTRUCT { template } WHERE { group }: the first brace is the template, not the group
+    return inject(sparql, {
+        str(k.n3() if isinstance(k, Variable) else '?' + str(k).lstrip('?$')): sparql_term(v) for k, v in init_bindings.items()
+    })
 
-    def keyword_at(pos: int, word: str) -> bool:
-        return (
-            sparql[pos:pos + len(word)].upper() == word
-            and not (pos > 0 and (sparql[pos - 1].isalnum() or sparql[pos - 1] in '_?$:'))
-            and not sparql[pos + len(word):pos + len(word) + 1].isalnum()
-        )
-
-    while i < n:
-        c = sparql[i]
-        if c == '#':
-            while i < n and sparql[i] not in '\r\n':
-                i += 1
-            continue
-        if c in '"\'':
-            q = c * 3 if sparql.startswith(c * 3, i) else c
-            i += len(q)
-            while i < n and not sparql.startswith(q, i):
-                i += 2 if sparql[i] == '\\' else 1
-            i += len(q)
-            continue
-        if c == '<':
-            m = iri.match(sparql, i)
-            if m:
-                i = m.end()
-                continue
-        if depth == 0 and keyword_at(i, 'CONSTRUCT'):
-            rest = sparql[i + 9:].lstrip()
-            template_pending = not rest[:5].upper() == 'WHERE'
-            i += 9
-            continue
-        if c == '{':
-            if depth == 0 and not template_pending:
-                return sparql[:i + 1] + values + sparql[i + 1:]
-            depth += 1
-        elif c == '}':
-            depth -= 1
-            if depth == 0:
-                template_pending = False
-        i += 1
-    raise ValueError("initBindings: could not find the query's WHERE group")
 
 
 def native_query(store, backend: str, query_object: Any, processor: str = 'sparql',

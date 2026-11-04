@@ -18,7 +18,9 @@ shape (``test_decoded_document_is_a_plain_namedtuple_tree``).
 """
 
 import pytest
+from rdflib import Graph
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 from starlayer.starontology.manchester import (
     _find_root,
@@ -157,7 +159,7 @@ def test_decoded_document_is_a_plain_namedtuple_tree():
     tree-RDF, not this intermediate object - see the module's own
     docstring), but this still verifies its internal shape directly."""
     text = HEADER + 'Class: Cat\n    SubClassOf: Animal\n'
-    graph = manchester_parse_to_tree(text)
+    graph = manchester_parse_to_tree(text, graph=Graph())  # the private decoder reads rdflib terms
     document = _tree_to_document(graph, _find_root(graph))
 
     assert document.frames[0].kind == 'Class'
@@ -167,4 +169,7 @@ def test_decoded_document_is_a_plain_namedtuple_tree():
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_tree_to_owl_matches_compiling_the_text_directly(text):
     graph = manchester_parse_to_tree(text)
-    assert isomorphic(manchester_tree_to_owl(graph), parse_manchester(text))
+    # both sides as OxGraphs: Oxigraph stores a literal in canonical form, so an rdflib-term list would differ lexically
+    expected = OxGraph()
+    expected.extend(list(parse_manchester(text)))
+    assert isomorphic(manchester_tree_to_owl(graph), expected)

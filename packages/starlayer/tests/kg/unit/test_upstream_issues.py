@@ -89,7 +89,7 @@ def test_every_write_up_entry_is_in_the_list(graph):
 @pytest.mark.deferred
 def test_every_workaround_exists_in_the_code_graph(graph, codekg_dataset):
     dataset = codekg_dataset
-    known = {str(o) for ctx in dataset.contexts() for o in ctx.objects(None, DCTERMS.identifier)}
+    known = {o.value for n in dataset.graph_names() for o in dataset.graph(n).objects(None, DCTERMS.identifier)}
     cited = {str(o) for o in graph.objects(None, CODEKG_NS.workedAroundByIdentifier)}
     assert len(cited) >= 20
     assert not sorted(cited - known), f"workarounds the code KG does not have: {sorted(cited - known)}"
@@ -110,5 +110,5 @@ def test_every_patch_function_is_recorded_as_a_workaround_or_explained(graph):
 def test_the_curated_graph_carries_the_issues(monkeypatch, tmp_path):
     monkeypatch.setattr(codekg, "TESTSKG_TRIG_PATH", tmp_path / "absent-tests.trig")
     monkeypatch.setattr(codekg, "CODEKG_TRIG_PATH", tmp_path / "absent.trig")  # the curated files do not need the 15 s parse
-    curated = get_codekg_dataset(include_curated=True).get_context(CURATED_GRAPH_IRI)
+    curated = get_codekg_dataset(include_curated=True).graph(CURATED_GRAPH_IRI)
     assert next(curated.subjects(RDF.type, CODEKG_NS.UpstreamIssue), None) is not None

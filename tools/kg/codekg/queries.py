@@ -152,9 +152,11 @@ def _clip(text: str) -> str:
 
 @functools.lru_cache(maxsize=1)
 def _library():
-    from starlayer.graph import StarLayerGraph
+    """The stored query library, a plain ``rdflib.Graph``: it is read with rdflib terms (the sqe tree decoders and the SHACL
+    check take it as it is)."""
+    from rdflib import Graph
 
-    graph = StarLayerGraph()
+    graph = Graph()
     graph.parse(str(LIBRARY_TTL), format="turtle")
     return graph
 
@@ -168,23 +170,17 @@ def _dataset():
 
 @functools.lru_cache(maxsize=1)
 def _kg():
-    """All the code KG's module graphs merged into one graph, plus the curated layer (capabilities and the query library)."""
-    from starlayer.graph import StarLayerGraph
-
-    graph = StarLayerGraph()
-    for s, p, o, _g in _dataset().quads((None, None, None, None)):
-        graph.add((s, p, o))
-    return graph
-
-
-@functools.lru_cache(maxsize=1)
-def _ox_kg():
-    """The same merged graph in Oxigraph (an ``OxGraph``): named queries are sent to it as SPARQL text."""
+    """All the code KG's module graphs merged into one ``OxGraph``, plus the curated layer (capabilities and the query library).
+    Named queries are sent to it as SPARQL text."""
     from starlayer.graph.oxgraph import OxGraph
 
     graph = OxGraph()
-    graph.extend(_kg())
+    graph.extend((q.subject, q.predicate, q.object) for q in _dataset().quads((None, None, None, None)))
     return graph
+
+
+def _ox_kg():
+    return _kg()
 
 
 @functools.lru_cache(maxsize=1)
@@ -428,20 +424,19 @@ def run_sparql(text: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0) -> Que
     The prefixes ``slkg:``, ``dcterms:`` and ``rdfs:`` are predeclared. ``CONSTRUCT``, ``DESCRIBE`` and updates are
     refused because they can return the whole graph; a named query is usually the better start (``list_queries``).
     """
-    from rdflib.plugins.sparql.parser import parseQuery
-    from starlayer.sparql.parse12 import prepare_query_12
+    from starlayer.sparql.parse_sparql import parse_sparql
 
-    parsed = parseQuery(text)
-    form = parsed[1].name
+    prologue = "".join(f"PREFIX {prefix}: <{namespace}>\n" for prefix, namespace in _DEFAULT_PREFIXES.items())
+    parsed = parse_sparql(prologue + text)  # a syntax error (or an undeclared prefix) raises SparqlSyntaxError, a ValueError
+    form = parsed.kind
     if form not in ("SelectQuery", "AskQuery"):
         raise ValueError(f"run_sparql runs SELECT and ASK queries only, not {form.removesuffix('Query').upper()}")
     warnings = []
-    if form == "SelectQuery" and not parsed[1].projection:
+    if form == "SelectQuery" and not parsed.f["projection"]:
         warnings.append("SELECT * returns every variable; list the ones you need")
-    if form == "SelectQuery" and not parsed[1].limitoffset:
+    if form == "SelectQuery" and parsed.f["limit"] is None and parsed.f["offset"] is None:
         warnings.append(f"no LIMIT in the query; the result is cut to {limit} rows")
-    query = prepare_query_12(text, initNs=_DEFAULT_PREFIXES)
-    return _bounded("free-form", _kg().query(query), limit, offset, warnings)
+    return _bounded("free-form", _kg().query(text, initNs=_DEFAULT_PREFIXES), limit, offset, warnings)
 
 
 # ---------------------------------------------------------------------------

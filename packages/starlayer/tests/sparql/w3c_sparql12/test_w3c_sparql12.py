@@ -47,7 +47,7 @@ import pytest
 from rdflib.compare import to_isomorphic
 from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.query.version_directive import strip_version_directive
+from starlayer.graph.oxgraph.sparql_text import strip_version_directive
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
 from tests.sparql.w3c_sparql12.harness import (

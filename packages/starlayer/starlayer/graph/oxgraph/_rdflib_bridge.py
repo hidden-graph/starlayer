@@ -66,30 +66,39 @@ def is_oxigraph_input(value: Any) -> bool:
     return isinstance(value, (OxGraph, OxDataset, ox.Store))
 
 
-def to_starlayer_graph(value: Any) -> Any:
-    """A snapshot of an ``OxGraph`` / ``OxDataset`` / bare ``Store`` as an old-style ``StarLayerGraph`` (the library entry points
-    that still run on rdflib code call this at the boundary). A dataset or store gives the union of its graphs; a graph view
-    keeps its identifier and its prefixes. The result is a copy: writes to it do not reach ``value``."""
+def to_rdflib_graph(value: Any) -> Any:
+    """A snapshot of an ``OxGraph`` / ``OxDataset`` / bare ``Store`` as a plain ``rdflib.Graph`` (the library entry points that
+    still run on rdflib code call this at the boundary). A dataset or store gives the union of its graphs; a graph view keeps its
+    identifier and its prefixes. A triple term, which rdflib cannot hold, becomes the synthetic reification fragment
+    ``rdflib_graph(decompose=True)`` writes. The result is a copy: writes to it do not reach ``value``."""
     from rdflib import URIRef
 
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
     from starlayer.graph.oxgraph.core import OxDataset, OxGraph
 
     if isinstance(value, ox.Store):
         value = OxDataset(store=value)
     ident = value.identifier if isinstance(value, OxGraph) else None
-    g = StarLayerGraph(identifier=URIRef(ident.value)) if isinstance(ident, ox.NamedNode) else StarLayerGraph()
+    g = rdflib_graph(iter(value))
+    if isinstance(ident, ox.NamedNode):
+        g = _with_identifier(g, URIRef(ident.value))
     for prefix, ns in dict(value.prefixes).items():
         g.bind(prefix, ns)
-    for t in to_rdflib_triples(iter(value)):
-        g.add(t)
     return g
 
 
+def _with_identifier(graph: Any, identifier: Any) -> Any:
+    from rdflib import Graph
+
+    out = Graph(identifier=identifier)
+    for t in graph:
+        out.add(t)
+    return out
+
+
 def as_rdflib_graph(graph: Any) -> Any:
-    """``graph`` itself, or a snapshot ``StarLayerGraph`` if it is an Oxigraph graph: for ``rdflib_graph += x`` where ``x`` may be
+    """``graph`` itself, or a snapshot ``rdflib.Graph`` if it is an Oxigraph graph: for ``rdflib_graph += x`` where ``x`` may be
     either kind (the ontology and shapes loaders return whatever class ``StarLayerGraph`` is)."""
-    return to_starlayer_graph(graph) if is_oxigraph_input(graph) else graph
+    return to_rdflib_graph(graph) if is_oxigraph_input(graph) else graph
 
 
 def merge_into(dst: Any, src: Any) -> None:
@@ -262,10 +271,10 @@ def copy_into(target: Any, triples: Iterable[tuple[Any, Any, Any]]) -> None:
 
 def read_boundary(graph: Any, *terms: Any) -> tuple[Any, ...]:
     """For a library function that READS a graph with rdflib code: ``(graph, *terms)`` ready for it. An Oxigraph graph becomes a
-    snapshot ``StarLayerGraph`` and any pyoxigraph term in ``terms`` its rdflib equivalent; anything else passes unchanged."""
+    snapshot ``rdflib.Graph`` and any pyoxigraph term in ``terms`` its rdflib equivalent; anything else passes unchanged."""
     if not is_oxigraph_input(graph):
         return (graph, *terms)
-    return (to_starlayer_graph(graph), *(from_engine_if_ox(t) for t in terms))
+    return (to_rdflib_graph(graph), *(from_engine_if_ox(t) for t in terms))
 
 
 def from_engine_if_ox(term: Any) -> Any:
@@ -291,6 +300,14 @@ def write_boundary(graph: Any, build: Any, *terms: Any) -> tuple[Any, ...]:
     temp, *results = build(None, *(from_engine_if_ox(t) for t in terms))
     copy_into(graph, temp)
     return (graph, *(to_engine_if_rdflib(r) for r in results))
+
+
+def default_boundary(build: Any, *terms: Any) -> tuple[Any, ...]:
+    """For a library function that WRITES a graph with rdflib code when the caller gave none: ``build(None, *rdflib_terms)`` runs
+    on a scratch rdflib graph and the result is returned as a fresh ``OxGraph`` (see ``ox_result``) with the result terms as
+    pyoxigraph terms."""
+    temp, *results = build(None, *(from_engine_if_ox(t) for t in terms))
+    return (ox_result(temp), *(to_engine_if_rdflib(r) for r in results))
 
 
 def _decode_dirlang(term: Any) -> Any:

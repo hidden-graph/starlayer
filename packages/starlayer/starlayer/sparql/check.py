@@ -10,13 +10,13 @@ def check_query(text: str, prepare: bool = False) -> str | None:
 
     ``prepare``: also prepare it as a query, which finds a prefix nothing declares (the grammar accepts it); for a query whose text
     carries all its ``PREFIX`` lines."""
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    from starlayer.graph.oxgraph import OxGraph
     from starlayer.sparql import parse12
 
     try:
         parse12.parse_query_12(text)
         if prepare:
-            StarLayerGraph().query(text)  # an empty graph: preparing the query is cheap, and finds a prefix nothing declares
+            OxGraph().query(text)  # an empty graph: preparing the query is cheap, and finds a prefix nothing declares
     except Exception as error:  # noqa: BLE001  (the parser reports its own kinds of exception)
         return " ".join(str(error).split())[:160]
     return None

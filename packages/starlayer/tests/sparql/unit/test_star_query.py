@@ -92,3 +92,34 @@ class TestEntailmentBinding:
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
         rows = q.run(g, entailment=ENTAILMENT["OWL-RDF-Based"])
         assert {str(r.s) for r in rows} == {str(EX.carol)}
+
+
+class TestRunsAgainstAnOxGraph:
+    """The wrapper takes query text, not a prepared query object, so ``run`` sends the text."""
+
+    def _ox(self, data: str):
+        from starlayer.graph.oxgraph import OxGraph
+
+        g = OxGraph()
+        g.parse(data=data, format="turtle")
+        return g
+
+    def test_runs_the_bound_query_with_its_namespaces_and_bindings(self):
+        g = self._ox("@prefix ex: <http://example.org/> . ex:alice ex:worksFor ex:Acme . ex:bob ex:worksFor ex:Globex .")
+        q = StarQuery("SELECT ?o WHERE { ?s ex:worksFor ?o }", initNs={"ex": str(EX)}, initBindings={"s": EX.bob})
+        assert {r.o.value for r in q.run(g)} == {str(EX.Globex)}
+
+    def test_entailment_is_refused_by_the_wrapper(self):
+        import pytest
+
+        g = self._ox("@prefix ex: <http://example.org/> . ex:alice ex:worksFor ex:Acme .")
+        q = StarQuery("SELECT ?s WHERE { ?s ?p ?o }", entailment=ENTAILMENT.RDFS)
+        with pytest.raises(NotImplementedError):
+            q.run(g)
+
+    def test_a_timeout_is_not_available(self):
+        import pytest
+
+        g = self._ox("@prefix ex: <http://example.org/> . ex:alice ex:worksFor ex:Acme .")
+        with pytest.raises(NotImplementedError):
+            StarQuery("SELECT ?s WHERE { ?s ?p ?o }", timeout=5).run(g)

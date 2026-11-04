@@ -10,7 +10,7 @@ from codekg import BUILD_GRAPH_IRI, CODEKG_NS
 from codekg.extractor import stamp
 from codekg.extractor.build import refresh
 from rdflib import RDF
-from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
+from starlayer.graph.oxgraph import OxDataset
 
 PKG = Path("packages/starlayer/starlayer/widgets")
 
@@ -28,24 +28,24 @@ def repo(tmp_path):
     return root, module
 
 
-def _build(root: Path, module: Path, tmp_path: Path) -> tuple[StarLayerDataset, Path]:
+def _build(root: Path, module: Path, tmp_path: Path) -> tuple[OxDataset, Path]:
     trig = tmp_path / "codekg.trig"
     refresh([module], root, trig_path=trig)
-    dataset = StarLayerDataset()
+    dataset = OxDataset()
     dataset.parse(str(trig), format="trig12")
     return dataset, trig
 
 
 def _freshness(dataset, root):
-    return stamp.freshness(dataset.get_context(BUILD_GRAPH_IRI), root)
+    return stamp.freshness(dataset.graph(BUILD_GRAPH_IRI), root)
 
 
 def test_a_build_outside_git_is_stamped_without_a_commit(repo, tmp_path):
     root, module = repo
     dataset, _ = _build(root, module, tmp_path)
-    graph = dataset.get_context(BUILD_GRAPH_IRI)
+    graph = dataset.graph(BUILD_GRAPH_IRI)
     node = next(graph.subjects(RDF.type, CODEKG_NS.KGBuild))
-    assert graph.value(node, CODEKG_NS.sourceFileCount).toPython() == 1
+    assert int(graph.value(node, CODEKG_NS.sourceFileCount).value) == 1
     assert graph.value(node, CODEKG_NS.builtAt) is not None
     assert graph.value(node, CODEKG_NS.builtFromCommit) is None
     assert "commit unknown" in _freshness(dataset, root).sentence()
@@ -55,10 +55,10 @@ def test_a_second_build_replaces_the_stamp(repo, tmp_path):
     root, module = repo
     _, trig = _build(root, module, tmp_path)
     refresh([module], root, trig_path=trig)
-    dataset = StarLayerDataset()
+    dataset = OxDataset()
     dataset.parse(str(trig), format="trig12")
-    assert len(list(dataset.get_context(BUILD_GRAPH_IRI).subjects(RDF.type, CODEKG_NS.KGBuild))) == 1
-    assert len(list(dataset.get_context(BUILD_GRAPH_IRI).objects(None, CODEKG_NS.builtAt))) == 1
+    assert len(list(dataset.graph(BUILD_GRAPH_IRI).subjects(RDF.type, CODEKG_NS.KGBuild))) == 1
+    assert len(list(dataset.graph(BUILD_GRAPH_IRI).objects(None, CODEKG_NS.builtAt))) == 1
 
 
 def test_freshness_follows_the_repository(repo, tmp_path):
@@ -92,9 +92,9 @@ def test_a_build_from_a_dirty_tree_says_so(repo, tmp_path):
     _git(root, "commit", "-q", "-m", "first")
     module.write_text("def f():\n    return 2\n", encoding="utf-8")
     dataset, _ = _build(root, module, tmp_path)
-    graph = dataset.get_context(BUILD_GRAPH_IRI)
+    graph = dataset.graph(BUILD_GRAPH_IRI)
     node = next(graph.subjects(RDF.type, CODEKG_NS.KGBuild))
-    assert graph.value(node, CODEKG_NS.hadUncommittedChanges).toPython() is True
+    assert graph.value(node, CODEKG_NS.hadUncommittedChanges).value == "true"
 
 
 @pytest.mark.deferred

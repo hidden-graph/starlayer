@@ -98,13 +98,12 @@ def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: 
     ignored (the whole report's ``conforms`` is not used). ``owl:imports`` in ``shapes_graph`` is left unresolved
     (it plays no part in the check). Built on ``starlayer.shacl``'s public ``validate()``.
     """
-    from rdflib import OWL
+    from rdflib import OWL, Graph
 
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
     from starlayer.shacl.validator import _find_genuine_report_node
 
     nodes = tuple(nodes)
-    probe_shapes = StarLayerGraph()
+    probe_shapes = Graph()
     probe_shapes += shapes_graph
     for predicate in (*_TARGET_PREDICATES, OWL.imports):
         probe_shapes.remove((None, predicate, None))
@@ -192,9 +191,9 @@ def _data_condition_holds(
     data_graph_shape = next(scoring_graph.objects(node, SHUI.dataGraphShape), None)
     if data_graph_shape is None:
         return True
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+    from rdflib import Graph
 
-    shape_definitions = StarLayerGraph()
+    shape_definitions = Graph()
     shape_definitions += shapes_graph
     shape_definitions += scoring_graph
     return _node_conforms(focus_node, data_graph_shape, base_graph=data_graph, shapes_graph=shape_definitions)
@@ -258,23 +257,23 @@ def _ranked_scores(shapes_graph: Any, scoring_graph: Any, role: str) -> list[tup
 
 
 def _via_rdflib(fn: Any, kwargs: dict[str, Any]) -> tuple[bool, Any]:
-    """If any graph argument is an ``OxGraph`` / ``OxDataset`` / ``Store``, run ``fn`` on snapshot ``StarLayerGraph`` copies (a
-    graph passed twice is copied once) and return ``(True, result)``; else ``(False, None)``. When ``shape_node`` or
-    ``focus_node`` is a pyoxigraph term, the answer's IRIs come back as pyoxigraph terms, otherwise as rdflib terms."""
+    """If any graph argument is an ``OxGraph`` / ``OxDataset`` / ``Store``, run ``fn`` on snapshot ``rdflib.Graph`` copies of the
+    shapes and scoring graphs (this module reads them with rdflib terms; one passed twice is copied once) and return
+    ``(True, result)``; else ``(False, None)``. The data graph is not copied: it only goes to ``validate()``, which takes it as
+    it is. When ``shape_node`` or ``focus_node`` is a pyoxigraph term, the answer's IRIs come back as pyoxigraph terms,
+    otherwise as rdflib terms."""
     from starlayer.graph.oxgraph import _rdflib_bridge as ox
 
-    graph_args = ("data_graph", "shapes_graph", "scoring_graph")
-    if not any(ox.is_oxigraph_input(kwargs.get(name)) for name in graph_args):
-        return False, None
+    ox_nodes = any(isinstance(kwargs.get(name), (ox.ox.NamedNode, ox.ox.BlankNode)) for name in ("shape_node", "focus_node"))
+    if not ox_nodes and not any(ox.is_oxigraph_input(kwargs.get(name)) for name in ("shapes_graph", "scoring_graph")):
+        return False, None  # the data graph needs no copy (it only goes to validate()), so it does not count here
     copies: dict[int, Any] = {}
     converted = dict(kwargs)
-    for name in graph_args:
+    for name in ("shapes_graph", "scoring_graph"):
         value = kwargs.get(name)
         if ox.is_oxigraph_input(value):
-            converted[name] = copies.setdefault(id(value), ox.to_starlayer_graph(value))
-    want_ox = any(
-        isinstance(kwargs.get(name), (ox.ox.NamedNode, ox.ox.BlankNode)) for name in ("shape_node", "focus_node")
-    )
+            converted[name] = copies.setdefault(id(value), ox.to_rdflib_graph(value))
+    want_ox = ox_nodes
     for name in ("shape_node", "focus_node"):
         converted[name] = ox.from_engine_if_ox(kwargs.get(name))
     result = fn(**converted)
@@ -377,9 +376,9 @@ def select_widget(
     if focus_node is not None and data_graph is None:
         raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
     if scoring_graph is None:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from rdflib import Graph
 
-        scoring_graph = StarLayerGraph()
+        scoring_graph = Graph()
     ranked = _ranked_with_declared(shape_node, shapes_graph, scoring_graph, role)
 
     common = {
@@ -459,8 +458,6 @@ def check_data_matchers(choice: WidgetChoice, *, focus_node: Any, data_graph: An
     conditions that read data (GitHub issue #14)."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    if _ox.is_oxigraph_input(data_graph):
-        data_graph = _ox.to_starlayer_graph(data_graph)
     focus_node = _ox.from_engine_if_ox(focus_node)
     for candidate in choice.candidates:
         if all(
@@ -563,9 +560,9 @@ def select_widgets(
         raise ValueError("per='shape' answers for the shape; pass the node to choice.resolve(focus_node, data_graph)")
     properties = list(shapes_graph.objects(shape_node, SH.property))
     if scoring_graph is None:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from rdflib import Graph
 
-        scoring_graph = StarLayerGraph()
+        scoring_graph = Graph()
     batch = _ConformanceBatch(properties, base_graph=shapes_graph, shapes_graph=scoring_graph)
     if per == "shape":
         return {

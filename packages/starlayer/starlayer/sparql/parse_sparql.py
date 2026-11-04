@@ -46,13 +46,23 @@ from __future__ import annotations
 
 import re
 from typing import NamedTuple
+from urllib.parse import urljoin
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, XSD
 
-from starlayer.graph.parsers.turtle_parser import _join
 from starlayer.sparql.vocab import encode_dirlang_datatype
+
+
+def _join(base_uri, ref):
+    """RFC 3986 reference resolution. ``urllib.parse.urljoin`` drops an empty fragment (``urljoin("http://b/x", "#")`` is
+    ``http://b/x``), which turns a relative ``<#>`` into the wrong IRI (GitHub issue #132); it is put back."""
+    joined = urljoin(base_uri, ref)
+    if ref.endswith('#') and not joined.endswith('#'):
+        joined += '#'
+    return joined
+
 
 # ---------------------------------------------------------------------------
 # Errors
@@ -2083,11 +2093,14 @@ def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=
     Raises:
         SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
     """
-    if graph is not None:
-        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-        if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it; root is pyoxigraph
-            return _ox.write_boundary(graph, lambda g, r: ast_to_tree(q, g, r, triple_order=triple_order), root)
+    if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it; root is pyoxigraph
+        return _ox.write_boundary(graph, lambda g, r: _ast_to_rdflib_tree(q, g, r, triple_order), root)
+    return _ast_to_rdflib_tree(q, graph, root, triple_order)
+
+
+def _ast_to_rdflib_tree(q: Node, graph, root, triple_order) -> tuple[Graph, object]:
     if graph is None and root is None:  # a retry must start from a fresh graph, so only then is one safe
         try:
             return run_with_deeper_stack(_ast_to_tree, q, graph, root, triple_order)
@@ -2097,9 +2110,9 @@ def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=
 
 
 def _ast_to_tree(q: Node, graph, root, triple_order) -> tuple[Graph, object]:
-    from .spexpr_codec import _new_starlayer_graph
+    from .spexpr_codec import _new_tree_graph
 
-    graph = graph if graph is not None else _new_starlayer_graph()
+    graph = graph if graph is not None else _new_tree_graph()
     root = root if root is not None else BNode()
     enc = _Encoder(graph, triple_order)
     if q.kind == "UpdateRequest":

@@ -19,7 +19,7 @@ from pathlib import Path
 import pytest
 from rdflib.compare import to_isomorphic
 from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.query.version_directive import strip_version_directive
+from starlayer.graph.oxgraph.sparql_text import strip_version_directive
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_query, sqe_tree_to_text
 from tests.sparql.w3c_sparql12.harness import (
     bindings_match,
