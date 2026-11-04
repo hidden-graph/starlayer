@@ -93,3 +93,11 @@ Each step ends with the affected suites green, and the full suite at the end of 
    They meet in `graph/` and `shacl/normalization.py`; merge A first, then rebase B.
 2. **`from_rdflib` is supported; `to_rdflib` emits the basic encoding** (see section 2). `to_rdflib` is built on `interop.to_rdf11`.
 3. **The rename (D1) gets its own branch**, started only after A, B and C are merged and green. That is the safest option.
+
+## 6. Decisions (recorded 2026-11-06)
+
+- Fidelity to how the old rdflib-based `StarLayerGraph` behaved is not a goal. The Oxigraph store's literal normalisation is accepted
+  for now; revisit when an Oxigraph release fixes it (issue #190, PR #2010).
+- **Phase F (after D4):** summarise all non-spec behaviour (`non-spec-behaviour.md`, a running list) and decide per item whether to
+  address or only document it.
+- B1 is folded into D1 (see `b1-classification.md`).
