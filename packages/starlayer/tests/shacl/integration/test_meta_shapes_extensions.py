@@ -709,9 +709,9 @@ def test_stored_meta_shapes_file_matches_a_fresh_build() -> None:
     what build_meta_shapes_graph() produces. On failure, run
     scripts/build_starontology.py (an asset file or the pinned Working Group
     file was edited)."""
-    from rdflib.compare import to_isomorphic
+    from starlayer.graph import isomorphic
 
-    assert to_isomorphic(load_meta_shapes_graph()) == to_isomorphic(build_meta_shapes_graph()), (
+    assert isomorphic(load_meta_shapes_graph(), build_meta_shapes_graph()), (
         "starontology's shacl12-shacl.ttl is out of date - run scripts/build_starontology.py"
     )
 
