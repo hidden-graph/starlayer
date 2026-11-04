@@ -7,7 +7,7 @@ data. Unsupported constructs must raise, never be silently dropped.
 
 import pytest
 from rdflib import Literal, Namespace
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_query,
@@ -24,7 +24,7 @@ P = "PREFIX ex: <http://x/>\n"
 
 @pytest.fixture(scope="module")
 def data():
-    g = StarLayerGraph()
+    g = OxGraph()
     for i in range(12):
         g.add((EX[f"s{i}"], EX.p, Literal(i)))
         g.add((EX[f"s{i}"], EX.q, Literal(f"name{i % 4}")))

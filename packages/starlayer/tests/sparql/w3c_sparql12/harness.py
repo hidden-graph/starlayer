@@ -17,7 +17,7 @@ simple and documented in the SPARQL 1.2 Results JSON format, and is handled
 here recursively (a `"type": "triple"` value has its own nested
 subject/predicate/object, themselves ordinary term JSON) to build
 ``starlayer.graph.model.triple.TripleTerm`` values — the same type
-``StarLayerGraph.query()`` itself returns for a triple-term-valued binding,
+``OxGraph.query()`` itself returns for a triple-term-valued binding,
 confirmed by inspection, so comparison is apples-to-apples.
 """
 
@@ -119,7 +119,7 @@ def _canon_term(v) -> str:
     `basic-2`: `TripleTerm.n3()` (starlayer.graph/model/triple.py) falls back to
     a `_namespace_manager` remembered on the instance when no explicit one
     is passed (`_restore()` sets this so query results print with
-    prefixes) - so a TripleTerm coming back from `StarLayerGraph.query()`
+    prefixes) - so a TripleTerm coming back from `OxGraph.query()`
     renders prefixed (`<<( :a :b :c )>>`), while the "expected" side built
     fresh from the .srj file by `_parse_json_term` has no such attribute
     and renders full-IRI (`<<( <http://example/a> ... )>>`) - two

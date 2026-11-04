@@ -1,17 +1,18 @@
 """Tests for starlayer.sparql.StarQuery - binds a SPARQL query (prepared
-once) plus StarLayerGraph.query()'s own per-call options, so the same
+once) plus OxGraph.query()'s own per-call options, so the same
 query can run against several different graphs without repeating them.
 """
 
-from starlayer.graph import Namespace, StarLayerGraph
+from starlayer.graph import Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.sparql import StarQuery
 
 EX = Namespace("http://example.org/")
 
 
-def _graph(data: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(data: str) -> OxGraph:
+    g = OxGraph()
     g.bind("ex", EX)
     g.parse(data=data, format="turtle")
     return g
@@ -23,8 +24,8 @@ class TestRunsAgainstDifferentGraphs:
         g2 = _graph("@prefix ex: <http://example.org/> . ex:bob ex:worksFor ex:Globex .")
 
         q = StarQuery("SELECT ?s WHERE { ?s ex:worksFor ?o }", initNs={"ex": EX})
-        assert {str(r.s) for r in q.run(g1)} == {str(EX.alice)}
-        assert {str(r.s) for r in q.run(g2)} == {str(EX.bob)}
+        assert {r.s.value for r in q.run(g1)} == {str(EX.alice)}
+        assert {r.s.value for r in q.run(g2)} == {str(EX.bob)}
 
     def test_prepares_only_once(self):
         """The whole point - prepare_query_12 runs at construction, not on
@@ -63,14 +64,14 @@ class TestEntailmentBinding:
     def test_bound_entailment_used_by_default(self):
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
-        assert {str(r.s) for r in q.run(g)} == {str(EX.carol)}
+        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
 
     def test_per_call_override_does_not_disturb_the_bound_value(self):
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
         assert list(q.run(g, entailment=None)) == []
         # bound value still intact for the next call with no override
-        assert {str(r.s) for r in q.run(g)} == {str(EX.carol)}
+        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
 
     def test_repeated_calls_with_bound_entailment_stay_correct(self):
         """Regression guard for the real bug this class works around (see
@@ -84,14 +85,14 @@ class TestEntailmentBinding:
         once-only accidental pass too."""
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
-        assert {str(r.s) for r in q.run(g)} == {str(EX.carol)}
-        assert {str(r.s) for r in q.run(g)} == {str(EX.carol)}
+        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
+        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
 
     def test_entailment_override_to_a_different_regime(self):
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
         rows = q.run(g, entailment=ENTAILMENT["OWL-RDF-Based"])
-        assert {str(r.s) for r in rows} == {str(EX.carol)}
+        assert {r.s.value for r in rows} == {str(EX.carol)}
 
 
 class TestRunsAgainstAnOxGraph:

@@ -22,7 +22,7 @@ Three test shapes:
 2. `QueryEvaluationTest` (SELECT-shaped, `.srj` expected results) - the
    real semantic check: parse via `parse12.py` -> encode -> decode ->
    regenerate text via `serialize12.py` -> execute the *regenerated* text
-   against a real `StarLayerGraph` loaded with the test's data -> compare
+   against a real `OxGraph` loaded with the test's data -> compare
    against the suite's own official expected results (not just
    self-consistency against the original query, which the existing
    `tests/test_phase6_serialize12.py` already covers with hand-written
@@ -44,17 +44,16 @@ from __future__ import annotations
 import json
 
 import pytest
-from rdflib.compare import to_isomorphic
-from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph import isomorphic
+from starlayer.graph.oxgraph import OxDataset, OxGraph
 from starlayer.graph.oxgraph.sparql_text import strip_version_directive
+from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
 from tests.sparql.w3c_sparql12.harness import (
     bindings_match,
     load_index,
     parse_srj,
-    skolemize_graph,
 )
 
 pytestmark = pytest.mark.w3c_sparql12
@@ -86,10 +85,10 @@ def _is_update(entry) -> bool:
     return "Update" in entry.test_type
 
 
-# StarLayerGraph.parse's `format=` is not resolved via rdflib's plugin
+# OxGraph.parse's `format=` is not resolved via rdflib's plugin
 # registry for the RDF-1.2-aware formats (confirmed: 'turtle12'/'trig12'/
 # etc. aren't registered `Parser` plugins at all) - it's a bespoke dispatch
-# inside StarLayerGraph.parse itself, keyed on the literal format string,
+# inside OxGraph.parse itself, keyed on the literal format string,
 # with genuinely different parsers per RDF *syntax* (TriG's `GRAPH { }`
 # blocks are not valid Turtle). A fixture's actual syntax has to match the
 # format passed in - confirmed empirically that a real .trig fixture
@@ -116,27 +115,27 @@ def _data_format(entry) -> str:
 
 
 # A fixture's data may define named graphs (TriG/N-Quads) - those need a
-# real multi-graph StarLayerDataset, not a single StarLayerGraph (which
+# real multi-graph OxDataset, not a single OxGraph (which
 # raises "You performed a query operation requiring a dataset" the moment a
 # query uses GRAPH against data that was never loaded into any graph at all
-# - a lone StarLayerGraph has no notion of a graph name other than its own).
+# - a lone OxGraph has no notion of a graph name other than its own).
 # Same convention already used by starlayer.graph's own
 # tests/w3c_sparql12/test_w3c_sparql12_eval.py::_new_graph - this harness
-# previously always constructed a plain StarLayerGraph() regardless of the
+# previously always constructed a plain OxGraph() regardless of the
 # data file's actual format, confirmed a real, reproducible false failure
 # for every eval-triple-terms fixture backed by data-4.trig (graphs-1,
 # graphs-2, expr-1): querying a GRAPH clause against data that was silently
-# merged into one ungraphed StarLayerGraph instead of a real multi-graph
+# merged into one ungraphed OxGraph instead of a real multi-graph
 # Dataset gave wrong (usually empty) results, misattributed at the time to
 # a starlayer.graph in-memory-backend or algebra-round-trip bug - neither was at
 # fault, this harness was simply loading the data into the wrong container.
 _DATASET_FORMATS = {"trig12", "nq12"}
 
 
-def _new_graph(entry) -> StarLayerGraph | StarLayerDataset:
+def _new_graph(entry) -> OxGraph | OxDataset:
     if entry.data_file and _data_format(entry) in _DATASET_FORMATS:
-        return StarLayerDataset()
-    return StarLayerGraph()
+        return OxDataset()
+    return OxGraph()
 
 
 # Confirmed, documented W3C test-suite defect, not an implementation bug -
@@ -271,6 +270,27 @@ def test_syntax_negative(entry):
             prepare_query_12(text)
 
 
+
+def _stored_form(term):
+    """The term as Oxigraph holds it. Owner decision O1: Oxigraph's canonical lexical forms are accepted, so a result file that
+    spells a number the long way (op-2: ``"123.0"^^xsd:decimal``) is compared as the store returns it (``"123"``)."""
+    from rdflib import Literal as RdfLiteral
+    from rdflib import URIRef
+    from starlayer.graph.model.triple import TripleTerm
+
+    if isinstance(term, TripleTerm):
+        return TripleTerm(_stored_form(term.subject), _stored_form(term.predicate), _stored_form(term.object))
+    xsd = "http://www.w3.org/2001/XMLSchema#"
+    if isinstance(term, RdfLiteral) and str(term.datatype) in (xsd + "decimal", xsd + "double"):
+        # the Turtle numeric token of the same value, parsed the way the test data is
+        token = str(term) if str(term.datatype) == xsd + "decimal" else f"{term}e0"
+        graph = OxGraph()
+        graph.parse(data=f"<urn:s> <urn:p> {token} .", format="turtle")
+        stored = next(iter(graph.triples((None, None, None))))[2]
+        return RdfLiteral(stored.value, datatype=URIRef(str(term.datatype)), normalize=False)
+    return term
+
+
 @_no_data
 @pytest.mark.parametrize("entry", [_eval_select_param(e) for e in EVAL_SELECT])
 def test_eval_select(entry):
@@ -308,7 +328,7 @@ def test_eval_select(entry):
         assert starlayer_graph.query(regenerated_text).askAnswer == json.loads(result_text)["boolean"]
         return
 
-    expected = parse_srj(result_text)
+    expected = [{k: _stored_form(v) for k, v in row.items()} for row in parse_srj(result_text)]
 
     # {k: v for ... if v is not None}, not a bare dict(row): an unbound
     # variable (including one explicitly bound to UNDEF via a VALUES row -
@@ -323,7 +343,9 @@ def test_eval_select(entry):
     # Same filtering starlayer.graph's own
     # tests/w3c_sparql12/test_w3c_sparql12_eval.py::test_eval_select_original_query
     # already applies, for the identical reason.
-    actual = [{k: v for k, v in dict(row).items() if v is not None} for row in starlayer_graph.query(regenerated_text).bindings]
+    actual = [
+        {k: from_engine(v) for k, v in dict(row).items() if v is not None} for row in starlayer_graph.query(regenerated_text).bindings
+    ]
     # bindings_match, not exact canon_bindings equality: a BNode's (including
     # starlayer.graph's own anonymous reifiers, which are ordinary BNodes)
     # *label* is never semantically meaningful, only a consistent relabeling
@@ -340,7 +362,7 @@ def test_eval_construct(entry):
     query_text = entry.read(entry.query_file)
     # A plain rdflib.Graph().parse(format="turtle") can't handle RDF 1.2
     # syntax (confirmed: "turtle12" isn't a registered rdflib plugin at
-    # all - StarLayerGraph.parse's format= dispatch is bespoke, per
+    # all - OxGraph.parse's format= dispatch is bespoke, per
     # _data_format's own docstring) - and a CONSTRUCT test's *expected*
     # result file can genuinely contain RDF 1.2 annotation syntax (e.g.
     # construct-1.ttl: "<< :a :b :c >> :q :z ."), not just the CONSTRUCTed
@@ -348,7 +370,7 @@ def test_eval_construct(entry):
     # direct reproduction: plain "turtle" raised a BadSyntax error on
     # exactly that file, unrelated to anything this project's own
     # translation produces.
-    expected_graph = StarLayerGraph()
+    expected_graph = OxGraph()
     expected_graph.parse(data=entry.read(entry.result_file), format="turtle12")
 
     starlayer_graph = _new_graph(entry)
@@ -363,7 +385,7 @@ def test_eval_construct(entry):
     regenerated_text = _translate_algebra_12(reconstructed)
 
     actual_graph = starlayer_graph.query(regenerated_text).graph
-    assert to_isomorphic(skolemize_graph(actual_graph)) == to_isomorphic(skolemize_graph(expected_graph))
+    assert isomorphic(actual_graph, expected_graph)
 
 
 @_no_data

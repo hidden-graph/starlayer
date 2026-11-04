@@ -25,38 +25,30 @@ caught two real bugs this exact shape of gap would otherwise hide.
 
 from __future__ import annotations
 
-from rdflib import Literal
+import pyoxigraph as ox
 from rdflib.namespace import RDF, XSD
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.model.dirlangstring import DirLangString
-from starlayer.sparql.lower_rdf11 import (
-    RDF_DIRLANGSTRING,
-    query_to_rdf11,
-    rdf11_to_query,
-)
-from starlayer.sparql.parse12 import prepare_query_12
+from starlayer.graph.oxgraph import OxGraph
+
+XSD_INTEGER = ox.NamedNode(str(XSD.integer))
+XSD_BOOLEAN = ox.NamedNode(str(XSD.boolean))
+
+
+def dls(text: str, lang: str, direction: str) -> ox.Literal:
+    return ox.Literal(text, language=lang, direction=ox.BaseDirection.LTR if direction == "ltr" else ox.BaseDirection.RTL)
 
 
 def _ask(query_text: str) -> bool:
-    graph = StarLayerGraph()
-    prepared = prepare_query_12(query_text)
-    rdf_graph, root = query_to_rdf11(prepared)
-    query_object = rdf11_to_query(rdf_graph, root)
-    return graph.query(query_object).askAnswer
+    return OxGraph().query(query_text).askAnswer
 
 
 def _select_one(query_text: str):
     """Run a `SELECT (... AS ?v) WHERE {}`-shaped query, return ?v's value
     (None if unbound) from the one expected result row."""
-    graph = StarLayerGraph()
-    prepared = prepare_query_12(query_text)
-    rdf_graph, root = query_to_rdf11(prepared)
-    query_object = rdf11_to_query(rdf_graph, root)
-    rows = list(graph.query(query_object).bindings)
+    rows = list(OxGraph().query(query_text).bindings)
     assert len(rows) == 1
     row = dict(rows[0])
-    assert len(row) == 1
-    return next(iter(row.values()))
+    assert len(row) <= 1
+    return next(iter(row.values()), None)
 
 
 class TestArgumentCompatibilityAndPropagation:
@@ -93,35 +85,35 @@ class TestArgumentCompatibilityAndPropagation:
 
     def test_strbefore_propagates_dirlangstring_kind_on_match(self):
         result = _select_one('SELECT (STRBEFORE("abcd"@en--ltr, "cd"@en--ltr) AS ?v) WHERE {}')
-        assert result == DirLangString("ab", "en", "ltr")
+        assert result == dls("ab", "en", "ltr")
 
     def test_strbefore_no_match_is_plain_empty_literal_not_same_kind(self):
         result = _select_one('SELECT (STRBEFORE("abc"@en--ltr, "xyz"@en--ltr) AS ?v) WHERE {}')
-        assert result == Literal("") and result.datatype is None and result.language is None
+        assert result == ox.Literal("")
 
     def test_strafter_propagates_dirlangstring_kind_on_match(self):
         result = _select_one('SELECT (STRAFTER("abcd"@en--ltr, "ab"@en--ltr) AS ?v) WHERE {}')
-        assert result == DirLangString("cd", "en", "ltr")
+        assert result == dls("cd", "en", "ltr")
 
     def test_substr_propagates_dirlangstring_kind(self):
         result = _select_one('SELECT (SUBSTR("foobar"@en--ltr, 4, 1) AS ?v) WHERE {}')
-        assert result == DirLangString("b", "en", "ltr")
+        assert result == dls("b", "en", "ltr")
 
     def test_substr_two_arg_form_without_length(self):
         result = _select_one('SELECT (SUBSTR("foobar", 4) AS ?v) WHERE {}')
-        assert result == Literal("bar")
+        assert result == ox.Literal("bar")
 
     def test_ucase_propagates_dirlangstring_kind(self):
         result = _select_one('SELECT (UCASE("foo"@en--ltr) AS ?v) WHERE {}')
-        assert result == DirLangString("FOO", "en", "ltr")
+        assert result == dls("FOO", "en", "ltr")
 
     def test_lcase_propagates_langstring_kind(self):
         result = _select_one('SELECT (LCASE("BAR"@en) AS ?v) WHERE {}')
-        assert result == Literal("bar", lang="en")
+        assert result == ox.Literal("bar", language="en")
 
     def test_strlen_of_dirlangstring_counts_codepoints_not_the_tag(self):
         result = _select_one('SELECT (STRLEN("chat"@en--ltr) AS ?v) WHERE {}')
-        assert result == Literal(4)
+        assert result == ox.Literal("4", datatype=XSD_INTEGER)
 
 
 class TestConcat:
@@ -131,31 +123,31 @@ class TestConcat:
 
     def test_zero_args_is_plain_empty_string(self):
         result = _select_one("SELECT (CONCAT() AS ?v) WHERE {}")
-        assert result == Literal("") and result.datatype is None
+        assert result == ox.Literal("")
 
     def test_one_dirlangstring_arg_is_unchanged(self):
         result = _select_one('SELECT (CONCAT("abc"@en--ltr) AS ?v) WHERE {}')
-        assert result == DirLangString("abc", "en", "ltr")
+        assert result == dls("abc", "en", "ltr")
 
     def test_same_lang_and_dir_propagates_dirlangstring(self):
         result = _select_one('SELECT (CONCAT("a"@en--ltr, "b"@en--ltr) AS ?v) WHERE {}')
-        assert result == DirLangString("ab", "en", "ltr")
+        assert result == dls("ab", "en", "ltr")
 
     def test_same_lang_different_dir_falls_back_to_plain(self):
         result = _select_one('SELECT (CONCAT("a"@en--ltr, "b"@en--rtl) AS ?v) WHERE {}')
-        assert result == Literal("ab") and result.datatype is None and result.language is None
+        assert result == ox.Literal("ab")
 
     def test_same_lang_one_undirected_falls_back_to_plain(self):
         result = _select_one('SELECT (CONCAT("a"@en--ltr, "b"@en) AS ?v) WHERE {}')
-        assert result == Literal("ab") and result.datatype is None
+        assert result == ox.Literal("ab")
 
     def test_same_lang_no_dir_at_all_propagates_langstring(self):
         result = _select_one('SELECT (CONCAT("a"@en, "b"@en) AS ?v) WHERE {}')
-        assert result == Literal("ab", lang="en")
+        assert result == ox.Literal("ab", language="en")
 
     def test_different_lang_falls_back_to_plain(self):
         result = _select_one('SELECT (CONCAT("a"@en--ltr, "b"@fr--ltr) AS ?v) WHERE {}')
-        assert result == Literal("ab") and result.datatype is None
+        assert result == ox.Literal("ab")
 
     def test_rejects_non_string_literal_argument(self):
         assert _select_one("SELECT (CONCAT(1, \"a\") AS ?v) WHERE {}") is None
@@ -174,15 +166,15 @@ class TestRegexReplaceEncodeForUri:
 
     def test_replace_propagates_dirlangstring_kind(self):
         result = _select_one('SELECT (REPLACE("abcd"@en--ltr, "b", "Z") AS ?v) WHERE {}')
-        assert result == DirLangString("aZcd", "en", "ltr")
+        assert result == dls("aZcd", "en", "ltr")
 
     def test_replace_with_flags_still_works(self):
         result = _select_one('SELECT (REPLACE("abab", "B", "Z", "i") AS ?v) WHERE {}')
-        assert result == Literal("aZaZ")
+        assert result == ox.Literal("aZaZ")
 
     def test_encode_for_uri_of_dirlangstring_is_plain_xsd_string(self):
         result = _select_one('SELECT (ENCODE_FOR_URI("a b"@en--ltr) AS ?v) WHERE {}')
-        assert result == Literal("a%20b")
+        assert result == ox.Literal("a%20b")
 
 
 class TestDatatypeUcaseOfDirLangString:
@@ -190,13 +182,13 @@ class TestDatatypeUcaseOfDirLangString:
         # The original bug: this leaked starlayer.graph's own internal
         # dirlang: encoding IRI instead of the real rdf:dirLangString.
         result = _select_one('SELECT (DATATYPE("abc"@en--ltr) AS ?v) WHERE {}')
-        assert result == RDF_DIRLANGSTRING
+        assert result == ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString")
 
     def test_datatype_of_plain_literal_unaffected(self):
-        assert _select_one('SELECT (DATATYPE("abc") AS ?v) WHERE {}') == XSD.string
+        assert _select_one('SELECT (DATATYPE("abc") AS ?v) WHERE {}') == ox.NamedNode(str(XSD.string))
 
     def test_datatype_of_langstring_unaffected(self):
-        assert _select_one('SELECT (DATATYPE("abc"@en) AS ?v) WHERE {}') == RDF.langString
+        assert _select_one('SELECT (DATATYPE("abc"@en) AS ?v) WHERE {}') == ox.NamedNode(str(RDF.langString))
 
 
 class TestHasLangAndHasLangdirOnNonLiterals:
@@ -208,13 +200,13 @@ class TestHasLangAndHasLangdirOnNonLiterals:
     was propagating all the way up uncaught."""
 
     def test_haslang_of_iri_is_false_not_unbound(self):
-        assert _select_one("SELECT (hasLANG(<http://example/>) AS ?v) WHERE {}") == Literal(False)
+        assert _select_one("SELECT (hasLANG(<http://example/>) AS ?v) WHERE {}") == ox.Literal("false", datatype=XSD_BOOLEAN)
 
     def test_haslangdir_of_iri_is_false_not_unbound(self):
-        assert _select_one("SELECT (hasLANGDIR(<http://example/>) AS ?v) WHERE {}") == Literal(False)
+        assert _select_one("SELECT (hasLANGDIR(<http://example/>) AS ?v) WHERE {}") == ox.Literal("false", datatype=XSD_BOOLEAN)
 
     def test_haslang_of_dirlangstring_is_still_true(self):
-        assert _select_one('SELECT (hasLANG("abc"@en--ltr) AS ?v) WHERE {}') == Literal(True)
+        assert _select_one('SELECT (hasLANG("abc"@en--ltr) AS ?v) WHERE {}') == ox.Literal("true", datatype=XSD_BOOLEAN)
 
     def test_langdir_of_iri_still_errors(self):
         # Confirms the COALESCE-based fix above is scoped to hasLANG/
@@ -242,4 +234,4 @@ class TestStrlangdirValidation:
 
     def test_accepts_valid_args_and_lowercases_language(self):
         result = _select_one('SELECT (STRLANGDIR("abc", "EN", "ltr") AS ?v) WHERE {}')
-        assert result == DirLangString("abc", "en", "ltr")
+        assert result == dls("abc", "en", "ltr")

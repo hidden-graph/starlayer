@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 from rdflib.compare import to_isomorphic
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.graph.oxgraph.sparql_text import strip_version_directive
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_query, sqe_tree_to_text
 from tests.sparql.w3c_sparql12.harness import (
@@ -75,7 +75,7 @@ def run_entry(entry) -> None:
         data.parse(data=entry.read(entry.data_file), format=_data_format(entry))
     result_text = entry.read(entry.result_file)
     if entry.result_file.endswith(".ttl"):
-        expected = StarLayerGraph()
+        expected = OxGraph()
         expected.parse(data=result_text, format="turtle12")
         actual = data.query(regenerated).graph
         assert to_isomorphic(skolemize_graph(actual)) == to_isomorphic(skolemize_graph(expected))

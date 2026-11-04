@@ -5,7 +5,8 @@ from __future__ import annotations
 
 import pytest
 from rdflib import BNode, URIRef, Variable
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
+from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
 
@@ -18,7 +19,7 @@ def _u(local):
 
 
 def _base():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(
         data=f"""@prefix ex: <{EX}> .
         ex:frontend ex:dependsOn ex:app . ex:app ex:dependsOn ex:db . ex:db ex:hasVulnerability ex:vuln1 .""",
@@ -28,7 +29,7 @@ def _base():
 
 
 def _inferred(rule_text):
-    return {tuple(t) for t in parse_ruleset(P + rule_text).infer(_base())}
+    return {tuple(from_engine(x) for x in t) for t in parse_ruleset(P + rule_text).infer(_base())}
 
 
 def test_a_sequence_path_is_expanded_into_two_triple_patterns_joined_by_a_blank_node():
