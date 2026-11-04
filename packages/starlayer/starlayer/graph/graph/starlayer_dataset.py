@@ -565,7 +565,10 @@ class StarLayerDataset(Dataset):
 
         # rdflib's names for the multi-graph formats go through this class's own parsers: rdflib's per-context
         # delegation hands StarLayerGraph.parse() an already-wrapped source it cannot read (GitHub issue #99).
-        from starlayer.graph.graph.starlayer_graph import _faithful_parse_format, _reject_trix
+        from starlayer.graph.graph.starlayer_graph import (
+            _faithful_parse_format,
+            _reject_trix,
+        )
         _reject_trix(format)
         format = _faithful_parse_format(format, source, location, file, data)  # turtle/nt/nquads/trig: the faithful parsers
         format = {'trig': 'trig12', 'nquads': 'nq12', 'nq': 'nq12', 'application/n-quads': 'nq12',
