@@ -173,3 +173,20 @@ here. The cause is the same: the literal differs only in namespace declarations 
 Consequence for users: two XMLLiterals that are equal under exclusive canonicalisation can be different terms after an RDF/XML
 parse, depending on the declarations in scope at the point of the literal. No workaround in the wrapper (it would mean
 re-canonicalising XML on every RDF/XML parse).
+
+## 5. A default graph built from several graphs is not a set: duplicates are counted
+
+Project note, not for posting. Checked 2026-11-05 on pyoxigraph 0.5.13 with one triple stored in two named graphs:
+
+| Query | Result | Expected (SPARQL 1.1, 13.2: several `FROM` graphs form the RDF merge, a set) |
+|---|---|---|
+| `SELECT (COUNT(*) ...) FROM <g1> FROM <g2> WHERE { ?s ?p ?o }` | 2 | 1 |
+| same with `default_graph=[g1, g2]` | 2 | 1 |
+| same with `use_default_graph_as_union=True` | 2 | 1 |
+| `SELECT ?s ?p ?o` (no DISTINCT), union default | one row per graph | one row |
+| `Store.quads_for_pattern(s, p, o, None)` / `len(store)` | quads (3 with a copy in the default graph) | quads: correct for a quad store |
+
+An RDF graph is a set, so the merge of two graphs holding the same triple holds it once; counts, aggregates and non-DISTINCT
+SELECTs over a union default graph are wrong. Our wrapper's `len`, `triples` and `iter` already deduplicate; SPARQL run through
+the wrapper does not. In the code-KG data this is 373 duplicate triples (`starlayer_kg.load()`).
+Handling in this project: see the union work on branch `mig-union-fixes` (decided 2026-11-05: fix in the wrapper, not document-only).
