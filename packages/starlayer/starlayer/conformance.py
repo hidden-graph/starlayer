@@ -121,20 +121,40 @@ what they'll actually run.
 
 from __future__ import annotations
 
-from rdflib import Graph, Namespace, URIRef
+from typing import Any
 
-DCTERMS = Namespace("http://purl.org/dc/terms/")
+import pyoxigraph as ox
 
-CONFORMANCE = Namespace("https://github.com/hidden-graph/starlayer/ns/conformance#")
+from starlayer.shacl_engine.graphs import new_graph
+
+
+class _Namespace:
+    """``NS.name`` / ``NS["name"]`` give a pyoxigraph ``NamedNode`` in the namespace."""
+
+    def __init__(self, base: str) -> None:
+        self._base = base
+
+    def __getattr__(self, name: str) -> ox.NamedNode:
+        if name.startswith("__"):
+            raise AttributeError(name)
+        return ox.NamedNode(self._base + name)
+
+    def __getitem__(self, name: str) -> ox.NamedNode:
+        return ox.NamedNode(self._base + name)
+
+
+DCTERMS = _Namespace("http://purl.org/dc/terms/")
+
+CONFORMANCE = _Namespace("https://github.com/hidden-graph/starlayer/ns/conformance#")
 DOES_NOT_CONFORM_TO = CONFORMANCE.doesNotConformTo
 
 _PKG = "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/"
-GRAPH_SUBJECT = URIRef(_PKG + "graph")
-SPARQL_SUBJECT = URIRef(_PKG + "sparql")
-SHACL_SUBJECT = URIRef(_PKG + "shacl")
+GRAPH_SUBJECT = ox.NamedNode(_PKG + "graph")
+SPARQL_SUBJECT = ox.NamedNode(_PKG + "sparql")
+SHACL_SUBJECT = ox.NamedNode(_PKG + "shacl")
 
 
-def declared_conformance() -> Graph:
+def declared_conformance() -> Any:
     """starlayer's own multi-resource self-declared conformance statement -
     one graph containing three real, individually-identified resources
     (``starlayer.graph``, ``starlayer.sparql``, ``starlayer.shacl``), each
@@ -148,10 +168,7 @@ def declared_conformance() -> Graph:
     from starlayer import starontology
 
     whole = starontology.get_conformance_profiles()
-    graph = Graph()
-    for prefix, namespace in whole.namespaces():
-        graph.bind(prefix, namespace)
+    graph = new_graph(whole)
     for subject in (GRAPH_SUBJECT, SPARQL_SUBJECT, SHACL_SUBJECT):
-        for triple in whole.triples((subject, None, None)):
-            graph.add(triple)
+        graph.extend(list(whole.triples((subject, None, None))))
     return graph

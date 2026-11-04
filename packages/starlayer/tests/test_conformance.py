@@ -9,34 +9,34 @@ explicit conformance:doesNotConformTo triple (project-minted, no standard
 predicate exists) rather than only prose - see this module's own
 docstring for exactly which two cases qualify and why the rest don't."""
 
-from rdflib import URIRef
-from rdflib.namespace import RDFS
+import pyoxigraph as ox
 from starlayer import conformance
 
 DCTERMS = conformance.DCTERMS
+RDFS = conformance._Namespace("http://www.w3.org/2000/01/rdf-schema#")
 
 _SHACL_SUBJECT = conformance.SHACL_SUBJECT
 
 _EXPECTED_SHACL_CLAIMS = {
-    URIRef("https://www.w3.org/TR/shacl12-ui"),
-    URIRef("http://www.w3.org/ns/shacl/profile/core"),
-    URIRef("http://www.w3.org/ns/shacl/profile/sparql"),
-    URIRef("http://www.w3.org/ns/shacl/profile/node-expr"),
-    URIRef("http://www.w3.org/ns/shacl/profile/rules"),
-    URIRef("http://www.w3.org/ns/shacl/profile/profiling"),
+    ox.NamedNode("https://www.w3.org/TR/shacl12-ui"),
+    ox.NamedNode("http://www.w3.org/ns/shacl/profile/core"),
+    ox.NamedNode("http://www.w3.org/ns/shacl/profile/sparql"),
+    ox.NamedNode("http://www.w3.org/ns/shacl/profile/node-expr"),
+    ox.NamedNode("http://www.w3.org/ns/shacl/profile/rules"),
+    ox.NamedNode("http://www.w3.org/ns/shacl/profile/profiling"),
 }
 _EXPECTED_RDF12_CORE = {
-    URIRef(f"https://www.w3.org/TR/{name}")
+    ox.NamedNode(f"https://www.w3.org/TR/{name}")
     for name in ("rdf12-concepts", "rdf12-schema", "rdf12-turtle", "rdf12-n-triples", "rdf12-xml")
 }
-_EXPECTED_SPARQL12 = {URIRef(f"https://www.w3.org/TR/{name}") for name in ("sparql12-query", "sparql12-update")}
-_EXPECTED_GRAPH_EXTRA = {URIRef(f"https://www.w3.org/TR/{name}") for name in ("rdf-canon", "sparql12-protocol")}
-_EXPECTED_SPARQL_EXTRA = {URIRef("https://www.w3.org/TR/sparql12-rl")}
+_EXPECTED_SPARQL12 = {ox.NamedNode(f"https://www.w3.org/TR/{name}") for name in ("sparql12-query", "sparql12-update")}
+_EXPECTED_GRAPH_EXTRA = {ox.NamedNode(f"https://www.w3.org/TR/{name}") for name in ("rdf-canon", "sparql12-protocol")}
+_EXPECTED_SPARQL_EXTRA = {ox.NamedNode("https://www.w3.org/TR/sparql12-rl")}
 _EXPECTED_ENTAILMENT_REGIMES = {
-    URIRef("http://www.w3.org/ns/entailment/RDF"),
-    URIRef("http://www.w3.org/ns/entailment/RDFS"),
-    URIRef("http://www.w3.org/ns/entailment/OWL-RDF-Based"),
-    URIRef("http://www.w3.org/ns/entailment/OWL-Direct"),
+    ox.NamedNode("http://www.w3.org/ns/entailment/RDF"),
+    ox.NamedNode("http://www.w3.org/ns/entailment/RDFS"),
+    ox.NamedNode("http://www.w3.org/ns/entailment/OWL-RDF-Based"),
+    ox.NamedNode("http://www.w3.org/ns/entailment/OWL-Direct"),
 }
 _EXPECTED_GRAPH = _EXPECTED_RDF12_CORE | _EXPECTED_GRAPH_EXTRA | _EXPECTED_ENTAILMENT_REGIMES
 _EXPECTED_SPARQL = _EXPECTED_SPARQL12 | _EXPECTED_SPARQL_EXTRA
@@ -70,11 +70,11 @@ def test_entailment_regimes_are_individual_iris_not_the_whole_document() -> None
     graph = conformance.declared_conformance()
     claimed = set(graph.objects(conformance.GRAPH_SUBJECT, DCTERMS.conformsTo))
 
-    claimed_regimes = {c for c in claimed if str(c).startswith("http://www.w3.org/ns/entailment/")}
-    assert claimed_regimes == set(SUPPORTED_REGIMES)
-    assert not any(True for _ in graph.triples((None, DCTERMS.conformsTo, URIRef("https://www.w3.org/TR/sparql12-entailment"))))
+    claimed_regimes = {c for c in claimed if c.value.startswith("http://www.w3.org/ns/entailment/")}
+    assert claimed_regimes == {ox.NamedNode(str(r)) for r in SUPPORTED_REGIMES}  # str-ok: SUPPORTED_REGIMES holds rdflib IRIs
+    assert not any(True for _ in graph.triples((None, DCTERMS.conformsTo, ox.NamedNode("https://www.w3.org/TR/sparql12-entailment"))))
     # the known-but-unsupported D regime must never appear
-    assert URIRef("http://www.w3.org/ns/entailment/D") not in claimed
+    assert ox.NamedNode("http://www.w3.org/ns/entailment/D") not in claimed
 
 
 def test_claims_stay_on_their_own_resource_not_cross_contaminated() -> None:
@@ -125,7 +125,7 @@ def test_ui_specification_is_claimed_with_its_scope_limits_stated() -> None:
     """SHACL 1.2 User Interfaces is claimed (not the UI Profile, which is a
     different document); the resource's comments state what is not covered."""
     graph = conformance.declared_conformance()
-    assert (_SHACL_SUBJECT, DCTERMS.conformsTo, URIRef("https://www.w3.org/TR/shacl12-ui")) in graph
+    assert (_SHACL_SUBJECT, DCTERMS.conformsTo, ox.NamedNode("https://www.w3.org/TR/shacl12-ui")) in graph
     comments = " ".join(str(c) for c in graph.objects(_SHACL_SUBJECT, RDFS.comment))
     assert "propertyRole" in comments and "scoring catalog" in comments
 
@@ -135,7 +135,7 @@ def test_shacl_resource_neither_claims_nor_excludes_the_ui_profile() -> None:
     conformance requirements, so there is nothing to claim or exclude; the
     resource's comment says so instead."""
     graph = conformance.declared_conformance()
-    ui = URIRef("http://www.w3.org/ns/shacl/profile/ui")
+    ui = ox.NamedNode("http://www.w3.org/ns/shacl/profile/ui")
     assert (_SHACL_SUBJECT, conformance.DOES_NOT_CONFORM_TO, ui) not in graph
     assert (_SHACL_SUBJECT, DCTERMS.conformsTo, ui) not in graph
 
@@ -145,7 +145,7 @@ def test_graph_resource_does_not_conform_to_d_entailment_explicitly() -> None:
     assert (
         conformance.GRAPH_SUBJECT,
         conformance.DOES_NOT_CONFORM_TO,
-        URIRef("http://www.w3.org/ns/entailment/D"),
+        ox.NamedNode("http://www.w3.org/ns/entailment/D"),
     ) in graph
 
 
