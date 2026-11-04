@@ -52,12 +52,20 @@ from __future__ import annotations
 # expectation with no basis in SECONDS()'s own spec, left unpatched
 # deliberately (see its own entry below for why).
 
+# Entries that fail only because of an Oxigraph bug (minimal pyoxigraph reproduction and write-up: docs/working/oxigraph-upstream-issues.md,
+# issue 1). They are strict xfails: the test runs, a failure is expected, and a pass (the bug fixed upstream) fails the run
+# so the entry is removed. Applied to the stores that run queries on Oxigraph.
+OXIGRAPH_ZERO_LENGTH_PATH = (
+    "Oxigraph returns no solution for a zero-length property path (`*` or `?`) whose end is a constant that is not a node of "
+    "the graph, e.g. `?p rdfs:subPropertyOf* rdfs:label`; SPARQL 1.1 (18.5, ZeroLengthPath) requires it to match the constant. "
+    "The function body of this fixture runs exactly that query, so the label count is 0 instead of 2. "
+    "docs/working/oxigraph-upstream-issues.md, issue 1."
+)
+OXIGRAPH_QUERY_BUGS: dict[str, str] = {
+    "tests/sparql/functions/langLabelCount-example::langLabelCount-example": OXIGRAPH_ZERO_LENGTH_PATH,
+}
+
 KNOWN_FAILURES: dict[str, str] = {
-    "tests/sparql/functions/langLabelCount-example::langLabelCount-example": (
-        "The function body runs `?predicate rdfs:subPropertyOf* rdfs:label` with the object a constant that is not a node of the graph. "
-        "SPARQL 1.1 (zero-length path) gives ?predicate = rdfs:label; Oxigraph, which now runs every SHACL query, returns no solution, so the "
-        "label count is 0. An Oxigraph path-evaluation difference, not an engine one."
-    ),
     "tests/sparql/pre-binding/unsupported-sparql-002::unsupported-sparql-002": (
         "The fixture expects a failure for `VALUES ?any { true }`. SHACL 1.2 SPARQL Appendix A: \"SPARQL queries MUST not contain a "
         "VALUES clause that mentions any potentially pre-bound variable\"; ?any is not pre-bound, so the query is allowed and the "
@@ -119,8 +127,8 @@ KNOWN_FAILURES_OXIGRAPH_STORE: dict[str, str] = {
 # The other Oxigraph stores run the same engine, so they share the literal-
 # normalization failures; anything beyond that is added below with its own
 # reason, once observed.
-KNOWN_FAILURES_OXIGRAPH_PERSISTED: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_STORE}
-KNOWN_FAILURES_OXIGRAPH_HTTP: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_STORE}
+KNOWN_FAILURES_OXIGRAPH_PERSISTED: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_STORE, **OXIGRAPH_QUERY_BUGS}
+KNOWN_FAILURES_OXIGRAPH_HTTP: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_STORE, **OXIGRAPH_QUERY_BUGS}
 _FUSEKI_LITERAL_NORMALIZATION = (
     "Apache Jena (Fuseki 6.1.0) also rewrites literals when it stores them - this fixture's data holds "
     "values whose lexical form does not survive (e.g. \"1\"^^xsd:boolean becomes \"true\", \"04\"^^xsd:integer "

@@ -10,7 +10,7 @@ from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expre
 from starlayer.shacl_engine.paths import eval_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
 from starlayer.shacl_engine.targets import focus_nodes
-from starlayer.shacl_engine.terms import engine_view
+from starlayer.shacl_engine.terms import engine_view, unmask
 
 
 @dataclass(frozen=True)
@@ -220,7 +220,7 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
                     component=v.component or spec.iri,
                     shape=shape.node,
                     severity=v.severity or severity,
-                    messages=v.messages or shape.messages or ((v.message,) if v.message else ()),
+                    messages=v.messages or shape.messages or ((unmask(v.message),) if v.message else ()),
                     source_constraint=v.source_constraint,
                     annotations=v.annotations,
                     details=v.details,

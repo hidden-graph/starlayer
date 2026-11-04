@@ -19,9 +19,10 @@ from __future__ import annotations
 
 import contextlib
 import contextvars
+import re
 from collections.abc import Iterator
 from typing import Any
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 
 import pyoxigraph as ox
 
@@ -106,6 +107,17 @@ def text(term: Any) -> str:
     return str(term)  # str-ok: a plain value (str, int) that is not a term
 
 
+_STAND_IN_IRI = re.compile(r"urn:starlayer:invalid-iri:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)")  # see ``_INVALID_IRI_PREFIX``
+
+
+def unmask(message: str) -> str:
+    """``message`` with every lenient-mode stand-in IRI (``urn:starlayer:invalid-iri:...``) replaced by the original term text,
+    so a message or a report text shows the term the user wrote. Text, not terms: the report graph keeps the stand-ins."""
+    if "urn:starlayer:invalid-iri:" not in message:
+        return message
+    return _STAND_IN_IRI.sub(lambda m: unquote(m.group(1)), message)
+
+
 def local_name(iri: ox.NamedNode) -> str:
     v = iri.value
     return v.rsplit("#", 1)[-1] if "#" in v else v.rsplit("/", 1)[-1]
@@ -164,7 +176,8 @@ class TermError(ValueError):
     once: every entry point scans its data and shapes graphs before validating and raises ``TermError`` naming the
     offending terms and where they are. ``term_policy("lenient")`` (or ``invalid_terms="lenient"`` on an entry point) opts
     in to processing anyway: each such term becomes an opaque stand-in that is mapped back to the original rdflib term in
-    every result and report, and the list of them is on ``Outcome.invalid_terms``. In lenient mode an ill-formed IRI is
+    every result and report (the report graph and ``Result`` terms hold the stand-in IRIs; ``Outcome.report_text`` and the result
+    messages show the original text, see ``unmask``), and the list of them is on ``Outcome.invalid_terms``. In lenient mode an ill-formed IRI is
     still an IRI (``sh:nodeKind sh:IRI`` holds, ``sh:IRI`` is what rdflib says too) but its text is the stand-in
     ``urn:starlayer:invalid-iri:<percent-encoded original>``, so text-based constraints (``sh:pattern``, ``sh:minLength``,
     ``sh:uniqueLang`` ...) see that text; a literal with a malformed language tag is a literal whose datatype is

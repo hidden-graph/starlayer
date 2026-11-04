@@ -17,6 +17,7 @@ from .ids import portable_id  # noqa: E402
 from .known_failures import (  # noqa: E402
     KNOWN_FAILURES,
     KNOWN_FAILURES_OXIGRAPH_STORE,
+    OXIGRAPH_QUERY_BUGS,
     STORE_NORMALIZATION,
 )
 from .manifest import (  # noqa: E402
@@ -88,8 +89,15 @@ def _conformance_disallows_kwargs(expected_graph: StarLayerGraph, expected_repor
     return {}
 
 
-def _check_validate(entry: ManifestEntry, new_graph, known_failures) -> None:
+def _check_validate(entry: ManifestEntry, new_graph, known_failures, strict_bugs: dict[str, str] | None = None) -> None:
+    """``strict_bugs`` entries run and must fail (an Oxigraph bug); a pass fails the run so the entry gets removed."""
     entry_key = portable_id(entry, VENDOR_ROOT)
+    if strict_bugs and entry_key in strict_bugs:
+        try:
+            _check_validate(entry, new_graph, {})
+        except AssertionError:
+            pytest.xfail(strict_bugs[entry_key])
+        pytest.fail(f"{entry_key} now passes: the Oxigraph bug is fixed, remove it from OXIGRAPH_QUERY_BUGS")
     if entry_key in known_failures:
         pytest.xfail(known_failures[entry_key])
     if entry_key in STORE_NORMALIZATION:
@@ -150,7 +158,7 @@ def _check_validate(entry: ManifestEntry, new_graph, known_failures) -> None:
 
 
 def test_w3c_validate(entry: ManifestEntry) -> None:
-    _check_validate(entry, StarLayerGraph, KNOWN_FAILURES)
+    _check_validate(entry, StarLayerGraph, KNOWN_FAILURES, OXIGRAPH_QUERY_BUGS)
 
 
 @pytest.mark.store_matrix
@@ -158,7 +166,7 @@ def test_w3c_validate(entry: ManifestEntry) -> None:
 def test_w3c_validate_oxigraph_store(entry: ManifestEntry) -> None:
     """The same fixtures with data and shapes graphs held in an in-process
     Oxigraph (rdf-1.2 native mode) instead of the in-memory default."""
-    _check_validate(entry, oxigraph_store_graph, {**KNOWN_FAILURES, **KNOWN_FAILURES_OXIGRAPH_STORE})
+    _check_validate(entry, oxigraph_store_graph, {**KNOWN_FAILURES, **KNOWN_FAILURES_OXIGRAPH_STORE}, OXIGRAPH_QUERY_BUGS)
 
 
 @pytest.mark.store_matrix
