@@ -126,26 +126,12 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.shacl_engine.graphs import new_graph
+from starlayer.shacl_engine.terms import NS
 
 
-class _Namespace:
-    """``NS.name`` / ``NS["name"]`` give a pyoxigraph ``NamedNode`` in the namespace."""
+DCTERMS = NS("http://purl.org/dc/terms/")
 
-    def __init__(self, base: str) -> None:
-        self._base = base
-
-    def __getattr__(self, name: str) -> ox.NamedNode:
-        if name.startswith("__"):
-            raise AttributeError(name)
-        return ox.NamedNode(self._base + name)
-
-    def __getitem__(self, name: str) -> ox.NamedNode:
-        return ox.NamedNode(self._base + name)
-
-
-DCTERMS = _Namespace("http://purl.org/dc/terms/")
-
-CONFORMANCE = _Namespace("https://github.com/hidden-graph/starlayer/ns/conformance#")
+CONFORMANCE = NS("https://github.com/hidden-graph/starlayer/ns/conformance#")
 DOES_NOT_CONFORM_TO = CONFORMANCE.doesNotConformTo
 
 _PKG = "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/"

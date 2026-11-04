@@ -361,7 +361,8 @@ manch:DocumentShape a sh:NodeShape ;
 
 manch:ExactShape a sh:NodeShape ;
     sh:property [
-        sh:datatype xsd:nonNegativeInteger ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:path manch:cardinality
@@ -484,7 +485,8 @@ manch:InverseShape a sh:NodeShape ;
 
 manch:MaxShape a sh:NodeShape ;
     sh:property [
-        sh:datatype xsd:nonNegativeInteger ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:path manch:cardinality
@@ -502,7 +504,8 @@ manch:MaxShape a sh:NodeShape ;
 
 manch:MinShape a sh:NodeShape ;
     sh:property [
-        sh:datatype xsd:nonNegativeInteger ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:path manch:cardinality
@@ -894,7 +897,8 @@ manch:DOnlyShape a sh:NodeShape ;
 
 manch:DMinShape a sh:NodeShape ;
     sh:property [
-        sh:datatype xsd:nonNegativeInteger ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:path manch:cardinality
@@ -913,7 +917,8 @@ manch:DMinShape a sh:NodeShape ;
 
 manch:DMaxShape a sh:NodeShape ;
     sh:property [
-        sh:datatype xsd:nonNegativeInteger ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:path manch:cardinality
@@ -932,7 +937,8 @@ manch:DMaxShape a sh:NodeShape ;
 
 manch:DExactShape a sh:NodeShape ;
     sh:property [
-        sh:datatype xsd:nonNegativeInteger ;
+        sh:datatype xsd:integer ;
+        sh:minInclusive 0 ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:path manch:cardinality

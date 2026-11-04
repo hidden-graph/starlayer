@@ -1129,12 +1129,21 @@ def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
     return owl_graph
 
 
+def _vocabulary_snapshot() -> Any:
+    """The ``manch:`` OWL vocabulary as an rdflib snapshot: the pre-flight below reads rdflib terms, and
+    ``get_ontology_graph`` returns an ``OxGraph``."""
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+
+    (snapshot,) = _ox.read_boundary(get_ontology_graph("manchester_owl"))
+    return snapshot
+
+
 def _concrete_classes() -> frozenset:
     """The ``manch:`` classes that have no subclass: the only types a tree node may be *asserted* with
     (abstract ones such as ``manch:Frame`` exist to dispatch shapes, and are inferred)."""
     from rdflib.namespace import OWL, RDFS
 
-    onto = get_ontology_graph("manchester_owl")
+    onto = _vocabulary_snapshot()
     classes = {
         c for c in set(onto.subjects(RDF.type, RDFS.Class)) | set(onto.subjects(RDF.type, OWL.Class))
         | set(onto.subjects(RDFS.subClassOf)) | set(onto.objects(None, RDFS.subClassOf))
@@ -1197,7 +1206,7 @@ def _preflight(data_graph: Graph) -> list[tuple]:
 def _known_classes() -> frozenset:
     from rdflib.namespace import OWL, RDFS
 
-    onto = get_ontology_graph("manchester_owl")
+    onto = _vocabulary_snapshot()
     return frozenset(
         c for c in set(onto.subjects(RDF.type, RDFS.Class)) | set(onto.subjects(RDF.type, OWL.Class))
         | set(onto.subjects(RDFS.subClassOf)) | set(onto.objects(None, RDFS.subClassOf))

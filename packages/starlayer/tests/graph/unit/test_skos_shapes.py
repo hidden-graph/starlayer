@@ -19,6 +19,7 @@ from rdflib import RDF, RDFS, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import SKOS
 from starlayer import starontology
+from starlayer.shacl_engine.terms import NS
 from starlayer.starontology import skos as ss
 
 
@@ -38,7 +39,9 @@ def test_ordered_collection_entails_collection_via_rdfs():
     this is real entailed structure, not just an assumption, the same
     discipline the sibling starlayer.sparql package's own
     test_expression_shape_relies_on_rdfs_reasoning_not_enumeration uses."""
-    ontology = skos_ontology_graph()
+    from starlayer.graph.oxgraph import _rdflib_bridge
+
+    (ontology,) = _rdflib_bridge.read_boundary(skos_ontology_graph())  # owlrl runs on an rdflib copy
     data = Graph()
     data.add((EX.oc, RDF.type, SKOS.OrderedCollection))
 
@@ -254,9 +257,12 @@ def test_shapes_graph_is_valid_shacl_and_reusable():
 # Form shapes: lightweight shui:editor/shui:viewer widgets chosen by datatype
 # ---------------------------------------------------------------------------
 
-_SH = Namespace("http://www.w3.org/ns/shacl#")
-_SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
-_SKSHP = Namespace("https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#")
+# the form tests read graphs from the starontology getters, which are OxGraphs: pyoxigraph terms
+_SH = NS("http://www.w3.org/ns/shacl#")
+_SHUI = NS("http://www.w3.org/ns/shacl-ui#")
+_SKSHP = NS("https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#")
+_RDF = NS("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
+_RDFS = NS("http://www.w3.org/2000/01/rdf-schema#")
 _FORM_SHAPES = (_SKSHP.ConceptFormShape, _SKSHP.ConceptSchemeFormShape, _SKSHP.CollectionFormShape)
 
 
@@ -270,14 +276,14 @@ def _form_properties():
 def test_form_shapes_are_untargeted_so_they_never_change_validation():
     shapes = starontology.get_ontology_graph("skos_shacl")
     for form in _FORM_SHAPES:
-        assert (form, RDF.type, _SH.NodeShape) in shapes
+        assert (form, _RDF.type, _SH.NodeShape) in shapes
         for target in (_SH.targetClass, _SH.targetNode, _SH.targetSubjectsOf, _SH.targetObjectsOf):
             assert (form, target, None) not in shapes
 
 
 def test_form_shapes_are_members_of_the_shapes_graph():
     shapes = starontology.get_ontology_graph("skos_shacl")
-    members = set(shapes.objects(_SKSHP.ShapesGraph, RDFS.member))
+    members = set(shapes.objects(_SKSHP.ShapesGraph, _RDFS.member))
     assert set(_FORM_SHAPES) <= members
 
 
@@ -297,7 +303,7 @@ def test_widgets_follow_the_value_datatype():
         datatype = shapes.value(prop, _SH.datatype)
         node_class = shapes.value(prop, _SH["class"])
         node_kind = shapes.value(prop, _SH.nodeKind)
-        if datatype == RDF.langString:
+        if datatype == _RDF.langString:
             assert editor in (_SHUI.TextFieldWithLangEditor, _SHUI.TextAreaWithLangEditor)
             assert viewer == _SHUI.LangStringViewer
         elif node_kind == _SH.Literal:

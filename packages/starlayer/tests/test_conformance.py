@@ -13,7 +13,7 @@ import pyoxigraph as ox
 from starlayer import conformance
 
 DCTERMS = conformance.DCTERMS
-RDFS = conformance._Namespace("http://www.w3.org/2000/01/rdf-schema#")
+RDFS = conformance.NS("http://www.w3.org/2000/01/rdf-schema#")
 
 _SHACL_SUBJECT = conformance.SHACL_SUBJECT
 
@@ -118,7 +118,7 @@ def test_each_resource_states_what_it_does_not_claim() -> None:
     for subject in (_SHACL_SUBJECT, conformance.GRAPH_SUBJECT, conformance.SPARQL_SUBJECT):
         comments = list(graph.objects(subject, RDFS.comment))
         assert len(comments) >= 2
-        assert any("not claim" in str(c).lower() or "scope reduction" in str(c).lower() for c in comments)
+        assert any("not claim" in c.value.lower() or "scope reduction" in str(c).lower() for c in comments)
 
 
 def test_ui_specification_is_claimed_with_its_scope_limits_stated() -> None:
@@ -126,7 +126,7 @@ def test_ui_specification_is_claimed_with_its_scope_limits_stated() -> None:
     different document); the resource's comments state what is not covered."""
     graph = conformance.declared_conformance()
     assert (_SHACL_SUBJECT, DCTERMS.conformsTo, ox.NamedNode("https://www.w3.org/TR/shacl12-ui")) in graph
-    comments = " ".join(str(c) for c in graph.objects(_SHACL_SUBJECT, RDFS.comment))
+    comments = " ".join(c.value for c in graph.objects(_SHACL_SUBJECT, RDFS.comment))
     assert "propertyRole" in comments and "scoring catalog" in comments
 
 
