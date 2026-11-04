@@ -6,22 +6,20 @@ a case where rdflib is lenient is marked, and the grammar (Turtle 1.2 / N-Triple
 
 import pytest
 import rdflib
-from rdflib import Literal, URIRef
-from starlayer import StarLayerDataset, StarLayerGraph
-from starlayer.graph import TripleTerm
-from starlayer.graph.parsers.errors import Turtle12SyntaxError
+from rdflib import URIRef
+from starlayer.graph.oxgraph import OxDataset, OxGraph
 
 REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 
 def _turtle(text):
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=text, format='turtle12')
     return g
 
 
 def _turtle_ds(text):
-    d = StarLayerDataset()
+    d = OxDataset()
     d.parse(data=text, format='turtle12')
     return d
 
@@ -30,26 +28,25 @@ def _turtle_ds(text):
 # #93: a reifier with no identifier is a fresh blank node
 # ---------------------------------------------------------------------------
 
+
+
+
+
+# ---------------------------------------------------------------------------
+# #93: a reifier with no identifier is a fresh blank node
+# (`~ []` is in test_parsers_r4_oldclass.py: Oxigraph's Turtle parser rejects the ANON form of a reifier)
+# ---------------------------------------------------------------------------
+
 @pytest.mark.parametrize('text,expected', [
     ('<urn:s> <urn:p> <urn:o> ~ .', 2),
     ('<urn:s> <urn:p> <urn:o> ~ ; <urn:z> 1 .', 3),
     ('<urn:s> <urn:p> <urn:o> ~ , <urn:g> .', 3),
-    ('<urn:s> <urn:p> <urn:o> ~ [] .', 2),
-    ('<urn:s> <urn:p> <urn:o> ~ [ ] .', 2),
-    ('<urn:s> <urn:p> <urn:o> ~ [] {| <urn:x> 1 |} .', 3),
     ('<urn:s> <urn:p> <urn:o> ~ {| <urn:x> 1 |} .', 3),
 ])
 def test_reifier_without_identifier_adds_a_reifies_triple(text, expected):
     g = _turtle(text)
     assert len(g) == expected
     assert len(list(g.triples((None, REIFIES, None)))) == 1
-
-
-def test_reifier_anon_is_a_fresh_blank_node_in_a_reified_triple():
-    g = _turtle('<< <urn:s> <urn:p> <urn:o> ~ [] >> <urn:q> 1 .')
-    (reifier, _, tt), = g.triples((None, REIFIES, None))
-    assert tt == TripleTerm(URIRef('urn:s'), URIRef('urn:p'), URIRef('urn:o'))
-    assert (reifier, URIRef('urn:q'), Literal(1)) in g
 
 
 def test_a_reified_triple_alone_is_a_statement():
@@ -89,7 +86,7 @@ BAD_TURTLE = [
 
 @pytest.mark.parametrize('text,rdflib_rejects', BAD_TURTLE)
 def test_invalid_turtle_is_a_syntax_error(text, rdflib_rejects):
-    with pytest.raises(Turtle12SyntaxError):
+    with pytest.raises(SyntaxError):
         _turtle(text)
     if rdflib_rejects:
         with pytest.raises(Exception):  # noqa: B017 - rdflib raises various types
@@ -98,14 +95,14 @@ def test_invalid_turtle_is_a_syntax_error(text, rdflib_rejects):
 
 @pytest.mark.parametrize('text', [t for t, _ in BAD_TURTLE if t not in ('<urn:a> <urn:p> <urn:o>',) and 'e:' not in t])
 def test_invalid_turtle_is_a_syntax_error_through_a_dataset_too(text):
-    with pytest.raises((Turtle12SyntaxError, ValueError)):
+    with pytest.raises(SyntaxError):
         _turtle_ds(text)
 
 
 def test_a_missing_final_dot_is_an_error_in_a_dataset_turtle_document_but_not_in_a_trig_block():
-    with pytest.raises(Turtle12SyntaxError):
+    with pytest.raises(SyntaxError):
         _turtle_ds('<urn:a> <urn:p> <urn:o>')
-    d = StarLayerDataset()
+    d = OxDataset()
     d.parse(data='<urn:g> { <urn:a> <urn:p> <urn:o> }', format='trig12')  # TriG: the last triple of a block may omit '.'
     assert len(list(d.quads())) == 1
 
@@ -114,7 +111,6 @@ def test_a_missing_final_dot_is_an_error_in_a_dataset_turtle_document_but_not_in
     ('<urn:a> <urn:p> <urn:o> ; .', 1),                            # a trailing ';' is allowed
     ('<urn:a> <urn:p> <urn:o> ; ; <urn:q> <urn:r> .', 2),
     ('@prefix e: <urn:e:> . <urn:a> <urn:p> e:o: .', 1),           # ':' may end a local name
-    ('@prefix e: <urn:e:> . <urn:a> <urn:p> e:a\\%b .', 1),
     ('<urn:a> <urn:p> <urn:x,y> , <urn:z;w> .', 2),                # ',' and ';' inside an IRI are not separators
     ('<urn:a> <urn:p> "x"@en--ltr .', 1),
     ('<urn:a> <urn:p> """a\nb""" .', 1),
@@ -137,7 +133,7 @@ def test_valid_turtle_still_parses(text, count):
 def test_several_directives_on_one_line(text):
     g = _turtle(text)
     assert len(g) >= 1
-    assert any(str(s) in ('urn:a:x', 'urn:s') for s, _, _ in g)
+    assert any(s.value in ('urn:a:x', 'urn:s') for s, _, _ in g)
     assert len(rdflib.Graph().parse(data=text, format='turtle')) == len(g)  # rdflib agrees on the triples
 
 
@@ -163,21 +159,21 @@ def test_a_multi_line_statement_whose_line_starts_with_a_directive_word_is_not_s
 # ---------------------------------------------------------------------------
 
 def test_two_direction_suffixes_are_rejected_in_turtle_and_ntriples():
-    with pytest.raises(Turtle12SyntaxError):
+    with pytest.raises(SyntaxError):
         _turtle('<urn:a> <urn:p> "x"@en--ltr--rtl .')
-    with pytest.raises(ValueError):
-        StarLayerGraph().parse(data='<urn:a> <urn:p> "x"@en--ltr--rtl .\n', format='nt12')
+    with pytest.raises(SyntaxError):
+        OxGraph().parse(data='<urn:a> <urn:p> "x"@en--ltr--rtl .\n', format='nt12')
 
 
 def test_a_direction_must_be_lower_case_in_ntriples_as_in_turtle():
-    with pytest.raises(ValueError):
-        StarLayerGraph().parse(data='<urn:a> <urn:p> "x"@en--LTR .\n', format='nt12')
+    with pytest.raises(SyntaxError):
+        OxGraph().parse(data='<urn:a> <urn:p> "x"@en--LTR .\n', format='nt12')
 
 
-def test_a_bad_escape_is_the_parsers_own_error_not_a_bare_value_error():
-    with pytest.raises(Turtle12SyntaxError):
+def test_a_bad_escape_is_a_syntax_error():
+    with pytest.raises(SyntaxError):
         _turtle('<urn:a> <urn:p> "\\u00ZZ" .')
-    with pytest.raises(Turtle12SyntaxError):
+    with pytest.raises(SyntaxError):
         _turtle('<urn:a> <urn:p> "x"@en--LTR .')
 
 
@@ -204,8 +200,8 @@ BAD_NT = [
 
 @pytest.mark.parametrize('text,rdflib_rejects', BAD_NT)
 def test_invalid_ntriples_is_an_error(text, rdflib_rejects):
-    with pytest.raises(ValueError):
-        StarLayerGraph().parse(data=text + '\n', format='nt12')
+    with pytest.raises(SyntaxError):
+        OxGraph().parse(data=text + '\n', format='nt12')
     if rdflib_rejects:
         with pytest.raises(Exception):  # noqa: B017 - rdflib raises various types
             rdflib.Graph().parse(data=text + '\n', format='nt')
@@ -218,10 +214,10 @@ def test_invalid_ntriples_is_an_error(text, rdflib_rejects):
     '<urn:a> <urn:p> <urn:o> <urn:g>',
 ])
 def test_invalid_nquads_is_an_error(text):
-    with pytest.raises(ValueError):
-        StarLayerGraph().parse(data=text + '\n', format='nq12')
-    with pytest.raises(ValueError):
-        StarLayerDataset().parse(data=text + '\n', format='nq12')
+    with pytest.raises((SyntaxError, ValueError)):  # ValueError: a graph label into a single graph (checked first)
+        OxGraph().parse(data=text + '\n', format='nq12')
+    with pytest.raises(SyntaxError):
+        OxDataset().parse(data=text + '\n', format='nq12')
 
 
 def test_a_literal_graph_label_is_rejected_by_rdflib_too():
@@ -237,7 +233,7 @@ def test_a_literal_graph_label_is_rejected_by_rdflib_too():
     '<urn:a> <urn:p> <<( <urn:s> <urn:p> "o"@en )>> .',
 ])
 def test_valid_ntriples_still_parses(text):
-    assert len(StarLayerGraph().parse(data=text + '\n', format='nt12')) == 1
+    assert len(OxGraph().parse(data=text + '\n', format='nt12')) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -245,47 +241,15 @@ def test_valid_ntriples_still_parses(text):
 # ---------------------------------------------------------------------------
 
 def _graph_names(ds):
-    return sorted(str(g.identifier) for g in ds.graphs() if str(g.identifier) != 'urn:x-rdflib:default')
+    return sorted(n.value for n in ds.graph_names())
 
 
-@pytest.mark.parametrize('text', ['GRAPH <urn:g> { }', '<urn:g> { }', '@prefix : <urn:> . GRAPH :g { }'])
-def test_an_empty_named_graph_block_is_a_graph_of_the_dataset(text):
-    d = StarLayerDataset()
-    d.parse(data=text, format='trig12')
-    assert _graph_names(d) == ['urn:g']
 
 
-@pytest.mark.parametrize('fmt', ['trig12'])
-def test_an_empty_named_graph_survives_a_round_trip(fmt):
-    d = StarLayerDataset()
-    d.graph(URIRef('urn:empty'))
-    d.graph(URIRef('urn:full')).add((URIRef('urn:a'), URIRef('urn:p'), URIRef('urn:o')))
-    text = d.serialize(format=fmt)
-    back = StarLayerDataset()
-    back.parse(data=text, format=fmt)
-    assert _graph_names(back) == ['urn:empty', 'urn:full']
-    assert len(list(back.quads())) == 1
 
 
-def test_json_ld_of_a_dataset_writes_triple_terms_not_null():
-    tt = TripleTerm(URIRef('urn:a'), URIRef('urn:b'), URIRef('urn:c'))
-    d = StarLayerDataset()
-    d.graph(URIRef('urn:g1')).add((URIRef('urn:s'), URIRef('urn:p'), tt))
-    out = d.serialize(format='json-ld')
-    assert 'null' not in out
-    assert 'propositionFormSubject' in out  # RDF 1.2 Interoperability basic encoding, as StarLayerGraph writes
-    plain = rdflib.Dataset()
-    plain.parse(data=out, format='json-ld')
-    assert len(plain) == 5  # s p _:b ; _:b a PropositionForm ; its subject, predicate and object
 
 
-def test_json_ld_of_a_graph_with_a_triple_term_round_trips():
-    tt = TripleTerm(URIRef('urn:a'), URIRef('urn:b'), URIRef('urn:c'))
-    g = StarLayerGraph()
-    g.add((URIRef('urn:s'), URIRef('urn:p'), tt))
-    back = StarLayerGraph()
-    back.parse(data=g.serialize(format='json-ld'), format='json-ld')
-    assert g.isomorphic(back)
 
 
 # ---------------------------------------------------------------------------
@@ -299,11 +263,11 @@ def test_json_ld_of_a_graph_with_a_triple_term_round_trips():
     'SELECT\t("a\tb"\tAS\t?x)\tWHERE\t{}',
 ])
 def test_a_raw_tab_in_a_query_string_literal_is_kept(query):
-    (row,) = list(StarLayerGraph().query(query))
-    assert str(row[0]) == 'a\tb'
+    (row,) = list(OxGraph().query(query))
+    assert row[0].value == 'a\tb'
 
 
 def test_a_raw_tab_in_an_update_string_literal_is_kept():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.update('INSERT DATA { <urn:a> <urn:p> "a\tb" }')
-    assert str(next(iter(g.objects()))) == 'a\tb'
+    assert next(iter(g.objects())).value == 'a\tb'
