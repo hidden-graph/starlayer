@@ -4,8 +4,8 @@ import warnings
 
 import pytest
 from rdflib import Dataset, Graph, Namespace, URIRef, Variable
-from starlayer import StarLayerDataset, StarLayerGraph
-from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql.srl import SRLError, SRLParseError, parse_ruleset
 
 warnings.simplefilter("ignore")
@@ -38,7 +38,7 @@ def test_infer_and_query_accept_a_dataset():
     ds = Dataset()
     ds.add((E.a, E.p, E.b))
     ds.add((E.c, E.p, E.d, URIRef("http://e/g")))
-    assert set(rules.infer(ds)) == {(E.a, E.q, E.b)}  # the default graph, as the dataset's own queries see it
+    assert {tuple(from_engine(x) for x in t) for t in rules.infer(ds)} == {(E.a, E.q, E.b)}  # the default graph, as the dataset's own queries see it
     union = Dataset(default_union=True)
     union.add((E.a, E.p, E.b, URIRef("http://e/g")))
     assert set(rules.infer(union)) == {(E.a, E.q, E.b)}
@@ -50,9 +50,9 @@ def test_infer_and_query_accept_a_dataset():
 
 def test_infer_accepts_a_starlayer_dataset():
     rules = parse_ruleset(PREFIX + "RULE { ?x :q ?y } WHERE { ?x :p ?y }")
-    ds = StarLayerDataset()
+    ds = OxDataset()
     ds.add((E.a, E.p, E.b))
-    assert set(rules.infer(ds)) == {(E.a, E.q, E.b)}
+    assert {tuple(from_engine(x) for x in t) for t in rules.infer(ds)} == {(E.a, E.q, E.b)}
 
 
 def test_document_base_wins_over_the_base_argument():
@@ -71,20 +71,18 @@ def test_undeclared_prefix_is_an_srl_parse_error():
     assert isinstance(info.value, SRLError)
 
 
-@pytest.mark.parametrize("make", [Graph, StarLayerGraph])
+@pytest.mark.parametrize("make", [Graph, OxGraph])
 def test_triple_function_in_set(make):
     g = make()
     g.add((E.a, E.p, E.b))
     rules = parse_ruleset(PREFIX + "RULE { ?s :t ?n } WHERE { ?s :p ?o SET(?n := TRIPLE(?s, :p, ?o)) }")
     inferred = rules.infer(g)
-    if make is Graph:
-        # a plain rdflib Graph cannot hold a triple term, so a result that has one comes back as an OxGraph (pyoxigraph terms)
-        import pyoxigraph as ox
+    # a plain rdflib Graph cannot hold a triple term, so a result that has one comes back as an OxGraph (pyoxigraph terms); an OxGraph
+    # input gives pyoxigraph terms as well
+    import pyoxigraph as ox
 
-        nodes = [ox.NamedNode(str(x)) for x in (E.a, E.p, E.b, E.t)]
-        assert set(inferred) == {(nodes[0], nodes[3], ox.Triple(nodes[0], nodes[1], nodes[2]))}
-    else:
-        assert set(inferred) == {(E.a, E.t, TripleTerm(E.a, E.p, E.b))}
+    nodes = [ox.NamedNode(str(x)) for x in (E.a, E.p, E.b, E.t)]
+    assert set(inferred) == {(nodes[0], nodes[3], ox.Triple(nodes[0], nodes[1], nodes[2]))}
 
 
 def test_triple_term_syntax_in_set_and_filter():

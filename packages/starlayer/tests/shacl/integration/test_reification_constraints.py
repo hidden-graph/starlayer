@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -14,14 +14,14 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 # that itself conforms to ex:ProvenanceShape (has an ex:date and ex:author).
 
 
-def _shapes() -> StarLayerGraph:
-    shapes = StarLayerGraph()
+def _shapes() -> OxGraph:
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rdf12_reification_person_age.ttl"), format="turtle")
     return shapes
 
 
 def test_conforms_when_reifier_has_full_provenance() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -42,7 +42,7 @@ def test_conforms_when_reifier_has_full_provenance() -> None:
 
 
 def test_violates_when_no_reifier_present() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -63,7 +63,7 @@ def test_violates_when_no_reifier_present() -> None:
 
 
 def test_violates_when_reifier_missing_required_provenance_property() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -91,7 +91,7 @@ def test_reification_required_string_literal_false_is_rejected_not_silently_enab
     sh:reificationRequired "false" was silently *enabling* the check
     instead of disabling it. Now raises a clean ValueError instead.
     """
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -101,7 +101,7 @@ def test_reification_required_string_literal_false_is_rejected_not_silently_enab
         """,
         format="turtle",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

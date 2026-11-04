@@ -5,7 +5,8 @@ import warnings
 import pytest
 import starlayer.shacl as shacl
 from rdflib import Graph, URIRef
-from starlayer.graph import StarLayerGraph, TripleTerm
+from starlayer.graph import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.paths import path_values
 
@@ -20,7 +21,7 @@ EX = lambda name: URIRef("http://ex/" + name)  # noqa: E731
 
 
 def _graph(ttl):
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=PREFIXES + ttl, format="turtle12")
     return g
 
@@ -155,10 +156,10 @@ DATA = ":a :p :b . :b :q :c . :c :p :d . :d :p :a . :x :p :b ."
 )
 @pytest.mark.parametrize("focus", ["a", "b", "c", "d"])
 def test_inverse_of_a_composite_path_matches_sparql(sparql_path, shacl_path, focus):
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="@prefix : <http://e/> . " + DATA, format="turtle12")
     oracle = Graph().parse(data="@prefix : <http://e/> . " + DATA, format="turtle")
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix : <http://e/> . :S sh:path " + shacl_path + " .",
         format="turtle12",

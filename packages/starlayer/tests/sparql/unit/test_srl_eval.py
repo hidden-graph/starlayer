@@ -219,7 +219,7 @@ def test_query_matches_goal_pattern_against_base_and_inferred():
 
 
 class TestInferAndQueryInferenceParameter:
-    """``inference=`` pre-entails base_graph (via StarLayerGraph.infer())
+    """``inference=`` pre-entails base_graph (via OxGraph.infer())
     before the rule set runs against it - a per-call parameter, not stored
     on RuleSet itself (see RuleSet.infer()'s own docstring for why)."""
 
@@ -229,9 +229,9 @@ class TestInferAndQueryInferenceParameter:
     """
 
     def _base_with_subclass_only(self):
-        from starlayer.graph import StarLayerGraph
+        from starlayer.graph.oxgraph import OxGraph
 
-        base = StarLayerGraph()
+        base = OxGraph()
         base.parse(
             data=f"""
             @prefix : <{EX}> .
@@ -262,7 +262,7 @@ class TestInferAndQueryInferenceParameter:
         gi = ruleset.infer(base, inference=ENTAILMENT.RDFS)
         assert len(gi) == 1
         ((s, p, o),) = gi
-        assert s == _p("bob") and p == _p("flagged") and bool(o.toPython()) is True
+        assert s.value == str(_p("bob")) and p.value == str(_p("flagged")) and o.value == "true"
 
     def test_infer_entailment_does_not_mutate_the_callers_base_graph(self):
         from starlayer.graph.graph.entailment_regimes import ENTAILMENT
@@ -275,6 +275,7 @@ class TestInferAndQueryInferenceParameter:
         assert len(base) == before
 
     def test_query_inference_parameter_sees_the_subclass_fact_too(self):
+        import pyoxigraph as ox
         from starlayer.graph.graph.entailment_regimes import ENTAILMENT
         from starlayer.sparql.srl import parse_ruleset
 
@@ -282,7 +283,7 @@ class TestInferAndQueryInferenceParameter:
         ruleset = parse_ruleset(f"PREFIX rdf: <{RDF}>\n" + self.RULES)
         goal = ruleset.rules[0].head[0]  # ?x :flagged true
         rows = ruleset.query(base, goal, inference=ENTAILMENT.RDFS)
-        assert {r[Variable("x")] for r in rows} == {_p("bob")}
+        assert {r[ox.Variable("x")].value for r in rows} == {str(_p("bob"))}
 
 
 class TestInferSchemaParameter:

@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Graph, Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
 
@@ -64,10 +64,10 @@ AVERAGE_FUNCTION = """
 
 class TestCustomListParameterFunction:
     def test_spacedconcat_matches_spec_worked_example(self) -> None:
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Thing .", format="turtle")
 
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
@@ -85,10 +85,10 @@ class TestCustomListParameterFunction:
         # Confirms the check is actually exercising the function's real
         # output, not vacuously true - per this package's CLAUDE.md
         # "verify coverage adversarially" discipline.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Thing .", format="turtle")
 
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
@@ -106,10 +106,10 @@ class TestCustomListParameterFunction:
         # Custom functions must work through pySHACL's *other* node-expression
         # call site too (sh:TripleRule's sh:object), not just sh:expression -
         # both are patched by patch_node_expressions_for_shnex.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Thing .", format="turtle")
 
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
@@ -131,7 +131,7 @@ class TestCustomNamedParameterFunction:
     def test_average_matches_spec_worked_example(self) -> None:
         # ex:alice's employees earn 10 and 20 -> average 15, matching the
         # spec's own AverageExpression/ex:CompanyShape-averageIncome example.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -141,7 +141,7 @@ class TestCustomNamedParameterFunction:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
@@ -159,7 +159,7 @@ class TestCustomNamedParameterFunction:
         assert result.conforms is True
 
     def test_average_wrong_expected_value_does_not_conform(self) -> None:
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -169,7 +169,7 @@ class TestCustomNamedParameterFunction:
             """,
             format="turtle",
         )
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
@@ -199,9 +199,9 @@ class TestCustomNamedParameterFunction:
               sh:bodyExpression [ shnex:var "focusNode" ] .
             ex:identity-value a sh:Parameter ; sh:path ex:value ; sh:keyParameter true .
         """
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Thing .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
@@ -247,9 +247,9 @@ class TestCustomNamedParameterFunctionNonKeyParameter:
     """
 
     def test_non_key_parameter_value_is_read_from_the_call_site(self) -> None:
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + self.FUNCTION
@@ -273,9 +273,9 @@ class TestCustomNamedParameterFunctionNonKeyParameter:
         # the property doesn't appear in the output graph at all). The
         # point of this test is that the call still dispatches correctly
         # and evaluates cleanly to "no answer" - it does not raise.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + self.FUNCTION
@@ -358,9 +358,9 @@ class TestCustomFunctionAmbiguity:
         # requires key parameters to be globally disjoint, so this is a
         # genuinely malformed shapes graph; eval-time detection (not just
         # meta-shacl) matters because meta_shacl defaults to off.
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Thing .", format="turtle")
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data=PREFIXES
             + "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"

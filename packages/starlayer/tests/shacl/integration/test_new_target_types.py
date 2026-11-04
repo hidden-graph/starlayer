@@ -1,5 +1,5 @@
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -23,10 +23,10 @@ def _violating_focus_nodes(result) -> set:
 
 
 def test_shape_target_only_targets_nodes_with_explicit_sh_shape_triple() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_shape_target.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -47,10 +47,10 @@ def test_shape_target_only_targets_nodes_with_explicit_sh_shape_triple() -> None
 
 
 def test_shape_target_conforms_when_target_node_has_required_property() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_shape_target.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -67,10 +67,10 @@ def test_shape_target_conforms_when_target_node_has_required_property() -> None:
 
 
 def test_implicit_class_target_validates_shapes_own_instances() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_implicit_class_target.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -93,10 +93,10 @@ def test_shape_class_implicit_target_validates_shapes_own_instances() -> None:
     # brand-new SHACL 1.2 predicate pySHACL has no knowledge of at all - so
     # this exercises starShacl's own injected-target-node mechanism
     # specifically, not pySHACL's native behavior.
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_shape_class_implicit_target.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -131,7 +131,7 @@ def test_shape_class_implicit_target_follows_rdfs_subclassof_and_needs_no_separa
     descendants - same underlying gap sh:targetClass already handles
     correctly for ordinary (non-implicit) class targets.
     """
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -145,7 +145,7 @@ def test_shape_class_implicit_target_follows_rdfs_subclassof_and_needs_no_separa
 
     # SHACL "instance of" reads rdfs:subClassOf in the DATA graph (Core 3.1), so
     # the class hierarchy lives there, not in the shapes graph.
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -173,7 +173,7 @@ def test_select_based_target_node_targets_query_results() -> None:
     SPARQLTarget, already natively supported). Found missing entirely via
     the W3C SHACL 1.2 test suite's targetNode-select-001 fixture.
     """
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -189,7 +189,7 @@ def test_select_based_target_node_targets_query_results() -> None:
         """,
         format="turtle",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -210,10 +210,10 @@ def test_select_based_target_node_targets_query_results() -> None:
 
 
 def test_target_where_only_targets_conforming_nodes() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_target_where.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -250,10 +250,10 @@ def test_target_where_candidate_not_excluded_by_unrelated_focus_node_data() -> N
     test_target_where_only_targets_conforming_nodes's already-covered false
     positive direction).
     """
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_target_where.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -283,10 +283,10 @@ def test_target_where_candidate_not_excluded_by_unrelated_focus_node_data() -> N
 
 
 def test_target_where_conforms_when_targeted_node_satisfies_outer_shape() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_target_where.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

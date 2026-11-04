@@ -237,23 +237,23 @@ def _old_modules():
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            from starlayer.graph import StarLayerDataset, StarLayerGraph
             from starlayer.graph.compare import isomorphic as old_iso
+            from starlayer.graph.oxgraph import OxDataset, OxGraph
             from starlayer.graph.rdfc import to_canonical_nquads as old_c14n
     except ImportError:  # pragma: no cover - the old code may be retired
         pytest.skip("old rdfc.py/compare.py not available")
-    return StarLayerGraph, StarLayerDataset, old_iso, old_c14n
+    return OxGraph, OxDataset, old_iso, old_c14n
 
 
 def _to_old(qs):
-    StarLayerGraph, StarLayerDataset, _, _ = _old_modules()
+    OxGraph, OxDataset, _, _ = _old_modules()
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         if any(not isinstance(x.graph_name, ox.DefaultGraph) for x in qs):
-            d = StarLayerDataset()
+            d = OxDataset()
             d.parse(data=ox.serialize(qs, format=ox.RdfFormat.TRIG).decode(), format="trig12")
             return d
-        g = StarLayerGraph()
+        g = OxGraph()
         g.parse(data=ox.serialize([ox.Triple(x.subject, x.predicate, x.object) for x in qs], format=ox.RdfFormat.TURTLE).decode(), format="turtle12")
         return g
 

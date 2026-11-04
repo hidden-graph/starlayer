@@ -1,6 +1,6 @@
 from rdflib import Literal, Namespace, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -10,10 +10,10 @@ EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 RDF_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 def test_sparql_constraint_conforms_when_triple_term_present() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rdf12_sparql_says_triple_term.ttl"), format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -23,10 +23,10 @@ def test_sparql_constraint_conforms_when_triple_term_present() -> None:
 
 
 def test_sparql_constraint_violates_when_triple_term_absent() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, Literal("something else")))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rdf12_sparql_says_triple_term.ttl"), format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -50,7 +50,7 @@ def test_sparql_constraint_own_severity_overrides_shape_severity() -> None:
     severity (sh:Violation by default here, since the shape itself has no
     sh:severity override) regardless of what the constraint declares.
     """
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -67,7 +67,7 @@ def test_sparql_constraint_own_severity_overrides_shape_severity() -> None:
         """,
         format="turtle",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -91,7 +91,7 @@ def test_sparql_constraint_resolves_prefix_via_its_sh_prefixes_declare() -> None
     the distractor owl:Ontology maps the same prefix letter to a wrong
     namespace but is not referenced by sh:prefixes, so it must be ignored.
     """
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -114,7 +114,7 @@ def test_sparql_constraint_resolves_prefix_via_its_sh_prefixes_declare() -> None
         """,
         format="turtle",
     )
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -143,11 +143,11 @@ def test_sparql_constraint_binds_value_per_property_value_node() -> None:
     # join - covers a property-shape-scoped sh:sparql constraint that inspects
     # a triple-term value's predicate component via the PREDICATE() accessor,
     # rather than only matching against $this.
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.says, (EX.bob, EX.likes, EX.dave)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rdf12_sparql_value_predicate.ttl"), format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -163,11 +163,11 @@ def test_sparql_constraint_binds_value_per_property_value_node() -> None:
 
 
 def test_sparql_constraint_binds_value_conforms_when_all_predicates_match() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.dave)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rdf12_sparql_value_predicate.ttl"), format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -179,13 +179,13 @@ def test_sparql_constraint_binds_value_conforms_when_all_predicates_match() -> N
 def test_sparql_constraint_conforms_with_nested_multi_pattern_join() -> None:
     # Broader binding-shape coverage: a triple-term accessor (OBJECT())
     # feeding into a SECOND, unrelated join pattern (ex:age), not just a
-    # single flat WHERE pattern - confirms StarLayerGraph.query() handles a
+    # single flat WHERE pattern - confirms OxGraph.query() handles a
     # multi-pattern nested join, not only the simplest single-pattern case.
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.carol, EX.age, Literal(30)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rdf12_sparql_nested_join.ttl"), format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -195,11 +195,11 @@ def test_sparql_constraint_conforms_with_nested_multi_pattern_join() -> None:
 
 
 def test_sparql_constraint_violates_with_nested_multi_pattern_join() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.carol, EX.age, Literal(10)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rdf12_sparql_nested_join.ttl"), format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -213,10 +213,10 @@ def test_sparql_constraint_violates_with_nested_multi_pattern_join() -> None:
 
 
 def test_construct_rule_mints_new_triple_term_reification() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.bob, EX.knows, EX.carol))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("rules_reify_new_triple_term.ttl"), format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -239,14 +239,14 @@ def test_sparql_constraint_resolves_prefix_via_sh_declare_not_turtle_prefix() ->
     time, not via any @prefix in the surrounding shapes-graph Turtle. This
     shape deliberately declares no @prefix myex: at all.
     """
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Person ; ex:score 80 .
         ex:bob a ex:Person ; ex:score 20 .
     """, format="turtle")
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -274,11 +274,11 @@ def test_sh_result_annotation_from_select_bound_var() -> None:
     anywhere in pySHACL itself (grepped its whole codebase). See
     native_components.py::_build_sparql_constraint_component's
     make_v_result override and _result_annotation_triples."""
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.score, Literal(20)))
     data.add((EX.bob, EX.score, Literal(80)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -303,10 +303,10 @@ def test_sh_result_annotation_from_select_bound_var() -> None:
 def test_sh_result_annotation_fixed_value() -> None:
     """sh:annotationValue attaches the same fixed value to every result the
     constraint produces, no SELECT-row lookup involved."""
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.score, Literal(20)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -329,10 +329,10 @@ def test_sh_result_annotation_fixed_value() -> None:
 def test_no_result_annotation_is_a_pure_noop() -> None:
     """A sh:sparql constraint with no sh:resultAnnotation at all must behave
     exactly as before - no stray triples, no change to conforms/report."""
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.score, Literal(20)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .

@@ -7,7 +7,7 @@ import pytest
 from rdflib import RDF, Graph, Namespace, URIRef
 from rdflib.collection import Collection
 from starlayer import starontology
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import ui_widget_selection as uws
@@ -228,8 +228,8 @@ VIEWERS = {
 
 
 @pytest.fixture(scope="module")
-def shapes() -> StarLayerGraph:
-    g = StarLayerGraph()
+def shapes() -> OxGraph:
+    g = OxGraph()
     g.parse(data=SHAPES, format="turtle12")
     return g
 

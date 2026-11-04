@@ -4,25 +4,25 @@ not see the encoding, and a triple term can sit in a pattern beside an IRI objec
 import warnings
 
 import pytest
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 
 warnings.simplefilter("ignore")
 DATA = "@prefix : <http://x/> . :s :q :o . << :s :q :o >> :cert 0.9 . :a :q <<(:s :p 123)>> ."
 
 
 def _graph():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=DATA, format="turtle12")
     return g
 
 
 def _row(g, query):
-    return [tuple(None if v is None else str(v) for v in r) for r in g.query(query)]
+    return [tuple(None if v is None else getattr(v, "value", str(v)) for v in r) for r in g.query(query)]
 
 
 def test_a_triple_term_is_not_an_iri_a_literal_or_a_blank_node():
     row = _row(
-        StarLayerGraph(),
+        OxGraph(),
         "PREFIX : <http://x/> SELECT (isIRI(TRIPLE(:a,:b,:c)) AS ?i) (isLiteral(TRIPLE(:a,:b,:c)) AS ?l) "
         "(isBlank(TRIPLE(:a,:b,:c)) AS ?b) (isIRI(:a) AS ?j) {}",
     )
@@ -30,7 +30,7 @@ def test_a_triple_term_is_not_an_iri_a_literal_or_a_blank_node():
 
 
 def test_str_of_a_triple_term_is_an_error_and_str_of_an_iri_is_not():
-    row = _row(StarLayerGraph(), "PREFIX : <http://x/> SELECT (STR(TRIPLE(:a,:b,:c)) AS ?w) (STR(:a) AS ?v) {}")
+    row = _row(OxGraph(), "PREFIX : <http://x/> SELECT (STR(TRIPLE(:a,:b,:c)) AS ?w) (STR(:a) AS ?v) {}")
     assert row == [(None, "http://x/a")]
 
 
@@ -65,7 +65,7 @@ def test_negated_property_set_still_excludes_the_listed_predicate():
     ],
 )
 def test_a_triple_term_object_beside_an_iri_object(query):
-    g = StarLayerGraph()
+    g = OxGraph()
     g.update('INSERT DATA { <http://a> <http://p> <http://b> . <http://a> <http://p> <<( <http://x> <http://y> "z" )>> }')
     assert len(g) == 2
     assert len(list(g.query(query))) == 1

@@ -2,7 +2,7 @@
 
 SHACL (``validate``, ``StarShaclSchema``, ``apply_rules``, ``extract_subgraph``, ``select_widgets``, ``derive_conforms_to``), SQE and
 SRL (tree encode / decode, ``RuleSet.infer`` / ``query``), ``rdfc10_hash`` and ``isomorphic``. Each takes a snapshot at the
-boundary, so the answers must equal the ones for the same data held in an old-style ``StarLayerGraph``.
+boundary, so the answers must equal the ones for the same data held in a plain rdflib graph.
 """
 
 from __future__ import annotations
@@ -32,10 +32,10 @@ def _ox(cls, text):
     return g
 
 
-def _old(text):
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+def _rdflib(text):
+    from rdflib import Graph
 
-    g = StarLayerGraph()
+    g = Graph()
     g.parse(data=text, format="turtle")
     return g
 
@@ -65,7 +65,7 @@ def test_validate_takes_oxigraph_graphs(kind):
     good = validate(kind(FIXED_DATA), shacl_graph=_ox(OxGraph, SHAPES))
     assert bad.conforms is False
     assert good.conforms is True
-    assert bad.conforms == validate(_old(DATA), shacl_graph=_old(SHAPES)).conforms
+    assert bad.conforms == validate(_rdflib(DATA), shacl_graph=_rdflib(SHAPES)).conforms
 
 
 def test_validate_takes_oxigraph_shapes_and_ontology(kind):
@@ -128,7 +128,7 @@ def test_extract_subgraph_takes_oxigraph_graphs(kind):
     from starlayer.shacl import extract_subgraph
 
     got = extract_subgraph(kind(FIXED_DATA), kind(SHAPES))
-    want = extract_subgraph(_old(FIXED_DATA), _old(SHAPES))
+    want = extract_subgraph(_rdflib(FIXED_DATA), _rdflib(SHAPES))
     assert len(got) == len(want) > 0
 
 
@@ -156,7 +156,7 @@ def test_normalize_to_starlayer_graph_keeps_oxigraph_input_and_wraps_a_store(kin
 def test_normalize_to_starlayer_graph_converts_an_old_style_graph_to_an_oxgraph():
     from starlayer.shacl import normalize_to_starlayer_graph
 
-    graph = normalize_to_starlayer_graph(_old(DATA), name="data_graph")
+    graph = normalize_to_starlayer_graph(_rdflib(DATA), name="data_graph")
     assert isinstance(graph, OxGraph)
     assert len(graph) == 3
 
@@ -175,7 +175,7 @@ def test_unsupported_input_still_names_the_argument():
     from starlayer.shacl import validate
 
     with pytest.raises(TypeError, match="data_graph must be"):
-        validate(42, shacl_graph=_old(SHAPES))
+        validate(42, shacl_graph=_rdflib(SHAPES))
 
 
 def test_select_widgets_with_oxigraph_graphs():
@@ -308,8 +308,8 @@ def test_rdfc10_hash_of_oxigraph_matches_the_old_class(kind):
     from starlayer.graph.rdfc import rdfc10_hash, to_canonical_nquads
 
     text = '@prefix ex: <http://example.org/> . ex:a ex:p [ ex:q "x" ] . _:z ex:p [ ex:q "y" ] .'
-    assert rdfc10_hash(kind(text)) == rdfc10_hash(_old(text))
-    assert to_canonical_nquads(kind(text)) == to_canonical_nquads(_old(text))
+    assert rdfc10_hash(kind(text)) == rdfc10_hash(_rdflib(text))
+    assert to_canonical_nquads(kind(text)) == to_canonical_nquads(_rdflib(text))
 
 
 def test_rdfc10_hash_ignores_blank_node_labels():
@@ -345,7 +345,7 @@ def test_isomorphic_across_graph_classes():
     c = _ox(OxGraph, "@prefix ex: <http://example.org/> . ex:s ex:p [ ex:q 2 ] .")
     assert isomorphic(a, b)
     assert not isomorphic(a, c)
-    assert isomorphic(a, _old("@prefix ex: <http://example.org/> . ex:s ex:p [ ex:q 1 ] ."))
+    assert isomorphic(a, _rdflib("@prefix ex: <http://example.org/> . ex:s ex:p [ ex:q 1 ] ."))
 
 
 def test_isomorphic_with_a_triple_term():

@@ -17,6 +17,7 @@ from rdflib import BNode, Graph, Literal
 from rdflib.namespace import RDF
 from rdflib.term import Node
 
+from ..integration._rdflib_view import rd
 from .namespaces import SH
 
 TermKey = tuple
@@ -27,12 +28,9 @@ def as_rdflib(graph, *nodes):
     expected reports are rdflib graphs. Blank node ids are kept, so a node of the one is a node of the other."""
     if not getattr(graph, "engine_terms", False):
         return (graph, *nodes)
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
     from starlayer.shacl_engine.terms import from_engine
 
-    out = StarLayerGraph()
-    for s, p, o in graph.triples((None, None, None)):
-        out.add((from_engine(s), from_engine(p), from_engine(o)))
+    out = rd(graph)
     return (out, *(from_engine(n) for n in nodes))
 
 

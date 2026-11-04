@@ -2,15 +2,37 @@
 
 from __future__ import annotations
 
+import operator
 import time
 
 import pyoxigraph as ox
 import pytest
-from rdflib import BNode, Dataset, Graph, Literal, URIRef
-from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.model.triple import TripleTerm
-from starlayer.graph.setops import difference, intersection, symmetric_difference, union
+from rdflib import BNode, Graph, Literal, URIRef
+from starlayer.graph import setops
+from starlayer.graph.oxgraph import OxDataset, OxGraph
+
+_OPERATORS = {"union": operator.add, "difference": operator.sub, "intersection": operator.and_, "symmetric_difference": operator.xor}
+
+
+def _op(name):
+    """The setops function; for an OxGraph / OxDataset operand the documented equivalent, the operator (+ - & ^).
+    The functions of graph/setops.py take rdflib and pyoxigraph operands; the wrappers have the operators (and `+=`)."""
+    fn = getattr(setops, name)
+
+    def call(a, b, into=None):
+        if isinstance(a, (OxGraph, OxDataset)):
+            assert into is None, "into= has no operator equivalent"
+            return _OPERATORS[name](a, b)
+        return fn(a, b) if into is None else fn(a, b, into=into)
+
+    return call
+
+
+union, intersection, difference, symmetric_difference = (_op(n) for n in ("union", "intersection", "difference", "symmetric_difference"))
+
+
+def TripleTerm(s, p, o):  # noqa: N802
+    return ox.Triple(s, p, o)
 
 E = "http://example.org/"
 
@@ -36,12 +58,12 @@ def _ox(*names: str):
 def _subjects(g) -> set[str]:
     if isinstance(g, ox.Store):
         return {q.subject.value.removeprefix(E) for q in g}
-    return {str(s).removeprefix(E) for s, _, _ in g}
+    return {getattr(s, "value", str(s)).removeprefix(E) for s, _, _ in g}
 
 
 @pytest.fixture(params=["rdflib", "starlayer", "oxigraph"])
 def make(request):
-    return {"rdflib": lambda *n: _triples(*n), "starlayer": lambda *n: _triples(*n, cls=StarLayerGraph), "oxigraph": _ox}[
+    return {"rdflib": lambda *n: _triples(*n), "starlayer": lambda *n: _triples(*n, cls=OxGraph), "oxigraph": _ox}[
         request.param
     ]
 
@@ -88,6 +110,10 @@ def test_result_has_the_first_operands_type(make) -> None:
 
 def test_into_accumulates_and_may_be_an_operand(make) -> None:
     a, b = make("1"), make("2")
+    if isinstance(a, OxGraph):  # an OxGraph has `+=` (union into the left operand); difference/intersection have no into=
+        a += b
+        assert _subjects(a) == {"1", "2"} and _subjects(b) == {"2"}
+        return
     out = union(a, b, into=a)
     assert out is a and _subjects(a) == {"1", "2"} and _subjects(b) == {"2"}
     target = make("9")
@@ -108,9 +134,9 @@ def test_blank_nodes_compare_by_label_not_by_isomorphism() -> None:
 
 
 def test_triple_terms_compare_by_structure() -> None:
-    def tt(o: str) -> StarLayerGraph:
-        g = StarLayerGraph()
-        g.add((_u("r"), URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"), TripleTerm(_u("s"), _u("p"), _u(o))))
+    def tt(o: str) -> OxGraph:
+        g = OxGraph()
+        g.add((_u("r"), URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"), TripleTerm(ox.NamedNode(E + "s"), ox.NamedNode(E + "p"), ox.NamedNode(E + o))))
         return g
 
     assert len(intersection(tt("o"), tt("o"))) == 1
@@ -128,16 +154,16 @@ def test_triple_terms_compare_by_structure() -> None:
 
 
 def test_datasets_compare_quads_with_their_graph_names() -> None:
-    def ds(*graphs: str) -> Dataset:
-        d = StarLayerDataset()
+    def ds(*graphs: str) -> OxDataset:
+        d = OxDataset()
         for g in graphs:
             d.graph(_u(g)).add((_u("s"), _u("p"), Literal("x")))
         return d
 
     a, b = ds("g1", "g2"), ds("g2", "g3")
-    assert {str(g.identifier) for g in intersection(a, b).graphs() if len(g)} == {E + "g2"}
-    assert {str(g.identifier) for g in difference(a, b).graphs() if len(g)} == {E + "g1"}
-    assert {str(g.identifier) for g in union(a, b).graphs() if len(g)} == {E + "g1", E + "g2", E + "g3"}
+    assert {g.identifier.value for g in intersection(a, b).graphs() if len(g)} == {E + "g2"}
+    assert {g.identifier.value for g in difference(a, b).graphs() if len(g)} == {E + "g1"}
+    assert {g.identifier.value for g in union(a, b).graphs() if len(g)} == {E + "g1", E + "g2", E + "g3"}
     # no graph was created in the operands by the comparison
     assert {str(g.identifier) for g in a.graphs()} == {str(g.identifier) for g in ds("g1", "g2").graphs()}
 

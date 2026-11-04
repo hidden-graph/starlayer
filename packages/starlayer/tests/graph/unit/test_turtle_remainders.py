@@ -1,11 +1,11 @@
 """Leftovers of issues #93 and #94 in the hand-written Turtle 1.2 parser."""
 
 import pytest
-from starlayer import StarLayerDataset
+from starlayer.graph.oxgraph import OxDataset
 
 
 def _quads(text):
-    ds = StarLayerDataset()
+    ds = OxDataset()
     ds.parse(data="PREFIX : <http://x/>\n" + text, format="turtle12")
     return ds
 
@@ -26,7 +26,7 @@ def test_a_typed_literal_with_a_full_iri_datatype_inside_a_triple_term(text):
 def test_the_datatype_is_kept():
     ds = _quads(':t :val <<( :a :q "x"^^<http://e/d> )>> .')
     (term,) = [o for _s, _p, o, _g in ds.quads()]
-    assert str(term.object.datatype) == "http://e/d"
+    assert term.object.datatype.value == "http://e/d"
 
 
 @pytest.mark.parametrize(

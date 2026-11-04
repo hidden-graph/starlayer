@@ -1,5 +1,5 @@
 """
-Integration tests for StarLayerGraph.update() with SPARQL 1.2 triple-term syntax.
+Integration tests for OxGraph.update() with SPARQL 1.2 triple-term syntax.
 
 Covers:
   U1 — DELETE WHERE with triple term in WHERE clause
@@ -9,10 +9,13 @@ Covers:
   U5 — Combined DELETE/INSERT WHERE with triple term
 """
 
+import pyoxigraph as ox
 import pytest
-from rdflib import URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
+
+# OxGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
+URIRef = ox.NamedNode
+TripleTerm = ox.Triple
 
 EX = 'http://example.org/'
 RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
@@ -32,7 +35,7 @@ DATASET = """
 
 @pytest.fixture
 def g():
-    sg = StarLayerGraph()
+    sg = OxGraph()
     sg.parse(data=DATASET, format='turtle12')
     return sg
 
@@ -159,7 +162,7 @@ class TestU3:
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?r WHERE { ?r rdf:reifies <<( :carol :knows :dave )>> }
         """)
-        stmts = {row[r.vars[0]] for row in r.bindings}
+        stmts = {row[0] for row in r}
         assert URIRef(EX + 'stmt3') in stmts
 
 
@@ -181,7 +184,7 @@ class TestU4:
         assert reifies == []
 
     def test_delete_data_preserves_encoding_triples(self, g):
-        """Encoding triples (rdf:subject/predicate/object) must not be removed."""
+        """DELETE DATA removes only the triple it names."""
         g.update("""
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -189,11 +192,11 @@ class TestU4:
                 :stmt2 rdf:reifies <<( :alice :knows :bob )>> .
             }
         """)
-        # The TT should still be registered and queryable
-        tt = next(g.triple_terms(
-            URIRef(EX + 'alice'), URIRef(EX + 'knows'), URIRef(EX + 'bob')
-        ), None)
-        assert tt is not None
+        # DELETE DATA removes exactly the one triple it names: there is no encoding left behind (the old class kept
+        # rdf:subject/predicate/object triples and a registry entry), and the other statements of the graph stay.
+        assert len(list(g.triples((URIRef(EX + "stmt2"), None, None)))) == 1  # only :confidence is left
+        assert (URIRef(EX + "stmt1"), RDF_REIFIES, TripleTerm(URIRef(EX + "bob"), URIRef(EX + "knows"), URIRef(EX + "carol"))) in g
+        assert list(g.triple_terms(URIRef(EX + "alice"), URIRef(EX + "knows"), URIRef(EX + "bob"))) == []
 
     def test_delete_data_other_reifier_unaffected(self, g):
         g.update("""

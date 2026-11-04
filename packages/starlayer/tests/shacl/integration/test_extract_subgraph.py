@@ -8,15 +8,15 @@ include every satisfying candidate rather than picking an arbitrary one,
 and only real stored triples are ever included).
 """
 
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 from starlayer.shacl_engine.terms import RDF, text
 
 RDF_TYPE = RDF.type
 
 
-def _graph(data: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(data: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=data, format="turtle12")
     return g
 

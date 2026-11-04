@@ -1,7 +1,7 @@
 """
 tests/unit/test_infer_owl_dl.py
 
-Coverage for StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine="hermit") -
+Coverage for OxGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine="hermit") -
 OWL 2 Direct Semantics reasoning via owlready2 + Java HermiT, a genuinely
 different computational model (tableau DL reasoning) from every owlrl-backed
 entailment regime covered by test_infer.py. `owlready2` is an optional extra of this
@@ -26,8 +26,9 @@ import os
 import shutil
 
 import pytest
-from starlayer.graph import RDF, Namespace, StarLayerGraph
+from starlayer.graph import RDF, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.oxgraph import OxGraph
 
 try:
     import owlready2  # noqa: F401
@@ -61,7 +62,7 @@ class TestOwlDlDisjunctiveEntailment:
     """
 
     def _disjunctive_graph(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -111,7 +112,7 @@ class TestOwlDlSubClassClosure:
     """
 
     def test_multi_hop_subclass_entailment(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -131,7 +132,7 @@ class TestOwlDlInconsistency:
     def test_inconsistent_ontology_raises(self):
         from starlayer.graph.graph.owl_dl import InconsistentOntologyError
 
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -143,7 +144,7 @@ class TestOwlDlInconsistency:
             g.infer(entailment=ENTAILMENT['OWL-Direct'])
 
     def test_consistent_ontology_does_not_raise(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -159,7 +160,7 @@ class TestOwlDlInconsistency:
 @java_required
 class TestOwlDlModes:
     def test_mode_in_place_mutates_and_returns_self(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -182,7 +183,7 @@ class TestOwlDlTimeout:
     using synthetic workers, not real HermiT calls."""
 
     def _simple_graph(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -208,7 +209,7 @@ class TestOwlDlTimeout:
 
 
 def test_timeout_rejected_for_non_owl_dl_entailment():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.bind("ex", EX)
     g.add((EX.alice, RDF.type, EX.Person))
     with pytest.raises(ValueError, match="only meaningful for entailment="):
@@ -232,7 +233,7 @@ def test_missing_owlready2_raises_actionable_error(monkeypatch):
 
 
 def test_invalid_engine_raises_value_error():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.bind("ex", EX)
     g.add((EX.alice, RDF.type, EX.Person))
     with pytest.raises(ValueError, match="Unsupported engine"):
@@ -240,7 +241,7 @@ def test_invalid_engine_raises_value_error():
 
 
 def test_engine_rejected_for_non_owl_dl_entailment():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.bind("ex", EX)
     g.add((EX.alice, RDF.type, EX.Person))
     with pytest.raises(ValueError, match="only meaningful for entailment="):
@@ -257,7 +258,7 @@ def test_missing_java_raises_a_distinct_clear_error(monkeypatch):
     from starlayer.graph.graph import owl_dl
 
     monkeypatch.setattr(owl_dl.shutil, "which", lambda name: None)
-    g = StarLayerGraph()
+    g = OxGraph()
     g.bind("ex", EX)
     g.add((EX.alice, RDF.type, EX.Person))
     with pytest.raises(RuntimeError, match="Java runtime"):
@@ -287,7 +288,7 @@ def test_broken_java_raises_a_distinct_clear_error(tmp_path, monkeypatch):
     fake_java.chmod(0o755)
     monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ['PATH']}")
 
-    g = StarLayerGraph()
+    g = OxGraph()
     g.bind("ex", EX)
     g.add((EX.alice, RDF.type, EX.Person))
     with pytest.raises(RuntimeError, match="broken or misconfigured"):

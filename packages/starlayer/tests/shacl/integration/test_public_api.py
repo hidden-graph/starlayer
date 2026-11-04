@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pytest
 from rdflib import RDF, Literal, Namespace
-from starlayer import StarLayerGraph
 from starlayer.graph import isomorphic
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import (
     evaluate_expression,
     infer_types,
@@ -30,8 +30,8 @@ PRE = (
 )
 
 
-def graph(turtle: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def graph(turtle: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=PRE + turtle, format="turtle12")
     return g
 

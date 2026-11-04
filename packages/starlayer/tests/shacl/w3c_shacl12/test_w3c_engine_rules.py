@@ -11,9 +11,9 @@ from __future__ import annotations
 import importlib.util
 
 import pytest
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl_engine.rules import apply_rules
-from starlayer.shacl_engine.terms import LegacyTermView
+from starlayer.shacl_engine.terms import LegacyTermView, from_engine
 
 from .ids import portable_id
 from .manifest import (
@@ -47,9 +47,9 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("entry", _ENTRIES, ids=[portable_id(e, VENDOR_ROOT) for e in _ENTRIES])
 
 
-def _graph(entry: ManifestEntry, predicate) -> StarLayerGraph:
+def _graph(entry: ManifestEntry, predicate) -> OxGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
-    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), StarLayerGraph)
+    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), OxGraph)
 
 
 def test_engine_rules(entry: ManifestEntry) -> None:
@@ -58,11 +58,12 @@ def test_engine_rules(entry: ManifestEntry) -> None:
     data = _graph(entry, SHT.dataGraph)
     shapes = _graph(entry, SHT.shapesGraph)
     expected = _expected_triples(entry)
-    before = set(data.triples((None, None, None)))
-    result = apply_rules(data, shapes)
-    assert set(data.triples((None, None, None))) == before, "the caller's data graph was modified"
-    added = set(LegacyTermView(result.view).triples((None, None, None))) - before
-    from starlayer.shacl_engine.terms import from_engine
+    def _triples():  # the data graph holds pyoxigraph terms; the expected triples are in rdflib terms
+        return {tuple(from_engine(t) for t in triple) for triple in data.triples((None, None, None))}
 
+    before = _triples()
+    result = apply_rules(data, shapes)
+    assert _triples() == before, "the caller's data graph was modified"
+    added = set(LegacyTermView(result.view).triples((None, None, None))) - before
     assert added == {tuple(from_engine(t) for t in triple) for triple in result.inferred}  # the engine speaks pyoxigraph terms
     assert _same_triples(added, expected), f"expected added: {expected}\nactual added: {added}"

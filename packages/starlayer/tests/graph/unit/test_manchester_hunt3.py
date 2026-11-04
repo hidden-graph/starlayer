@@ -8,8 +8,8 @@ one ontology per document, ``languageTag`` non-empty, ``description2List`` with 
 import pytest
 from rdflib import Graph, Literal, URIRef
 from rdflib.namespace import XSD
-from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 from starlayer.starontology.manchester import (
@@ -126,10 +126,10 @@ def test_deeply_nested_expression_is_a_syntax_error():
 # --- serializer: data fillers --------------------------------------------------------------------
 
 def _round_trip(text):
-    g1 = StarLayerGraph()
+    g1 = OxGraph()
     g1.parse(data=text, format='manchester')
     out = g1.serialize(format='manchester')
-    g2 = StarLayerGraph()
+    g2 = OxGraph()
     g2.parse(data=out, format='manchester')
     assert isomorphic(g1, g2), out
     return out

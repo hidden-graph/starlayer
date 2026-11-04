@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Graph
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import validate
 
 pytestmark = pytest.mark.shacl
@@ -18,7 +18,7 @@ DATA = 'ex:a ex:p <<( ex:s ex:q "hello" )>> .'
 
 
 def conforms(path: str, constraint: str) -> bool:
-    data = StarLayerGraph().parse(data=PREFIXES + DATA, format="turtle12")
+    data = OxGraph().parse(data=PREFIXES + DATA, format="turtle12")
     shapes = Graph().parse(
         data=PREFIXES + f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path {path} ; {constraint} ] .",
         format="turtle",

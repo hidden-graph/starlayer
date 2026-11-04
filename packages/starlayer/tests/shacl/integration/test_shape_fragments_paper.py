@@ -17,7 +17,7 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import extract_subgraph, validate
 from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl_engine.terms import RDF, RDFS, from_engine
@@ -29,8 +29,8 @@ PREFIXES = (
 )
 
 
-def _graph(ttl: str) -> StarLayerGraph:
-    graph = StarLayerGraph()
+def _graph(ttl: str) -> OxGraph:
+    graph = OxGraph()
     graph.parse(data=PREFIXES + ttl, format="turtle12")
     return graph
 
@@ -40,7 +40,7 @@ def _with_focus_targets(shapes: str, focus: list[str]) -> str:
     return re.sub(r"sh:targetClass :\w+", "sh:targetNode " + ", ".join(f":{f}" for f in focus), shapes)
 
 
-def _conforms(data: StarLayerGraph, shapes: StarLayerGraph) -> bool:
+def _conforms(data: OxGraph, shapes: OxGraph) -> bool:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return validate(data, shapes, meta_shacl=False).conforms
@@ -276,7 +276,7 @@ def test_the_conformance_theorem_holds_for_random_shapes_and_graphs(case) -> Non
     """Generate a shape and a graph; when the graph conforms, its fragment must too (focus nodes kept as targets)."""
     shapes, data = case
     graph = _graph(data)
-    focus = sorted({str(s).rsplit("/", 1)[-1] for s in graph.subjects(from_engine(RDF.type), from_engine(E["T"]))})
+    focus = sorted({s.value.rsplit("/", 1)[-1] for s in graph.subjects(from_engine(RDF.type), from_engine(E["T"]))})
     assume(focus)
     strict = _graph(_with_focus_targets(shapes, focus))
     assume(_conforms(graph, strict))

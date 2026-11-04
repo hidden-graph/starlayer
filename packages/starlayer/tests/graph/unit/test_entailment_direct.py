@@ -1,8 +1,8 @@
 """
 tests/unit/test_entailment_direct.py
 
-Coverage for StarLayerGraph.query(..., entailment=ENTAILMENT['OWL-Direct']) - the
-query-time counterpart to StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine=...):
+Coverage for OxGraph.query(..., entailment=ENTAILMENT['OWL-Direct']) - the
+query-time counterpart to OxGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine=...):
 query() a live union of self and a small cached OWL-DL entailment delta,
 mirroring exactly how entailment=ENTAILMENT['OWL-RDF-Based'] already works for the owlrl-backed
 entailment regime (see test_entailment.py's TestEntailmentOwlRl*/TestEntailmentOwlRlCaching,
@@ -18,9 +18,10 @@ than sharing markers across files.
 import shutil
 
 import pytest
-from starlayer.graph import RDF, Namespace, StarLayerGraph
+from starlayer.graph import RDF, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.owl_dl import InconsistentOntologyError
+from starlayer.graph.oxgraph import OxGraph
 
 try:
     import owlready2  # noqa: F401
@@ -63,7 +64,7 @@ def _disjunctive_graph():
     # this, so a correct result here proves entailment=ENTAILMENT['OWL-Direct'] is doing
     # genuine DL reasoning at query time, not something entailment=ENTAILMENT['OWL-RDF-Based']
     # could already answer.
-    g = StarLayerGraph()
+    g = OxGraph()
     g.bind("ex", EX)
     g.parse(data="""
         @prefix ex: <http://example.org/> .
@@ -102,7 +103,7 @@ class TestEntailmentDirect:
             list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], timeout=0.001))
 
     def test_inconsistent_ontology_propagates(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -120,7 +121,7 @@ class TestEntailmentDirect:
         # about the missing store, not a NotImplementedError about
         # entailment), mirroring test_entailment.py's identical check for
         # entailment="native".
-        g = StarLayerGraph(backend="rdf-1.2")
+        g = OxGraph()
         with pytest.raises(RuntimeError, match="store"):
             g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'])
 

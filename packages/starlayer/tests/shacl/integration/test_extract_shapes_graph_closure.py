@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 from pyoxigraph import NamedNode
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import referenced_shapes
 from starlayer.shacl_engine.terms import NS as Namespace
@@ -32,7 +32,7 @@ ex:Unrelated a sh:NodeShape ; sh:nodeKind sh:Literal .
 
 
 def _schema():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=SHAPES, format="turtle12")
     return StarShaclSchema(shacl_graph=g)
 
@@ -61,7 +61,7 @@ def test_a_cycle_through_the_references_terminates():
 
 def test_the_extract_validates_on_its_own():
     extract = _schema().extract_shapes_graph(EX.ModuleA, include_referenced=True)
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:worksFor ex:acme .", format="turtle12")
     result = validate(data, extract, meta_shacl=False)
     assert result.conforms is False  # acme has no ex:name: the referenced Company shape applied
@@ -70,7 +70,7 @@ def test_the_extract_validates_on_its_own():
 def test_the_extract_without_the_option_leaves_a_dangling_property_shape_reference():
     """Without ``include_referenced`` the extract keeps ``sh:property`` references whose property shape it left behind: an
     ill-formed shapes graph (a property shape has a ``sh:path``), which the engine refuses."""
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle12")
     bare = _schema().extract_shapes_graph(EX.ModuleA)
     closed = _schema().extract_shapes_graph(EX.ModuleA, include_referenced=True)
@@ -80,7 +80,7 @@ def test_the_extract_without_the_option_leaves_a_dangling_property_shape_referen
 
 
 def test_referenced_shapes_function_ignores_blank_nodes_and_the_starting_points():
-    graph = StarLayerGraph()
+    graph = OxGraph()
     graph.parse(
         data=SHAPES + "ex:Holder a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:node ex:OrA ] .", format="turtle12"
     )

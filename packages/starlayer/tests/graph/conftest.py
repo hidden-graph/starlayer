@@ -5,7 +5,6 @@ Shared fixtures for the starlayer.graph test suite.
 import pathlib
 
 import pytest
-from starlayer.graph.parsers.turtle_parser import StarLayerTurtleParser
 
 # Eagerly import and install starlayer.sparql's grammar extension here, at
 # collection time, before any test module gets a chance to trigger it
@@ -23,6 +22,7 @@ from starlayer.graph.parsers.turtle_parser import StarLayerTurtleParser
 # entirely. Confirmed via direct A/B testing: the exact same test
 # combination that reliably failed without this import passes cleanly with
 # it, every time.
+import starlayer.graph  # noqa: F401  - must come before grammar12.install() (see tests/shacl/conftest.py)
 from starlayer.sparql import _grammar12 as grammar12
 
 grammar12.install()
@@ -32,6 +32,10 @@ FIXTURES_DIR = pathlib.Path(__file__).parent / 'fixtures'
 
 @pytest.fixture
 def parser():
+    # imported here, not at module level: the hand-written Turtle parser is the old class's and goes at D1 with the tests
+    # that use this fixture (the conftest then needs only its fixture_ttl and grammar install)
+    from starlayer.graph.parsers.turtle_parser import StarLayerTurtleParser
+
     return StarLayerTurtleParser()
 
 

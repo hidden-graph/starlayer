@@ -172,15 +172,6 @@ class TestFromRdflib:
         r.add((URIRef(EX + "a"), URIRef(EX + "p"), URIRef(EX + "b")))
         assert OxGraph.from_rdflib(r).identifier == ox.NamedNode(EX + "ident")
 
-    def test_starlayer_graph_with_a_triple_term(self):
-        from starlayer.graph import StarLayerGraph
-
-        old = StarLayerGraph()
-        old.parse(data=DOC12, format="turtle")
-        g = OxGraph.from_rdflib(old)
-        assert any(isinstance(o, ox.Triple) for _, _, o in g.triples())
-        assert (ox.NamedNode(EX + "a"), ox.NamedNode(EX + "r"),
-                ox.Literal("x", language="en", direction=ox.BaseDirection.LTR)) in g
 
     def test_an_ox_graph_is_copied(self):
         g = _graph()

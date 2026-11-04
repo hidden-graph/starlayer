@@ -1,7 +1,6 @@
 import pyoxigraph as ox
 import pytest
 from rdflib import Graph, Literal, Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.oxgraph.core import OxDataset, OxGraph
 from starlayer.shacl.normalization import (
     normalize_graph_inputs,
@@ -47,16 +46,6 @@ def test_normalize_converts_rdflib_graph() -> None:
     assert len(out) == 1
 
 
-def test_normalize_converts_a_starlayer_graph_to_an_oxgraph_copy() -> None:
-    graph = StarLayerGraph()
-    graph.add((EX.s, EX.p, Literal("x")))
-
-    out = normalize_to_starlayer_graph(graph, name="data_graph")
-
-    assert isinstance(out, OxGraph)
-    assert (EX.s, EX.p, Literal("x")) in out
-    graph.add((EX.s, EX.p, Literal("y")))
-    assert len(out) == 1  # a copy, not a view
 
 
 def test_normalize_rejects_a_value_that_is_not_a_graph_and_names_the_argument() -> None:

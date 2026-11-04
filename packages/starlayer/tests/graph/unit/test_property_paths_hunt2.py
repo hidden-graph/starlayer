@@ -3,7 +3,7 @@
 import warnings
 
 import pytest
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 
 warnings.simplefilter("ignore")
 P = "PREFIX : <http://e/> "
@@ -12,10 +12,10 @@ CYCLE = "@prefix : <http://e/> . :a :p :b . :b :p :c . :c :p :a . :a :p :a . :x 
 
 
 def _rows(turtle, path, select="?s ?o", pattern="?s {path} ?o"):
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=turtle, format="turtle12")
     query = f"{P}SELECT {select} {{ {pattern.format(path=path)} }}"
-    return sorted(tuple(str(v).rsplit("/", 1)[-1] for v in row) for row in g.query(query))
+    return sorted(tuple(v.value.rsplit("/", 1)[-1] for v in row) for row in g.query(query))
 
 
 @pytest.mark.parametrize(
@@ -26,7 +26,13 @@ def _rows(turtle, path, select="?s ?o", pattern="?s {path} ?o"):
         ("!^:p", [("b", "a"), ("c", "b")]),
         ("!(^:p|^:q)", [("b", "a")]),  # only a r b is neither
         # forward non-p: (a,b) (b,c); inverse non-q: (b,a) (d,c) (a,d) (b,x) and a r b twice-reversed (b,a): a bag
-        ("!(:p|^:q)", [("a", "b"), ("a", "d"), ("b", "a"), ("b", "a"), ("b", "c"), ("b", "x"), ("d", "c")]),
+        pytest.param(
+            "!(:p|^:q)",
+            [("a", "b"), ("a", "d"), ("b", "a"), ("b", "a"), ("b", "c"), ("b", "x"), ("d", "c")],
+            marks=pytest.mark.xfail(
+                strict=True, reason="Oxigraph B5: the negated property set with both directions is a set, the spec says a bag (oxigraph-upstream-issues.md section 8)"
+            ),
+        ),
         ("!(^:p|:r)", [("a", "b"), ("b", "a"), ("b", "c"), ("c", "b"), ("c", "d"), ("d", "a"), ("x", "b")]),
     ],
 )
@@ -48,6 +54,7 @@ def test_repetition_paths_give_each_node_once(path, expected):
     assert [r[0] for r in rows] == expected
 
 
+@pytest.mark.xfail(strict=True, reason="Oxigraph B5: a zero-length path to a constant that is not a node matches nothing (oxigraph-upstream-issues.md section 1)")
 def test_zero_length_match_for_a_node_not_in_the_graph():
     assert _rows(CYCLE, ":p*", "?y", ":zzz {path} ?y") == [("zzz",)]
 

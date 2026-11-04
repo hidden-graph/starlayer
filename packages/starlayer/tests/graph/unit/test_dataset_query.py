@@ -1,5 +1,5 @@
 """
-Unit tests for StarLayerDataset.query() and .update() with SPARQL-star.
+Unit tests for OxDataset.query() and .update() with SPARQL-star.
 
 Covers:
   - SELECT with ground triple-term pattern in a named graph
@@ -12,10 +12,37 @@ Covers:
   - UPDATE result visible through get_context() after registry rebuild
 """
 
+import pyoxigraph as ox
 import pytest
-from rdflib import Literal, URIRef
-from starlayer.graph.graph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxDataset, OxGraph
+
+_XSD = "http://www.w3.org/2001/XMLSchema#"
+
+
+def URIRef(iri):  # noqa: N802
+    return ox.NamedNode(str(iri))
+
+
+def BNode(label=None):  # noqa: N802
+    return ox.BlankNode(label) if label else ox.BlankNode()
+
+
+def Literal(value, lang=None, datatype=None):  # noqa: N802
+    if lang:
+        return ox.Literal(str(value), language=lang)
+    if datatype is not None:
+        return ox.Literal(str(value), datatype=ox.NamedNode(str(datatype)))
+    if isinstance(value, bool):
+        return ox.Literal("true" if value else "false", datatype=ox.NamedNode(_XSD + "boolean"))
+    if isinstance(value, int):
+        return ox.Literal(str(value), datatype=ox.NamedNode(_XSD + "integer"))
+    if isinstance(value, float):
+        return ox.Literal(repr(value), datatype=ox.NamedNode(_XSD + "double"))
+    return ox.Literal(value)
+
+
+def TripleTerm(s, p, o):  # noqa: N802
+    return ox.Triple(s, p, o)
 
 EX = 'http://example.org/'
 G1 = URIRef(EX + 'graph1')
@@ -45,7 +72,7 @@ GRAPH <{EX}graph2> {{
 
 @pytest.fixture
 def ds():
-    d = StarLayerDataset()
+    d = OxDataset()
     d.parse(data=TRIG, format='trig12')
     return d
 
@@ -97,7 +124,7 @@ class TestSelectGround:
         }}
         """
         rows = list(ds.query(q))
-        assert isinstance(rows[0][0], URIRef)
+        assert isinstance(rows[0][0], ox.NamedNode)
 
     def test_no_match_returns_empty(self, ds):
         q = f"""
@@ -132,7 +159,7 @@ class TestSelectRestore:
         rows = list(ds.query(q))
         assert len(rows) == 1
         tt = rows[0][0]
-        assert isinstance(tt, TripleTerm)
+        assert isinstance(tt, ox.Triple)
         assert tt == TripleTerm(ex('alice'), ex('knows'), ex('bob'))
 
     def test_triple_term_from_graph2_restored(self, ds):
@@ -148,7 +175,7 @@ class TestSelectRestore:
         rows = list(ds.query(q))
         assert len(rows) == 1
         tt = rows[0][0]
-        assert isinstance(tt, TripleTerm)
+        assert isinstance(tt, ox.Triple)
         assert tt == TripleTerm(ex('bob'), ex('likes'), ex('carol'))
 
     def test_triple_terms_from_both_graphs_restored(self, ds):
@@ -252,7 +279,7 @@ class TestSelectFunctions:
         """
         rows = list(ds.query(q))
         assert len(rows) == 1
-        assert isinstance(rows[0][0], TripleTerm)
+        assert isinstance(rows[0][0], ox.Triple)
 
 
 # ---------------------------------------------------------------------------
@@ -302,7 +329,7 @@ class TestConstruct:
         }}
         """
         r = ds.query(q)
-        assert isinstance(r.graph, StarLayerGraph)
+        assert isinstance(r.graph, OxGraph)
 
     def test_construct_result_has_triple(self, ds):
         q = f"""
@@ -336,7 +363,7 @@ class TestUpdatePlain:
         }}
         """
         ds.update(q)
-        g1 = ds.get_context(G1)
+        g1 = ds.graph(G1)
         assert (ex('alice'), ex('age'), Literal('30')) in g1
 
     def test_delete_plain_triple(self, ds):
@@ -349,7 +376,7 @@ class TestUpdatePlain:
         }}
         """
         ds.update(q)
-        g1 = ds.get_context(G1)
+        g1 = ds.graph(G1)
         assert (ex('stmt1'), ex('confidence'), Literal('0.9')) not in g1
 
 
@@ -373,7 +400,7 @@ class TestUpdateWithTripleTerm:
         }}
         """
         ds.update(q)
-        g1 = ds.get_context(G1)
+        g1 = ds.graph(G1)
         assert (ex('stmt1'), ex('verified'), Literal('true')) in g1
 
     def test_delete_using_triple_term_where(self, ds):
@@ -392,7 +419,7 @@ class TestUpdateWithTripleTerm:
         }}
         """
         ds.update(q)
-        g1 = ds.get_context(G1)
+        g1 = ds.graph(G1)
         triples = list(g1.triples((ex('stmt1'), ex('confidence'), None)))
         assert triples == []
 
@@ -411,7 +438,7 @@ class TestUpdateWithTripleTerm:
         }}
         """
         ds.update(q)
-        g1 = ds.get_context(G1)
+        g1 = ds.graph(G1)
         assert (ex('stmt2'), ex('copied'), Literal('yes')) in g1
 
     def test_registry_intact_after_update(self, ds):
@@ -423,7 +450,7 @@ class TestUpdateWithTripleTerm:
         }}
         """
         ds.update(q)
-        g1 = ds.get_context(G1)
+        g1 = ds.graph(G1)
         assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
 
@@ -478,7 +505,7 @@ class TestUpdateDataWithGroundTripleTerm:
         }}
         """
         ds.update(q)
-        g1 = ds.get_context(G1)
+        g1 = ds.graph(G1)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         assert (ex('who'), ex('verifiedBy'), tt) in g1
 

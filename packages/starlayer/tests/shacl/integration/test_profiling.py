@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, RDFS
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema, shacl_profiling
 
 from ._rdflib_view import rd
@@ -35,14 +35,14 @@ _UNDECLARED_PROFILES = (
 )
 
 
-def _valid_data() -> StarLayerGraph:
-    data = StarLayerGraph()
+def _valid_data() -> OxGraph:
+    data = OxGraph()
     data.add((EX.alice, EX.age, Literal(30)))
     return data
 
 
-def _shapes() -> StarLayerGraph:
-    shapes = StarLayerGraph()
+def _shapes() -> OxGraph:
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .

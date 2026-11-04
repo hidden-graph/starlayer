@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import EvaluationFailure, StarShaclSchema
 
 from ._rdflib_view import rd
@@ -44,10 +44,10 @@ DATA = """
 
 
 def _expression_conforms(expression_ttl: str, target: str = "ex:alice") -> bool:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data=DATA, format="turtle")
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + f"""
@@ -79,10 +79,10 @@ def _boolean_expr_conforms(expression_ttl: str, target: str = "ex:alice", fmt: s
     need an RDF 1.2 dir-lang-string literal constant (``"x"@en--ltr``), which
     plain "turtle" doesn't parse.
     """
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data=DATA, format="turtle")
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + f"""
@@ -263,7 +263,7 @@ def test_instancesof_matches_transitive_subclass_instances() -> None:
     # ex:Company (a rdfs:subClassOf descendant of ex:Organization), not
     # just direct ex:Organization instances - matches the W3C SHACL 1.2
     # test suite's instancesOf-base-class fixture.
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -275,7 +275,7 @@ def test_instancesof_matches_transitive_subclass_instances() -> None:
         format="turtle",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + """
@@ -292,7 +292,7 @@ def test_instancesof_matches_transitive_subclass_instances() -> None:
 
 
 def test_instancesof_does_not_match_unrelated_class_instances() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -303,7 +303,7 @@ def test_instancesof_does_not_match_unrelated_class_instances() -> None:
         format="turtle",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + """
@@ -364,13 +364,13 @@ def test_conformstoshape_over_empty_result_is_not_vacuously_true() -> None:
 
 
 def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:claims <<( ex:bob ex:age 42 )>> .
     """, format="turtle12")
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + """
@@ -391,7 +391,7 @@ def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
 # sparql:isTriple/subject over a triple-term value obtained from *real data*
 # (not a Turtle constant embedded in the shapes graph) through the actual
 # validate() entrypoint - not tests/w3c_shacl12/'s eval_expr()-direct calls,
-# which use a hand-built StarLayerGraph as data_graph and so never exercise
+# which use a hand-built OxGraph as data_graph and so never exercise
 # what validate() really hands node-expression evaluation. Found live (via a
 # direct user question about whether "rdflib's own SPARQL engine" really
 # meant real production usage) that data_graph as received by
@@ -406,10 +406,10 @@ def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
 
 
 def test_sparql_istriple_over_real_data_triple_term() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + """
@@ -423,10 +423,10 @@ def test_sparql_istriple_over_real_data_triple_term() -> None:
 
 
 def test_sparql_subject_over_real_data_triple_term() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data=PREFIXES
         + """
@@ -447,7 +447,7 @@ def test_sparql_subject_over_real_data_triple_term() -> None:
 # through the real validate()/apply_rules() entrypoint - the other 72 had
 # coverage only via tests/w3c_shacl12/test_w3c_node_expr.py, which calls
 # eval_expr()/eval_sparql_expr() directly against a hand-built
-# StarLayerGraph, never through pySHACL's real dispatch. That gap is exactly
+# OxGraph, never through pySHACL's real dispatch. That gap is exactly
 # how the two real bugs already on record in this file's docstring
 # (real-data triple-term flat-encoding, and the shapes-graph-only-uses-
 # sparql:-wiring gap) were both missed by unit-level coverage and only found

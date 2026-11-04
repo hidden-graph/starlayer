@@ -6,7 +6,7 @@ SPARQL 1.2 sameValue step 4 compares the components pairwise, so
 """
 
 import pytest
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 
 CASES = [
     ("<<(<a:s> <a:p> 1)>> = <<(<a:s> <a:p> 1.0)>>", True),
@@ -23,12 +23,12 @@ CASES = [
 
 @pytest.mark.parametrize(("expr", "expected"), CASES)
 def test_constant_triple_terms_compare_by_value(expr, expected):
-    rows = list(StarLayerGraph().query(f"SELECT (({expr}) AS ?x) {{}}"))
-    assert [bool(r[0]) for r in rows] == [expected]
+    rows = list(OxGraph().query(f"SELECT (({expr}) AS ?x) {{}}"))
+    assert [r[0].value == "true" for r in rows] == [expected]
 
 
 def test_bound_triple_terms_compare_by_value_in_filter_and_in():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(
         data="@prefix : <http://x/> . :a :q <<(:s :p 123)>> . :b :q <<(:s :p 123.0)>> .",
         format="turtle12",

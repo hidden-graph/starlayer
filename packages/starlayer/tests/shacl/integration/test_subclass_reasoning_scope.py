@@ -1,5 +1,5 @@
 from rdflib import RDFS, Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
@@ -11,8 +11,8 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 # same assertion in the data graph is honored.
 
 
-def _shapes_with_root_class_and_shapes_graph_subclass_assertion() -> StarLayerGraph:
-    shapes = StarLayerGraph()
+def _shapes_with_root_class_and_shapes_graph_subclass_assertion() -> OxGraph:
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -34,8 +34,8 @@ def _shapes_with_root_class_and_shapes_graph_subclass_assertion() -> StarLayerGr
     return shapes
 
 
-def _data_zoo_holds_lion() -> StarLayerGraph:
-    data = StarLayerGraph()
+def _data_zoo_holds_lion() -> OxGraph:
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -65,8 +65,8 @@ def test_root_class_honors_data_graph_subclass_assertion() -> None:
     assert result.conforms is True
 
 
-def _shapes_with_list_valued_class_and_shapes_graph_subclass_assertion() -> StarLayerGraph:
-    shapes = StarLayerGraph()
+def _shapes_with_list_valued_class_and_shapes_graph_subclass_assertion() -> OxGraph:
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -88,8 +88,8 @@ def _shapes_with_list_valued_class_and_shapes_graph_subclass_assertion() -> Star
     return shapes
 
 
-def _data_alice_has_tiger() -> StarLayerGraph:
-    data = StarLayerGraph()
+def _data_alice_has_tiger() -> OxGraph:
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

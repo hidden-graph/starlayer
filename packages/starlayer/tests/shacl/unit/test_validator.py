@@ -1,7 +1,7 @@
 
 import pytest
 from rdflib import Literal, Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import ShapeError
 from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
 from starlayer.shacl_engine.terms import from_engine
@@ -18,8 +18,8 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
     tests call the bare functions directly, with no StarShaclSchema
     instance involved anywhere, confirming step 1 stands on its own."""
 
-    def _shapes(self) -> StarLayerGraph:
-        g = StarLayerGraph()
+    def _shapes(self) -> OxGraph:
+        g = OxGraph()
         g.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -33,7 +33,7 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
         return g
 
     def test_bare_validate_conforms_true(self) -> None:
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:bob a ex:Person ; ex:name \"Bob\" .", format="turtle")
 
         result = validate(data, self._shapes(), meta_shacl=False)
@@ -41,7 +41,7 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
         assert result.conforms is True
 
     def test_bare_validate_conforms_false(self) -> None:
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
 
         result = validate(data, self._shapes(), meta_shacl=False)
@@ -50,7 +50,7 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
 
     def test_bare_validate_matches_schema_method_result(self) -> None:
         shapes = self._shapes()
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
 
         bare_result = validate(data, shapes, meta_shacl=False)
@@ -60,11 +60,11 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
 
     def test_bare_validate_each(self) -> None:
         shapes = self._shapes()
-        conforming = StarLayerGraph()
+        conforming = OxGraph()
         conforming.parse(
             data="@prefix ex: <http://example.org/> . ex:bob a ex:Person ; ex:name \"Bob\" .", format="turtle"
         )
-        violating = StarLayerGraph()
+        violating = OxGraph()
         violating.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
 
         results = validate_each([violating, conforming], shapes, meta_shacl=False)
@@ -73,7 +73,7 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
         assert results[1].conforms is True
 
     def test_bare_evaluate_computes_sh_values(self) -> None:
-        shapes = StarLayerGraph()
+        shapes = OxGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -88,7 +88,7 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
             """,
             format="turtle",
         )
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="@prefix ex: <http://example.org/> . ex:carol a ex:Person ; ex:friend ex:dave, ex:erin .",
             format="turtle",
@@ -109,7 +109,7 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
 def test_module_level_validate_each_matches_starlayershacl_method() -> None:
     from starlayer.shacl import validate_each
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -119,12 +119,12 @@ def test_module_level_validate_each_matches_starlayershacl_method() -> None:
         """,
         format="turtle",
     )
-    conforming = StarLayerGraph()
+    conforming = OxGraph()
     conforming.parse(
         data='@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:name "Alice" .',
         format="turtle",
     )
-    violating = StarLayerGraph()
+    violating = OxGraph()
     violating.parse(data="@prefix ex: <http://example.org/> . ex:bob a ex:Person .", format="turtle")
 
     results = validate_each([conforming, violating], shacl_graph=shapes)
@@ -178,10 +178,10 @@ def test_module_level_validate_each_matches_starlayershacl_method() -> None:
 
 
 def test_validate_reification_required_violation_when_no_reifier_exists() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.value, Literal("A")))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -235,7 +235,7 @@ def test_validate_reifier_shape_violation_survives_advanced_mode() -> None:
     # test_validate_reifier_shape_violation_when_reifier_does_not_conform,
     # differing only by advanced=True. Fixed by
     # validator.py::_patch_rdflib_data_graph_clone_preserves_tt_adapter.
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -244,7 +244,7 @@ def test_validate_reifier_shape_violation_survives_advanced_mode() -> None:
         format="turtle12",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -278,7 +278,7 @@ def test_validate_reifier_shape_violation_survives_advanced_mode() -> None:
 
 
 def test_validate_reification_required_conforms_when_reifier_exists() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -287,7 +287,7 @@ def test_validate_reification_required_conforms_when_reifier_exists() -> None:
         format="turtle12",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -310,7 +310,7 @@ def test_validate_reification_required_conforms_when_reifier_exists() -> None:
 
 
 def test_validate_reifier_shape_violation_when_reifier_does_not_conform() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -319,7 +319,7 @@ def test_validate_reifier_shape_violation_when_reifier_does_not_conform() -> Non
         format="turtle12",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -353,7 +353,7 @@ def test_validate_reifier_shape_violation_when_reifier_does_not_conform() -> Non
 
 
 def test_validate_reifier_shape_conforms_when_reifier_conforms() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -363,7 +363,7 @@ def test_validate_reifier_shape_conforms_when_reifier_conforms() -> None:
         format="turtle12",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -392,10 +392,10 @@ def test_validate_reifier_shape_conforms_when_reifier_conforms() -> None:
 
 
 def test_validate_hard_fails_when_reification_path_is_not_simple_iri() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.add((EX.alice, EX.value, Literal("A")))
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -419,7 +419,7 @@ def test_validate_hard_fails_when_reification_path_is_not_simple_iri() -> None:
 def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
     # shnex:filterShape keeps only the nodes that conform to the shape: only ex:bob
     # (a genuine ex:Adult) is filtered in, excluding ex:carol.
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -429,7 +429,7 @@ def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
         format="turtle",
     )
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -469,8 +469,8 @@ class TestBoundDataGraphAndInference:
     same data without repeating it, and without repeating an entailment
     regime either."""
 
-    def _shapes(self) -> StarLayerGraph:
-        g = StarLayerGraph()
+    def _shapes(self) -> OxGraph:
+        g = OxGraph()
         g.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -483,8 +483,8 @@ class TestBoundDataGraphAndInference:
         )
         return g
 
-    def _data(self, name_present: bool) -> StarLayerGraph:
-        g = StarLayerGraph()
+    def _data(self, name_present: bool) -> OxGraph:
+        g = OxGraph()
         triples = "ex:alice a ex:Person ." + (' ex:alice ex:name "Alice" .' if name_present else "")
         g.parse(data=f"@prefix ex: <http://example.org/> . {triples}", format="turtle")
         return g
@@ -521,7 +521,7 @@ class TestBoundDataGraphAndInference:
     def test_inference_bound_at_construction_feeds_validate(self) -> None:
         from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -562,8 +562,8 @@ class TestInputsAndHelpers:
         "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:name ; sh:minCount 1 ] ."
     )
 
-    def _graph(self, ttl: str) -> StarLayerGraph:
-        g = StarLayerGraph()
+    def _graph(self, ttl: str) -> OxGraph:
+        g = OxGraph()
         g.parse(data=ttl, format="turtle12")
         return g
 

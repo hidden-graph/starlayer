@@ -12,7 +12,7 @@ these tests assert the same shapes directly, with no external dependency.
 import pytest
 from rdflib import Literal, URIRef
 from rdflib.namespace import OWL, RDF, RDFS, XSD
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 
@@ -551,16 +551,16 @@ class TestUnsupported:
 
 
 # ---------------------------------------------------------------------------
-# StarLayerGraph.parse(format='manchester') wiring
+# OxGraph.parse(format='manchester') wiring
 # ---------------------------------------------------------------------------
 
 class TestGraphIntegration:
     def test_parses_into_starlayer_graph(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.parse(data=HEADER + 'Class: Animal\nClass: Cat\n    SubClassOf: Animal\n', format='manchester')
         assert (ex('Cat'), RDFS.subClassOf, ex('Animal')) in g
 
     def test_omn_is_an_alias(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.parse(data=HEADER + 'Class: Cat\n', format='omn')
         assert (ex('Cat'), RDF.type, OWL.Class) in g

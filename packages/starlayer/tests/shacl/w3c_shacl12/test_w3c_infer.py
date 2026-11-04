@@ -34,7 +34,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema  # noqa: E402
 
 from .ids import portable_id  # noqa: E402
@@ -75,7 +75,7 @@ def pytest_generate_tests(metafunc):
         )
 
 
-def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=StarLayerGraph) -> StarLayerGraph:
+def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=OxGraph) -> OxGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
     target_iri = next(entry.graph.objects(action, predicate))
     # Fresh copies, not the cached document objects directly - see
@@ -115,7 +115,7 @@ def _same_triples(added: set[tuple], expected: set[tuple]) -> bool:
         return False
     from starlayer.graph.compare import isomorphic
 
-    left, right = StarLayerGraph(), StarLayerGraph()
+    left, right = OxGraph(), OxGraph()
     for triple in added:
         left.add(triple)
     for triple in expected:
@@ -148,7 +148,7 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
 
 
 def test_w3c_infer(entry: ManifestEntry) -> None:
-    _check_infer(entry, StarLayerGraph, KNOWN_FAILURES)
+    _check_infer(entry, OxGraph, KNOWN_FAILURES)
 
 
 @pytest.mark.store_matrix

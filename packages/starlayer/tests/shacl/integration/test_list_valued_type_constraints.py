@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -21,10 +21,10 @@ def _violation_components(result) -> list:
 
 
 def test_list_valued_class_conforms_for_any_listed_class() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_list_valued_class.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -42,10 +42,10 @@ def test_list_valued_class_conforms_for_any_listed_class() -> None:
 
 
 def test_list_valued_class_violates_for_unlisted_class() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_list_valued_class.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -63,10 +63,10 @@ def test_list_valued_class_violates_for_unlisted_class() -> None:
 
 
 def test_list_valued_datatype_conforms_for_string_and_lang_string() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_list_valued_datatype.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -82,10 +82,10 @@ def test_list_valued_datatype_conforms_for_string_and_lang_string() -> None:
 
 
 def test_list_valued_datatype_violates_for_unlisted_datatype() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_list_valued_datatype.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -102,10 +102,10 @@ def test_list_valued_datatype_violates_for_unlisted_datatype() -> None:
 
 
 def test_list_valued_node_kind_conforms_for_iri_and_blank_node() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_list_valued_node_kind.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -121,10 +121,10 @@ def test_list_valued_node_kind_conforms_for_iri_and_blank_node() -> None:
 
 
 def test_list_valued_node_kind_violates_for_literal() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_list_valued_node_kind.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -152,10 +152,10 @@ def test_list_valued_node_kind_violates_for_literal() -> None:
 # (they never exercise the meta-shacl path at all).
 
 def test_triple_term_node_kind_conforms_for_real_triple_term() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_triple_term_node_kind.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -172,10 +172,10 @@ def test_triple_term_node_kind_conforms_for_real_triple_term() -> None:
 
 
 def test_triple_term_node_kind_violates_for_non_triple_term() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_triple_term_node_kind.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -194,10 +194,10 @@ def test_triple_term_node_kind_violates_for_non_triple_term() -> None:
 
 @pytest.mark.parametrize("meta_shacl", [False, True])
 def test_scalar_triple_term_node_kind_conforms_for_real_triple_term(meta_shacl: bool) -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_triple_term_node_kind_scalar.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -215,10 +215,10 @@ def test_scalar_triple_term_node_kind_conforms_for_real_triple_term(meta_shacl: 
 
 @pytest.mark.parametrize("meta_shacl", [False, True])
 def test_scalar_triple_term_node_kind_violates_for_non_triple_term(meta_shacl: bool) -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(data=load_shape("shacl12_triple_term_node_kind_scalar.ttl"), format="turtle")
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -238,7 +238,7 @@ def test_scalar_triple_term_node_kind_violates_for_non_triple_term(meta_shacl: b
 def test_simple_iri_valued_class_still_handled_by_pyshacl_directly() -> None:
     # Simple-IRI values (the pre-existing SHACL 1.0/1.1 form) must keep
     # working unchanged - only SHACL-list values are diverted natively.
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -253,7 +253,7 @@ def test_simple_iri_valued_class_still_handled_by_pyshacl_directly() -> None:
         format="turtle",
     )
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

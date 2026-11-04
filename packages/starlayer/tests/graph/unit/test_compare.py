@@ -2,7 +2,7 @@
 fix to isomorphism/canonicalization.
 
 Confirmed live, before this fix existed, that plain rdflib.compare against a
-StarLayerGraph containing a triple term:
+OxGraph containing a triple term:
 - isomorphic() gave the WRONG answer for two graphs that are genuinely
   isomorphic but differ only in an arbitrary blank-node label nested inside
   a triple term.
@@ -14,12 +14,12 @@ starlayer.graph/compare.py's own module docstring for why the decomposition
 fix is correct.
 """
 
-from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic, to_canonical_hash, to_isomorphic
+from starlayer.graph.oxgraph import OxGraph
 
 
-def _graph(data: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(data: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=data, format="turtle12")
     return g
 
@@ -183,12 +183,12 @@ class TestSimpleLiteralVsExplicitXsdStringIsomorphism:
 
 
 def _people(n, city_suffix=""):
-    from starlayer.graph import StarLayerGraph
+    from starlayer.graph.oxgraph import OxGraph
 
     lines = ["@prefix ex: <http://example.org/> ."]
     for i in range(n):
         lines.append(f'ex:p{i} ex:name "Person {i}" ; ex:addr [ ex:city "City {i % 7}{city_suffix}" ; ex:zip "{10000 + i % 90}" ] .')
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data="\n".join(lines), format="turtle12")
     return g
 
@@ -211,10 +211,10 @@ def test_isomorphic_is_false_when_the_graphs_differ_in_size():
 
 
 def test_isomorphic_still_treats_a_simple_literal_and_xsd_string_as_equal():
-    from starlayer.graph import StarLayerGraph
     from starlayer.graph.compare import isomorphic
+    from starlayer.graph.oxgraph import OxGraph
 
-    a, b = StarLayerGraph(), StarLayerGraph()
+    a, b = OxGraph(), OxGraph()
     a.parse(data='@prefix ex: <http://e/> . ex:a ex:p "x" .', format="turtle12")
     b.parse(
         data='@prefix ex: <http://e/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . ex:a ex:p "x"^^xsd:string .',

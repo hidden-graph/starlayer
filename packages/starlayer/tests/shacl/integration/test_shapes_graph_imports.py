@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Graph, Namespace, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import from_engine
 
@@ -22,8 +22,8 @@ COMPANY = URIRef("http://example.com/shapes/company")
 BASE = URIRef("http://example.com/shapes/base")
 
 
-def _myapp_shapes() -> StarLayerGraph:
-    shapes = StarLayerGraph()
+def _myapp_shapes() -> OxGraph:
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -100,7 +100,7 @@ def _loader(iri):
 
 
 def test_transitive_import_closure_with_version_iri_redirect_enforces_imported_constraints() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -132,7 +132,7 @@ def test_without_loader_or_ignore_imports_raises() -> None:
     was skipped. Now raises by default instead, since that silent
     incompleteness is a real risk, not hypothetical (see the test below
     for exactly the case this was protecting against)."""
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
     validator = StarShaclSchema(shacl_graph=_myapp_shapes())
@@ -142,7 +142,7 @@ def test_without_loader_or_ignore_imports_raises() -> None:
 
 
 def test_ignore_imports_true_restores_the_old_silent_pass_through() -> None:
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -169,7 +169,7 @@ def test_bare_validate_function_raises_too() -> None:
     needed the identical fix."""
     from starlayer.shacl import validate
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
     with pytest.raises(ValueError, match="owl:imports"):
@@ -188,9 +188,9 @@ def test_pre_resolved_imports_need_ignore_imports_too() -> None:
     # Still present, as expected - resolve_imports() never strips the
     # owl:imports triples it follows (nor the ones it merges in along the
     # way, e.g. company's own owl:imports base).
-    assert COMPANY_V2 in pre_resolved.owl_imports()
+    assert COMPANY_V2 in {from_engine(i) for i in pre_resolved.owl_imports()}
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -213,7 +213,7 @@ def test_pre_resolved_imports_need_ignore_imports_too() -> None:
 
 
 def test_unresolvable_import_is_skipped_not_raised() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -229,7 +229,7 @@ def test_unresolvable_import_is_skipped_not_raised() -> None:
         format="turtle",
     )
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -241,7 +241,7 @@ def test_unresolvable_import_is_skipped_not_raised() -> None:
 
 
 def test_self_importing_graph_does_not_infinite_loop() -> None:
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -268,7 +268,7 @@ def test_self_importing_graph_does_not_infinite_loop() -> None:
         )
         return graph
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person ; ex:name \"Bob\" .", format="turtle")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -312,7 +312,7 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
             return _base_graph()
         return None
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.parse(
         data="""
             @prefix owl: <http://www.w3.org/2002/07/owl#> .
@@ -328,7 +328,7 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
         format="turtle",
     )
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -363,7 +363,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     this would incorrectly raise (nothing was ever actually missing)."""
     from rdflib.namespace import OWL, RDF
 
-    shapes = StarLayerGraph()
+    shapes = OxGraph()
     shapes.add((EX.ModuleA, OWL.imports, EX.ModuleB))
     shapes.add((EX.ModuleA, RDF.type, SH.ShapesGraph))
     shapes.add((EX.PersonShape, RDF.type, SH.NodeShape))
@@ -381,7 +381,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     shapes.add((EX.NameProp2, SH.path, EX.name))
     shapes.add((EX.NameProp2, SH.minCount, __import__("rdflib").Literal(1)))
 
-    data = StarLayerGraph()
+    data = OxGraph()
     data.parse(
         data="@prefix ex: <http://example.org/> .\nex:bob a ex:Person .\nex:acme a ex:Company .",
         format="turtle",

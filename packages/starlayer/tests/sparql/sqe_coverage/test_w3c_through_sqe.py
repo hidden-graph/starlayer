@@ -17,17 +17,21 @@ import json
 from pathlib import Path
 
 import pytest
-from rdflib.compare import to_isomorphic
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph import isomorphic
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.graph.oxgraph.sparql_text import strip_version_directive
+from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_query, sqe_tree_to_text
 from tests.sparql.w3c_sparql12.harness import (
     bindings_match,
     load_index,
     parse_srj,
-    skolemize_graph,
 )
-from tests.sparql.w3c_sparql12.test_w3c_sparql12 import _data_format, _new_graph
+from tests.sparql.w3c_sparql12.test_w3c_sparql12 import (
+    _data_format,
+    _new_graph,
+    _stored_form,
+)
 
 pytestmark = pytest.mark.sqe_coverage
 
@@ -75,17 +79,18 @@ def run_entry(entry) -> None:
         data.parse(data=entry.read(entry.data_file), format=_data_format(entry))
     result_text = entry.read(entry.result_file)
     if entry.result_file.endswith(".ttl"):
-        expected = StarLayerGraph()
+        expected = OxGraph()
         expected.parse(data=result_text, format="turtle12")
         actual = data.query(regenerated).graph
-        assert to_isomorphic(skolemize_graph(actual)) == to_isomorphic(skolemize_graph(expected))
+        assert isomorphic(actual, expected)
     elif entry.result_file.endswith(".srj"):
         answer = json.loads(result_text)
         if "boolean" in answer:
             assert data.query(regenerated).askAnswer == answer["boolean"]
         else:
-            rows = [{k: v for k, v in dict(r).items() if v is not None} for r in data.query(regenerated).bindings]
-            assert bindings_match(rows, parse_srj(result_text))
+            rows = [{k: from_engine(v) for k, v in dict(r).items() if v is not None} for r in data.query(regenerated).bindings]
+            # owner decision O1: expected numbers are compared in the form Oxigraph stores
+            assert bindings_match(rows, [{k: _stored_form(v) for k, v in row.items()} for row in parse_srj(result_text)])
 
 
 def _param(entry):

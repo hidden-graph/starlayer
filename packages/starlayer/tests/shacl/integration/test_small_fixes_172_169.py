@@ -2,7 +2,7 @@
 
 import pytest
 from rdflib import Namespace
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.shapes_graphs import (
     graph_nodes,
@@ -19,8 +19,8 @@ PREFIXES = (
 )
 
 
-def _graph(ttl: str) -> StarLayerGraph:
-    g = StarLayerGraph()
+def _graph(ttl: str) -> OxGraph:
+    g = OxGraph()
     g.parse(data=PREFIXES + ttl, format="turtle12")
     return g
 

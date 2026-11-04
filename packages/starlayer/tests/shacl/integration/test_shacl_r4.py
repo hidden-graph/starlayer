@@ -7,7 +7,7 @@ cannot colour the answer."""
 import pytest
 from rdflib import Namespace, URIRef
 from rdflib.namespace import SH
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.shacl import (
     RuleError,
     ShapeError,
@@ -24,8 +24,8 @@ EX = Namespace("http://example.org/")
 P = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 
 
-def _graph(ttl: str) -> StarLayerGraph:
-    graph = StarLayerGraph()
+def _graph(ttl: str) -> OxGraph:
+    graph = OxGraph()
     graph.parse(data=ttl, format="turtle12")
     return graph
 

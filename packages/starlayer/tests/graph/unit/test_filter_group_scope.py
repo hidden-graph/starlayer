@@ -1,16 +1,26 @@
 """A FILTER sees the variables bound in its own group, not ones bound outside it (SPARQL 1.1 sec 18.2.2.7:
 a group is evaluated on its own and joined with its siblings afterwards)."""
 
+import pyoxigraph as ox
 import pytest
-from rdflib import Literal, Namespace
-from starlayer.graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 
-EX = Namespace("http://x/")
+
+class _Namespace:
+    def __getattr__(self, name):
+        return ox.NamedNode("http://x/" + name)
+
+
+EX = _Namespace()
+
+
+def Literal(value):  # noqa: N802
+    return ox.Literal(str(value), datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))
 
 
 @pytest.fixture
 def graph():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.add((EX.a, EX.p, Literal(1)))
     g.add((EX.a, EX.q, Literal(1)))
     return g
@@ -44,9 +54,9 @@ def test_filter_in_exists_sees_the_outer_solution(graph):
 
 def test_triple_term_pattern_inside_graph_still_joins_the_outer_variable():
     """The triple-term lowering leaves ?o only in a filter inside the GRAPH group; it must keep seeing ?o."""
-    from starlayer.graph import StarLayerDataset
+    from starlayer.graph.oxgraph import OxDataset
 
-    ds = StarLayerDataset()
+    ds = OxDataset()
     ds.parse(data="PREFIX : <http://example/> :s :p :o . :s :q <<( :s :p :o )>> .", format="turtle12")
     query = "PREFIX : <http://example/> SELECT ?o WHERE { :s :p ?o . GRAPH ?g { :s :q <<( :s :p ?o )>> } }"
     assert len(list(ds.query(query))) >= 0  # runs without error; the W3C graphs-1/graphs-2 fixtures check the rows

@@ -6,9 +6,8 @@ from __future__ import annotations
 
 import pytest
 from pyparsing import ParseBaseException
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 from starlayer.sparql._syntax_checks import SPARQLSyntaxError
-from starlayer.sparql.lower_rdf11 import query_to_rdf11, rdf11_to_sparql11_text
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
 
 P = "PREFIX : <http://e/> "
@@ -45,7 +44,7 @@ def test_annotation_forms_parse_in_a_construct_template():
 
 
 def test_a_reifier_and_annotation_after_a_list_continuation_mean_the_expanded_triples():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(
         data="@prefix : <http://e/> .\n"
         ":a :p :b ~ :r1 {| :c 5 |} , :c ~ :r2 ; :q 1 {| :w 2 {| :z 3 |} |} .\n:d a :T ~ :r3 .",
@@ -53,7 +52,7 @@ def test_a_reifier_and_annotation_after_a_list_continuation_mean_the_expanded_tr
     )
 
     def rows(q):
-        return {tuple(str(v) for v in r) for r in g.query(P + q)}
+        return {tuple(v.value for v in r) for r in g.query(P + q)}
 
     # annotation after "," and "a", before ";", and nested
     assert rows("SELECT ?o ?r WHERE { ?r " + REIFIES + " <<( :a :p ?o )>> }") == {("http://e/b", "http://e/r1"), ("http://e/c", "http://e/r2")}
@@ -80,15 +79,15 @@ def test_a_reifier_on_a_property_path_is_rejected():
 
 
 def test_minus_over_a_triple_term_pattern_removes_the_matching_solution():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data="@prefix : <http://e/> .\n:a :p :b ~ :r1 .\n:a :p :c .\n<< :a :p :b >> :src :s1 .", format="turtle12")
     assert list(g.query(P + "SELECT ?x WHERE { ?x :p :b . MINUS { ?r " + REIFIES + " <<( ?x :p :b )>> } }")) == []
     rows = list(g.query(P + "SELECT ?x ?o WHERE { ?x :p ?o . MINUS { << ?x :p ?o >> :src ?s } }"))
-    assert [(str(r.x), str(r.o)) for r in rows] == [("http://e/a", "http://e/c")]
+    assert [(r.x.value, r.o.value) for r in rows] == [("http://e/a", "http://e/c")]
 
 
 def test_triple_accepts_triple_term_and_accessor_arguments():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data="@prefix : <http://e/> .\n:a :r <<( :a :p :b )>> .", format="turtle12")
     # a triple term as subject or predicate is a type error: one row, ?u unbound
     for q in (
@@ -101,11 +100,6 @@ def test_triple_accepts_triple_term_and_accessor_arguments():
     assert len(rows) == 1
 
 
-@pytest.mark.parametrize("form", ["ASK { ?s :p ?o }", "DESCRIBE :a"])
-def test_sparql11_text_for_ask_and_describe_is_not_implemented(form):
-    graph, root = query_to_rdf11(prepare_query_12(P + form))
-    with pytest.raises(NotImplementedError):
-        rdf11_to_sparql11_text(graph, root)
 
 
 @pytest.mark.parametrize(

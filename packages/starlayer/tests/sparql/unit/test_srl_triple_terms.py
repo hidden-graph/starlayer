@@ -4,10 +4,12 @@ well-formedness checks."""
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
 from rdflib import Graph, Literal, URIRef, Variable
-from starlayer.graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
+from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
 
@@ -21,7 +23,7 @@ def _u(local):
 
 
 def _base():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(
         data=f"""
         @prefix ex: <{EX}> .
@@ -47,7 +49,7 @@ def test_a_triple_term_in_a_body_pattern_binds_its_inner_variables():
         + "RULE { ?w ex:doubts ?p } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> . FILTER(?n > 100) }"
     )
     inferred = rules.infer(_base())
-    assert {tuple(t) for t in inferred} == {(_u("alice"), _u("doubts"), _u("bob"))}
+    assert {tuple(from_engine(x) for x in t) for t in inferred} == {(_u("alice"), _u("doubts"), _u("bob"))}
 
 
 def test_a_ground_triple_term_in_a_body_pattern_matches_only_that_triple_term():
@@ -55,7 +57,7 @@ def test_a_ground_triple_term_in_a_body_pattern_matches_only_that_triple_term():
         P
         + "RULE { ?w ex:knowsBob ex:yes } WHERE { ?w ex:believes <<( ex:bob ex:age 130 )>> }"
     )
-    assert {tuple(t) for t in rules.infer(_base())} == {
+    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_base())} == {
         (_u("alice"), _u("knowsBob"), _u("yes"))
     }
 
@@ -66,7 +68,7 @@ def test_a_triple_term_pattern_joins_with_the_other_patterns():
         + "RULE { ?w ex:isAbout ?name } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> . ?p ex:name ?name }"
     )
     # only bob has a name among the people believed about
-    assert {tuple(t) for t in rules.infer(_base())} == {
+    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_base())} == {
         (_u("alice"), _u("isAbout"), Literal("Bob"))
     }
 
@@ -77,7 +79,7 @@ def test_a_head_triple_term_is_created_in_the_output():
         + "RULE { ?w ex:says <<( ?p ex:age ?n )>> } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> }"
     )
     inferred = rules.infer(_base())
-    assert isinstance(inferred, StarLayerGraph)
+    assert isinstance(inferred, OxGraph)
     assert (
         _u("alice"),
         _u("says"),
@@ -87,7 +89,7 @@ def test_a_head_triple_term_is_created_in_the_output():
 
 
 def test_a_nested_triple_term_is_matched_and_created():
-    base = StarLayerGraph()
+    base = OxGraph()
     base.parse(
         data=f"@prefix ex: <{EX}> . ex:a ex:p <<( ex:b ex:q <<( ex:c ex:r ex:d )>> )>> .",
         format="turtle12",
@@ -96,7 +98,7 @@ def test_a_nested_triple_term_is_matched_and_created():
         P
         + "RULE { ?x ex:found ?c } WHERE { ?x ex:p <<( ?b ex:q <<( ?c ex:r ex:d )>> )>> }"
     )
-    assert {tuple(t) for t in rules.infer(base)} == {(_u("a"), _u("found"), _u("c"))}
+    assert {tuple(from_engine(x) for x in t) for t in rules.infer(base)} == {(_u("a"), _u("found"), _u("c"))}
 
 
 def test_not_with_a_triple_term_pattern():
@@ -105,7 +107,7 @@ def test_not_with_a_triple_term_pattern():
         + "RULE { ?x ex:noBelief ex:yes } "
         + "WHERE { ?x ex:name ?n . NOT { ?x ex:believes <<( ?p ex:age ?a )>> } }"
     )
-    assert {t[0] for t in rules.infer(_base())} == {_u("bob")}
+    assert {from_engine(t[0]) for t in rules.infer(_base())} == {_u("bob")}
 
 
 def test_where_data_with_a_triple_term_matches_only_the_base_graph():
@@ -116,10 +118,10 @@ def test_where_data_with_a_triple_term_matches_only_the_base_graph():
         + "RULE { ?w ex:fromAny ex:yes } WHERE { ?w ex:believes <<( ex:bob ex:age 130 )>> }"
     )
     inferred = rules.infer(_base())
-    assert {t[0] for t in inferred.triples((None, _u("fromBase"), None))} == {
+    assert {from_engine(t[0]) for t in inferred.triples((None, _u("fromBase"), None))} == {
         _u("alice")
     }
-    assert {t[0] for t in inferred.triples((None, _u("fromAny"), None))} == {
+    assert {from_engine(t[0]) for t in inferred.triples((None, _u("fromAny"), None))} == {
         _u("alice"),
         _u("erin"),
     }
@@ -131,7 +133,7 @@ def test_a_data_block_triple_term_is_in_the_output_and_matched_by_rules():
         + "DATA { ex:erin ex:believes <<( ex:bob ex:age 7 )>> . }\n"
         + "RULE { ?w ex:thinksAbout ?p } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> }"
     )
-    inferred = rules.infer(StarLayerGraph())
+    inferred = rules.infer(OxGraph())
     assert (
         _u("erin"),
         _u("believes"),
@@ -149,12 +151,12 @@ def test_a_plain_rdflib_base_graph_works_when_the_rules_use_triple_terms():
 def test_a_starlayer_base_graph_with_triple_terms_works_with_rules_that_do_not_use_them():
     """Before triple-term support this raised ``AssertionError: ... must be an rdflib term``."""
     rules = parse_ruleset(P + "RULE { ?x ex:known ex:yes } WHERE { ?x ex:name ?n }")
-    assert {t[0] for t in rules.infer(_base())} == {_u("alice"), _u("carol"), _u("bob")}
+    assert {from_engine(t[0]) for t in rules.infer(_base())} == {_u("alice"), _u("carol"), _u("bob")}
 
 
 def test_a_head_triple_term_that_would_be_invalid_rdf_is_skipped():
     """A literal cannot be the subject of a triple term (RDF 1.2), so no triple is created."""
-    base = StarLayerGraph()
+    base = OxGraph()
     base.parse(data=f"@prefix ex: <{EX}> . ex:a ex:age 130 .", format="turtle12")
     rules = parse_ruleset(
         P + "RULE { ex:x ex:says <<( ?n ex:p ex:o )>> } WHERE { ?w ex:age ?n }"
@@ -171,7 +173,7 @@ def test_query_with_a_goal_pattern_containing_a_triple_term():
     )
     rows = rules.query(_base(), goal)
     assert {
-        (r[Variable("w")], r[Variable("p")], r[Variable("n")].toPython()) for r in rows
+        (from_engine(r[ox.Variable("w")]), from_engine(r[ox.Variable("p")]), int(r[ox.Variable("n")].value)) for r in rows
     } == {
         (_u("alice"), _u("bob"), 130),
         (_u("carol"), _u("dan"), 40),
@@ -262,7 +264,7 @@ def test_a_head_triple_term_containing_a_variable_makes_a_run_once_rule():
 
 
 def _annotated_base():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(
         data=f"""
         @prefix ex: <{EX}> .
@@ -279,7 +281,7 @@ def test_a_comma_separated_object_list_in_the_body_and_the_head():
     rules = parse_ruleset(
         P + "RULE { ?x ex:r ?y , ex:fixed } WHERE { ?x ex:p ?y , ex:b2 }"
     )
-    inferred = {tuple(t) for t in rules.infer(_annotated_base())}
+    inferred = {tuple(from_engine(x) for x in t) for t in rules.infer(_annotated_base())}
     assert inferred == {
         (_u("a"), _u("r"), _u("b1")),
         (_u("a"), _u("r"), _u("b2")),
@@ -292,7 +294,7 @@ def test_an_annotation_block_in_a_body_pattern_matches_the_reifier_of_that_tripl
         P
         + "RULE { ?x ex:strong ?y } WHERE { ?x ex:says ?y {| ex:certainty ?c |} . FILTER(?c > 0.5) }"
     )
-    assert {tuple(t) for t in rules.infer(_annotated_base())} == {
+    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_annotated_base())} == {
         (_u("a"), _u("strong"), _u("b1"))
     }
 
@@ -302,7 +304,7 @@ def test_a_reified_triple_in_a_body_pattern():
         P
         + "RULE { ?x ex:strong ?y } WHERE { << ?x ex:says ?y >> ex:certainty ?c . FILTER(?c > 0.5) }"
     )
-    assert {tuple(t) for t in rules.infer(_annotated_base())} == {
+    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_annotated_base())} == {
         (_u("a"), _u("strong"), _u("b1"))
     }
 
@@ -313,7 +315,7 @@ def test_an_annotation_block_in_a_head_creates_the_triple_its_reifier_and_the_an
     )
     inferred = rules.infer(_annotated_base())
     assert (_u("a"), _u("knows"), _u("b1")) in inferred
-    assert {o for _r, _p, o in inferred.triples((None, RDF_REIFIES, None))} == {
+    assert {from_engine(o) for _r, _p, o in inferred.triples((None, RDF_REIFIES, None))} == {
         _tt(_u("a"), _u("knows"), _u("b1")),
         _tt(_u("a"), _u("knows"), _u("b2")),
     }
@@ -322,7 +324,7 @@ def test_an_annotation_block_in_a_head_creates_the_triple_its_reifier_and_the_an
 
 def test_a_reified_triple_in_a_data_block():
     rules = parse_ruleset(P + "DATA { << ex:a ex:p ex:b >> ex:certainty 0.9 . }")
-    inferred = rules.infer(StarLayerGraph())
+    inferred = rules.infer(OxGraph())
     assert (
         len(list(inferred.triples((None, RDF_REIFIES, _tt(_u("a"), _u("p"), _u("b"))))))
         == 1
@@ -339,7 +341,7 @@ def test_a_blank_node_property_list_and_a_collection():
     assert (
         len(list(inferred.triples((None, _u("n"), Literal(1))))) == 2
     )  # one fresh blank node per solution
-    assert any(p == _u("list") for _s, p, _o in inferred)
+    assert any(from_engine(p) == _u("list") for _s, p, _o in inferred)
 
 
 def test_a_variable_in_a_data_block_is_rejected():

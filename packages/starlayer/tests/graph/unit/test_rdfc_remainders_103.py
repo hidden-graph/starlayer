@@ -7,13 +7,13 @@ import warnings
 import pytest
 from rdflib import BNode, Dataset, Graph, Literal, Namespace, URIRef
 from rdflib.namespace import XSD
-from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.compare import (
     graph_diff,
     isomorphic,
     to_canonical_hash,
     to_isomorphic,
 )
+from starlayer.graph.oxgraph import OxDataset, OxGraph
 from starlayer.graph.rdfc import rdfc10_hash, to_canonical_nquads
 
 E = Namespace("http://e/")
@@ -27,8 +27,8 @@ def _quiet():
         yield
 
 
-def _tt_dataset(label: str) -> StarLayerDataset:
-    ds = StarLayerDataset()
+def _tt_dataset(label: str) -> OxDataset:
+    ds = OxDataset()
     ds.parse(
         data="<http://e/g> { <http://e/s> <http://e/q> <<( _:" + label + " <http://e/p> <http://e/o> )>> . }",
         format="trig12",
@@ -60,11 +60,13 @@ def test_graph_diff_and_to_isomorphic_reject_a_dataset_clearly():
         to_isomorphic(d)
 
 
-def test_isomorphic_method_agrees_with_function_on_xsd_string():
-    a, b = StarLayerGraph(), StarLayerGraph()
+def test_isomorphic_entry_points_agree_on_xsd_string():  # the Graph.isomorphic method is not ported: starlayer.graph.isomorphic is the equivalent
+    a, b = OxGraph(), OxGraph()
     a.add((E.a, E.p, Literal("x", datatype=XSD.string)))
     b.add((E.a, E.p, Literal("x")))
-    assert a.isomorphic(b) is isomorphic(a, b) is True
+    from starlayer.graph import isomorphic as graph_isomorphic
+
+    assert graph_isomorphic(a, b) is isomorphic(a, b) is True
 
 
 def test_language_tag_case_does_not_change_the_canonical_form():
@@ -76,7 +78,7 @@ def test_language_tag_case_does_not_change_the_canonical_form():
 
 
 def test_a_blank_node_with_the_internal_edges_is_not_a_triple_term():
-    c = StarLayerGraph()
+    c = OxGraph()
     c.parse(data="<http://e/s1> <http://e/q> <<( <http://e/a> <http://e/p> <http://e/o> )>> .", format="turtle12")
     d = Graph()
     n = BNode()

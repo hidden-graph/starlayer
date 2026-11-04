@@ -17,15 +17,15 @@ test_srl_shapes.py).
 """
 
 import pytest
+from rdflib import Graph
 from starlayer import starontology
-from starlayer.graph import StarLayerGraph
 from starlayer.graph.oxgraph.core import OxGraph
 from starlayer.shacl_engine.terms import from_engine
 
 
 def _rdflib(graph):
-    """A StarLayerGraph copy of an OxGraph in rdflib terms, for asserting with rdflib vocabulary."""
-    out = StarLayerGraph()
+    """A plain rdflib graph copy of an OxGraph, for asserting with rdflib vocabulary."""
+    out = Graph()
     for s, p, o in graph.triples((None, None, None)):
         out.add((from_engine(s), from_engine(p), from_engine(o)))
     return out
@@ -404,11 +404,10 @@ class TestPublishedFiles:
         own WHERE clause already filters by the exact shapes-graph IRI."""
         from rdflib import URIRef
         from rdflib.namespace import DCTERMS
-        from starlayer.graph import StarLayerGraph
         from starlayer.shacl import StarShaclSchema
         from starlayer.shacl.shacl_profiling import derive_conforms_to
 
-        data = StarLayerGraph()
+        data = OxGraph()
         data.parse(
             data="""
                 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
@@ -454,7 +453,7 @@ _TTL_FILENAME = {
 
 
 class TestLocalLoader:
-    """starontology.local_loader() - a StarLayerGraph.resolve_imports()-
+    """starontology.local_loader() - an OxGraph.resolve_imports()-
     compatible loader that only ever reads this package's own bundled
     files. The real motivating case: sqe_shapes.ttl/srl_shapes.ttl both
     owl:imports spexpr:ShapesGraph (salg:ShapesGraph before 2026-10-10 -

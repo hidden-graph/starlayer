@@ -1,4 +1,4 @@
-"""Tests for StarLayerGraph.derive_shape() / starlayer.graph.graph.shape_derivation.
+"""Tests for OxGraph.derive_shape() / starlayer.graph.graph.shape_derivation.
 
 Two phases exercised: fresh derivation (no template - Phase A) and
 template-merge (Phase B's per-constraint-component relax table). Every
@@ -13,9 +13,10 @@ import starlayer.shacl
 from rdflib import RDF, BNode, Graph, Literal
 from rdflib.collection import Collection
 from rdflib.namespace import RDFS
-from starlayer.graph import Namespace, StarLayerGraph
+from starlayer.graph import Namespace
 from starlayer.graph.graph.shape_derivation import DEFAULT_IGNORED_PROPERTIES
 from starlayer.graph.model import TripleTerm
+from starlayer.graph.oxgraph import OxGraph
 
 EX = Namespace('http://example.org/')
 # A plain Namespace, not rdflib.namespace.SH - sh:TripleTerm and SHACL 1.2's
@@ -29,7 +30,7 @@ def _conforms(data, shapes):
 
 
 def _make_people_graph():
-    g = StarLayerGraph()
+    g = OxGraph()
     g.bind('ex', EX)
     g.add((EX.alice, RDF.type, EX.Person))
     g.add((EX.alice, EX.name, Literal('Alice')))
@@ -44,7 +45,7 @@ def _make_people_graph():
 class TestFreshDerivation:
     def test_derived_shape_conforms_against_its_own_source_data(self):
         g = _make_people_graph()
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         assert _conforms(g, shape)
 
     def test_derive_shape_returns_a_starlayer_graph(self):
@@ -52,20 +53,20 @@ class TestFreshDerivation:
         added 2026-10-04, this used to return a plain rdflib.Graph."""
         g = _make_people_graph()
         shape = g.derive_shape()
-        assert isinstance(shape, StarLayerGraph)
+        assert isinstance(shape, OxGraph)
 
     def test_one_node_shape_per_class(self):
         g = _make_people_graph()
         g.add((EX.acme, RDF.type, EX.Organization))
         g.add((EX.acme, EX.name, Literal('Acme')))
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         node_shapes = set(shape.subjects(RDF.type, SH.NodeShape))
         target_classes = {c for ns in node_shapes for c in shape.objects(ns, SH.targetClass)}
         assert target_classes == {EX.Person, EX.Organization}
 
     def test_shared_related_class_becomes_sh_class_not_sh_node(self):
         g = _make_people_graph()
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         knows_prop = next(
             p for p in shape.objects(None, SH.property)
             if EX.knows in set(shape.objects(p, SH.path))
@@ -74,25 +75,25 @@ class TestFreshDerivation:
         assert (knows_prop, SH.node, None) not in shape
 
     def test_triple_term_valued_property_gets_triple_term_node_kind(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.claim1, RDF.type, EX.Claim))
         g.add((EX.claim1, EX.asserts, TripleTerm(EX.alice, EX.age, Literal(30))))
         g.add((EX.claim2, RDF.type, EX.Claim))
         g.add((EX.claim2, EX.asserts, TripleTerm(EX.bob, EX.age, Literal(25))))
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         assert _conforms(g, shape)
         prop = next(shape.objects(None, SH.property))
         assert (prop, SH.nodeKind, SH.TripleTerm) in shape
 
     def test_mixed_node_kinds_produce_list_valued_node_kind(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.claim1, RDF.type, EX.Claim))
         g.add((EX.claim1, EX.asserts, TripleTerm(EX.alice, EX.age, Literal(30))))
         g.add((EX.claim2, RDF.type, EX.Claim))
         g.add((EX.claim2, EX.asserts, EX.someResource))
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         assert _conforms(g, shape)
         prop = next(shape.objects(None, SH.property))
         node_kind_value = shape.value(prop, SH.nodeKind)
@@ -102,7 +103,7 @@ class TestFreshDerivation:
 
     def test_omitted_min_count_when_some_instances_lack_the_property(self):
         g = _make_people_graph()
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         knows_prop = next(
             p for p in shape.objects(None, SH.property)
             if EX.knows in set(shape.objects(p, SH.path))
@@ -113,7 +114,7 @@ class TestFreshDerivation:
 
     def test_shape_is_closed_with_rdf_type_always_ignored(self):
         g = _make_people_graph()
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         node_shape = next(shape.subjects(RDF.type, SH.NodeShape))
         assert shape.value(node_shape, SH.closed) == Literal(True)
         ignored_list = shape.value(node_shape, SH.ignoredProperties)
@@ -122,7 +123,7 @@ class TestFreshDerivation:
     def test_default_ignored_properties_excluded_from_candidate_properties(self):
         g = _make_people_graph()
         g.add((EX.alice, RDFS.label, Literal('Alice the person')))
-        shape = g.derive_shape()
+        shape = g.derive_shape().to_rdflib()
         node_shape = next(shape.subjects(RDF.type, SH.NodeShape))
         paths = {p for prop in shape.objects(node_shape, SH.property) for p in shape.objects(prop, SH.path)}
         assert RDFS.label not in paths
@@ -133,7 +134,7 @@ class TestFreshDerivation:
         g = _make_people_graph()
         g.add((EX.alice, RDFS.label, Literal('Alice the person')))
         g.add((EX.bob, RDFS.label, Literal('Bob the person')))
-        shape = g.derive_shape(use_default_ignored_properties=False)
+        shape = g.derive_shape(use_default_ignored_properties=False).to_rdflib()
         node_shape = next(shape.subjects(RDF.type, SH.NodeShape))
         paths = {p for prop in shape.objects(node_shape, SH.property) for p in shape.objects(prop, SH.path)}
         # rdfs:label is no longer in the (opt-outable) default ignore list,
@@ -145,7 +146,7 @@ class TestFreshDerivation:
 
     def test_explicit_ignored_properties_still_excluded(self):
         g = _make_people_graph()
-        shape = g.derive_shape(ignored_properties=[EX.age])
+        shape = g.derive_shape(ignored_properties=[EX.age]).to_rdflib()
         node_shape = next(shape.subjects(RDF.type, SH.NodeShape))
         paths = {p for prop in shape.objects(node_shape, SH.property) for p in shape.objects(prop, SH.path)}
         assert EX.age not in paths
@@ -173,7 +174,7 @@ def _template_person_shape(*, min_count=None, pattern=None, in_values=None, data
 
 class TestTemplateMerge:
     def test_min_count_too_high_is_lowered_to_true_observed_minimum(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -182,13 +183,13 @@ class TestTemplateMerge:
         g.add((EX.bob, EX.name, Literal('Bobby')))
         template, _shape_node, _prop_node = _template_person_shape(min_count=2)
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         assert result.value(prop, SH.minCount) == Literal(1)
 
     def test_wrong_datatype_is_corrected(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -197,19 +198,19 @@ class TestTemplateMerge:
         from rdflib.namespace import XSD
         template, _shape_node, _prop_node = _template_person_shape(datatype=XSD.integer)
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         assert result.value(prop, SH.datatype) == XSD.string
 
     def test_violated_pattern_is_dropped_with_a_comment(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
         template, _shape_node, _prop_node = _template_person_shape(pattern='^Z')
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         assert (prop, SH.pattern, None) not in result
@@ -217,7 +218,7 @@ class TestTemplateMerge:
         assert any('PatternConstraintComponent' in str(c) for c in comments)
 
     def test_in_enumeration_is_widened_not_replaced(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -225,7 +226,7 @@ class TestTemplateMerge:
         g.add((EX.bob, EX.name, Literal('Zed')))
         template, _shape_node, _prop_node = _template_person_shape(in_values=[Literal('Alice')])
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         in_list = result.value(prop, SH['in'])
@@ -233,7 +234,7 @@ class TestTemplateMerge:
         assert values == {Literal('Alice'), Literal('Zed')}
 
     def test_opaque_sparql_constraint_is_left_untouched_and_annotated(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -252,7 +253,7 @@ class TestTemplateMerge:
         )))
         template.add((shape_node, SH.closed, Literal(True)))
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         # The opaque sh:sparql constraint is expected to still be present
         # and still failing - derive_shape() must not have silently dropped it.
         assert (shape_node, SH.sparql, sparql_node) in result
@@ -260,21 +261,21 @@ class TestTemplateMerge:
         assert any('could not be automatically' in str(c) for c in comments)
 
     def test_new_property_not_in_template_is_added(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
         g.add((EX.alice, EX.age, Literal(30)))
         template, _shape_node, _prop_node = _template_person_shape()
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         assert _conforms(g, result)
         node_shape = next(result.subjects(RDF.type, SH.NodeShape))
         paths = {p for prop in result.objects(node_shape, SH.property) for p in result.objects(prop, SH.path)}
         assert EX.age in paths
 
     def test_new_class_not_in_template_gets_a_fresh_shape(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -282,13 +283,13 @@ class TestTemplateMerge:
         g.add((EX.acme, EX.name, Literal('Acme')))
         template, _shape_node, _prop_node = _template_person_shape()
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         assert _conforms(g, result)
         target_classes = {c for ns in result.subjects(RDF.type, SH.NodeShape) for c in result.objects(ns, SH.targetClass)}
         assert EX.Organization in target_classes
 
     def test_templates_own_ignored_properties_are_carried_forward(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -297,7 +298,7 @@ class TestTemplateMerge:
         ignored_list = Collection(template, BNode(), [EX.secret]).uri
         template.add((shape_node, SH.ignoredProperties, ignored_list))
 
-        result = g.derive_shape(template)
+        result = g.derive_shape(template).to_rdflib()
         assert _conforms(g, result)
         result_ignored_list = result.value(shape_node, SH.ignoredProperties)
         result_ignored = set(Collection(result, result_ignored_list))
