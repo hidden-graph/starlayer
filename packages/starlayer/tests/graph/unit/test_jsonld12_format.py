@@ -15,36 +15,35 @@ silent failure mode.
 """
 
 import pytest
-from rdflib import URIRef
-from rdflib.plugin import PluginException
-from starlayer import StarLayerDataset, StarLayerGraph
+import pyoxigraph as ox
+from starlayer.graph.oxgraph import OxDataset, OxGraph
 
 EX = 'http://example.org/'
 
 
 def ex(local):
-    return URIRef(EX + local)
+    return ox.NamedNode(EX + local)
 
 
 class TestJsonld12IsRejectedAsUnrecognized:
     def test_graph_serialize_rejects(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.add((ex('s'), ex('p'), ex('o')))
-        with pytest.raises(PluginException):
+        with pytest.raises(ValueError):
             g.serialize(format='jsonld12')
 
     def test_graph_parse_rejects(self):
-        g = StarLayerGraph()
-        with pytest.raises(PluginException):
+        g = OxGraph()
+        with pytest.raises(ValueError):
             g.parse(data='{}', format='jsonld12')
 
     def test_dataset_serialize_rejects(self):
-        ds = StarLayerDataset()
+        ds = OxDataset()
         ds.default_graph.add((ex('s'), ex('p'), ex('o')))
-        with pytest.raises(PluginException):
+        with pytest.raises(ValueError):
             ds.serialize(format='jsonld12')
 
     def test_dataset_parse_rejects(self):
-        ds = StarLayerDataset()
-        with pytest.raises(PluginException):
+        ds = OxDataset()
+        with pytest.raises(ValueError):
             ds.parse(data='{}', format='jsonld12')

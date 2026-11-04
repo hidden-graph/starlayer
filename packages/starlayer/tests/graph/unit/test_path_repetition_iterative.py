@@ -6,7 +6,7 @@ import random
 import pytest
 from rdflib import Graph, URIRef
 from rdflib.paths import MulPath
-from starlayer import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 
 E = "http://e/"
 
@@ -16,14 +16,14 @@ def _u(x):
 
 
 def _chain(n):
-    g = StarLayerGraph()
+    g = OxGraph()
     for i in range(n):
         g.add((_u(f"n{i}"), _u("next"), _u(f"n{i + 1}")))
     return g
 
 
 def _count(g, where):
-    return int(list(g.query(f"SELECT (COUNT(*) AS ?c) WHERE {{ {where} }}"))[0][0])
+    return int(list(g.query(f"SELECT (COUNT(*) AS ?c) WHERE {{ {where} }}"))[0][0].value)
 
 
 @pytest.mark.parametrize("hops", [3000])
