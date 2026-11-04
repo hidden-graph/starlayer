@@ -109,17 +109,15 @@ class TestRunsAgainstAnOxGraph:
         q = StarQuery("SELECT ?o WHERE { ?s ex:worksFor ?o }", initNs={"ex": str(EX)}, initBindings={"s": EX.bob})
         assert {r.o.value for r in q.run(g)} == {str(EX.Globex)}
 
-    def test_entailment_is_refused_by_the_wrapper(self):
+    def test_entailment_is_applied_by_the_wrapper(self):
+        g = self._ox("@prefix ex: <http://example.org/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . ex:M rdfs:subClassOf ex:E . ex:alice a ex:M .")
+        q = StarQuery("SELECT ?s WHERE { ?s a ex:E }", initNs={"ex": str(EX)}, entailment=ENTAILMENT.RDFS)
+        assert {r.s.value for r in q.run(g)} == {str(EX.alice)}
+        assert list(q.run(g, entailment=None)) == []
+
+    def test_a_timeout_is_only_meaningful_for_owl_direct(self):
         import pytest
 
         g = self._ox("@prefix ex: <http://example.org/> . ex:alice ex:worksFor ex:Acme .")
-        q = StarQuery("SELECT ?s WHERE { ?s ?p ?o }", entailment=ENTAILMENT.RDFS)
-        with pytest.raises(NotImplementedError):
-            q.run(g)
-
-    def test_a_timeout_is_not_available(self):
-        import pytest
-
-        g = self._ox("@prefix ex: <http://example.org/> . ex:alice ex:worksFor ex:Acme .")
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ValueError, match="only meaningful"):
             StarQuery("SELECT ?s WHERE { ?s ?p ?o }", timeout=5).run(g)

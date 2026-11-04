@@ -74,7 +74,7 @@ Also D1 work that is not a deletion of source:
 | `shacl/ui_widget_selection.py` | built `StarLayerGraph` probe / scoring graphs, snapshotted every Oxigraph argument | plain `rdflib.Graph` for the probe and scoring graphs; copies only the shapes and scoring graphs; the data graph goes to `validate()` as it is |
 | `starontology/__init__.py` | rdflib parse, copy into `StarLayerGraph`, convert (`_as_oxigraph`) on every call | Oxigraph parses each file once into a cached `OxGraph`; each call copies it, identifier and used prefixes set |
 | `starontology/manchester.py` | `StarLayerGraph` for `manchester_tree_to_owl` | `OxGraph` |
-| `sparql/star_query.py` | prepared rdflib `Query` plus `infer` / `engine` / `timeout` kwargs (only the old class took them) | an `OxGraph` gets the query text with `initNs` / `initBindings` / `base`; `entailment` and `timeout` raise `NotImplementedError` (not in the inventory: found by reading callers) |
+| `sparql/star_query.py` | prepared rdflib `Query` plus `infer` / `engine` / `timeout` kwargs (only the old class took them) | an `OxGraph` gets the query text with `initNs` / `initBindings` / `base`; `entailment` (RDF, RDFS by query rewrite, OWL regimes on a temporary closed copy) and `timeout` (OWL-Direct only, as before) work as in `StarLayerGraph.query` (branch `mig-query-entailment`) (not in the inventory: found by reading callers) |
 | `tools/kg/codekg` (`__init__`, `queries`, `extractor/build`, `extractor/stamp`, `extractor/cli`), `scripts/build.py`, `build_kg.py`, `publish_kg.py`, `packages/starlayer-kg` | `StarLayerGraph` / `StarLayerDataset`, `rdflib.compare.isomorphic`, `compare.isomorphic`, `parse12` / `parseQuery` for free-form queries | `OxGraph` / `OxDataset`, `rdfc_native.isomorphic`, `parse_sparql` for the free-form check. The query library stays a plain `rdflib.Graph` (the sqe decoders read rdflib terms). `build.py --only codekg kg` builds clean |
 
 ## 4. Behaviour changes (tests migrated; nothing skipped or weakened)
@@ -93,7 +93,7 @@ Also D1 work that is not a deletion of source:
    rdflib input: a plain `rdflib.Graph`, or the caller's own old-class instance when it is a `Graph` subclass; a result that holds
    a triple term from a plain `rdflib.Graph` input is returned as an `OxGraph` (a plain `Graph` cannot hold it). Before, any
    rule set that mentioned a triple term silently switched to the old class. A FILTER that errors is false, as in SPARQL.
-4. **`StarQuery.run(OxGraph)`** takes text, not a prepared query; `entailment=` and `timeout=` raise `NotImplementedError`.
+4. **`StarQuery.run(OxGraph)`** takes text, not a prepared query; `entailment=` / `timeout=` are supported (`sparql/sqe/entailment.py`, branch `mig-query-entailment`).
 5. **`manchester_tree_to_owl`** returns an `OxGraph` for every input.
 6. **Code-KG dataset.** `get_codekg_dataset()` returns an `OxDataset` (`get_context` -> `graph`, `contexts()` -> `graph_names()`;
    read terms with `.value`). The dataset's union default graph returns a triple once for each named graph that holds it

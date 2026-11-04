@@ -145,16 +145,18 @@ class StarQuery:
         from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
 
         if is_oxigraph_input(graph):
-            # The wrapper runs the query text on Oxigraph: no prepared query object, no query-time entailment (it raises for
-            # ``entailment=``), and no timeout. ``infer`` / ``engine`` only matter with an entailment regime, so they are ignored.
-            if "timeout" in kwargs:
-                raise NotImplementedError("a query timeout is not available on an OxGraph / OxDataset")
+            # The wrapper runs the query text on Oxigraph (no prepared query object). RDF / RDFS entailment rewrites the text;
+            # the OWL regimes run on a temporary closure copy (see OxGraph.query). timeout is only meaningful for OWL-Direct, as
+            # on StarLayerGraph.query(), which is where a misuse raises.
             return graph.query(
                 self._text,
                 initNs=kwargs["initNs"],
                 initBindings=kwargs["initBindings"],
                 base=kwargs.get("base", self._base),
                 entailment=kwargs["entailment"],
+                infer=kwargs["infer"],
+                engine=kwargs["engine"],
+                timeout=kwargs.get("timeout"),
             )
 
         if kwargs["entailment"] in _TEXT_REWRITE_ENTAILMENTS:

@@ -480,14 +480,49 @@ class _Base:
 
     # ---- SPARQL -------------------------------------------------------------------------------------------------
     def query(self, text: str, initNs: Mapping[str, str] | None = None, initBindings: Mapping[Any, Any] | None = None,  # noqa: N803
-              base: str | None = None, *, entailment: Any = None) -> Result:
+              base: str | None = None, *, entailment: Any = None, infer: str = "changed", engine: str = "hermit",
+              timeout: Any = None) -> Result:
         """Run SPARQL ``text`` on Oxigraph as it is. ``initNs`` overrides the graph's prefixes for this call; ``initBindings``
         pre-binds variables (``substitutions``, with the ``VALUES`` fallback). A graph view queries its own graph as the default
-        graph; a dataset the default graph, or the union of all graphs when ``default_union``."""
-        if entailment is not None:
-            raise NotImplementedError("query-time entailment is not built in the Oxigraph wrapper (see docs/working/oxgraph-wrapper.md)")
+        graph; a dataset the default graph, or the union of all graphs when ``default_union``.
+
+        ``entailment`` is a regime IRI. ``ENTAILMENT.RDF`` / ``ENTAILMENT.RDFS``: the query is rewritten (see
+        ``sparql/sqe/entailment.py``), the data is not touched or copied. ``ENTAILMENT["OWL-RDF-Based"]`` / ``["OWL-Direct"]``:
+        the store is copied, the closure is added to the copy by ``infer()`` and the query runs on the copy (this graph is never
+        modified; the closure is computed on every call, so ``infer=`` is checked but has no caching to select). ``engine`` /
+        ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
+        Anything else raises ``NotImplementedError``."""
+        regime = None if entailment is None else str(getattr(entailment, "value", entailment))
+        from starlayer.graph.oxgraph.helpers import entailment as ent
+
+        if regime is not None and regime not in (ent.RDF_REGIME, ent.RDFS_REGIME, ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
+            raise NotImplementedError(
+                f"entailment must be one of ENTAILMENT.RDF, RDFS, ['OWL-RDF-Based'], ['OWL-Direct'], got {entailment!r}."
+            )
+        if regime != ent.OWL_DIRECT_REGIME:
+            if engine != "hermit":
+                raise ValueError(f"engine={engine!r} is only meaningful for entailment=ENTAILMENT['OWL-Direct'] (got entailment={entailment!r}) - omit engine= otherwise.")
+            if timeout is not None:
+                raise ValueError(f"timeout={timeout!r} is only meaningful for entailment=ENTAILMENT['OWL-Direct'] (got entailment={entailment!r}) - omit timeout= otherwise.")
+        if regime in (ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
+            if infer not in ("always", "cached", "changed"):
+                raise ValueError(f"infer must be one of ['always', 'cached', 'changed'], got {infer!r}")
+            kw = {"engine": engine, "timeout": ent.DEFAULT_TIMEOUT if timeout is None else timeout}
+            return self._entailed_copy(regime, **kw).query(text, initNs=initNs, initBindings=initBindings, base=base)
         return run.query(self.store, text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,
-                         default_graph=self._query_default_graph(), union=self._union)
+                         default_graph=self._query_default_graph(), union=self._union, entailment=regime)
+
+    def _entailed_copy(self, regime: str, **kw: Any) -> Any:
+        """A throwaway copy of the whole store (every graph) with the ``regime`` closure added to the graph this wrapper
+        reads (``infer`` in place), for query-time OWL entailment. This wrapper's store is not changed."""
+        store = ox.Store()
+        store.extend(self.store)
+        if isinstance(self, OxDataset):
+            copy: Any = OxDataset(store=store, default_union=self._union, prefixes=dict(self.prefixes))
+        else:
+            copy = OxGraph(store=store, identifier=self._g, prefixes=dict(self.prefixes))
+        copy.infer(ox.NamedNode(regime), mode="in-place", **kw)
+        return copy
 
     def _query_default_graph(self) -> Any:
         return None

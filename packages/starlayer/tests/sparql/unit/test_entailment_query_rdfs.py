@@ -1,0 +1,399 @@
+"""Migrated from tests/sparql/unit/test_entailment_rdfs.py: the same tests, on an ``OxGraph``, with the query-time rewrite of
+``starlayer.sparql.sqe.entailment`` (text in, text out, Oxigraph evaluates) instead of the rdflib-algebra rewrite. Differences from
+the original are listed in the module docstring of ``tests/graph/oxgraph/test_entailment_query.py``.
+"""
+
+import pytest
+from rdflib import RDF, RDFS, Literal, Namespace
+from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
+from starlayer.sparql.sqe.entailment import rewrite_for_entailment
+
+try:
+    import owlrl
+    _OWLRL_AVAILABLE = True
+except ImportError:
+    _OWLRL_AVAILABLE = False
+
+owlrl_extra = pytest.mark.skipif(not _OWLRL_AVAILABLE, reason="owlrl not installed")
+
+
+_REGIME = ENTAILMENT.RDFS
+
+
+class _Row(tuple):
+    """A result row as the rdflib one was: a tuple of the values (as strings) with attribute access by variable name."""
+
+    def __new__(cls, row, names):
+        self = super().__new__(cls, (getattr(row[n], "value", row[n]) if row[n] is not None else None for n in names))
+        self._names = names
+        return self
+
+    def __getattr__(self, name):
+        if name.startswith("_") or name not in self._names:
+            raise AttributeError(name)
+        return self[self._names.index(name)]
+
+
+def _rows(res):
+    names = [str(getattr(v, "value", v)) for v in res.vars]
+    return [_Row(r, names) for r in res]
+
+
+class _Prepared:
+    def __init__(self, text, initNs):
+        self.text, self.ns = text, initNs
+
+
+def prepareQuery(text, initNs=None):  # noqa: N802
+    return _Prepared(text, initNs)
+
+
+def Graph():  # noqa: N802
+    return OxGraph()
+
+
+def _run(graph, text, regime, ns):
+    ns = {k: str(v) for k, v in (ns or {}).items()}
+    res = graph.query(text, initNs=ns, entailment=regime)
+    return res if res.type == "ASK" else _rows(res)
+
+
+def _plain(graph, q):
+    ns = {k: str(v) for k, v in (q.ns or {}).items()}
+    return _rows(graph.query(q.text, initNs=ns))
+
+EX = Namespace("http://example.org/")
+
+
+def _query(graph, text: str):
+    return _run(graph, text, _REGIME, {"ex": EX, "rdfs": RDFS, "rdf": RDF})
+
+
+def _materialize(*triples) -> Graph:
+    import rdflib
+
+    g = rdflib.Graph()  # owlrl works on an rdflib graph; the closure is copied into an OxGraph and queried there
+    for t in triples:
+        g.add(t)
+    owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(g)
+    out = Graph()
+    out.extend(list(g))
+    return out
+
+
+class TestSubClassOf:
+    def test_no_rewrite_misses_the_subclass_fact(self):
+        g = Graph()
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.alice, RDF.type, EX.Manager))
+        rows = list(_plain(g, prepareQuery(
+            "SELECT ?x WHERE { ?x a ex:Employee }", initNs={"ex": EX})))
+        assert rows == []
+
+    def test_multi_hop_transitivity(self):
+        g = Graph()
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.Employee, RDFS.subClassOf, EX.Person))
+        g.add((EX.alice, RDF.type, EX.Manager))
+        rows = _query(g, "SELECT ?x WHERE { ?x a ex:Person }")
+        assert [str(r.x) for r in rows] == [str(EX.alice)]
+
+    def test_variable_type_yields_every_reachable_class(self):
+        g = Graph()
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.alice, RDF.type, EX.Manager))
+        rows = _query(g, "SELECT ?x WHERE { ex:alice a ?x }")
+        assert {str(r.x) for r in rows} == {str(EX.Manager), str(EX.Employee)}
+
+    @owlrl_extra
+    def test_matches_owlrl_oracle(self):
+        g = Graph()
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.Employee, RDFS.subClassOf, EX.Person))
+        g.add((EX.alice, RDF.type, EX.Manager))
+
+        rewritten = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a ex:Person }")}
+        oracle = _materialize(
+            (EX.Manager, RDFS.subClassOf, EX.Employee),
+            (EX.Employee, RDFS.subClassOf, EX.Person),
+            (EX.alice, RDF.type, EX.Manager),
+        )
+        materialized = {s.value for s in oracle.subjects(RDF.type, EX.Person)}
+        assert rewritten == materialized == {str(EX.alice)}
+
+
+class TestSubClassOfAsQueryPredicate:
+    def test_transitivity_when_subclassof_is_the_query_predicate(self):
+        g = Graph()
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.Employee, RDFS.subClassOf, EX.Person))
+        rows = _query(g, "SELECT ?x WHERE { ex:Manager rdfs:subClassOf ?x }")
+        # includes Manager itself too - reflexivity, see the dedicated test below
+        assert {str(r.x) for r in rows} == {str(EX.Manager), str(EX.Employee), str(EX.Person)}
+
+    def test_reflexivity_is_unconditional_a_documented_superset_of_owlrl(self):
+        # Manager is never typed rdfs:Class here - owlrl's own rdfs10 would
+        # NOT entail Manager subClassOf Manager for this data (confirmed
+        # live against owlrl directly), but this rewrite's reflexivity is
+        # unconditional by design (see entailment_rdfs.py's module
+        # docstring) - Manager shows up in its own result.
+        g = Graph()
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        rows = _query(g, "SELECT ?x WHERE { ex:Manager rdfs:subClassOf ?x }")
+        assert str(EX.Manager) in {str(r.x) for r in rows}
+
+
+@owlrl_extra
+class TestDomainAndRange:
+    def test_domain_entailment(self):
+        g = Graph()
+        g.add((EX.worksAt, RDFS.domain, EX.Person))
+        g.add((EX.alice, EX.worksAt, EX.Acme))
+
+        rewritten = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a ex:Person }")}
+        oracle = _materialize((EX.worksAt, RDFS.domain, EX.Person), (EX.alice, EX.worksAt, EX.Acme))
+        materialized = {s.value for s in oracle.subjects(RDF.type, EX.Person)}
+        assert rewritten == materialized == {str(EX.alice)}
+
+    def test_range_entailment(self):
+        g = Graph()
+        g.add((EX.worksAt, RDFS.range, EX.Organization))
+        g.add((EX.alice, EX.worksAt, EX.Acme))
+
+        rewritten = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a ex:Organization }")}
+        oracle = _materialize((EX.worksAt, RDFS.range, EX.Organization), (EX.alice, EX.worksAt, EX.Acme))
+        materialized = {s.value for s in oracle.subjects(RDF.type, EX.Organization)}
+        assert rewritten == materialized == {str(EX.Acme)}
+
+    def test_domain_composes_with_subclass_chain(self):
+        g = Graph()
+        g.add((EX.worksAt, RDFS.domain, EX.Person))
+        g.add((EX.Person, RDFS.subClassOf, EX.Agent))
+        g.add((EX.alice, EX.worksAt, EX.Acme))
+
+        rewritten = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a ex:Agent }")}
+        oracle = _materialize(
+            (EX.worksAt, RDFS.domain, EX.Person),
+            (EX.Person, RDFS.subClassOf, EX.Agent),
+            (EX.alice, EX.worksAt, EX.Acme),
+        )
+        materialized = {s.value for s in oracle.subjects(RDF.type, EX.Agent)}
+        assert rewritten == materialized == {str(EX.alice)}
+
+
+@owlrl_extra
+class TestSubPropertyOf:
+    def test_subproperty_entailment(self):
+        g = Graph()
+        g.add((EX.hasParent, RDFS.subPropertyOf, EX.hasRelative))
+        g.add((EX.alice, EX.hasParent, EX.bob))
+
+        rewritten = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ex:alice ex:hasRelative ?x }")}
+        oracle = _materialize(
+            (EX.hasParent, RDFS.subPropertyOf, EX.hasRelative), (EX.alice, EX.hasParent, EX.bob)
+        )
+        materialized = {o.value for o in oracle.objects(EX.alice, EX.hasRelative)}
+        assert rewritten == materialized == {str(EX.bob)}
+
+    def test_subproperty_transitivity_when_subpropertyof_is_the_query_predicate(self):
+        g = Graph()
+        g.add((EX.hasParent, RDFS.subPropertyOf, EX.hasAncestor))
+        g.add((EX.hasAncestor, RDFS.subPropertyOf, EX.hasRelative))
+        rows = _query(g, "SELECT ?x WHERE { ex:hasParent rdfs:subPropertyOf ?x }")
+        # includes hasParent itself too - reflexivity, same as subClassOf
+        assert {str(r.x) for r in rows} == {str(EX.hasParent), str(EX.hasAncestor), str(EX.hasRelative)}
+
+    def test_two_hop_subproperty_entailment(self):
+        g = Graph()
+        g.add((EX.hasParent, RDFS.subPropertyOf, EX.hasAncestor))
+        g.add((EX.hasAncestor, RDFS.subPropertyOf, EX.hasRelative))
+        g.add((EX.alice, EX.hasParent, EX.bob))
+
+        rewritten = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ex:alice ex:hasRelative ?x }")}
+        oracle = _materialize(
+            (EX.hasParent, RDFS.subPropertyOf, EX.hasAncestor),
+            (EX.hasAncestor, RDFS.subPropertyOf, EX.hasRelative),
+            (EX.alice, EX.hasParent, EX.bob),
+        )
+        materialized = {o.value for o in oracle.objects(EX.alice, EX.hasRelative)}
+        assert rewritten == materialized == {str(EX.bob)}
+
+
+class TestDeliberateExclusions:
+    """The rewrite does NOT chase the "vocabulary-level" rules - see
+    entailment_rdfs.py's module docstring for why. These tests pin that
+    scope down explicitly, rather than leaving it as an implicit gap a
+    future change could silently widen or narrow without anyone noticing.
+    """
+
+    def test_does_not_entail_universal_rdfs_resource_typing(self):
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        rows = _query(g, "SELECT ?x WHERE { ?x a rdfs:Resource }")
+        assert list(rows) == []
+
+    def test_does_not_entail_the_rdf_axiomatic_property_triples(self):
+        # rdf:type is an rdf:Property by axiom; it is entailed only where the data uses it as a predicate (rdfD2)
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        rows = _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")
+        assert {str(r.x) for r in rows} == {str(EX.knows)}
+
+
+class TestPropertyTyping:
+    """A predicate is an rdf:Property (rdfD2), which RDFS entailment includes (GitHub issue #97)."""
+
+    def test_a_used_predicate_is_a_property(self):
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        assert {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")} == {str(EX.knows)}
+
+    def test_a_super_property_is_a_property_though_never_used(self):
+        g = Graph()
+        g.add((EX.knows, RDFS.subPropertyOf, EX.relatesTo))
+        got = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")}
+        assert {str(EX.knows), str(EX.relatesTo)} <= got
+
+    def test_a_property_is_of_every_superclass_of_rdf_property(self):
+        g = Graph()
+        g.add((RDF.Property, RDFS.subClassOf, EX.Thing))
+        g.add((EX.alice, EX.knows, EX.bob))
+        assert str(EX.knows) in {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a ex:Thing }")}
+
+    def test_a_term_never_used_as_a_property_is_not_one(self):
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        assert not _query(g, "ASK { ex:alice a rdf:Property }").askAnswer
+
+
+class TestVariablePredicate:
+    """``?p`` ranges over the entailed triples, as in the owlrl closure (GitHub issue #97)."""
+
+    def _graph(self):
+        g = Graph()
+        g.add((EX.q, RDFS.subPropertyOf, EX.p))
+        g.add((EX.a, EX.q, EX.b))
+        return g
+
+    def test_the_asserted_predicate_and_its_super_properties(self):
+        rows = _query(self._graph(), "SELECT ?p WHERE { ex:a ?p ex:b }")
+        assert {str(r.p) for r in rows} == {str(EX.q), str(EX.p)}
+
+    def test_a_filter_on_a_super_property_finds_the_subproperty_triple(self):
+        rows = _query(self._graph(), "SELECT ?x WHERE { ?x ?p ?y FILTER(?p = ex:p) }")
+        assert {str(r.x) for r in rows} == {str(EX.a)}
+
+    def test_an_entailed_type_binds_p_to_rdf_type(self):
+        g = Graph()
+        g.add((EX.C, RDFS.subClassOf, EX.D))
+        g.add((EX.x, RDF.type, EX.C))
+        rows = _query(g, "SELECT ?o WHERE { ex:x ?p ?o FILTER(?p = rdf:type) }")
+        assert {str(r.o) for r in rows} == {str(EX.C), str(EX.D)}
+
+    def test_a_bare_pattern_keeps_every_asserted_triple(self):
+        # a predicate that is neither a subject nor an object anywhere (ex:knows, rdfs:subClassOf) must still be matched
+        g = Graph()
+        g.add((EX.alice, EX.knows, EX.bob))
+        g.add((EX.C, RDFS.subClassOf, EX.D))
+        rows = _query(g, "SELECT ?s ?p ?o WHERE { ?s ?p ?o }")
+        got = {(str(r.s), str(r.p), str(r.o)) for r in rows}
+        assert (str(EX.alice), str(EX.knows), str(EX.bob)) in got
+        assert (str(EX.C), str(RDFS.subClassOf), str(EX.D)) in got
+
+    def test_a_second_rewrite_does_not_expand_the_asserted_pattern_again(self):
+        g = self._graph()
+        q = prepareQuery("SELECT ?p WHERE { ex:a ?p ex:b }", initNs={"ex": EX})
+        q.text = rewrite_for_entailment(rewrite_for_entailment(q.text, _REGIME, prefixes={k: str(v) for k, v in q.ns.items()}), _REGIME)
+        assert sorted(str(r.p) for r in _rows(g.query(q.text))) == sorted([str(EX.q), str(EX.p)])
+
+    def test_a_literal_object_is_matched_without_the_type_branch(self):
+        g = self._graph()
+        g.add((EX.a, EX.q, Literal("x")))
+        rows = _query(g, 'SELECT ?p WHERE { ex:a ?p "x" }')
+        assert {str(r.p) for r in rows} == {str(EX.q), str(EX.p)}
+
+    def test_p_shared_with_another_pattern_joins(self):
+        g = self._graph()
+        g.add((EX.p, EX.label, Literal("P")))
+        rows = _query(g, "SELECT ?l WHERE { ex:a ?p ex:b . ?p ex:label ?l }")
+        assert [str(r.l) for r in rows] == ["P"]
+
+
+_GRAPHS = {
+    "sub-property with domain and range": [
+        (EX.q, RDFS.subPropertyOf, EX.p), (EX.p, RDFS.domain, EX.D), (EX.p, RDFS.range, EX.R),
+        (EX.D, RDFS.subClassOf, EX.E), (EX.a, EX.q, EX.b),
+    ],
+    "sub-property of rdf:type": [(EX.t, RDFS.subPropertyOf, RDF.type), (EX.a, EX.t, EX.D), (EX.D, RDFS.subClassOf, EX.E)],
+    "class chain": [(EX.C, RDFS.subClassOf, EX.D), (EX.D, RDFS.subClassOf, EX.E), (EX.x, RDF.type, EX.C), (EX.x, EX.r, EX.y)],
+    "predicate that is no node": [(EX.a, EX.knows, EX.b), (EX.C, RDFS.subClassOf, EX.D), (EX.a, RDF.type, EX.C)],
+    "property class chain": [(RDF.Property, RDFS.subClassOf, EX.Thing), (EX.a, EX.p, EX.b), (EX.p, RDFS.subPropertyOf, EX.top)],
+}
+_QUERIES = [
+    "SELECT ?x WHERE { ?x a rdf:Property }",
+    "SELECT ?x WHERE { ?x a ex:Thing }",
+    "SELECT ?x WHERE { ?x ?p ?y FILTER(?p = ex:p) }",
+    "SELECT ?x WHERE { ?x ?p ?y FILTER(?p = ex:top) }",
+    "SELECT ?p WHERE { ex:a ?p ex:b }",
+    "SELECT ?p WHERE { ex:a ?p ?o }",
+    "SELECT ?o WHERE { ex:a ?p ?o }",
+    "SELECT ?c WHERE { ex:a a ?c }",
+    "SELECT ?c WHERE { ex:x a ?c }",
+    "SELECT ?s ?p ?o WHERE { ?s ?p ?o }",
+    "SELECT ?x WHERE { ?x a ex:D }",
+    "SELECT ?x WHERE { ?x a ex:R }",
+]
+# the rules the rewrite leaves out on purpose (module docstring): rdfs4a/4b (everything is an rdfs:Resource) and the axiomatic
+# triples about the RDF, RDFS and OWL vocabularies. They are dropped from the closure's answers before comparing.
+_VOCAB = ("http://www.w3.org/1999/02/22-rdf-syntax-ns#", "http://www.w3.org/2000/01/rdf-schema#", "http://www.w3.org/2002/07/owl#")
+
+
+def _answers(rows) -> set[tuple]:
+    # a row of three is (?s, ?p, ?o): the predicate is compared too, only the subject and object are checked for vocabulary.
+    # Reflexive subclass / subproperty rows (rdfs6, rdfs10) are dropped as well: a bare ?p scan does not add one per term.
+    return {
+        tuple(str(v) for v in row)
+        for row in rows
+        if not any(str(v).startswith(_VOCAB) for i, v in enumerate(row) if len(row) != 3 or i != 1)
+        and not (len(row) == 3 and str(row[1]) in (str(RDFS.subClassOf), str(RDFS.subPropertyOf)) and row[0] == row[2])
+    }
+
+
+@owlrl_extra
+class TestAgreesWithTheOwlrlClosure:
+    """Query-time RDFS entailment gives the answers of an owlrl closure loaded into rdflib, for patterns with a variable
+    predicate and for rdf:Property typing (GitHub issue #97), apart from the vocabulary-level rules left out on purpose."""
+
+    @pytest.mark.parametrize("name", list(_GRAPHS))
+    @pytest.mark.parametrize("text", _QUERIES)
+    def test_same_answers(self, name, text):
+        triples = _GRAPHS[name]
+        plain = Graph()
+        for triple in triples:
+            plain.add(triple)
+        closure = _materialize(*triples)
+        init = {"ex": EX, "rdfs": RDFS, "rdf": RDF}
+        rewritten = _answers(_query(plain, text))
+        expected = _answers(_plain(closure, prepareQuery(text, initNs=init)))
+        assert rewritten == expected
+
+
+class TestMixedQuery:
+    def test_rewrite_composes_with_an_ordinary_join_in_the_same_query(self):
+        g = Graph()
+        g.bind("ex", EX)
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.alice, RDF.type, EX.Manager))
+        g.add((EX.alice, EX.name, Literal("Alice")))
+
+        rows = _query(g, 'SELECT ?name WHERE { ?x a ex:Employee . ?x ex:name ?name }')
+        assert [str(r.name) for r in rows] == ["Alice"]
+
+    def test_idempotent_on_a_second_rewrite(self):
+        g = Graph()
+        g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.alice, RDF.type, EX.Manager))
+        q = prepareQuery("SELECT ?x WHERE { ?x a ex:Employee }", initNs={"ex": EX})
+        q.text = rewrite_for_entailment(rewrite_for_entailment(q.text, _REGIME, prefixes={k: str(v) for k, v in q.ns.items()}), _REGIME)
+        assert [str(r.x) for r in _rows(g.query(q.text))] == [str(EX.alice)]

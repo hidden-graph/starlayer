@@ -187,7 +187,7 @@ Differences from the old writer (11 fixture cases compared byte for byte; 3 iden
 |---|---|---|
 | Native `derive_shape` | `graph/graph/shape_derivation.py` | today a bridge to rdflib terms; a native port over pyoxigraph terms replaces `helpers/shapes.py` only |
 | Native OWL-RL / RDFS rules | owlrl | today owlrl on an rdflib copy; the OWL-DL engines are the old modules, reused |
-| Entailment-aware `query(entailment=...)` | `sparql/entailment_rdfs.py`, rewriting the rdflib algebra; `query` here raises `NotImplementedError` | waits for the sqe-tree port (plan stage 2) |
+| Entailment-aware `query(entailment=...)` | `sparql/entailment_rdfs.py`, rewriting the rdflib algebra | done: `sparql/sqe/entailment.py` rewrites the query text for RDF / RDFS; the OWL regimes query a temporary closed copy (`OxGraph._entailed_copy`) |
 | Manchester syntax | `parsers/manchester_parser.py`, `serializers/manchester.py` | independent of the store; add `format="manchester"` that parses to a temp graph |
 | RDF 1.1 export | `graph/interop.py` | **done**: `serialize(rdf_version="1.1")` goes through `interop.export_rdf11` |
 | Others | `isomorphic()` / `compare.py`, `rdfc.py` (RDFC), `triple_terms()`, `Collection`, `transitive_*`, `qname_term`, `namespaces()`, `dump`-style helpers, `Result.serialize` to JSON/CSV, custom functions per call, `LOAD` in UPDATE, remote HTTP engines (`backends/native.py`) | `Dataset.canonicalize` exists in pyoxigraph for RDFC |
