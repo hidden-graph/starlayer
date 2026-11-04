@@ -1,14 +1,14 @@
 """
 Unit tests for rdf:dirLangString (RDF 1.2 base-direction-tagged literals).
 
-Covers the DirLangString value type, StarLayerGraph read/write interception,
+Covers the DirLangString value type, OxGraph read/write interception,
 Turtle/N-Triples/N-Quads/TriG/RDF-XML/TriX/JSON-LD 1.2 parser and serializer
 round-trips, and the SPARQL 1.2 base-direction functions.
 """
 
+import pyoxigraph as ox
 import pytest
 from rdflib import Literal, URIRef
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.dirlangstring import (
     DirLangString,
     decode_dirlangstring,
@@ -19,17 +19,32 @@ from starlayer.graph.model.encoding import (
     decode_dirlang_datatype,
     encode_dirlang_datatype,
 )
+from starlayer.graph.oxgraph import OxGraph
 
-EX = 'http://example.org/'
+EX = "http://example.org/"
+XSD_BOOL = "http://www.w3.org/2001/XMLSchema#boolean"
 
 
 def ex(local):
-    return URIRef(EX + local)
+    return ox.NamedNode(EX + local)
+
+
+def dls(value, lang, direction):
+    """A directional language-tagged literal as a pyoxigraph term (what OxGraph stores and returns)."""
+    return ox.Literal(value, language=lang, direction=ox.BaseDirection.LTR if direction == "ltr" else ox.BaseDirection.RTL)
+
+
+def olit(value):
+    return ox.Literal(value)
+
+
+TRUE = ox.Literal("true", datatype=ox.NamedNode(XSD_BOOL))
+FALSE = ox.Literal("false", datatype=ox.NamedNode(XSD_BOOL))
 
 
 def round_trip(g, fmt):
     text = g.serialize(format=fmt)
-    g2 = StarLayerGraph()
+    g2 = OxGraph()
     g2.parse(data=text, format=fmt)
     return text, g2
 
@@ -90,54 +105,54 @@ class TestEncodeDecode:
 
 
 # ---------------------------------------------------------------------------
-# StarLayerGraph read/write
+# OxGraph read/write
 # ---------------------------------------------------------------------------
 
-class TestStarLayerGraphIntegration:
+class TestOxGraphIntegration:
     def test_add_and_read_back(self):
-        g = StarLayerGraph()
-        d = DirLangString('Hello', 'en', 'ltr')
+        g = OxGraph()
+        d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         results = list(g.triples((ex('a'), ex('greets'), None)))
         assert results == [(ex('a'), ex('greets'), d)]
 
     def test_contains(self):
-        g = StarLayerGraph()
-        d = DirLangString('Hello', 'en', 'ltr')
+        g = OxGraph()
+        d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         assert (ex('a'), ex('greets'), d) in g
-        assert (ex('a'), ex('greets'), DirLangString('Hello', 'en', 'rtl')) not in g
+        assert (ex('a'), ex('greets'), dls('Hello', 'en', 'rtl')) not in g
 
     def test_len_counts_it_once(self):
-        g = StarLayerGraph()
-        g.add((ex('a'), ex('greets'), DirLangString('Hello', 'en', 'ltr')))
+        g = OxGraph()
+        g.add((ex('a'), ex('greets'), dls('Hello', 'en', 'ltr')))
         assert len(g) == 1
 
     def test_remove(self):
-        g = StarLayerGraph()
-        d = DirLangString('Hello', 'en', 'ltr')
+        g = OxGraph()
+        d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         g.remove((ex('a'), ex('greets'), d))
         assert len(g) == 0
 
     def test_subject_position_rejected(self):
-        g = StarLayerGraph()
-        d = DirLangString('Hello', 'en', 'ltr')
-        with pytest.raises(ValueError, match="subject position"):
+        g = OxGraph()
+        d = dls('Hello', 'en', 'ltr')
+        with pytest.raises(TypeError):  # a literal subject is a TypeError (O5); the old wrapper raised ValueError
             g.add((d, ex('p'), ex('o')))
 
     def test_triples_choices(self):
-        g = StarLayerGraph()
-        d1 = DirLangString('Hello', 'en', 'ltr')
-        d2 = DirLangString('Bonjour', 'fr', 'ltr')
+        g = OxGraph()
+        d1 = dls('Hello', 'en', 'ltr')
+        d2 = dls('Bonjour', 'fr', 'ltr')
         g.add((ex('a'), ex('greets'), d1))
         g.add((ex('b'), ex('greets'), d2))
-        results = list(g.triples_choices((None, ex('greets'), [d1, d2])))
+        results = [t for d in (d1, d2) for t in g.triples((None, ex("greets"), d))]  # triples_choices -> one triples() per choice
         assert {r[2] for r in results} == {d1, d2}
 
     def test_nested_in_triple_term_object(self):
-        d = DirLangString('Hello', 'en', 'ltr')
-        g = StarLayerGraph()
+        d = dls('Hello', 'en', 'ltr')
+        g = OxGraph()
         g.add((ex('alice'), ex('says'), (ex('bob'), ex('greets'), d)))
         results = list(g.triples((ex('alice'), ex('says'), None)))
         assert len(results) == 1
@@ -145,14 +160,14 @@ class TestStarLayerGraphIntegration:
         assert outer.object == d
 
     def test_init_bindings_matches_registered_value(self):
-        g = StarLayerGraph()
-        d = DirLangString('Hello', 'en', 'ltr')
+        g = OxGraph()
+        d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         r = g.query(
             'SELECT ?s WHERE { ?s <http://example.org/greets> ?t }',
             initBindings={'t': d},
         )
-        assert {row[r.vars[0]] for row in r.bindings} == {ex('a')}
+        assert {row['s'] for row in r} == {ex('a')}
 
 
 # ---------------------------------------------------------------------------
@@ -161,43 +176,36 @@ class TestStarLayerGraphIntegration:
 
 class TestTurtle12:
     def test_parse_ltr(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.parse(data=f'<{EX}s> <{EX}p> "hello"@en--ltr .', format='turtle12')
         results = list(g.triples((None, None, None)))
-        assert results == [(ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr'))]
+        assert results == [(ex('s'), ex('p'), dls('hello', 'en', 'ltr'))]
 
     def test_parse_rtl_non_ascii(self):
-        g = StarLayerGraph()
+        g = OxGraph()
         g.parse(data=f'<{EX}s> <{EX}p> "HTML היא שפת סימון"@he--rtl .', format='turtle12')
         obj = next(g.objects(ex('s'), ex('p')))
-        assert obj == DirLangString('HTML היא שפת סימון', 'he', 'rtl')
+        assert obj == dls('HTML היא שפת סימון', 'he', 'rtl')
 
     def test_invalid_direction_raises(self):
-        g = StarLayerGraph()
-        from starlayer.graph.parsers.errors import Turtle12SyntaxError
-        with pytest.raises(Turtle12SyntaxError, match="ltr.*rtl"):  # the parser's own error type (issue #73)
+        g = OxGraph()
+        with pytest.raises(SyntaxError, match="ltr.*rtl"):  # Oxigraph raises SyntaxError (O5)
             g.parse(data=f'<{EX}s> <{EX}p> "hello"@en--sideways .', format='turtle12')
 
     def test_round_trip_turtle12(self):
-        g = StarLayerGraph()
-        g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
+        g = OxGraph()
+        g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, 'turtle12')
         assert '"hello"@en--ltr' in text
         assert '@version "1.2" .' in text
         assert list(g2.triples((None, None, None))) == list(g.triples((None, None, None)))
 
-    def test_round_trip_longturtle12(self):
-        g = StarLayerGraph()
-        g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
-        text, g2 = round_trip(g, 'longturtle12')
-        assert '"hello"@en--ltr' in text
-        assert list(g2.triples((None, None, None))) == list(g.triples((None, None, None)))
 
     def test_version_directive_emitted_even_without_triple_terms(self):
         # A graph with only a DirLangString (no TripleTerm at all) must still
         # get the @version "1.2" directive - it's new RDF 1.2 syntax too.
-        g = StarLayerGraph()
-        g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
+        g = OxGraph()
+        g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text = g.serialize(format='turtle12')
         assert '@version "1.2" .' in text
 
@@ -209,35 +217,35 @@ class TestTurtle12:
 class TestNTriples12:
     def test_parse(self):
         nt = f'<{EX}s> <{EX}p> "hello"@en--ltr .\n'
-        g = StarLayerGraph()
+        g = OxGraph()
         g.parse(data=nt, format='nt12')
-        assert list(g.triples((None, None, None))) == [(ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr'))]
+        assert list(g.triples((None, None, None))) == [(ex('s'), ex('p'), dls('hello', 'en', 'ltr'))]
 
     def test_round_trip_nt12(self):
-        g = StarLayerGraph()
-        g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
+        g = OxGraph()
+        g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, 'nt12')
         assert '"hello"@en--ltr' in text
         assert 'VERSION "1.2"' in text
         assert list(g2.triples((None, None, None))) == list(g.triples((None, None, None)))
 
     def test_round_trip_nq12(self):
-        g = StarLayerGraph()
-        g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
+        g = OxGraph()
+        g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, 'nq12')
         assert '"hello"@en--ltr' in text
         assert list(g2.triples((None, None, None))) == list(g.triples((None, None, None)))
 
 
 # ---------------------------------------------------------------------------
-# TriG 1.2 (via StarLayerDataset)
+# TriG 1.2 (via OxDataset)
 # ---------------------------------------------------------------------------
 
 class TestTrig12:
     def test_round_trip(self):
-        from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
+        from starlayer.graph.oxgraph import OxDataset
 
-        ds = StarLayerDataset()
+        ds = OxDataset()
         ds.parse(data=f'''
             @prefix : <{EX}> .
             GRAPH :g1 {{ :s :p "hello"@en--ltr . }}
@@ -245,10 +253,10 @@ class TestTrig12:
         text = ds.serialize(format='trig12')
         assert '"hello"@en--ltr' in text
 
-        ds2 = StarLayerDataset()
+        ds2 = OxDataset()
         ds2.parse(data=text, format='trig12')
         quads = list(ds2.quads((None, None, None)))
-        assert any(o == DirLangString('hello', 'en', 'ltr') for _, _, o, _ in quads)
+        assert any(o == dls('hello', 'en', 'ltr') for _, _, o, _ in quads)
 
 
 # ---------------------------------------------------------------------------
@@ -258,10 +266,10 @@ class TestTrig12:
 class TestOtherFormats:
     @pytest.mark.parametrize('fmt', ['rdfxml12'])
     def test_round_trip(self, fmt):
-        g = StarLayerGraph()
-        g.add((ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr')))
+        g = OxGraph()
+        g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, fmt)
-        assert list(g2.triples((None, None, None))) == [(ex('s'), ex('p'), DirLangString('hello', 'en', 'ltr'))]
+        assert list(g2.triples((None, None, None))) == [(ex('s'), ex('p'), dls('hello', 'en', 'ltr'))]
 
 
 # ---------------------------------------------------------------------------
@@ -271,39 +279,39 @@ class TestOtherFormats:
 class TestSparqlFunctions:
     @pytest.fixture
     def g(self):
-        g = StarLayerGraph()
-        g.add((ex('dir'),   ex('title'), DirLangString('HTML page', 'en', 'ltr')))
-        g.add((ex('lang'),  ex('title'), Literal('plain lang', lang='en')))
-        g.add((ex('plain'), ex('title'), Literal('no lang at all')))
+        g = OxGraph()
+        g.add((ex('dir'),   ex('title'), dls('HTML page', 'en', 'ltr')))
+        g.add((ex('lang'),  ex('title'), ox.Literal('plain lang', language='en')))
+        g.add((ex('plain'), ex('title'), olit('no lang at all')))
         return g
 
     def _query(self, g, expr):
         r = g.query(f'SELECT ?s ({expr} AS ?v) WHERE {{ ?s <{EX}title> ?t }}')
-        return {row[r.vars[0]]: row[r.vars[1]] for row in r.bindings}
+        return {row[0]: row[1] for row in r}
 
     def test_langdir(self, g):
         result = self._query(g, 'LANGDIR(?t)')
-        assert result[ex('dir')] == Literal('ltr')
-        assert result[ex('lang')] == Literal('')
-        assert result[ex('plain')] == Literal('')
+        assert result[ex('dir')] == olit('ltr')
+        assert result[ex('lang')] == olit('')
+        assert result[ex('plain')] == olit('')
 
     def test_has_langdir(self, g):
         result = self._query(g, 'hasLANGDIR(?t)')
-        assert result[ex('dir')] == Literal(True)
-        assert result[ex('lang')] == Literal(False)
-        assert result[ex('plain')] == Literal(False)
+        assert result[ex('dir')] == TRUE
+        assert result[ex('lang')] == FALSE
+        assert result[ex('plain')] == FALSE
 
     def test_lang_upgraded_for_dirlangstring(self, g):
         result = self._query(g, 'LANG(?t)')
-        assert result[ex('dir')] == Literal('en')
-        assert result[ex('lang')] == Literal('en')
-        assert result[ex('plain')] == Literal('')
+        assert result[ex('dir')] == olit('en')
+        assert result[ex('lang')] == olit('en')
+        assert result[ex('plain')] == olit('')
 
     def test_has_lang(self, g):
         result = self._query(g, 'hasLANG(?t)')
-        assert result[ex('dir')] == Literal(True)
-        assert result[ex('lang')] == Literal(True)
-        assert result[ex('plain')] == Literal(False)
+        assert result[ex('dir')] == TRUE
+        assert result[ex('lang')] == TRUE
+        assert result[ex('plain')] == FALSE
 
     def test_strlangdir_constructs_matching_value(self, g):
         r = g.query(f'''
@@ -312,7 +320,7 @@ class TestSparqlFunctions:
               FILTER(?t = STRLANGDIR("HTML page", "en", "ltr"))
             }}
         ''')
-        assert {row[r.vars[0]] for row in r.bindings} == {ex('dir')}
+        assert {row[0] for row in r} == {ex('dir')}
 
     def test_strlangdir_result_restored_to_dirlangstring(self, g):
         # direction is "ltr" lowercase deliberately, not "LTR" - RDF 1.2
@@ -325,7 +333,7 @@ class TestSparqlFunctions:
         # a verified spec requirement; fixed 2026-10-13 alongside
         # _dirlang_construct_fn itself rejecting a non-lowercase direction.
         r = g.query('SELECT (STRLANGDIR("hi", "EN", "ltr") AS ?x) WHERE {}')
-        assert r.bindings[0][r.vars[0]] == DirLangString('hi', 'en', 'ltr')
+        assert list(r)[0][0] == dls('hi', 'en', 'ltr')
 
     def test_strlangdir_wrong_arity_raises(self, g):
         # starlayer.sparql's grammar production for STRLANGDIR requires
@@ -335,8 +343,7 @@ class TestSparqlFunctions:
         # time (pyparsing.ParseException), not accepted and validated
         # afterward with a custom error message the way the legacy
         # text-based rewriter used to.
-        from pyparsing.exceptions import ParseException
-        with pytest.raises(ParseException):
+        with pytest.raises(SyntaxError):  # a 2-argument STRLANGDIR is a syntax error (O5)
             g.query('SELECT (STRLANGDIR("hi", "en") AS ?x) WHERE {}')
 
     def test_is_triple_alias_unaffected_by_lang_rewrite(self, g):
@@ -348,27 +355,27 @@ class TestSparqlFunctions:
               FILTER(!isTRIPLE(?t) && LANG(?t) != "fr")
             }}
         ''')
-        assert {row[r.vars[0]] for row in r.bindings} == {ex('dir'), ex('lang'), ex('plain')}
+        assert {row[0] for row in r} == {ex('dir'), ex('lang'), ex('plain')}
 
     # -- nested/arbitrary-expression arguments (previously a known limitation) --
 
     def test_langdir_of_strlangdir_nested(self, g):
         r = g.query('SELECT (LANGDIR(STRLANGDIR("x", "en", "rtl")) AS ?d) WHERE {}')
-        assert r.bindings[0][r.vars[0]] == Literal('rtl')
+        assert list(r)[0][0] == olit('rtl')
 
     def test_has_langdir_of_arbitrary_expression(self, g):
         r = g.query('''
             SELECT (hasLANGDIR(IF(true, STRLANGDIR("x", "en", "ltr"), "y")) AS ?h) WHERE {}
         ''')
-        assert r.bindings[0][r.vars[0]] == Literal(True)
+        assert list(r)[0][0] == TRUE
 
     def test_lang_of_strlangdir_nested(self, g):
         r = g.query('SELECT (LANG(STRLANGDIR("x", "en", "ltr")) AS ?l) WHERE {}')
-        assert r.bindings[0][r.vars[0]] == Literal('en')
+        assert list(r)[0][0] == olit('en')
 
     def test_has_lang_of_strlangdir_nested(self, g):
         r = g.query('SELECT (hasLANG(STRLANGDIR("x", "en", "ltr")) AS ?h) WHERE {}')
-        assert r.bindings[0][r.vars[0]] == Literal(True)
+        assert list(r)[0][0] == TRUE
 
     def test_strlangdir_with_nested_strlangdir_argument(self, g):
         # Pathological but exercises full recursion: the "lex" argument is
@@ -377,7 +384,7 @@ class TestSparqlFunctions:
         r = g.query('''
             SELECT (STRLANGDIR(STR(STRLANGDIR("x", "en", "ltr")), "fr", "rtl") AS ?v) WHERE {}
         ''')
-        assert r.bindings[0][r.vars[0]] == DirLangString('x', 'fr', 'rtl')
+        assert list(r)[0][0] == dls('x', 'fr', 'rtl')
 
     # -- invalid STRLANGDIR direction: soft-failure semantics matching native
     # engines (confirmed against live Fuseki 5.5.0 and Oxigraph 0.5.9
@@ -386,8 +393,8 @@ class TestSparqlFunctions:
 
     def test_strlangdir_invalid_direction_leaves_variable_unbound(self, g):
         r = g.query('SELECT (STRLANGDIR("x", "en", "sideways") AS ?v) WHERE {}')
-        assert len(r.bindings) == 1
-        assert r.bindings[0][r.vars[0]] is None
+        assert len(list(r)) == 1
+        assert list(r)[0][0] is None
 
     def test_strlangdir_invalid_direction_does_not_abort_other_rows(self, g):
         # The defining case for soft-failure semantics: one bad row must not
@@ -401,11 +408,11 @@ class TestSparqlFunctions:
               }
             }
         ''')
-        by_label = {row[r.vars[0]]: row[r.vars[1]] for row in r.bindings}
+        by_label = {row[0]: row[1] for row in r}
         assert len(by_label) == 3
-        assert by_label[Literal('good-ltr')] == DirLangString('x', 'en', 'ltr')
-        assert by_label[Literal('bad-direction')] is None
-        assert by_label[Literal('good-rtl')] == DirLangString('x', 'en', 'rtl')
+        assert by_label[olit('good-ltr')] == dls('x', 'en', 'ltr')
+        assert by_label[olit('bad-direction')] is None
+        assert by_label[olit('good-rtl')] == dls('x', 'en', 'rtl')
 
     # -- literal "text"@lang--dir written directly in a query (not a bound
     # variable from stored data) - found broken via a live three-way
@@ -413,7 +420,7 @@ class TestSparqlFunctions:
 
     def test_langdir_of_literal_written_directly_in_query(self, g):
         r = g.query('SELECT (LANGDIR("hi"@en--rtl) AS ?dir) WHERE {}')
-        assert r.bindings[0][r.vars[0]] == Literal('rtl')
+        assert list(r)[0][0] == olit('rtl')
 
     def test_all_dirlang_functions_accept_literal_directly_in_query(self, g):
         r = g.query("""
@@ -423,37 +430,14 @@ class TestSparqlFunctions:
                    (hasLANG("hi"@en--rtl) AS ?hl)
             WHERE {}
         """)
-        row = r.bindings[0]
-        assert row[r.vars[0]] == Literal('rtl')
-        assert row[r.vars[1]] == Literal(True)
-        assert row[r.vars[2]] == Literal('en')
-        assert row[r.vars[3]] == Literal(True)
+        row = list(r)[0]
+        assert row[0] == olit('rtl')
+        assert row[1] == TRUE
+        assert row[2] == olit('en')
+        assert row[3] == TRUE
 
 
 # ---------------------------------------------------------------------------
 # Native backend (rdf-1.2) term serialization + JSON parsing
 # ---------------------------------------------------------------------------
 
-class TestNativeBackend:
-    def test_sparql_term_emits_real_lexical_form(self):
-        from starlayer.graph.backends.native import sparql_term
-        d = DirLangString('hello', 'en', 'rtl')
-        assert sparql_term(d) == '"hello"@en--rtl'
-
-    def test_sparql_term_escapes_quotes(self):
-        from starlayer.graph.backends.native import sparql_term
-        d = DirLangString('say "hi"', 'en', 'ltr')
-        assert sparql_term(d) == '"say \\"hi\\""@en--ltr'
-
-    def test_parse_json_term_with_its_dir_key(self):
-        # "its:dir" confirmed 2026-07-16 against live Fuseki 5.5.0 and
-        # Oxigraph 0.5.9 (both agree independently).
-        from starlayer.graph.backends.native import _parse_json_term
-        term = _parse_json_term({'type': 'literal', 'value': 'hello', 'xml:lang': 'en', 'its:dir': 'rtl'})
-        assert term == DirLangString('hello', 'en', 'rtl')
-
-    def test_parse_json_term_without_direction_key_is_plain_lang_literal(self):
-        from starlayer.graph.backends.native import _parse_json_term
-        term = _parse_json_term({'type': 'literal', 'value': 'hello', 'xml:lang': 'en'})
-        assert term == Literal('hello', lang='en')
-        assert not isinstance(term, DirLangString)

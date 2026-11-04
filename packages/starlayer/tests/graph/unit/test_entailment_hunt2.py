@@ -3,7 +3,8 @@
 import warnings
 
 import pytest
-from starlayer.graph import ENTAILMENT, StarLayerGraph
+from starlayer.graph import ENTAILMENT
+from starlayer.graph.oxgraph import OxGraph
 
 warnings.simplefilter("ignore")
 SCHEMA = """@prefix : <http://e/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -14,13 +15,13 @@ RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
 
 
 def _graph(turtle=SCHEMA):
-    g = StarLayerGraph()
+    g = OxGraph()
     g.parse(data=turtle, format="turtle12")
     return g
 
 
 def _members(rows):
-    return sorted({str(r[0]).rsplit("/", 1)[-1] for r in rows})
+    return sorted({r[0].value.rsplit("/", 1)[-1] for r in rows})
 
 
 @pytest.mark.parametrize(
@@ -37,8 +38,8 @@ def test_rewrite_agrees_with_the_materialized_closure(cls):
     g = _graph()
     closure = g.infer(entailment=ENTAILMENT.RDFS, mode="full")
     materialized = sorted(
-        {str(s).rsplit("/", 1)[-1] for s, p, o in closure.triples((None, None, None))
-         if str(p) == RDF_TYPE and str(o) == f"http://e/{cls}"}
+        {s.value.rsplit("/", 1)[-1] for s, p, o in closure.triples((None, None, None))
+         if p.value == RDF_TYPE and getattr(o, "value", None) == f"http://e/{cls}"}
     )
     rows = g.query(f"PREFIX : <http://e/> SELECT ?x {{ ?x a :{cls} }}", entailment=ENTAILMENT.RDFS)
     assert _members(rows) == materialized
