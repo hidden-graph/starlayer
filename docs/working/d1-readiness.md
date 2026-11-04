@@ -128,3 +128,11 @@ Also D1 work that is not a deletion of source:
 3. **`StarQuery` on an `OxGraph`** has no entailment or timeout: port query-time entailment (plan section 3, B1 says it was
    deferred) or drop those options at D1?
 4. **`used_prefixes`:** keep (re-implement over `OxGraph.used_prefixes()`, which exists) or remove with `graph.prefixes`.
+
+## 8. Gate at the end of this branch
+
+Full `packages/starlayer/tests`: 12,315 passed, 502 skipped, 35 xfailed (serial-equivalent run with `-n 4`, `PYTHONHASHSEED=0`).
+The code-KG tests with `--deferred --codekg-queries` after `build.py --only codekg kg`: all pass except the two pre-existing stale-citation
+tests of section 5 (and the combined-KG comparison, which now compares distinct rows). `build.py --check --skip codekg`: all generated
+files current (`api-reference.generated.md` was regenerated in its own commit). `ruff check packages/`: clean. All 28 guides run
+(`pytest --notebooks`).
