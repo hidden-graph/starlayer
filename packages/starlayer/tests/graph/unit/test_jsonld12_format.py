@@ -14,8 +14,8 @@ this suite confirms that rejection is real and consistent, not a different
 silent failure mode.
 """
 
-import pytest
 import pyoxigraph as ox
+import pytest
 from starlayer.graph.oxgraph import OxDataset, OxGraph
 
 EX = 'http://example.org/'

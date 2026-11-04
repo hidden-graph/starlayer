@@ -1,8 +1,8 @@
 """A FILTER sees the variables bound in its own group, not ones bound outside it (SPARQL 1.1 sec 18.2.2.7:
 a group is evaluated on its own and joined with its siblings afterwards)."""
 
-import pytest
 import pyoxigraph as ox
+import pytest
 from starlayer.graph.oxgraph import OxGraph
 
 

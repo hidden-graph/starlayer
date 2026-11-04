@@ -97,7 +97,7 @@ def test_a_declared_prefix_keeps_its_name_when_the_graph_has_no_default_for_it()
 
 # ---------------------------------------------------------------- methods on OxGraph and OxDataset (GitHub issue #29)
 from rdflib import Dataset as RdflibDataset  # noqa: E402
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import OxDataset  # noqa: E402
 
 TT_TTL = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix u: <http://u/> . ex:a a sh:NodeShape ; ex:p <<( ex:b ex:q ex:c )>> ."
 TRIG = (
