@@ -22,7 +22,10 @@ def _objects(text: str):
 )
 def test_negative_numbers(lexical, datatype):
     (obj,) = _objects(f"DATA {{ :a :b {lexical} }}")
-    assert obj == Literal(lexical.replace("-.", "-0."), datatype=datatype)
+    # lexical fidelity: the form is kept as written ("-.5" stays "-.5"), the value is the same
+    assert str(obj) == lexical
+    assert obj.datatype == datatype
+    assert obj.value == Literal(lexical.replace("-.", "-0."), datatype=datatype).value
 
 
 @pytest.mark.parametrize(
@@ -64,3 +67,15 @@ def test_bare_tilde_in_a_reified_triple_names_a_fresh_reifier():
     reifies = [t for t in triples if t.predicate == URIRef(str(RDF._NS) + "reifies")]
     assert len(reifies) == 1
     assert isinstance(reifies[0].subject, BNode)
+
+
+def test_evaluation_compares_values_not_lexical_forms():
+    from rdflib import Graph
+
+    rs = parse_ruleset(
+        PRE + "RULE { ?s :neg true } WHERE { ?s :v ?n FILTER(?n < 0 && ?n = -0.5) }\nDATA { :a :v -.5 . :b :v .5 }",
+        validate=False,
+    )
+    out = rs.infer(Graph())
+    assert (URIRef("http://e/a"), URIRef("http://e/neg"), Literal(True)) in out
+    assert (URIRef("http://e/b"), URIRef("http://e/neg"), Literal(True)) not in out
