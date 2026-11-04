@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.oxgraph import OxDataset, OxGraph
 
@@ -12,14 +13,16 @@ Class: ex:A
 """
 
 
-def test_parse_manchester_matches_the_old_class():
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    old = StarLayerGraph()
-    old.parse(data=TEXT, format="manchester")
+def test_parse_manchester_gives_the_ontology_class_and_subclass_triples():
+    # the expected triples are what the old class gave for the same text (3 triples)
     new = OxGraph().parse(data=TEXT, format="manchester")
-    assert len(new) == len(old) == 3
-    assert isomorphic(new, old)
+    ex, rdf_type = (lambda n: ox.NamedNode("http://example.org/" + n)), ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
+    owl = lambda n: ox.NamedNode("http://www.w3.org/2002/07/owl#" + n)  # noqa: E731
+    assert set(new) == {
+        (ex("o"), rdf_type, owl("Ontology")),
+        (ex("A"), rdf_type, owl("Class")),
+        (ex("A"), ox.NamedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf"), ex("B")),
+    }
 
 
 def test_manchester_round_trip_and_alias_and_file(tmp_path):

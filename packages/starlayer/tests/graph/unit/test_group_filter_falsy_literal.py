@@ -4,8 +4,7 @@ so the group matched as if it had no filter (docs/upstream-issues/rdflib-upstrea
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.oxgraph import OxGraph
 
 DATA = "<http://e/a> <http://e/p> <http://e/b> ."
 
@@ -16,7 +15,7 @@ def _graph(cls):
     return g
 
 
-@pytest.mark.parametrize("cls", [Graph, StarLayerGraph])
+@pytest.mark.parametrize("cls", [OxGraph])
 @pytest.mark.parametrize(
     ("query", "rows"),
     [
@@ -34,16 +33,7 @@ def test_select_with_a_literal_filter(cls, query: str, rows: int) -> None:
     assert len(list(_graph(cls).query(query))) == rows
 
 
-@pytest.mark.parametrize("cls", [Graph, StarLayerGraph])
+@pytest.mark.parametrize("cls", [OxGraph])
 def test_ask_with_filter_false_is_false(cls) -> None:
     assert _graph(cls).query("ASK { FILTER(false) }").askAnswer is False
     assert _graph(cls).query("ASK { FILTER(true) }").askAnswer is True
-
-
-def test_the_patch_is_idempotent() -> None:
-    from starlayer.graph.query.algebra_translator_patches import (
-        patch_group_filter_falsy_literal,
-    )
-
-    assert patch_group_filter_falsy_literal() is True
-    assert patch_group_filter_falsy_literal() is True

@@ -1,5 +1,5 @@
 """Query-time entailment on ``OxGraph`` / ``OxDataset`` / ``StarQuery``, migrated from ``tests/graph/unit/test_entailment.py``,
-``test_entailment_hunt2.py`` and ``test_entailment_direct.py`` (which run on ``StarLayerGraph``).
+``test_entailment_hunt2.py`` and ``test_entailment_direct.py`` (which ran on the old class and now run on ``OxGraph``).
 
 RDF and RDFS are a rewrite of the query (``starlayer.sparql.sqe.entailment``); the OWL regimes run the query on a temporary copy
 of the store that ``infer()`` has closed. Differences from the originals:
