@@ -337,13 +337,17 @@ def _derive_fresh(data, ignored) -> Graph:
 # ---------------------------------------------------------------------------
 
 def _iter_violations(report_graph):
+    """The violations of a validation report as rdflib terms (the report is an ``OxGraph``; the shapes being edited are
+    rdflib graphs)."""
+    from starlayer.shacl_engine.terms import from_engine
+
     for result_node in report_graph.subjects(RDF.type, SH.ValidationResult):
         yield {
-            'component': report_graph.value(result_node, SH.sourceConstraintComponent),
-            'source_shape': report_graph.value(result_node, SH.sourceShape),
-            'path': report_graph.value(result_node, SH.resultPath),
-            'focus_node': report_graph.value(result_node, SH.focusNode),
-            'value': report_graph.value(result_node, SH.value),
+            'component': from_engine(report_graph.value(result_node, SH.sourceConstraintComponent)),
+            'source_shape': from_engine(report_graph.value(result_node, SH.sourceShape)),
+            'path': from_engine(report_graph.value(result_node, SH.resultPath)),
+            'focus_node': from_engine(report_graph.value(result_node, SH.focusNode)),
+            'value': from_engine(report_graph.value(result_node, SH.value)),
         }
 
 
