@@ -107,6 +107,10 @@ def run_direct(store, text: str, *, init_ns=None, init_bindings=None, base=None,
         substitutions = {
             ox.Variable(str(k).lstrip('?$')): _to_ox(v) for k, v in init_bindings.items()
         }
+    if not substitutions:  # a correlated FILTER [NOT] EXISTS is much faster as a join (sparql/sqe/rewrite.py); same rows
+        from starlayer.sparql.sqe.rewrite import rewrite_exists_text
+
+        text = rewrite_exists_text(text, prefixes=prefixes, base=base)
     try:
         res = _call_query(engine, text, prefixes=prefixes, base=base, default_union=default_union,
                           substitutions=substitutions)
