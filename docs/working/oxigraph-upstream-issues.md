@@ -1,6 +1,8 @@
 # Oxigraph upstream issues (drafts)
 
-Drafts only: nothing here is filed externally. One section per issue.
+Project notes only. Nothing here is, or is to be, posted to Oxigraph's GitHub or any other outside forum: this file records
+what we found so that someone can decide later. One section per issue. Before anyone acts on a section, check it against a
+current Oxigraph release (written against pyoxigraph 0.5.13) and against existing issues.
 
 ## 1. A zero-length property path to a constant that is not a node of the graph matches nothing
 
