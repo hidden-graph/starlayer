@@ -26,10 +26,23 @@ _WRAPPERS = {
 _UNARY = {"UnaryMinus": "-", "UnaryPlus": "+", "UnaryNot": "!"}
 
 
+# The argument order of the builtins whose argument names do not sort into it. A tree read back from an ``OxGraph`` lists a node's
+# properties in the store's order, not the order the parser wrote them in, so the order cannot be taken from the node.
+_ARGUMENT_ORDER = {
+    "Builtin_REGEX": ("text", "pattern", "flags"),
+    "Builtin_REPLACE": ("arg", "pattern", "replacement", "flags"),
+    "Builtin_SUBSTR": ("arg", "start", "length"),
+}
+
+
 def _args(node: CompValue) -> list:
     out: list = []
-    for key, value in dict.items(node):
-        if key.startswith("_") or key == "distinct" or value is None:
+    keys = [k for k in dict.keys(node) if not k.startswith("_") and k != "distinct"]
+    order = _ARGUMENT_ORDER.get(node.name)
+    keys.sort(key=lambda k: (order.index(k) if order and k in order else len(order or ()), k))
+    for key in keys:
+        value = dict.get(node, key)
+        if value is None:
             continue
         out.extend(value if isinstance(value, (list, tuple)) else [value])
     return out

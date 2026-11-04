@@ -140,8 +140,8 @@ def sqe_parse_to_tree(
 
     Args:
         text: The SPARQL query text to encode.
-        graph: The graph to add the ``sqe:`` RDF to. Defaults to a
-            fresh ``StarLayerGraph`` (see ``to_rdf._new_starlayer_graph``).
+        graph: The graph to add the ``sqe:`` RDF to: an ``OxGraph`` (pyoxigraph terms) or an rdflib graph (rdflib terms).
+            Defaults to a fresh ``OxGraph``.
         root: The node to use as the query's own root - any ``URIRef``/
             ``BNode``. Defaults to a fresh ``BNode()``. Give a real
             ``URIRef`` to make the query findable by that identity later
@@ -153,7 +153,7 @@ def sqe_parse_to_tree(
             apart on its own.
 
     Returns:
-        A ``(graph, root)`` tuple.
+        A ``(graph, root)`` tuple; with no ``graph`` given, an ``OxGraph`` and a pyoxigraph ``root``.
 
     Raises:
         SparqlSyntaxError: For text outside the SPARQL 1.2 query
@@ -161,12 +161,17 @@ def sqe_parse_to_tree(
         SQEValidationError: If the text parses fine but the encoded tree
             fails ``sqe:``'s own SHACL shapes.
     """
-    if graph is not None:
-        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-        if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
-            return _ox.write_boundary(graph, lambda g, r: sqe_parse_to_tree(text, g, r), root)
-    from ..parse_sparql import SparqlSyntaxError, ast_to_tree, parse_sparql
+    if graph is None:  # encode on a scratch rdflib graph, return a fresh OxGraph
+        return _ox.default_boundary(lambda g, r: _parse_to_rdflib_tree(text, g, r), root)
+    if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+        return _ox.write_boundary(graph, lambda g, r: _parse_to_rdflib_tree(text, g, r), root)
+    return _parse_to_rdflib_tree(text, graph, root)
+
+
+def _parse_to_rdflib_tree(text: str, graph: Graph | None, root: IdentifiedNode | None) -> tuple[Graph, IdentifiedNode]:
+    from ..parse_sparql import SparqlSyntaxError, _ast_to_rdflib_tree, parse_sparql
     from .shapes import sqe_validate
 
     try:
@@ -177,7 +182,7 @@ def sqe_parse_to_tree(
         from ..parse_sparql import parse_sparql_update
 
         ast = parse_sparql_update(text)  # Update text: the same encoder, a tree rooted at sqe:UpdateRequest
-    encoded_graph, encoded_root = ast_to_tree(ast, graph, root)
+    encoded_graph, encoded_root = _ast_to_rdflib_tree(ast, graph, root, None)
     conforms, report_graph, report_text = sqe_validate(encoded_graph)
     if not conforms:
         raise SQEValidationError(report_text, report_graph)

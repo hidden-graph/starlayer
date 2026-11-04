@@ -20,8 +20,9 @@ elsewhere in this package:
    structural reason the mutation introduces.
 """
 
+import pyoxigraph as ox
 import pytest
-from rdflib import RDF, BNode, Literal, URIRef
+from rdflib import RDF, Literal, URIRef
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql.sqe import (
@@ -133,6 +134,12 @@ class TestRoundtripResultEquivalence:
         assert "xmlns.com/foaf" not in where_clause
 
 
+def _set(graph, subject, predicate, value):
+    """Replace the value of ``predicate`` on ``subject`` (an ``OxGraph`` has no rdflib ``set``)."""
+    graph.remove((subject, predicate, None))
+    graph.add((subject, predicate, value))
+
+
 class TestRootParameter:
     """sqe_parse_to_tree()'s optional root= - gives a caller a stable,
     named identity for the encoded query instead of always minting a
@@ -143,13 +150,16 @@ class TestRootParameter:
     QUERY_TEXT = "SELECT ?s WHERE { ?s a <http://example.org/Thing> }"
 
     def test_defaults_to_a_fresh_bnode(self):
+        from starlayer.graph.oxgraph import OxGraph
+
         graph, root = sqe_parse_to_tree(self.QUERY_TEXT)
-        assert isinstance(root, BNode)
+        assert isinstance(graph, OxGraph)  # with no graph= given the tree is written to a fresh OxGraph: pyoxigraph terms
+        assert isinstance(root, ox.BlankNode)
 
     def test_accepts_a_real_uriref(self):
         my_iri = URIRef("urn:test:query1")
         graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
-        assert root == my_iri
+        assert root == ox.NamedNode("urn:test:query1")
         assert (my_iri, RDF.type, QUERY) in graph
 
     def test_named_root_round_trips_through_query_and_text(self):
@@ -172,9 +182,9 @@ class TestRootParameter:
             "SELECT ?s WHERE { ?s a <http://example.org/Other> }", graph=graph, root=iri2
         )
 
-        assert root1 == iri1 and root2 == iri2
+        assert root1 == ox.NamedNode("urn:test:q1") and root2 == ox.NamedNode("urn:test:q2")
         query_subjects = set(graph.subjects(RDF.type, QUERY))
-        assert query_subjects == {iri1, iri2}
+        assert query_subjects == {ox.NamedNode("urn:test:q1"), ox.NamedNode("urn:test:q2")}
 
         # each one decodes back to its own, distinct query
         q1_text = sqe_tree_to_text(graph, iri1)
@@ -298,7 +308,7 @@ class TestTemplateListShape:
             "WHERE { ?s <http://example.org/p> ?o }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        graph.set((root, TEMPLATE, Literal("not a list of triple patterns at all")))
+        _set(graph, root, TEMPLATE, Literal("not a list of triple patterns at all"))
 
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert not conforms
@@ -331,7 +341,7 @@ class TestAlternativesListShape:
         )
         graph, root = sqe_parse_to_tree(query_text)
         union_node = next(graph.subjects(RDF.type, UNION))
-        graph.set((union_node, UNION_ALTERNATIVES, Literal("garbage, not a list of pattern-lists")))
+        _set(graph, union_node, UNION_ALTERNATIVES, Literal("garbage, not a list of pattern-lists"))
 
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert not conforms
@@ -371,7 +381,7 @@ class TestPrefixBindingShape:
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
         graph, root = sqe_parse_to_tree(query_text)
         prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
-        graph.set((prefix_node, PREFIX_LABEL, Literal(12345)))
+        _set(graph, prefix_node, PREFIX_LABEL, Literal(12345))
 
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert not conforms

@@ -31,9 +31,9 @@ def build_info() -> dict:
 
 
 def load():
-    """A ``StarLayerDataset`` (``default_union=True``) holding the whole graph."""
-    from starlayer import StarLayerDataset
+    """An ``OxDataset`` (``default_union=True``) holding the whole graph."""
+    from starlayer.graph.oxgraph import OxDataset
 
-    kg = StarLayerDataset(default_union=True)
+    kg = OxDataset(default_union=True)
     kg.parse(str(path()), format="trig12")
     return kg

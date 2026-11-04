@@ -29,8 +29,7 @@ from typing import TYPE_CHECKING
 from rdflib import Namespace, URIRef
 
 if TYPE_CHECKING:
-    from starlayer.graph import StarLayerGraph
-    from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
+    from starlayer.graph.oxgraph import OxDataset, OxGraph
 
 CODEKG_NS = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg#")
 EXTERNALTYPE_NS = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg/externaltype#")
@@ -99,25 +98,22 @@ def ensure_built() -> None:
     main([])
 
 
-def get_ontology_graph() -> StarLayerGraph:
-    """A fresh ``StarLayerGraph`` of ``ontology.ttl`` alone (plain Turtle,
+def get_ontology_graph() -> OxGraph:
+    """A fresh ``OxGraph`` of ``ontology.ttl`` alone (plain Turtle,
     not a dataset), identified by ``ONTOLOGY_GRAPH_IRI``."""
-    # Lazy, not top-level: a top-level `from starlayer.graph import
-    # StarLayerGraph` pulls in the whole starlayer package before this
-    # subpackage finishes its own import (Python always fully executes a
-    # parent package's __init__.py before any of its submodules) - the
-    # same circular-import discipline starlayer.starontology's own loaders
-    # follow, kept here for consistency even though today's import order
-    # doesn't strictly require it.
-    from starlayer.graph import StarLayerGraph
+    # Lazy, not top-level: a top-level `from starlayer.graph.oxgraph import OxGraph` pulls in the whole starlayer package before
+    # this subpackage finishes its own import (Python always fully executes a parent package's __init__.py before any of its
+    # submodules) - the same circular-import discipline starlayer.starontology's own loaders follow.
+    import pyoxigraph as ox
+    from starlayer.graph.oxgraph import OxGraph
 
-    graph = StarLayerGraph(identifier=ONTOLOGY_GRAPH_IRI)
+    graph = OxGraph(identifier=ox.NamedNode(str(ONTOLOGY_GRAPH_IRI)))
     graph.parse(str(_ONTOLOGY_TTL_PATH), format="turtle")
     return graph
 
 
-def get_codekg_dataset(include_curated: bool = False, include_tests: bool = True) -> StarLayerDataset:
-    """A fresh ``StarLayerDataset`` with ``codekg.trig`` (the source modules) and, unless ``include_tests=False``,
+def get_codekg_dataset(include_curated: bool = False, include_tests: bool = True) -> OxDataset:
+    """A fresh ``OxDataset`` with ``codekg.trig`` (the source modules) and, unless ``include_tests=False``,
     ``testskg.trig`` (the test modules) parsed into it, or an empty dataset (no module graphs) if the extractor hasn't
     produced those files yet. With ``include_curated=True`` the ``curated/*.ttl`` files
     are also parsed into the ``CURATED_GRAPH_IRI`` graph (the default leaves
@@ -125,22 +121,22 @@ def get_codekg_dataset(include_curated: bool = False, include_tests: bool = True
     write curated triples into ``codekg.trig``). Never cached/shared - the extractor mutates a dataset
     returned from a similar pattern, so a caller must never be handed back
     the same mutable object another caller could also be holding."""
-    from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
+    from starlayer.graph.oxgraph import OxDataset
 
-    dataset = StarLayerDataset()
+    dataset = OxDataset()
     if CODEKG_TRIG_PATH.exists():
         dataset.parse(str(CODEKG_TRIG_PATH), format="trig12")
     if include_tests and TESTSKG_TRIG_PATH.exists():
         dataset.parse(str(TESTSKG_TRIG_PATH), format="trig12")
     if include_curated:
-        curated = dataset.get_context(CURATED_GRAPH_IRI)
+        curated = dataset.graph(CURATED_GRAPH_IRI)
         for path in sorted(CURATED_DIR.glob("*.ttl")):
             curated.parse(str(path), format="turtle")
         _derive_demonstrated_by(dataset, curated)
     return dataset
 
 
-def _derive_demonstrated_by(dataset: StarLayerDataset, curated: StarLayerGraph) -> None:
+def _derive_demonstrated_by(dataset: OxDataset, curated: OxGraph) -> None:
     """Add ``entity slkg:demonstratedBy example`` for each ``slkg:demonstratesIdentifier`` that names an extracted entity.
 
     The curated files name code by dotted identifier (stable across refactors); this resolves them to the entities'
@@ -150,18 +146,19 @@ def _derive_demonstrated_by(dataset: StarLayerDataset, curated: StarLayerGraph) 
 
     wanted: dict[str, list] = {}
     for example, identifier in curated.subject_objects(CODEKG_NS.demonstratesIdentifier):
-        wanted.setdefault(str(identifier), []).append(example)
+        wanted.setdefault(identifier.value, []).append(example)
     if not wanted:
         return
-    for ctx in dataset.contexts():
-        if ctx.identifier == CURATED_GRAPH_IRI:
+    for name in dataset.graph_names():
+        if name.value == str(CURATED_GRAPH_IRI):
             continue
+        ctx = dataset.graph(name)
         for entity, identifier in ctx.subject_objects(DCTERMS.identifier):
-            for example in wanted.get(str(identifier), ()):
+            for example in wanted.get(identifier.value, ()):
                 curated.add((entity, CODEKG_NS.demonstratedBy, example))
 
 
-def get_module_graph(module_path: str) -> StarLayerGraph | None:
+def get_module_graph(module_path: str) -> OxGraph | None:
     """The named graph for one extracted module, or ``None`` if it doesn't
     exist (or is empty) in the current ``codekg.trig``.
 
@@ -169,7 +166,7 @@ def get_module_graph(module_path: str) -> StarLayerGraph | None:
     ``packages/starlayer/starlayer/``, e.g. ``"graph/model/encoding.py"``.
     """
     iri = URIRef(BLOB_BASE + module_path)
-    graph = get_codekg_dataset().get_context(iri)
+    graph = get_codekg_dataset().graph(iri)
     if len(graph) == 0:
         return None
     return graph

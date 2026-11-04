@@ -11,7 +11,7 @@ from rdflib import BNode, Graph, URIRef
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 
-from .spexpr_codec import _build_rdf_list, _encode, _new_starlayer_graph
+from .spexpr_codec import _build_rdf_list, _encode, _new_tree_graph
 from .vocab import (
     QUERY,
     QUERY_COLLECTION,
@@ -33,7 +33,7 @@ def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode
     Args:
         query: The prepared query to encode.
         graph: The graph to add the encoding triples to; a fresh
-            ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+            plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
 
     Returns:
         ``(graph, root)``.
@@ -45,7 +45,7 @@ def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode
     if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
         return _ox.write_boundary(graph, lambda g: query_to_rdf(query, g))
     if graph is None:
-        graph = _new_starlayer_graph()
+        graph = _new_tree_graph()
     root = _encode(query.algebra, graph)
     graph.add((root, RDF.type, QUERY))
     _encode_prologue(query.prologue, root, graph)
@@ -70,7 +70,7 @@ def update_to_rdf(update: Update, graph: Graph | None = None) -> tuple[Graph, BN
     Args:
         update: The prepared update to encode.
         graph: The graph to add the encoding triples to; a fresh
-            ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+            plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
 
     Returns:
         ``(graph, root)``.
@@ -82,7 +82,7 @@ def update_to_rdf(update: Update, graph: Graph | None = None) -> tuple[Graph, BN
     if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
         return _ox.write_boundary(graph, lambda g: update_to_rdf(update, g))
     if graph is None:
-        graph = _new_starlayer_graph()
+        graph = _new_tree_graph()
     op_nodes = []
     for op in update.algebra:
         node = _encode(op, graph)
@@ -109,7 +109,7 @@ def queries_to_collection(queries: list[Query], graph: Graph | None = None) -> t
     Args:
         queries: The independent queries to encode.
         graph: The graph to add the encoding triples to; a fresh
-            ``StarLayerGraph`` (see ``_new_starlayer_graph``) if omitted.
+            plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
 
     Returns:
         ``(graph, root)`` — ``root`` is a dedicated container node holding
@@ -121,7 +121,7 @@ def queries_to_collection(queries: list[Query], graph: Graph | None = None) -> t
     if isinstance(queries, (str, bytes)) or not hasattr(queries, "__iter__"):
         raise TypeError(f"queries must be a list of prepared Query objects, not {type(queries).__name__}")
     if graph is None:
-        graph = _new_starlayer_graph()
+        graph = _new_tree_graph()
     query_nodes = [query_to_rdf(query, graph)[1] for query in queries]
     root = BNode()
     graph.add((root, RDF.type, QUERY_COLLECTION))

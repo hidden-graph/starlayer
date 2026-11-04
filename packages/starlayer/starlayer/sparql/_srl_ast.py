@@ -481,7 +481,7 @@ class RuleSet:
 
         from . import srl_eval
 
-        from_oxigraph = _ox.is_oxigraph_input(base_graph)  # evaluated on a snapshot of rdflib terms; the result comes back as an OxGraph
+        from_oxigraph = _ox.is_oxigraph_input(base_graph)  # the rules run on an OxGraph; an rdflib graph is copied in
         original_graph = base_graph
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
@@ -490,7 +490,9 @@ class RuleSet:
         inferred = srl_eval._srl_infer(base_graph, self._with_imports_resolved(imports_loader))
 
         if schema is None:
-            return self._with_own_prefixes(_ox.ox_result(inferred, original_graph)) if from_oxigraph else inferred
+            if not from_oxigraph:
+                return srl_eval.to_foreign(inferred, original_graph)
+            return self._with_own_prefixes(self._with_prefixes_of(inferred, original_graph))
 
         from starlayer.shacl import RulesResult, StarShaclSchema
 
@@ -505,10 +507,19 @@ class RuleSet:
         evaluation.extend(list(inferred))
         validation = resolved_schema.validate(data_graph=evaluation)
         if from_oxigraph:
-            converted = _ox.convert_result(RulesResult(inferred_graph=inferred, validation=validation), original_graph)
+            converted = _ox.convert_result(
+                RulesResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation), original_graph
+            )
             self._with_own_prefixes(converted.inferred_graph)
             return converted
-        return RulesResult(inferred_graph=inferred, validation=validation)
+        return RulesResult(inferred_graph=srl_eval.to_foreign(inferred, original_graph), validation=validation)
+
+    @staticmethod
+    def _with_prefixes_of(inferred: Any, original: Any) -> Any:
+        """Bind the prefixes of the Oxigraph graph the rules ran on to the inferred graph (a prefix it already has stays)."""
+        for prefix, namespace in dict(getattr(original, "prefixes", {})).items():
+            inferred.bind(prefix, namespace, override=False)
+        return inferred
 
     def _with_own_prefixes(self, graph: Any) -> Any:
         """Bind this rule set's own ``PREFIX`` declarations on an ``OxGraph`` result (the input graph's prefixes are already
@@ -562,5 +573,5 @@ class RuleSet:
         if from_oxigraph:  # the solutions hold pyoxigraph terms, as the wrapper's own query results do
             import pyoxigraph as ox
 
-            rows = [{ox.Variable(str(var)): _ox.from_rdflib_term(value) for var, value in row.items()} for row in rows]
-        return rows
+            return [{ox.Variable(str(var)): value for var, value in row.items()} for row in rows]
+        return [{var: _ox.to_rdflib_term(value) for var, value in row.items()} for row in rows]

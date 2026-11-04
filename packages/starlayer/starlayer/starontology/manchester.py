@@ -6,13 +6,13 @@ ontology/SHACL-shapes files that tree representation is validated against.
 This lives here, not in starlayer.ontology.to_ast_rdf/manchester_shapes,
 on the reasoning that Manchester-tree editing is an *ontology-management*
 concern (same bucket as starontology itself), not a starlayer.graph concern -
-the OWL-compiling parser/serializer pair (StarLayerGraph.parse()/.serialize()
+the OWL-compiling parser/serializer pair (OxGraph.parse()/.serialize()
 format='manchester') stays in starlayer.graph; only the tree layer and its
 own validation live here.
 
 Four entry points:
 
-- ``manchester_parse_to_tree(text, base=None) -> Graph`` - parse Manchester text
+- ``manchester_parse_to_tree(text, base=None) -> OxGraph`` - parse Manchester text
   straight to its ``manch:``-encoded syntax tree, reusing
   ``starlayer.graph.parsers.manchester_parser``'s own tokenizer/frame/
   clause/expression-parsing functions completely unchanged (via a
@@ -27,12 +27,12 @@ Four entry points:
   around separately.
 - ``manchester_tree_to_text(graph) -> str`` - the inverse: render ``manch:`` tree-RDF
   back to real Manchester Syntax text.
-- ``manchester_tree_to_owl(graph) -> StarLayerGraph`` - the tree's compiled OWL
+- ``manchester_tree_to_owl(graph) -> OxGraph`` - the tree's compiled OWL
   content, as a real graph (not a bare ``list[tuple]``, changed
   2026-10-03) - by composing ``manchester_tree_to_text()`` with
   ``manchester_parser.parse_manchester()`` (the real, trusted OWL compiler)
-  and adding the result into a fresh ``StarLayerGraph``, the same way
-  ``StarLayerGraph.parse(format='manchester')`` already populates one.
+  and adding the result into a fresh ``OxGraph``, the same way
+  ``OxGraph.parse(format='manchester')`` already populates one.
   Going through text here is safe, not a shortcut-that-loses-fidelity:
   ``manchester_tree_to_text()`` is a fully faithful renderer of everything this module
   captures, so nothing is lost before the OWL compiler sees it.
@@ -104,18 +104,13 @@ this module ever sees them), the same bar ``salg:`` itself holds for SPARQL
 from __future__ import annotations
 
 from collections import namedtuple
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, XSD
 
-from starlayer._ox_out import ox_out
-
 from . import get_ontology_graph
-
-if TYPE_CHECKING:
-    from starlayer.graph import StarLayerGraph
 
 MANCH = Namespace("https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#")
 
@@ -533,7 +528,7 @@ def _find_root(graph: Graph) -> BNode:
     return root
 
 
-def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = None) -> Graph:
+def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = None) -> Any:
     """Parse Manchester Syntax text straight to its ``manch:``-encoded
     syntax tree.
 
@@ -548,18 +543,24 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
         base: Base IRI for resolving relative IRIs, if any.
         graph: Write the tree into this graph instead of a fresh one - an ``OxGraph`` (or ``OxDataset`` / ``pyoxigraph.Store``)
             gets pyoxigraph terms and the ``manch:`` prefix; an rdflib graph gets rdflib terms. ``None`` (the default) builds
-            a fresh rdflib ``Graph``.
+            a fresh ``OxGraph``.
 
     Returns:
-        ``graph`` if given, otherwise a fresh ``Graph``, holding exactly one ``manch:Document`` tree.
+        ``graph`` if given, otherwise a fresh ``OxGraph``, holding exactly one ``manch:Document`` tree.
     """
-    if graph is not None:
-        tree = manchester_parse_to_tree(text, base)
-        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-        graph.bind("manch", str(MANCH) if _ox.is_oxigraph_input(graph) else MANCH)
-        _ox.merge_into(graph, tree)
-        return graph
+    if graph is None:
+        from starlayer.graph.oxgraph.core import OxGraph
+
+        graph = OxGraph()
+    tree = _manchester_parse_to_rdflib_tree(text, base)
+    graph.bind("manch", str(MANCH) if _ox.is_oxigraph_input(graph) else MANCH)
+    _ox.merge_into(graph, tree)
+    return graph
+
+
+def _manchester_parse_to_rdflib_tree(text: str, base: str | None) -> Graph:
     from starlayer.graph.parsers.manchester_parser import (
         _Cursor,
         _tokenize,
@@ -1101,12 +1102,11 @@ def manchester_tree_to_text(graph: Graph) -> str:
         raise ManchesterSyntaxError('class expression nested too deeply to render', '', pos=0) from None
 
 
-@ox_out("graph")
-def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
-    """The tree's compiled OWL triples, as a real ``StarLayerGraph`` -
+def manchester_tree_to_owl(graph: Any) -> Any:
+    """The tree's compiled OWL triples, as an ``OxGraph`` -
     renders the tree to Manchester text via ``manchester_tree_to_text()``,
     then compiles that text the same way any other caller would:
-    ``StarLayerGraph.parse(format='manchester')`` (which is itself backed
+    ``OxGraph.parse(format='manchester')`` (which is itself backed
     by ``manchester_parser.parse_manchester()``, the real, trusted OWL
     compiler) - rather than reaching past that public entry point to call
     the lower-level parser function directly.
@@ -1120,11 +1120,11 @@ def manchester_tree_to_owl(graph: Graph) -> StarLayerGraph:
         graph: A ``manch:`` syntax tree, e.g. from ``manchester_parse_to_tree()``.
 
     Returns:
-        The compiled OWL content as a fresh ``StarLayerGraph``.
+        The compiled OWL content as a fresh ``OxGraph``.
     """
-    from starlayer.graph import StarLayerGraph
+    from starlayer.graph.oxgraph.core import OxGraph
 
-    owl_graph = StarLayerGraph()
+    owl_graph = OxGraph()
     owl_graph.parse(data=manchester_tree_to_text(graph), format='manchester')
     return owl_graph
 

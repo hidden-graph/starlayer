@@ -115,28 +115,11 @@ _INTERNAL_BOOKKEEPING_KEYS = {"_vars", "lazy"}
 _QUADS_KEY = "quads"
 
 
-def _new_starlayer_graph() -> Graph:
-    """The default graph for any encoding function below that wasn't given
-    one — always a real ``starlayer.graph.graph.starlayer_graph.StarLayerGraph``,
-    never a plain ``rdflib.Graph``.
-
-    Raises ``ImportError`` — not a silent fallback — if ``starlayer.graph``
-    isn't installed: a plain ``Graph`` can't correctly round-trip a
-    dirLangString literal's real ``"text"@lang--dir`` syntax on
-    serialization (it would only ever see starlayer.graph's own internal
-    ``dirlang:`` datatype encoding as an opaque IRI), and isn't a real RDF
-    1.2 graph for storage/reference purposes. This project hard-requires
-    ``starlayer.graph`` rather than degrading to a lesser default — a
-    caller that genuinely doesn't need either property can still pass its
-    own plain ``rdflib.Graph()`` explicitly via the ``graph`` parameter;
-    this default is deliberately not that permissive.
-
-    Returns:
-        A fresh ``StarLayerGraph`` instance.
-    """
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    return StarLayerGraph()
+def _new_tree_graph() -> Graph:
+    """The scratch graph the encoders write into when they were not given one: a plain ``rdflib.Graph``. The encoded trees hold
+    no RDF 1.2 triple term (a triple term is written as ``sqe:TripleTerm`` structure, a base direction as an encoded datatype),
+    so rdflib can hold them; the public entry points convert the result to an ``OxGraph`` (``ox_result``) when they return it."""
+    return Graph()
 
 
 def _encode(value, graph: Graph):

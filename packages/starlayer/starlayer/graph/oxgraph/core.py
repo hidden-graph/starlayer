@@ -398,7 +398,7 @@ class _Base:
             from starlayer.graph.oxgraph import _rdflib_bridge
             from starlayer.graph.serializers.manchester import serialize_manchester
 
-            return self._write(serialize_manchester(_rdflib_bridge.to_starlayer_graph(self)).encode("utf-8"), destination, encoding)
+            return self._write(serialize_manchester(_rdflib_bridge.to_rdflib_graph(self)).encode("utf-8"), destination, encoding)
         fmt = formats.to_format(format or self._default_format)
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")

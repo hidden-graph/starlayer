@@ -13,7 +13,7 @@ Manchester's tree edits) - they're inference rules built directly out of
 SPARQL triple patterns/filter expressions, run *against* a graph. That's a
 SPARQL-adjacent artifact, and it can't cleanly separate from
 ``starlayer.sparql``'s shared internals the way Manchester's syntax-tree
-module could: ``_encode``/``_decode``/``_new_starlayer_graph`` (``to_rdf.py``/
+module could: ``_encode``/``_decode``/``_new_tree_graph`` (``to_rdf.py``/
 ``from_rdf.py``) are reused
 directly below, not reimplemented - moving this module out of
 ``starlayer.sparql`` would mean forking that machinery. Staying here means
@@ -125,7 +125,7 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     RuleSet,
     TriplePattern,
 )
-from .spexpr_codec import _NS_OVERRIDES, _decode, _encode, _new_starlayer_graph
+from .spexpr_codec import _NS_OVERRIDES, _decode, _encode, _new_tree_graph
 from .sqe.expr_text import expr_text as _sqe_expr_text
 from .sqe.to_rdf import _encode_expr
 from .sqe.vocab import SQE as _SQE
@@ -277,19 +277,21 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tup
 
     Args:
         ruleset: The RuleSet to encode.
-        graph: Graph to add the encoding to; a fresh graph is created if
-            not given.
+        graph: Graph to add the encoding to (an ``OxGraph`` or an rdflib graph); a fresh ``OxGraph`` if not given.
 
     Returns:
-        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node.
+        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node (a pyoxigraph term for an ``OxGraph``).
     """
-    if graph is not None:
-        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-        if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
-            return _ox.write_boundary(graph, lambda g: ruleset_to_tree(ruleset, g))
-    if graph is None:
-        graph = _new_starlayer_graph()
+    if graph is None:  # encode on a scratch rdflib graph, return a fresh OxGraph
+        return _ox.default_boundary(lambda g: _ruleset_to_rdflib_tree(ruleset, _new_tree_graph()))
+    if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+        return _ox.write_boundary(graph, lambda g: _ruleset_to_rdflib_tree(ruleset, _new_tree_graph()))
+    return _ruleset_to_rdflib_tree(ruleset, graph)
+
+
+def _ruleset_to_rdflib_tree(ruleset: srl_ast.RuleSet, graph: Graph) -> tuple[Graph, BNode]:
     root = BNode()
     graph.add((root, RDF.type, _RULE_SET))
     graph.add((root, _RULES, _rdf_list(graph, [_rule_to_rdf(r, graph) for r in ruleset.rules])))
@@ -574,7 +576,7 @@ def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) 
 def srl_parse_to_tree(text: str, base: str | None = None, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
     ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (an ``OxGraph``, which gives pyoxigraph terms,
-    or an rdflib graph) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
+    or an rdflib graph) is where the tree is written, a fresh ``OxGraph`` when omitted."""
     return ruleset_to_tree(parse_ruleset(text, base), graph)
 
 

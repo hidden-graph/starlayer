@@ -4,8 +4,8 @@ The code graph (``codekg.trig``), the curated files (``codekg/curated/*.ttl``) a
 are separate sources. This joins them into one file that an agent can download, load into memory with any RDF
 library and query, without a StarLayer checkout:
 
-    from starlayer import StarLayerDataset
-    kg = StarLayerDataset(default_union=True)
+    from starlayer.graph.oxgraph import OxDataset
+    kg = OxDataset(default_union=True)
     kg.parse(path, format="trig12")
 
 Named graphs in the file:
@@ -62,10 +62,10 @@ def build_dataset():
         get_ontology_graph,
         queries,
     )
-    from starlayer import StarLayerDataset
-    from starlayer.graph import RDF, Literal
+    from rdflib import RDF, Literal
+    from starlayer.graph.oxgraph import OxDataset
 
-    out: StarLayerDataset = get_codekg_dataset(include_curated=True)
+    out: OxDataset = get_codekg_dataset(include_curated=True)
     for prefix, namespace in PREFIXES.items():
         out.bind(prefix, namespace)
 
@@ -75,27 +75,35 @@ def build_dataset():
 
     derived = out.graph(DERIVED_GRAPH_IRI)
     curated = out.graph(CURATED_GRAPH_IRI)
-    for node in sorted(curated.subjects(RDF.type, CODEKG_NS.NamedQuery)):
-        derived.add((node, CODEKG_NS.queryText, Literal(queries.query_text(str(node).rsplit("#", 1)[-1]))))
+    for node in sorted(curated.subjects(RDF.type, CODEKG_NS.NamedQuery), key=lambda n: n.value):
+        derived.add((node, CODEKG_NS.queryText, Literal(queries.query_text(node.value.rsplit("#", 1)[-1]))))
     return out
+
+
+def _graphs(dataset) -> dict:
+    """The non-empty named graphs of ``dataset``, by identifier text."""
+    return {name.value: dataset.graph(name) for name in dataset.graph_names() if len(dataset.graph(name))}
 
 
 def same_dataset(left, right) -> list[str]:
     """Names of the graphs that differ between two datasets (empty when they hold the same triples)."""
-    from starlayer.graph import BNode
-    from starlayer.graph.compare import isomorphic
+    import pyoxigraph as ox
+    from starlayer.graph.rdfc_native import isomorphic
+
+    def quads(graph):
+        return [ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in graph]
 
     problems = []
-    left_graphs = {str(g.identifier): g for g in left.contexts() if len(g)}
-    right_graphs = {str(g.identifier): g for g in right.contexts() if len(g)}
+    left_graphs = _graphs(left)
+    right_graphs = _graphs(right)
     problems += [f"only in the committed file: {i}" for i in sorted(set(right_graphs) - set(left_graphs))]
     problems += [f"missing from the committed file: {i}" for i in sorted(set(left_graphs) - set(right_graphs))]
     for name, graph in left_graphs.items():
         other = right_graphs.get(name)
         if other is None:
             continue
-        has_bnodes = any(isinstance(term, BNode) for triple in graph for term in triple)
-        same = isomorphic(graph, other) if has_bnodes else set(graph) == set(other)
+        has_bnodes = any(isinstance(term, ox.BlankNode) for triple in graph for term in triple)
+        same = isomorphic(quads(graph), quads(other)) if has_bnodes else set(graph) == set(other)
         if not same:
             problems.append(f"differs: {name}")
     return problems
@@ -106,7 +114,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="change nothing; exit 1 if the committed file is out of date")
     args = parser.parse_args()
 
-    from starlayer import StarLayerDataset
+    from starlayer.graph.oxgraph import OxDataset
 
     output = ROOT / OUTPUT_REL
     built = build_dataset()
@@ -115,7 +123,7 @@ def main() -> int:
         if not output.exists():
             print(f"stale: {OUTPUT_REL} does not exist - run `python scripts/build_kg.py`", file=sys.stderr)
             return 1
-        committed = StarLayerDataset()
+        committed = OxDataset()
         committed.parse(str(output), format="trig12")
         problems = same_dataset(built, committed)
         if problems:
@@ -125,7 +133,7 @@ def main() -> int:
         return 0
 
     built.serialize(destination=str(output), format="trig12")
-    graphs = [g for g in built.contexts() if len(g)]
+    graphs = list(_graphs(built).values())
     print(f"wrote {OUTPUT_REL} ({sum(len(g) for g in graphs):,} triples in {len(graphs)} named graphs, {output.stat().st_size / 1e6:.1f} MB)")
     return 0
 

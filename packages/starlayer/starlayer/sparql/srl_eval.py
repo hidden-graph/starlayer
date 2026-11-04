@@ -4,27 +4,24 @@
 §4.4 (Stratification), and §6 (Rule Set Evaluation), translated directly
 from the spec's own verbatim pseudocode rather than an approximation of it.
 
-**Reuses rdflib's own real machinery for triple-pattern matching and
-expression evaluation, rather than reimplementing SPARQL semantics a
-second time** (see ``packages/sparql/CLAUDE.md``'s SRL entry and this
-project's implementation plan for the full reasoning):
+**Reuses Oxigraph's SPARQL engine for triple-pattern matching and expression
+evaluation, rather than reimplementing SPARQL semantics a second time.** The
+evaluation graphs are ``OxGraph`` s (pyoxigraph terms; an rdflib or old-style
+graph argument is copied in, the result converted back):
 
 - The spec's own §6.1 ``graphMatch``/``compatible``/``merge`` definitions
-  are, term for term, exactly rdflib's own BGP-join semantics -
-  ``rdflib.plugins.sparql.evaluate.evalBGP(ctx, bgp)`` (confirmed live by
-  reading its source) already does this, given a ``QueryContext`` whose
-  ``initBindings`` carries the incoming solution. §6.4's
+  are, term for term, SPARQL's basic-graph-pattern join. §6.4's
   ``evalRuleElements`` processes one rule element at a time only because
   that is sufficient to *define* the semantics, not because processing a
   maximal consecutive run of triple-pattern elements as a single
-  ``evalBGP`` call would change the result (join is associative/
-  commutative) - this module does the latter, for one ``evalBGP`` call per
-  incoming solution per run instead of one per triple pattern.
-- §6.3's ``evalFunction``/``EBV`` are exactly rdflib's own expression-tree
-  evaluation (``Expr.eval(ctx)``) and ``rdflib.plugins.sparql.evaluate
-  ._ebv`` - reused directly, since ``srl.py`` already builds
-  ``filter.expr``/``assign.expr`` as real rdflib ``Expr`` trees (see that
-  module's docstring).
+  ``SELECT`` would change the result (join is associative/commutative) -
+  this module does the latter: one query per run, joined with the incoming
+  solutions.
+- §6.3's ``evalFunction``/``EBV`` are SPARQL's expression evaluation and
+  effective boolean value: an expression is rendered to SPARQL text
+  (``expr_text.render_expression``), evaluated with the solution's
+  variables substituted, and ``NOW()`` is replaced by the one instant of the
+  rule-set evaluation in progress.
 
 Only the genuinely SRL-specific orchestration is hand-written here: the
 dependency graph and stratification algorithms (§4.3.2/§4.4.2, direct
@@ -39,10 +36,9 @@ import datetime
 from contextvars import ContextVar
 from dataclasses import dataclass
 
-from rdflib import BNode, Graph, Literal, URIRef, Variable
+import pyoxigraph as ox
+from rdflib import BNode, Literal, URIRef, Variable
 from rdflib.plugins.sparql import algebra
-from rdflib.plugins.sparql.evaluate import _ebv, evalBGP
-from rdflib.plugins.sparql.sparql import QueryContext, SPARQLError
 
 from . import _srl_ast as srl_ast
 from .srl import SRLError
@@ -270,26 +266,6 @@ def _triple_uses_triple_terms(t: srl_ast.TriplePattern) -> bool:
     return any(_has_triple_term(x) for x in (t.subject, t.predicate, t.object))
 
 
-def _ruleset_uses_triple_terms(ruleset: srl_ast.RuleSet) -> bool:
-    """True if any rule (head or body, including inside a negation) or DATA
-    block mentions a triple term - such a rule set is evaluated over a
-    ``StarLayerGraph``, which can hold them."""
-
-    def _element(e) -> bool:
-        if isinstance(e, srl_ast.TriplePattern):
-            return _triple_uses_triple_terms(e)
-        if isinstance(e, srl_ast._NegationElement):
-            return any(_element(x) for x in e.inner)
-        if isinstance(e, (srl_ast._FilterElement, srl_ast._AssignmentElement)):
-            return _mentions_triple_terms(e.expr)  # a SET or FILTER may build or test a triple term
-        return False
-
-    return any(
-        any(_triple_uses_triple_terms(t) for t in rule.head) or any(_element(e) for e in rule.body)
-        for rule in ruleset.rules
-    ) or any(_triple_uses_triple_terms(t) for block in ruleset.data for t in block.triples)
-
-
 class _InvalidInstance(Exception):
     """A head template instantiated to something that is not a valid RDF 1.2
     triple term (for example a literal as the subject of a triple term). The
@@ -297,49 +273,50 @@ class _InvalidInstance(Exception):
 
 
 def _graph_term(term, resolve=None):
-    """The graph-storable form of a pattern/template term: a ``TripleTermNode``
-    becomes a ``starlayer.graph`` ``TripleTerm`` (recursively); every other term is
-    returned unchanged. ``resolve`` maps a leaf (variable or blank node) to its
-    value, and is ``None`` for ground terms (DATA blocks).
+    """The graph-storable form of a pattern/template term, as a pyoxigraph term: a ``TripleTermNode`` becomes an ``ox.Triple``
+    (recursively); a leaf is converted from its rdflib form. ``resolve`` maps a leaf (variable or blank node) to its value
+    (already a pyoxigraph term), and is ``None`` for ground terms (DATA blocks).
 
     Raises:
         _InvalidInstance: If a triple term would be invalid RDF 1.2.
     """
-    from starlayer.graph.model.triple import TripleTerm
-
     if isinstance(term, TripleTermNode):
         s, p, o = (_graph_term(part, resolve) for part in _triple_term_parts(term))
         try:
-            return TripleTerm(s, p, o)
-        except ValueError as exc:
+            return ox.Triple(s, p, o)
+        except (TypeError, ValueError) as exc:
             raise _InvalidInstance(str(exc)) from exc
-    return resolve(term) if resolve is not None else term
+    return resolve(term) if resolve is not None else _ox_term(term)
+
+
+def _ox_term(term):
+    """An rdflib term of a rule as the pyoxigraph term the evaluation graphs hold."""
+    from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
+
+    return from_rdflib_term(term)
 
 
 def _pattern_term_text(term) -> str:
-    """SPARQL 1.2 text for one pattern term, for matching a triple pattern that
-    contains a triple term by running it as a query against the graph."""
-    from starlayer.graph.backends.native import sparql_term
+    """SPARQL 1.2 text for one pattern term."""
+    from starlayer.graph.oxgraph.run import _sparql_term
 
     if isinstance(term, Variable):
         return "?" + str(term)
     if isinstance(term, TripleTermNode):
         s, p, o = (_pattern_term_text(part) for part in _triple_term_parts(term))
         return f"<<( {s} {p} {o} )>>"
-    return sparql_term(term, skolemize_bnodes=False)
+    return _sparql_term(_ox_term(term))
 
 
-def _match_with_query(run: list[srl_ast.TriplePattern], g: Graph) -> list[dict]:
-    """Every solution of the basic graph pattern ``run`` against ``g`` (a
-    ``StarLayerGraph``), found by running the pattern as a SPARQL 1.2 query. Used
-    for a run of triple patterns that contains a triple term, which rdflib's own
-    ``evalBGP`` cannot match."""
+def _match(run: list[srl_ast.TriplePattern], g) -> list[dict]:
+    """Every solution of the basic graph pattern ``run`` against ``g`` (an ``OxGraph``), found by running the pattern as a
+    SPARQL 1.2 query. Keys are rdflib ``Variable`` s, values pyoxigraph terms."""
     body = " . ".join(
         f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}"
         for t in run
     )
     result = g.query(f"SELECT * WHERE {{ {body} }}")
-    return [dict(binding) for binding in result.bindings]
+    return [{Variable(name): term for name, term in binding.items()} for binding in result.bindings]
 
 
 def _compatible(mu1: dict, mu2: dict) -> bool:
@@ -438,116 +415,88 @@ def _blank_nodes_to_vars(
     return [_sub_element(e) for e in body]
 
 
-def _eval_triple_run(run: list[srl_ast.TriplePattern], seq: list[dict], g: Graph) -> list[dict]:
-    """One ``evalBGP`` call per incoming solution for a maximal consecutive
-    run of triple-pattern elements - see module docstring for why this is
-    equivalent to (and more efficient than) matching them one at a time."""
-    if any(_triple_uses_triple_terms(t) for t in run):
-        # a pattern with a triple term is matched once, then joined with the incoming solutions
-        matches = _match_with_query(run, g)
-        return [{**mu, **m} for mu in seq for m in matches if _compatible(mu, m)]
-    bgp = [(t.subject, t.predicate, t.object) for t in run]
-    run_vars = {term for t in run for term in (t.subject, t.predicate, t.object) if isinstance(term, Variable)}
-    out: list[dict] = []
-    for mu in seq:
-        ctx = _context(g, mu)
-        for binding in evalBGP(ctx, bgp):
-            merged = dict(mu)
-            for v in run_vars:
-                merged[v] = binding[v]
-            out.append(merged)
-    return out
+def _eval_triple_run(run: list[srl_ast.TriplePattern], seq: list[dict], g) -> list[dict]:
+    """One query for a maximal consecutive run of triple-pattern elements, joined with the incoming solutions - see module
+    docstring for why this is equivalent to (and more efficient than) matching them one at a time."""
+    matches = _match(run, g)
+    return [{**mu, **m} for mu in seq for m in matches if _compatible(mu, m)]
 
 
-_TRIPLE_TERM_BUILTINS = frozenset({"Builtin_isTRIPLE", "Builtin_SUBJECT", "Builtin_PREDICATE", "Builtin_OBJECT"})
-_lowered_expressions: dict[int, tuple] = {}
+_EVAL_STORE = ox.Store()  # expressions here read no graph, so one empty store serves them all
+_RENDERED: ContextVar = ContextVar("srl_rendered", default=None)  # id(expr) -> (expr, SPARQL text), for the evaluation in progress
 
 
-def _mentions_triple_terms(node) -> bool:
-    if isinstance(node, TripleTermNode):
-        return True
+def _with_now(node, now_text: str):
+    """``node`` with each ``NOW()`` replaced by the literal of the evaluation instant (a SPARQL engine would read the clock
+    once per query, so each solution would see its own instant)."""
     if isinstance(node, algebra.CompValue):
-        if node.name in _TRIPLE_TERM_BUILTINS:
-            return True
-        return any(_mentions_triple_terms(v) for _, v in node.items())
-    if isinstance(node, (list, tuple)):
-        return any(_mentions_triple_terms(v) for v in node)
-    return False
-
-
-def _evaluable(node):
-    """A lowered expression tree (plain ``CompValue``s) as ``Expr`` nodes rdflib can evaluate."""
-    from rdflib.plugins.sparql.parserutils import Expr
-
-    from .spexpr_codec import _EXPR_EVALFNS
-
-    if isinstance(node, algebra.CompValue):
-        evalfn = _EXPR_EVALFNS.get(node.name)
-        if evalfn is None:
-            return node
-        result = Expr(node.name, evalfn)
-        for key, value in node.items():
-            result[key] = _evaluable(value)
-        return result
+        if node.name == "Builtin_NOW":
+            return Literal(now_text, datatype=URIRef("http://www.w3.org/2001/XMLSchema#dateTime"))
+        out = algebra.CompValue(node.name)
+        for key, value in dict.items(node):
+            out[key] = _with_now(value, now_text)
+        return out
     if isinstance(node, list):
-        return [_evaluable(item) for item in node]
+        return [_with_now(item, now_text) for item in node]
     return node
 
 
-def _runnable(expr):
-    """``expr`` as rdflib can evaluate it. An expression with a triple term (``<<( )>>``, ``TRIPLE()``) or a
-    triple-term builtin is lowered to the ``tt:`` function calls the SPARQL pipeline uses; others are unchanged."""
-    cached = _lowered_expressions.get(id(expr))
+def _expression_text(expr) -> str:
+    """The SPARQL text of an SRL expression, ``NOW()`` fixed to the evaluation instant."""
+    from .expr_text import render_expression
+
+    cache = _RENDERED.get()
+    if cache is None:
+        cache = {}
+        _RENDERED.set(cache)
+    cached = cache.get(id(expr))
     if cached is not None and cached[0] is expr:
         return cached[1]
-    lowered = expr
-    if _mentions_triple_terms(expr):
-        from .lower_rdf11 import _lower_expr, _LowerState
-
-        lowered = _evaluable(_lower_expr(expr, _LowerState()))
-    _lowered_expressions[id(expr)] = (expr, lowered)
-    return lowered
-
-
-def _as_triple_term(value):
-    """A ``tt:`` hash URI that ``TRIPLE()`` computed, as the ``TripleTerm`` it names (nested ones included)."""
-    from starlayer.graph.model.encoding import TT_NS, lookup_tt_hash
-    from starlayer.graph.model.triple import TripleTerm
-
-    if isinstance(value, URIRef) and str(value).startswith(TT_NS):
-        parts = lookup_tt_hash(value)
-        if parts is not None:
-            return TripleTerm(*(_as_triple_term(part) for part in parts))
-    return value
+    now = _NOW.get() or datetime.datetime.now(datetime.timezone.utc)
+    text = render_expression(_with_now(expr, now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")))
+    used: set[Variable] = set()
+    _collect_vars_in_expr(expr, used)
+    cache[id(expr)] = (expr, text, used)
+    return text
 
 
-def _eval_ebv(expr, mu: dict, g: Graph) -> bool:
-    ctx = _context(g, mu)
-    return _ebv(_runnable(expr), ctx)
+def _bound(expr, mu: dict) -> tuple[str, dict]:
+    """``(projection, substitutions)`` for ``expr`` under ``mu``: the engine pre-binds a variable only if the query projects it,
+    and rejects one the query does not mention, so only the variables ``expr`` uses that ``mu`` binds go in."""
+    used = _RENDERED.get()[id(expr)][2]
+    names = sorted(str(var) for var in used if var in mu)
+    return "".join(f"?{name} " for name in names), {ox.Variable(name): mu[Variable(name)] for name in names}
 
 
-def _eval_expr(expr, mu: dict, g: Graph):
-    """Evaluates ``expr`` under solution ``mu`` against graph ``g``,
-    matching §6.3's ``evalFunction``/§6.4's "if x is not an error" check
-    (``Expr.eval`` catches ``SPARQLError`` internally and returns it as a
-    value rather than raising, per rdflib's own source).
+def _eval_ebv(expr, mu: dict) -> bool:
+    """The effective boolean value of ``expr`` under ``mu``; an error (an unbound variable, a type error) is false, as for a
+    SPARQL ``FILTER``."""
+    text = _expression_text(expr)
+    projection, substitutions = _bound(expr, mu)
+    if not projection:
+        return bool(_EVAL_STORE.query(f"ASK {{ FILTER({text}) }}"))
+    return any(True for _ in _EVAL_STORE.query(f"SELECT {projection}WHERE {{ FILTER({text}) }}", substitutions=substitutions))
+
+
+def _eval_expr(expr, mu: dict):
+    """Evaluates ``expr`` under solution ``mu``, matching §6.3's ``evalFunction``/§6.4's "if x is not an error" check.
 
     Args:
         expr: The rdflib expression to evaluate.
         mu: The current variable bindings.
-        g: The graph to evaluate against.
 
     Returns:
-        The evaluated value, or ``None`` if evaluation errored.
+        The evaluated value (a pyoxigraph term), or ``None`` if evaluation errored.
     """
-    ctx = _context(g, mu)
-    val = _runnable(expr).eval(ctx)
-    if isinstance(val, SPARQLError):
-        return None
-    return _as_triple_term(val)
+    text = _expression_text(expr)
+    projection, substitutions = _bound(expr, mu)
+    query = f"SELECT {projection}?__srl_value WHERE {{ BIND({text} AS ?__srl_value) }}"
+    for solution in _EVAL_STORE.query(query, substitutions=substitutions):
+        return solution["__srl_value"]
+    return None
 
 
-def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g: Graph, gd: Graph) -> list[dict]:
+def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g, gd) -> list[dict]:
     """§6.4's ``evalRuleElements`` - processes ``elements`` against the
     incoming solution sequence ``seq``, matching ordinary triple-pattern
     runs against ``g`` and any ``DATA``-flagged negation against ``gd``."""
@@ -563,12 +512,12 @@ def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g:
                 i += 1
             seq = _eval_triple_run(run, seq, g)
         elif isinstance(elt, srl_ast._FilterElement):
-            seq = [mu for mu in seq if _eval_ebv(elt.expr, mu, g)]
+            seq = [mu for mu in seq if _eval_ebv(elt.expr, mu)]
             i += 1
         elif isinstance(elt, srl_ast._AssignmentElement):
             new_seq: list[dict] = []
             for mu in seq:
-                val = _eval_expr(elt.expr, mu, g)
+                val = _eval_expr(elt.expr, mu)
                 if val is not None:
                     mu2 = dict(mu)
                     mu2[elt.var] = val
@@ -589,7 +538,7 @@ def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g:
     return seq
 
 
-def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[BNode, BNode]) -> tuple:
+def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[BNode, ox.BlankNode]) -> tuple:
     """§6.4: ``subst(mu, TT)`` for a head triple template - substitutes
     every variable per ``mu``. A literal blank node in the head is *not* a
     variable, so ``subst`` itself never touches it - but the spec's own
@@ -628,14 +577,14 @@ def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[
                 ) from exc
         if isinstance(t, BNode):
             if t not in bnode_map:
-                bnode_map[t] = BNode()
+                bnode_map[t] = ox.BlankNode()
             return bnode_map[t]
-        return t
+        return _ox_term(t)
 
     return tuple(_graph_term(part, _sub) for part in (triple.subject, triple.predicate, triple.object))
 
 
-def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
+def _eval_rule(rule: srl_ast._Rule, g, gd) -> set[tuple]:
     """§6.4's ``evalRule``."""
     used_vars = _collect_variables(rule)
     body = _blank_nodes_to_vars(rule.body, used_vars)
@@ -646,14 +595,14 @@ def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
 
     out: set[tuple] = set()
     for mu in seq:
-        bnode_map: dict[BNode, BNode] = {}
+        bnode_map: dict[BNode, ox.BlankNode] = {}
         for template in rule.head:
             try:
                 triple = _subst_head_triple(template, mu, bnode_map)
             except _InvalidInstance:
                 continue  # not valid RDF 1.2 (e.g. a literal as a triple term's subject): skipped
             subject, predicate, _object = triple
-            if isinstance(subject, Literal) or not isinstance(predicate, URIRef):
+            if isinstance(subject, (ox.Literal, ox.Triple)) or not isinstance(predicate, ox.NamedNode):
                 continue  # a literal subject, or a predicate that is not an IRI, is not a triple: skipped like CONSTRUCT (#96)
             out.add(triple)
     return out
@@ -663,70 +612,53 @@ def _eval_rule(rule: srl_ast._Rule, g: Graph, gd: Graph) -> set[tuple]:
 # §6.5 Evaluation of a Rule Set / top-level Infer / Query (§4.1)
 # ---------------------------------------------------------------------------
 
-
-# SRL evaluates with rdflib's SPARQL engine, so it needs the rdflib-based graph class (the only one that holds triple terms
-# there), named by its module and not by ``starlayer.graph.StarLayerGraph``, which is to become the Oxigraph wrapper. An
-# OxGraph / OxDataset argument is converted at the boundary (``flatten_dataset``).
-def _is_starlayer_graph(graph) -> bool:
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    return isinstance(graph, StarLayerGraph)
-
-
-def _new_graph(use_starlayer: bool):
-    if use_starlayer:
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-        return StarLayerGraph()
-    return Graph()
-
-
-def _add_all(dst, src) -> None:
-    for triple in src:
-        dst.add(triple)
-
-
-def flatten_dataset(graph):
-    """A dataset (iterating it gives quads) as one graph: its default graph, or the union of all graphs when the
-    dataset is a union (``default_union`` / ``ConjunctiveGraph``). Any other graph is returned unchanged."""
-    from rdflib import ConjunctiveGraph, Dataset
-
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
-    if _ox.is_oxigraph_input(graph):  # an OxGraph / OxDataset / Store: evaluate on a snapshot of rdflib terms
-        return _ox.to_starlayer_graph(graph)
-    if not isinstance(graph, (Dataset, ConjunctiveGraph)):
-        return graph
-    from starlayer.graph.graph.starlayer_dataset import StarLayerDataset
-
-    flat = _new_graph(isinstance(graph, StarLayerDataset))
-    for triple in graph.triples((None, None, None)):
-        flat.add(triple)
-    return flat
-
-
 _NOW: ContextVar = ContextVar("srl_now", default=None)
 
 
-def _context(g: Graph, mu: dict | None = None) -> QueryContext:
-    """A ``QueryContext`` whose ``NOW()`` is the one instant of the rule-set evaluation in progress."""
-    ctx = QueryContext(graph=g, initBindings=mu)
-    now = _NOW.get()
-    if now is not None:
-        ctx._now = now
-    return ctx
+def flatten_dataset(graph):
+    """``graph`` as an ``OxGraph`` the rules are evaluated on: an ``OxGraph`` as it is; an ``OxDataset`` / ``Store`` as the
+    union of its graphs; an rdflib graph (or, for a dataset, its default graph or the union of all graphs) copied in. Nothing
+    here changes ``graph``."""
+    from rdflib import ConjunctiveGraph, Dataset
+
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph.core import OxGraph
+    from starlayer.shacl_engine.graphs import new_graph
+
+    if isinstance(graph, OxGraph):
+        return graph
+    flat = new_graph()
+    if _ox.is_oxigraph_input(graph):
+        flat.extend(list(iter(graph)))
+        return flat
+    triples = graph.triples((None, None, None)) if isinstance(graph, (Dataset, ConjunctiveGraph)) else iter(graph)
+    flat.extend((_ox_term(s), _ox_term(p), _ox_term(o)) for s, p, o in triples)
+    return flat
 
 
-def _as_graph_kind(graph, use_starlayer: bool):
-    """``graph`` itself, or a ``StarLayerGraph`` copy of it if one is needed and it is not one."""
-    if use_starlayer and not _is_starlayer_graph(graph):
-        copy = _new_graph(True)
-        _add_all(copy, graph)
-        return copy
-    return graph
+def to_foreign(inferred, original):
+    """The inferred graph for a caller that did not pass an Oxigraph graph: rdflib terms in a graph of the caller's own class
+    when that is an rdflib ``Graph`` subclass (the old-style graph, which can hold triple terms), otherwise a plain
+    ``rdflib.Graph``. A result that holds a triple term, which a plain ``rdflib.Graph`` cannot hold, is returned as the
+    ``OxGraph`` it is."""
+    from rdflib import ConjunctiveGraph, Dataset, Graph
+
+    from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term
+
+    triples = list(inferred)
+    cls = type(original)
+    holds_triple_terms = cls not in (Graph, Dataset, ConjunctiveGraph) and isinstance(original, Graph) and not isinstance(
+        original, (Dataset, ConjunctiveGraph)
+    )
+    if not holds_triple_terms and any(isinstance(t, ox.Triple) for triple in triples for t in triple):
+        return inferred
+    out = cls() if holds_triple_terms else Graph()
+    for s, p, o in triples:
+        out.add((to_rdflib_term(s), to_rdflib_term(p), to_rdflib_term(o)))
+    return out
 
 
-def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
+def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):
     """§6.5's rule-set evaluation algorithm, translated directly -
     including its one easy-to-miss subtlety, confirmed against the raw
     spec text (not just the informal prose): every ``evalRule`` call's own
@@ -739,11 +671,11 @@ def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
     anything any rule (including this one) has already inferred.
 
     Args:
-        base_graph: The graph to run the rule set against.
+        base_graph: The graph to run the rule set against (an ``OxGraph``; see :func:`flatten_dataset`).
         ruleset: The rule set to evaluate.
 
     Returns:
-        ``GI``, the inferred-triples-only graph (never includes a triple
+        ``GI``, the inferred-triples-only ``OxGraph`` (never includes a triple
         already present in ``base_graph``, per §6's own stated output
         contract) - not the combined evaluation graph.
 
@@ -751,13 +683,17 @@ def _evaluate_ruleset(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
         SRLImportsNotSupportedError: If ``ruleset.imports`` is non-empty.
     """
     token = _NOW.set(_NOW.get() or datetime.datetime.now(datetime.timezone.utc))
+    rendered = _RENDERED.set({})
     try:
         return _evaluate_ruleset_at_one_instant(base_graph, ruleset)
     finally:
+        _RENDERED.reset(rendered)
         _NOW.reset(token)
 
 
-def _evaluate_ruleset_at_one_instant(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
+def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
+    from starlayer.shacl_engine.graphs import new_graph
+
     base_graph = flatten_dataset(base_graph)
     if ruleset.imports:
         raise SRLImportsNotSupportedError(
@@ -766,12 +702,7 @@ def _evaluate_ruleset_at_one_instant(base_graph: Graph, ruleset: srl_ast.RuleSet
             "containing IMPORTS statements, rather than silently ignoring them"
         )
 
-    # A StarLayerGraph can hold RDF 1.2 triple terms; a plain Graph cannot. Use one when
-    # the rule set mentions a triple term or the base graph is already a StarLayerGraph.
-    use_starlayer = _ruleset_uses_triple_terms(ruleset) or _is_starlayer_graph(base_graph)
-    base_graph = _as_graph_kind(base_graph, use_starlayer)
-
-    d = _new_graph(use_starlayer)
+    d = new_graph()
     for block in ruleset.data:
         for t in block.triples:
             try:
@@ -779,14 +710,16 @@ def _evaluate_ruleset_at_one_instant(base_graph: Graph, ruleset: srl_ast.RuleSet
             except _InvalidInstance as exc:
                 raise SRLEvalError(f"SRL: a DATA block has an invalid triple term: {exc}") from exc
 
-    gi = _new_graph(use_starlayer)
+    from starlayer.graph.oxgraph.core import OxGraph
+
+    gi = OxGraph(prefixes={})  # the caller binds the prefixes it wants on the result
     for t in d:
         if t not in base_graph:
             gi.add(t)
 
-    ge = _new_graph(use_starlayer)
-    _add_all(ge, base_graph)
-    _add_all(ge, d)
+    ge = new_graph()
+    ge.extend(list(base_graph))
+    ge.extend(list(d))
 
     for once_rules, general_rules in _stratify(ruleset):
         for rule in once_rules:
@@ -808,7 +741,7 @@ def _evaluate_ruleset_at_one_instant(base_graph: Graph, ruleset: srl_ast.RuleSet
     return gi
 
 
-def _srl_infer(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
+def _srl_infer(base_graph, ruleset: srl_ast.RuleSet):
     """§4.1's top-level ``Infer`` operation - apply full rule-set
     evaluation, producing the inference graph. Alias for
     :func:`_evaluate_ruleset` under the spec's own operation name.
@@ -824,12 +757,12 @@ def _srl_infer(base_graph: Graph, ruleset: srl_ast.RuleSet) -> Graph:
         ruleset: The rule set to evaluate.
 
     Returns:
-        The inferred-triples-only graph.
+        The inferred-triples-only ``OxGraph``.
     """
     return _evaluate_ruleset(base_graph, ruleset)
 
 
-def _srl_query(base_graph: Graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.TriplePattern) -> list[dict]:
+def _srl_query(base_graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.TriplePattern) -> list[dict]:
     """§4.1's top-level ``Query`` operation, v1: "equivalent to infer +
     matching the goal pattern against base ∪ GI" - the spec's own stated
     equivalence, implemented directly on top of :func:`_srl_infer` rather
@@ -847,20 +780,17 @@ def _srl_query(base_graph: Graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_as
             ``base_graph`` and the inferred triples.
 
     Returns:
-        One ``dict[Variable, term]`` solution per match.
+        One ``dict[Variable, term]`` solution per match, the terms pyoxigraph terms.
     """
+    from starlayer.shacl_engine.graphs import new_graph
+
     base_graph = flatten_dataset(base_graph)
     gi = _evaluate_ruleset(base_graph, ruleset)
-    use_starlayer = _is_starlayer_graph(gi) or _triple_uses_triple_terms(goal_pattern)
-    combined = _new_graph(use_starlayer)
-    _add_all(combined, base_graph)
-    _add_all(combined, gi)
+    combined = new_graph()
+    combined.extend(list(base_graph))
+    combined.extend(list(gi))
 
     goal_vars = {
         v for term in (goal_pattern.subject, goal_pattern.predicate, goal_pattern.object) for v in _term_variables(term)
     }
-    if _triple_uses_triple_terms(goal_pattern):
-        return [{v: m[v] for v in goal_vars if v in m} for m in _match_with_query([goal_pattern], combined)]
-    bgp = [(goal_pattern.subject, goal_pattern.predicate, goal_pattern.object)]
-    ctx = QueryContext(graph=combined)
-    return [{v: binding[v] for v in goal_vars} for binding in evalBGP(ctx, bgp)]
+    return [{v: m[v] for v in goal_vars if v in m} for m in _match([goal_pattern], combined)]

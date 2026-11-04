@@ -76,7 +76,15 @@ def test_triple_function_in_set(make):
     g = make()
     g.add((E.a, E.p, E.b))
     rules = parse_ruleset(PREFIX + "RULE { ?s :t ?n } WHERE { ?s :p ?o SET(?n := TRIPLE(?s, :p, ?o)) }")
-    assert set(rules.infer(g)) == {(E.a, E.t, TripleTerm(E.a, E.p, E.b))}
+    inferred = rules.infer(g)
+    if make is Graph:
+        # a plain rdflib Graph cannot hold a triple term, so a result that has one comes back as an OxGraph (pyoxigraph terms)
+        import pyoxigraph as ox
+
+        nodes = [ox.NamedNode(str(x)) for x in (E.a, E.p, E.b, E.t)]
+        assert set(inferred) == {(nodes[0], nodes[3], ox.Triple(nodes[0], nodes[1], nodes[2]))}
+    else:
+        assert set(inferred) == {(E.a, E.t, TripleTerm(E.a, E.p, E.b))}
 
 
 def test_triple_term_syntax_in_set_and_filter():
