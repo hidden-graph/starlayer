@@ -264,18 +264,16 @@ def _via_rdflib(fn: Any, kwargs: dict[str, Any]) -> tuple[bool, Any]:
     otherwise as rdflib terms."""
     from starlayer.graph.oxgraph import _rdflib_bridge as ox
 
-    graph_args = ("data_graph", "shapes_graph", "scoring_graph")
-    if not any(ox.is_oxigraph_input(kwargs.get(name)) for name in graph_args):
-        return False, None
+    ox_nodes = any(isinstance(kwargs.get(name), (ox.ox.NamedNode, ox.ox.BlankNode)) for name in ("shape_node", "focus_node"))
+    if not ox_nodes and not any(ox.is_oxigraph_input(kwargs.get(name)) for name in ("shapes_graph", "scoring_graph")):
+        return False, None  # the data graph needs no copy (it only goes to validate()), so it does not count here
     copies: dict[int, Any] = {}
     converted = dict(kwargs)
     for name in ("shapes_graph", "scoring_graph"):
         value = kwargs.get(name)
         if ox.is_oxigraph_input(value):
             converted[name] = copies.setdefault(id(value), ox.to_rdflib_graph(value))
-    want_ox = any(
-        isinstance(kwargs.get(name), (ox.ox.NamedNode, ox.ox.BlankNode)) for name in ("shape_node", "focus_node")
-    )
+    want_ox = ox_nodes
     for name in ("shape_node", "focus_node"):
         converted[name] = ox.from_engine_if_ox(kwargs.get(name))
     result = fn(**converted)

@@ -142,6 +142,21 @@ class StarQuery:
             kwargs["timeout"] = self.timeout
         kwargs.update(overrides)
 
+        from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
+
+        if is_oxigraph_input(graph):
+            # The wrapper runs the query text on Oxigraph: no prepared query object, no query-time entailment (it raises for
+            # ``entailment=``), and no timeout. ``infer`` / ``engine`` only matter with an entailment regime, so they are ignored.
+            if "timeout" in kwargs:
+                raise NotImplementedError("a query timeout is not available on an OxGraph / OxDataset")
+            return graph.query(
+                self._text,
+                initNs=kwargs["initNs"],
+                initBindings=kwargs["initBindings"],
+                base=kwargs.get("base", self._base),
+                entailment=kwargs["entailment"],
+            )
+
         if kwargs["entailment"] in _TEXT_REWRITE_ENTAILMENTS:
             # See this module's own docstring: only a plain string triggers
             # StarLayerGraph.query()'s own entailment-rewrite step for

@@ -62,7 +62,7 @@ def main() -> int:
 
     kg = OxDataset()
     kg.parse(str(TRIG), format="trig12")
-    graphs = [g for g in kg.contexts() if len(g)]
+    graphs = [g for g in map(kg.graph, kg.graph_names()) if len(g)]
     info = {
         "starlayer_version": lib_version,
         "commit": _git("rev-parse", "HEAD"),
