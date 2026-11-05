@@ -3,10 +3,8 @@ tests/unit/test_entailment_direct.py
 
 Coverage for StarLayerGraph.query(..., entailment=ENTAILMENT['OWL-Direct']) - the
 query-time counterpart to StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine=...):
-query() a live union of self and a small cached OWL-DL entailment delta,
-mirroring exactly how entailment=ENTAILMENT['OWL-RDF-Based'] already works for the owlrl-backed
-entailment regime (see test_entailment.py's TestEntailmentOwlRl*/TestEntailmentOwlRlCaching,
-whose shapes this file's classes deliberately mirror).
+query() a throwaway copy of the store closed by infer(); the closure is computed on every call, as
+for entailment=ENTAILMENT['OWL-RDF-Based'] (see test_entailment.py).
 
 `owlready2`/`rustdl` are both optional extras of this package (`pip install
 starlayer[hermit]`/`[rustdl]`) - the skip markers below are copied
@@ -83,7 +81,7 @@ class TestEntailmentDirect:
     def test_direct_entailment_answers_disjunctive_query(self):
         g = _disjunctive_graph()
         rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct']))
-        assert [str(r.x) for r in rows] == [str(EX.alice)]
+        assert [r.x.value for r in rows] == [str(EX.alice)]
 
     def test_engine_kwarg_rejected_for_other_entailment(self):
         g = _disjunctive_graph()
@@ -115,15 +113,9 @@ class TestEntailmentDirect:
         with pytest.raises(InconsistentOntologyError):
             list(g.query(q, entailment=ENTAILMENT['OWL-Direct']))
 
-    def test_direct_entailment_accepted_on_native_backend_no_store(self):
-        # No live store configured, so this can't reach an actual endpoint -
-        # confirms validation passes and dispatch is reached (a RuntimeError
-        # about the missing store, not a NotImplementedError about
-        # entailment), mirroring test_entailment.py's identical check for
-        # entailment="native".
-        g = StarLayerGraph()
-        with pytest.raises(RuntimeError, match="store"):
-            g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'])
+    def test_direct_entailment_is_accepted_on_an_empty_graph(self):
+        # The regime is dispatched (no NotImplementedError) and an empty graph has no answers.
+        assert list(StarLayerGraph().query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'])) == []
 
 
 @rustdl_extra
@@ -131,43 +123,28 @@ class TestEntailmentDirectRustdl:
     def test_engine_rustdl_selectable_via_query(self):
         g = _disjunctive_graph()
         rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="rustdl"))
-        assert [str(r.x) for r in rows] == [str(EX.alice)]
+        assert [r.x.value for r in rows] == [str(EX.alice)]
 
 
 @owl_dl_extra
 @java_required
-class TestEntailmentDirectCaching:
-    def test_unchanged_graph_reuses_the_identical_cached_delta(self):
-        g = _disjunctive_graph()
-        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct']))
-        first = g._owl_dl_cache["hermit"][0]
-        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct']))
-        second = g._owl_dl_cache["hermit"][0]
-        assert first is second
+class TestEntailmentDirectInferArgument:
+    """The closure is computed on every call, so ``infer=`` has no caching to select; it is only checked."""
 
-    def test_changed_mode_recomputes_after_a_mutation(self):
+    @pytest.mark.parametrize("infer", ["always", "cached", "changed"])
+    def test_every_documented_value_gives_the_same_answer(self, infer):
+        g = _disjunctive_graph()
+        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer=infer))
+        assert [r.x.value for r in rows] == [str(EX.alice)]
+
+    def test_a_mutation_is_seen_by_the_next_query(self):
         g = _disjunctive_graph()
         list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
-        first = g._owl_dl_cache["hermit"][0]
-
         g.add((EX.carol, RDF.type, EX.Person))
-        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
-        second = g._owl_dl_cache["hermit"][0]
+        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
+        assert [r.x.value for r in rows] == [str(EX.alice)]
 
-        assert first is not second
-
-
-@owl_dl_extra
-@java_required
-@rustdl_extra
-class TestEntailmentDirectMultiEngineCaching:
-    def test_switching_engine_does_not_invalidate_other_engines_cache(self):
+    def test_an_unknown_value_is_rejected(self):
         g = _disjunctive_graph()
-        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="hermit"))
-        hermit_first = g._owl_dl_cache["hermit"][0]
-
-        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="rustdl"))
-        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="hermit"))
-        hermit_second = g._owl_dl_cache["hermit"][0]
-
-        assert hermit_first is hermit_second
+        with pytest.raises(ValueError, match="infer must be one of"):
+            g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="sometimes")
