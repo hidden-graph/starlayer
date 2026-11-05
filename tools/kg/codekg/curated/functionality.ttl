@@ -37,7 +37,7 @@ cur:cap-rdf-graph-1 a slkg:Capability ;
     slkg:appRole "storage" ;
     slkg:implementsSpecification tr:rdf12-concepts ;
     rdfs:comment "Manage RDF 1.2 graphs, including triple terms and direction-tagged literals." ;
-    slkg:implementedByIdentifier "starlayer.graph.model.encoding" .
+    slkg:implementedByIdentifier "starlayer.graph.model.dirlangstring" .
 
 cur:cap-rdf-graph-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -94,7 +94,7 @@ cur:cap-rdf-graph-7 a slkg:Capability ;
     slkg:implementsSpecification tr:rdf-canon ;
     rdfs:comment "RDFC-1.0 canonicalization and hashing of RDF 1.2 graphs." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.rdfc.CanonicalizationComplexityError",
+        "starlayer.graph.rdfc_native.CanonicalizationComplexityError",
         "starlayer.graph.rdfc.rdfc10_hash",
         "starlayer.graph.rdfc.to_canonical_nquads" .
 
@@ -121,8 +121,8 @@ cur:cap-rdf-graph-13 a slkg:Capability ;
     slkg:position 10 ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "interchange" ;
-    rdfs:comment "Triple terms are stored using the vocabulary of the RDF 1.2 Interoperability specification (each one a node typed rdf:PropositionForm), found by that type, and converted to and from the standard's blank-node form when writing or reading plain RDF formats." ;
-    slkg:implementedByIdentifier "starlayer.graph.model.encoding" .
+    rdfs:comment "Triple terms are converted to and from the basic encoding of the RDF 1.2 Interoperability specification (a blank node typed rdf:PropositionForm with three description properties) when writing or reading plain RDF 1.1 formats." ;
+    slkg:implementedByIdentifier "starlayer.graph.interop" .
 
 cur:cap-rdf-graph-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -407,7 +407,7 @@ cur:cap-shacl-5 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate" ;
     rdfs:comment "Derive a SHACL shape from a graph's own data." ;
-    slkg:implementedByIdentifier "starlayer.graph.graph.shape_derivation.derive_shape" .
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.helpers.shapes.derive_shape" .
 
 cur:cap-shacl-6 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;

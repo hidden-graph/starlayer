@@ -25,7 +25,7 @@ _ENTAILMENT_BASE = "http://www.w3.org/ns/entailment/"
 
 class _EntailmentNamespace:
     """``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-Direct"]``: the regime IRIs of the SPARQL 1.2 Entailment Regimes spec, as
-    ``NamedNode``s. Same IRIs as ``graph/graph/entailment_regimes.py`` (which holds an rdflib ``Namespace``)."""
+    ``NamedNode``s. ``graph/graph/entailment_regimes.py`` re-exports it."""
 
     def __getitem__(self, name: str) -> ox.NamedNode:
         return ox.NamedNode(_ENTAILMENT_BASE + name)

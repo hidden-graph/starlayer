@@ -6,10 +6,10 @@ graph's own ``sh:entailment`` triples carry (see
 ``starlayer.shacl_engine.entailment``), so every layer speaks one vocabulary with
 no separate translation table in between.
 
-``ENTAILMENT`` is an ordinary ``rdflib.Namespace``, not individual module-
+``ENTAILMENT`` is a namespace of pyoxigraph ``NamedNode`` constants, not individual module-
 level constants - ``http://www.w3.org/ns/entailment/`` {RDF, RDFS} both
-collide by bare name with ``rdflib.namespace``'s own commonly-imported
-``RDF``/``RDFS`` namespace objects, so every real caller needs the
+collide by bare name with the commonly-imported ``RDF``/``RDFS`` namespace
+objects, so every real caller needs the
 qualified ``ENTAILMENT.RDF``/``ENTAILMENT.RDFS`` form regardless; the two
 hyphenated regime names (``OWL-RDF-Based``/``OWL-Direct``) need bracket
 access (``ENTAILMENT["OWL-RDF-Based"]``) since a hyphen isn't valid in a
@@ -30,38 +30,13 @@ Two values deliberately have no IRI and are not regimes at all: ``None``
 (simple entailment / no entailment) and the string ``"native"``
 (``query()`` only - delegates entailment to the connected backend/endpoint
 rather than naming a regime).
+
+``KNOWN_REGIMES`` and ``SUPPORTED_REGIMES`` are sets of IRI text (``str``). The definitions live in
+``starlayer.graph.oxgraph.helpers.entailment``; this module keeps the import path.
 """
 
 from __future__ import annotations
 
-from typing import Any
+from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT, KNOWN_REGIMES, SUPPORTED_REGIMES
 
-# rdflib terms (a ``Namespace`` of ``URIRef``s), built on first use: rdflib is an optional extra. The pyoxigraph-term form of these
-# IRIs, which ``starlayer.graph.ENTAILMENT`` is, lives in ``starlayer.graph.oxgraph.helpers.entailment``.
-_CACHE: dict[str, Any] = {}
-
-
-def _build() -> dict[str, Any]:
-    if not _CACHE:
-        from starlayer._optional import require_rdflib
-
-        require_rdflib("the rdflib form of the entailment regime IRIs (starlayer.graph.graph.entailment_regimes)")
-        from rdflib import Namespace
-
-        ns = Namespace("http://www.w3.org/ns/entailment/")
-        # Every regime IRI this project recognizes by name, supported or not - used to produce a clear "unsupported regime" error
-        # (naming the IRI) rather than a generic "unrecognized value" one for a real-but-unbuilt regime like D or RIF (which has no
-        # IRI at all, so can never reach this set in the first place).
-        known = frozenset({ns.RDF, ns.RDFS, ns.D, ns["OWL-RDF-Based"], ns["OWL-Direct"]})
-        # Regimes this project actually implements a materialization/query path for. D is intentionally excluded - recognized by
-        # IRI, but unsupported (see module docstring) - so a caller gets "known but unsupported", distinct from "never heard of
-        # this IRI at all".
-        supported = frozenset({ns.RDF, ns.RDFS, ns["OWL-RDF-Based"], ns["OWL-Direct"]})
-        _CACHE.update(ENTAILMENT=ns, KNOWN_REGIMES=known, SUPPORTED_REGIMES=supported)
-    return _CACHE
-
-
-def __getattr__(name: str) -> Any:
-    if name in ("ENTAILMENT", "KNOWN_REGIMES", "SUPPORTED_REGIMES"):
-        return _build()[name]
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+__all__ = ["ENTAILMENT", "KNOWN_REGIMES", "SUPPORTED_REGIMES"]
