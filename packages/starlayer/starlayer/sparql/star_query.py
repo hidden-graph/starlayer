@@ -111,10 +111,16 @@ class StarQuery:
         """
         self._text = text
         self._base = base
-        # Syntax is checked here when rdflib is installed; without it, a bad query raises when it is first run on Oxigraph.
+        # With rdflib the query is prepared here (the object an rdflib graph runs); without it StarLayer's own parser checks the
+        # syntax, so a bad query raises here either way.
         self._prepared = None
         if have_rdflib():
             self._prepared = prepare_query_12(text, base=base, initNs=initNs)
+        else:
+            from .parse_sparql import parse_sparql
+
+            head = "".join(f"PREFIX {k}: <{getattr(v, 'value', v)}>\n" for k, v in (initNs or {}).items())
+            parse_sparql(head + text, base)
         self.initNs = initNs
         self.initBindings = initBindings
         self.entailment = entailment

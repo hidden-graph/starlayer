@@ -14,14 +14,14 @@ from rdflib import BNode, Graph, URIRef
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 
-from .spexpr_codec import _build_rdf_list, _encode, _new_tree_graph
-from .vocab import (
+from ._vocab_rdflib import (
     QUERY,
     QUERY_COLLECTION,
     SALG,
     UPDATE,
     UPDATE_OPERATION,
 )
+from .spexpr_codec import _build_rdf_list, _encode, _new_tree_graph
 
 
 def query_to_rdf(query: Query, graph: Graph | None = None) -> tuple[Graph, BNode]:

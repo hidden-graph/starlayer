@@ -42,7 +42,7 @@ def test_validate_library_notices_a_damaged_tree():
         library.add(triple)
     root = library.value(next(n for n in library.subjects(RDF.type, CODEKG_NS.NamedQuery) if str(n).endswith("#callers-of")), CODEKG_NS.queryRoot)
     library.remove((root, RDF.type, None))
-    library.add((root, RDF.type, vocab.SQE.Query))
+    library.add((root, RDF.type, URIRef(vocab.SQE.Query.value)))  # the library is an rdflib graph
     original = queries._library
     queries._library = lambda: library
     try:

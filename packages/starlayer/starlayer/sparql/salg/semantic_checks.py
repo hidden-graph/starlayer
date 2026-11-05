@@ -82,7 +82,7 @@ from rdflib.plugins.sparql.algebra import _addVars, _traverseAgg, analyse
 from rdflib.plugins.sparql.parserutils import CompValue
 
 from .. import spexpr_codec
-from ..vocab import SALG
+from .._vocab_rdflib import SALG
 
 
 @dataclass(frozen=True)

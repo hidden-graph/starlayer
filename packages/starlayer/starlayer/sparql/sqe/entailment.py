@@ -33,23 +33,24 @@ Rows are a bag, as in the rdflib version: a fact derivable in two ways (an asser
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 import functools
 from typing import Any
 
-from rdflib import BNode, Literal, URIRef, Variable
-from rdflib.namespace import RDF, RDFS
+import pyoxigraph as ox
 
+from .._oxterms import NS, RDF
 from ..parse_sparql import (
     Node,
     SparqlSyntaxError,
     _pattern_vars,
     _values_vars,
-    ast_to_tree,
+    ast_to_triples,
     parse_sparql,
 )
+from ._memtree import TreeIndex
+
+RDFS = NS("http://www.w3.org/2000/01/rdf-schema#")
+BNode, Literal, URIRef, Variable = ox.BlankNode, ox.Literal, ox.NamedNode, ox.Variable
 
 __all__ = ["EntailmentRewriteError", "RDF_REGIME", "RDFS_REGIME", "rewrite_for_entailment"]
 
@@ -71,7 +72,7 @@ class EntailmentRewriteError(NotImplementedError):
 
 
 def regime_iri(regime: Any) -> str:
-    """The IRI string of a regime given as ``ENTAILMENT.RDFS`` (rdflib), a ``pyoxigraph.NamedNode`` or a plain string."""
+    """The IRI string of a regime given as ``ENTAILMENT.RDFS`` (rdflib), a ``pyoxigraph.NamedNode`` (or an rdflib ``URIRef``) or a plain string."""
     return str(getattr(regime, "value", regime))
 
 
@@ -98,7 +99,7 @@ def rewrite_for_entailment(text: str, regime: Any, *, prefixes: Any = None, base
             f"query-time entailment supports ENTAILMENT.RDF and ENTAILMENT.RDFS, not {iri!r} "
             "(use infer() for a materialized closure of the OWL regimes)"
         )
-    pfx = tuple(sorted((str(k), str(v)) for k, v in (prefixes.items() if hasattr(prefixes, "items") else prefixes or ())))
+    pfx = tuple(sorted((str(k), str(getattr(v, "value", v))) for k, v in (prefixes.items() if hasattr(prefixes, "items") else prefixes or ())))
     return _rewrite_cached(text, iri, pfx, base)
 
 
@@ -115,8 +116,8 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
     try:
         from .to_text import sqe_tree_to_text
 
-        graph, root = ast_to_tree(tree)
-        out = sqe_tree_to_text(graph, root)
+        triples, root = ast_to_triples(tree)
+        out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
     except (SparqlSyntaxError, ValueError, KeyError, NotImplementedError, RecursionError, TypeError, AttributeError) as e:
         raise EntailmentRewriteError(f"the rewritten query could not be written out as SPARQL: {e}") from e
@@ -336,7 +337,7 @@ class _Rewriter:
 
 def _collect_names(x: Any, out: set[str]) -> None:
     if isinstance(x, Variable):
-        out.add(str(x))
+        out.add(x.value)
     elif isinstance(x, Node):
         for v in x.f.values():
             _collect_names(v, out)
@@ -365,4 +366,4 @@ def _ordered_vars(where: list | None, q: Node) -> list[Variable]:
 
     walk(where)
     walk(q.f.get("values"))
-    return seen + sorted(scope - set(seen), key=str)
+    return seen + sorted(scope - set(seen), key=lambda v: v.value)

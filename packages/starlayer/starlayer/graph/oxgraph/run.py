@@ -88,9 +88,6 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
     pfx = merge_prefixes(prefixes, init_ns)
     sent = text
     if entailment is not None:  # query-time RDF / RDFS entailment: the query is rewritten, the data is not touched
-        from starlayer._optional import require_rdflib
-
-        require_rdflib("Query-time RDF / RDFS entailment (entailment=...)")
         from starlayer.sparql.sqe.entailment import rewrite_for_entailment
 
         sent = rewrite_for_entailment(text, entailment, prefixes=pfx, base=base)

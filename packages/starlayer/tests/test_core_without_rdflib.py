@@ -253,48 +253,85 @@ def test_nothing_in_the_core_imports_rdflib():
     assert result.stdout.strip() == "[]", f"the core surface loaded rdflib: {result.stdout.strip()}"
 
 
-DUMP_PARSE = """
-    from starlayer.sparql.parse_sparql import Node, parse_sparql, parse_sparql_update
-    from starlayer.sparql import _terms
-
-    def dump(x):
-        if isinstance(x, Node):
-            return [x.kind, [(k, dump(v)) for k, v in x.f.items()]]
-        if isinstance(x, (list, tuple)):
-            return [dump(i) for i in x]
-        if hasattr(x, "n3"):
-            return x.n3() if not type(x).__name__ == "BNode" else "_:b"
-        return repr(x)
+SQE_CODE = """
+    from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text, sqe_validate
+    from starlayer.sparql.sqe.rewrite import rewrite_exists_text
+    from starlayer.graph import ENTAILMENT, StarLayerGraph
 
     QUERIES = [
         'PREFIX : <http://e/> SELECT ?s (COUNT(?o) AS ?n) WHERE { ?s :p ?o . FILTER(?o > 1 && lang(?o) != "en") } GROUP BY ?s',
         'SELECT * WHERE { <<( ?s <http://e/p> 1.50 )>> <http://e/q> "x"@en--rtl , "y"^^<http://e/dt> , true , -3 , 1e0 . }',
         'ASK { ?s a ?t OPTIONAL { ?s <http://e/p>/^<http://e/q> ?o } FILTER NOT EXISTS { ?o ?p [] } } ',
         'CONSTRUCT { ?s <http://e/p> ( 1 2 ) } WHERE { { ?s ?p ?o } UNION { VALUES ?s { <http://e/a> UNDEF } } }',
+        'SELECT * WHERE { <s> <p> ?o }',
+        'DELETE { ?s ?p ?o } INSERT { ?s ?p 1 } WHERE { ?s ?p ?o }',
     ]
-    out = [dump(parse_sparql(q)) for q in QUERIES]
-    out.append(dump(parse_sparql_update('INSERT DATA { GRAPH <http://e/g> { <http://e/s> <http://e/p> "v" } }')))
-    print(repr(out))
-    print(_terms.encode_dirlang_datatype("en", "ltr").n3())
 """
 
 
-def test_the_parser_gives_the_same_tree_with_and_without_rdflib():
-    """Without rdflib the parser builds its tree from the stand-in terms in ``sparql/_terms.py``: same tree as with rdflib's."""
-    blocked = ok(DUMP_PARSE)
-    plain = subprocess.run(
-        [sys.executable, "-c", textwrap.dedent(DUMP_PARSE)], capture_output=True, text=True, timeout=300,
+def test_sqe_parse_render_and_validate_work_without_rdflib():
+    out = ok(SQE_CODE + """
+    for q in QUERIES:
+        graph, root = sqe_parse_to_tree(q)
+        assert type(graph).__name__ == "StarLayerGraph"
+        assert sqe_validate(graph)[0]
+        text = sqe_tree_to_text(graph, root)
+        graph2, root2 = sqe_parse_to_tree(text)
+        assert sqe_tree_to_text(graph2, root2) == text, (q, text)
+    print("done")
+    """)
+    assert "done" in out
+
+
+def test_the_exists_rewrite_and_the_entailment_rewrite_work_without_rdflib():
+    out = ok(SQE_CODE + """
+    from starlayer.sparql.sqe.entailment import rewrite_for_entailment
+    q = "PREFIX : <http://e/> SELECT ?s WHERE { ?s :p ?o FILTER NOT EXISTS { ?s :q ?x FILTER(?x = ?o) } }"
+    rewritten = rewrite_exists_text(q)
+    assert rewritten != q and "MINUS" in rewritten and "EXISTS" not in rewritten, rewritten
+    plain = "SELECT ?s WHERE { ?s a <http://e/C> }"
+    assert rewrite_for_entailment(plain, ENTAILMENT.RDF) == plain  # RDF entailment only widens rdf:Property tests
+    assert rewrite_for_entailment("SELECT ?s WHERE { ?s a <http://www.w3.org/1999/02/22-rdf-syntax-ns#Property> }", ENTAILMENT.RDF) != plain
+    assert rewrite_for_entailment(plain, ENTAILMENT.RDFS) != plain
+    g = StarLayerGraph()
+    g.parse(format="turtle12", data="@prefix : <http://e/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . :D rdfs:subClassOf :C . :a a :D .")
+    rows = list(g.query("PREFIX : <http://e/> SELECT ?s WHERE { ?s a :C }", entailment=ENTAILMENT.RDFS))
+    assert len(rows) == 1
+    print("done")
+    """)
+    assert "done" in out
+
+
+def test_the_syntax_checks_of_a_star_query_work_without_rdflib():
+    out = ok("""
+        from starlayer.sparql.star_query import StarQuery
+        StarQuery("SELECT * WHERE { ?s ?p ?o }")
+        try:
+            StarQuery("SELECT * WHERE { ?s ?p }")
+        except ValueError:
+            print("rejected")
+    """)
+    assert "rejected" in out
+
+
+def test_sqe_tree_to_query_needs_rdflib_and_says_so():
+    result = run_blocked("from starlayer.sparql.sqe import sqe_tree_to_query")
+    assert result.returncode != 0 and "starlayer[rdflib]" in result.stderr
+
+
+def test_the_sqe_text_path_loads_no_rdflib_module():
+    code = SQE_CODE + """
+    import sys
+    graph, root = sqe_parse_to_tree(QUERIES[0])
+    sqe_validate(graph); sqe_tree_to_text(graph, root); rewrite_exists_text(QUERIES[2])
+    print([m for m in sys.modules if m == 'rdflib' or m.startswith('rdflib.')][:3])
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", textwrap.dedent(code)], capture_output=True, text=True, timeout=300,
         env={"PYTHONPATH": PACKAGE_ROOT, "PYTHONHASHSEED": "0", "PATH": ""},
     )
-    assert plain.returncode == 0, plain.stderr[-2000:]
-    assert blocked == plain.stdout
-
-
-def test_the_stand_in_dirlang_datatype_matches_the_vocabulary():
-    from starlayer.sparql import _terms
-    from starlayer.sparql.vocab import encode_dirlang_datatype
-
-    assert str(_terms.encode_dirlang_datatype("en", "ltr")) == str(encode_dirlang_datatype("en", "ltr"))
+    assert result.returncode == 0, result.stderr[-2000:]
+    assert result.stdout.strip() == "[]", f"the sqe path loaded rdflib: {result.stdout.strip()}"
 
 
 @pytest.mark.parametrize(
@@ -304,7 +341,6 @@ def test_the_stand_in_dirlang_datatype_matches_the_vocabulary():
         "from starlayer.graph import StarLayerGraph; StarLayerGraph.from_rdflib(None)",
         "from starlayer.graph import StarLayerGraph, ENTAILMENT; g = StarLayerGraph(); "
         "g.update('INSERT DATA { <http://e/s> a <http://e/C> }'); g.infer(entailment=ENTAILMENT['OWL-RDF-Based'])",
-        "from starlayer.graph import StarLayerGraph, ENTAILMENT; StarLayerGraph().query('SELECT * WHERE {?s ?p ?o}', entailment=ENTAILMENT.RDFS)",
         "from starlayer.sparql import prepare_query_12",
         "import starlayer.sparql.srl",
         "import starlayer.starontology.manchester as m; m.manchester_validate(m.manchester_parse_to_tree('Class: <http://e/A>'))",

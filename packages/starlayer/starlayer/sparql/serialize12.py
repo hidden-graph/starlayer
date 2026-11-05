@@ -72,8 +72,8 @@ from ._translate_patches import (
     patch_algebra_translator_bugs,
     patch_group_filter_falsy_literal,
 )
+from ._vocab_rdflib import decode_dirlang_datatype
 from .triple_term import TripleTermNode
-from .vocab import decode_dirlang_datatype
 
 patch_algebra_translator_bugs()
 patch_group_filter_falsy_literal()

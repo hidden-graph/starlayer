@@ -15,9 +15,9 @@ import pytest
 from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.plugins.sparql.processor import prepareQuery, prepareUpdate
 from starlayer.sparql import queries_to_collection, query_to_rdf, update_to_rdf
+from starlayer.sparql._vocab_rdflib import PY_STR_DATATYPE, SALG, SPEXPR
 from starlayer.sparql.parse12 import prepare_query_12
 from starlayer.sparql.salg import shapes_graph, validate_query
-from starlayer.sparql.vocab import PY_STR_DATATYPE, SALG, SPEXPR
 from tests.sparql.unit.test_phase2_aggregates import QUERIES as AGGREGATE_QUERIES
 from tests.sparql.unit.test_phase2_forms import QUERIES as FORMS_QUERIES
 from tests.sparql.unit.test_phase2_paths import QUERIES as PATH_QUERIES
@@ -97,8 +97,8 @@ def test_expression_shape_relies_on_rdfs_reasoning_not_enumeration():
     behind it."""
     from rdflib import RDF, BNode
     from rdflib import Graph as RGraph
+    from starlayer.sparql._vocab_rdflib import SPEXPR
     from starlayer.sparql.salg.sparql_ontology import ontology_graph
-    from starlayer.sparql.vocab import SPEXPR
 
     data = RGraph()
     node = BNode()

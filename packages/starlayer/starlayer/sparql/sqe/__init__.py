@@ -40,8 +40,8 @@ from __future__ import annotations
 import importlib
 from typing import Any
 
-# The trees are rdflib graphs, and rdflib is an optional extra, so nothing is imported until a name is used (PEP 562). The
-# submodules ``rewrite`` (and ``entailment``) are used by ``StarLayerGraph.query`` and import without rdflib.
+# Names are imported on first use (PEP 562), so ``import starlayer.sparql.sqe`` stays cheap. The trees are ``StarLayerGraph``s of
+# pyoxigraph terms and nothing here needs rdflib, except ``sqe_tree_to_query``, which decodes a tree to an rdflib ``Query``.
 _LAZY = {
     "SQE": "vocab",
     "SQEError": "to_rdf",
@@ -57,9 +57,10 @@ __all__ = sorted(_LAZY)
 
 def __getattr__(name: str) -> Any:
     if name in _LAZY:
-        from starlayer._optional import require_rdflib
+        if name == "sqe_tree_to_query":
+            from starlayer._optional import require_rdflib
 
-        require_rdflib(f"starlayer.sparql.sqe.{name} (the sqe: query tree is an rdflib graph)")
+            require_rdflib("starlayer.sparql.sqe.sqe_tree_to_query (it returns an rdflib Query)")
         value = getattr(importlib.import_module(f"{__name__}.{_LAZY[name]}"), name)
         globals()[name] = value
         return value

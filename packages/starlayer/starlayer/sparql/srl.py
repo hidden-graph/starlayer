@@ -120,6 +120,8 @@ from rdflib.plugins.sparql.parserutils import CompValue
 from starlayer._ox_out import ox_out
 
 from . import _srl_ast as srl_ast
+from ._sqe_rdflib import _encode_expr
+from ._sqe_rdflib import expr_text as _sqe_expr_text
 from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     PlanEdge,
     PlanRule,
@@ -129,9 +131,7 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     TriplePattern,
 )
 from .spexpr_codec import _NS_OVERRIDES, _decode, _encode, _new_tree_graph
-from .sqe.expr_text import expr_text as _sqe_expr_text
-from .sqe.to_rdf import _encode_expr
-from .sqe.vocab import SQE as _SQE
+from .sqe._vocab_rdflib import SQE as _SQE
 from .srl_semantic_checks import _check_ruleset
 from .triple_term import TripleTermNode
 
