@@ -5,7 +5,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import rules
 from starlayer.shacl_engine.entailment import entailed_view
 from starlayer.shacl_engine.overlay_oxigraph import (
@@ -56,8 +56,8 @@ def ex(name: str) -> URIRef:
     return URIRef(EX + name)
 
 
-def graph(ttl: str) -> OxGraph:
-    g = OxGraph()
+def graph(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=PRE + ttl, format="turtle")
     return g
 
@@ -81,7 +81,7 @@ def test_guard_classifies_literals() -> None:
 
 
 def test_unsafe_literals_stay_python_side_and_come_back_exact() -> None:
-    view = OxigraphOverlay(engine_view(OxGraph()))
+    view = OxigraphOverlay(engine_view(StarLayerGraph()))
     for i, term in enumerate([*REWRITTEN, *KEPT]):
         assert view.add((ex("s"), ex(f"p{i}"), term)) is True
         assert view.add((ex("s"), ex(f"p{i}"), term)) is False
@@ -98,7 +98,7 @@ def test_unsafe_literals_stay_python_side_and_come_back_exact() -> None:
 
 
 def test_remove_both_sides() -> None:
-    view = OxigraphOverlay(engine_view(OxGraph()))
+    view = OxigraphOverlay(engine_view(StarLayerGraph()))
     a, b = (ex("s"), ex("p"), lit("04", XSD.integer)), (ex("s"), ex("p"), Literal("4", datatype=XSD.integer))
     view.add(a)
     view.add(b)
@@ -120,7 +120,7 @@ def test_subproperty_entailment_keeps_source_literals(overlay_kind) -> None:
     got = {exact(o) for o in view.objects(ex("s"), ex("q"))}
     want = {exact(o) for o in engine_view(data).objects(ex("s"), ex("p"))}
     assert got == want and len(got) == 4
-    # the data graph is an OxGraph, so "04"^^xsd:integer and "1"^^xsd:boolean are already "4" and "true" when the overlay reads them
+    # the data graph is an StarLayerGraph, so "04"^^xsd:integer and "1"^^xsd:boolean are already "4" and "true" when the overlay reads them
     assert ("4", XSD.integer, None, None, Literal) in got and ("true", XSD.boolean, None, None, Literal) in got
     assert ("5", XSD.integer, None, None, Literal) in got
 
@@ -141,7 +141,7 @@ def test_copying_rule_keeps_source_literals(overlay_kind) -> None:
     for pred in ("copy", "copy2"):
         got = {exact(o) for o in res.view.objects(ex("s"), ex(pred))}
         assert got == {exact(o) for o in engine_view(data).objects(ex("s"), ex("p"))}
-        # the data graph is an OxGraph: "04"^^xsd:integer is stored (and copied) as "4", "5"^^xsd:unsignedByte as "5"^^xsd:integer
+        # the data graph is an StarLayerGraph: "04"^^xsd:integer is stored (and copied) as "4", "5"^^xsd:unsignedByte as "5"^^xsd:integer
         assert ("4", XSD.integer, None, None, Literal) in got and ("5", XSD.integer, None, None, Literal) in got
     assert {(s, p, exact(o)) for s, p, o in map(to_engine_triple, res.inferred) if isinstance(o, Literal)} == {
         (ex("s"), ex(p), exact(o)) for p in ("copy", "copy2") for o in engine_view(data).objects(ex("s"), ex("p"))
@@ -175,8 +175,8 @@ def test_same_answers_as_inferred_view() -> None:
 
 
 def test_add_after_materialise_keeps_the_materialised_union_in_step() -> None:
-    view = OxigraphOverlay(engine_view(OxGraph()))
+    view = OxigraphOverlay(engine_view(StarLayerGraph()))
     view.materialised()
     view.add((ex("s"), ex("p"), Literal("5", datatype=XSD.integer)))  # store side
     view.add((ex("s"), ex("p"), lit("04", XSD.integer)))  # python side
-    assert len(view.materialised()) == 2  # (the materialised graph is an OxGraph: "04" is held as "4", still distinct from "5")
+    assert len(view.materialised()) == 2  # (the materialised graph is an StarLayerGraph: "04" is held as "4", still distinct from "5")

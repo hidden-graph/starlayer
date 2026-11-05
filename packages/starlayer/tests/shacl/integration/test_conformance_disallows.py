@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -16,8 +16,8 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 # used explicit in the report.
 
 
-def _shapes_with_warning_severity() -> OxGraph:
-    shapes = OxGraph()
+def _shapes_with_warning_severity() -> StarLayerGraph:
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -36,8 +36,8 @@ def _shapes_with_warning_severity() -> OxGraph:
     return shapes
 
 
-def _data_with_bad_age() -> OxGraph:
-    data = OxGraph()
+def _data_with_bad_age() -> StarLayerGraph:
+    data = StarLayerGraph()
     data.add((EX.alice, EX.age, Literal("not a number")))
     return data
 
@@ -78,8 +78,8 @@ def test_allow_warnings_removes_warning_from_disallowed_set_and_conforms() -> No
     assert result.conforms is True
 
 
-def _shapes_with_severity(severity: str) -> OxGraph:
-    shapes = OxGraph()
+def _shapes_with_severity(severity: str) -> StarLayerGraph:
+    shapes = StarLayerGraph()
     shapes.parse(
         data=f"""
             @prefix ex: <http://example.org/> .

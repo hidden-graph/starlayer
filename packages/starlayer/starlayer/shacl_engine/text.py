@@ -4,7 +4,7 @@
 validator then extended with a provenance appendix): the same header, the same per-result block, results sorted by their
 block text, then the ``Provenance:`` appendix. Natively written: nothing here imports pyshacl or the old validator.
 
-Everything here works on engine (pyoxigraph) terms; a graph is any engine-term graph (``OxGraph``, an overlay), and its
+Everything here works on engine (pyoxigraph) terms; a graph is any engine-term graph (``StarLayerGraph``, an overlay), and its
 prefixes are those it binds (``namespaces()``), when it has any.
 
 Known differences from the old text: a result's *generic* message (the ``Less than 1 values on ex:a->ex:p`` lines pySHACL

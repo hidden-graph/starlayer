@@ -3,7 +3,7 @@
 import pytest
 from rdflib import RDF, Namespace
 from starlayer import starontology
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.shape_types import infer_types
 
 from ._rdflib_view import rd
@@ -17,7 +17,7 @@ PREFIXES = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> 
 
 
 def _types(ttl: str) -> set[tuple]:
-    graph = OxGraph()
+    graph = StarLayerGraph()
     graph.parse(data=PREFIXES + ttl, format="turtle12")
     return {(s, o) for s, _, o in rd(infer_types(graph))}
 
@@ -72,7 +72,7 @@ def test_a_type_the_graph_already_states_is_not_returned() -> None:
 
 
 def test_the_shapes_graph_is_not_changed() -> None:
-    graph = OxGraph()
+    graph = StarLayerGraph()
     graph.parse(data=PREFIXES + "ex:S sh:targetClass ex:C .", format="turtle12")
     before = set(graph)
     infer_types(graph)
@@ -80,7 +80,7 @@ def test_the_shapes_graph_is_not_changed() -> None:
 
 
 def test_the_result_holds_only_rdf_type_triples_in_the_sh_namespace() -> None:
-    graph = OxGraph()
+    graph = StarLayerGraph()
     graph.parse(data=PREFIXES + "ex:S sh:targetClass ex:C ; sh:property ex:P . ex:P sh:path ex:p .", format="turtle12")
     result = rd(infer_types(graph))
     assert len(result) > 0

@@ -1,7 +1,7 @@
 """``owl_imports``, ``has_import_locally``, ``resolve_imports`` and ``can_resolve_import``: the ``owl:imports`` closure of a graph.
 
 Ported from ``StarLayerGraph``. The loader maps an import IRI (a ``NamedNode``) to a graph, or ``None``; it may return an
-``OxGraph`` / ``OxDataset`` or any object with ``triples(pattern)`` (an old ``StarLayerGraph``'s terms are converted).
+``StarLayerGraph`` / ``StarLayerDataset`` or any object with ``triples(pattern)`` (an old ``StarLayerGraph``'s terms are converted).
 """
 
 from __future__ import annotations
@@ -81,10 +81,10 @@ def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None
         result.extend(delta)
         return result
     if target_graph is None:
-        from starlayer.graph.oxgraph.core import OxGraph
+        from starlayer.graph.oxgraph.core import StarLayerGraph
 
-        target_graph = OxGraph(prefixes=dict(g.prefixes))
+        target_graph = StarLayerGraph(prefixes=dict(g.prefixes))
     elif not (hasattr(target_graph, "extend") and hasattr(target_graph, "store")):
-        raise TypeError(f"resolve_imports() target_graph must be an OxGraph or OxDataset, not {type(target_graph).__name__}.")
+        raise TypeError(f"resolve_imports() target_graph must be an StarLayerGraph or StarLayerDataset, not {type(target_graph).__name__}.")
     target_graph.extend(list(g.triples()) + list(delta))
     return target_graph

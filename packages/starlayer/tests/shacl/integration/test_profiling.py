@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Graph, Literal, Namespace, URIRef
 from rdflib.namespace import RDF, RDFS
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, shacl_profiling
 
 from ._rdflib_view import rd
@@ -35,14 +35,14 @@ _UNDECLARED_PROFILES = (
 )
 
 
-def _valid_data() -> OxGraph:
-    data = OxGraph()
+def _valid_data() -> StarLayerGraph:
+    data = StarLayerGraph()
     data.add((EX.alice, EX.age, Literal(30)))
     return data
 
 
-def _shapes() -> OxGraph:
-    shapes = OxGraph()
+def _shapes() -> StarLayerGraph:
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -93,7 +93,7 @@ def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -
 
 
 def test_declared_conformance_profile_returns_independent_copies() -> None:
-    first = shacl_profiling.declared_conformance_profile()  # the OxGraph itself: adding to it must not reach the next call
+    first = shacl_profiling.declared_conformance_profile()  # the StarLayerGraph itself: adding to it must not reach the next call
     first.add((_LIBRARY_IRI, DCTERMS.conformsTo, URIRef("http://www.w3.org/ns/shacl/profile/ui")))
 
     second = shacl_profiling.declared_conformance_profile()

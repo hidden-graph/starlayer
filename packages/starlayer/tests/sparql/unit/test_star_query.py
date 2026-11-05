@@ -1,18 +1,18 @@
 """Tests for starlayer.sparql.StarQuery - binds a SPARQL query (prepared
-once) plus OxGraph.query()'s own per-call options, so the same
+once) plus StarLayerGraph.query()'s own per-call options, so the same
 query can run against several different graphs without repeating them.
 """
 
-from starlayer.graph import Namespace
+from rdflib import Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql import StarQuery
 
 EX = Namespace("http://example.org/")
 
 
-def _graph(data: str) -> OxGraph:
-    g = OxGraph()
+def _graph(data: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.bind("ex", EX)
     g.parse(data=data, format="turtle")
     return g
@@ -99,9 +99,9 @@ class TestRunsAgainstAnOxGraph:
     """The wrapper takes query text, not a prepared query object, so ``run`` sends the text."""
 
     def _ox(self, data: str):
-        from starlayer.graph.oxgraph import OxGraph
+        from starlayer.graph.oxgraph import StarLayerGraph
 
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=data, format="turtle")
         return g
 

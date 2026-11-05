@@ -6,7 +6,7 @@ import warnings
 import pyoxigraph as ox
 import pytest
 from rdflib import Literal as RdLiteral
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import StarLayerDataset
 
 warnings.simplefilter("ignore")
 E = lambda n: ox.NamedNode("http://e/" + n)  # noqa: E731
@@ -21,7 +21,7 @@ def TripleTerm(s, p, o):  # noqa: N802
 
 
 def test_iri_and_bnode_graph_names_with_the_same_text_are_two_graphs():
-    d = OxDataset()
+    d = StarLayerDataset()
     d.graph(ox.NamedNode("urn:abc")).add((E("a"), E("p"), E("1")))
     d.graph(ox.BlankNode("abc")).add((E("a"), E("p"), E("2")))
     names = sorted((type(q.graph_name).__name__, q.object.value) for q in d.quads())
@@ -35,12 +35,12 @@ def test_default_union_triples_yields_a_triple_in_several_graphs_once():
         d.graph(E("g2")).add((E("a"), E("p"), E("c")))
         return len(d), len(list(d.triples((None, None, None)))), len(list(d.query("select * {?s ?p ?o}")))
 
-    assert counts(OxDataset(default_union=True)) == (2, 2, 2)
+    assert counts(StarLayerDataset(default_union=True)) == (2, 2, 2)
 
 
 def test_quads_restore_a_triple_term():
     tt = TripleTerm(E("a"), E("p"), Literal("x"))
-    d = OxDataset()
+    d = StarLayerDataset()
     d.graph(E("g1")).add((E("s"), E("p"), tt))
     assert [q.object for q in d.quads()] == [tt]
 
@@ -63,7 +63,7 @@ def test_manchester_float_lexical_form_is_single_precision(text, expected):
 
 
 def test_serializers_include_the_default_graph():
-    d = OxDataset()
+    d = StarLayerDataset()
     d.add((E("s"), E("p"), E("o")))
     d.graph(E("g1")).add((E("s"), E("p"), E("o2")))
     assert "<http://e/s> <http://e/p> <http://e/o> ." in d.serialize(format="nq12")

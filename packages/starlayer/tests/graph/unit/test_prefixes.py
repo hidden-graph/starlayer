@@ -4,14 +4,14 @@ reduce_prefixes() is not ported: ``_reduced`` below is its documented replacemen
 import pyoxigraph as ox
 import pytest
 from rdflib import Graph, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 EX = Namespace("http://e/")
 TTL = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix unused: <http://unused/> . ex:S a sh:NodeShape ; sh:name 'x' ."
 
 
-def _graph(ttl: str = TTL, **kwargs) -> OxGraph:
-    g = OxGraph(**kwargs)
+def _graph(ttl: str = TTL, **kwargs) -> StarLayerGraph:
+    g = StarLayerGraph(**kwargs)
     g.parse(data=ttl, format="turtle12")
     return g
 
@@ -67,7 +67,7 @@ def test_the_internal_prefixes_are_never_returned() -> None:
 def test_it_works_on_a_plain_rdflib_graph() -> None:
     g = Graph()
     g.parse(data=TTL, format="turtle")
-    assert _names(OxGraph.from_rdflib(g)) == ["ex", "sh"]
+    assert _names(StarLayerGraph.from_rdflib(g)) == ["ex", "sh"]
 
 
 def test_the_turtle12_writer_declares_exactly_these_prefixes() -> None:
@@ -78,7 +78,7 @@ def test_the_turtle12_writer_declares_exactly_these_prefixes() -> None:
 
 def test_a_graph_created_with_core_namespaces_can_still_query_and_update() -> None:
     """query()/update() bound rdflib's defaults into the shared store while iterating it, which raised."""
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data="@prefix ex: <http://e/> . ex:a ex:p 1 .", format="turtle12")
     assert len(list(g.query("SELECT ?s WHERE { ?s ?p ?o }"))) == 1
     g.update("INSERT DATA { <http://e/b> <http://e/p> 2 }")
@@ -87,7 +87,7 @@ def test_a_graph_created_with_core_namespaces_can_still_query_and_update() -> No
 
 def test_parsing_turtle12_does_not_add_rdflibs_default_prefixes_to_a_core_graph() -> None:
     g = _graph()
-    assert {p for p, _ in g.namespaces()} == {"ex", "sh", "unused"}  # an OxGraph starts with no prefixes
+    assert {p for p, _ in g.namespaces()} == {"ex", "sh", "unused"}  # an StarLayerGraph starts with no prefixes
 
 
 def test_a_declared_prefix_keeps_its_name_when_the_graph_has_no_default_for_it() -> None:
@@ -95,9 +95,9 @@ def test_a_declared_prefix_keeps_its_name_when_the_graph_has_no_default_for_it()
     assert "@prefix geo: <http://my/geo#>" in g.serialize(format="turtle12")
 
 
-# ---------------------------------------------------------------- methods on OxGraph and OxDataset (GitHub issue #29)
+# ---------------------------------------------------------------- methods on StarLayerGraph and StarLayerDataset (GitHub issue #29)
 from rdflib import Dataset as RdflibDataset  # noqa: E402
-from starlayer.graph.oxgraph import OxDataset  # noqa: E402
+from starlayer.graph.oxgraph import StarLayerDataset  # noqa: E402
 
 TT_TTL = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix u: <http://u/> . ex:a a sh:NodeShape ; ex:p <<( ex:b ex:q ex:c )>> ."
 TRIG = (
@@ -106,8 +106,8 @@ TRIG = (
 )
 
 
-def _dataset(trig: str = TRIG, **kwargs) -> OxDataset:
-    d = OxDataset(**kwargs)
+def _dataset(trig: str = TRIG, **kwargs) -> StarLayerDataset:
+    d = StarLayerDataset(**kwargs)
     d.parse(data=trig, format="trig12")
     return d
 
@@ -144,11 +144,11 @@ def test_the_reduced_graph_serializes_the_same_turtle() -> None:
 
 
 def test_reduce_prefixes_of_a_graph_with_nothing_in_a_namespace_has_no_bindings() -> None:
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((EX.a, EX.p, EX.b))
     g.bind("ex", EX)
     assert [p for p, _ in _reduced(g).namespaces()] == ["ex"]
-    assert list(_reduced(OxGraph()).namespaces()) == []
+    assert list(_reduced(StarLayerGraph()).namespaces()) == []
 
 
 def test_the_dataset_method_counts_every_graph_and_the_graph_names() -> None:
@@ -168,13 +168,13 @@ def test_reduce_prefixes_on_a_dataset_keeps_every_graph_and_only_the_used_bindin
 
 
 def test_a_dataset_can_start_without_the_default_prefixes() -> None:
-    assert list(OxDataset().namespaces()) == []  # the old class started with 29 default bindings; an OxDataset has none
+    assert list(StarLayerDataset().namespaces()) == []  # the old class started with 29 default bindings; an StarLayerDataset has none
 
 
 def test_the_dataset_method_agrees_with_rdflib_on_a_dataset_it_did_not_build() -> None:
     rdflib_ds = RdflibDataset()
     rdflib_ds.parse(data=TRIG, format="trig")
-    assert [p for p, _ in OxDataset.from_rdflib(rdflib_ds).used_prefixes()] == [p for p, _ in _dataset().used_prefixes()]
+    assert [p for p, _ in StarLayerDataset.from_rdflib(rdflib_ds).used_prefixes()] == [p for p, _ in _dataset().used_prefixes()]
 
 
 # --- a TriG prefix declaration written without a space before the IRI was ignored, leaving "ex:a" as a literal IRI
@@ -194,7 +194,7 @@ _EX = _Namespace("http://ex.org/")
 
 
 def test_a_reduced_dataset_copy_keeps_default_union_so_queries_return_the_same_rows() -> None:
-    d = OxDataset(default_union=True)
+    d = StarLayerDataset(default_union=True)
     d.bind("ex", _EX)
     d.graph(_EX.g).add((_EX.a, _EX.p, _EX.b))
     reduced = _reduced(d)
@@ -204,7 +204,7 @@ def test_a_reduced_dataset_copy_keeps_default_union_so_queries_return_the_same_r
 
 
 def test_a_reduced_dataset_copy_without_default_union_stays_without_it() -> None:
-    d = OxDataset(default_union=False)
+    d = StarLayerDataset(default_union=False)
     d.graph(_EX.g).add((_EX.a, _EX.p, _EX.b))
     reduced = _reduced(d)
     assert reduced.default_union is False
@@ -212,7 +212,7 @@ def test_a_reduced_dataset_copy_without_default_union_stays_without_it() -> None
 
 
 def test_a_reduced_copy_of_a_named_graph_keeps_its_name() -> None:
-    d = OxDataset()
+    d = StarLayerDataset()
     named = d.graph(_EX.g)
     named.add((_EX.a, _EX.p, _EX.b))
     assert _reduced(named).identifier == ox.NamedNode(str(_EX.g))

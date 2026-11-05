@@ -146,7 +146,7 @@ class StarQuery:
 
         if is_oxigraph_input(graph):
             # The wrapper runs the query text on Oxigraph (no prepared query object). RDF / RDFS entailment rewrites the text;
-            # the OWL regimes run on a temporary closure copy (see OxGraph.query). timeout is only meaningful for OWL-Direct, as
+            # the OWL regimes run on a temporary closure copy (see StarLayerGraph.query). timeout is only meaningful for OWL-Direct, as
             # on StarLayerGraph.query(), which is where a misuse raises.
             return graph.query(
                 self._text,

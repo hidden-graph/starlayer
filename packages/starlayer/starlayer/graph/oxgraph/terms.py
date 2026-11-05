@@ -40,7 +40,7 @@ def graph_name(x: Any) -> Any:
         return ox.DefaultGraph()
     if isinstance(x, str):
         return NamedNode(x)
-    ident = getattr(x, "identifier", None)  # an OxGraph
+    ident = getattr(x, "identifier", None)  # an StarLayerGraph
     if ident is not None:
         return ident
     return term(x)

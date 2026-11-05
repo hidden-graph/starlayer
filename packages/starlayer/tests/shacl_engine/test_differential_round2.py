@@ -4,7 +4,7 @@ list parameter functions called from SPARQL, SPARQL-based custom components, con
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.expressions import EvaluationFailure
 from starlayer.shacl_engine.terms import NS as Namespace
@@ -19,7 +19,7 @@ PREFIXES = """
 
 
 def run(shapes: str, data: str = "", **kw):
-    s, d = OxGraph(), OxGraph()
+    s, d = StarLayerGraph(), StarLayerGraph()
     s.parse(data=PREFIXES + shapes, format="turtle")
     d.parse(data=PREFIXES + data, format="turtle")
     return validate(d, s, **kw)
@@ -109,7 +109,7 @@ def test_rules_in_a_shapes_graph_do_not_change_a_blank_focus_node_description_un
 def test_boolean_parameter_true_is_active():
     # "1"^^xsd:boolean is stored as "true" by Oxigraph, so the lexical-form distinction can no longer be tested here
     shapes = 'ex:S a sh:NodeShape ; sh:targetNode ex:t ; sh:property [ sh:path ex:title ; sh:singleLine "true"^^xsd:boolean ] .'
-    s, d = OxGraph(), OxGraph()
+    s, d = StarLayerGraph(), StarLayerGraph()
     s.parse(data=PREFIXES + shapes, format="turtle")
     d.parse(data=PREFIXES + 'ex:t ex:title """a\nb""" .', format="turtle")
     assert validate(d, s).conforms is False

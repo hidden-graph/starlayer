@@ -6,13 +6,13 @@ ontology/SHACL-shapes files that tree representation is validated against.
 This lives here, not in starlayer.ontology.to_ast_rdf/manchester_shapes,
 on the reasoning that Manchester-tree editing is an *ontology-management*
 concern (same bucket as starontology itself), not a starlayer.graph concern -
-the OWL-compiling parser/serializer pair (OxGraph.parse()/.serialize()
+the OWL-compiling parser/serializer pair (StarLayerGraph.parse()/.serialize()
 format='manchester') stays in starlayer.graph; only the tree layer and its
 own validation live here.
 
 Four entry points:
 
-- ``manchester_parse_to_tree(text, base=None) -> OxGraph`` - parse Manchester text
+- ``manchester_parse_to_tree(text, base=None) -> StarLayerGraph`` - parse Manchester text
   straight to its ``manch:``-encoded syntax tree, reusing
   ``starlayer.graph.parsers.manchester_parser``'s own tokenizer/frame/
   clause/expression-parsing functions completely unchanged (via a
@@ -27,12 +27,12 @@ Four entry points:
   around separately.
 - ``manchester_tree_to_text(graph) -> str`` - the inverse: render ``manch:`` tree-RDF
   back to real Manchester Syntax text.
-- ``manchester_tree_to_owl(graph) -> OxGraph`` - the tree's compiled OWL
+- ``manchester_tree_to_owl(graph) -> StarLayerGraph`` - the tree's compiled OWL
   content, as a real graph (not a bare ``list[tuple]``, changed
   2026-10-03) - by composing ``manchester_tree_to_text()`` with
   ``manchester_parser.parse_manchester()`` (the real, trusted OWL compiler)
-  and adding the result into a fresh ``OxGraph``, the same way
-  ``OxGraph.parse(format='manchester')`` already populates one.
+  and adding the result into a fresh ``StarLayerGraph``, the same way
+  ``StarLayerGraph.parse(format='manchester')`` already populates one.
   Going through text here is safe, not a shortcut-that-loses-fidelity:
   ``manchester_tree_to_text()`` is a fully faithful renderer of everything this module
   captures, so nothing is lost before the OWL compiler sees it.
@@ -541,19 +541,19 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
     Args:
         text: The Manchester Syntax document text to parse.
         base: Base IRI for resolving relative IRIs, if any.
-        graph: Write the tree into this graph instead of a fresh one - an ``OxGraph`` (or ``OxDataset`` / ``pyoxigraph.Store``)
+        graph: Write the tree into this graph instead of a fresh one - an ``StarLayerGraph`` (or ``StarLayerDataset`` / ``pyoxigraph.Store``)
             gets pyoxigraph terms and the ``manch:`` prefix; an rdflib graph gets rdflib terms. ``None`` (the default) builds
-            a fresh ``OxGraph``.
+            a fresh ``StarLayerGraph``.
 
     Returns:
-        ``graph`` if given, otherwise a fresh ``OxGraph``, holding exactly one ``manch:Document`` tree.
+        ``graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:Document`` tree.
     """
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
     if graph is None:
-        from starlayer.graph.oxgraph.core import OxGraph
+        from starlayer.graph.oxgraph.core import StarLayerGraph
 
-        graph = OxGraph()
+        graph = StarLayerGraph()
     tree = _manchester_parse_to_rdflib_tree(text, base)
     graph.bind("manch", str(MANCH) if _ox.is_oxigraph_input(graph) else MANCH)
     _ox.merge_into(graph, tree)
@@ -1090,7 +1090,7 @@ def _document_to_text(document: Document) -> str:
 
 def manchester_tree_to_text(graph: Graph) -> str:
     """Thin wrapper composing ``_tree_to_document`` + ``_document_to_text``
-    for a caller who just wants text back. ``graph`` may be an ``OxGraph`` (read as a snapshot)."""
+    for a caller who just wants text back. ``graph`` may be an ``StarLayerGraph`` (read as a snapshot)."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
     (graph,) = _ox.read_boundary(graph)
@@ -1103,10 +1103,10 @@ def manchester_tree_to_text(graph: Graph) -> str:
 
 
 def manchester_tree_to_owl(graph: Any) -> Any:
-    """The tree's compiled OWL triples, as an ``OxGraph`` -
+    """The tree's compiled OWL triples, as an ``StarLayerGraph`` -
     renders the tree to Manchester text via ``manchester_tree_to_text()``,
     then compiles that text the same way any other caller would:
-    ``OxGraph.parse(format='manchester')`` (which is itself backed
+    ``StarLayerGraph.parse(format='manchester')`` (which is itself backed
     by ``manchester_parser.parse_manchester()``, the real, trusted OWL
     compiler) - rather than reaching past that public entry point to call
     the lower-level parser function directly.
@@ -1120,18 +1120,18 @@ def manchester_tree_to_owl(graph: Any) -> Any:
         graph: A ``manch:`` syntax tree, e.g. from ``manchester_parse_to_tree()``.
 
     Returns:
-        The compiled OWL content as a fresh ``OxGraph``.
+        The compiled OWL content as a fresh ``StarLayerGraph``.
     """
-    from starlayer.graph.oxgraph.core import OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    owl_graph = OxGraph()
+    owl_graph = StarLayerGraph()
     owl_graph.parse(data=manchester_tree_to_text(graph), format='manchester')
     return owl_graph
 
 
 def _vocabulary_snapshot() -> Any:
     """The ``manch:`` OWL vocabulary as an rdflib snapshot: the pre-flight below reads rdflib terms, and
-    ``get_ontology_graph`` returns an ``OxGraph``."""
+    ``get_ontology_graph`` returns an ``StarLayerGraph``."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
     (snapshot,) = _ox.read_boundary(get_ontology_graph("manchester_owl"))
@@ -1257,7 +1257,7 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
     from starlayer.graph.graph.entailment_regimes import ENTAILMENT
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    (snapshot,) = _ox.read_boundary(data_graph)  # the pre-flight reads rdflib terms: an OxGraph is read as a snapshot
+    (snapshot,) = _ox.read_boundary(data_graph)  # the pre-flight reads rdflib terms: an StarLayerGraph is read as a snapshot
     problems = _preflight(snapshot)
     if any("cycle" in message for _, message in problems):
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.
@@ -1291,9 +1291,9 @@ def _preflight_report(problems, report_graph):
 
     sh = Namespace(_SH)
     if report_graph is None:
-        from starlayer.graph.oxgraph.core import OxGraph
+        from starlayer.graph.oxgraph.core import StarLayerGraph
 
-        report_graph = OxGraph()
+        report_graph = StarLayerGraph()
         report_graph.add((BNode(), RDF.type, sh.ValidationReport))
     report_node = report_graph.value(None, RDF.type, sh.ValidationReport)
     for focus, message in problems:

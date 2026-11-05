@@ -6,7 +6,7 @@ import random
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.pretty import pretty_trig
 
 D = ox.DefaultGraph()
@@ -23,7 +23,7 @@ def test_relative_iri_with_colon_in_first_segment_reparses(rest: str) -> None:
 
 
 def test_pretty_honours_rdf_version_1_1() -> None:
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((N("http://e/s"), N("http://e/p"), ox.Triple(N("http://e/a"), N("http://e/b"), N("http://e/c"))))
     out = g.serialize(format="turtle", pretty=True, rdf_version="1.1")
     assert "<<" not in out and "@version" not in out

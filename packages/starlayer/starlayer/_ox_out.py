@@ -1,8 +1,8 @@
-"""``ox_out``: the decorator behind the rule "an Oxigraph graph in -> an ``OxGraph`` out".
+"""``ox_out``: the decorator behind the rule "an Oxigraph graph in -> an ``StarLayerGraph`` out".
 
 A library function that runs on rdflib code and returns a graph (or a result holding graphs) is decorated with the names of its
-graph parameters. When any of them is an ``OxGraph`` / ``OxDataset`` / ``pyoxigraph.Store`` the graphs in the result are
-converted to ``OxGraph`` (pyoxigraph terms; the prefixes of the inputs plus those the result's IRIs use); with any other input
+graph parameters. When any of them is an ``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store`` the graphs in the result are
+converted to ``StarLayerGraph`` (pyoxigraph terms; the prefixes of the inputs plus those the result's IRIs use); with any other input
 the result is returned as it is. The conversion lives in ``starlayer.graph.oxgraph._rdflib_bridge``, imported at call time
 because that package imports the modules that use this decorator.
 """

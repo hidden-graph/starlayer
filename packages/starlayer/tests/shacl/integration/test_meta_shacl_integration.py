@@ -1,17 +1,17 @@
 import pytest
 from rdflib import Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
 
 
-def _ill_formed_case() -> tuple[OxGraph, OxGraph]:
-    data = OxGraph()
+def _ill_formed_case() -> tuple[StarLayerGraph, StarLayerGraph]:
+    data = StarLayerGraph()
     data.add((EX.alice, EX.age, Literal(30)))
 
     # Intentionally ill-formed: property shape is missing required sh:path.
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .

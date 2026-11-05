@@ -1,4 +1,4 @@
-"""Result records -> ``sh:ValidationReport`` graph (an ``OxGraph``)."""
+"""Result records -> ``sh:ValidationReport`` graph (an ``StarLayerGraph``)."""
 
 from __future__ import annotations
 
@@ -95,7 +95,7 @@ def annotate_provenance(
 def build_report(
     results: list[Result], shapes: Any, data: Any, conformance_disallows: Any = None, messages_for: Any = None
 ) -> Any:
-    """The report as an ``OxGraph``. ``messages_for(result)``, when given, supplies the ``sh:resultMessage`` values of a
+    """The report as an ``StarLayerGraph``. ``messages_for(result)``, when given, supplies the ``sh:resultMessage`` values of a
     result in place of its own."""
     g = new_graph()
     g.bind("sh", str(SH))

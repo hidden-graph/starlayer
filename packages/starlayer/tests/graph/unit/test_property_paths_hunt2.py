@@ -3,7 +3,7 @@
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 warnings.simplefilter("ignore")
 P = "PREFIX : <http://e/> "
@@ -12,7 +12,7 @@ CYCLE = "@prefix : <http://e/> . :a :p :b . :b :p :c . :c :p :a . :a :p :a . :x 
 
 
 def _rows(turtle, path, select="?s ?o", pattern="?s {path} ?o"):
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=turtle, format="turtle12")
     query = f"{P}SELECT {select} {{ {pattern.format(path=path)} }}"
     return sorted(tuple(v.value.rsplit("/", 1)[-1] for v in row) for row in g.query(query))

@@ -16,7 +16,7 @@ import pytest
 from rdflib import Namespace
 from rdflib.namespace import RDF
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, target_nodes
 from starlayer.shacl_engine.terms import to_engine
 
@@ -39,14 +39,14 @@ DATA = """
 """
 
 
-def _shapes() -> OxGraph:
-    g = OxGraph()
+def _shapes() -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=SHAPES, format="turtle")
     return g
 
 
-def _data() -> OxGraph:
-    g = OxGraph()
+def _data() -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=DATA, format="turtle")
     return g
 
@@ -102,7 +102,7 @@ class TestApplyRulesSeesEntailmentBeforeRulesRun:
     rule *fire* in the first place."""
 
     def test_rule_targeting_entailed_class_fires(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -137,7 +137,7 @@ class TestApplyRulesValidatesGlobalRuleOutput:
     apply_rules()'s own final re-validation call site."""
 
     def test_conforms_reflects_a_shape_violated_only_by_global_rule_output(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -156,7 +156,7 @@ class TestApplyRulesValidatesGlobalRuleOutput:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -200,7 +200,7 @@ class TestTargetNodesRespectsEntailment:
 
     def test_neither_data_graph_nor_ont_graph_is_mutated(self) -> None:
         data = _data()
-        ont = OxGraph()
+        ont = StarLayerGraph()
         before_data, before_ont = set(data), set(ont)
 
         target_nodes(
@@ -215,7 +215,7 @@ class TestTargetNodesRespectsEntailment:
         assert set(ont) == before_ont
 
     def test_starshaclschema_method_threads_its_own_bound_ont_graph(self) -> None:
-        ont = OxGraph()
+        ont = StarLayerGraph()
         ont.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -224,7 +224,7 @@ class TestTargetNodesRespectsEntailment:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:worksAt ex:Acme .", format="turtle")
 
         schema = StarShaclSchema(shacl_graph=_shapes(), ont_graph=ont, inference=ENTAILMENT.RDFS)

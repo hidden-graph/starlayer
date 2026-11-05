@@ -277,15 +277,15 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tup
 
     Args:
         ruleset: The RuleSet to encode.
-        graph: Graph to add the encoding to (an ``OxGraph``, which gets pyoxigraph terms, or an rdflib graph); a fresh
+        graph: Graph to add the encoding to (an ``StarLayerGraph``, which gets pyoxigraph terms, or an rdflib graph); a fresh
             ``rdflib.Graph`` if not given.
 
     Returns:
-        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node (a pyoxigraph term for an ``OxGraph``).
+        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node (a pyoxigraph term for an ``StarLayerGraph``).
     """
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    if graph is not None and _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+    if graph is not None and _ox.is_oxigraph_input(graph):  # an StarLayerGraph target: encode on rdflib terms, then add them to it
         return _ox.write_boundary(graph, lambda g: _ruleset_to_rdflib_tree(ruleset, _new_tree_graph()))
     return _ruleset_to_rdflib_tree(ruleset, graph if graph is not None else _new_tree_graph())
 
@@ -443,7 +443,7 @@ def tree_to_ruleset(graph: Graph, root) -> srl_ast.RuleSet:
     not yet decoded) back into a real ``srl_ast.RuleSet``."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    graph, root = _ox.read_boundary(graph, root)  # an OxGraph is read as a snapshot of rdflib terms
+    graph, root = _ox.read_boundary(graph, root)  # an StarLayerGraph is read as a snapshot of rdflib terms
     rules = [_decode_rule(n, graph) for n in _read_rdf_list(graph.value(root, _RULES), graph)]
     data = [_decode_data(n, graph) for n in _read_rdf_list(graph.value(root, _DATA), graph)]
     imports = list(_read_rdf_list(graph.value(root, _IMPORTS), graph))
@@ -467,7 +467,7 @@ def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: NamespaceManage
 
     Args:
         ruleset: The RuleSet to render.
-        namespace_manager: If given (an rdflib ``NamespaceManager``, a prefix -> namespace ``dict`` or an ``OxGraph``), render
+        namespace_manager: If given (an rdflib ``NamespaceManager``, a prefix -> namespace ``dict`` or an ``StarLayerGraph``), render
             prefixed names instead of full
             ``<...>`` IRIs wherever a match exists - purely cosmetic, the
             resulting text still parses identically either way.
@@ -483,7 +483,7 @@ def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: NamespaceManage
 
 
 def _namespace_manager_of(source):
-    """``source`` as an rdflib ``NamespaceManager`` (or ``None``): a prefix -> namespace mapping, or an ``OxGraph`` (its
+    """``source`` as an rdflib ``NamespaceManager`` (or ``None``): a prefix -> namespace mapping, or an ``StarLayerGraph`` (its
     ``prefixes``), is turned into one; a ``NamespaceManager`` passes through."""
     if source is None:
         return None
@@ -574,7 +574,7 @@ def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) 
 
 def srl_parse_to_tree(text: str, base: str | None = None, graph: Graph | None = None) -> tuple[Graph, BNode]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
-    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (an ``OxGraph``, which gives pyoxigraph terms,
+    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (an ``StarLayerGraph``, which gives pyoxigraph terms,
     or an rdflib graph) is where the tree is written, a fresh ``rdflib.Graph`` when omitted."""
     return ruleset_to_tree(parse_ruleset(text, base), graph)
 

@@ -1,10 +1,10 @@
-"""Wrapper methods the guide notebooks use that the first cut of ``OxGraph`` / ``OxDataset`` lacked."""
+"""Wrapper methods the guide notebooks use that the first cut of ``StarLayerGraph`` / ``StarLayerDataset`` lacked."""
 
 from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph, reification
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph, reification
 
 N = ox.NamedNode
 EX = "http://example.org/"
@@ -13,7 +13,7 @@ REIFIES = N("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
 def test_triple_terms_and_has_triple_term():
-    g = OxGraph()
+    g = StarLayerGraph()
     t1, t2 = ox.Triple(A, P, B), ox.Triple(A, Q, C)
     g.add((N(EX + "r"), REIFIES, t1))
     g.add((N(EX + "r2"), REIFIES, t1))
@@ -26,7 +26,7 @@ def test_triple_terms_and_has_triple_term():
 
 
 def test_remove_reification():
-    g = OxGraph()
+    g = StarLayerGraph()
     t1, t2, r = ox.Triple(A, P, B), ox.Triple(A, P, C), N(EX + "r")
     g.add_reification(r, t1).add_reification(r, t2)
     g.add((r, Q, ox.Literal("note")))
@@ -38,7 +38,7 @@ def test_remove_reification():
 
 
 def test_qname_term_and_namespaces():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.bind("ex", EX)
     assert g.qname_term(A) == "ex:a"
     assert g.qname_term(N("http://other.org/x")) == "<http://other.org/x>" and "ns1" not in g.prefixes  # no prefix invented
@@ -58,7 +58,7 @@ def test_qname_term_and_namespaces():
 
 
 def test_dataset_default_graph_and_to_graph():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.bind("ex", EX)
     ds.add((A, P, B))
     ds.graph(N(EX + "g")).add((A, P, C))
@@ -67,20 +67,20 @@ def test_dataset_default_graph_and_to_graph():
     assert isinstance(dg.identifier, ox.DefaultGraph) and list(dg.triples()) == [(A, P, B)]
     assert ds.graph(dg.identifier).identifier == dg.identifier
     merged = ds.to_graph()
-    assert isinstance(merged, OxGraph) and set(merged.triples()) == {(A, P, B), (A, P, C)} and merged.prefixes == ds.prefixes
+    assert isinstance(merged, StarLayerGraph) and set(merged.triples()) == {(A, P, B), (A, P, C)} and merged.prefixes == ds.prefixes
     merged.add((B, P, A))
     assert len(ds.to_graph()) == 2  # a copy
 
 
 def test_dataset_reifier_methods_keep_graphs():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     t = ox.Triple(A, P, B)
     ann, r = ds.graph(N(EX + "ann")), N(EX + "claim")
     ann.add_reification(r, t)
     ann.add((r, Q, ox.Literal("src")))
     ds.graph(N(EX + "facts")).add((A, P, B))
     for result in (ds.reifiers(TT=t), ds.reifications(), ds.reifier_annotations(t), ds.reified_triples(r)):
-        assert isinstance(result, OxDataset) and len(result) > 0
+        assert isinstance(result, StarLayerDataset) and len(result) > 0
         assert result.graph_names() == [N(EX + "ann")]  # the facts graph holds no reifier
     assert len(ds.reifiers(TT=t)) == 2 and len(ds.reifications()) == 1 and len(ds.reifier_annotations(t)) == 1
     assert len(ds.reified_triples(r)) == 1 and len(ds.reifiers(TT=ox.Triple(B, P, A))) == 0
@@ -90,7 +90,7 @@ def test_dataset_reifier_methods_keep_graphs():
 
 
 def test_backend_keyword_is_rejected_with_directions():
-    for cls in (OxGraph, OxDataset):
+    for cls in (StarLayerGraph, StarLayerDataset):
         with pytest.raises(TypeError, match=r"store=.*path=.*http_select"):
             cls(backend="rdf-1.2")
-    assert OxGraph(backend=None).prefixes is not None
+    assert StarLayerGraph(backend=None).prefixes is not None

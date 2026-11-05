@@ -14,7 +14,7 @@ twice, not just once) - on the theory that interaction bugs are exactly
 what a curated, feature-isolated conformance suite is least likely to catch.
 
 Same methodology as test_w3c_sparql12_oxigraph_roundtrip.py: load real data
-into a live Oxigraph-backed OxGraph/OxDataset, run the
+into a live Oxigraph-backed StarLayerGraph/StarLayerDataset, run the
 original query text, translate it through this project's own RDF algebra
 and back to text, run the regenerated text against the *same* data, and
 compare results directly - no W3C fixture, no starlayer.graph in-memory backend
@@ -71,7 +71,7 @@ from rdflib import URIRef
 from rdflib.compare import to_isomorphic
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12
 from starlayer.sparql.serialize12 import _translate_algebra_12
@@ -125,11 +125,11 @@ def _clear_store(backend: str) -> None:
     ).raise_for_status()
 
 
-def _fresh_graph(backend: str) -> OxGraph:
+def _fresh_graph(backend: str) -> StarLayerGraph:
     _clear_store(backend)
     _, query_url, update_url = _ENDPOINTS[backend]
     store = SPARQLUpdateStore(query_endpoint=query_url, update_endpoint=update_url)
-    return OxGraph(store=store, identifier=DATASET_DEFAULT_GRAPH_ID, backend="rdf-1.2")
+    return StarLayerGraph(store=store, identifier=DATASET_DEFAULT_GRAPH_ID, backend="rdf-1.2")
 
 
 def _regenerate(query_text: str) -> str:

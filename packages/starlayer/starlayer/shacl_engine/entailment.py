@@ -1,6 +1,6 @@
 """Entailment regimes for the SHACL engine: ``entailed_view`` and ``resolve_data_view``.
 
-The closure is the project's own (``OxGraph.infer``: the RDFS closure by ``owlrl``'s ``RDFS_Semantics``, the OWL 2 RL
+The closure is the project's own (``StarLayerGraph.infer``: the RDFS closure by ``owlrl``'s ``RDFS_Semantics``, the OWL 2 RL
 fragment by ``owlrl`` for ``OWL-RDF-Based``), computed over the data graph plus ``ont_graph`` and kept as an
 ``InferredView`` overlay: only the newly entailed triples are held, the caller's graphs are never mutated, and
 ``ont_graph``'s own triples are visible to the reasoning but never copied into the view. Class targets and ``sh:class`` read

@@ -1,12 +1,9 @@
-"""D1 readiness: which live (non-test) modules still import the old rdflib-based ``StarLayerGraph`` / ``StarLayerDataset`` or the
-old parsers, serializers, backends, query machinery and ``lower_rdf11``.
+"""D1 is done: the rdflib-based ``StarLayerGraph`` / ``StarLayerDataset`` and the modules only they used are deleted.
 
-D1 renames ``OxGraph`` to ``StarLayerGraph`` and deletes the old classes and the modules only they use. It is a clean deletion
-when nothing live imports them. This test walks every module of ``starlayer/``, ``scripts/``, ``tools/`` and
-``packages/starlayer-kg`` with ``ast`` (lazy imports inside functions included; a name re-exported by a package facade is
-followed) and requires the importers to be exactly ``ALLOWED`` below. It fails both ways: a new importer is a regression, and an
-importer that is gone must be removed from ``ALLOWED`` so that the list shows what is left. See
-``docs/working/d1-readiness.md`` for what each entry waits on.
+This test keeps it that way. It requires that the modules D1 deleted do not exist, and walks every module of
+``starlayer/``, ``scripts/``, ``tools/`` and ``packages/starlayer-kg`` with ``ast`` (lazy imports inside functions
+included) to require that nothing imports them. ``StarLayerGraph`` / ``StarLayerDataset`` now name the Oxigraph-backed
+classes of ``starlayer.graph.oxgraph.core``. See ``docs/working/d1-readiness.md``.
 """
 
 from __future__ import annotations
@@ -14,11 +11,13 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[3]
 SCANNED = ("packages/starlayer/starlayer", "scripts", "tools", "packages/starlayer-kg")
 
-# The modules D1 deletes (or renames over), and the package prefixes everything under which goes with them, minus ``KEPT``.
-OLD_MODULES = frozenset({
+#: The modules D1 deleted.
+DELETED_MODULES = frozenset({
     "starlayer.graph.graph.starlayer_graph",
     "starlayer.graph.graph.starlayer_dataset",
     "starlayer.graph.graph._rdflib_inherited_contract",
@@ -26,41 +25,29 @@ OLD_MODULES = frozenset({
     "starlayer.sparql.lower_rdf11",
     "starlayer.sparql.entailment_rdf",
     "starlayer.sparql.entailment_rdfs",
+    "starlayer.graph.parsers.turtle_parser",
+    "starlayer.graph.parsers.syntax",
+    "starlayer.graph.parsers.trig12",
+    "starlayer.graph.parsers.ntriples12",
+    "starlayer.graph.parsers.rdfxml12",
+    "starlayer.graph.parsers.lexer",
+    "starlayer.graph.parsers.faithful",
+    "starlayer.graph.parsers.bnode_scope",
+    "starlayer.graph.serializers.turtle12",
+    "starlayer.graph.serializers.ntriples12",
+    "starlayer.graph.serializers.rdfxml12",
+    "starlayer.graph.serializers.trig12",
+    "starlayer.graph.serializers._xml",
+    "starlayer.graph.backends.native",
+    "starlayer.graph.backends.skolem_semantics",
+    "starlayer.graph.backends.native_oxigraph",
 })
-OLD_PACKAGES = (
-    "starlayer.graph.parsers.",
-    "starlayer.graph.serializers.",
-    "starlayer.graph.backends.",
-    "starlayer.graph.query.",
-)
-KEPT = frozenset({
-    "starlayer.graph.parsers.manchester_parser",
-    "starlayer.graph.parsers.errors",
-    "starlayer.graph.serializers.manchester",
-    "starlayer.graph.backends._versions",
-})
-# Package ``__init__`` modules that re-export the old classes; importing the class from one of them counts.
-FACADES = frozenset({
-    "starlayer",
-    "starlayer.graph",
-    "starlayer.graph.graph",
-    "starlayer.graph.query",
-    "starlayer.graph.parsers",
-    "starlayer.graph.serializers",
-    "starlayer.graph.backends",
-})
-OLD_NAMES = frozenset({"StarLayerGraph", "StarLayerDataset"})
+#: Packages deleted whole (``starlayer.graph.query`` held only the rdflib query machinery).
+DELETED_PACKAGES = ("starlayer.graph.query",)
 
-#: module (or script path) -> what it still imports and why D1 has to touch it
-ALLOWED: dict[str, str] = {
-    "starlayer": "facade: re-exports StarLayerGraph / StarLayerDataset; D1 points the names at OxGraph / OxDataset",
-    "starlayer.graph": "facade: re-exports the old classes, the rdflib query patches and the old `prepareQuery` family; D1 rewrites it",
-    "starlayer.graph.graph": "facade: re-exports the old classes; D1 rewrites it",
-    "starlayer.graph.query": "facade: re-exports `parseQuery` / `prepareQuery` / ... from `sparql_api` (rdflib engine); deleted with the package",
-    "starlayer.graph.serializers": "facade: re-exports the hand-written Turtle / N-Triples / RDF-XML / TriG writers; deleted with them",
-    "starlayer.graph.oxgraph._rdflib_bridge": "`starlayer_graph()` builds an old-style graph for `oxgraph/helpers/shapes.py` (derive_shape); "
-    "goes when `shape_derivation` is ported (branch mig-small-ports)",
-}
+
+def _is_deleted(module: str) -> bool:
+    return module in DELETED_MODULES or module == DELETED_PACKAGES[0] or module.startswith(tuple(p + "." for p in DELETED_PACKAGES))
 
 
 def _module_name(path: Path) -> str | None:
@@ -76,14 +63,8 @@ def _module_name(path: Path) -> str | None:
     return ".".join(parts)
 
 
-def _is_old(module: str) -> bool:
-    if module in KEPT:
-        return False
-    return module in OLD_MODULES or module.startswith(OLD_PACKAGES)
-
-
-def old_imports(path: Path) -> set[str]:
-    """What ``path`` imports from the old machinery, as dotted names."""
+def deleted_imports(path: Path) -> set[str]:
+    """What ``path`` imports from the deleted modules, as dotted names."""
     name = _module_name(path)
     is_package = path.name == "__init__.py"
     found: set[str] = set()
@@ -98,44 +79,52 @@ def old_imports(path: Path) -> set[str]:
                     parts = parts[:-1]
                 parts = parts[: len(parts) - (node.level - 1)]
                 module = ".".join(parts + ([module] if module else []))
-            if _is_old(module):
+            if _is_deleted(module):
                 found.add(module)
-            elif module in FACADES:
-                found.update(f"{module}.{a.name}" for a in node.names if a.name in OLD_NAMES or _is_old(f"{module}.{a.name}"))
+            else:
+                found.update(f"{module}.{a.name}" for a in node.names if _is_deleted(f"{module}.{a.name}"))
         elif isinstance(node, ast.Import):
-            found.update(a.name for a in node.names if _is_old(a.name))
+            found.update(a.name for a in node.names if _is_deleted(a.name))
     return found
 
 
 def live_importers() -> dict[str, set[str]]:
-    """Every live module (or script path) that imports the old machinery, with what it imports."""
+    """Every module (or script path) that imports a deleted module, with what it imports."""
     out: dict[str, set[str]] = {}
     for base in SCANNED:
         for path in sorted((REPO / base).rglob("*.py")):
-            name = _module_name(path)
-            if name is not None and _is_old(name) and name not in KEPT:
-                continue  # an old module may import other old modules: it goes with them
-            found = old_imports(path)
+            found = deleted_imports(path)
             if found:
-                out[name or str(path.relative_to(REPO))] = found
+                out[_module_name(path) or str(path.relative_to(REPO))] = found
     return out
 
 
-def test_only_the_allowed_modules_import_the_old_classes_and_modules() -> None:
-    importers = set(live_importers())
-    new = sorted(importers - set(ALLOWED))
-    gone = sorted(set(ALLOWED) - importers)
-    assert not new, f"a live module imports the old graph machinery (D1 needs it gone, or add it to ALLOWED with the reason): {new}"
-    assert not gone, f"these no longer import the old graph machinery: remove them from ALLOWED: {gone}"
+@pytest.mark.parametrize("module", sorted(DELETED_MODULES))
+def test_the_deleted_module_is_gone(module: str) -> None:
+    base = REPO / "packages" / "starlayer" / Path(*module.split("."))
+    assert not base.with_suffix(".py").exists(), f"{module} was deleted at D1 and must not come back"
 
 
-def test_the_scan_sees_the_old_importers_it_is_meant_to_find(tmp_path: Path) -> None:
+def test_the_deleted_query_package_is_gone() -> None:
+    assert not (REPO / "packages/starlayer/starlayer/graph/query").exists()
+
+
+def test_nothing_imports_a_deleted_module() -> None:
+    assert not live_importers()
+
+
+def test_the_scan_sees_an_importer_of_a_deleted_module(tmp_path: Path) -> None:
     sample = tmp_path / "sample.py"
     sample.write_text(
-        "from starlayer.graph import StarLayerGraph\n"
+        "from starlayer.graph.graph.starlayer_graph import StarLayerGraph\n"
         "def f():\n    from starlayer.graph.parsers.turtle_parser import _join\n"
         "from starlayer.graph.parsers.manchester_parser import parse_manchester\n"
-        "from starlayer.graph.oxgraph import OxGraph\n",
+        "from starlayer.graph.query import sparql_api\n"
+        "from starlayer.graph import StarLayerGraph\n",
         encoding="utf-8",
     )
-    assert old_imports(sample) == {"starlayer.graph.StarLayerGraph", "starlayer.graph.parsers.turtle_parser"}
+    assert deleted_imports(sample) == {
+        "starlayer.graph.graph.starlayer_graph",
+        "starlayer.graph.parsers.turtle_parser",
+        "starlayer.graph.query",
+    }

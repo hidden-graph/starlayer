@@ -11,7 +11,7 @@ import starlayer.sparql
 import starlayer.sparql.salg
 from starlayer.shacl_engine.terms import SH
 
-# the report is an OxGraph: pyoxigraph terms. An rdflib ``Variable`` crosses the boundary as this IRI prefix + its name.
+# the report is an StarLayerGraph: pyoxigraph terms. An rdflib ``Variable`` crosses the boundary as this IRI prefix + its name.
 _VARIABLE_IRI = "urn:starlayer:variable:"
 
 

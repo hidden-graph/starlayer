@@ -10,7 +10,7 @@ from codekg import BUILD_GRAPH_IRI, CODEKG_NS
 from codekg.extractor import stamp
 from codekg.extractor.build import refresh
 from rdflib import RDF
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import StarLayerDataset
 
 PKG = Path("packages/starlayer/starlayer/widgets")
 
@@ -28,10 +28,10 @@ def repo(tmp_path):
     return root, module
 
 
-def _build(root: Path, module: Path, tmp_path: Path) -> tuple[OxDataset, Path]:
+def _build(root: Path, module: Path, tmp_path: Path) -> tuple[StarLayerDataset, Path]:
     trig = tmp_path / "codekg.trig"
     refresh([module], root, trig_path=trig)
-    dataset = OxDataset()
+    dataset = StarLayerDataset()
     dataset.parse(str(trig), format="trig12")
     return dataset, trig
 
@@ -55,7 +55,7 @@ def test_a_second_build_replaces_the_stamp(repo, tmp_path):
     root, module = repo
     _, trig = _build(root, module, tmp_path)
     refresh([module], root, trig_path=trig)
-    dataset = OxDataset()
+    dataset = StarLayerDataset()
     dataset.parse(str(trig), format="trig12")
     assert len(list(dataset.graph(BUILD_GRAPH_IRI).subjects(RDF.type, CODEKG_NS.KGBuild))) == 1
     assert len(list(dataset.graph(BUILD_GRAPH_IRI).objects(None, CODEKG_NS.builtAt))) == 1

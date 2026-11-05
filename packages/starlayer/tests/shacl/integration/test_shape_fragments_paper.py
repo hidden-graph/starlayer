@@ -17,7 +17,7 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
 from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl_engine.terms import RDF, RDFS, from_engine
@@ -29,8 +29,8 @@ PREFIXES = (
 )
 
 
-def _graph(ttl: str) -> OxGraph:
-    graph = OxGraph()
+def _graph(ttl: str) -> StarLayerGraph:
+    graph = StarLayerGraph()
     graph.parse(data=PREFIXES + ttl, format="turtle12")
     return graph
 
@@ -40,7 +40,7 @@ def _with_focus_targets(shapes: str, focus: list[str]) -> str:
     return re.sub(r"sh:targetClass :\w+", "sh:targetNode " + ", ".join(f":{f}" for f in focus), shapes)
 
 
-def _conforms(data: OxGraph, shapes: OxGraph) -> bool:
+def _conforms(data: StarLayerGraph, shapes: StarLayerGraph) -> bool:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         return validate(data, shapes, meta_shacl=False).conforms

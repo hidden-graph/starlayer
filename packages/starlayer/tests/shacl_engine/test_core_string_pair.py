@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError
 from starlayer.shacl_engine.terms import text
@@ -14,7 +14,7 @@ PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/s
 
 def run(shape_body: str, data: str):
     """One property shape on ex:p targeting ex:a; ``shape_body`` holds its extra constraint triples."""
-    sg, dg = OxGraph(), OxGraph()
+    sg, dg = StarLayerGraph(), StarLayerGraph()
     sg.parse(data=PRE + f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; {shape_body} ] .", format="turtle")
     dg.parse(data=PRE + data, format="turtle")
     return validate(dg, sg)

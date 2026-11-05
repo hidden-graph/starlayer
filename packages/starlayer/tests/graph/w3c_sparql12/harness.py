@@ -1,7 +1,7 @@
 """Shared helpers for this repo's own W3C SPARQL 1.2 test-suite harness - see ``test_w3c_sparql12_eval.py`` for the pytest
 test functions and ``download_w3c_sparql12_tests.py`` for how ``data/`` gets populated.
 
-Terms are pyoxigraph terms, the type ``OxGraph.query()`` returns, so expected and actual results compare directly.
+Terms are pyoxigraph terms, the type ``StarLayerGraph.query()`` returns, so expected and actual results compare directly.
 ``parse_srj`` is a small SPARQL JSON Results reader that understands the RDF 1.2 ``"type": "triple"`` term and the
 ``its:dir`` direction key.
 

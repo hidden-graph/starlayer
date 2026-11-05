@@ -6,7 +6,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from rdflib import Graph
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import Path, ShapeError
@@ -23,7 +23,7 @@ ex: a owl:Ontology ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.
 """
 
 
-def run(shapes: str, data: str = "", graph_cls=OxGraph):
+def run(shapes: str, data: str = "", graph_cls=StarLayerGraph):
     s = graph_cls()
     s.parse(data=PREFIXES + shapes, format="turtle")
     d = graph_cls()
@@ -160,7 +160,7 @@ def test_plain_rdflib_data_graph_works():
 
 
 def test_data_graph_native_sparql_query_takes_precedence():
-    class Native(OxGraph):
+    class Native(StarLayerGraph):
         calls = 0
 
         def sparql_query(self, text, init_bindings=None, custom_functions=None):
@@ -178,7 +178,7 @@ def test_data_graph_native_sparql_query_takes_precedence():
 
 
 def test_oxgraph_sparql_query_solutions():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=PREFIXES + "ex:a ex:p 1 .", format="turtle")
     sel = g.sparql_query("SELECT $this ?o WHERE { $this <http://example.com/p> ?o }", {"this": EX.a})
     assert sel == Solutions(variables=("this", "o"), rows=({"this": EX.a, "o": integer(1)},))  # engine terms in and out

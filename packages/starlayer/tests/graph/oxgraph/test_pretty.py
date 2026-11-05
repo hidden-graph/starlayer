@@ -15,7 +15,7 @@ import re
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.pretty import pretty_trig, pretty_turtle
 from starlayer.graph.rdfc_native import isomorphic
 
@@ -200,7 +200,7 @@ def test_only_used_prefixes_false_declares_all() -> None:
 
 
 def test_prefixes_default_to_the_graph_s_and_invalid_ones_are_renamed() -> None:
-    g = OxGraph(prefixes={"a.": "http://x/"})
+    g = StarLayerGraph(prefixes={"a.": "http://x/"})
     g.add((ox.NamedNode("http://x/s"), ox.NamedNode("http://x/p"), ox.NamedNode("http://x/o")))
     assert g.serialize(format="turtle", pretty=True) == "@prefix pfx1: <http://x/> .\n\npfx1:s pfx1:p pfx1:o .\n"
 
@@ -322,18 +322,18 @@ def test_inputs_store_dataset_and_wrappers() -> None:
     store.extend(quads)
     assert pretty_turtle(store, prefixes=EX) == want
     assert pretty_turtle(ox.Dataset(quads), prefixes=EX) == want
-    assert pretty_turtle(OxGraph(store, prefixes=EX)) == want
-    assert pretty_trig(OxDataset(store, prefixes=EX)) == want
+    assert pretty_turtle(StarLayerGraph(store, prefixes=EX)) == want
+    assert pretty_trig(StarLayerDataset(store, prefixes=EX)) == want
     assert pretty_turtle((q.subject, q.predicate, q.object) for q in quads if True)  # 3-tuples
 
 
 def test_serialize_hook() -> None:
-    g = OxGraph(prefixes=EX)
+    g = StarLayerGraph(prefixes=EX)
     g.parse(data="@prefix ex: <http://example/> . ex:s ex:p ( 1 2 ) .", format="turtle")
     assert g.serialize(format="turtle", pretty=True).endswith("ex:s ex:p ( 1 2 ) .\n")
     with pytest.raises(ValueError):
         g.serialize(format="turtle", pretty="longturtle")  # the flat layout is Oxigraph's own writer: not offered here
-    d = OxDataset(prefixes=EX)
+    d = StarLayerDataset(prefixes=EX)
     d.parse(data="@prefix ex: <http://example/> . ex:g { ex:s ex:p 1 }", format="trig")
     assert "GRAPH ex:g {" in d.serialize(format="trig", pretty=True)
     with pytest.raises(ValueError):

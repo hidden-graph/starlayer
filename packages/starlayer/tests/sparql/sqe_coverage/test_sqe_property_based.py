@@ -8,7 +8,7 @@ well formed), and each is held to these properties:
 2. the text rendered from the tree is stable: parsing it again and rendering
    again gives the same text;
 3. the regenerated text returns the same rows as the original query on a
-   OxDataset (this is the property that catches a silently dropped clause);
+   StarLayerDataset (this is the property that catches a silently dropped clause);
 4. the decoded ``Query`` object also decodes without error.
 
 Opt-in (``pytest --sqe-coverage``). The number of examples per property comes

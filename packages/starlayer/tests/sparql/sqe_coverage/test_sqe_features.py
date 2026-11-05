@@ -1,5 +1,5 @@
 """sqe feature coverage: one small query per SPARQL feature, each parsed to an
-sqe tree and compared with the same query run on an OxDataset holding a synthetic dataset, two
+sqe tree and compared with the same query run on an StarLayerDataset holding a synthetic dataset, two
 ways: the regenerated text, and the text re-parsed (the decoded rdflib query is no longer executed). Every
 tree is also checked against the sqe shapes and for stray salg: terms.
 
@@ -8,7 +8,7 @@ Opt-in (``pytest --sqe-coverage``).
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_query,
@@ -71,7 +71,7 @@ def build_dataset(dataset=None, rdf12=True):
     """The synthetic data. Everything is in the default graph (so ordinary queries see it) and the same
     triples are also in named graphs (so GRAPH queries see them): a dataset that held the triples only in
     named graphs made every default-graph query return nothing, and the comparisons vacuous."""
-    ds = dataset if dataset is not None else OxDataset(default_union=False)
+    ds = dataset if dataset is not None else StarLayerDataset(default_union=False)
     g = ds.graph(EX.g1)
     h = ds.graph(EX.g2)
     triples, tags = synthetic_triples()
@@ -92,14 +92,14 @@ def data():
 
 
 def _term(value):
-    """N-Triples text of a term of either family, so rows from OxGraph and from plain rdflib compare."""
+    """N-Triples text of a term of either family, so rows from StarLayerGraph and from plain rdflib compare."""
     return value.n3() if hasattr(value, "n3") else str(value)
 
 
 def _rows(graph, query):
     res = graph.query(query)
     if res.type == "CONSTRUCT":
-        return sorted(tuple(_term(x) for x in t) for t in (res.graph.triples() if isinstance(res.graph, OxGraph) else res.graph))
+        return sorted(tuple(_term(x) for x in t) for t in (res.graph.triples() if isinstance(res.graph, StarLayerGraph) else res.graph))
     if res.type == "ASK":
         return res.askAnswer
     return [tuple(sorted((str(var).lstrip("?"), _term(row[var])) for var in res.vars if row[var] is not None)) for row in res]

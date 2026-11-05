@@ -6,7 +6,7 @@ import pytest
 from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
 from rdflib import Graph
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate_each
 from starlayer.shacl_engine import api
 from starlayer.shacl_engine.plan import Plan
@@ -15,8 +15,8 @@ from starlayer.shacl_engine.terms import SH
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 
 
-def g(ttl: str) -> OxGraph:
-    graph = OxGraph()
+def g(ttl: str) -> StarLayerGraph:
+    graph = StarLayerGraph()
     graph.parse(data=PFX + ttl, format="turtle")
     return graph
 

@@ -3,9 +3,9 @@
 Oxigraph's serializer is a streaming writer: it writes one statement at a time and cannot fold a blank node into ``[ ... ]``,
 an RDF list into ``( ... )`` or a reifier into ``{| ... |}``. :func:`pretty_turtle` and :func:`pretty_trig` read the whole graph
 (or dataset) first and lay it out the way the older rdflib-based writer (``starlayer.graph.serializers.turtle12``) did, written
-over ``pyoxigraph`` terms with no rdflib import. They are what ``OxGraph.serialize(..., pretty=True)`` calls.
+over ``pyoxigraph`` terms with no rdflib import. They are what ``StarLayerGraph.serialize(..., pretty=True)`` calls.
 
-Input: a ``pyoxigraph.Store`` or ``Dataset``, an ``OxGraph`` / ``OxDataset``, or any iterable of ``Quad`` / ``Triple`` (or 3- and
+Input: a ``pyoxigraph.Store`` or ``Dataset``, an ``StarLayerGraph`` / ``StarLayerDataset``, or any iterable of ``Quad`` / ``Triple`` (or 3- and
 4-tuples of terms). Output: ``str``.
 
 Layout, ``style="turtle"`` (the default)
@@ -710,8 +710,8 @@ def _render_inner(data: Any, prefixes: Mapping[str, Any] | None, base_iri: str |
 
 def pretty_turtle(data: Any, *, prefixes: Mapping[str, Any] | None = None, base_iri: str | None = None, only_used_prefixes: bool = True,
                   width: int | None = 100, keep_bnode_labels: bool = False, graph: Any = ...) -> str:
-    """Pretty Turtle 1.2 for a graph. ``data`` is a Store / Dataset / OxGraph / OxDataset or an iterable of Quad / Triple;
-    ``prefixes`` defaults to the ones ``data`` carries (an OxGraph's); ``graph`` picks one graph (None: the default graph) of data
+    """Pretty Turtle 1.2 for a graph. ``data`` is a Store / Dataset / StarLayerGraph / StarLayerDataset or an iterable of Quad / Triple;
+    ``prefixes`` defaults to the ones ``data`` carries (an StarLayerGraph's); ``graph`` picks one graph (None: the default graph) of data
     that has several, otherwise named graphs raise ``ValueError``. See the module docstring for the layout."""
     return _render(data, prefixes=prefixes, base_iri=base_iri, only_used=only_used_prefixes, width=width,
                    keep_bnode_labels=keep_bnode_labels, graph=graph, trig=False)
@@ -726,7 +726,7 @@ def pretty_trig(data: Any, *, prefixes: Mapping[str, Any] | None = None, base_ir
 
 def serialize_pretty(data: Any, fmt: ox.RdfFormat, prefixes: Mapping[str, Any] | None, base: str | None, only_used: bool,
                      pretty: Any) -> str:
-    """The hook ``OxGraph.serialize(pretty=...)`` calls: ``pretty`` is True or "turtle"."""
+    """The hook ``StarLayerGraph.serialize(pretty=...)`` calls: ``pretty`` is True or "turtle"."""
     if pretty not in (True, "turtle"):
         raise ValueError(f"unknown pretty style {pretty!r}: use True")
     fn = pretty_trig if fmt == ox.RdfFormat.TRIG else pretty_turtle

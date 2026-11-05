@@ -49,7 +49,7 @@ reasoning (and, for `starontology.manchester`, the circular-import
 discipline its logic follows - `starontology.skos` doesn't need that, since
 it never touches `starlayer.graph` at all).
 
-**What the loaders return.** ``get_ontology_graph(name)`` and ``get_conformance_profiles()`` return a fresh `OxGraph` (pyoxigraph
+**What the loaders return.** ``get_ontology_graph(name)`` and ``get_conformance_profiles()`` return a fresh `StarLayerGraph` (pyoxigraph
 terms; only the prefixes the graph's IRIs use). None of the registered entries carries RDF 1.2 content (triple terms,
 direction-tagged literals): they are ordinary RDF 1.1 vocabulary and shape definitions. The files are parsed once by Oxigraph
 and cached; each call copies the cached triples. The ``starlayer.graph`` import stays lazy (deferred inside the loader
@@ -132,7 +132,7 @@ The build code is not part of the installed library.
 entry, and the profiles document (see below), is one ``.ttl`` file in this
 directory, and those files are the source. ``get_ontology_graph()`` parses
 only the file it is asked for, once, and caches it (``_file_graph()``);
-``_named_graph(context_iri)`` copies its triples into a fresh ``OxGraph`` per
+``_named_graph(context_iri)`` copies its triples into a fresh ``StarLayerGraph`` per
 call, which is what every public function below returns. Each entry's
 identity is the GitHub-blob-URL resource IRI ``get_resource_iri()`` mints
 for it, which is also its ``.../<filename>`` file, so every
@@ -508,16 +508,16 @@ _file_graph_cache: dict[str, tuple[Any, dict[str, str]]] = {}
 
 
 def _file_graph(filename: str) -> tuple[Any, dict[str, str]]:
-    """The parsed contents of one bundled Turtle file (an ``OxGraph``) and the ``_PREFIXES`` its IRIs use, read once and cached.
+    """The parsed contents of one bundled Turtle file (an ``StarLayerGraph``) and the ``_PREFIXES`` its IRIs use, read once and cached.
 
-    Never mutated and never handed to a caller directly: ``_named_graph()`` copies the triples into a fresh ``OxGraph``
+    Never mutated and never handed to a caller directly: ``_named_graph()`` copies the triples into a fresh ``StarLayerGraph``
     first, so no caller can see or corrupt another caller's view of the cached one.
     """
     cached = _file_graph_cache.get(filename)
     if cached is None:
-        from starlayer.graph.oxgraph.core import OxGraph
+        from starlayer.graph.oxgraph.core import StarLayerGraph
 
-        graph = OxGraph(prefixes={})
+        graph = StarLayerGraph(prefixes={})
         graph.parse(str(_HERE / filename), format="turtle")
         cached = (graph, _used_prefixes(graph))
         _file_graph_cache[filename] = cached
@@ -556,23 +556,23 @@ def _used_prefixes(graph: Any) -> dict[str, str]:
 
 
 def _named_graph(context_iri: URIRef) -> Any:
-    """A fresh, independent ``OxGraph`` with the triples of the entry whose resource IRI is ``context_iri`` (the IRI is
+    """A fresh, independent ``StarLayerGraph`` with the triples of the entry whose resource IRI is ``context_iri`` (the IRI is
     ``_GITHUB_BLOB_BASE`` plus the entry's filename), its identifier that IRI and its prefixes those its IRIs use."""
     import pyoxigraph as ox
 
-    from starlayer.graph.oxgraph.core import OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
     filename = str(context_iri)[len(_GITHUB_BLOB_BASE) :]
     source, used = _file_graph(filename)
-    graph = OxGraph(prefixes=dict(used), identifier=ox.NamedNode(str(context_iri)))
+    graph = StarLayerGraph(prefixes=dict(used), identifier=ox.NamedNode(str(context_iri)))
     graph.extend(list(source))
     return graph
 
 
 def _load(name: str) -> Any:
-    """A fresh ``OxGraph`` of the named entry, its identifier the entry's resource IRI: without it a caller who forgot to pass
+    """A fresh ``StarLayerGraph`` of the named entry, its identifier the entry's resource IRI: without it a caller who forgot to pass
     ``validate(..., shapes_graph_resource=...)`` gets no ``sh:usedShapesGraph`` / ``sh:conformsTo`` / ``dcterms:conformsTo`` at all
-    (``validate()``'s own ``.identifier`` fallback recovers it from the graph). The import of ``OxGraph`` is lazy (inside
+    (``validate()``'s own ``.identifier`` fallback recovers it from the graph). The import of ``StarLayerGraph`` is lazy (inside
     ``_named_graph``) so that importing ``starontology`` first cannot deadlock on the ``starlayer.graph`` package."""
     return _named_graph(_resource_iri(name))
 
@@ -606,7 +606,7 @@ def get_ontology_list() -> tuple[OntologyInfo, ...]:
 
 
 def get_ontology_graph(name: str) -> Any:
-    """A fresh ``OxGraph`` of the named ontology/shapes file (pyoxigraph terms; only the prefixes the graph's IRIs use; its
+    """A fresh ``StarLayerGraph`` of the named ontology/shapes file (pyoxigraph terms; only the prefixes the graph's IRIs use; its
     identifier is the resource IRI).
 
     Raises ``KeyError`` (naming every valid choice) for an unknown name,
@@ -756,7 +756,7 @@ def get_conformance_profiles(url: str | None = None) -> Any:
     specification (see ``starlayer.shacl.derive_conforms_to()``).
 
     Loads the bundled copy by default. Pass ``url=`` to load a different
-    local path or ``http(s)://`` location instead - ``OxGraph.parse()``
+    local path or ``http(s)://`` location instead - ``StarLayerGraph.parse()``
     handles both - e.g. a community-hosted canonical copy, or a
     local override for testing, without needing a new ``starontology``
     release to pick up a change. An override is read as a plain Turtle
@@ -777,12 +777,12 @@ def get_conformance_profiles(url: str | None = None) -> Any:
     mutable graph object across callers" convention (see
     ``starlayer.shacl.profiling.declared_conformance_profile()``).
 
-    Returns an ``OxGraph`` (pyoxigraph terms, only the prefixes its IRIs use), as ``get_ontology_graph()`` does.
+    Returns an ``StarLayerGraph`` (pyoxigraph terms, only the prefixes its IRIs use), as ``get_ontology_graph()`` does.
     """
     if url is not None:
-        from starlayer.graph.oxgraph.core import OxGraph
+        from starlayer.graph.oxgraph.core import StarLayerGraph
 
-        graph = OxGraph(prefixes={})
+        graph = StarLayerGraph(prefixes={})
         graph.parse(url, format="turtle")
         for prefix, namespace in _used_prefixes(graph).items():
             graph.bind(prefix, namespace)
@@ -823,7 +823,7 @@ def _real_shapes_graph_iri_to_name() -> dict:
 
 
 def local_loader(iri: Any) -> Any:
-    """A ``OxGraph.resolve_imports()``-compatible loader that only
+    """A ``StarLayerGraph.resolve_imports()``-compatible loader that only
     ever reads this package's own bundled files - never the network,
     never anything outside this registry. Reverse-maps ``iri`` against
     every registered shapes entry's own real ``sh:ShapesGraph`` node

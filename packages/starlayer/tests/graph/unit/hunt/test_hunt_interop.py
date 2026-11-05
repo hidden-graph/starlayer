@@ -1,4 +1,4 @@
-"""Bug-hunt reproducers for interop.py, rdfc_native.py, setops.py and the OxGraph operators.
+"""Bug-hunt reproducers for interop.py, rdfc_native.py, setops.py and the StarLayerGraph operators.
 
 Each test was a confirmed bug; they stay as regression tests.
 """

@@ -7,15 +7,15 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import StarLayerDataset
 
 EX = "http://example.org/"
 P, Q = f"<{EX}p>", f"<{EX}q>"
 
 
-def _ds(copies: int, union: bool = True) -> OxDataset:
+def _ds(copies: int, union: bool = True) -> StarLayerDataset:
     """One triple ``a p 5`` in ``copies`` places (0: absent; the default graph, then named graphs), plus ``b p 7`` once and ``a q b``."""
-    ds = OxDataset(default_union=union)
+    ds = StarLayerDataset(default_union=union)
     places = [None, f"{EX}g1", f"{EX}g2"][:copies]
     for g in places:
         ds.store.add(ox.Quad(ox.NamedNode(f"{EX}a"), ox.NamedNode(f"{EX}p"), ox.Literal("5", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer")),
@@ -25,7 +25,7 @@ def _ds(copies: int, union: bool = True) -> OxDataset:
     return ds
 
 
-def _one(ds: OxDataset, text: str) -> int:
+def _one(ds: StarLayerDataset, text: str) -> int:
     return int(next(iter(ds.query(text)))[0].value)
 
 
@@ -96,7 +96,7 @@ class TestUpdateThenQuery:
 def test_the_copy_is_dropped_when_a_write_goes_through_another_wrapper():
     ds = _ds(2)
     assert _one(ds, "SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }") == 3
-    other = OxDataset(store=ds.store)  # a second wrapper over the same store
+    other = StarLayerDataset(store=ds.store)  # a second wrapper over the same store
     other.graph(f"{EX}g1").add((ox.NamedNode(f"{EX}z"), ox.NamedNode(f"{EX}p"), ox.Literal("z")))
     assert _one(ds, "SELECT (COUNT(*) AS ?n) WHERE { ?s ?p ?o }") == 4
 

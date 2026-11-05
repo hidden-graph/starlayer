@@ -31,23 +31,9 @@ FIXTURES_DIR = pathlib.Path(__file__).parent / 'fixtures'
 
 
 @pytest.fixture
-def parser():
-    # imported here, not at module level: the hand-written Turtle parser is the old class's and goes at D1 with the tests
-    # that use this fixture (the conftest then needs only its fixture_ttl and grammar install)
-    from starlayer.graph.parsers.turtle_parser import StarLayerTurtleParser
-
-    return StarLayerTurtleParser()
-
-
-@pytest.fixture
 def fixture_ttl():
     """Return a callable: fixture_ttl(name) reads tests/fixtures/<name>."""
     def _read(name):
         return (FIXTURES_DIR / name).read_text()
     return _read
 
-
-@pytest.fixture
-def parse(parser):
-    """Return a callable: parse(data) → rdflib.Graph."""
-    return parser.parse

@@ -1,4 +1,4 @@
-"""Where Oxigraph (pyoxigraph 0.5.13) departs from SPARQL 1.1 / XPath, seen through ``OxGraph`` / ``OxDataset``.
+"""Where Oxigraph (pyoxigraph 0.5.13) departs from SPARQL 1.1 / XPath, seen through ``StarLayerGraph`` / ``StarLayerDataset``.
 
 Each test states the outcome the specification gives and is a strict expected failure: it fails today because Oxigraph does
 something else, and it XPASSes (a failure, ``strict=True``) when a release fixes it, which is the signal to delete the xfail and
@@ -12,12 +12,12 @@ failure, so the document says which cases a release must fix before the xfail go
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 P = "PREFIX : <urn:> "
 
 
-def _value(g: OxGraph, expr: str):
+def _value(g: StarLayerGraph, expr: str):
     """The value of ``expr`` (a SPARQL expression) as ``str``, or ``None`` when it is an error (unbound)."""
     (row,) = list(g.query(f"SELECT ({expr} AS ?r) {{}}"))
     term = row["r"]
@@ -26,7 +26,7 @@ def _value(g: OxGraph, expr: str):
 
 @pytest.mark.xfail(strict=True, reason="Oxigraph REPLACE/REGEX do not follow the XPath rules (oxigraph-upstream-issues.md section 6)")
 def test_replace_and_regex_follow_xpath():
-    g = OxGraph()
+    g = StarLayerGraph()
     # (expression, what fn:replace / fn:matches give: None is an error, which SPARQL leaves unbound)
     cases = [
         ("REPLACE('abc', 'x*', '-')", None),  # a pattern that matches the empty string: FORX0003
@@ -43,7 +43,7 @@ def test_replace_and_regex_follow_xpath():
 
 @pytest.mark.xfail(strict=True, reason="Oxigraph does not order xsd:boolean with < > <= >= (oxigraph-upstream-issues.md section 7)")
 def test_boolean_ordering_false_before_true():
-    g = OxGraph()
+    g = StarLayerGraph()
     cases = {"false < true": "true", "true > false": "true", "false <= true": "true", "true >= false": "true",
              "true < false": "false", "true < true": "false"}  # SPARQL 1.1 section 17.3: op:boolean-less-than / -greater-than
     wrong = {expr: (_value(g, expr), want) for expr, want in cases.items() if _value(g, expr) != want}
@@ -52,7 +52,7 @@ def test_boolean_ordering_false_before_true():
 
 @pytest.mark.xfail(strict=True, reason="Oxigraph's !(:p|^:q) is a set; the spec translation is a bag (oxigraph-upstream-issues.md section 8)")
 def test_negated_property_set_with_both_directions_is_a_bag():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data="@prefix : <urn:> . :a :p :b . :b :q :c . :c :p :d . :d :p :a . :x :p :b . :a :r :b .", format="turtle")
 
     def rows(pattern: str) -> list[tuple[str, str]]:
@@ -67,11 +67,11 @@ def test_copy_and_add_of_an_absent_graph_are_allowed_to_succeed():
     does not exist", so success is allowed. COPY is defined as DROP SILENT of the target followed by an INSERT, so a COPY from an
     absent graph empties the target; ADD changes nothing. Pinned so a change in Oxigraph is noticed."""
 
-    def held(ds: OxDataset) -> int:
+    def held(ds: StarLayerDataset) -> int:
         (row,) = list(ds.query(f"{P}SELECT (COUNT(*) AS ?n) {{ GRAPH :g1 {{ ?s ?p ?o }} }}"))
         return int(row["n"].value)
 
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.update(f"{P}INSERT DATA {{ GRAPH :g1 {{ :a :p :b }} }}")
     ds.update(f"{P}ADD :nope TO :g1")
     assert held(ds) == 1

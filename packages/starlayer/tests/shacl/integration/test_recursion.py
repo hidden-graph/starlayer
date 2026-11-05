@@ -10,7 +10,7 @@ import warnings
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import text
 
@@ -21,8 +21,8 @@ RECURSIVE = (
 )
 
 
-def _graph(ttl: str) -> OxGraph:
-    g = OxGraph()
+def _graph(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=PREFIXES + ttl, format="turtle12")
     return g
 

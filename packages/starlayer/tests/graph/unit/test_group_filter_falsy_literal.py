@@ -4,7 +4,7 @@ so the group matched as if it had no filter (docs/upstream-issues/rdflib-upstrea
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 DATA = "<http://e/a> <http://e/p> <http://e/b> ."
 
@@ -15,7 +15,7 @@ def _graph(cls):
     return g
 
 
-@pytest.mark.parametrize("cls", [OxGraph])
+@pytest.mark.parametrize("cls", [StarLayerGraph])
 @pytest.mark.parametrize(
     ("query", "rows"),
     [
@@ -33,7 +33,7 @@ def test_select_with_a_literal_filter(cls, query: str, rows: int) -> None:
     assert len(list(_graph(cls).query(query))) == rows
 
 
-@pytest.mark.parametrize("cls", [OxGraph])
+@pytest.mark.parametrize("cls", [StarLayerGraph])
 def test_ask_with_filter_false_is_false(cls) -> None:
     assert _graph(cls).query("ASK { FILTER(false) }").askAnswer is False
     assert _graph(cls).query("ASK { FILTER(true) }").askAnswer is True

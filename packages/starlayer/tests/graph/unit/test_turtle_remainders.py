@@ -1,11 +1,11 @@
 """Leftovers of issues #93 and #94 in the hand-written Turtle 1.2 parser."""
 
 import pytest
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import StarLayerDataset
 
 
 def _quads(text):
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.parse(data="PREFIX : <http://x/>\n" + text, format="turtle12")
     return ds
 

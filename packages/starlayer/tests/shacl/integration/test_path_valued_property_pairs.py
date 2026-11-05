@@ -1,5 +1,5 @@
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import from_engine
 
@@ -22,10 +22,10 @@ def _violation_components(result) -> list:
 
 
 def test_path_valued_equals_conforms_via_sequence_path() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_path_valued_equals.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -42,10 +42,10 @@ def test_path_valued_equals_conforms_via_sequence_path() -> None:
 
 
 def test_path_valued_equals_violates_on_mismatch() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_path_valued_equals.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -63,10 +63,10 @@ def test_path_valued_equals_violates_on_mismatch() -> None:
 
 
 def test_path_valued_disjoint_violates_when_paths_overlap() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_path_valued_disjoint.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -84,10 +84,10 @@ def test_path_valued_disjoint_violates_when_paths_overlap() -> None:
 
 
 def test_path_valued_disjoint_conforms_when_no_overlap() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_path_valued_disjoint.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -104,10 +104,10 @@ def test_path_valued_disjoint_conforms_when_no_overlap() -> None:
 
 
 def test_path_valued_less_than_or_equals_conforms() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_path_valued_less_than_or_equals.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -124,10 +124,10 @@ def test_path_valued_less_than_or_equals_conforms() -> None:
 
 
 def test_path_valued_less_than_or_equals_allows_equal_values() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_path_valued_less_than_or_equals.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -144,10 +144,10 @@ def test_path_valued_less_than_or_equals_allows_equal_values() -> None:
 
 
 def test_path_valued_less_than_or_equals_violates() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_path_valued_less_than_or_equals.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -167,7 +167,7 @@ def test_path_valued_less_than_or_equals_violates() -> None:
 def test_simple_iri_valued_equals_still_handled_by_pyshacl_directly() -> None:
     # Simple-IRI values (the pre-existing SHACL 1.0/1.1 form) must keep
     # working unchanged - only complex paths are diverted to the native pass.
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -182,7 +182,7 @@ def test_simple_iri_valued_equals_still_handled_by_pyshacl_directly() -> None:
         format="turtle",
     )
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 from rdflib.namespace import RDF, XSD
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 XSD_INTEGER = ox.NamedNode(str(XSD.integer))
 XSD_BOOLEAN = ox.NamedNode(str(XSD.boolean))
@@ -38,13 +38,13 @@ def dls(text: str, lang: str, direction: str) -> ox.Literal:
 
 
 def _ask(query_text: str) -> bool:
-    return OxGraph().query(query_text).askAnswer
+    return StarLayerGraph().query(query_text).askAnswer
 
 
 def _select_one(query_text: str):
     """Run a `SELECT (... AS ?v) WHERE {}`-shaped query, return ?v's value
     (None if unbound) from the one expected result row."""
-    rows = list(OxGraph().query(query_text).bindings)
+    rows = list(StarLayerGraph().query(query_text).bindings)
     assert len(rows) == 1
     row = dict(rows[0])
     assert len(row) <= 1

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import RDF, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, apply_rules, evaluate, validate
 
 from ._rdflib_view import rd
@@ -24,8 +24,8 @@ PREFIXES = (
 TRIPLE_TERM_NOISE = " ex:z ex:r <<( ex:a ex:b ex:c )>> ."
 
 
-def g(text: str) -> OxGraph:
-    return OxGraph().parse(data=PREFIXES + text, format="turtle12")
+def g(text: str) -> StarLayerGraph:
+    return StarLayerGraph().parse(data=PREFIXES + text, format="turtle12")
 
 
 class TestNativeFastPathDefersToPyShacl:
@@ -116,7 +116,7 @@ class TestTripleTermValueNodes:
     DATA = "ex:a ex:p <<( ex:s ex:q 'hello' )>> ."
 
     @staticmethod
-    def shapes(constraint: str) -> OxGraph:
+    def shapes(constraint: str) -> StarLayerGraph:
         return g(f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; {constraint} ] .")
 
     @pytest.mark.parametrize("constraint", ["sh:node [ sh:closed true ]", "sh:node [ sh:closed sh:ByTypes ]"])

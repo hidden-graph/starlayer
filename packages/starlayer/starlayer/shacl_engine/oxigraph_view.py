@@ -220,7 +220,7 @@ class OxigraphGraph:
     def _run(self, text: str, init_bindings: dict[str, Any] | None, base_iri: str | None, custom_functions: Any) -> Any:
         """The raw pyoxigraph result. Pre-bound variables use ``substitutions``; Oxigraph requires a substituted variable to
         be projected, so for one that is not, the binding goes in as ``VALUES`` (a blank node, which cannot be written there,
-        is added to the projection and dropped again): the same fallback as ``OxGraph.query``."""
+        is added to the projection and dropped again): the same fallback as ``StarLayerGraph.query``."""
         subs = {ox.Variable(str(k).lstrip("?$")): to_ox(v) for k, v in (init_bindings or {}).items()} or None
         kwargs: dict[str, Any] = {}
         if base_iri is not None:

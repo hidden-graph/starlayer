@@ -19,12 +19,12 @@ test_srl_shapes.py).
 import pytest
 from rdflib import Graph
 from starlayer import starontology
-from starlayer.graph.oxgraph.core import OxGraph
+from starlayer.graph.oxgraph.core import StarLayerGraph
 from starlayer.shacl_engine.terms import from_engine
 
 
 def _rdflib(graph):
-    """A plain rdflib graph copy of an OxGraph, for asserting with rdflib vocabulary."""
+    """A plain rdflib graph copy of an StarLayerGraph, for asserting with rdflib vocabulary."""
     out = Graph()
     for s, p, o in graph.triples((None, None, None)):
         out.add((from_engine(s), from_engine(p), from_engine(o)))
@@ -110,7 +110,7 @@ class TestGetOntologyGraph:
     ])
     def test_every_registered_name_loads_and_parses(self, name):
         g = starontology.get_ontology_graph(name)
-        assert isinstance(g, OxGraph)
+        assert isinstance(g, StarLayerGraph)
         assert len(g) > 0
 
     def test_unknown_name_raises_keyerror_naming_choices(self):
@@ -124,9 +124,9 @@ class TestGetOntologyGraph:
 
     def test_shacl_shacl_is_an_oxgraph_like_every_other_entry(self):
         """The meta-shapes build returns a plain rdflib.Graph, so this entry needs converting to keep the same
-        return type as every other entry: an OxGraph, whatever the entry."""
+        return type as every other entry: an StarLayerGraph, whatever the entry."""
         for name in ("shacl_shacl", "skos_shacl", "manchester_owl"):
-            assert type(starontology.get_ontology_graph(name)) is OxGraph
+            assert type(starontology.get_ontology_graph(name)) is StarLayerGraph
 
 
 _SLP = "https://github.com/hidden-graph/starlayer/ns/profile#"
@@ -407,7 +407,7 @@ class TestPublishedFiles:
         from starlayer.shacl import StarShaclSchema
         from starlayer.shacl.shacl_profiling import derive_conforms_to
 
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
@@ -453,7 +453,7 @@ _TTL_FILENAME = {
 
 
 class TestLocalLoader:
-    """starontology.local_loader() - an OxGraph.resolve_imports()-
+    """starontology.local_loader() - an StarLayerGraph.resolve_imports()-
     compatible loader that only ever reads this package's own bundled
     files. The real motivating case: sqe_shapes.ttl/srl_shapes.ttl both
     owl:imports spexpr:ShapesGraph (salg:ShapesGraph before 2026-10-10 -

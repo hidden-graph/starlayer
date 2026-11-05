@@ -6,7 +6,7 @@ the recomputed conformance."""
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import validate
 
 _SHAPES = """
@@ -20,9 +20,9 @@ _SHAPES_IRI = "http://example.org/shapes1"
 
 
 def _validate(data_ttl: str, **kwargs):
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data=data_ttl, format="turtle")
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=_SHAPES, format="turtle")
     return validate(data, shapes, **kwargs)
 
@@ -72,9 +72,9 @@ _SEVERITY_SHAPES = """
 
 
 def _validate_with_severity(severity: str, **kwargs):
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data=_NOT_CONFORMING, format="turtle")
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=_SEVERITY_SHAPES.format(severity=severity), format="turtle")
     return validate(data, shapes, **kwargs)
 

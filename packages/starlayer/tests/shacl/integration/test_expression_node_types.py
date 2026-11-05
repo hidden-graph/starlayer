@@ -7,7 +7,7 @@ argument lists had none, so a tool that finds shapes by target found nothing for
 import pytest
 from rdflib import RDF, BNode, Namespace
 from starlayer import starontology
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shape_types import infer_types
 
@@ -23,8 +23,8 @@ PREFIXES = (
 )
 
 
-def _graph(ttl: str) -> OxGraph:
-    g = OxGraph()
+def _graph(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=PREFIXES + ttl, format="turtle12")
     return g
 
@@ -58,7 +58,7 @@ def test_the_cells_of_the_argument_lists_are_typed_rdf_list() -> None:
 
 def test_every_node_under_sh_values_has_a_shape_that_targets_it_once_typed() -> None:
     graph = _graph(EXAMPLE)
-    typed = OxGraph()
+    typed = StarLayerGraph()
     for triple in graph:
         typed.add(triple)
     for triple in rd(infer_types(graph)):

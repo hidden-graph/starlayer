@@ -170,11 +170,11 @@ def _dataset():
 
 @functools.lru_cache(maxsize=1)
 def _kg():
-    """All the code KG's module graphs merged into one ``OxGraph``, plus the curated layer (capabilities and the query library).
+    """All the code KG's module graphs merged into one ``StarLayerGraph``, plus the curated layer (capabilities and the query library).
     Named queries are sent to it as SPARQL text."""
-    from starlayer.graph.oxgraph import OxGraph
+    from starlayer.graph.oxgraph import StarLayerGraph
 
-    graph = OxGraph()
+    graph = StarLayerGraph()
     graph.extend((q.subject, q.predicate, q.object) for q in _dataset().quads((None, None, None, None)))
     return graph
 

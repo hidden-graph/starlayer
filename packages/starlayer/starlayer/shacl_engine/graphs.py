@@ -1,6 +1,6 @@
 """Small helpers over Oxigraph-backed graphs, for the engine modules that build graphs (reports, extracts, closures).
 
-Every graph the engine builds is an ``OxGraph`` (pyoxigraph terms, its own in-memory store). ``OxGraph`` is imported
+Every graph the engine builds is an ``StarLayerGraph`` (pyoxigraph terms, its own in-memory store). ``StarLayerGraph`` is imported
 lazily: ``starlayer.graph.oxgraph`` imports the engine's SPARQL view.
 """
 
@@ -15,10 +15,10 @@ from starlayer.shacl_engine.terms import RDF
 
 
 def new_graph(like: Any = None, *, identifier: Any = None) -> Any:
-    """A fresh empty ``OxGraph``, with the prefixes ``like`` binds (when it binds any: ``namespaces()``)."""
-    from starlayer.graph.oxgraph.core import OxGraph
+    """A fresh empty ``StarLayerGraph``, with the prefixes ``like`` binds (when it binds any: ``namespaces()``)."""
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    out = OxGraph(identifier=identifier)
+    out = StarLayerGraph(identifier=identifier)
     namespaces = getattr(like, "namespaces", None)
     if namespaces is not None:
         try:

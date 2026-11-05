@@ -3,7 +3,7 @@
 Oxigraph builds a default graph from several graphs (``use_default_graph_as_union``, ``default_graph=[...]``, several ``FROM``)
 without removing duplicates: a triple stored in two graphs is matched twice, so ``COUNT(*)``, ``SUM``, ``GROUP BY`` and a
 ``SELECT`` without ``DISTINCT`` over the union count it twice (``docs/working/oxigraph-upstream-issues.md`` section 5). The SPARQL
-merge of graphs is a set, and so is an ``OxDataset`` with ``default_union=True``.
+merge of graphs is a set, and so is an ``StarLayerDataset`` with ``default_union=True``.
 
 Decision (measurements in that note): a dataset holding a triple in more than one graph runs its queries against a
 deduplicated copy of the store (``Overlap.store``): the same named graphs and a default graph that is the set of the triples of
@@ -70,7 +70,7 @@ def fill_scratch(store: ox.Store, scratch: ox.NamedNode) -> None:
 
 class Overlap:
     """What one dataset has learned about its store: whether a triple is in more than one graph and, if so, the merged copy.
-    One per ``OxDataset`` (a ``pyoxigraph.Store`` takes no attribute and no weak reference, so the cache cannot sit on it)."""
+    One per ``StarLayerDataset`` (a ``pyoxigraph.Store`` takes no attribute and no weak reference, so the cache cannot sit on it)."""
 
     def __init__(self) -> None:
         self._stamp: int | None = None

@@ -4,8 +4,8 @@ The code graph (``codekg.trig``), the curated files (``codekg/curated/*.ttl``) a
 are separate sources. This joins them into one file that an agent can download, load into memory with any RDF
 library and query, without a StarLayer checkout:
 
-    from starlayer.graph.oxgraph import OxDataset
-    kg = OxDataset(default_union=True)
+    from starlayer.graph.oxgraph import StarLayerDataset
+    kg = StarLayerDataset(default_union=True)
     kg.parse(path, format="trig12")
 
 Named graphs in the file:
@@ -63,9 +63,9 @@ def build_dataset():
         queries,
     )
     from rdflib import RDF, Literal
-    from starlayer.graph.oxgraph import OxDataset
+    from starlayer.graph.oxgraph import StarLayerDataset
 
-    out: OxDataset = get_codekg_dataset(include_curated=True)
+    out: StarLayerDataset = get_codekg_dataset(include_curated=True)
     for prefix, namespace in PREFIXES.items():
         out.bind(prefix, namespace)
 
@@ -114,7 +114,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="change nothing; exit 1 if the committed file is out of date")
     args = parser.parse_args()
 
-    from starlayer.graph.oxgraph import OxDataset
+    from starlayer.graph.oxgraph import StarLayerDataset
 
     output = ROOT / OUTPUT_REL
     built = build_dataset()
@@ -123,7 +123,7 @@ def main() -> int:
         if not output.exists():
             print(f"stale: {OUTPUT_REL} does not exist - run `python scripts/build_kg.py`", file=sys.stderr)
             return 1
-        committed = OxDataset()
+        committed = StarLayerDataset()
         committed.parse(str(output), format="trig12")
         problems = same_dataset(built, committed)
         if problems:

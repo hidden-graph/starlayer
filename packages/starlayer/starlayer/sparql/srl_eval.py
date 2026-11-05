@@ -6,7 +6,7 @@ from the spec's own verbatim pseudocode rather than an approximation of it.
 
 **Reuses Oxigraph's SPARQL engine for triple-pattern matching and expression
 evaluation, rather than reimplementing SPARQL semantics a second time.** The
-evaluation graphs are ``OxGraph`` s (pyoxigraph terms; an rdflib or old-style
+evaluation graphs are ``StarLayerGraph`` s (pyoxigraph terms; an rdflib or old-style
 graph argument is copied in, the result converted back):
 
 - The spec's own §6.1 ``graphMatch``/``compatible``/``merge`` definitions
@@ -309,7 +309,7 @@ def _pattern_term_text(term) -> str:
 
 
 def _match(run: list[srl_ast.TriplePattern], g) -> list[dict]:
-    """Every solution of the basic graph pattern ``run`` against ``g`` (an ``OxGraph``), found by running the pattern as a
+    """Every solution of the basic graph pattern ``run`` against ``g`` (an ``StarLayerGraph``), found by running the pattern as a
     SPARQL 1.2 query. Keys are rdflib ``Variable`` s, values pyoxigraph terms."""
     body = " . ".join(
         f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}"
@@ -616,16 +616,16 @@ _NOW: ContextVar = ContextVar("srl_now", default=None)
 
 
 def flatten_dataset(graph):
-    """``graph`` as an ``OxGraph`` the rules are evaluated on: an ``OxGraph`` as it is; an ``OxDataset`` / ``Store`` as the
+    """``graph`` as an ``StarLayerGraph`` the rules are evaluated on: an ``StarLayerGraph`` as it is; an ``StarLayerDataset`` / ``Store`` as the
     union of its graphs; an rdflib graph (or, for a dataset, its default graph or the union of all graphs) copied in. Nothing
     here changes ``graph``."""
     from rdflib import ConjunctiveGraph, Dataset
 
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-    from starlayer.graph.oxgraph.core import OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
     from starlayer.shacl_engine.graphs import new_graph
 
-    if isinstance(graph, OxGraph):
+    if isinstance(graph, StarLayerGraph):
         return graph
     flat = new_graph()
     if _ox.is_oxigraph_input(graph):
@@ -640,7 +640,7 @@ def to_foreign(inferred, original):
     """The inferred graph for a caller that did not pass an Oxigraph graph: rdflib terms in a graph of the caller's own class
     when that is an rdflib ``Graph`` subclass (the old-style graph, which can hold triple terms), otherwise a plain
     ``rdflib.Graph``. A result that holds a triple term, which a plain ``rdflib.Graph`` cannot hold, is returned as the
-    ``OxGraph`` it is."""
+    ``StarLayerGraph`` it is."""
     from rdflib import ConjunctiveGraph, Dataset, Graph
 
     from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term
@@ -671,11 +671,11 @@ def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):
     anything any rule (including this one) has already inferred.
 
     Args:
-        base_graph: The graph to run the rule set against (an ``OxGraph``; see :func:`flatten_dataset`).
+        base_graph: The graph to run the rule set against (an ``StarLayerGraph``; see :func:`flatten_dataset`).
         ruleset: The rule set to evaluate.
 
     Returns:
-        ``GI``, the inferred-triples-only ``OxGraph`` (never includes a triple
+        ``GI``, the inferred-triples-only ``StarLayerGraph`` (never includes a triple
         already present in ``base_graph``, per §6's own stated output
         contract) - not the combined evaluation graph.
 
@@ -710,9 +710,9 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
             except _InvalidInstance as exc:
                 raise SRLEvalError(f"SRL: a DATA block has an invalid triple term: {exc}") from exc
 
-    from starlayer.graph.oxgraph.core import OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    gi = OxGraph(prefixes={})  # the caller binds the prefixes it wants on the result
+    gi = StarLayerGraph(prefixes={})  # the caller binds the prefixes it wants on the result
     for t in d:
         if t not in base_graph:
             gi.add(t)
@@ -757,7 +757,7 @@ def _srl_infer(base_graph, ruleset: srl_ast.RuleSet):
         ruleset: The rule set to evaluate.
 
     Returns:
-        The inferred-triples-only ``OxGraph``.
+        The inferred-triples-only ``StarLayerGraph``.
     """
     return _evaluate_ruleset(base_graph, ruleset)
 

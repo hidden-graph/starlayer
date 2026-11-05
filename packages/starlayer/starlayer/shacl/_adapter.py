@@ -363,7 +363,7 @@ def extract_subgraph(
     inference: Any,
     include_targets: bool,
 ) -> Any:
-    """``extract_subgraph()`` on the engine (an ``OxGraph``)."""
+    """``extract_subgraph()`` on the engine (an ``StarLayerGraph``)."""
     from starlayer.shacl_engine.subgraph import extract_subgraph as engine_extract
 
     return engine_extract(

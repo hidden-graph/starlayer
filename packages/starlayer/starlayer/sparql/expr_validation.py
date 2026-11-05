@@ -52,17 +52,17 @@ def expression_shapes_turtle() -> str:
 
 
 def shapes_graph() -> Any:
-    """A fresh ``OxGraph`` of the ``spexpr:`` shapes: the stored ``spexpr_shacl`` plus the generated per-builtin
+    """A fresh ``StarLayerGraph`` of the ``spexpr:`` shapes: the stored ``spexpr_shacl`` plus the generated per-builtin
     shapes. Callers get their own copy, because a shapes graph may be modified while validating."""
-    from starlayer.graph.oxgraph.core import OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    graph = OxGraph(prefixes={})
+    graph = StarLayerGraph(prefixes={})
     graph.parse(data=expression_shapes_turtle(), format="turtle")
     _merge_into(graph, starontology.get_ontology_graph("spexpr_shacl"))
     return graph
 
 
 def ontology_graph() -> Any:
-    """A fresh ``OxGraph`` of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression``
+    """A fresh ``StarLayerGraph`` of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression``
     and the variable and path classes)."""
     return starontology.get_ontology_graph("spexpr_owl")

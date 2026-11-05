@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 from rdflib import XSD, Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, evaluate
 
 from ._rdflib_view import rdn
@@ -18,12 +18,12 @@ PREFIXES = (
 
 
 def _values(expression: str, data: str = "ex:a ex:in 0 ."):
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data=PREFIXES + f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:out ; sh:values {expression} ] .",
         format="turtle12",
     )
-    graph = OxGraph()
+    graph = StarLayerGraph()
     graph.parse(data=PREFIXES + data, format="turtle12")
     result = evaluate(graph, shapes)
     return sorted(rdn(result.objects(EX.a, EX.out)), key=str)
@@ -78,9 +78,9 @@ def test_order_by_over_mixed_types_does_not_crash_and_sorts_numbers_first():
 def _conforms(shapes_ttl, data_ttl):
     from starlayer.shacl import validate
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=PREFIXES + shapes_ttl, format="turtle12")
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data=PREFIXES + data_ttl, format="turtle12")
     return validate(data, shapes, meta_shacl=False).conforms
 

@@ -6,7 +6,7 @@ severity-003/deactivated-003 fixtures.
 """
 
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -14,7 +14,7 @@ from ._rdflib_view import rd
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 def test_datatype_annotation_severity_overrides_shape_default() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -25,7 +25,7 @@ def test_datatype_annotation_severity_overrides_shape_default() -> None:
         """,
         format="turtle12",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))  # focus node itself is the target; no extra data needed
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -36,7 +36,7 @@ def test_datatype_annotation_severity_overrides_shape_default() -> None:
 
 
 def test_datatype_annotation_deactivated_skips_that_constraint() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -47,7 +47,7 @@ def test_datatype_annotation_deactivated_skips_that_constraint() -> None:
         """,
         format="turtle12",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -60,7 +60,7 @@ def test_property_reference_annotation_deactivated_skips_only_that_reference() -
     shape's own constraints generically - a shape referenced via a second,
     non-annotated sh:property elsewhere would still be checked there.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -73,7 +73,7 @@ def test_property_reference_annotation_deactivated_skips_only_that_reference() -
         """,
         format="turtle12",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))  # no ex:requiredProp at all
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -84,7 +84,7 @@ def test_property_reference_annotation_deactivated_skips_only_that_reference() -
 def test_property_reference_without_annotation_still_conforms_normally() -> None:
     # Confirms the annotation-filtering doesn't accidentally suppress a
     # genuinely non-deactivated sh:property reference.
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -97,7 +97,7 @@ def test_property_reference_without_annotation_still_conforms_normally() -> None
         """,
         format="turtle12",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)

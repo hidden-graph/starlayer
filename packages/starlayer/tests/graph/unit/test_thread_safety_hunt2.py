@@ -6,7 +6,7 @@ import textwrap
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 warnings.simplefilter("ignore")
 
@@ -14,8 +14,8 @@ COLD_START = textwrap.dedent(
     """
     import warnings; warnings.simplefilter('ignore')
     from concurrent.futures import ThreadPoolExecutor
-    from starlayer.graph.oxgraph import OxGraph
-    g = OxGraph()
+    from starlayer.graph.oxgraph import StarLayerGraph
+    g = StarLayerGraph()
     g.parse(data='@prefix : <http://e/> . :s :p 1 . :t :p 2 .', format='turtle12')
     Q = 'PREFIX : <http://e/> SELECT ?s WHERE { ?s :p ?o FILTER(?o > %d) }'
     def run(i):
@@ -35,7 +35,7 @@ def test_the_first_queries_of_a_process_can_run_in_worker_threads():
 
 
 def test_concurrent_evaluation_of_one_cached_query_gives_the_right_rows():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data="@prefix : <http://e/> . " + " ".join(f":s{i} :p {i} ." for i in range(30)), format="turtle12")
     queries = [f"PREFIX : <http://e/> SELECT ?s WHERE {{ ?s :p ?o FILTER(?o >= {k}) }}" for k in (0, 10, 20)]
     g.query(queries[0])  # settle the grammar in this thread

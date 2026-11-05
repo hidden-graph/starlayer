@@ -1,4 +1,4 @@
-"""Tests for OxGraph.derive_shape() / starlayer.graph.graph.shape_derivation.
+"""Tests for StarLayerGraph.derive_shape() / starlayer.graph.graph.shape_derivation.
 
 Two phases exercised: fresh derivation (no template - Phase A) and
 template-merge (Phase B's per-constraint-component relax table). Every
@@ -10,13 +10,12 @@ against the exact data involved, not just "some Graph came back".
 import re
 
 import starlayer.shacl
-from rdflib import RDF, BNode, Graph, Literal
+from rdflib import RDF, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import RDFS
-from starlayer.graph import Namespace
 from starlayer.graph.graph.shape_derivation import DEFAULT_IGNORED_PROPERTIES
 from starlayer.graph.model import TripleTerm
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 EX = Namespace('http://example.org/')
 # A plain Namespace, not rdflib.namespace.SH - sh:TripleTerm and SHACL 1.2's
@@ -30,7 +29,7 @@ def _conforms(data, shapes):
 
 
 def _make_people_graph():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.bind('ex', EX)
     g.add((EX.alice, RDF.type, EX.Person))
     g.add((EX.alice, EX.name, Literal('Alice')))
@@ -53,7 +52,7 @@ class TestFreshDerivation:
         added 2026-10-04, this used to return a plain rdflib.Graph."""
         g = _make_people_graph()
         shape = g.derive_shape()
-        assert isinstance(shape, OxGraph)
+        assert isinstance(shape, StarLayerGraph)
 
     def test_one_node_shape_per_class(self):
         g = _make_people_graph()
@@ -75,7 +74,7 @@ class TestFreshDerivation:
         assert (knows_prop, SH.node, None) not in shape
 
     def test_triple_term_valued_property_gets_triple_term_node_kind(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.claim1, RDF.type, EX.Claim))
         g.add((EX.claim1, EX.asserts, TripleTerm(EX.alice, EX.age, Literal(30))))
@@ -87,7 +86,7 @@ class TestFreshDerivation:
         assert (prop, SH.nodeKind, SH.TripleTerm) in shape
 
     def test_mixed_node_kinds_produce_list_valued_node_kind(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.claim1, RDF.type, EX.Claim))
         g.add((EX.claim1, EX.asserts, TripleTerm(EX.alice, EX.age, Literal(30))))
@@ -174,7 +173,7 @@ def _template_person_shape(*, min_count=None, pattern=None, in_values=None, data
 
 class TestTemplateMerge:
     def test_min_count_too_high_is_lowered_to_true_observed_minimum(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -189,7 +188,7 @@ class TestTemplateMerge:
         assert result.value(prop, SH.minCount) == Literal(1)
 
     def test_wrong_datatype_is_corrected(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -204,7 +203,7 @@ class TestTemplateMerge:
         assert result.value(prop, SH.datatype) == XSD.string
 
     def test_violated_pattern_is_dropped_with_a_comment(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -218,7 +217,7 @@ class TestTemplateMerge:
         assert any('PatternConstraintComponent' in str(c) for c in comments)
 
     def test_in_enumeration_is_widened_not_replaced(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -234,7 +233,7 @@ class TestTemplateMerge:
         assert values == {Literal('Alice'), Literal('Zed')}
 
     def test_opaque_sparql_constraint_is_left_untouched_and_annotated(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -261,7 +260,7 @@ class TestTemplateMerge:
         assert any('could not be automatically' in str(c) for c in comments)
 
     def test_new_property_not_in_template_is_added(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -275,7 +274,7 @@ class TestTemplateMerge:
         assert EX.age in paths
 
     def test_new_class_not_in_template_gets_a_fresh_shape(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))
@@ -289,7 +288,7 @@ class TestTemplateMerge:
         assert EX.Organization in target_classes
 
     def test_templates_own_ignored_properties_are_carried_forward(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, Literal('Alice')))

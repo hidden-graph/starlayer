@@ -2,8 +2,10 @@
 
 import warnings
 
+import pyoxigraph as ox
 import pytest
 from rdflib import Graph, Literal, URIRef
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql import sqe
 
 warnings.simplefilter("ignore")
@@ -66,9 +68,10 @@ def test_nested_path_modifiers_round_trip_with_the_same_meaning(path):
     """Issue #77: `p*?` and friends were written unparenthesised."""
     query = f"SELECT * WHERE {{ ?s {path} ?o }}"
     text = _text(query)
-    data = Graph()
-    q, r = URIRef("urn:q"), URIRef("urn:r")
+    # Oxigraph is the oracle: the rdflib evaluator patches that made rdflib agree on negated sets were deleted at D1
+    data = StarLayerGraph()
+    q, r = ox.NamedNode("urn:q"), ox.NamedNode("urn:r")
     for a, p, b in [("a", q, "b"), ("b", q, "c"), ("c", r, "a"), ("b", r, "d")]:
-        data.add((URIRef(f"urn:{a}"), p, URIRef(f"urn:{b}")))
-    expected = sorted(map(tuple, data.query(query)))
-    assert sorted(map(tuple, data.query(text))) == expected
+        data.add((ox.NamedNode(f"urn:{a}"), p, ox.NamedNode(f"urn:{b}")))
+    expected = sorted(map(tuple, data.query(query)), key=str)
+    assert sorted(map(tuple, data.query(text)), key=str) == expected

@@ -8,12 +8,12 @@ silently never executes.
 """
 
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
 def test_global_rule_runs_once_against_whole_graph() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -27,7 +27,7 @@ def test_global_rule_runs_once_against_whole_graph() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -54,7 +54,7 @@ def test_global_rule_discovered_from_data_graph_itself_when_shacl_graph_is_none(
     by this module's own normalized_shapes-driven discovery - which used
     to stay None (and thus skip global-rule discovery entirely) whenever
     shacl_graph was omitted."""
-    data_with_embedded_rule = OxGraph()
+    data_with_embedded_rule = StarLayerGraph()
     data_with_embedded_rule.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -79,7 +79,7 @@ def test_global_rule_discovered_from_data_graph_itself_when_shacl_graph_is_none(
 
 
 def test_global_rule_deactivated_produces_nothing() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -94,7 +94,7 @@ def test_global_rule_deactivated_produces_nothing() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -113,7 +113,7 @@ def test_shape_attached_rule_still_works_alongside_a_global_one() -> None:
     """Confirms this fix doesn't interfere with pySHACL's own normal,
     shape-attached sh:rule execution - both should apply independently.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -136,7 +136,7 @@ def test_shape_attached_rule_still_works_alongside_a_global_one() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

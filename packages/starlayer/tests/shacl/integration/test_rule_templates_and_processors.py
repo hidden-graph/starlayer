@@ -8,7 +8,7 @@ named after the local name of its ``sh:path``. A required parameter without a va
 
 import pytest
 from rdflib import Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
@@ -21,8 +21,8 @@ PREFIXES = """
 """
 
 
-def _graph(turtle: str) -> OxGraph:
-    graph = OxGraph()
+def _graph(turtle: str) -> StarLayerGraph:
+    graph = StarLayerGraph()
     graph.parse(data=PREFIXES + turtle, format="turtle")
     return graph
 

@@ -75,7 +75,7 @@ class TestSpecWorkedExamples:
 class TestNamedGraphs:
     """Hash Related Blank Node's "position g" and Hash N-Degree Quads step 3
     ("subject, object, or graph name") explicitly cover a blank graph name -
-    exercised here since OxGraph itself never produces one, but the
+    exercised here since StarLayerGraph itself never produces one, but the
     algorithm has to handle it for e.g. a raw rdflib.Dataset input."""
 
     def test_uriref_graph_name_round_trips(self) -> None:

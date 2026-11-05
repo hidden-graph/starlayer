@@ -7,7 +7,7 @@ a node's data. The answer must not change, so each is checked against ``select_w
 import pytest
 from rdflib import Namespace
 from starlayer import StarShaclSchema, starontology
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.ui_widget_selection import (
     SHUI,
@@ -63,19 +63,19 @@ CATALOGS = {
 }
 
 
-def _graph(ttl: str) -> OxGraph:
-    g = OxGraph()
+def _graph(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=ttl, format="turtle12")
     return g
 
 
 @pytest.fixture(scope="module")
-def shapes() -> OxGraph:
+def shapes() -> StarLayerGraph:
     return _graph(SHAPES)
 
 
 @pytest.fixture(scope="module")
-def data() -> OxGraph:
+def data() -> StarLayerGraph:
     return _graph(DATA)
 
 

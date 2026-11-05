@@ -1,5 +1,5 @@
-"""Query-time entailment on ``OxGraph`` / ``OxDataset`` / ``StarQuery``, migrated from ``tests/graph/unit/test_entailment.py``,
-``test_entailment_hunt2.py`` and ``test_entailment_direct.py`` (which ran on the old class and now run on ``OxGraph``).
+"""Query-time entailment on ``StarLayerGraph`` / ``StarLayerDataset`` / ``StarQuery``, migrated from ``tests/graph/unit/test_entailment.py``,
+``test_entailment_hunt2.py`` and ``test_entailment_direct.py`` (which ran on the old class and now run on ``StarLayerGraph``).
 
 RDF and RDFS are a rewrite of the query (``starlayer.sparql.sqe.entailment``); the OWL regimes run the query on a temporary copy
 of the store that ``infer()`` has closed. Differences from the originals:
@@ -17,7 +17,7 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
 from starlayer.sparql.sqe.entailment import (
     EntailmentRewriteError,
@@ -55,8 +55,8 @@ _QUERY = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Employee }"
 _PREFIXES = "PREFIX ex: <http://example.org/> PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
 
 
-def _graph(data: str = _DATA) -> OxGraph:
-    g = OxGraph()
+def _graph(data: str = _DATA) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=data, format="turtle")
     return g
 
@@ -291,7 +291,7 @@ class TestQueryShapes:
 
 class TestDataset:
     def _ds(self, union=True):
-        ds = OxDataset(default_union=union)
+        ds = StarLayerDataset(default_union=union)
         ds.graph(N(EX + "g1")).parse(data="@prefix ex: <http://example.org/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . ex:M rdfs:subClassOf ex:E . ex:alice a ex:M .", format="turtle")
         ds.graph(N(EX + "g2")).parse(data="@prefix ex: <http://example.org/> . ex:bob a ex:M .", format="turtle")
         return ds
@@ -439,7 +439,7 @@ class TestStarQueryOnOxGraph:
         assert set(_col(q.run(_graph()), "p")) == {RDF_TYPE, RDFS_SUBCLASS}
 
     def test_works_on_a_dataset(self):
-        ds = OxDataset()
+        ds = StarLayerDataset()
         ds.parse(data=_DATA, format="turtle")
         assert _col(StarQuery(_QUERY, entailment=ENTAILMENT.RDFS).run(ds)) == _alice()
 

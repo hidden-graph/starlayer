@@ -17,7 +17,7 @@ from codekg import BLOB_BASE, CODEKG_NS
 from codekg.extractor.build import refresh
 from rdflib import Literal, URIRef
 from rdflib.namespace import RDF, RDFS
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import StarLayerDataset
 from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_triples
 
 SLKG = CODEKG_NS
@@ -45,7 +45,7 @@ def test_refresh_produces_expected_triples(tmp_path):
 
     assert trig_path.exists()
 
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.parse(str(trig_path), format="trig12")
 
     module_iri = URIRef(BLOB_BASE + "widgets/thing.py")
@@ -68,7 +68,7 @@ def test_refresh_second_run_replaces_stale_triples_not_stacks_them(tmp_path):
     mod_path.write_text("def old_name():\n    pass\n", encoding="utf-8")
     refresh([mod_path], repo_root, trig_path=trig_path)
 
-    ds1 = OxDataset()
+    ds1 = StarLayerDataset()
     ds1.parse(str(trig_path), format="trig12")
     old_fn_iri = URIRef(f"{module_iri}#old_name")
     assert (old_fn_iri, RDF.type, SLKG.Function) in to_rdflib_triples(ds1.graph(module_iri).triples((None, None, None)))
@@ -80,7 +80,7 @@ def test_refresh_second_run_replaces_stale_triples_not_stacks_them(tmp_path):
     )
     refresh([mod_path], repo_root, trig_path=trig_path)
 
-    ds2 = OxDataset()
+    ds2 = StarLayerDataset()
     ds2.parse(str(trig_path), format="trig12")
     module_triples = to_rdflib_triples(ds2.graph(module_iri).triples((None, None, None)))
 
@@ -105,7 +105,7 @@ def test_refresh_removes_graph_for_module_no_longer_in_target_paths(tmp_path):
 
     refresh([mod_a, mod_b], repo_root, trig_path=trig_path)
 
-    ds1 = OxDataset()
+    ds1 = StarLayerDataset()
     ds1.parse(str(trig_path), format="trig12")
     a_iri = URIRef(BLOB_BASE + "widgets/a.py")
     b_iri = URIRef(BLOB_BASE + "widgets/b.py")
@@ -116,7 +116,7 @@ def test_refresh_removes_graph_for_module_no_longer_in_target_paths(tmp_path):
     # left behind as a stale graph from before.
     refresh([mod_a], repo_root, trig_path=trig_path)
 
-    ds2 = OxDataset()
+    ds2 = StarLayerDataset()
     ds2.parse(str(trig_path), format="trig12")
     assert len(ds2.graph(a_iri)) > 0
     assert len(ds2.graph(b_iri)) == 0
@@ -153,7 +153,7 @@ def test_refresh_handles_docstring_resembling_a_prefix_directive(tmp_path):
 
     assert trig_path.exists()
 
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.parse(str(trig_path), format="trig12")  # must not raise
 
     module_iri = URIRef(BLOB_BASE + "widgets/thing.py")
@@ -174,13 +174,13 @@ def test_refresh_writes_the_file_from_scratch_and_does_not_read_the_old_one(tmp_
     mod_path.write_text("def f():\n    pass\n", encoding="utf-8")
     trig_path = tmp_path / "codekg.trig"
     # anything already in the file is replaced: the file holds only what the extractor produces
-    seed_ds = OxDataset()
+    seed_ds = StarLayerDataset()
     seed_ds.graph(ONTOLOGY_GRAPH_IRI).add((ONTOLOGY_GRAPH_IRI, RDF.type, SLKG.Module))
     seed_ds.serialize(destination=str(trig_path), format="trig12")
 
     written, _ = refresh([mod_path], repo_root, trig_path=trig_path)
 
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.parse(str(trig_path), format="trig12")
     assert len(ds.graph(ONTOLOGY_GRAPH_IRI)) == 0
     assert len(ds) == len(written)
@@ -200,7 +200,7 @@ def test_refresh_writes_test_modules_to_their_own_file(tmp_path):
 
     refresh([src, test_file], repo_root, trig_path=trig_path)
 
-    source_ds, tests_ds = OxDataset(), OxDataset()
+    source_ds, tests_ds = StarLayerDataset(), StarLayerDataset()
     source_ds.parse(str(trig_path), format="trig12")
     tests_ds.parse(str(tmp_path / "testskg.trig"), format="trig12")
     source_graphs = {n.value for n in source_ds.graph_names()}

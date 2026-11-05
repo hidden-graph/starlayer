@@ -1,4 +1,4 @@
-"""Differential and consistency testing of the regular query path (``OxGraph``/``OxDataset``
+"""Differential and consistency testing of the regular query path (``StarLayerGraph``/``StarLayerDataset``
 ``.query()``: ``parse_query_12``, lowering, execution), using the same generated queries as the sqe
 property tests. The sqe tests treat that path as the oracle; these tests hold the oracle itself to account.
 

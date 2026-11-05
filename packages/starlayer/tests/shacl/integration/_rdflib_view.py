@@ -1,4 +1,4 @@
-"""Read an engine result (an OxGraph of pyoxigraph terms) through rdflib terms, for tests that assert with rdflib vocabulary."""
+"""Read an engine result (an StarLayerGraph of pyoxigraph terms) through rdflib terms, for tests that assert with rdflib vocabulary."""
 
 from __future__ import annotations
 

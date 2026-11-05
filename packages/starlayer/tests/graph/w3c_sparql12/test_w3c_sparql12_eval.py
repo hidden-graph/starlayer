@@ -1,7 +1,7 @@
-"""W3C SPARQL 1.2 test suite - execution correctness, run against OxGraph / OxDataset directly.
+"""W3C SPARQL 1.2 test suite - execution correctness, run against StarLayerGraph / StarLayerDataset directly.
 
 The *original* W3C query text is executed exactly as published, so a failure here is a defect of the engine behind
-``OxGraph.query()`` and nothing that starlayer.sparql's own SPARQL-1.2-to-algebra-to-text pipeline adds.
+``StarLayerGraph.query()`` and nothing that starlayer.sparql's own SPARQL-1.2-to-algebra-to-text pipeline adds.
 
 Two test shapes:
 1. QueryEvaluationTest, SELECT / ASK (``.srj`` expected results): bindings are compared as a set, up to renaming of blank
@@ -21,18 +21,18 @@ import json
 
 import pytest
 from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 from .harness import bindings_match, data_format, load_index, parse_srj
 
 _DATASET_FORMATS = {"trig12", "nq12"}
 
 
-def _new_graph(entry) -> OxGraph | OxDataset:
-    """A fixture whose data defines named graphs (TriG / N-Quads) needs a dataset; the rest an ``OxGraph``."""
+def _new_graph(entry) -> StarLayerGraph | StarLayerDataset:
+    """A fixture whose data defines named graphs (TriG / N-Quads) needs a dataset; the rest an ``StarLayerGraph``."""
     if entry.data_file and data_format(entry) in _DATASET_FORMATS:
-        return OxDataset()
-    return OxGraph()
+        return StarLayerDataset()
+    return StarLayerGraph()
 
 
 ALL_ENTRIES = load_index()
@@ -71,7 +71,7 @@ def test_eval_select_original_query(entry):
 @pytest.mark.parametrize("entry", EVAL_CONSTRUCT, ids=lambda e: e.test_iri)
 def test_eval_construct_original_query(entry):
     query_text = entry.read(entry.query_file)
-    expected_graph = OxGraph()
+    expected_graph = StarLayerGraph()
     expected_graph.parse(data=entry.read(entry.result_file), format="turtle12")
 
     g = _new_graph(entry)

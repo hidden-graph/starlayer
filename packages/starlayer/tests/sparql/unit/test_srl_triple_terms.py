@@ -8,7 +8,7 @@ import pyoxigraph as ox
 import pytest
 from rdflib import Graph, Literal, URIRef, Variable
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
@@ -23,7 +23,7 @@ def _u(local):
 
 
 def _base():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(
         data=f"""
         @prefix ex: <{EX}> .
@@ -79,7 +79,7 @@ def test_a_head_triple_term_is_created_in_the_output():
         + "RULE { ?w ex:says <<( ?p ex:age ?n )>> } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> }"
     )
     inferred = rules.infer(_base())
-    assert isinstance(inferred, OxGraph)
+    assert isinstance(inferred, StarLayerGraph)
     assert (
         _u("alice"),
         _u("says"),
@@ -89,7 +89,7 @@ def test_a_head_triple_term_is_created_in_the_output():
 
 
 def test_a_nested_triple_term_is_matched_and_created():
-    base = OxGraph()
+    base = StarLayerGraph()
     base.parse(
         data=f"@prefix ex: <{EX}> . ex:a ex:p <<( ex:b ex:q <<( ex:c ex:r ex:d )>> )>> .",
         format="turtle12",
@@ -133,7 +133,7 @@ def test_a_data_block_triple_term_is_in_the_output_and_matched_by_rules():
         + "DATA { ex:erin ex:believes <<( ex:bob ex:age 7 )>> . }\n"
         + "RULE { ?w ex:thinksAbout ?p } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> }"
     )
-    inferred = rules.infer(OxGraph())
+    inferred = rules.infer(StarLayerGraph())
     assert (
         _u("erin"),
         _u("believes"),
@@ -156,7 +156,7 @@ def test_a_starlayer_base_graph_with_triple_terms_works_with_rules_that_do_not_u
 
 def test_a_head_triple_term_that_would_be_invalid_rdf_is_skipped():
     """A literal cannot be the subject of a triple term (RDF 1.2), so no triple is created."""
-    base = OxGraph()
+    base = StarLayerGraph()
     base.parse(data=f"@prefix ex: <{EX}> . ex:a ex:age 130 .", format="turtle12")
     rules = parse_ruleset(
         P + "RULE { ex:x ex:says <<( ?n ex:p ex:o )>> } WHERE { ?w ex:age ?n }"
@@ -264,7 +264,7 @@ def test_a_head_triple_term_containing_a_variable_makes_a_run_once_rule():
 
 
 def _annotated_base():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(
         data=f"""
         @prefix ex: <{EX}> .
@@ -324,7 +324,7 @@ def test_an_annotation_block_in_a_head_creates_the_triple_its_reifier_and_the_an
 
 def test_a_reified_triple_in_a_data_block():
     rules = parse_ruleset(P + "DATA { << ex:a ex:p ex:b >> ex:certainty 0.9 . }")
-    inferred = rules.infer(OxGraph())
+    inferred = rules.infer(StarLayerGraph())
     assert (
         len(list(inferred.triples((None, RDF_REIFIES, _tt(_u("a"), _u("p"), _u("b"))))))
         == 1

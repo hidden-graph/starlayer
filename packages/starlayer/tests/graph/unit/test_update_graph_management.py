@@ -5,7 +5,7 @@ graph, never the union of every graph.
 """
 
 import pytest
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import StarLayerDataset
 
 E = "http://e/"
 SETUP = f"INSERT DATA {{ <{E}a> <{E}p> <{E}b> . GRAPH <{E}g> {{ <{E}z> <{E}p> <{E}z> }} GRAPH <{E}h> {{ <{E}h1> <{E}p> <{E}h2> }} }}"
@@ -19,7 +19,7 @@ def _state(ds):
 
 
 def _run(update, default_union=True):
-    ds = OxDataset(default_union=default_union)
+    ds = StarLayerDataset(default_union=default_union)
     ds.update(SETUP)
     ds.update(update)
     return _state(ds)
@@ -57,7 +57,7 @@ def test_graph_management(update, expected, default_union):
 
 
 def test_create_graph_twice_is_an_error_unless_silent():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.update(SETUP)
     with pytest.raises(Exception, match="already exists"):
         ds.update(f"CREATE GRAPH <{E}g>")
@@ -66,7 +66,7 @@ def test_create_graph_twice_is_an_error_unless_silent():
 
 
 def test_using_reads_a_graph_of_the_dataset_without_fetching_it():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.update(SETUP)
     ds.update(f"INSERT {{ ?x <{E}u> ?y }} USING <{E}g> WHERE {{ ?x <{E}p> ?y }}")
     assert (None, "z") in _state(ds)
@@ -74,14 +74,14 @@ def test_using_reads_a_graph_of_the_dataset_without_fetching_it():
 
 
 def test_using_named_reads_a_graph_of_the_dataset_without_fetching_it():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.update(SETUP)
     ds.update(f"INSERT {{ ?x <{E}u> ?y }} USING NAMED <{E}g> WHERE {{ GRAPH ?g {{ ?x <{E}p> ?y }} }}")
     assert (None, "z") in _state(ds)
 
 
 def test_a_graph_created_by_an_update_is_visible_to_the_next_query():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.update(f"INSERT DATA {{ GRAPH <{E}g1> {{ <{E}a> <{E}p> <{E}b> }} }}")
     assert len(list(ds.query(f"SELECT * {{ GRAPH <{E}g1> {{ ?s ?p ?o }} }}"))) == 1
     assert len(list(ds.query("SELECT * { GRAPH ?g { ?s ?p ?o } }"))) == 1

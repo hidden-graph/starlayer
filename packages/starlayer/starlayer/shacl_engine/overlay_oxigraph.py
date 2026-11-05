@@ -178,7 +178,7 @@ class OxigraphOverlay(InferredView):
         s, p, o = triple
         return next(iter(self._store_quads(s, p, o)), None) is not None
 
-    # -- SPARQL: the materialised union is an OxGraph (the store normalises its literals, as for any query on a store)
+    # -- SPARQL: the materialised union is an StarLayerGraph (the store normalises its literals, as for any query on a store)
     def materialised(self) -> Any:
         if self._mat is None:
             from starlayer.shacl_engine.graphs import new_graph

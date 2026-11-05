@@ -10,7 +10,7 @@ import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
 from starlayer.shacl_engine.terms import from_engine, iri_text
 
@@ -18,13 +18,13 @@ E = Namespace("http://e/")
 PRE = "@prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 
 
-def _g(ttl: str) -> OxGraph:
-    g = OxGraph()
+def _g(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=PRE + ttl, format="turtle12")
     return g
 
 
-def _shape(path: str, extra: str = "sh:minCount 1") -> OxGraph:
+def _shape(path: str, extra: str = "sh:minCount 1") -> StarLayerGraph:
     return _g(f":A a sh:NodeShape ; sh:targetNode :n0 ; sh:property [ sh:path {path} ; {extra} ] .")
 
 

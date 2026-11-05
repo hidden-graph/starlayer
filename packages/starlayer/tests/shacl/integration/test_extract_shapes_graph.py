@@ -1,13 +1,13 @@
 """Coverage for StarShaclSchema.extract_shapes_graph() - pulls one named
 sh:ShapesGraph "module" back out of a larger shacl_graph that bundles
 several modules together (the inverse of SHACL 1.2 Profiling S2's own
-packaging convention). Built on OxGraph.cbd() - see that method's
+packaging convention). Built on StarLayerGraph.cbd() - see that method's
 own docstring for the Concise Bounded Description algorithm this relies
 on (follows blank-node objects recursively, never named-IRI ones).
 """
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl_engine.terms import from_engine
@@ -15,8 +15,8 @@ from starlayer.shacl_engine.terms import from_engine
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 RDFS = Namespace("http://www.w3.org/2000/01/rdf-schema#")
-def _two_module_graph() -> OxGraph:
-    g = OxGraph()
+def _two_module_graph() -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -69,8 +69,8 @@ def test_nested_blank_node_property_shape_is_included() -> None:
     )
 
 
-def _adult_shapes_graph() -> OxGraph:
-    g = OxGraph()
+def _adult_shapes_graph() -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -137,7 +137,7 @@ def test_caller_can_inject_a_replacement_for_a_dangling_named_shape_reference() 
     )
     assert len(list(extracted.triples((EX.AdultAgeShape, SH.minInclusive, None)))) == 1
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:bob a ex:Adult ; ex:age 19 .", format="turtle")
     result = StarShaclSchema(shacl_graph=extracted).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False  # 19 < 21, the injected replacement constraint, not the original 18
@@ -149,7 +149,7 @@ def test_extracted_module_validates_independently() -> None:
     schema = StarShaclSchema(shacl_graph=_two_module_graph())
     extracted = schema.extract_shapes_graph(EX.ModuleB)
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
 
     result = StarShaclSchema(shacl_graph=extracted).validate(data_graph=data, meta_shacl=False)
@@ -223,7 +223,7 @@ def test_rdfs_isdefinedby_inverse_direction_is_honored() -> None:
     rdfs:isDefinedBy relationship, instead of (or alongside) the
     ShapesGraph declaring it via rdfs:member - both are real SHACL 1.2
     Profiling S2 packaging mechanisms."""
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -312,7 +312,7 @@ class TestValidateShapesGraph:
     def test_validates_against_only_the_named_module(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
 
-        acme = OxGraph()
+        acme = StarLayerGraph()
         acme.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
 
         # ex:acme has no ex:name - fails CompanyShape's own sh:minCount 1,
@@ -323,7 +323,7 @@ class TestValidateShapesGraph:
     def test_conforms_when_the_module_alone_is_satisfied(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
 
-        acme = OxGraph()
+        acme = StarLayerGraph()
         acme.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
@@ -340,7 +340,7 @@ class TestValidateShapesGraph:
         makes "this must be an external identity" a safe inference now,
         not a guess."""
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        data = OxGraph()
+        data = StarLayerGraph()
         result = schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.NotRegistered)
         assert result.conforms is True
         assert (None, SH.usedShapesGraph, EX.NotRegistered) in result.report_graph
@@ -352,7 +352,7 @@ class TestValidateShapesGraph:
         against a None shapes graph and a silent tag-only fallback here
         would let the report falsely claim a module was used."""
         schema = StarShaclSchema()
-        data = OxGraph()
+        data = StarLayerGraph()
         with pytest.raises(ValueError, match="shapes_graph_resource="):
             schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
 
@@ -361,7 +361,7 @@ class TestValidateShapesGraph:
         schema = StarShaclSchema(shacl_graph=original)
         before = set(original)
 
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
         schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
 
@@ -374,7 +374,7 @@ class TestValidateShapesGraph:
         happens to default to it, since there's only one fact here to
         report in the first place."""
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        acme = OxGraph()
+        acme = StarLayerGraph()
         acme.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
@@ -397,7 +397,7 @@ class TestShapesGraphOnOtherMethods:
 
     def test_target_nodes_scoped_to_one_module(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
 
         nodes = schema.target_nodes(data_graph=data, shape_node=EX.CompanyShape, shapes_graph_resource=EX.ModuleB)
@@ -405,7 +405,7 @@ class TestShapesGraphOnOtherMethods:
 
     def test_evaluate_scoped_to_one_module(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
@@ -421,7 +421,7 @@ class TestShapesGraphOnOtherMethods:
         as shacl_graph=. Nothing is lost, it's just no longer a single
         convenience call."""
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
@@ -433,7 +433,7 @@ class TestShapesGraphOnOtherMethods:
 
     def test_apply_rules_scoped_to_one_module(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
@@ -450,11 +450,11 @@ class TestShapesGraphOnOtherMethods:
 
     def test_validate_each_forwards_shapes_graph_via_kwargs(self) -> None:
         schema = StarShaclSchema(shacl_graph=_two_module_graph())
-        conforming = OxGraph()
+        conforming = StarLayerGraph()
         conforming.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
         )
-        missing_name = OxGraph()
+        missing_name = StarLayerGraph()
         missing_name.parse(data="@prefix ex: <http://example.org/> . ex:other a ex:Company .", format="turtle")
 
         results = schema.validate_each(

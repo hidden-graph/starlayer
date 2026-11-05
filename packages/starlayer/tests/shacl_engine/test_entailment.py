@@ -5,7 +5,7 @@ import time
 import pytest
 from rdflib import Graph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.validator import validate as old_validate
 from starlayer.shacl_engine import entailment as _entailment
 from starlayer.shacl_engine.api import validate as engine_validate
@@ -25,8 +25,8 @@ SHAPES = PFX + "ex:EmployeeShape a sh:NodeShape ; sh:targetClass ex:Employee ; s
 DOMAIN = PFX + "ex:worksAt rdfs:domain ex:Employee . ex:alice ex:worksAt ex:Acme ."
 
 
-def _g(ttl: str) -> OxGraph:
-    g = OxGraph()
+def _g(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=ttl, format="turtle")
     return g
 

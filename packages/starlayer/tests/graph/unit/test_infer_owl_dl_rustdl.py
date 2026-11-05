@@ -1,7 +1,7 @@
 """
 tests/unit/test_infer_owl_dl_rustdl.py
 
-Coverage for OxGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl") -
+Coverage for StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl") -
 OWL 2 DL reasoning via RustDL, the second engine alongside engine="hermit"
 (test_infer_owl_dl.py). `rustdl` is an optional extra of this package
 (`pip install starlayer[rustdl]`), not a core dependency - the
@@ -27,9 +27,9 @@ engine="hermit", not a bug to chase down here.
 """
 
 import pytest
-from starlayer.graph import RDF, Namespace
+from rdflib import RDF, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 try:
     import rustdl
@@ -56,7 +56,7 @@ class TestOwlDlRustdlDisjunctiveClassEntailment:
     """
 
     def _disjunctive_graph(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -89,7 +89,7 @@ class TestOwlDlRustdlDisjunctiveClassEntailment:
 @rustdl_extra
 class TestOwlDlRustdlSubClassClosure:
     def test_multi_hop_subclass_entailment(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -108,7 +108,7 @@ class TestOwlDlRustdlInconsistency:
     def test_inconsistent_ontology_raises(self):
         from starlayer.graph.graph.owl_dl import InconsistentOntologyError
 
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -120,7 +120,7 @@ class TestOwlDlRustdlInconsistency:
             g.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl")
 
     def test_consistent_ontology_does_not_raise(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -143,7 +143,7 @@ class TestOwlDlRustdlHangRisk:
     timeout) rather than let the caller hang."""
 
     def _hang_pattern_graph(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -177,7 +177,7 @@ class TestOwlDlRustdlHangRisk:
         g.infer(entailment=ENTAILMENT["OWL-Direct"], engine="hermit")  # should not raise
 
     def test_ordinary_ontology_is_unaffected_by_the_preflight_check(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -192,7 +192,7 @@ class TestOwlDlRustdlHangRisk:
 @rustdl_extra
 class TestOwlDlRustdlModes:
     def test_mode_in_place_mutates_and_returns_self(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -214,7 +214,7 @@ class TestOwlDlRustdlTimeout:
     using synthetic workers, not real RustDL calls."""
 
     def _simple_graph(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -248,7 +248,7 @@ class TestOwlDlRustdlTimeout:
             g.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl", timeout=60)
 
     def _hang_pattern_graph(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .

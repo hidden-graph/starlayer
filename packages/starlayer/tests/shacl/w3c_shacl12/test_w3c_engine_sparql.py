@@ -9,7 +9,7 @@ progress measure; see ``docs/working/shacl-engine-design.md``.
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 
 from .closure import node_closure
@@ -60,9 +60,9 @@ DEVIATIONS: dict[str, str] = {
 }
 
 
-def _graph(entry: ManifestEntry, predicate) -> OxGraph:
+def _graph(entry: ManifestEntry, predicate) -> StarLayerGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
-    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), OxGraph)
+    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), StarLayerGraph)
 
 
 def test_engine_sparql(entry: ManifestEntry) -> None:

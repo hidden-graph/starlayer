@@ -219,7 +219,7 @@ def test_query_matches_goal_pattern_against_base_and_inferred():
 
 
 class TestInferAndQueryInferenceParameter:
-    """``inference=`` pre-entails base_graph (via OxGraph.infer())
+    """``inference=`` pre-entails base_graph (via StarLayerGraph.infer())
     before the rule set runs against it - a per-call parameter, not stored
     on RuleSet itself (see RuleSet.infer()'s own docstring for why)."""
 
@@ -229,9 +229,9 @@ class TestInferAndQueryInferenceParameter:
     """
 
     def _base_with_subclass_only(self):
-        from starlayer.graph.oxgraph import OxGraph
+        from starlayer.graph.oxgraph import StarLayerGraph
 
-        base = OxGraph()
+        base = StarLayerGraph()
         base.parse(
             data=f"""
             @prefix : <{EX}> .

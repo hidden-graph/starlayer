@@ -1,5 +1,5 @@
 """
-Unit tests for OxDataset.
+Unit tests for StarLayerDataset.
 
 Covers: multi-graph TriG 1.2 parsing, named-graph context access,
 quad iteration, TriG 1.2 / N-Quads 1.2 serialization, and round-trip.
@@ -8,7 +8,7 @@ quad iteration, TriG 1.2 / N-Quads 1.2 serialization, and round-trip.
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 
@@ -92,7 +92,7 @@ GRAPH <{EX}graph1> {{
 class TestConstruction:
 
     def test_empty_on_init(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         assert list(ds.graph_names()) == [] or all(len(g) == 0 for g in ds.graph_names())
 
 
@@ -102,25 +102,25 @@ class TestConstruction:
 
 class TestParseTriG12:
     def test_named_graph_context_is_starlayer_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
-        assert isinstance(g1, OxGraph)
+        assert isinstance(g1, StarLayerGraph)
 
     def test_named_graph_plain_triples(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         assert (ex('s'), ex('p'), ex('o')) in g1
 
     def test_named_graph_has_triple_term(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_named_graph_triple_term_in_object(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
@@ -128,7 +128,7 @@ class TestParseTriG12:
         assert tt in objs
 
     def test_two_named_graphs_independent(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         g2 = ds.graph(G2)
@@ -138,7 +138,7 @@ class TestParseTriG12:
         assert not g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_triple_terms_not_visible_across_graphs(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g2 = ds.graph(G2)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
@@ -146,7 +146,7 @@ class TestParseTriG12:
         assert tt not in objs
 
     def test_default_graph_triples_accessible(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_WITH_DEFAULT, format='trig12')
         found = any(
             (ex('default_s'), ex('default_p'), ex('default_o')) in g
@@ -155,19 +155,19 @@ class TestParseTriG12:
         assert found
 
     def test_named_graph_triple_count(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         assert len(g1) == 3  # s/p/o, stmt1/reifies/TT, stmt1/confidence/0.9
 
 
 # ---------------------------------------------------------------------------
-# OxGraph API on named contexts
+# StarLayerGraph API on named contexts
 # ---------------------------------------------------------------------------
 
 class TestContextAPI:
     def test_triple_terms_method(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         tts = list(g1.triple_terms())
@@ -175,7 +175,7 @@ class TestContextAPI:
         assert tts[0] == TripleTerm(ex('alice'), ex('knows'), ex('bob'))
 
     def test_reifiers_method(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
@@ -183,7 +183,7 @@ class TestContextAPI:
         assert ex('stmt1') in reifiers
 
     def test_encoding_triples_hidden_in_context(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         enc_triples = [
@@ -220,14 +220,14 @@ GRAPH <{EX}graph2> {{
 
 class TestDatasetWideReifiers:
     def test_returns_a_dataset(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         result = ds.reifiers(TT=tt)
-        assert isinstance(result, OxDataset)
+        assert isinstance(result, StarLayerDataset)
 
     def test_result_scoped_to_originating_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         result = ds.reifiers(TT=tt)
@@ -235,7 +235,7 @@ class TestDatasetWideReifiers:
         assert len(result.graph(G2)) == 0
 
     def test_result_includes_annotations(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         result = ds.reifiers(TT=tt)
@@ -244,7 +244,7 @@ class TestDatasetWideReifiers:
         ]
 
     def test_same_reifier_node_in_two_graphs_not_collapsed(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
         result = ds.reifiers()
         tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
@@ -255,10 +255,10 @@ class TestDatasetWideReifiers:
         assert (ex('stmt'), RDF_REIFIES, tt1) not in result.graph(G2)
 
     def test_reifications_returns_dataset_scoped_by_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
         result = ds.reifications()
-        assert isinstance(result, OxDataset)
+        assert isinstance(result, StarLayerDataset)
         tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         tt2 = TripleTerm(ex('carol'), ex('likes'), ex('dana'))
         assert (ex('stmt'), RDF_REIFIES, tt1) in result.graph(G1)
@@ -266,7 +266,7 @@ class TestDatasetWideReifiers:
         assert (ex('stmt'), RDF_REIFIES, tt2) in result.graph(G2)
 
     def test_reified_triples_finds_matches_in_every_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
         result = ds.reified_triples(ex('stmt'))
         tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
@@ -275,7 +275,7 @@ class TestDatasetWideReifiers:
         assert (ex('stmt'), RDF_REIFIES, tt2) in result.graph(G2)
 
     def test_reifier_annotations_excludes_reifies_triple(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
         tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         result = ds.reifier_annotations(tt1)
@@ -284,11 +284,11 @@ class TestDatasetWideReifiers:
         assert (ex('stmt'), RDF_REIFIES, tt1) not in g1
 
     def test_no_matches_returns_empty_dataset(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('nobody'), ex('knows'), ex('nothing'))
         result = ds.reifiers(TT=tt)
-        assert isinstance(result, OxDataset)
+        assert isinstance(result, StarLayerDataset)
         assert len(result) == 0
 
 
@@ -298,14 +298,14 @@ class TestDatasetWideReifiers:
 
 class TestQuads:
     def test_quads_include_both_graphs(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         graphs_seen = {q.graph_name.value for q in ds.quads()}
         assert G1.value in graphs_seen
         assert G2.value in graphs_seen
 
     def test_quads_restore_triple_terms(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         matching = [
@@ -316,16 +316,16 @@ class TestQuads:
         assert matching[0][3] == G1
 
     def test_quads_graph_names_are_terms(self):
-        # The old class yielded the graph object as the fourth member; an OxDataset yields pyoxigraph Quads whose
+        # The old class yielded the graph object as the fourth member; an StarLayerDataset yields pyoxigraph Quads whose
         # graph_name is a term (use graph(name) for the view).
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         for q in ds.quads():
             assert isinstance(q.graph_name, ox.NamedNode)
-            assert isinstance(ds.graph(q.graph_name), OxGraph)
+            assert isinstance(ds.graph(q.graph_name), StarLayerGraph)
 
     def test_quads_no_encoding_triples(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         enc_preds = {
             'http://www.w3.org/1999/02/22-rdf-syntax-ns#propositionFormSubject',
@@ -336,7 +336,7 @@ class TestQuads:
             assert str(p) not in enc_preds
 
     def test_triples_union_view(self):
-        ds = OxDataset(default_union=True)
+        ds = StarLayerDataset(default_union=True)
         ds.parse(data=TRIG_BASIC, format='trig12')
         all_triples = list(ds.triples((None, None, None)))
         subjects = {s.value for s, _, _ in all_triples}
@@ -344,7 +344,7 @@ class TestQuads:
         assert EX + 'stmt2' in subjects
 
     def test_triples_default_union_false_excludes_named_graphs(self):
-        ds = OxDataset(default_union=False)  # default_union=False, the default
+        ds = StarLayerDataset(default_union=False)  # default_union=False, the default
         ds.parse(data=TRIG_BASIC, format='trig12')
         all_triples = list(ds.triples((None, None, None)))
         assert all_triples == []
@@ -363,7 +363,7 @@ class TestDefaultUnionPropagation:
     """
 
     def test_query_graphless_pattern_sees_named_graphs(self):
-        ds = OxDataset(default_union=True)
+        ds = StarLayerDataset(default_union=True)
         g1 = ds.graph(ex('g1'))
         g1.add((ex('s'), ex('p'), ex('o')))
 
@@ -371,7 +371,7 @@ class TestDefaultUnionPropagation:
         assert (ex('s'), ex('p'), ex('o')) in rows
 
     def test_query_graphless_pattern_empty_when_default_union_false(self):
-        ds = OxDataset(default_union=False)  # default_union=False, the default
+        ds = StarLayerDataset(default_union=False)  # default_union=False, the default
         g1 = ds.graph(ex('g1'))
         g1.add((ex('s'), ex('p'), ex('o')))
 
@@ -379,7 +379,7 @@ class TestDefaultUnionPropagation:
         assert rows == []
 
     def test_update_graphless_where_matches_named_graphs(self):
-        ds = OxDataset(default_union=True)
+        ds = StarLayerDataset(default_union=True)
         g1 = ds.graph(ex('g1'))
         g1.add((ex('s'), ex('p'), ex('o')))
 
@@ -395,7 +395,7 @@ class TestDefaultUnionPropagation:
         assert (ex('s'), ex('marked'), ex('o')) in default_ctx
 
     def test_update_graphless_where_empty_when_default_union_false(self):
-        ds = OxDataset(default_union=False)  # default_union=False, the default
+        ds = StarLayerDataset(default_union=False)  # default_union=False, the default
         g1 = ds.graph(ex('g1'))
         g1.add((ex('s'), ex('p'), ex('o')))
 
@@ -408,34 +408,34 @@ class TestDefaultUnionPropagation:
 
 
 class TestCBD:
-    """Without OxDataset's own cbd() override, rdflib's inherited
+    """Without StarLayerDataset's own cbd() override, rdflib's inherited
     Graph.cbd() hardcodes a plain rdflib.Graph() as the default target -
     previously a real, undiscovered bug: it crashed the moment the CBD'd
     data contained a real TripleTerm, since plain Graph.add() asserts its
     object is an rdflib Node, which TripleTerm is not. The override mirrors
-    OxGraph.cbd()'s own pattern exactly (default target_graph to a
-    new OxGraph, reject a plain Graph passed explicitly)."""
+    StarLayerGraph.cbd()'s own pattern exactly (default target_graph to a
+    new StarLayerGraph, reject a plain Graph passed explicitly)."""
 
     def test_cbd_with_triple_term_does_not_crash_and_preserves_it(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         ds.add((ex('claim1'), ex('about'), tt))
 
         result = ds.cbd(ex('claim1'))
 
-        assert isinstance(result, OxGraph)
+        assert isinstance(result, StarLayerGraph)
         assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
         assert len(result) == 1
 
     def test_cbd_rejects_a_plain_rdflib_graph_as_target(self):
         from rdflib import Graph
 
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.add((ex('s'), ex('p'), ex('o')))
         try:
             ds.cbd(ex('s'), target_graph=Graph())
         except TypeError as e:
-            assert "must be an OxGraph" in str(e)
+            assert "must be an StarLayerGraph" in str(e)
         else:
             raise AssertionError("expected TypeError")
 
@@ -446,13 +446,13 @@ class TestCBD:
         pulled in when default_union=True."""
         addr = BNode()
 
-        ds_isolated = OxDataset(default_union=False)  # default_union=False, the default
+        ds_isolated = StarLayerDataset(default_union=False)  # default_union=False, the default
         ds_isolated.default_graph.add((ex('alice'), ex('name'), ex('AliceLit')))
         ds_isolated.default_graph.add((ex('alice'), ex('address'), addr))
         ds_isolated.graph(ex('named')).add((addr, ex('street'), ex('MainSt')))
         assert len(ds_isolated.cbd(ex('alice'))) == 2
 
-        ds_union = OxDataset(default_union=True)
+        ds_union = StarLayerDataset(default_union=True)
         ds_union.default_graph.add((ex('alice'), ex('name'), ex('AliceLit')))
         ds_union.default_graph.add((ex('alice'), ex('address'), addr))
         ds_union.graph(ex('named')).add((addr, ex('street'), ex('MainSt')))
@@ -464,17 +464,17 @@ class TestDefaultGraphIsAStarLayerGraph:
     plain rdflib.Graph (default_graph/default_context both just return it
     directly) - a real, previously-undiscovered bug: ds.default_graph.add()
     crashed on a real TripleTerm, since plain Graph.add() rejects it as
-    "not an rdflib term". Fixed in OxDataset.__init__ by routing
+    "not an rdflib term". Fixed in StarLayerDataset.__init__ by routing
     _default_context through get_context() instead, same as every other
     named context."""
 
     def test_default_graph_is_a_starlayergraph(self):
-        ds = OxDataset(default_union=False)
-        assert isinstance(ds.default_graph, OxGraph)
+        ds = StarLayerDataset(default_union=False)
+        assert isinstance(ds.default_graph, StarLayerGraph)
 
 
     def test_default_graph_accepts_a_triple_term_without_crashing(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         ds.default_graph.add((ex('claim1'), ex('about'), tt))
         assert ds.default_graph.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
@@ -483,16 +483,16 @@ class TestDefaultGraphIsAStarLayerGraph:
         """graphs() yields from super(Dataset, self).graph_names(), which
         returns whatever self._default_context actually is - this is the
         same fix as above, verified from the graphs() call site too."""
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.default_graph.add((ex('s'), ex('p'), ex('o')))
         identifiers_and_types = [(g.identifier, type(g)) for g in ds.graphs()]
-        assert all(t is OxGraph for _id, t in identifiers_and_types)
+        assert all(t is StarLayerGraph for _id, t in identifiers_and_types)
 
     def test_default_graph_stays_current_after_turtle12_reroute_parse(self):
         """A second, narrower staleness bug than the two above: parse()
         routes format='turtle12' (and 'n3'/'n3-12'/'text/n3', which alias to
         it) through trig12's parser, which populates the default graph via
-        _load_context()/_register_sg() - a *new* OxGraph swapped into
+        _load_context()/_register_sg() - a *new* StarLayerGraph swapped into
         _sg_cache, never touching whatever object a one-time-cached
         self._default_context pointed at. Before the fix, default_graph
         kept returning that stale, registry-empty pre-parse object, so
@@ -503,7 +503,7 @@ class TestDefaultGraphIsAStarLayerGraph:
         this - they parse straight into self.default_graph.parse() instead
         of rerouting through trig12 - so this is specific to turtle12/n3.
         """
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         text = (
             f'@prefix ex: <{EX}> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . '
             'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .'
@@ -527,24 +527,24 @@ class TestSingleDocumentFormatsParseIntoDefaultGraph:
 
     @pytest.mark.parametrize("fmt", ["nt12", "rdfxml12"])
     def test_rdf12_single_document_format_parses_into_default_graph(self, fmt):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), ex('o')))
         text = g.serialize(format=fmt)
 
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=text, format=fmt)
 
-        assert isinstance(ds.default_graph, OxGraph)
+        assert isinstance(ds.default_graph, StarLayerGraph)
         assert (ex('s'), ex('p'), ex('o')) in ds.default_graph
 
     def test_manchester_parses_into_default_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data="Prefix: ex: <http://example.org/>\nClass: ex:Foo", format="manchester")
-        assert isinstance(ds.default_graph, OxGraph)
+        assert isinstance(ds.default_graph, StarLayerGraph)
         assert len(ds.default_graph) > 0
 
     def test_manchester_omn_alias_also_works(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data="Prefix: ex: <http://example.org/>\nClass: ex:Foo", format="omn")
         assert len(ds.default_graph) > 0
 
@@ -553,7 +553,7 @@ class TestSingleDocumentFormatsParseIntoDefaultGraph:
         this parse fix, for the same reason - previously failed with
         PluginException (confirmed live: no rdflib plugin registered for
         'manchester')."""
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data="Prefix: ex: <http://example.org/>\nClass: ex:Foo", format="manchester")
         text = ds.serialize(format="manchester")
         assert "Class:" in text
@@ -566,46 +566,46 @@ class TestSkolemizeDeskolemize:
     contains a real TripleTerm."""
 
     def test_graph_skolemize_with_triple_term_does_not_crash(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         g.add((ex('claim1'), ex('about'), tt))
         result = g.skolemize()
-        assert isinstance(result, OxGraph)
+        assert isinstance(result, StarLayerGraph)
         assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_graph_de_skolemize_with_triple_term_does_not_crash(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         g.add((ex('claim1'), ex('about'), tt))
         result = g.de_skolemize()
-        assert isinstance(result, OxGraph)
+        assert isinstance(result, StarLayerGraph)
         assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_dataset_skolemize_with_triple_term_does_not_crash(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         ds.add((ex('claim1'), ex('about'), tt))
         result = ds.skolemize()
-        assert isinstance(result, OxGraph)
+        assert isinstance(result, StarLayerGraph)
         assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_dataset_de_skolemize_with_triple_term_does_not_crash(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         ds.add((ex('claim1'), ex('about'), tt))
         result = ds.de_skolemize()
-        assert isinstance(result, OxGraph)
+        assert isinstance(result, StarLayerGraph)
         assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_skolemize_rejects_a_plain_rdflib_graph_as_new_graph(self):
         from rdflib import Graph
 
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), ex('o')))
         try:
             g.skolemize(new_graph=Graph())
         except TypeError as e:
-            assert "must be an OxGraph" in str(e)
+            assert "must be an StarLayerGraph" in str(e)
         else:
             raise AssertionError("expected TypeError")
 
@@ -616,19 +616,19 @@ class TestSkolemizeDeskolemize:
 
 class TestSerialize:
     def test_serialize_produces_graph_blocks(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
         assert 'graph1 {' in out and 'graph2 {' in out  # Oxigraph's TriG writer has no GRAPH keyword and abbreviates the name
 
     def test_serialize_triple_terms_present(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
         assert '<<(' in out
 
     def test_prefixes_before_graph_blocks(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
         lines = out.splitlines()
@@ -653,11 +653,11 @@ class TestSerialize:
             '@prefix ex: <http://example.org/> . shown as plain prose here,\n'
             'not real top-level syntax.""" .\n'
         )
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=f'@prefix ex: <{EX}> .\n{text}', format='trig12')
         out = ds.serialize(format='trig12')
 
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='trig12')  # must not raise
         literal_values = [q.object.value for q in ds2.quads()]
         assert any('@prefix ex: <http://example.org/> . shown as plain prose' in v for v in literal_values)
@@ -669,34 +669,34 @@ class TestSerialize:
 
 class TestSerializeSingleGraphFormats:
     def test_turtle12_has_no_graph_blocks(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='turtle12')
         assert 'GRAPH' not in out
 
     def test_turtle12_includes_triples_from_every_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='turtle12')
         assert 'ex:s' in out and 'ex:p' in out and 'ex:o' in out
         assert 'ex:stmt2' in out
 
     def test_turtle12_preserves_triple_terms(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='turtle12')
         assert '<<(' in out
 
 
     def test_nt12_flattens_dataset(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='nt12')
         assert '<<(' in out
         assert 'GRAPH' not in out
 
     def test_trig12_unaffected_by_new_formats(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
         assert 'graph1 {' in out  # Oxigraph's TriG writer has no GRAPH keyword and abbreviates the name
@@ -704,36 +704,36 @@ class TestSerializeSingleGraphFormats:
 
 class TestToGraph:
     def test_returns_a_starlayer_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g = ds.to_graph()
-        assert isinstance(g, OxGraph)
+        assert isinstance(g, StarLayerGraph)
 
     def test_includes_triples_from_every_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g = ds.to_graph()
         assert (ex('s'), ex('p'), ex('o')) in g
         assert (ex('stmt2'), ex('source'), ex('newspaper')) in g
 
     def test_preserves_triple_terms(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g = ds.to_graph()
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         assert (ex('stmt1'), RDF_REIFIES, tt) in g
 
     def test_is_queryable_and_not_tied_to_the_dataset(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g = ds.to_graph()
         assert len(list(g.query('SELECT ?s WHERE { ?s ?p ?o }'))) == len(g)
 
     def test_matches_serialize_single_graph_format_output(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         # store order differs between the copy and the dataset, so compare the parsed graphs, not the text
-        assert isomorphic(OxGraph().parse(data=ds.to_graph().serialize(format='turtle12'), format='turtle12'), OxGraph().parse(data=ds.serialize(format='turtle12'), format='turtle12'))
+        assert isomorphic(StarLayerGraph().parse(data=ds.to_graph().serialize(format='turtle12'), format='turtle12'), StarLayerGraph().parse(data=ds.serialize(format='turtle12'), format='turtle12'))
 
 
 # ---------------------------------------------------------------------------
@@ -742,19 +742,19 @@ class TestToGraph:
 
 class TestRoundTrip:
     def test_plain_triple_roundtrip(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='trig12')
         g1 = ds2.graph(G1)
         assert (ex('s'), ex('p'), ex('o')) in g1
 
     def test_triple_term_roundtrip(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='trig12')
         g1 = ds2.graph(G1)
         g2 = ds2.graph(G2)
@@ -762,10 +762,10 @@ class TestRoundTrip:
         assert g2.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
 
     def test_graph_isolation_preserved_after_roundtrip(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='trig12')
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='trig12')
         g1 = ds2.graph(G1)
         g2 = ds2.graph(G2)
@@ -773,13 +773,13 @@ class TestRoundTrip:
         assert not g1.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
 
     def test_triple_count_preserved(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1_before = len(ds.graph(G1))
         g2_before = len(ds.graph(G2))
 
         out = ds.serialize(format='trig12')
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='trig12')
 
         assert len(ds2.graph(G1)) == g1_before
@@ -803,27 +803,27 @@ NQ_BASIC = (
 
 class TestNQ12MultiGraph:
     def test_parse_two_named_graphs(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g1 = ds.graph(G1)
         g2 = ds.graph(G2)
-        assert isinstance(g1, OxGraph)
-        assert isinstance(g2, OxGraph)
+        assert isinstance(g1, StarLayerGraph)
+        assert isinstance(g2, StarLayerGraph)
 
     def test_triple_term_in_graph1(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g1 = ds.graph(G1)
         assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_triple_term_in_graph2(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g2 = ds.graph(G2)
         assert g2.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
 
     def test_graph_isolation(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g1 = ds.graph(G1)
         g2 = ds.graph(G2)
@@ -831,29 +831,29 @@ class TestNQ12MultiGraph:
         assert not g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_plain_triple_in_named_graph(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g1 = ds.graph(G1)
         assert (ex('s'), ex('p'), ex('o')) in g1
 
     def test_serialize_nq12_includes_graph_names(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         out = ds.serialize(format='nq12')
         assert f'<{EX}graph1>' in out
         assert f'<{EX}graph2>' in out
 
     def test_serialize_nq12_triple_terms(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         out = ds.serialize(format='nq12')
         assert '<<(' in out
 
     def test_nq12_roundtrip(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         out = ds.serialize(format='nq12')
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='nq12')
         g1 = ds2.graph(G1)
         g2 = ds2.graph(G2)
@@ -862,32 +862,32 @@ class TestNQ12MultiGraph:
         assert not g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
 
     def test_nq12_triple_count_preserved(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         before = {G1.value: len(ds.graph(G1)), G2.value: len(ds.graph(G2))}
         out = ds.serialize(format='nq12')
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='nq12')
         assert len(ds2.graph(G1)) == before[G1.value]
         assert len(ds2.graph(G2)) == before[G2.value]
 
     def test_cross_format_trig_to_nq12(self):
         """Parse TriG 1.2, serialize to N-Quads 1.2, re-parse — data preserved."""
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         out = ds.serialize(format='nq12')
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='nq12')
         assert ds2.graph(G1).has_triple_term(ex('alice'), ex('knows'), ex('bob'))
         assert ds2.graph(G2).has_triple_term(ex('bob'), ex('likes'), ex('carol'))
 
     def test_cross_format_nq12_to_trig(self):
         """Parse N-Quads 1.2, serialize to TriG 1.2, re-parse — data preserved."""
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         out = ds.serialize(format='trig12')
         assert 'graph1> {' in out or 'graph1 {' in out  # Oxigraph's TriG writer has no GRAPH keyword
-        ds2 = OxDataset(default_union=False)
+        ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='trig12')
         assert ds2.graph(G1).has_triple_term(ex('alice'), ex('knows'), ex('bob'))
         assert ds2.graph(G2).has_triple_term(ex('bob'), ex('likes'), ex('carol'))
@@ -921,13 +921,13 @@ GRAPH <{EX}graph2> {{
 
 class TestChainingContractMatchesRdflib:
     """rdflib's own ConjunctiveGraph.addN()/Graph.open() both return self;
-    these two OxDataset overrides had silently dropped that (fixed
-    2026-10-04) - same bug class as OxGraph's own add()/remove()/
+    these two StarLayerDataset overrides had silently dropped that (fixed
+    2026-10-04) - same bug class as StarLayerGraph's own add()/remove()/
     open()/serialize(), see test_starlayer_graph.py's own class of the same
     name."""
 
     def test_addN_returns_self(self):
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         t = (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))
         assert ds.addN([(*t, ds.default_graph)]) is ds
 
@@ -935,9 +935,9 @@ class TestChainingContractMatchesRdflib:
     def test_serialize_with_destination_returns_self_for_rdf12_native_format(self, tmp_path):
         """The nq12/trig12/trix12/single-graph-turtle12 branch builds its own
         text and writes it directly - that used to `return destination`
-        (the path) instead of self, same bug as OxGraph.serialize()'s
+        (the path) instead of self, same bug as StarLayerGraph.serialize()'s
         own RDF12 branch."""
-        ds = OxDataset(default_union=False)
+        ds = StarLayerDataset(default_union=False)
         ds.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         dest = tmp_path / 'out.trig'
         assert ds.serialize(destination=str(dest), format='trig12') is None  # the old class returned the dataset

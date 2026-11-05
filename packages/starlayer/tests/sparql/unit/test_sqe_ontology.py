@@ -135,7 +135,7 @@ class TestRoundtripResultEquivalence:
 
 
 def _set(graph, subject, predicate, value):
-    """Replace the value of ``predicate`` on ``subject`` (an ``OxGraph`` has no rdflib ``set``)."""
+    """Replace the value of ``predicate`` on ``subject`` (an ``StarLayerGraph`` has no rdflib ``set``)."""
     graph.remove((subject, predicate, None))
     graph.add((subject, predicate, value))
 
@@ -150,10 +150,10 @@ class TestRootParameter:
     QUERY_TEXT = "SELECT ?s WHERE { ?s a <http://example.org/Thing> }"
 
     def test_defaults_to_a_fresh_bnode(self):
-        from starlayer.graph.oxgraph import OxGraph
+        from starlayer.graph.oxgraph import StarLayerGraph
 
         graph, root = sqe_parse_to_tree(self.QUERY_TEXT)
-        assert isinstance(graph, OxGraph)  # with no graph= given the tree is written to a fresh OxGraph: pyoxigraph terms
+        assert isinstance(graph, StarLayerGraph)  # with no graph= given the tree is written to a fresh StarLayerGraph: pyoxigraph terms
         assert isinstance(root, ox.BlankNode)
 
     def test_accepts_a_real_uriref(self):

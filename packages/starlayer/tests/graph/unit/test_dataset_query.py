@@ -1,5 +1,5 @@
 """
-Unit tests for OxDataset.query() and .update() with SPARQL-star.
+Unit tests for StarLayerDataset.query() and .update() with SPARQL-star.
 
 Covers:
   - SELECT with ground triple-term pattern in a named graph
@@ -14,7 +14,7 @@ Covers:
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 
@@ -72,7 +72,7 @@ GRAPH <{EX}graph2> {{
 
 @pytest.fixture
 def ds():
-    d = OxDataset()
+    d = StarLayerDataset()
     d.parse(data=TRIG, format='trig12')
     return d
 
@@ -329,7 +329,7 @@ class TestConstruct:
         }}
         """
         r = ds.query(q)
-        assert isinstance(r.graph, OxGraph)
+        assert isinstance(r.graph, StarLayerGraph)
 
     def test_construct_result_has_triple(self, ds):
         q = f"""

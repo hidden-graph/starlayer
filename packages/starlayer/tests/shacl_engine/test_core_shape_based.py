@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import NamedNode as URIRef
 from rdflib import Graph
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError
 from starlayer.shacl_engine.terms import SH, lexical, text
@@ -16,7 +16,7 @@ PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/s
 
 
 def run(shapes: str, data: str = ""):
-    sg, dg = OxGraph(), OxGraph()
+    sg, dg = StarLayerGraph(), StarLayerGraph()
     sg.parse(data=PRE + shapes, format="turtle")
     dg.parse(data=PRE + (data or shapes), format="turtle")
     return validate(dg, sg)

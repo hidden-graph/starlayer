@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -17,10 +17,10 @@ def _violation_components(result) -> set:
 
 
 def test_single_line_conforms_and_allows_explicit_multiline_opt_out() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_single_line.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -37,10 +37,10 @@ def test_single_line_conforms_and_allows_explicit_multiline_opt_out() -> None:
 
 
 def test_single_line_violates_when_value_contains_line_break() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_single_line.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -66,7 +66,7 @@ def test_single_line_string_literal_false_is_rejected_not_silently_enabled() -> 
     silently *enabling* the check instead of disabling it. Now raises a
     clean ValueError instead.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -76,7 +76,7 @@ def test_single_line_string_literal_false_is_rejected_not_silently_enabled() -> 
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -90,10 +90,10 @@ def test_single_line_string_literal_false_is_rejected_not_silently_enabled() -> 
 
 
 def test_some_value_conforms_when_one_value_matches() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_some_value.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -110,10 +110,10 @@ def test_some_value_conforms_when_one_value_matches() -> None:
 
 
 def test_some_value_violates_when_no_value_matches() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_some_value.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

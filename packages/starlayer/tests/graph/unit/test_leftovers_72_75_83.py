@@ -8,7 +8,7 @@ import pytest
 from rdflib.namespace import OWL, RDF
 from starlayer.graph import isomorphic
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 warnings.simplefilter("ignore")
 E = lambda n: ox.NamedNode("http://e/" + n)  # noqa: E731
@@ -31,19 +31,19 @@ def DirLangString(text, lang, direction):  # noqa: N802
 
 @pytest.fixture
 def native():
-    # every OxGraph is a native Oxigraph store now
-    return OxGraph
+    # every StarLayerGraph is a native Oxigraph store now
+    return StarLayerGraph
 
 
 # --- #72 ---
 
 def test_remove_of_last_use_drops_the_triple_term_and_its_encoding():
     tt = TripleTerm(E("a"), E("p"), E("b"))
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((E("s"), E("q"), tt))
     g.remove((E("s"), E("q"), tt))
     g.add((E("s"), E("p"), E("o")))
-    h = OxGraph()
+    h = StarLayerGraph()
     h.add((E("s"), E("p"), E("o")))
     assert isomorphic(g, h) and isomorphic(h, g)
     assert list(g.triple_terms()) == [] and not g.has_triple_term(E("a"), E("p"), E("b"))
@@ -53,7 +53,7 @@ def test_remove_of_last_use_drops_the_triple_term_and_its_encoding():
 def test_remove_keeps_a_triple_term_still_used_and_cascades_to_nested_terms():
     inner = TripleTerm(E("a"), E("p"), E("b"))
     outer = TripleTerm(E("x"), E("r"), inner)
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((E("s1"), E("q"), outer))
     g.add((E("s2"), E("q"), outer))
     g.remove((E("s1"), E("q"), outer))
@@ -64,11 +64,11 @@ def test_remove_keeps_a_triple_term_still_used_and_cascades_to_nested_terms():
 
 
 def test_isomorphic_ignores_language_tag_case():
-    g, h = OxGraph(), OxGraph()
+    g, h = StarLayerGraph(), StarLayerGraph()
     g.add((E("s"), E("p"), Literal("a", lang="en")))
     h.add((E("s"), E("p"), Literal("a", lang="EN")))
     assert isomorphic(g, h)
-    g, h = OxGraph(), OxGraph()
+    g, h = StarLayerGraph(), StarLayerGraph()
     g.add((E("s"), E("p"), TripleTerm(E("a"), E("b"), Literal("a", lang="en"))))
     h.add((E("s"), E("p"), TripleTerm(E("a"), E("b"), Literal("a", lang="EN"))))
     assert isomorphic(g, h)
@@ -76,7 +76,7 @@ def test_isomorphic_ignores_language_tag_case():
 
 def test_skolemize_replaces_blank_nodes_inside_triple_terms_consistently():
     b = BNode("x1")
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((E("x"), E("s"), b))
     g.add((E("y"), E("s"), TripleTerm(E("q"), E("r"), b)))
     sk = g.skolemize()
@@ -88,7 +88,7 @@ def test_skolemize_replaces_blank_nodes_inside_triple_terms_consistently():
 
 
 def test_skolemize_triple_term_subject_position():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((E("x"), E("s"), TripleTerm(BNode("x1"), E("b"), E("c"))))
     (tt,) = [o for _, _, o in g.skolemize().triples((None, None, None))]
     assert isinstance(tt.subject, ox.NamedNode)
@@ -103,13 +103,13 @@ def test_a_blank_node_label_that_is_not_a_valid_id_is_refused():
     from rdflib import BNode as RdBNode
     from starlayer.shacl_engine.terms import TermError
 
-    g = OxGraph()
+    g = StarLayerGraph()
     with pytest.raises(TermError):
         g.add((E("s"), E("p"), RdBNode("a b")))
     assert len(g) == 0
 
 def test_dirlangstring_with_uppercase_tag_in_a_query_pattern_matches():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((E("b"), E("p"), DirLangString("x", "en", "ltr")))
     assert g.query('ASK {?s <http://e/p> "x"@EN--ltr}').askAnswer
     assert len(list(g.query('SELECT * {?s <http://e/p> "x"@EN--ltr}'))) == 1
@@ -129,12 +129,12 @@ def test_native_dirlangstring_with_line_breaks_round_trips(native, text):
 # --- #83 ---
 
 def test_resolve_imports_follows_imports_declared_on_a_different_ontology_iri():
-    a = OxGraph()
+    a = StarLayerGraph()
     a.add((E("A"), RDF.type, OWL.Ontology))
     a.add((E("A"), OWL.imports, E("B")))
 
     def loader(iri):
-        h = OxGraph()
+        h = StarLayerGraph()
         if iri == E("B"):
             h.add((E("B-ont"), RDF.type, OWL.Ontology))
             h.add((E("B-ont"), OWL.imports, E("C")))
@@ -151,7 +151,7 @@ def test_resolve_imports_follows_imports_declared_on_a_different_ontology_iri():
 
 
 def test_infer_rdf_is_a_closure():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((E("a"), E("p"), E("b")))
     f = g.infer(ENTAILMENT.RDF)
     assert (RDF.type, RDF.type, RDF.Property) in f

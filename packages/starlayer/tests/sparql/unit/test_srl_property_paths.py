@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 from rdflib import BNode, URIRef, Variable
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
@@ -19,7 +19,7 @@ def _u(local):
 
 
 def _base():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(
         data=f"""@prefix ex: <{EX}> .
         ex:frontend ex:dependsOn ex:app . ex:app ex:dependsOn ex:db . ex:db ex:hasVulnerability ex:vuln1 .""",

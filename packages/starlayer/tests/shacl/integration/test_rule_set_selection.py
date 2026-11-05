@@ -11,7 +11,7 @@ rules, and shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule).
 """
 
 from rdflib import RDF, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")
@@ -30,22 +30,22 @@ _GLOBAL_RULE_SHAPES = """
 """
 
 
-def _data_with_knows() -> OxGraph:
-    data = OxGraph()
+def _data_with_knows() -> StarLayerGraph:
+    data = StarLayerGraph()
     data.add((EX.alice, EX.knows, EX.bob))
     return data
 
 
 class TestGlobalRulesPath:
     def test_no_rule_set_runs_every_rule(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(data=_GLOBAL_RULE_SHAPES, format="turtle")
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=_data_with_knows(), meta_shacl=False)
         assert (EX.alice, EX.markedByA, None) in result.inferred_graph
         assert (EX.alice, EX.markedByB, None) in result.inferred_graph
 
     def test_rule_set_restricts_to_its_own_members(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(data=_GLOBAL_RULE_SHAPES, format="turtle")
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(
             data_graph=_data_with_knows(), meta_shacl=False, rule_set=EX.RuleSetA
@@ -54,7 +54,7 @@ class TestGlobalRulesPath:
         assert (EX.alice, EX.markedByB, None) not in result.inferred_graph
 
     def test_different_rule_set_selects_different_rules(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(data=_GLOBAL_RULE_SHAPES, format="turtle")
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(
             data_graph=_data_with_knows(), meta_shacl=False, rule_set=EX.RuleSetB
@@ -66,7 +66,7 @@ class TestGlobalRulesPath:
         # A includes B includes C includes A (cycle) - closure from A must
         # still reach all three rules exactly once, not infinite-loop or
         # give an order-dependent answer.
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -93,7 +93,7 @@ class TestGlobalRulesPath:
         assert (EX.alice, EX.markedByC, None) in result.inferred_graph
 
     def test_empty_rule_set_runs_nothing_and_does_not_error(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -127,20 +127,20 @@ class TestShapeAttachedRulesPath:
           sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:taggedByB ; sh:object true .
     """
 
-    def _data_person(self) -> OxGraph:
-        data = OxGraph()
+    def _data_person(self) -> StarLayerGraph:
+        data = StarLayerGraph()
         data.add((EX.alice, RDF.type, EX.Person))
         return data
 
     def test_no_rule_set_runs_every_shape_attached_rule(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle")
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=self._data_person(), meta_shacl=False)
         assert (EX.alice, EX.taggedByA, None) in result.inferred_graph
         assert (EX.alice, EX.taggedByB, None) in result.inferred_graph
 
     def test_rule_set_restricts_shape_attached_rules_too(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle")
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(
             data_graph=self._data_person(), meta_shacl=False, rule_set=EX.RuleSetA
@@ -150,7 +150,7 @@ class TestShapeAttachedRulesPath:
 
     def test_rule_set_and_source_rule_provenance_compose(self) -> None:
         # Rule-set selection and sh:sourceRule provenance must compose: one must not silently override the other.
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle")
         result = StarShaclSchema(shacl_graph=shapes).apply_rules(
             data_graph=self._data_person(),

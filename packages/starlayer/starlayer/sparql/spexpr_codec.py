@@ -118,7 +118,7 @@ _QUADS_KEY = "quads"
 def _new_tree_graph() -> Graph:
     """The scratch graph the encoders write into when they were not given one: a plain ``rdflib.Graph``. The encoded trees hold
     no RDF 1.2 triple term (a triple term is written as ``sqe:TripleTerm`` structure, a base direction as an encoded datatype),
-    so rdflib can hold them; the public entry points convert the result to an ``OxGraph`` (``ox_result``) when they return it."""
+    so rdflib can hold them; the public entry points convert the result to an ``StarLayerGraph`` (``ox_result``) when they return it."""
     return Graph()
 
 

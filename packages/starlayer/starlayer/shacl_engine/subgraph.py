@@ -336,7 +336,7 @@ def extract_subgraph(
 ) -> Any:
     """The subgraph covered by one ``(shape, focus_node)`` pair, or by every entry point the shapes graph declares.
 
-    Same signature and return contract as ``starlayer.shacl.extract_subgraph``: a new ``OxGraph`` that is the
+    Same signature and return contract as ``starlayer.shacl.extract_subgraph``: a new ``StarLayerGraph`` that is the
     union of every conforming pair's extraction, empty (never ``None``) when nothing conforms. ``shacl_graph`` defaults to
     ``data_graph``. ``shape`` alone: that shape's own targets; ``focus_node`` alone: every shape that targets the node;
     both: that pair, whether or not the shape targets the node. ``include_targets`` adds the triples that make each

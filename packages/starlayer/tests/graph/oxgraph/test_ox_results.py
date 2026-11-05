@@ -1,4 +1,4 @@
-"""Every library function that takes a graph and returns one gives an ``OxGraph`` (pyoxigraph terms), whatever class went in
+"""Every library function that takes a graph and returns one gives an ``StarLayerGraph`` (pyoxigraph terms), whatever class went in
 (a plain rdflib graph input is converted; nothing returns an rdflib graph).
 
 Covers every library function that takes a graph and returns one (or a result holding one): SHACL ``validate`` /
@@ -11,7 +11,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from rdflib import Graph as RdflibGraph
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -35,17 +35,17 @@ def _load(cls, text):
     return g
 
 
-def _ox(text, cls=OxGraph):
+def _ox(text, cls=StarLayerGraph):
     return _load(cls, text)
 
 
 def _rdflib(text):
-    """The same document in a plain rdflib graph: the input a caller who has not moved to OxGraph still passes."""
+    """The same document in a plain rdflib graph: the input a caller who has not moved to StarLayerGraph still passes."""
     return _load(RdflibGraph, text)
 
 
 def assert_ox(graph, *, max_prefixes=8):
-    assert isinstance(graph, OxGraph), type(graph)
+    assert isinstance(graph, StarLayerGraph), type(graph)
     assert len(graph.prefixes) <= max_prefixes, sorted(graph.prefixes)
     for s, p, o in graph:
         assert isinstance(s, (ox.NamedNode, ox.BlankNode, ox.Triple))
@@ -57,7 +57,7 @@ def assert_ox(graph, *, max_prefixes=8):
 # SHACL
 
 
-@pytest.mark.parametrize("cls", [OxGraph, OxDataset])
+@pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_validate_report_graph(cls):
     from starlayer.shacl import validate
 
@@ -97,7 +97,7 @@ def test_schema_validate_and_validate_each():
 
     schema = StarShaclSchema(shacl_graph=_ox(SHAPES))
     assert_ox(schema.validate(data_graph=_ox(DATA)).report_graph)
-    assert all(isinstance(r.report_graph, OxGraph) for r in schema.validate_each([_ox(DATA)]).values())
+    assert all(isinstance(r.report_graph, StarLayerGraph) for r in schema.validate_each([_ox(DATA)]).values())
 
 
 def test_schema_with_old_shapes_and_ox_data_returns_ox():
@@ -115,7 +115,7 @@ def test_schema_old_in_ox_out():
     assert_ox(schema.apply_rules(data_graph=_rdflib(DATA)).inferred_graph, max_prefixes=40)
 
 
-@pytest.mark.parametrize("cls", [OxGraph, OxDataset])
+@pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_apply_rules_inferred_and_report_graphs(cls):
     from starlayer.shacl import StarShaclSchema, apply_rules
 
@@ -134,7 +134,7 @@ def test_apply_rules_accepts_a_plain_rdflib_graph_and_names_the_accepted_classes
     from starlayer.shacl import apply_rules
 
     assert_ox(apply_rules(rdflib.Graph(), shacl_graph=_rdflib(RULES)).inferred_graph, max_prefixes=40)
-    with pytest.raises(TypeError, match="OxGraph"):
+    with pytest.raises(TypeError, match="StarLayerGraph"):
         apply_rules(42, shacl_graph=_rdflib(RULES))
 
 
@@ -203,7 +203,7 @@ def test_declared_conformance_profile_and_expr_validation_getters():
 
 
 def test_ontology_graph_validates_as_data():
-    """An ontology got as an OxGraph is an ordinary OxGraph: it can be the data or the shapes of a validation."""
+    """An ontology got as an StarLayerGraph is an ordinary StarLayerGraph: it can be the data or the shapes of a validation."""
     from starlayer import starontology
     from starlayer.shacl import validate
 
@@ -220,19 +220,19 @@ def test_sqe_tree_and_validate():
     from starlayer.sparql.parse_sparql import sparql_to_tree
     from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
 
-    graph, root = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }", OxGraph())
+    graph, root = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }", StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
     ok, report, _text = sqe_validate(graph)
     assert ok is True
     assert_ox(report)
-    graph, root = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=OxGraph())
+    graph, root = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
     default_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }")
-    assert isinstance(default_graph, OxGraph)  # the tree builders default to an OxGraph
+    assert isinstance(default_graph, StarLayerGraph)  # the tree builders default to an StarLayerGraph
     rdflib_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=RdflibGraph())
-    assert isinstance(rdflib_graph, RdflibGraph) and not isinstance(rdflib_graph, OxGraph)  # an rdflib graph is filled as it is
+    assert isinstance(rdflib_graph, RdflibGraph) and not isinstance(rdflib_graph, StarLayerGraph)  # an rdflib graph is filled as it is
     assert_ox(sqe_validate(rdflib_graph)[1], max_prefixes=40)
 
 
@@ -240,13 +240,13 @@ def test_srl_tree_and_validate():
     from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
 
     text = "RULE { ?x <http://e/q> ?y } WHERE { ?x <http://e/p> ?y }"
-    graph, root = srl_parse_to_tree(text, graph=OxGraph())
+    graph, root = srl_parse_to_tree(text, graph=StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
     ok, report, _text = srl_validate(graph)
     assert_ox(report)
     default_graph, _ = srl_parse_to_tree(text)
-    assert isinstance(default_graph, RdflibGraph) and not isinstance(default_graph, OxGraph)  # the default is a plain rdflib Graph
+    assert isinstance(default_graph, RdflibGraph) and not isinstance(default_graph, StarLayerGraph)  # the default is a plain rdflib Graph
     assert_ox(srl_validate(default_graph)[1], max_prefixes=40)
 
 
@@ -269,7 +269,7 @@ MANCHESTER = "Class: <http://e/A> SubClassOf: <http://e/B>"
 def test_manchester_tree_functions():
     from starlayer.starontology import manchester
 
-    tree = manchester.manchester_parse_to_tree(MANCHESTER, graph=OxGraph())
+    tree = manchester.manchester_parse_to_tree(MANCHESTER, graph=StarLayerGraph())
     assert_ox(tree)
     assert "manch" in tree.prefixes
     owl = manchester.manchester_tree_to_owl(tree)
@@ -279,10 +279,10 @@ def test_manchester_tree_functions():
     assert ok is True
     assert_ox(report)
     default_tree = manchester.manchester_parse_to_tree(MANCHESTER)
-    assert isinstance(default_tree, OxGraph)  # the default is an OxGraph
+    assert isinstance(default_tree, StarLayerGraph)  # the default is an StarLayerGraph
     rdflib_tree = manchester.manchester_parse_to_tree(MANCHESTER, graph=RdflibGraph())
-    assert isinstance(rdflib_tree, RdflibGraph) and not isinstance(rdflib_tree, OxGraph)  # an rdflib graph is filled as it is
-    assert isinstance(manchester.manchester_tree_to_owl(rdflib_tree), OxGraph)
+    assert isinstance(rdflib_tree, RdflibGraph) and not isinstance(rdflib_tree, StarLayerGraph)  # an rdflib graph is filled as it is
+    assert isinstance(manchester.manchester_tree_to_owl(rdflib_tree), StarLayerGraph)
     assert_ox(manchester.manchester_validate(rdflib_tree)[1], max_prefixes=40)
     assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(rdflib_tree)
     assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(default_tree)
@@ -298,7 +298,7 @@ def test_skos_validate():
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# already OxGraph: the graph/ helpers (guard against regressions)
+# already StarLayerGraph: the graph/ helpers (guard against regressions)
 
 
 def test_graph_helpers_return_ox():

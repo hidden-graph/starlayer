@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import from_engine
 
@@ -12,9 +12,9 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def test_rdf12_fixture_target_resolution_for_triple_term_target_node() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_target_node_shape.ttl"), format="turtle12")
     shapes.add((EX.TripleTargetShape, SH.targetNode, (EX.s, EX.p, EX.o)))
 
@@ -28,10 +28,10 @@ def test_rdf12_target_objects_of_resolves_triple_term_value_as_target() -> None:
     # sh:targetObjectsOf ex:says: a triple term is a perfectly valid object
     # position value, so it must resolve as a genuine target/focus node here
     # too - not just the already-tested explicit sh:targetNode case.
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -48,11 +48,11 @@ def test_rdf12_target_objects_of_resolves_triple_term_value_as_target() -> None:
 
 
 def test_rdf12_fixture_triple_term_node_kind_component_evaluation() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.focus, EX.says, (EX.s, EX.p, EX.o)))
     data.add((EX.focus, EX.says, EX.not_tt))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_triple_term_node_kind.ttl"), format="turtle12")
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -92,7 +92,7 @@ def test_rdf12_fixture_structural_component_behaviors(
     shape_iri: object,
     expected_conforms: bool,
 ) -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -103,7 +103,7 @@ def test_rdf12_fixture_structural_component_behaviors(
         format="turtle12",
     )
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape(shape_file), format="turtle12")
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -117,11 +117,11 @@ def test_rdf12_fixture_structural_component_behaviors(
 
 
 def test_rdf12_min_max_count_with_triple_term_values() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.says, (EX.bob, EX.likes, EX.dave)))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -138,11 +138,11 @@ def test_rdf12_min_max_count_with_triple_term_values() -> None:
 
 
 def test_rdf12_max_count_violates_with_too_many_triple_term_values() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.says, (EX.bob, EX.likes, EX.dave)))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -163,10 +163,10 @@ def test_rdf12_max_count_violates_with_too_many_triple_term_values() -> None:
 
 
 def test_rdf12_not_wrapping_has_value_with_triple_term_value() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .

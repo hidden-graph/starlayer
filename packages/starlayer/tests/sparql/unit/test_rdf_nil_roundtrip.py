@@ -12,7 +12,7 @@ Found while routing starlayer.ontology.manchester_shapes.validate()
 through starlayer.shacl (never bare pyshacl) - an adversarial SHACL test with a
 deliberately malformed `rdf:List` (`?this rdf:rest* ?cell . FILTER NOT
 EXISTS { ?cell rdf:first ?x }`) silently stopped detecting the malformed
-cell once OxGraph.query() was in the loop, because the query's own
+cell once StarLayerGraph.query() was in the loop, because the query's own
 `rdf:nil` comparison got corrupted the same way.
 
 Verified by *executing* both the original prepared query/update and the

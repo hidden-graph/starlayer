@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -8,7 +8,7 @@ from ._rdflib_view import rd
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 # RDF 1.2's rdf:dirLangString (direction-tagged language strings, added to
-# starlayer.graph this session via OxGraph's DirLangString) exposed a
+# starlayer.graph this session via StarLayerGraph's DirLangString) exposed a
 # hard crash and three real correctness bugs once wired into starShacl:
 #
 # 1. Any data graph containing a DirLangString value crashed validate()
@@ -40,14 +40,14 @@ def _violation_components(result) -> list:
     return [o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))]
 
 
-def _data(ttl: str) -> OxGraph:
-    data = OxGraph()
+def _data(ttl: str) -> StarLayerGraph:
+    data = StarLayerGraph()
     data.parse(data=ttl, format="turtle12")
     return data
 
 
-def _shapes(ttl: str) -> OxGraph:
-    shapes = OxGraph()
+def _shapes(ttl: str) -> StarLayerGraph:
+    shapes = StarLayerGraph()
     shapes.parse(data=ttl, format="turtle")
     return shapes
 

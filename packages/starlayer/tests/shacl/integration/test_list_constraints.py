@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -12,8 +12,8 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 # sh:minListLength, sh:maxListLength, and sh:uniqueMembers.
 
 
-def _shapes() -> OxGraph:
-    shapes = OxGraph()
+def _shapes() -> StarLayerGraph:
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("shacl12_list_constraints.ttl"), format="turtle")
     return shapes
 
@@ -23,7 +23,7 @@ def _violation_components(result) -> set:
 
 
 def test_member_shape_conforms_when_all_members_match() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -39,7 +39,7 @@ def test_member_shape_conforms_when_all_members_match() -> None:
 
 
 def test_member_shape_violates_when_a_member_does_not_conform() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -56,7 +56,7 @@ def test_member_shape_violates_when_a_member_does_not_conform() -> None:
 
 
 def test_list_length_and_uniqueness_conform() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -75,7 +75,7 @@ def test_list_length_and_uniqueness_conform() -> None:
 
 
 def test_list_length_and_uniqueness_all_violate_independently() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -102,7 +102,7 @@ def test_non_list_value_violates_each_active_sub_constraint() -> None:
     # there produces exactly one violation (that component's own), per the
     # spec's "if v is not a SHACL list there is a validation result" text
     # appearing independently in each constraint component's definition.
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -130,7 +130,7 @@ def test_unique_members_string_literal_false_is_rejected_not_silently_enabled() 
     silently *enabling* the check instead of disabling it. Now raises a
     clean ValueError instead.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -140,7 +140,7 @@ def test_unique_members_string_literal_false_is_rejected_not_silently_enabled() 
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .

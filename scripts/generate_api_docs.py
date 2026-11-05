@@ -46,8 +46,6 @@ PKG_ROOT = REPO_ROOT / "packages/starlayer/starlayer"
 _ALL_FILES = [
     ("__init__.py", "starlayer"),
     ("sparql/__init__.py", "starlayer.sparql"),
-    ("sparql/entailment_rdf.py", "starlayer.sparql"),
-    ("sparql/entailment_rdfs.py", "starlayer.sparql"),
     ("sparql/salg/__init__.py", "starlayer.sparql.salg"),
     ("sparql/sqe/__init__.py", "starlayer.sparql.sqe"),
     ("graph/rdfc.py", "starlayer.graph"),
@@ -57,7 +55,6 @@ _ALL_FILES = [
     ("graph/graph/__init__.py", "starlayer.graph"),
     ("graph/model/__init__.py", "starlayer.graph"),
     ("graph/serializers/__init__.py", "starlayer.graph"),
-    ("graph/query/__init__.py", "starlayer.graph"),
     ("shacl/__init__.py", "starlayer.shacl"),
     ("shacl/shacl_profiling.py", "starlayer.shacl"),
 ]

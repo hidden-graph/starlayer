@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 from starlayer.shacl_engine.terms import from_engine
 
@@ -19,14 +19,14 @@ EX = Namespace("http://example.org/")
 
 
 def test_condition_admits_conforming_focus_node_only() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Adult ; ex:name "Alice" .
         ex:bob a ex:Child ; ex:name "Bob" .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -47,14 +47,14 @@ def test_condition_admits_conforming_focus_node_only() -> None:
 
 
 def test_condition_over_rdf12_triple_term_valued_property() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:claims <<( ex:bob ex:age 42 )>> .
         ex:carol ex:name "carol" .
     """, format="turtle12")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -87,7 +87,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
 
     Covers a single sh:condition value and several (the focus node must conform to all of them).
     """
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Adult, ex:Active ; ex:name "Alice" .
@@ -95,7 +95,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     """, format="turtle")
 
     # Single reference, deliberately untyped (no `a sh:NodeShape`).
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -114,7 +114,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
     assert derived == {EX.alice}
 
     # Several sh:condition values: the focus node must conform to all of them; both deliberately untyped.
-    list_shapes = OxGraph()
+    list_shapes = StarLayerGraph()
     list_shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -135,13 +135,13 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
 
 
 def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Child ; ex:name "Alice" .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -167,13 +167,13 @@ def test_property_rule_sh_values_is_not_implemented() -> None:
     whose type is not a subclass of ``sh:Rule`` must not silently no-op. Update or remove this
     test if the WG reintroduces a similar construct and this project decides to support it.
     """
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Person ; ex:name "Alice" .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .

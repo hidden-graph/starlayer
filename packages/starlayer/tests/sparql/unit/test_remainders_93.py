@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 from pyparsing import ParseBaseException
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql._syntax_checks import SPARQLSyntaxError
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
 
@@ -44,7 +44,7 @@ def test_annotation_forms_parse_in_a_construct_template():
 
 
 def test_a_reifier_and_annotation_after_a_list_continuation_mean_the_expanded_triples():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(
         data="@prefix : <http://e/> .\n"
         ":a :p :b ~ :r1 {| :c 5 |} , :c ~ :r2 ; :q 1 {| :w 2 {| :z 3 |} |} .\n:d a :T ~ :r3 .",
@@ -79,7 +79,7 @@ def test_a_reifier_on_a_property_path_is_rejected():
 
 
 def test_minus_over_a_triple_term_pattern_removes_the_matching_solution():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data="@prefix : <http://e/> .\n:a :p :b ~ :r1 .\n:a :p :c .\n<< :a :p :b >> :src :s1 .", format="turtle12")
     assert list(g.query(P + "SELECT ?x WHERE { ?x :p :b . MINUS { ?r " + REIFIES + " <<( ?x :p :b )>> } }")) == []
     rows = list(g.query(P + "SELECT ?x ?o WHERE { ?x :p ?o . MINUS { << ?x :p ?o >> :src ?s } }"))
@@ -87,7 +87,7 @@ def test_minus_over_a_triple_term_pattern_removes_the_matching_solution():
 
 
 def test_triple_accepts_triple_term_and_accessor_arguments():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data="@prefix : <http://e/> .\n:a :r <<( :a :p :b )>> .", format="turtle12")
     # a triple term as subject or predicate is a type error: one row, ?u unbound
     for q in (

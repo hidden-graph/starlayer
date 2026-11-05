@@ -12,7 +12,7 @@ import pytest
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.component_table import component_table
 from starlayer.shacl_engine.components.registry import REGISTRY
@@ -137,7 +137,7 @@ _ENTRIES = _validate_entries()
 
 def _g(entry, pred):
     action = next(entry.graph.objects(entry.iri, MF.action))
-    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, pred)))), OxGraph)
+    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, pred)))), StarLayerGraph)
 
 
 @pytest.mark.skipif(not _ENTRIES, reason="vendored W3C SHACL 1.2 suite not present")
@@ -198,7 +198,7 @@ ex:Rule a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ; sh:object ex:
 
 
 def _plan_from_text(text: str) -> Plan:
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=text, format="turtle")
     return Plan(shapes_graph=g)
 

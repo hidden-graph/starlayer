@@ -4,7 +4,7 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 warnings.simplefilter("ignore")
 
@@ -35,7 +35,7 @@ def _subjects(container) -> set:
 @pytest.mark.parametrize("fmt", list(ONE_TRIPLE))
 @pytest.mark.parametrize("kind", ["graph", "dataset"])
 def test_a_label_in_two_documents_is_two_blank_nodes(fmt, kind):
-    container = OxGraph() if kind == "graph" else OxDataset(default_union=True)
+    container = StarLayerGraph() if kind == "graph" else StarLayerDataset(default_union=True)
     container.parse(data=ONE_TRIPLE[fmt], format=fmt)
     container.parse(data=ONE_TRIPLE[fmt], format=fmt)
     subjects = _subjects(container)
@@ -44,20 +44,20 @@ def test_a_label_in_two_documents_is_two_blank_nodes(fmt, kind):
 
 
 def test_a_label_in_one_turtle_document_is_one_blank_node():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=P + "_:b :p :o . _:b :q :r . :s :t _:b .", format="turtle12")
     assert len(g) == 3
     assert len({n for s, _, o in g for n in (s, o) if isinstance(n, BNode)}) == 1
 
 
 def test_a_label_is_one_blank_node_across_the_graph_blocks_of_one_trig_document():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.parse(data=P + "GRAPH :g1 { _:b :p :o } GRAPH :g2 { _:b :q :r }", format="trig12")
     assert len({q.subject for q in ds.quads()}) == 1
 
 
 def test_a_label_is_one_blank_node_in_one_n_quads_document():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.parse(data="_:a <http://e/p> _:a .\n_:a <http://e/q> <http://e/r> .\n", format="nq12")
     assert len({n for q in ds.quads() for n in (q.subject, q.object) if isinstance(n, BNode)}) == 1
 
@@ -69,7 +69,7 @@ RDFXML = (
 
 
 def test_rdfxml_node_ids_are_one_blank_node_per_document():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=RDFXML, format="rdfxml12")
     (s, _, o), = list(g)
     assert s == o
@@ -82,7 +82,7 @@ JSON_LD = '[{"@id":"http://e/z","http://e/p":[{"@id":"http://e/y"}]}]'
 
 
 def test_a_query_sees_data_added_by_a_json_ld_parse():
-    ds = OxDataset(default_union=True)
+    ds = StarLayerDataset(default_union=True)
     ds.add((E.a, E.p, E.b))
     assert len(list(ds.query("SELECT * WHERE { ?s ?p ?o }"))) == 1
     ds.parse(data=JSON_LD, format="json-ld")
@@ -91,7 +91,7 @@ def test_a_query_sees_data_added_by_a_json_ld_parse():
 
 
 def test_a_query_sees_data_added_by_a_single_graph_parse():
-    ds = OxDataset(default_union=True)
+    ds = StarLayerDataset(default_union=True)
     ds.add((E.a, E.p, E.b))
     assert len(list(ds.query("SELECT * WHERE { ?s ?p ?o }"))) == 1
     ds.parse(data="<http://e/z> <http://e/p> <http://e/y> .", format="nt12")
@@ -100,7 +100,7 @@ def test_a_query_sees_data_added_by_a_single_graph_parse():
 
 # --- triples(context=)
 def test_triples_can_be_restricted_to_one_graph():
-    ds = OxDataset(default_union=True)
+    ds = StarLayerDataset(default_union=True)
     ds.add((E.a, E.p, E.b))
     named = ds.graph(E.g)
     named.add((E.c, E.p, E.d))

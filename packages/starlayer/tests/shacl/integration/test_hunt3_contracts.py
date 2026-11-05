@@ -3,7 +3,7 @@
 
 import pytest
 from rdflib import Namespace, URIRef
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 
 EX = Namespace("http://example.org/")
@@ -14,7 +14,7 @@ ex:a a ex:T ; ex:name "n" ."""
 
 
 def _schema():
-    graph = OxGraph()
+    graph = StarLayerGraph()
     graph.parse(data=SHAPES, format="turtle12")
     return graph, StarShaclSchema(shacl_graph=graph)
 

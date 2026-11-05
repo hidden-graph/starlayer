@@ -25,25 +25,25 @@ _SUBJECT, _PREDICATE, _OBJECT = (ox.NamedNode(_RDF + n) for n in ("subject", "pr
 
 def _need_graph(target: Any, what: str) -> None:
     if not (hasattr(target, "extend") and hasattr(target, "store")):
-        raise TypeError(f"{what}() target graph must be an OxGraph or OxDataset, not {type(target).__name__}.")
+        raise TypeError(f"{what}() target graph must be an StarLayerGraph or StarLayerDataset, not {type(target).__name__}.")
 
 
 def empty_like(g: Any) -> Any:
-    """A new, empty, in-memory graph of the same kind (``OxGraph`` -> ``OxGraph``, ``OxDataset`` -> ``OxDataset`` with the same
+    """A new, empty, in-memory graph of the same kind (``StarLayerGraph`` -> ``StarLayerGraph``, ``StarLayerDataset`` -> ``StarLayerDataset`` with the same
     ``default_union``) with a copy of the namespace bindings."""
-    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
     prefixes = dict(g.prefixes)
-    if isinstance(g, OxDataset):
-        return OxDataset(default_union=g.default_union, prefixes=prefixes)
-    return OxGraph(prefixes=prefixes)
+    if isinstance(g, StarLayerDataset):
+        return StarLayerDataset(default_union=g.default_union, prefixes=prefixes)
+    return StarLayerGraph(prefixes=prefixes)
 
 
 def _new_graph_like(g: Any) -> Any:
-    """The default target of ``cbd`` / ``skolemize``: a plain ``OxGraph`` with the source's prefixes (also for a dataset)."""
-    from starlayer.graph.oxgraph.core import OxGraph
+    """The default target of ``cbd`` / ``skolemize``: a plain ``StarLayerGraph`` with the source's prefixes (also for a dataset)."""
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    return OxGraph(prefixes=dict(g.prefixes))
+    return StarLayerGraph(prefixes=dict(g.prefixes))
 
 
 # ---- skolemization ----------------------------------------------------------------------------------------------------
@@ -77,7 +77,7 @@ def _rewrite(g: Any, target: Any, fn: Callable[[Any], Any]) -> Any:
 
 def skolemize(g: Any, new_graph: Any = None, bnode: Any = None, authority: str | None = None, basepath: str | None = None) -> Any:
     """Blank nodes of subjects and objects (inside triple terms too) as skolem IRIs, into ``new_graph`` (default a new
-    ``OxGraph``). With ``bnode`` only that blank node is replaced."""
+    ``StarLayerGraph``). With ``bnode`` only that blank node is replaced."""
     if new_graph is None:
         new_graph = _new_graph_like(g)
     else:
@@ -118,7 +118,7 @@ def de_skolemize(g: Any, new_graph: Any = None, uriref: Any = None) -> Any:
 def cbd(g: Any, resource: Any, *, target_graph: Any = None, include_reifications: bool = True) -> Any:
     """The Concise Bounded Description of ``resource`` (W3C member submission): its statements, recursively those of blank-node
     objects, and (``include_reifications``) the description of each ``rdf:Statement`` node reifying one of them. Returns
-    ``target_graph`` (default a new ``OxGraph``)."""
+    ``target_graph`` (default a new ``StarLayerGraph``)."""
     if target_graph is None:
         target_graph = _new_graph_like(g)
     else:

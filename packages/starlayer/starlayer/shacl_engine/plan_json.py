@@ -463,7 +463,7 @@ class SerializedPlan(Plan):
 
 
 def plan_from_json(obj: dict, shapes_graph: Any = None) -> Plan:
-    """Rebuild a plan. With ``shapes_graph=None`` an ``OxGraph`` is filled from the ``graph`` term store; else the
+    """Rebuild a plan. With ``shapes_graph=None`` an ``StarLayerGraph`` is filled from the ``graph`` term store; else the
     given graph is used for expressions, lists and SPARQL nodes (it must be the graph the plan was built from)."""
     version = obj.get("format_version")
     if version != FORMAT_VERSION:
