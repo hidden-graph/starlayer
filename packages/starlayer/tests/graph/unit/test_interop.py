@@ -239,14 +239,15 @@ class TestBaseDirectionPolicy:
         out = export_rdf11([q(iri("a"), iri("p"), self.L)], "ntriples").decode()
         assert f"^^<{DIRLANG_NS}he--rtl>" in out and "--rtl " not in out.replace(f"{DIRLANG_NS}he--rtl", "")
 
-    def test_matches_the_old_encoding_module(self):
-        from rdflib import URIRef
-        from starlayer.graph.model import encoding as old
+    def test_matches_the_datatype_helpers_of_dirlangstring(self):
+        from starlayer.graph.model.dirlangstring import (
+            decode_dirlang_datatype,
+            encode_dirlang_datatype,
+        )
 
-        assert DIRLANG_NS == old.DIRLANG_NS
         (out,) = encode_directions([q(iri("a"), iri("p"), self.L)])
-        assert str(out.object.datatype.value) == str(old.encode_dirlang_datatype("he", "rtl"))
-        assert old.decode_dirlang_datatype(URIRef(out.object.datatype.value)) == ("he", "rtl")
+        assert out.object.datatype.value == encode_dirlang_datatype("he", "rtl")
+        assert decode_dirlang_datatype(out.object.datatype) == ("he", "rtl")
 
     def test_decode_inverts_and_works_inside_triple_terms(self):
         data = [q(iri("a"), iri("p"), tt(iri("s"), iri("p"), self.L)), q(iri("a"), iri("p"), self.L)]

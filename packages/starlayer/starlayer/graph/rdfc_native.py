@@ -8,10 +8,10 @@
   is RDFC-1.0 of an RDF 1.1-shaped dataset and rests on a documented rewriting. The form is defined by
   that draft and may change with it. RDFC-1.0 has no triple-term rule of its own.
 
-Known limit (checked against the W3C poison test, test074): Oxigraph's canonicaliser has no
-denial-of-service defence; a highly symmetric dataset (a clique of 10 blank nodes) does not finish. Do not
-canonicalise untrusted input with it without an outer limit; ``starlayer.graph.rdfc`` raises
-``CanonicalizationComplexityError`` there.
+Dataset poisoning (RDFC-1.0 section 7.1, the W3C poison test074): Oxigraph's canonicaliser has no denial-of-service defence,
+and a highly symmetric dataset (a clique of 10 blank nodes, a 6 x 6 torus of blank nodes) does not finish. Before every
+canonicalisation :func:`check_complexity` runs a cheap colour refinement and raises
+:class:`CanonicalizationComplexityError` for such a structure. It is a heuristic, not a proof of termination (see its docstring).
 """
 
 from __future__ import annotations
@@ -22,7 +22,17 @@ import pyoxigraph as ox
 
 from starlayer.graph.interop import to_basic
 
-__all__ = ["isomorphic", "canonical_quads", "canonical_nquads", "canonical_hash"]
+__all__ = ["isomorphic", "canonical_quads", "canonical_nquads", "canonical_hash", "check_complexity", "CanonicalizationComplexityError"]
+
+# The largest cyclomatic number (edges - nodes + 1) that a connected group of mutually indistinguishable blank nodes may have.
+# Measured on pyoxigraph 0.5.13 (RDFC-1.0 time): a 7-blank-node clique (15) 1.3 s, a 5 x 5 complete bipartite graph (16) 3 s,
+# a 4 x 4 torus (17) 0.2 s, a 200-node cycle (1) 1.4 s; an 8-clique (21) 13 s, K(6,6) (25) and a 6 x 6 torus (37) do not finish.
+MAX_SYMMETRIC_CYCLE_RANK = 20
+
+
+class CanonicalizationComplexityError(RuntimeError):
+    """The dataset has a highly symmetric blank-node structure that RDFC-1.0 would take exponential time on (RDFC-1.0
+    section 7.1, "Dataset Poisoning": implementations MUST terminate early with an exception)."""
 
 _ALGORITHMS = {
     "sha256": ox.CanonicalizationAlgorithm.RDFC_1_0,
@@ -71,8 +81,93 @@ def _bnode_in_triple_term(quads: list[ox.Quad]) -> bool:
     return False
 
 
+def check_complexity(quads: list[ox.Quad], *, max_cycle_rank: int = MAX_SYMMETRIC_CYCLE_RANK) -> None:
+    """Raise :class:`CanonicalizationComplexityError` if ``quads`` hold a blank-node structure that canonicalisation would not
+    finish: colour refinement (every blank node is coloured by its quads, neighbours by their colours, until stable), then
+    the blank nodes still sharing a colour are linked by the quads that join two of them; a connected group of them with
+    more than ``max_cycle_rank`` independent cycles (edges - nodes + 1) is the symmetric, densely tied structure the
+    algorithm's permutation step explodes on. Paths, trees, plain cycles, any number of interchangeable leaf blank nodes
+    and a hub with many identical blank children never count. Linear in the quads (times the refinement rounds).
+
+    A heuristic: it rejects every clique of 8 or more blank nodes and every grid-like symmetric graph that was seen to
+    hang, and accepts every dataset of the W3C suite; it does not prove that a dataset it accepts finishes quickly."""
+    nodes: dict[str, int] = {}
+
+    def collect(t, acc):
+        if isinstance(t, ox.BlankNode):
+            acc.append(nodes.setdefault(t.value, len(nodes)))
+        elif isinstance(t, ox.Triple):
+            collect(t.subject, acc)
+            collect(t.object, acc)
+
+    rows = []
+    for q in quads:
+        acc: list[int] = []
+        collect(q.subject, acc)
+        collect(q.object, acc)
+        collect(q.graph_name, acc)
+        if acc:
+            rows.append((q, acc))
+    if len(nodes) < 8:
+        return  # a dozen blank nodes finish in milliseconds whatever their shape; the cheapest clique that hangs has 8
+    color = [0] * len(nodes)
+
+    def show(t, own: int | None) -> str:
+        if isinstance(t, ox.BlankNode):
+            i = nodes[t.value]
+            return "@" if i == own else f"_{color[i]}"
+        if isinstance(t, ox.Triple):
+            return f"<<{show(t.subject, own)} {t.predicate} {show(t.object, own)}>>"
+        return str(t)
+
+    classes = 1
+    for _ in range(64):
+        sigs: list[list[str]] = [[] for _ in nodes]
+        for q, acc in rows:
+            for i in set(acc):
+                sigs[i].append(f"{show(q.subject, i)} {q.predicate} {show(q.object, i)} {show(q.graph_name, i)}")
+        palette: dict[tuple, int] = {}
+        new = [palette.setdefault((color[i], tuple(sorted(sigs[i]))), len(palette)) for i in range(len(nodes))]
+        color = new
+        if len(palette) == classes:
+            break
+        classes = len(palette)
+    size: dict[int, int] = {}
+    for c in color:
+        size[c] = size.get(c, 0) + 1
+    parent = list(range(len(nodes)))
+
+    def find(x: int) -> int:
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    edges: set[tuple[int, int]] = set()
+    for _, acc in rows:
+        tied = sorted({i for i in acc if size[color[i]] > 1})
+        for k, a in enumerate(tied):
+            for b in tied[k + 1:]:
+                edges.add((a, b))
+                parent[find(a)] = find(b)
+    count_nodes: dict[int, set[int]] = {}
+    count_edges: dict[int, int] = {}
+    for a, b in edges:
+        r = find(a)
+        count_nodes.setdefault(r, set()).update((a, b))
+        count_edges[r] = count_edges.get(r, 0) + 1
+    for r, e in count_edges.items():
+        rank = e - len(count_nodes[r]) + 1
+        if rank > max_cycle_rank:
+            raise CanonicalizationComplexityError(
+                f"canonicalisation refused: {len(count_nodes[r])} indistinguishable blank nodes are tied together by {e} "
+                f"statements (cycle rank {rank} > {max_cycle_rank}); RDFC-1.0 takes exponential time on such a structure"
+            )
+
+
 def _canonicalize(quads: list[ox.Quad], algorithm) -> list[ox.Quad]:
     _, alg = _algorithm(algorithm)
+    check_complexity(quads)
     ds = ox.Dataset(quads)  # a copy: the caller's store or dataset is never relabelled
     ds.canonicalize(alg)
     return list(ds)

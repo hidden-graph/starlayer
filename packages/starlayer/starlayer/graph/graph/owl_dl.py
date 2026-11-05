@@ -157,7 +157,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     _require_owlready2()
     _require_java()
 
-    from starlayer.graph.compare import _decompose
+    from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
     before = _decompose(graph)
 
     with tempfile.TemporaryDirectory() as tmp_dir:

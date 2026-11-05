@@ -51,7 +51,7 @@ ql:callers-of a slkg:NamedQuery ;
         ql:cq-what-calls-function-x-reverse-lookup ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a function or method" ;
-            slkg:paramExample "starlayer.graph.model.encoding.tt_hash" ;
+            slkg:paramExample "starlayer.graph.interop.to_basic" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:callers-of-tree .
@@ -156,7 +156,7 @@ ql:find-symbol a slkg:NamedQuery ;
     slkg:aboutTopic ql:topic-navigation ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "part of a dotted identifier, case-insensitive" ;
-            slkg:paramExample "tt_hash" ;
+            slkg:paramExample "to_basic" ;
             slkg:paramName "text" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:find-symbol-tree .
@@ -239,7 +239,7 @@ ql:public-api-of-module a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-what-s-the-public-api-surface-of ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a module" ;
-            slkg:paramExample "starlayer.graph.model.encoding" ;
+            slkg:paramExample "starlayer.graph.interop" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:public-api-of-module-tree .
@@ -270,7 +270,7 @@ ql:symbol-info a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-what-are-a-function-method-s-parameters ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a class, function, method or module" ;
-            slkg:paramExample "starlayer.graph.model.encoding.tt_hash" ;
+            slkg:paramExample "starlayer.graph.interop.to_basic" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:symbol-info-tree .
@@ -282,7 +282,7 @@ ql:tests-of a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-does-this-function-have-a-test-that ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a function or method" ;
-            slkg:paramExample "starlayer.graph.model.encoding.tt_hash" ;
+            slkg:paramExample "starlayer.graph.interop.to_basic" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:tests-of-tree .

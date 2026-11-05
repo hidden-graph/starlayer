@@ -84,11 +84,10 @@ auditing the project's own docs/code for every W3C document mentioned
 rather than assuming the original seven were exhaustive**:
 
 - **RDF Dataset Canonicalization (RDFC-1.0)** - ``starlayer.graph``.
-  ``starlayer/graph/rdfc.py``'s own docstring: "every algorithm step...
-  transcribed directly from the spec text", verified against the
-  official W3C RDFC-1.0 test suite, with a documented RDF 1.2
-  triple-term extension and a couple of named Appendix-A escaping edge
-  cases skipped.
+  ``starlayer/graph/rdfc_native.py``: Oxigraph's RDFC-1.0, verified
+  against the official W3C RDFC-1.0 test suite (64 evaluation tests and the
+  negative poison test), with triple terms handled through the RDF 1.2
+  Interoperability basic encoding.
 - **SPARQL 1.2 Protocol** - ``starlayer.graph`` (lands in
   ``backends/native.py``, the native backend's HTTP client).
   ``docs/graph/sparql12_protocol_gap_analysis.md``'s own verdict:

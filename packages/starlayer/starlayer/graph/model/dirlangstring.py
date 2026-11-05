@@ -8,15 +8,12 @@ an explicit base text direction ('ltr' or 'rtl'), per rdf:dirLangString
 Encoding follows the same "invisible to public APIs" approach as TripleTerm:
 rdflib.Literal(text, lang="en--rtl") raises (rdflib has no notion of the
 --dir suffix), so a DirLangString is stored as a plain Literal whose datatype
-URI packs (language, direction) - see encode_dirlang_datatype in
-starlayer.graph.model.encoding. StarLayerGraph encodes/decodes at its read/write
-boundary so callers only ever see DirLangString or plain rdflib terms.
+URI packs (language, direction) - see encode_dirlang_datatype below.
+The Oxigraph-backed graphs hold the real ``ox.Literal(..., language=, direction=)``;
+the datatype form is for rdflib (``encode_dirlangstring``, the bridge).
 """
 
-from starlayer.graph.model.encoding import (
-    decode_dirlang_datatype,
-    encode_dirlang_datatype,
-)
+from starlayer.graph.interop import DIRLANG_NS
 
 _VALID_DIRECTIONS = frozenset({'ltr', 'rtl'})
 
@@ -72,11 +69,28 @@ def _quoted(text: str) -> str:
     return str(ox.Literal(text))
 
 
-def encode_dirlangstring(dls: DirLangString):
-    """Return the internal (rdflib) Literal encoding of a DirLangString; needs rdflib."""
-    from rdflib import Literal
+def encode_dirlang_datatype(language: str, direction: str) -> str:
+    """The datatype IRI (as text) that packs a directional language string's (language, direction): ``DIRLANG_NS`` +
+    ``"<language>--<direction>"``. rdflib's ``Literal(lang="en--rtl")`` raises, so the rdflib side carries the pair in a datatype."""
+    return f'{DIRLANG_NS}{language}--{direction}'
 
-    return Literal(dls.value, datatype=encode_dirlang_datatype(dls.language, dls.direction))
+
+def decode_dirlang_datatype(datatype) -> tuple[str, str] | None:
+    """``(language, direction)`` if ``datatype`` (an IRI term or text) is a dirlang datatype IRI, else None."""
+    s = str(getattr(datatype, 'value', datatype))
+    if not s.startswith(DIRLANG_NS):
+        return None
+    language, sep, direction = s[len(DIRLANG_NS):].rpartition('--')
+    if not sep:
+        return None
+    return language, direction
+
+
+def encode_dirlangstring(dls: DirLangString):
+    """The rdflib ``Literal`` that carries a DirLangString as a datatype IRI; needs rdflib."""
+    from rdflib import Literal, URIRef
+
+    return Literal(dls.value, datatype=URIRef(encode_dirlang_datatype(dls.language, dls.direction)))
 
 
 def decode_dirlangstring(literal) -> DirLangString | None:

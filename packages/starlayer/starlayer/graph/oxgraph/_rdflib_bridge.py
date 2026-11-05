@@ -33,20 +33,96 @@ def to_rdflib_triples(triples: Iterable[tuple[Any, Any, Any]]) -> list[tuple[Any
 
 def rdflib_graph(triples: Iterable[tuple[Any, Any, Any]], *, decompose: bool = True) -> Any:
     """A plain ``rdflib.Graph`` with the triples. ``decompose=True`` replaces every triple term with a synthetic reification
-    fragment (what the reasoners need; they cannot hold a triple term), as ``starlayer.graph.compare._decompose`` does."""
+    fragment (what the reasoners need; they cannot hold a triple term), as ``decompose`` does."""
     from rdflib import Graph
 
     rows = to_rdflib_triples(triples)
     out = Graph()
     if decompose:
-        from starlayer.graph.compare import _decompose_quads
-
         for s, p, o, _g in _decompose_quads((s, p, o, None) for s, p, o in rows):
             out.add((s, p, o))
     else:
         for t in rows:
             out.add(t)
     return out
+
+
+# ---- decomposing triple terms for rdflib (the reasoners and the OWL-DL exporters cannot hold one) ----
+
+# A dedicated, internal-only namespace for the synthetic reification edges -
+# never emitted by any parser/serializer in this codebase, so it can never
+# collide with a source graph's own use of classic RDF reification
+# (rdf:subject/predicate/object) on unrelated blank nodes.
+_TT_PREFIX = "urn:starlayer:canon-tt#"
+
+
+def _escape_predicate(p: Any) -> Any:
+    """Keep the decomposition injective: a source predicate in the internal
+    namespace is moved under ``..#escaped:`` so it can never be mistaken for
+    one of the three synthetic edges (``subject``/``predicate``/``object``)
+    that stand for a triple term."""
+    from rdflib import URIRef
+
+    if isinstance(p, URIRef) and str(p).startswith(_TT_PREFIX):
+        return URIRef(_TT_PREFIX + "escaped:" + str(p)[len(_TT_PREFIX) :])
+    return p
+
+
+def _decompose_quads(quads: Any) -> list:
+    """Quads with every triple term replaced by a synthetic reification
+    fragment placed in the same graph as the quad that held the term, see
+    the module docstring for why that suffices. Returns de-duplicated quads
+    (a set, as a graph would be); the decomposition is injective."""
+    from rdflib import BNode, Literal, URIRef
+    from rdflib.namespace import XSD
+
+    from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
+    from starlayer.graph.model.triple import TripleTerm
+
+    out: dict = {}
+
+    def _term(node: Any, g: Any) -> Any:
+        """A triple term becomes a fresh blank node (recursing for a nested
+        triple term in object position); a DirLangString is re-encoded as
+        the same flat Literal form used at this codebase's own read/write
+        boundary; an explicit-xsd:string Literal is normalized down to the
+        simple-literal form (datatype=None) it's semantically sugar for, per
+        RDF 1.1 Concepts (see module docstring); a language tag is
+        lower-cased (tags compare case-insensitively); anything else
+        (already a plain rdflib term) passes through unchanged."""
+        if isinstance(node, TripleTerm):
+            tt_node = BNode()
+            out[(tt_node, URIRef(_TT_PREFIX + "subject"), _term(node.subject, g), g)] = None
+            out[(tt_node, URIRef(_TT_PREFIX + "predicate"), node.predicate, g)] = None
+            out[(tt_node, URIRef(_TT_PREFIX + "object"), _term(node.object, g), g)] = None
+            return tt_node
+        if isinstance(node, DirLangString):
+            return encode_dirlangstring(node)
+        if isinstance(node, Literal):
+            if node.datatype == XSD.string and node.language is None:
+                return Literal(str(node))
+            if node.language and node.language != node.language.lower():
+                return Literal(str(node), lang=node.language.lower())
+        return node
+
+    for s, p, o, g in quads:
+        out[(_term(s, g), _escape_predicate(p), _term(o, g), g)] = None
+    return list(out)
+
+
+def decompose(graph: Any) -> Any:
+    """Return a plain ``rdflib.Graph`` with every triple term replaced by a
+    synthetic reification fragment (a fresh blank node per triple-term occurrence, three edges in an internal namespace, recursing
+    for a nested one). Injective, and the result holds no triple term, which is what the rdflib reasoners need."""
+    from rdflib import Graph
+
+    if is_oxigraph_input(graph):
+        graph = to_rdflib_triples(iter(graph))
+    out = Graph()
+    for s, p, o, _g in _decompose_quads((s, p, o, None) for s, p, o in graph):
+        out.add((s, p, o))
+    return out
+
 
 
 def is_oxigraph_input(value: Any) -> bool:
@@ -337,7 +413,7 @@ def default_boundary(build: Any, *terms: Any) -> tuple[Any, ...]:
 
 
 def _decode_dirlang(term: Any) -> Any:
-    from starlayer.graph.model.encoding import decode_dirlang_datatype
+    from starlayer.graph.model.dirlangstring import decode_dirlang_datatype
 
     dt = getattr(term, "datatype", None)
     decoded = decode_dirlang_datatype(dt) if dt is not None else None

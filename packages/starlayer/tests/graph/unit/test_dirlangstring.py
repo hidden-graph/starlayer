@@ -9,15 +9,13 @@ round-trips, and the SPARQL 1.2 base-direction functions.
 import pyoxigraph as ox
 import pytest
 from rdflib import Literal, URIRef
+from starlayer.graph.interop import DIRLANG_NS
 from starlayer.graph.model.dirlangstring import (
     DirLangString,
-    decode_dirlangstring,
-    encode_dirlangstring,
-)
-from starlayer.graph.model.encoding import (
-    DIRLANG_NS,
     decode_dirlang_datatype,
+    decode_dirlangstring,
     encode_dirlang_datatype,
+    encode_dirlangstring,
 )
 from starlayer.graph.oxgraph import StarLayerGraph
 
@@ -99,6 +97,7 @@ class TestEncodeDecode:
     def test_datatype_helpers_round_trip(self):
         dt = encode_dirlang_datatype('en', 'ltr')
         assert decode_dirlang_datatype(dt) == ('en', 'ltr')
+        assert decode_dirlang_datatype(ox.NamedNode(dt)) == ('en', 'ltr')
 
     def test_datatype_helper_rejects_foreign_namespace(self):
         assert decode_dirlang_datatype(URIRef('http://example.org/en--ltr')) is None

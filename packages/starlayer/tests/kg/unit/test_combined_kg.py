@@ -86,8 +86,8 @@ def test_an_agent_can_read_a_query_from_the_graph_and_run_it(kg):
     """The documented flow: find the query's text in the graph, bind its parameter, run it."""
     find = f"SELECT ?t WHERE {{ ?q a <{CODEKG_NS}NamedQuery> ; <{CODEKG_NS}queryText> ?t . FILTER(STRENDS(STR(?q), '#find-symbol')) }}"
     text = next(iter(kg.query(find)))[0].value
-    rows = list(kg.query(text, initBindings={"text": Literal("tt_hash")}))
-    assert any("lookup_tt_hash" in row[0].value for row in rows)
+    rows = list(kg.query(text, initBindings={"text": Literal("to_basic")}))
+    assert any("interop.to_basic" in row[0].value for row in rows)
 
 
 @pytest.mark.deferred

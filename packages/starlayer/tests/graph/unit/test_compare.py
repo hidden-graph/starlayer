@@ -1,5 +1,5 @@
 """Regression coverage for starlayer.graph.compare's RDF-1.2 (triple-term)
-fix to isomorphism/canonicalization.
+isomorphism over Oxigraph-backed graphs.
 
 Confirmed live, before this fix existed, that plain rdflib.compare against a
 StarLayerGraph containing a triple term:
@@ -14,7 +14,7 @@ starlayer.graph/compare.py's own module docstring for why the decomposition
 fix is correct.
 """
 
-from starlayer.graph.compare import isomorphic, to_canonical_hash, to_isomorphic
+from starlayer.graph.compare import isomorphic
 from starlayer.graph.oxgraph import StarLayerGraph
 
 
@@ -64,24 +64,6 @@ class TestTripleTermIsomorphism:
             "ex:a ex:p <<( ex:x ex:y <<( _:zzz ex:q ex:r )>> )>> . _:zzz ex:label \"inner\" ."
         )
         assert isomorphic(g1, g2) is True
-
-    def test_to_isomorphic_no_longer_crashes_on_a_triple_term(self) -> None:
-        g = _graph(
-            "@prefix ex: <http://example.org/> ."
-            "ex:claim1 ex:says <<( _:b1 ex:knows ex:carol )>> . _:b1 ex:name \"Bob\" ."
-        )
-        to_isomorphic(g)  # would raise AssertionError before the fix
-
-    def test_to_canonical_hash_agrees_with_isomorphic(self) -> None:
-        g1 = _graph(
-            "@prefix ex: <http://example.org/> ."
-            "ex:claim1 ex:says <<( _:b1 ex:knows ex:carol )>> . _:b1 ex:name \"Bob\" ."
-        )
-        g2 = _graph(
-            "@prefix ex: <http://example.org/> ."
-            "ex:claim1 ex:says <<( _:xyz ex:knows ex:carol )>> . _:xyz ex:name \"Bob\" ."
-        )
-        assert to_canonical_hash(g1) == to_canonical_hash(g2)
 
 
 class TestPlainGraphRegressionSafety:
@@ -169,15 +151,6 @@ class TestSimpleLiteralVsExplicitXsdStringIsomorphism:
         )
         assert isomorphic(g1, g2) is False
 
-    def test_to_canonical_hash_agrees_for_plain_and_explicit_xsd_string(self) -> None:
-        g1 = _graph('@prefix ex: <http://example.org/> . ex:a ex:p "high" .')
-        g2 = _graph(
-            '@prefix ex: <http://example.org/> . '
-            '@prefix xsd: <http://www.w3.org/2001/XMLSchema#> . '
-            'ex:a ex:p "high"^^xsd:string .'
-        )
-        assert to_canonical_hash(g1) == to_canonical_hash(g2)
-
 
 # --- many similar blank nodes (slow parts hunt): graph isomorphism is decided by canonical N-Quads, not rdflib's refinement ---
 
@@ -193,14 +166,9 @@ def _people(n, city_suffix=""):
     return g
 
 
-def test_isomorphic_does_not_need_rdflibs_refinement_for_many_similar_blank_nodes(monkeypatch):
-    import rdflib.compare
+def test_isomorphic_is_native_for_many_similar_blank_nodes():
     import starlayer.graph.compare as compare
 
-    def refuse(*_args, **_kwargs):
-        raise AssertionError("rdflib's isomorphism routine was reached")
-
-    monkeypatch.setattr(rdflib.compare, "isomorphic", refuse)
     assert compare.isomorphic(_people(300), _people(300))
     assert not compare.isomorphic(_people(300), _people(300, city_suffix="!"))
 
@@ -222,3 +190,29 @@ def test_isomorphic_still_treats_a_simple_literal_and_xsd_string_as_equal():
         format="turtle12",
     )
     assert isomorphic(a, b)
+
+
+def test_isomorphic_raises_instead_of_hanging_on_a_symmetric_blank_node_graph():
+    import pytest
+    from starlayer.graph.rdfc_native import CanonicalizationComplexityError
+
+    ring = "".join(f"_:b{i} ex:p _:b{j} . " for i in range(10) for j in range(10) if i != j)
+    g = _graph("@prefix ex: <http://example.org/> . " + ring)
+    with pytest.raises(CanonicalizationComplexityError):
+        isomorphic(g, g)
+
+
+def test_isomorphic_takes_rdflib_graphs_and_datasets():
+    import rdflib
+    from starlayer.graph.oxgraph import StarLayerDataset
+
+    text = '@prefix ex: <http://example.org/> . ex:a ex:p [ ex:q "x" ] .'
+    a, b = rdflib.Graph(), rdflib.Graph()
+    a.parse(data=text, format="turtle")
+    b.parse(data=text.replace("ex:a", "ex:b"), format="turtle")
+    assert isomorphic(a, _graph(text))
+    assert isomorphic(_graph(text), a)
+    assert not isomorphic(a, b)
+    ds = StarLayerDataset()
+    ds.parse(data=text, format="turtle")
+    assert isomorphic(a, ds)

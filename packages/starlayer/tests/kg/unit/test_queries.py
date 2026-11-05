@@ -161,15 +161,15 @@ def test_paging_and_the_footer(kg):
 
 @pytest.mark.codekg_queries
 def test_rows_show_repository_relative_paths_not_machine_paths(kg):
-    row = queries.run_query("symbol-info", symbol="starlayer.graph.model.encoding.tt_hash").as_dicts()[0]
+    row = queries.run_query("symbol-info", symbol="starlayer.graph.interop.to_basic").as_dicts()[0]
     assert row["kind"] == "function"
     assert row["file"].startswith("packages/starlayer/starlayer/") and not row["file"].startswith("/")
 
 
 @pytest.mark.codekg_queries
 def test_a_known_call_edge_is_found(kg):
-    callers = queries.run_query("callers-of", symbol="starlayer.graph.model.encoding.tt_hash", limit=500).as_dicts()
-    assert any(r["caller"] == "starlayer.graph.model.encoding._reencode_tt" for r in callers)
+    callers = queries.run_query("callers-of", symbol="starlayer.graph.interop.to_basic", limit=500).as_dicts()
+    assert any(r["caller"] == "starlayer.graph.rdfc_native.canonical_quads" for r in callers)
 
 
 @pytest.mark.codekg_queries
@@ -189,7 +189,7 @@ def test_free_form_sparql_is_bounded_and_refuses_what_could_return_everything(kg
 def test_command_line(kg, capsys):
     assert queries.main(["list", "--topic", "testing"]) == 0
     assert "tests-of" in capsys.readouterr().out
-    assert queries.main(["run", "callers-of", "symbol=starlayer.graph.model.encoding.tt_hash", "--limit", "2"]) == 0
+    assert queries.main(["run", "callers-of", "symbol=starlayer.graph.interop.to_basic", "--limit", "2"]) == 0
     assert "rows 1-2 of" in capsys.readouterr().out
     assert queries.main(["run", "no-such-query"]) == 2
 
@@ -243,5 +243,5 @@ def test_members_of_class_lists_named_tuple_and_dataclass_fields(kg):
 def test_results_say_how_old_the_kg_is(kg):
     sentence = queries.kg_status()
     assert sentence.startswith("KG built 20") and "commit" in sentence
-    assert sentence in str(queries.run_query("find-symbol", text="tt_hash", limit=2))
+    assert sentence in str(queries.run_query("find-symbol", text="to_basic", limit=2))
     assert queries.main(["status"]) == 0
