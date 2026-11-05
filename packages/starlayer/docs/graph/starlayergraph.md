@@ -1,5 +1,7 @@
 # starlayergraph — Architecture & Design
 
+> **Historical (D1, 2026-11).** This document describes the old rdflib-based `StarLayerGraph` (`backend=`, `rdf-1.1` / `rdf-1.2`, rdflib stores, the HTTP client `backends/native.py`, SPARQL lowering), which was deleted when the Oxigraph-backed classes took the names `StarLayerGraph` / `StarLayerDataset`. For the code as it is now read `starlayer/graph/CLAUDE.md` and guide `docs/guides/02d-oxigraph-wrapper.ipynb`.
+
 *Last reviewed: 2026-09-13*
 
 ## What is it

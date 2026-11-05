@@ -8,7 +8,7 @@ The RDF, SPARQL and SHACL 1.2 specifications are still drafts. StarLayer follows
 
 | Import | What it does |
 | --- | --- |
-| `starlayer.graph` | `StarLayerGraph` and `StarLayerDataset`: RDF 1.2 graphs with triple terms, reifiers, annotations and direction-tagged literals. Parses and serializes Turtle, TriG, N-Triples, N-Quads, RDF/XML and TriX (1.1 and 1.2), Manchester Syntax and JSON-LD 1.1. Stores in memory, Oxigraph, Fuseki or SQLAlchemy. Inference with RDF, RDFS, OWL-RL and OWL-DL. Canonical hashing and graph comparison. |
+| `starlayer.graph` | `StarLayerGraph` and `StarLayerDataset`: RDF 1.2 graphs with triple terms, reifiers, annotations and direction-tagged literals. Parses and serializes Turtle, TriG, N-Triples, N-Quads, RDF/XML and JSON-LD (all through Oxigraph, with the RDF 1.1 basic-encoding export for triple terms) and Manchester Syntax. Held by Oxigraph in memory or in an on-disk store; a query can read a remote SPARQL endpoint with `SERVICE`. Inference with RDF, RDFS, OWL-RL and OWL-DL. Canonical hashing and graph comparison. |
 | `starlayer.sparql` | SPARQL 1.2 queries and updates (`StarQuery`), queries as RDF (`sqe:`), and SRL (SPARQL Rules) rule sets. |
 | `starlayer.shacl` | SHACL 1.2 validation (`StarShaclSchema`), rules, node expressions, subgraph extraction, UI widget selection and profiling. |
 | `starlayer.starontology` | The ontologies and SHACL shapes the library ships, loaded by name. |
@@ -19,7 +19,7 @@ The RDF, SPARQL and SHACL 1.2 specifications are still drafts. StarLayer follows
 pip install "git+https://github.com/hidden-graph/starlayer.git"
 ```
 
-Python 3.10 or later. Optional extras, added like `"starlayer[oxigraph] @ git+https://github.com/hidden-graph/starlayer.git"`: `oxigraph` (in-process Oxigraph store), `sqlalchemy`, `reasoning` (OWL-RL), `hermit` and `rustdl` (the two OWL-DL engines).
+Python 3.10 or later. Optional extras, added like `"starlayer[oxigraph] @ git+https://github.com/hidden-graph/starlayer.git"`: `oxigraph`, `sqlalchemy`, `reasoning` (OWL-RL), `hermit` and `rustdl` (the two OWL-DL engines).
 
 **Supported Oxigraph versions.** StarLayer needs Oxigraph 0.5.13 or later. Older versions abort the whole process on SPARQL `=` over `rdf:dirLangString` ([oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982)), and StarLayer does not work around it. `pyoxigraph>=0.5.13` is a core dependency, and importing StarLayer's Oxigraph-based modules raises `ImportError` on an older pyoxigraph. A remote `oxigraph serve` cannot be version-checked from the client; run 0.5.13 or newer there.
 
