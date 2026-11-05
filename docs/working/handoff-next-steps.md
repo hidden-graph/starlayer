@@ -22,7 +22,7 @@ Branch `shacl-engine` on GitHub (`hidden-graph/starlayer`), written 2026-11-05 a
 ## Decisions still open
 
 - Oxigraph #190: stored literals are normalised on insert (`"04"^^xsd:integer` becomes `"4"`); accepted for now.
-- `isomorphic()` guard is a heuristic: a 500-node blank-node path still hangs Oxigraph (row 27).
+- `isomorphic()` guard is a heuristic: a very long blank-node path is not caught; Oxigraph is slow on it but does not hang (500 nodes 4.0 s, 1000 nodes 35 s; row 27).
 - Update sub-select check for an unbound projected variable (a salg check) was not ported; sqe has no Update shape for it.
 - `manchester_validate` stays on owlrl through the bridge; a native RDFS regime or a Rust reasoner is later work. `reasonable` is not supported.
 - The Oxigraph-backed sqe tree is store-backed, so a text round trip can normalise numeric forms; an in-memory tree type is the alternative.

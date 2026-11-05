@@ -38,8 +38,8 @@ the KG tests/curated files, a test of `ENCODING_PREDS`, and `benchmarks-graph/be
 guard is: colour refinement (a blank node is coloured by its quads and the colours of its neighbours, until stable, at most 64 rounds), then the blank
 nodes that share a colour with another are linked by the quads that join them, and a connected group whose cycle rank (edges - nodes + 1) exceeds 20
 is refused. Paths, trees, one cycle, and any number of interchangeable leaves never trigger it; the W3C suite (64 evaluations) is unaffected; test074 now
-passes as a negative test instead of being skipped. **Limit**: it is a heuristic. A long blank-node path (500 nodes) also does not finish in
-Oxigraph (quadratic, not symmetric) and is not caught. The right fix is upstream (a work limit in the canonicaliser); row 27 says so.
+passes as a negative test instead of being skipped. **Limit**: it is a heuristic. A long blank-node path is not caught: Oxigraph finishes it but slowly
+(500 nodes 4.0 s, 700 nodes 12.9 s, 1000 nodes 35.0 s, roughly cubic; a 500-node cycle 4.7 s; an 8-clique 3.1 s on a machine about 4x faster than the one above). The right fix is upstream (a work limit in the canonicaliser); row 27 says so.
 
 ## 3. SHACL UI widget selection on pyoxigraph terms
 
