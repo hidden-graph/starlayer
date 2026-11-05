@@ -183,7 +183,7 @@ class TestU4:
         reifies = list(g.triples((stmt2, RDF_REIFIES, None)))
         assert reifies == []
 
-    def test_delete_data_preserves_encoding_triples(self, g):
+    def test_delete_data_removes_only_the_named_triple(self, g):
         """DELETE DATA removes only the triple it names."""
         g.update("""
             PREFIX :   <http://example.org/>
@@ -209,6 +209,73 @@ class TestU4:
         # stmt1 reifies a different TT, should be untouched
         reifies1 = list(g.triples((URIRef(EX + 'stmt1'), RDF_REIFIES, None)))
         assert len(reifies1) == 1
+
+
+SHARED = """
+@prefix :    <http://example.org/> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+
+:alice :knows :bob .
+:r1 rdf:reifies <<( :alice :knows :bob )>> ; :confidence "0.9" .
+:r2 rdf:reifies <<( :alice :knows :bob )>> ; :confidence "0.5" .
+:r3 rdf:reifies <<( :bob :knows :carol )>> ; :confidence "0.7" .
+:r4 rdf:reifies <<( :alice :knows :carol )>> ; :confidence "0.3" .
+"""
+
+
+class TestU4DeletingOneReifierLeavesTheOthers:
+    """A reifier's rdf:reifies triple is one triple; removing it must not touch other reifiers of the same triple
+    term, reifiers of other triple terms, or the asserted triple the term describes."""
+
+    @pytest.fixture
+    def shared(self):
+        sg = OxGraph()
+        sg.parse(data=SHARED, format='turtle12')
+        return sg
+
+    @staticmethod
+    def _tt(s, p, o):
+        return TripleTerm(URIRef(EX + s), URIRef(EX + p), URIRef(EX + o))
+
+    def _reifiers(self, g, tt):
+        return {t[0] for t in g.triples((None, RDF_REIFIES, tt))}
+
+    def test_other_reifier_of_the_same_triple_term_stays_with_its_properties(self, shared):
+        shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+                      "DELETE DATA { :r1 rdf:reifies <<( :alice :knows :bob )>> }")
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {URIRef(EX + 'r2')}
+        assert len(list(shared.triples((URIRef(EX + 'r2'), URIRef(EX + 'confidence'), None)))) == 1
+        # r1 lost only the one triple
+        assert len(list(shared.triples((URIRef(EX + 'r1'), None, None)))) == 1
+
+    def test_reifiers_of_other_triple_terms_are_unaffected(self, shared):
+        shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+                      "DELETE DATA { :r1 rdf:reifies <<( :alice :knows :bob )>> }")
+        assert self._reifiers(shared, self._tt('bob', 'knows', 'carol')) == {URIRef(EX + 'r3')}
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'carol')) == {URIRef(EX + 'r4')}
+
+    def test_the_asserted_triple_stays(self, shared):
+        shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+                      "DELETE DATA { :r1 rdf:reifies <<( :alice :knows :bob )>> . :r2 rdf:reifies <<( :alice :knows :bob )>> }")
+        assert (URIRef(EX + 'alice'), URIRef(EX + 'knows'), URIRef(EX + 'bob')) in shared
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == set()
+
+    def test_deleting_the_asserted_triple_leaves_every_reifier(self, shared):
+        shared.update("PREFIX : <http://example.org/> DELETE DATA { :alice :knows :bob }")
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {URIRef(EX + 'r1'), URIRef(EX + 'r2')}
+
+    def test_delete_where_by_triple_term_removes_only_the_matching_reifiers(self, shared):
+        shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
+                      "DELETE WHERE { ?r rdf:reifies <<( :alice :knows :bob )>> }")
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == set()
+        assert self._reifiers(shared, self._tt('bob', 'knows', 'carol')) == {URIRef(EX + 'r3')}
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'carol')) == {URIRef(EX + 'r4')}
+        assert len(list(shared.triples((URIRef(EX + 'r1'), URIRef(EX + 'confidence'), None)))) == 1
+
+    def test_deleting_a_property_of_one_reifier_leaves_the_other(self, shared):
+        shared.update("PREFIX : <http://example.org/> DELETE DATA { :r1 :confidence \"0.9\" }")
+        assert len(list(shared.triples((URIRef(EX + 'r2'), URIRef(EX + 'confidence'), None)))) == 1
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {URIRef(EX + 'r1'), URIRef(EX + 'r2')}
 
 
 # ---------------------------------------------------------------------------

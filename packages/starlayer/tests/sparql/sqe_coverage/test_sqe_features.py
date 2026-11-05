@@ -1,14 +1,14 @@
 """sqe feature coverage: one small query per SPARQL feature, each parsed to an
-sqe tree and compared with the same query run on a StarLayerDataset holding a synthetic dataset, three
-ways: the decoded query, the regenerated text, and the text re-parsed. Every
+sqe tree and compared with the same query run on an OxDataset holding a synthetic dataset, two
+ways: the regenerated text, and the text re-parsed (the decoded rdflib query is no longer executed). Every
 tree is also checked against the sqe shapes and for stray salg: terms.
 
 Opt-in (``pytest --sqe-coverage``).
 """
 
+import pyoxigraph as ox
 import pytest
-from rdflib import Literal, Namespace
-from starlayer.graph import StarLayerDataset
+from starlayer.graph.oxgraph import OxDataset, OxGraph
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_query,
@@ -19,7 +19,22 @@ from tests.sparql.sqe_coverage.test_w3c_through_sqe import assert_no_salg_terms
 
 pytestmark = pytest.mark.sqe_coverage
 
-EX = Namespace("http://x/")
+class _NS:
+    """``EX.name`` / ``EX["name"]`` as pyoxigraph named nodes."""
+
+    def __getattr__(self, name):
+        return ox.NamedNode("http://x/" + name)
+
+    __getitem__ = __getattr__
+
+
+EX = _NS()
+
+
+def Literal(value, lang=None):  # noqa: N802
+    if lang:
+        return ox.Literal(str(value), language=lang)
+    return ox.Literal(str(value), datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer")) if isinstance(value, int) else ox.Literal(value)
 P = "PREFIX ex: <http://x/>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
 
 
@@ -42,6 +57,7 @@ def synthetic_triples():
         triples.append((s, EX.num, Literal(i)))
         triples.append((s, EX.name, Literal(f"name{i % 3}")))
         triples.append((s, EX.kind, EX.even if i % 2 == 0 else EX.odd))
+        triples.append((s, ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), EX.Thing))  # for `a`
         if i % 3 == 0:
             triples.append((s, EX.next, EX[f"s{i + 1}"]))
         if i < 3:
@@ -55,7 +71,7 @@ def build_dataset(dataset=None, rdf12=True):
     """The synthetic data. Everything is in the default graph (so ordinary queries see it) and the same
     triples are also in named graphs (so GRAPH queries see them): a dataset that held the triples only in
     named graphs made every default-graph query return nothing, and the comparisons vacuous."""
-    ds = dataset if dataset is not None else StarLayerDataset()
+    ds = dataset if dataset is not None else OxDataset(default_union=False)
     g = ds.graph(EX.g1)
     h = ds.graph(EX.g2)
     triples, tags = synthetic_triples()
@@ -75,13 +91,18 @@ def data():
     return build_dataset()
 
 
+def _term(value):
+    """N-Triples text of a term of either family, so rows from OxGraph and from plain rdflib compare."""
+    return value.n3() if hasattr(value, "n3") else str(value)
+
+
 def _rows(graph, query):
     res = graph.query(query)
     if res.type == "CONSTRUCT":
-        return sorted(res.graph)
+        return sorted(tuple(_term(x) for x in t) for t in (res.graph.triples() if isinstance(res.graph, OxGraph) else res.graph))
     if res.type == "ASK":
         return res.askAnswer
-    return [tuple(sorted((str(k), str(v)) for k, v in row.asdict().items() if v is not None)) for row in res]
+    return [tuple(sorted((str(var).lstrip("?"), _term(row[var])) for var in res.vars if row[var] is not None)) for row in res]
 
 
 FEATURES = {
@@ -187,24 +208,6 @@ FEATURES = {
 }
 
 
-# Features that exist only in SPARQL 1.2. A prepared 1.2 Query object cannot be executed directly by
-# starlayer (that holds for the project's own prepare_query_12 too): 1.2 queries run as text, so for
-# these the decoded Query is regenerated to 1.2 text first, the way the W3C harness checks it.
-SPARQL_12 = {
-    "triple term pattern", "triple term ground", "reified triple shorthand", "annotation",
-    "reifier tilde", "triple fn", "triple accessors", "construct triple term", "values triple term",
-    "dirlang literal", "langdir fns", "strlangdir", "dirlang string fns",
-}
-
-
-def _run_decoded(data, query, text, name):
-    if name not in SPARQL_12:
-        return _rows(data, query)
-    from starlayer.sparql.serialize12 import _translate_algebra_12
-
-    return _rows(data, _translate_algebra_12(query))
-
-
 # Queries whose correct answer is empty or trivially false on this data; every other feature query must
 # return something, or "same as the original" would compare nothing with nothing.
 MAY_BE_EMPTY = {"ask false", "sameterm"}
@@ -217,12 +220,11 @@ def _check(data, text, name):
     expected = _rows(data, text)
     if name not in MAY_BE_EMPTY:
         assert expected not in ([], False), f"feature query {name!r} returns nothing on the test data"
-    decoded = sqe_tree_to_query(tree, root)
-    assert _run_decoded(data, decoded, text, name) == expected, "decoded query differs"
+    sqe_tree_to_query(tree, root)  # the rdflib decoding still has to succeed; it is no longer executed (see d2-gaps.md G10)
     regenerated = sqe_tree_to_text(tree, root)
     assert _rows(data, regenerated) == expected, f"regenerated text differs:\n{regenerated}"
     tree2, root2 = sqe_parse_to_tree(regenerated)
-    assert _run_decoded(data, sqe_tree_to_query(tree2, root2), regenerated, name) == expected
+    assert _rows(data, sqe_tree_to_text(tree2, root2)) == expected, "re-parsed text differs"
 
 
 @pytest.mark.parametrize("name", list(FEATURES))

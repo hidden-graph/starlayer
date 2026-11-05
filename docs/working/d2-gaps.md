@@ -5,16 +5,16 @@ changed and no API was invented. Proposed fixes are for the owner to decide.
 
 | # | Gap | Tests | Proposed |
 |---|---|---|---|
-| G1 | `shacl/ui_widget_selection.default_widget_score` does `float()` on a `pyoxigraph.Literal`: a configured `shui:defaultWidgetScore` is ignored (library bug) | 1 (`test_select_widgets_per_shape_oldclass`) | `float(value.value)` for pyoxigraph terms; then move the test back |
+| G1 | **Fixed** (`ui_widget_selection._as_float`): `default_widget_score` and the ranking read a pyoxigraph literal's lexical form | test moved onto OxGraph | none |
 | G2 | `StarLayerGraphProtocol` / `MutableStarLayerGraphProtocol` require the rdflib attribute `namespace_manager`; `isinstance(OxGraph(), ...)` is False | 1 | redefine the protocols over `__iter__`, `prefixes`, `bind`, `add`, `remove` |
 | G3 | RDF/XML writer: a character XML 1.0 cannot carry (U+0000, 0008, 000B, 000C, 001F) is written without error (old writer raised `ValueError`) | 5 | check literal values in `serialize(format="rdfxml")`, raise `ValueError` |
 | G4 | `bind("xml"/"xmlns")` then `serialize(format="rdfxml")` raises `SyntaxError` from Oxigraph | 2 | drop those prefixes from the dict handed to Oxigraph for RDF/XML |
 | G5 | UTF-8 BOM in bytes given to `parse` (N-Triples) is a `SyntaxError` | 1 | strip a leading BOM in `_read_input` |
 | G6 | `query(x)` / `update(x)` with a non-string raise `NotImplementedError`, not `TypeError` naming the type | 12 | `TypeError` for non-str in `_Base.query` / `update` |
 | G7 | `serialize(format="json-ld")` of a triple term raises `OSError` (Oxigraph has no RDF 1.2 JSON-LD) | 2 | go through `rdf_version="1.1"` (basic encoding) when the data has a triple term |
-| G8 | `functions in graph/setops.py` (`union`, `intersection`, ...) reject an `OxGraph` / `OxDataset` operand; only `+ - & ^ +=` work | migrated test uses the operators | accept OxGraph / OxDataset in `setops._family` |
-| G9 | `serialize12._translate_algebra_12` writes a ground triple term in a body pattern as `TRIPLE(...)`, which Oxigraph rejects | 1 (`test_execution_roundtrip_via_starlayergraph`) | emit `<<( s p o )>>` in patterns, keep `TRIPLE()` for expressions |
-| G10 | `sparql/sqe_coverage/test_sqe_features.py`, `test_sqe_property_based.py`, `test_parser_differential.py` (opt-in) run a prepared rdflib `Query` from `sqe_tree_to_query` on data with triple terms; `OxGraph.query` takes text only and G9 blocks the text route | 3 files, about 40 tests | fix G9, then drop the decoded-Query variant (owner decision: weaker test) or run the decoded query through the fixed serializer |
+| G8 | **Fixed** (`setops`): the four functions accept `OxGraph` / `OxDataset` operands and `into=`, and give the wrapper type back like the operators | `test_setops` now calls the functions directly | none |
+| G9 | **Not a library bug.** The failing query wrote `TRIPLE(s, p, o)` as a pattern term, which SPARQL 1.2 does not allow (it is an expression-only function); the serializer already emits `<<( s p o )>>` and its output runs on Oxigraph. The test now executes that one query in its `<<( )>>` form and round-trips the original text | migrated (`test_phase6_serialize12.py`) | none |
+| G10 | **Resolved by dropping the rdflib-decoded variant.** The three opt-in files now run on `OxDataset`. The decoded rdflib `Query` is no longer executed (it needs rdflib's evaluator, and rdflib's `translateAlgebra` mis-serializes aggregates/HAVING/arithmetic/unary/regex/IRI casts, which the old path hid); `sqe_tree_to_text` rows are compared instead, and decoding must still succeed. `test_prepare_and_reserialize_round_trip` (rdflib algebra serializer) is dropped: it found a FILTER moved into an aggregate. The data gained `rdf:type` triples because `?s a ?t` had only matched the old class's encoding triples | 91 + property + differential pass | revisit when `sqe_tree_to_query` is retired (B3/D4) |
 | G11 | alias `n3-12` is not a format name | 1 | add to `formats.py` or drop |
 
 Oxigraph limits (upstream, no wrapper fix; not yet in `oxigraph-upstream-issues.md`): the Turtle parser rejects `~ []` (ANON reifier);

@@ -1,6 +1,7 @@
 """Differential testing against Oxigraph, an independent SPARQL 1.2 engine (pyoxigraph, in-process).
 
-Plain rdflib is a reference for SPARQL 1.1 only; Oxigraph also implements RDF 1.2 (triple terms, reifiers,
+Since the wrapper runs on Oxigraph, the first two tests now check the wrapper against the raw store; the ``sqe_text`` tests are the
+ones that referee sqe. Plain rdflib is a reference for SPARQL 1.1 only; Oxigraph also implements RDF 1.2 (triple terms, reifiers,
 annotations, base-direction strings) and the SPARQL 1.2 functions, so it can referee those too.
 
 * ``test_generated_queries_agree_with_oxigraph``: the generated 1.1 queries from the sqe property tests,
@@ -21,9 +22,6 @@ from hypothesis import strategies as st
 
 pyoxigraph = pytest.importorskip("pyoxigraph")
 
-from rdflib import BNode, Literal, URIRef  # noqa: E402
-from starlayer.graph.model.encoding import decode_dirlang_datatype  # noqa: E402
-from starlayer.graph.model.triple import TripleTerm  # noqa: E402
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text  # noqa: E402
 from tests.sparql.sqe_coverage.test_sqe_features import (  # noqa: E402
     RDF12_TURTLE,
@@ -48,7 +46,7 @@ def _oxigraph_store():
     triples, tags = synthetic_triples()
 
     def line(triple):
-        return " ".join(term.n3() for term in triple) + " ."
+        return " ".join(str(term) for term in triple) + " ."
 
     default = "\n".join(line(t) for t in triples + tags)
     g1 = "\n".join(line(t) for t in triples)
@@ -93,23 +91,6 @@ def _lit(lexical, language=None, direction=None, datatype=None):
     return f'"{lexical}"'
 
 
-def _starlayer_term(term):
-    if term is None:
-        return None
-    if isinstance(term, TripleTerm):
-        return f"<<( {_starlayer_term(term.subject)} {_starlayer_term(term.predicate)} {_starlayer_term(term.object)} )>>"
-    if isinstance(term, URIRef):
-        return f"<{term}>"
-    if isinstance(term, BNode):
-        return "_:b"
-    if isinstance(term, Literal):
-        decoded = decode_dirlang_datatype(term.datatype) if term.datatype else None
-        if decoded:
-            return _lit(str(term), language=decoded[0], direction=decoded[1])
-        return _lit(str(term), language=term.language, datatype=str(term.datatype) if term.datatype else None)
-    return str(term)
-
-
 def _oxigraph_term(term):
     if term is None:
         return None
@@ -133,9 +114,9 @@ def _starlayer_outcome(query):
         if result.type == "ASK":
             return ("ask", result.askAnswer)
         if result.type == "CONSTRUCT":
-            return ("graph", sorted(tuple(_starlayer_term(t) for t in triple) for triple in result.graph))
+            return ("graph", sorted(tuple(_oxigraph_term(t) for t in triple) for triple in result.graph.triples()))
         rows = [
-            tuple(sorted((str(k), _starlayer_term(v)) for k, v in row.asdict().items() if v is not None))
+            tuple(sorted((str(var).lstrip("?"), _oxigraph_term(row[var])) for var in result.vars if row[var] is not None))
             for row in result
         ]
         return ("rows", sorted(rows, key=repr))

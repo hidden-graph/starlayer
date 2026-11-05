@@ -8,7 +8,7 @@ well formed), and each is held to these properties:
 2. the text rendered from the tree is stable: parsing it again and rendering
    again gives the same text;
 3. the regenerated text returns the same rows as the original query on a
-   StarLayerDataset (this is the property that catches a silently dropped clause);
+   OxDataset (this is the property that catches a silently dropped clause);
 4. the decoded ``Query`` object also decodes without error.
 
 Opt-in (``pytest --sqe-coverage``). The number of examples per property comes
@@ -312,11 +312,3 @@ def test_tree_is_valid_text_is_stable_and_rows_match(query):
 
     assert _canonical_rows(text) == _canonical_rows(query), f"rows differ for the regenerated text:\n{text}"
     sqe_tree_to_query(tree, root)
-
-
-@_SETTINGS
-@given(query=_QUERIES)
-def test_decoded_query_object_returns_the_same_rows(query):
-    tree, root = sqe_parse_to_tree(query)
-    decoded = sqe_tree_to_query(tree, root)
-    assert _canonical_rows(decoded) == _canonical_rows(query), "decoded Query differs from the original"

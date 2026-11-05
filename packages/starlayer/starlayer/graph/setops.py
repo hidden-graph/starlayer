@@ -4,7 +4,8 @@ rdflib gives its graphs the operators ``+``, ``-``, ``&`` and ``^``. Oxigraph's 
 provides them as functions that behave the same way on both families, ready to be wired to operators on the Oxigraph-backed
 ``StarLayerGraph`` wrapper.
 
-Two families are supported; the operands of one call must belong to the same family (convert one side first, otherwise a
+The Oxigraph-backed ``OxGraph`` and ``OxDataset`` are accepted as operands too (and as ``into``): they are combined as their
+stores and give an ``OxGraph`` / ``OxDataset`` back, so the functions and the operators agree. Two families are supported; the operands of one call must belong to the same family (convert one side first, otherwise a
 ``TypeError`` says so):
 
 * the rdflib family: ``rdflib.Graph``, ``rdflib.Dataset``/``ConjunctiveGraph`` and the StarLayer subclasses;
@@ -32,6 +33,7 @@ Cost: ``difference`` and ``intersection`` stream the first operand and test memb
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Iterable, Iterator
 from typing import Any
 
@@ -159,6 +161,43 @@ def _prepare(a: Any, b: Any, into: Any) -> tuple[Any, Any, Any, Any]:
     return adapter(a), adapter(b), target, adapter
 
 
+def _wrapped(fn: Any) -> Any:
+    """Let ``fn`` take ``OxGraph`` / ``OxDataset`` operands: run it on their stores and wrap the result the way the operators do."""
+
+    @functools.wraps(fn)
+    def run(a: Any, b: Any, *, into: Any = None) -> Any:
+        from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+
+        wrappers = (OxGraph, OxDataset)
+        if not any(isinstance(x, wrappers) for x in (a, b, into)):
+            return fn(a, b, into=into)
+        if type(a) is not type(b) or not isinstance(a, wrappers):
+            raise TypeError(f"cannot combine a {type(a).__name__} with a {type(b).__name__}: pass two OxGraph or two OxDataset operands")
+        if into is not None and type(into) is not type(a):
+            raise TypeError(f"`into` is a {type(into).__name__}, not a {type(a).__name__}")
+
+        def as_ox(x: Any) -> Any:
+            if isinstance(x, OxDataset):
+                return x.store
+            store = ox.Store()
+            store.extend(ox.Quad(*t, ox.DefaultGraph()) for t in x.triples())
+            return store
+
+        result = fn(as_ox(a), as_ox(b))
+        if into is not None:
+            into.extend(result if isinstance(into, OxDataset) else (q.triple for q in result))
+            return into
+        if isinstance(a, OxDataset):
+            wrapped: Any = OxDataset(store=result, default_union=a._union)
+        else:
+            wrapped = OxGraph(store=result)
+        wrapped.prefixes.update({**b.prefixes, **a.prefixes})
+        return wrapped
+
+    return run
+
+
+@_wrapped
 def union(a: Any, b: Any, *, into: Any = None) -> Any:
     """Everything in ``a`` or ``b``. ``union(a, b, into=a)`` adds ``b`` to ``a`` in place."""
     ia, ib, target, adapter = _prepare(a, b, into)
@@ -170,6 +209,7 @@ def union(a: Any, b: Any, *, into: Any = None) -> Any:
     return target
 
 
+@_wrapped
 def intersection(a: Any, b: Any, *, into: Any = None) -> Any:
     """What ``a`` and ``b`` both contain."""
     ia, ib, target, adapter = _prepare(a, b, into)
@@ -178,6 +218,7 @@ def intersection(a: Any, b: Any, *, into: Any = None) -> Any:
     return target
 
 
+@_wrapped
 def difference(a: Any, b: Any, *, into: Any = None) -> Any:
     """What ``a`` contains and ``b`` does not."""
     ia, ib, target, adapter = _prepare(a, b, into)
@@ -186,6 +227,7 @@ def difference(a: Any, b: Any, *, into: Any = None) -> Any:
     return target
 
 
+@_wrapped
 def symmetric_difference(a: Any, b: Any, *, into: Any = None) -> Any:
     """What is in exactly one of ``a`` and ``b``."""
     ia, ib, target, adapter = _prepare(a, b, into)

@@ -182,6 +182,33 @@ def test_construct_serializer_output_reparses():
         assert reparsed.algebra["template"] == prepared.algebra["template"], query_text
 
 
+def _rows(graph, text):
+    return sorted(str(row) for row in graph.query(text))
+
+
+# Oxigraph's grammar takes TRIPLE(s, p, o) as an expression only, never as a pattern term (SPARQL 1.2), so the one query
+# that wrote it as an object is executed in its <<( s p o )>> form; the serializer round trip is still run from the original text.
+_PATTERN_FORM = {
+    PREFIXES + "SELECT ?stmt WHERE { ?stmt :reifies TRIPLE(:bob, :knows, :carol) . }":
+        PREFIXES + "SELECT ?stmt WHERE { ?stmt :reifies <<( :bob :knows :carol )>> . }",
+}
+
+
+def test_execution_roundtrip_via_starlayergraph():
+    g = OxGraph()
+    g.parse(data=FIXTURE_TTL12, format="turtle12")
+
+    for query_text, expect_nonempty in QUERIES:
+        original_rows = _rows(g, _PATTERN_FORM.get(query_text, query_text))
+
+        reconstructed = rdf_to_query(*query_to_rdf(prepare_query_12(query_text)))
+        regenerated_text = _translate_algebra_12(reconstructed)
+
+        assert original_rows == _rows(g, regenerated_text), query_text
+        if expect_nonempty:
+            assert original_rows, query_text
+
+
 def test_construct_execution_roundtrip_via_starlayergraph():
     starlayer_graph = OxGraph()
     starlayer_graph.parse(data=FIXTURE_TTL12, format="turtle12")
