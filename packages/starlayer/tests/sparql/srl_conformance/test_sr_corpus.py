@@ -19,6 +19,7 @@ import pytest
 
 from .corpus import CASES
 from .helpers import (
+    as_stored,
     canonical_blank_nodes,
     expression_results,
     isomorphic,
@@ -73,7 +74,7 @@ def test_tree_round_trip(case, request):
     graph, root = srl_parse_to_tree(case.text)
     conforms, _report, report_text = srl_validate(graph)
     assert conforms, report_text[:500]
-    assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(ruleset_to_text(parsed(case.text)))
+    assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(parsed(case.text))))
 
 
 @pytest.mark.srl_conformance

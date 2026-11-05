@@ -181,26 +181,6 @@ def test_language_tagged_string_is_not_greater_than_a_number():
 # --- encoders and decoders of SPARQL as RDF -------------------------------------------------------------
 
 
-def test_query_encoders_raise_type_errors():
-    from rdflib.plugins.sparql import prepareQuery
-    from starlayer.sparql import from_rdf, to_rdf
-
-    with pytest.raises(TypeError):
-        to_rdf.query_to_rdf(None)
-    with pytest.raises(TypeError):
-        to_rdf.update_to_rdf(None)
-    with pytest.raises(TypeError):
-        to_rdf.queries_to_collection("SELECT * { ?s ?p ?o }")
-    with pytest.raises(ValueError):
-        from_rdf.rdf_to_query(StarLayerGraph(), BNode())
-    with pytest.raises(ValueError):
-        from_rdf.rdf_to_update(StarLayerGraph(), BNode())
-    with pytest.raises(ValueError):
-        from_rdf.rdf_to_query(StarLayerGraph(), None)
-    graph, root = to_rdf.query_to_rdf(prepareQuery("SELECT * { ?s ?p ?o }"))
-    assert from_rdf.rdf_to_query(graph, root) is not None
-
-
 # --- OWL RL reports an inconsistency once ------------------------------------------------------------------
 
 

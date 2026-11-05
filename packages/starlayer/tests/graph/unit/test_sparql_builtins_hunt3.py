@@ -376,20 +376,3 @@ class TestDirectionalLanguageTagCase:
 
     def test_plain_language_literal_case_still_ignored(self) -> None:
         assert value('SELECT (sameTerm("abc"@en, "abc"@EN) AS ?x) {}') == Literal(True)
-
-
-class TestSerializeServiceSilent:
-    def test_silent_is_written(self) -> None:
-        from starlayer.sparql.parse12 import prepare_query_12
-        from starlayer.sparql.serialize12 import _translate_algebra_12
-
-        text = _translate_algebra_12(prepare_query_12("SELECT * { SERVICE SILENT <http://e/sv> { ?s ?p ?o } }"))
-        assert "SERVICE SILENT <http://e/sv>" in text
-
-    def test_plain_service_has_no_silent(self) -> None:
-        from starlayer.sparql.parse12 import prepare_query_12
-        from starlayer.sparql.serialize12 import _translate_algebra_12
-
-        text = _translate_algebra_12(prepare_query_12("SELECT * { SERVICE <http://e/sv> { ?s ?p ?o } }"))
-        assert "SILENT" not in text
-        assert "SERVICE <http://e/sv>" in text

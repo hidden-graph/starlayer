@@ -126,3 +126,20 @@ ImportError); `test_sqe_unbound_variables.py`.
    should become a public, documented type, it deserves its own page.
 5. `srl_validate`'s closure is now `rdfs_entailed_copy`, which implements rdfs2, 3, 7 and 9 (and the closures of 5 and 11) for the
    shipped ontologies only; `RuleSet.infer(inference=...)` still runs owlrl through the bridge (an rdflib copy).
+
+## Gate results
+
+- Full suite (`--deferred --codekg-queries -n 4`, after the last fixes to six `tests/graph` files that named deleted surfaces): the run
+  before them was 10,919 passed, 45 skipped, 31 xfailed, 6 failed, 1 error; the six and the error are fixed and pass
+  (baseline 11,266 passed, 217 skipped, 41 xfailed; the difference is the deleted tests, about 350 runs, listed above).
+- `--srl-conformance` (929 tests): all pass except `test_infer_matches_the_independent_evaluator`, which also fails at
+  `f7d8232` (a Hypothesis case where Oxigraph orders IRIs under `>=` and the oracle does not).
+- `--sqe-coverage` (serial, `STARLAYER_SQE_FUZZ_EXAMPLES=20`): all pass except `test_matches_plain_rdflib` (rdflib returns a
+  CONSTRUCT triple with a literal subject, Oxigraph skips it), which also fails at `f7d8232`. `sqe_known_gaps.txt` is regenerated:
+  empty now (the three triple-term-subject fixtures were gaps only because `sqe_tree_to_query` decoded through rdflib).
+- `--manchester-conformance`: all pass except two `test_lenient_where_owlapi_is_lenient` cases that also fail at `f7d8232`.
+- `python scripts/build.py --check` (with codekg) and `ruff check packages/` pass.
+- The SRL conformance helpers were changed in two ways that keep their meaning: `expression_results` evaluates through the
+  evaluator (an error, including a custom function Oxigraph does not run, is a recorded result as before), and the tree round
+  trip compares with `as_stored(ruleset)` (the rule set with literals in the form the store keeps) and a blank-node regex for
+  pyoxigraph labels.
