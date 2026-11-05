@@ -9,7 +9,7 @@ srl:AssignmentElementShape a sh:NodeShape ;
     sh:property [
         sh:class spexpr:Expression ;
         sh:maxCount 1 ;
-        sh:message "srl:AssignmentElement must have exactly one srl:expr, a salg: expression" ;
+        sh:message "srl:AssignmentElement must have exactly one srl:expr, a spexpr: expression" ;
         sh:minCount 1 ;
         sh:path srl:expr
     ], [
@@ -75,7 +75,7 @@ srl:FilterElementShape a sh:NodeShape ;
     sh:property [
         sh:class spexpr:Expression ;
         sh:maxCount 1 ;
-        sh:message "srl:FilterElement must have exactly one srl:expr, a salg: expression" ;
+        sh:message "srl:FilterElement must have exactly one srl:expr, a spexpr: expression" ;
         sh:minCount 1 ;
         sh:path srl:expr
     ] ;

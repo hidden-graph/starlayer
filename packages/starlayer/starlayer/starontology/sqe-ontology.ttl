@@ -64,7 +64,7 @@ sqe:var a rdf:Property ;
     rdfs:comment "Shared by several node types (sqe:Bind, Alias); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:where a rdf:Property ;
-    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not a resolved algebra's nested LeftJoin/Filter wrapping." .
 
 sqe:selectAll a rdf:Property ;
     rdfs:domain sqe:SelectQuery ;
