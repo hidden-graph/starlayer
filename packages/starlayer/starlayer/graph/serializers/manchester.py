@@ -1,7 +1,7 @@
 """
 starlayer.graph.serializers.manchester
 
-Serialize RDF (an rdflib-compatible Graph) to OWL 2 Manchester Syntax -
+Serialize RDF (a StarLayerGraph) to OWL 2 Manchester Syntax -
 the reverse of starlayer.graph.parsers.manchester_parser. A genuinely
 different, harder kind of problem than parsing: parsing is deterministic
 (one syntax, one RDF shape); serializing is *pattern recognition* over a
@@ -75,13 +75,18 @@ which side it traces to first.
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 from collections import defaultdict
 
-from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import OWL, RDF, RDFS, XSD
+from starlayer.graph.parsers._ox_terms import (
+    OWL,
+    RDF,
+    RDFS,
+    XSD,
+    BNode,
+    Literal,
+    URIRef,
+    lexical,
+)
 
 _CHARACTERISTIC_KEYWORDS = {
     OWL.FunctionalProperty: 'Functional',
@@ -134,6 +139,18 @@ _ENTITY_TYPES = {
 # recognizers/renderers below need.
 # ---------------------------------------------------------------------------
 
+def _namespace_pairs(graph):
+    """``(namespace IRI, prefix)`` for the graph's bound prefixes, plus ``owl``, ``rdf``, ``rdfs`` and ``xsd`` unless the graph
+    binds those prefixes or namespaces itself (the parser declares them by default, so the output reads back)."""
+    bound = [(str(ns), prefix) for prefix, ns in graph.namespaces()]
+    have_ns = {ns for ns, _ in bound}
+    have_prefix = {prefix for _, prefix in bound}
+    for prefix, vocab in (('owl', OWL), ('rdf', RDF), ('rdfs', RDFS), ('xsd', XSD)):
+        if prefix not in have_prefix and str(vocab) not in have_ns:
+            bound.append((str(vocab), prefix))
+    return bound
+
+
 class _Ctx:
     """Holds the lookup tables - entity sets by frame keyword, the
     prefix index, and the axiom/negative-fact reification indexes - that
@@ -144,7 +161,7 @@ class _Ctx:
         self.graph = graph
         self.used_prefixes = {}  # prefix -> namespace IRI, populated as names render
         self._ns_by_length = sorted(
-            ((str(ns), prefix) for prefix, ns in graph.namespaces()),
+            _namespace_pairs(graph),
             key=lambda pair: -len(pair[0]),
         )
 
@@ -213,7 +230,7 @@ def _render_name(ctx, node):
             f'matched no recognizable class-expression/data-range/property '
             f'pattern (see this module\'s docstring for what is recognized)'
         )
-    iri = str(node)
+    iri = node.value
     for ns_iri, prefix in ctx._ns_by_length:
         if iri.startswith(ns_iri) and ns_iri:
             local = iri[len(ns_iri):]
@@ -223,15 +240,23 @@ def _render_name(ctx, node):
     return f'<{iri}>'
 
 
+def _iri_key(node):
+    return node.value
+
+
+def _iri_text(node):
+    return node.value if hasattr(node, 'value') else str(node)
+
+
 def _is_safe_local_name(local):
     return not any(c.isspace() or c in '<>"(){}[],' for c in local)
 
 
 def _render_literal(ctx, lit):
-    text = str(lit).replace('\\', '\\\\').replace('"', '\\"')
+    text = lit.value.replace('\\', '\\\\').replace('"', '\\"')
     if lit.language:
         return f'"{text}"@{lit.language}'
-    if lit.datatype:
+    if lit.datatype and lit.datatype != XSD.string:  # a plain literal is xsd:string in RDF 1.1 / 1.2
         return f'"{text}"^^{_render_name(ctx, lit.datatype)}'
     return f'"{text}"'
 
@@ -311,7 +336,7 @@ def _node_to_class_expr(ctx, node):
         val = g.value(node, OWL.hasValue)
         if val is not None:
             return ('Value', prop, val)
-        if (node, OWL.hasSelf, Literal(True)) in g:
+        if (node, OWL.hasSelf, lexical(True)) in g:
             return ('SelfR', prop)
 
         for tag, unq_pred, q_pred in (
@@ -321,7 +346,7 @@ def _node_to_class_expr(ctx, node):
         ):
             n = g.value(node, unq_pred)
             if n is not None:
-                return (tag, int(n), prop, None)
+                return (tag, int(n.value), prop, None)
             n = g.value(node, q_pred)
             if n is not None:
                 on_class = g.value(node, OWL.onClass)
@@ -329,8 +354,8 @@ def _node_to_class_expr(ctx, node):
                     on_range = g.value(node, OWL.onDataRange)
                     if on_range is None:
                         raise ValueError(f'qualified cardinality {node!r} has no owl:onClass or owl:onDataRange')
-                    return (tag, int(n), prop, _node_to_data_range(ctx, on_range))
-                return (tag, int(n), prop, _node_to_class_expr(ctx, on_class))
+                    return (tag, int(n.value), prop, _node_to_data_range(ctx, on_range))
+                return (tag, int(n.value), prop, _node_to_class_expr(ctx, on_class))
         raise ValueError(f'owl:Restriction {node!r} matched no known restriction shape')
 
     raise ValueError(
@@ -671,40 +696,45 @@ def _render_misc(ctx):
 # ---------------------------------------------------------------------------
 
 def serialize_manchester(graph) -> str:
-    """Serialize an rdflib-compatible Graph to OWL 2 Manchester Syntax.
+    """Serialize a StarLayerGraph to OWL 2 Manchester Syntax.
     See this module's docstring for scope and known limitations.
 
     Args:
-        graph: The rdflib-compatible Graph to serialize.
+        graph: The StarLayerGraph to serialize.
 
     Returns:
         The Manchester Syntax serialization of graph.
     """
+    from starlayer.graph.oxgraph import _rdflib_bridge
+
+    graph = _rdflib_bridge.to_oxgraph(graph)  # an rdflib graph is converted (imports rdflib); an Oxigraph one is read as it is
+    if hasattr(graph, 'to_graph'):
+        graph = graph.to_graph()
     ctx = _Ctx(graph)
 
     body_lines = []
     if ctx.ontology is not None:
-        body_lines.append(f'Ontology: <{ctx.ontology}>')
+        body_lines.append(f'Ontology: <{ctx.ontology.value}>')
         for imported in graph.objects(ctx.ontology, OWL.imports):
-            body_lines.append(f'    Import: <{imported}>')
+            body_lines.append(f'    Import: <{_iri_text(imported)}>')
         body_lines.append('')
 
-    for subject in sorted(ctx.entities['Class:'], key=str):
+    for subject in sorted(ctx.entities['Class:'], key=_iri_key):
         body_lines += _render_class_frame(ctx, subject)
         body_lines.append('')
-    for subject in sorted(ctx.entities['ObjectProperty:'], key=str):
+    for subject in sorted(ctx.entities['ObjectProperty:'], key=_iri_key):
         body_lines += _render_property_frame(ctx, subject, 'ObjectProperty:', range_is_class_expr=True)
         body_lines.append('')
-    for subject in sorted(ctx.entities['DataProperty:'], key=str):
+    for subject in sorted(ctx.entities['DataProperty:'], key=_iri_key):
         body_lines += _render_property_frame(ctx, subject, 'DataProperty:', range_is_class_expr=False)
         body_lines.append('')
-    for subject in sorted(ctx.entities['AnnotationProperty:'], key=str):
+    for subject in sorted(ctx.entities['AnnotationProperty:'], key=_iri_key):
         body_lines += _render_annotation_property_frame(ctx, subject)
         body_lines.append('')
-    for subject in sorted(ctx.entities['Datatype:'], key=str):
+    for subject in sorted(ctx.entities['Datatype:'], key=_iri_key):
         body_lines += _render_datatype_frame(ctx, subject)
         body_lines.append('')
-    for subject in sorted(ctx.entities['Individual:'], key=str):
+    for subject in sorted(ctx.entities['Individual:'], key=_iri_key):
         body_lines += _render_individual_frame(ctx, subject)
         body_lines.append('')
 

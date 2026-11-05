@@ -4,7 +4,7 @@ starlayer.graph.parsers.manchester_parser
 Hand-rolled parser for OWL 2 Manchester Syntax (the frame-based
 "Class: X SubClassOf: Y" notation), following the OWL 2 Mapping to RDF
 Graphs spec to turn each frame/axiom into plain triples - ordinary
-rdflib.BNode()s for owl:Restriction/rdf:List cells, and (for an
+pyoxigraph blank nodes for owl:Restriction/rdf:List cells, and (for an
 Annotations:-prefixed clause-list item) owl:Axiom reification - the one
 piece of reification machinery this parser does need, unlike
 turtle_parser.py's <<( )>>/{| |} triple-term/RDF-1.2-reification syntax,
@@ -85,18 +85,22 @@ ontology-IRI-based default is guessed).
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 import math
 import re
 import struct
 from urllib.parse import urljoin
 
-from rdflib import BNode, Literal, URIRef
-from rdflib.namespace import OWL, RDF, RDFS, XSD
-from rdflib.term import _is_valid_langtag
-
+from starlayer.graph.parsers._ox_terms import (
+    OWL,
+    RDF,
+    RDFS,
+    XSD,
+    BNode,
+    Literal,
+    URIRef,
+    lexical,
+)
+from starlayer.graph.parsers._ox_terms import is_valid_langtag as _is_valid_langtag
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
 
 _DEFAULT_PREFIXES = {
@@ -146,7 +150,7 @@ _DATA_FACETS = {
     '>': XSD.minExclusive, '<': XSD.maxExclusive,
     'length': XSD.length, 'minLength': XSD.minLength, 'maxLength': XSD.maxLength,
     'pattern': XSD.pattern,
-    'langRange': URIRef(str(RDF) + 'langRange'),
+    'langRange': RDF.langRange,
 }
 
 _CHARACTERISTICS = {
@@ -168,13 +172,13 @@ _SHORT_DATATYPES = {
 
 # Datatypes that need no declaration: the xsd namespace plus the OWL 2 / RDF built-ins that are not in it.
 _BUILTIN_DATATYPES = frozenset({
-    URIRef(str(RDF) + 'PlainLiteral'), URIRef(str(RDF) + 'XMLLiteral'), URIRef(str(RDF) + 'langString'),
+    RDF.PlainLiteral, RDF.XMLLiteral, RDF.langString,
     RDFS.Literal, OWL.real, OWL.rational,
 })
 
 
 def _is_builtin_datatype(uri):
-    return uri in _BUILTIN_DATATYPES or str(uri).startswith(str(XSD))
+    return uri in _BUILTIN_DATATYPES or uri in XSD
 
 
 _RESTRICTION_KEYWORDS = {'some', 'only', 'onlysome', 'value', 'Self', 'min', 'max', 'exactly'}
@@ -197,12 +201,12 @@ def _numeric_literal(word):
     ``+`` is accepted and not kept in the lexical form, matching the OWL API.
     """
     if _INTEGER_RE.match(word):
-        return Literal(str(int(word)), datatype=XSD.integer, normalize=False)
+        return Literal(str(int(word)), datatype=XSD.integer)
     if _DECIMAL_RE.match(word):
-        return Literal(word.lstrip('+'), datatype=XSD.decimal, normalize=False)
+        return Literal(word.lstrip('+'), datatype=XSD.decimal)
     m = _FLOAT_RE.match(word)
     if m:
-        return Literal(_float_lexical(m.group(1)), datatype=XSD.float, normalize=False)
+        return Literal(_float_lexical(m.group(1)), datatype=XSD.float)
     return None
 
 
@@ -527,17 +531,28 @@ class _Cursor:
                 f'(the default ":" prefix must be declared explicitly too; '
                 f"it isn't guessed from the ontology IRI)"
             )
-        return URIRef(self.prefixes[prefix] + local)
+        return self.iri(self.prefixes[prefix] + local)
+
+    def iri(self, text):
+        """A ``NamedNode``; an IRI pyoxigraph rejects (a relative one with no base, a space) is a syntax error."""
+        try:
+            return URIRef(text)
+        except ValueError as exc:
+            self.error(f'{text!r} is not a valid IRI ({exc})')
 
     def resolve_iri(self, raw):
-        return URIRef(urljoin(self.base, raw) if self.base else raw)
+        return self.iri(urljoin(self.base, raw) if self.base else raw)
 
     def blank_node(self, label):
         """The blank node for a ``_:label`` nodeID. The label is the node's identity within the
         document, so every ``_:b1`` is the same node and a rendered label can be read back."""
         node = self._blank_nodes.get(label)
         if node is None:
-            node = self._blank_nodes[label] = BNode(label)
+            try:
+                node = BNode(label)
+            except ValueError:  # a label the store cannot hold as an identifier: keep it distinct, spelled in hex
+                node = BNode('b' + label.encode().hex())
+            self._blank_nodes[label] = node
         return node
 
     def read_individual(self):
@@ -588,7 +603,10 @@ class _Cursor:
                 dt = self.resolve_iri(dt_text) if kind == 'IRI' else self._resolve_word(dt_text)
                 return Literal(tok['text'], datatype=dt)
             if tok['lang']:
-                return Literal(tok['text'], lang=tok['lang'])
+                try:
+                    return Literal(tok['text'], language=tok['lang'])
+                except ValueError:
+                    self.error(f"{tok['lang']!r} is not a valid language tag!")
             return Literal(tok['text'])
         word = self.peek_word()
         if word is not None:
@@ -600,7 +618,7 @@ class _Cursor:
                 data or (isinstance(prop, URIRef) and self.declared_kinds()[0].get(prop) == 'data')
             ):
                 self.advance()
-                return Literal(word == 'true')
+                return lexical(word == 'true')
         return self.read_individual()
 
     def try_name(self, tok):
@@ -609,14 +627,20 @@ class _Cursor:
         if tok is None:
             return None
         if tok['kind'] == 'IRI':
-            return self.resolve_iri(tok['text'])
+            try:
+                return self.resolve_iri(tok['text'])
+            except ManchesterSyntaxError:
+                return None
         if tok['kind'] != 'WORD' or tok['text'].endswith(':'):
             return None
         text = tok['text']
         prefix, local = text.split(':', 1) if ':' in text else ('', text)
         if prefix not in self.prefixes:
             return None
-        return URIRef(self.prefixes[prefix] + local)
+        try:
+            return URIRef(self.prefixes[prefix] + local)
+        except ValueError:
+            return None
 
     def declared_kinds(self):
         """``(property_kinds, datatypes)`` read from the document's own frames, wherever they occur.
@@ -916,14 +940,14 @@ def _expr_node(cur, expr):
         node = cur.mint_bnode()
         t.append((node, RDF.type, OWL.Restriction))
         t.append((node, OWL.onProperty, _prop_node(cur, prop_expr)))
-        t.append((node, OWL.hasSelf, Literal(True)))
+        t.append((node, OWL.hasSelf, lexical(True)))
         return node
     if tag in ('Min', 'Max', 'Exact'):
         _, n, prop_expr, filler = expr
         node = cur.mint_bnode()
         t.append((node, RDF.type, OWL.Restriction))
         t.append((node, OWL.onProperty, _prop_node(cur, prop_expr)))
-        card = Literal(n, datatype=XSD.nonNegativeInteger)
+        card = lexical(n, XSD.nonNegativeInteger)
         if filler is None:
             pred = {'Min': OWL.minCardinality, 'Max': OWL.maxCardinality, 'Exact': OWL.cardinality}[tag]
             t.append((node, pred, card))
@@ -946,7 +970,7 @@ def _expr_node(cur, expr):
             'DMax': OWL.maxQualifiedCardinality,
             'DExact': OWL.qualifiedCardinality,
         }[tag]
-        t.append((node, pred, Literal(n, datatype=XSD.nonNegativeInteger)))
+        t.append((node, pred, lexical(n, XSD.nonNegativeInteger)))
         t.append((node, OWL.onDataRange, _data_range_node(cur, filler)))
         return node
     if tag == 'Inverse':
@@ -1594,7 +1618,7 @@ def _run_top_level(cur):
             if tok is not None and tok['kind'] == 'IRI':
                 cur.advance()
                 ontology_iri = cur.resolve_iri(tok['text'])
-                cur.base = str(ontology_iri)
+                cur.base = ontology_iri.value
                 # ontology ::= 'Ontology:' [ ontologyIRI [ versionIRI ] ] ...
                 version_tok = cur.peek()
                 if version_tok is not None and version_tok['kind'] == 'IRI':
@@ -1667,8 +1691,8 @@ def parse_manchester(text: str, base: str = None) -> list:
             starlayer.graph parser's base argument plays.
 
     Returns:
-        A list of (s, p, o) triples (plain rdflib terms -
-        URIRef/BNode/Literal).
+        A list of (s, p, o) triples (pyoxigraph terms -
+        NamedNode/BlankNode/Literal).
     """
     cur = _Cursor(_tokenize(text), base)
     run_guarded(_run_top_level, cur)

@@ -431,10 +431,9 @@ class _Base:
         ``rdf_version="1.2"``; plain RDF 1.1 data gets none unless asked. ``rdf_version="1.1"`` never writes one. Oxigraph's
         writers do not write it, so the wrapper adds it."""
         if formats.is_manchester(format):
-            from starlayer.graph.oxgraph import _rdflib_bridge
             from starlayer.graph.serializers.manchester import serialize_manchester
 
-            return self._write(serialize_manchester(_rdflib_bridge.to_rdflib_graph(self)).encode("utf-8"), destination, encoding)
+            return self._write(serialize_manchester(self).encode("utf-8"), destination, encoding)
         fmt = formats.to_format(format or self._default_format)
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")

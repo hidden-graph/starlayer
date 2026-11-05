@@ -137,12 +137,68 @@ def test_native_sparql_parse_helpers_import_lazily():
     assert "pip install starlayer[rdflib]" in result.stderr
 
 
+MANCHESTER = """
+    Prefix: : <http://example.org/>
+    Prefix: rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+    Ontology: <http://example.org/onto>
+    Class: Animal
+    Class: Cat
+        SubClassOf: Animal, hasPet some (Animal and not Cat), Annotations: rdfs:comment "why" Animal
+    ObjectProperty: hasPet
+    DataProperty: age
+        Range: xsd:integer[>= 0]
+    Individual: felix
+        Types: Cat
+        Facts: age 3, not hasPet felix
+"""
+
+
+def test_manchester_parse_and_serialize_round_trip():
+    out = ok("""
+        import pyoxigraph as ox
+        from starlayer.graph import StarLayerGraph, isomorphic
+        from starlayer.graph.parsers.manchester_parser import parse_manchester
+        from starlayer.graph.serializers.manchester import serialize_manchester
+        text = __TEXT__
+        g = StarLayerGraph(); g.parse(data=text, format="manchester")
+        assert len(g) > 10 and all(isinstance(t[0], (ox.NamedNode, ox.BlankNode)) for t in g)
+        assert all(isinstance(t, tuple) and isinstance(t[1], ox.NamedNode) for t in parse_manchester(text))
+        out = g.serialize(format="manchester")
+        assert out == serialize_manchester(g)
+        h = StarLayerGraph(); h.parse(data=out, format="manchester")
+        assert isomorphic(g, h), out
+        print("done")
+    """.replace("__TEXT__", repr(MANCHESTER)))
+    assert "done" in out
+
+
+def test_manchester_syntax_tree_round_trip():
+    out = ok("""
+        from starlayer.graph import StarLayerGraph, isomorphic
+        from starlayer.starontology.manchester import (
+            manchester_parse_to_tree, manchester_tree_to_owl, manchester_tree_to_text,
+        )
+        text = __TEXT__
+        tree = manchester_parse_to_tree(text)
+        assert isinstance(tree, StarLayerGraph)
+        owl = manchester_tree_to_owl(tree)
+        direct = StarLayerGraph(); direct.parse(data=text, format="manchester")
+        assert isomorphic(owl, direct)
+        again = manchester_parse_to_tree(manchester_tree_to_text(tree))
+        assert isomorphic(manchester_tree_to_owl(again), direct)
+        print("done")
+    """.replace("__TEXT__", repr(MANCHESTER)))
+    assert "done" in out
+
+
 def test_nothing_in_the_core_imports_rdflib():
     # With rdflib importable, the core surface must still not load it.
     code = """
         import sys
         from starlayer.graph import StarLayerGraph, StarLayerDataset
         from starlayer.shacl import validate
+        g = StarLayerGraph(); g.parse(data='Prefix: : <http://e/>\\nClass: A\\n', format='manchester'); g.serialize(format='manchester')
+        import starlayer.starontology.manchester as m; m.manchester_tree_to_owl(m.manchester_parse_to_tree('Class: <http://e/A>\\n'))
         g = StarLayerGraph(); g.update('INSERT DATA { <http://e/s> <http://e/p> 1 }')
         list(g.query('SELECT * WHERE { ?s ?p ?o }'))
         print([m for m in sys.modules if m == 'rdflib' or m.startswith('rdflib.')][:3])
@@ -211,8 +267,8 @@ def test_the_stand_in_dirlang_datatype_matches_the_vocabulary():
         "from starlayer.shacl import select_widget",
         "from starlayer.sparql import prepare_query_12",
         "import starlayer.sparql.srl",
-        "import starlayer.starontology.manchester",
         "from starlayer.graph.compare import to_isomorphic; to_isomorphic(object())",
+        "import starlayer.starontology.manchester as m; m.manchester_validate(m.manchester_parse_to_tree('Class: <http://e/A>'))",
     ],
 )
 def test_an_rdflib_feature_raises_a_clear_import_error(code):

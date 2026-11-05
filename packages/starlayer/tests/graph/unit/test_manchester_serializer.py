@@ -18,9 +18,10 @@ docstring for why those specific reconstructions aren't attempted.
 """
 
 import pytest
-from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import OWL, RDF, RDFS
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.parsers._ox_terms import OWL, RDF, RDFS, URIRef
+from starlayer.graph.parsers._ox_terms import lexical as Literal
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 from starlayer.graph.serializers.manchester import serialize_manchester
 
@@ -33,7 +34,7 @@ def ex(name):
 
 
 def parse(body):
-    g = Graph()
+    g = StarLayerGraph()
     for t in parse_manchester(HEADER + body):
         g.add(t)
     g.bind('', EX)
@@ -45,7 +46,7 @@ def round_trip(body):
     reparsed_graph) so callers can assert on all three."""
     g1 = parse(body)
     text = serialize_manchester(g1)
-    g2 = Graph()
+    g2 = StarLayerGraph()
     for t in parse_manchester(text):
         g2.add(t)
     return g1, text, g2
@@ -296,7 +297,7 @@ class TestPrefixesAndNames:
         assert ':Animal' in text
 
     def test_unbound_namespace_falls_back_to_full_iri(self):
-        g = Graph()
+        g = StarLayerGraph()
         g.add((URIRef('http://unbound.example/X'), RDF.type, OWL.Class))
         text = serialize_manchester(g)
         assert '<http://unbound.example/X>' in text
@@ -304,8 +305,8 @@ class TestPrefixesAndNames:
 
 class TestErrors:
     def test_unrecognized_blank_node_raises(self):
-        from rdflib import BNode
-        g = Graph()
+        from starlayer.graph.parsers._ox_terms import BNode
+        g = StarLayerGraph()
         subject = ex('Weird')
         blank = BNode()
         g.add((subject, RDF.type, OWL.Class))

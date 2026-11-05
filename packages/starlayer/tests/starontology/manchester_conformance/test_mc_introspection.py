@@ -12,14 +12,20 @@ import re
 from pathlib import Path
 
 import pytest
-from rdflib import Graph, URIRef
-from rdflib.namespace import OWL, RDF, RDFS
+from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.parsers._ox_terms import OWL, RDF, RDFS, URIRef
 
 from .known_failures import ORPHAN_ONTOLOGY_TERMS
 
 HERE = Path(__file__).parent
 LIVE = HERE.parent.parent.parent / "starlayer" / "starontology"
 MANCH = "https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#"
+
+
+def _load(path: Path) -> StarLayerGraph:
+    g = StarLayerGraph()
+    g.parse(data=path.read_text(encoding="utf-8"), format="turtle")
+    return g
 
 
 def _sha(path: Path) -> str:
@@ -38,10 +44,10 @@ def test_snapshot_matches_live_file(name):
 
 
 def _ontology_terms() -> set[str]:
-    g = Graph().parse(LIVE / "manchester-ast-ontology.ttl", format="turtle")
+    g = _load(LIVE / "manchester-ast-ontology.ttl")
     return {
-        str(s)[len(MANCH):]
-        for s in set(g.subjects()) if isinstance(s, URIRef) and str(s).startswith(MANCH)
+        s.value[len(MANCH):]
+        for s in set(g.subjects()) if isinstance(s, URIRef) and s.value.startswith(MANCH)
     }
 
 
@@ -63,11 +69,11 @@ def test_every_term_the_code_uses_is_defined_in_the_ontology():
 
 @pytest.mark.manchester_conformance
 def test_every_ontology_term_is_used_by_the_code():
-    g = Graph().parse(LIVE / "manchester-ast-ontology.ttl", format="turtle")
+    g = _load(LIVE / "manchester-ast-ontology.ttl")
     # Abstract grouping classes (only ever superclasses) are reached through RDFS reasoning, not named in code.
     abstract = {
-        str(c)[len(MANCH):]
-        for c in set(g.objects(None, RDFS.subClassOf)) if isinstance(c, URIRef) and str(c).startswith(MANCH)
+        c.value[len(MANCH):]
+        for c in set(g.objects(None, RDFS.subClassOf)) if isinstance(c, URIRef) and c.value.startswith(MANCH)
     }
     orphans = sorted(_ontology_terms() - _terms_used_by_code() - abstract - set(ORPHAN_ONTOLOGY_TERMS))
     assert not orphans, f"ontology terms nothing in manchester.py produces or reads: {orphans}"
@@ -83,11 +89,11 @@ def test_orphan_registry_has_no_stale_entries():
 def test_every_concrete_class_has_a_shape_or_inherits_one():
     """Every non-abstract manch: class must be covered by some SHACL shape (directly, or via a
     superclass the shapes target with RDFS reasoning on, as ``manchester_validate`` does)."""
-    onto = Graph().parse(LIVE / "manchester-ast-ontology.ttl", format="turtle")
-    shapes = Graph().parse(LIVE / "manchester_shapes.ttl", format="turtle")
-    targeted = {str(o) for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#targetClass"))}
+    onto = _load(LIVE / "manchester-ast-ontology.ttl")
+    shapes = _load(LIVE / "manchester_shapes.ttl")
+    targeted = {o.value for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#targetClass"))}
     # classes mentioned in sh:class / sh:or lists also count as constrained
-    sh_class = {str(o) for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#class"))}
+    sh_class = {o.value for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#class"))}
 
     def ancestors(c):
         seen, todo = set(), [c]
@@ -99,9 +105,9 @@ def test_every_concrete_class_has_a_shape_or_inherits_one():
                     todo.append(p)
         return seen
 
-    classes = [c for c in onto.subjects(RDF.type, OWL.Class) if isinstance(c, URIRef) and str(c).startswith(MANCH)]
+    classes = [c for c in onto.subjects(RDF.type, OWL.Class) if isinstance(c, URIRef) and c.value.startswith(MANCH)]
     uncovered = sorted(
-        str(c)[len(MANCH):] for c in classes
-        if not ({str(c)} | {str(a) for a in ancestors(c)}) & (targeted | sh_class)
+        c.value[len(MANCH):] for c in classes
+        if not ({c.value} | {a.value for a in ancestors(c)}) & (targeted | sh_class)
     )
     assert not uncovered, f"manch: classes no shape targets or references (directly or via a superclass): {uncovered}"
