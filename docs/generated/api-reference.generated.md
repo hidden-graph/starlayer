@@ -787,7 +787,7 @@ Raises:
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L40-L52)
+**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L48-L60)
 
 ---
 
@@ -1440,7 +1440,7 @@ Repetition paths stop on a cycle. Raises ``ShapeError`` for a path expression th
 ### `select_widget`  _(function)_
 
 ```python
-def select_widget(*, shape_node: Any, focus_node: Any | None=None, data_graph: Any | None=None, shapes_graph: Any, scoring_graph: Any | None=None, role: Role, _batch: _ConformanceBatch | None=None) -> URIRef | None
+def select_widget(*, shape_node: Any, focus_node: Any | None=None, data_graph: Any | None=None, shapes_graph: Any, scoring_graph: Any | None=None, role: Role) -> Any | None
 ```
 
 Select the ``shui:editor``/``shui:viewer`` widget ``shape_node``
@@ -1492,11 +1492,10 @@ property with none gets ``None``.
 - `shapes_graph: Any`
 - `scoring_graph: Any | None = None`
 - `role: Role`
-- `_batch: _ConformanceBatch | None = None`
 
-**Returns:** `URIRef | None`
+**Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L324-L410)
+**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L356-L411)
 
 ---
 
@@ -1542,7 +1541,7 @@ answer (``choice.widget_without_data``) serves every node. The result of ``resol
 
 **Returns:** `dict[Any, Any]`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L522-L588)
+**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L545-L602)
 
 ---
 
