@@ -13,9 +13,9 @@ import starlayer.shacl
 from rdflib import RDF, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import RDFS
-from starlayer.graph.oxgraph.helpers.shapes import DEFAULT_IGNORED_PROPERTIES
 from starlayer.graph.model import TripleTerm
 from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.oxgraph.helpers.shapes import DEFAULT_IGNORED_PROPERTIES
 
 EX = Namespace('http://example.org/')
 # A plain Namespace, not rdflib.namespace.SH - sh:TripleTerm and SHACL 1.2's

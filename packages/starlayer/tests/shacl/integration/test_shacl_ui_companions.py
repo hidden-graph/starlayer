@@ -3,6 +3,7 @@
 
 import warnings
 
+import pyoxigraph as ox
 import pytest
 from rdflib import RDF, Graph, Namespace, URIRef
 from rdflib.collection import Collection
@@ -12,7 +13,7 @@ from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.meta_shapes import meta_validate
-from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
 
 from ._rdflib_view import rd
 
@@ -22,8 +23,14 @@ def _onto(name):
 
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
+SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")  # rdflib terms: these tests pass rdflib graphs and nodes, and get rdflib terms back
 STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
 EX = Namespace("http://example.org/")
+
+
+def _ox(term):
+    """An rdflib IRI as the pyoxigraph term the module's own widget lists hold."""
+    return ox.NamedNode(str(term))
 
 
 @pytest.fixture(scope="module")
@@ -127,7 +134,7 @@ def test_the_scores_layer_is_nine_editor_scores_at_forty(scores) -> None:
     assert len(entries) == 9
     assert {int(next(scores.objects(score, SHUI.score))) for score in entries} == {40}
     widgets = {next(scores.objects(score, SHUI.widget)) for score in entries}
-    assert widgets <= uws._BUILTIN_EDITORS and len(widgets) == 9, "an application layer uses standard shui widgets only"
+    assert {_ox(w) for w in widgets} <= uws._BUILTIN_EDITORS and len(widgets) == 9, "an application layer uses standard shui widgets only"
     assert not list(scores.subjects(RDF.type, SHUI.WidgetAcceptMatcher))
 
 
@@ -166,7 +173,7 @@ def test_the_layer_does_not_touch_other_shapes_or_viewers(shapes, baseline, stac
         )
     shacl_shape = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
     viewers = select_widgets(shape_node=shacl_shape, shapes_graph=_onto("shacl_shacl"), scoring_graph=stacked, role="viewer")
-    assert all(widget in uws._BUILTIN_VIEWERS or widget is None for widget in viewers.values())
+    assert all(widget is None or _ox(widget) in uws._BUILTIN_VIEWERS for widget in viewers.values())
 
 
 # --------------------------------------------------------------------------- the baseline catalog
@@ -184,8 +191,8 @@ def test_the_baseline_scores_are_well_formed_widget_scores(baseline, shacl_shacl
 def test_every_widget_in_the_baseline_has_a_known_role(baseline) -> None:
     widgets = {w for score in baseline.subjects(RDF.type, SHUI.WidgetScore) for w in baseline.objects(score, SHUI.widget)}
     assert len(widgets) == 12
-    assert all(uws._widget_roles(w) for w in widgets), [w for w in widgets if not uws._widget_roles(w)]
-    assert {w for w in widgets if "editor" in uws._widget_roles(w)} and {w for w in widgets if "viewer" in uws._widget_roles(w)}
+    assert all(uws._widget_roles(_ox(w)) for w in widgets), [w for w in widgets if not uws._widget_roles(_ox(w))]
+    assert {w for w in widgets if "editor" in uws._widget_roles(_ox(w))} and {w for w in widgets if "viewer" in uws._widget_roles(_ox(w))}
 
 
 def test_the_baseline_has_three_tiers_and_no_per_widget_matchers(baseline) -> None:

@@ -26,8 +26,16 @@ def as_quads(graph: Any) -> list:
         to_oxgraph,
     )
 
+    if not is_oxigraph_input(graph) and not hasattr(graph, "triples") and not hasattr(graph, "namespaces"):
+        # a plain collection of (s, p, o) triples, in pyoxigraph or rdflib terms
+        from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
+
+        def term(t):
+            return t if isinstance(t, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)) else from_rdflib_term(t)
+
+        return [ox.Quad(term(s), term(p), term(o), ox.DefaultGraph()) for s, p, o in graph]
     if not is_oxigraph_input(graph):
-        graph = to_oxdataset(graph, "graph") if hasattr(graph, "graphs") or hasattr(graph, "contexts") else to_oxgraph(graph, "graph")
+        graph =to_oxdataset(graph, "graph") if hasattr(graph, "graphs") or hasattr(graph, "contexts") else to_oxgraph(graph, "graph")
     if isinstance(graph, ox.Store):
         return list(graph)
     from starlayer.graph.oxgraph.core import StarLayerDataset

@@ -5,12 +5,13 @@ made to the graphs it was given."""
 from rdflib import RDF, XSD, Graph, Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate
-from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
 
 from ._rdflib_view import rd
 
 EX = Namespace("http://ex/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
+SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")  # rdflib terms: these tests pass rdflib graphs and nodes, and get rdflib terms back
 PRE = (
     "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . "
     "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"

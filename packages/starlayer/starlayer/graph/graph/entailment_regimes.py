@@ -37,6 +37,10 @@ rather than naming a regime).
 
 from __future__ import annotations
 
-from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT, KNOWN_REGIMES, SUPPORTED_REGIMES
+from starlayer.graph.oxgraph.helpers.entailment import (
+    ENTAILMENT,
+    KNOWN_REGIMES,
+    SUPPORTED_REGIMES,
+)
 
 __all__ = ["ENTAILMENT", "KNOWN_REGIMES", "SUPPORTED_REGIMES"]
