@@ -43,21 +43,16 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 
 ## `starlayer.graph`
 
+- **[`CanonicalizationComplexityError`](api-reference.generated.md#entity-starlayer-graph-rdfc_native-CanonicalizationComplexityError)** (class) - The dataset has a highly symmetric blank-node structure that RDFC-1.0 would take exponential time on (RDFC-1.0 section 7.1, "Dataset Poisoning": implementations MUST terminate early with an exception).
 - **[`DirLangString`](api-reference.generated.md#entity-starlayer-graph-model-dirlangstring-DirLangString)** (class) - An RDF 1.2 directional language-tagged string literal.
 - **[`DirLangString.n3`](api-reference.generated.md#entity-starlayer-graph-model-dirlangstring-DirLangString-n3)** (method) - Returns the N3/Turtle-1.2 (``"text"@lang--dir``) text form.
 - **[`TripleTerm`](api-reference.generated.md#entity-starlayer-graph-model-triple-TripleTerm)** (class) - An RDF 1.2 triple term — a triple used as a resource.
 - **[`TripleTerm.n3`](api-reference.generated.md#entity-starlayer-graph-model-triple-TripleTerm-n3)** (method) - Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form.
 - **[`Turtle12SyntaxError`](api-reference.generated.md#entity-starlayer-graph-parsers-errors-Turtle12SyntaxError)** (class) - Malformed Turtle 1.2 input that the parser cannot recognize as any valid token or statement form.
 - **[`can_resolve_import`](api-reference.generated.md#entity-starlayer-graph-oxgraph-helpers-imports-can_resolve_import)** (function) - Whether ``loader(iri)`` returns a graph (it is called once; there is no cheaper way to ask).
-- **[`isomorphic`](api-reference.generated.md#entity-starlayer-graph-compare-isomorphic)** (function) - RDF-1.2-aware replacement for ``rdflib.compare.isomorphic`` - correct for graphs containing triple terms (including ones with nested blank nodes), identical to the original for graphs that don't. Also RDF 1.1-correct for simple-literal-vs-explicit-``xsd:string`` (see module docstring): a plain ``Literal("x")`` and ``Literal("x", datatype=XSD.string)`` compare equal here, unlike in plain ``rdflib.compare.isomorphic``.
-- **[`rdfc10_hash`](api-reference.generated.md#entity-starlayer-graph-rdfc-rdfc10_hash)** (function) - Returns a single hex digest for ``graph``'s canonical N-Quads form.
-- **[`to_canonical_nquads`](api-reference.generated.md#entity-starlayer-graph-rdfc-to_canonical_nquads)** (function) - The canonical N-Quads serialization of ``graph`` (spec section 5), correct for triple terms and directional language strings.
-
-## `starlayer.sparql.salg`
-
-- **[`UnboundProjectedVariable`](api-reference.generated.md#entity-starlayer-sparql-salg-semantic_checks-UnboundProjectedVariable)** (class) - One `Project` node whose `PV` names a variable never bound anywhere in its own pattern subtree.
-- **[`find_unbound_projected_variables`](api-reference.generated.md#entity-starlayer-sparql-salg-semantic_checks-find_unbound_projected_variables)** (function) - Returns every ``UnboundProjectedVariable`` finding in ``data_graph``.
-- **[`ontology_graph`](api-reference.generated.md#entity-starlayer-sparql-salg-sparql_ontology-ontology_graph)** (function) - Build a fresh graph: the RDFS ontology in ``salg-ontology.ttl`` merged with ``spexpr-ontology.ttl`` (lives in the ``starontology`` package).
+- **[`isomorphic`](api-reference.generated.md#entity-starlayer-graph-compare-isomorphic)** (function) - True if the two graphs or datasets (``StarLayerGraph``, ``StarLayerDataset``, ``pyoxigraph.Store``, or rdflib ``Graph`` / ``Dataset``) are equal up to blank-node relabelling: equal canonical N-Quads (RDFC-1.0). Datasets are compared as datasets, graph names included; a dataset against a plain graph compares the dataset's quads with the graph's triples in the default graph.
+- **[`rdfc10_hash`](api-reference.generated.md#entity-starlayer-graph-rdfc-rdfc10_hash)** (function) - The hex digest of ``graph``'s canonical N-Quads text, stable under blank-node relabelling.
+- **[`to_canonical_nquads`](api-reference.generated.md#entity-starlayer-graph-rdfc-to_canonical_nquads)** (function) - The canonical N-Quads text of ``graph`` (RDFC-1.0 section 4.4.3 step 7): blank nodes labelled ``c14n0``, ``c14n1``, ..., lines sorted. ``hash_algorithm`` is ``"sha256"`` or ``"sha384"`` (the two the specification names); it also drives the canonical labelling.
 
 ## `starlayer.shacl`
 
