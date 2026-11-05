@@ -318,12 +318,12 @@ ql:upstream-workarounds a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-which-functions-exist-specifically-to-work-around ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "only issues in this library: rdflib, pyshacl, fuseki or oxigraph" ;
-            slkg:paramExample "rdflib" ;
+            slkg:paramExample "pyshacl" ;
             slkg:paramName "project" ;
             slkg:paramRequired false ],
         [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a function to ask about" ;
-            slkg:paramExample "starlayer.sparql._syntax_checks.check_parse_tree" ;
+            slkg:paramExample "starlayer.shacl.validator.StarShaclSchema.validate" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired false ] ;
     slkg:queryRoot ql:upstream-workarounds-tree .

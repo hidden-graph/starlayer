@@ -1414,11 +1414,9 @@ class TestSparqlQueryStructureValidation:
     have a real, silent defect a bare parse never catches - most notably
     an unbound projected variable (compiles and runs, just never binds
     one of its own SELECT variables). After a successful parse, the query
-    is additionally encoded as a salg: graph and validated against
-    starlayer.sparql.salg's own general-purpose SPARQL-structure shapes,
-    which already has a real check for exactly this
-    (salg:noUnboundProjectedVariables) - just never pointed at a SHACL
-    shape's own embedded query text before. Always runs whenever
+    is additionally encoded as an sqe: tree and validated against
+    sqe:'s own SPARQL-structure shapes, which have a real check for
+    exactly this. Always runs whenever
     check_sparql_query_text() itself runs - i.e. whenever meta_shacl=True
     (the default), same as the parse check alongside it - not a separate
     opt-in, since it's cached and the whole point is to actually catch
@@ -1445,10 +1443,10 @@ class TestSparqlQueryStructureValidation:
         # duplicate of the plain parse check: the raw text parses fine on
         # its own, but check_sparql_query_text() still raises once the
         # structural check runs against it.
-        import starlayer.sparql
+        from starlayer.sparql.parse_sparql import parse_sparql
 
-        starlayer.sparql.prepare_query_12(
-            self._UNBOUND_VAR_SELECT, initNs={"ex": EX}
+        parse_sparql(
+            self._UNBOUND_VAR_SELECT, None, {"ex": str(EX)}
         )  # must not raise - the query is syntactically valid SPARQL
 
         shapes = self._shapes_with(self._UNBOUND_VAR_SELECT)
@@ -1462,7 +1460,7 @@ class TestSparqlQueryStructureValidation:
     def test_this_only_validator_is_not_a_false_positive(self) -> None:
         # A real, previously-caught bug: $this is bound externally by
         # pySHACL's own execution machinery, never by anything in the
-        # query's own pattern - salg's generic, SHACL-unaware check would
+        # query's own pattern - the generic, SHACL-unaware sqe: check would
         # otherwise flag this extremely common, perfectly valid shape as
         # an unbound projected variable.
         shapes = self._shapes_with("SELECT $this WHERE { FILTER(true) }")
@@ -1517,29 +1515,29 @@ class TestSparqlQueryStructureValidation:
         shapes.parse(VALIDATION_SHAPES_PATH, format="turtle")
         check_sparql_query_text(shapes)  # must not raise
 
-    def test_repeated_call_hits_cache_not_salg_again(self) -> None:
+    def test_repeated_call_hits_cache_not_the_sqe_validation_again(self) -> None:
         # The only guard against the new cache silently never engaging:
-        # spy on salg.validate_query itself and confirm a second call
+        # spy on sqe_validate itself and confirm a second call
         # against the identical (predicate, text, prefixes) doesn't
         # invoke it again.
-        from starlayer.sparql import salg
+        from starlayer.sparql.sqe import shapes as sqe_shapes
 
         shapes = self._shapes_with(self._WELL_FORMED_SELECT)
         check_sparql_query_text(shapes)  # warms the cache
 
         calls = {"n": 0}
-        original = salg.validate_query
+        original = sqe_shapes.sqe_validate
 
         def _spy(*args, **kwargs):
             calls["n"] += 1
             return original(*args, **kwargs)
 
-        salg.validate_query = _spy
+        sqe_shapes.sqe_validate = _spy
         try:
             check_sparql_query_text(shapes)
             check_sparql_query_text(shapes)
         finally:
-            salg.validate_query = original
+            sqe_shapes.sqe_validate = original
         assert calls["n"] == 0
 
     def _shapes_with_sparql_constraint(self, query_text: str) -> Graph:

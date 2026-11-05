@@ -3,8 +3,8 @@ they are expanded into plain triple patterns when the rule is built."""
 
 from __future__ import annotations
 
-import pytest
 import pyoxigraph as ox
+import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import srl

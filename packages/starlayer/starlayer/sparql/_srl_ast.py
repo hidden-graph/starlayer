@@ -574,6 +574,9 @@ class RuleSet:
             import pyoxigraph as ox
 
             return [{ox.Variable(var.value): value for var, value in row.items()} for row in rows]
+        from starlayer._optional import require_rdflib
+
+        require_rdflib("Querying an rdflib graph with an SRL rule set")
         from rdflib import Variable as RVariable
 
         return [{RVariable(var.value): _ox.to_rdflib_term(value) for var, value in row.items()} for row in rows]

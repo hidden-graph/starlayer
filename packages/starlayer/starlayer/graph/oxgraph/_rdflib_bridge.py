@@ -719,7 +719,7 @@ def to_oxdataset(value: Any, where: str = "dataset") -> Any:
 
 
 class LegacyTermView:
-    """A view over an engine-term graph that speaks rdflib terms (for the component owners that still are rdflib code: salg)."""
+    """A view over an engine-term graph that speaks rdflib terms (for code that still speaks rdflib terms)."""
 
     def __init__(self, view: Any) -> None:
         self.view = view

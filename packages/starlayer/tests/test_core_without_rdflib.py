@@ -169,14 +169,16 @@ def test_canonical_hashing_and_isomorphism_run_without_rdflib():
     assert "refused" in out
 
 
-def test_native_sparql_parse_helpers_import_lazily():
-    # the SPARQL facade names are lazy: a name that needs rdflib raises the clear error, the rest of the package imports
-    result = run_blocked("""
+def test_the_sparql_facade_imports_without_rdflib():
+    # the retired rdflib-based names (prepare_query_12, query_to_rdf, SALG, ...) are gone, not lazy
+    out = ok("""
         import starlayer.sparql
-        starlayer.sparql.prepare_query_12
+        from starlayer.sparql import StarQuery, check_query
+        assert check_query("SELECT * WHERE { ?s ?p ?o }") is None
+        assert not hasattr(starlayer.sparql, "prepare_query_12")
+        print("done")
     """)
-    assert result.returncode != 0
-    assert "pip install starlayer[rdflib]" in result.stderr
+    assert "done" in out
 
 
 MANCHESTER = """
@@ -314,9 +316,94 @@ def test_the_syntax_checks_of_a_star_query_work_without_rdflib():
     assert "rejected" in out
 
 
-def test_sqe_tree_to_query_needs_rdflib_and_says_so():
-    result = run_blocked("from starlayer.sparql.sqe import sqe_tree_to_query")
-    assert result.returncode != 0 and "starlayer[rdflib]" in result.stderr
+SRL_CODE = """
+    from starlayer.graph import StarLayerGraph
+    from starlayer.sparql import srl
+
+    RULES = '''PREFIX : <http://e/>
+    RULE { ?x :anc ?y } WHERE { ?x :parent ?y }
+    RULE { ?x :anc ?z } WHERE { ?x :anc ?y . ?y :parent ?z }
+    RULE { ?x :adult true } WHERE { ?x :age ?a . FILTER(?a >= 18 && STRLEN(STR(?x)) > 3) }
+    RULE { ?x :next ?n } WHERE { ?x :age ?a . SET(?n := ?a + 1) }
+    RULE { ?x :safe true } WHERE { ?x :age ?a . NOT { ?x :banned ?b } }
+    RULE { ?x :saw <<( ?x :age ?a )>> } WHERE { ?x :age ?a }
+    DATA { :seed :age 30 . }
+    '''
+"""
+
+
+def test_srl_parse_evaluate_encode_and_validate_work_without_rdflib():
+    out = ok(SRL_CODE + """
+    rules = srl.parse_ruleset(RULES)  # parses, checks well-formedness and validates against the srl: shapes
+    g = StarLayerGraph()
+    g.update('PREFIX : <http://e/> INSERT DATA { :a :parent :b . :b :parent :c . :a :age 20 . :c :banned 1 . :c :age 5 }')
+    inferred = rules.infer(g)
+    assert type(inferred).__name__ == "StarLayerGraph"
+    rows = {tuple(t.value if hasattr(t, "value") else str(t) for t in triple) for triple in inferred}
+    anc = "http://e/anc"
+    assert ("http://e/a", anc, "http://e/c") in rows
+    assert any(p == "http://e/adult" for _, p, _ in rows) and any(p == "http://e/next" for _, p, _ in rows)
+    assert not any(s == "http://e/c" and p == "http://e/safe" for s, p, _ in rows)
+    found = rules.query(g, srl.TriplePattern(__import__("pyoxigraph").Variable("x"), __import__("pyoxigraph").NamedNode(anc), __import__("pyoxigraph").NamedNode("http://e/c")))
+    assert len(found) == 2
+    assert rules.plan().strata
+    tree, root = srl.ruleset_to_tree(rules)
+    assert srl.srl_validate(tree)[0]
+    again = srl.tree_to_ruleset(tree, root)
+    assert srl.ruleset_to_text(again) == srl.ruleset_to_text(rules)
+    graph2, root2 = srl.srl_parse_to_tree(RULES)
+    assert "RULE" in srl.srl_tree_to_text(graph2, root2)
+    print("done")
+    """)
+    assert "done" in out
+
+
+def test_srl_errors_work_without_rdflib():
+    out = ok("""
+        from starlayer.sparql import srl
+        for bad in ("RULE { ?x <http://e/p> ?y } WHERE { ?z <http://e/q> ?w }", "RULE { ?x"):
+            try:
+                srl.parse_ruleset(bad)
+            except srl.SRLParseError:
+                print("rejected")
+    """)
+    assert out.count("rejected") == 2
+
+
+def test_srl_and_the_embedded_query_check_load_no_rdflib_module():
+    code = SRL_CODE + """
+    import sys
+    rules = srl.parse_ruleset(RULES)
+    g = StarLayerGraph()
+    g.update('PREFIX : <http://e/> INSERT DATA { :a :parent :b . :a :age 20 }')
+    rules.infer(g); rules.query(g, rules.rules[0].head[0])
+    tree, root = srl.ruleset_to_tree(rules); srl.srl_validate(tree); srl.tree_to_ruleset(tree, root)
+    from starlayer.shacl.meta_shapes import sparql_query_problems
+    shapes = StarLayerGraph()
+    shapes.parse(data='@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://e/> . ex:S a sh:NodeShape ; sh:sparql [ sh:select "SELECT $this WHERE { $this ex:p ?o }" ] .', format="turtle")
+    assert list(sparql_query_problems(shapes)) == []
+    from starlayer.sparql import StarQuery
+    StarQuery("SELECT * WHERE { ?s ?p ?o }").run(g)
+    print([m for m in sys.modules if m == 'rdflib' or m.startswith('rdflib.')][:3])
+    """
+    result = subprocess.run(
+        [sys.executable, "-c", textwrap.dedent(code)], capture_output=True, text=True, timeout=300,
+        env={"PYTHONPATH": PACKAGE_ROOT, "PYTHONHASHSEED": "0", "PATH": ""},
+    )
+    assert result.returncode == 0, result.stderr[-2000:]
+    assert result.stdout.strip() == "[]", f"SRL loaded rdflib: {result.stdout.strip()}"
+
+
+def test_srl_on_an_rdflib_graph_needs_rdflib_and_says_so():
+    result = run_blocked("""
+        from starlayer.sparql import srl
+        class Foreign:  # not an Oxigraph graph, so the rdflib bridge is asked to copy it
+            def __iter__(self):
+                return iter(())
+        srl.parse_ruleset("RULE { ?x <http://e/p> ?y } WHERE { ?x <http://e/q> ?y }").infer(Foreign())
+    """)
+    assert result.returncode != 0
+    assert "starlayer[rdflib]" in result.stderr
 
 
 def test_the_sqe_text_path_loads_no_rdflib_module():
@@ -341,8 +428,6 @@ def test_the_sqe_text_path_loads_no_rdflib_module():
         "from starlayer.graph import StarLayerGraph; StarLayerGraph.from_rdflib(None)",
         "from starlayer.graph import StarLayerGraph, ENTAILMENT; g = StarLayerGraph(); "
         "g.update('INSERT DATA { <http://e/s> a <http://e/C> }'); g.infer(entailment=ENTAILMENT['OWL-RDF-Based'])",
-        "from starlayer.sparql import prepare_query_12",
-        "import starlayer.sparql.srl",
         "import starlayer.starontology.manchester as m; m.manchester_validate(m.manchester_parse_to_tree('Class: <http://e/A>'))",
     ],
 )

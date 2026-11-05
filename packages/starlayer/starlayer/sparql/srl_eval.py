@@ -623,6 +623,9 @@ def flatten_dataset(graph):
     if _ox.is_oxigraph_input(graph):
         flat.extend(list(iter(graph)))
         return flat
+    from starlayer._optional import require_rdflib
+
+    require_rdflib("Running SRL rules on an rdflib graph")
     from rdflib import ConjunctiveGraph, Dataset
 
     triples = graph.triples((None, None, None)) if isinstance(graph, (Dataset, ConjunctiveGraph)) else iter(graph)
@@ -635,6 +638,9 @@ def to_foreign(inferred, original):
     when that is an rdflib ``Graph`` subclass (the old-style graph, which can hold triple terms), otherwise a plain
     ``rdflib.Graph``. A result that holds a triple term, which a plain ``rdflib.Graph`` cannot hold, is returned as the
     ``StarLayerGraph`` it is."""
+    from starlayer._optional import require_rdflib
+
+    require_rdflib("Returning the inferred triples as an rdflib graph")
     from rdflib import ConjunctiveGraph, Dataset, Graph
 
     from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term

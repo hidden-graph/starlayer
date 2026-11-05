@@ -3,8 +3,8 @@ a loader; each document is read once; rules and DATA are merged; failures are er
 
 from __future__ import annotations
 
-import pytest
 import pyoxigraph as ox
+import pytest
 from rdflib import Graph, URIRef
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLImportError, parse_ruleset, resolve_imports

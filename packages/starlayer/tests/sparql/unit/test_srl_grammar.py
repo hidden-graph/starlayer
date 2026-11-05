@@ -1,4 +1,3 @@
-import pytest
 """Tests for starlayer.sparql.srl.parse_ruleset - SRL text
 syntax parsing (WD-sparql12-rl-20260919 §7.6 grammar), Phase 1 of the SRL
 implementation plan (see docs/working/archive/functionality-overview.md).
@@ -12,6 +11,7 @@ spec's stated output" assertion.
 """
 
 import pyoxigraph as ox
+import pytest
 from starlayer.sparql._oxterms import RDF
 from starlayer.sparql._srl_ast import (
     _AssignmentElement as AssignmentElement,

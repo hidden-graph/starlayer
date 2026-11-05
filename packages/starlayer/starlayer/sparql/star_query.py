@@ -1,4 +1,4 @@
-"""``StarQuery`` - binds a SPARQL query (prepared once) plus every per-call
+"""``StarQuery`` - binds a SPARQL query (syntax-checked once) plus every per-call
 option ``StarLayerGraph.query()`` otherwise takes, so the same query can be
 run against several different graphs without re-passing the same
 ``entailment=``/``initNs=``/etc. arguments every time.
@@ -10,55 +10,14 @@ Deliberately does not validate a ``CONSTRUCT`` query's own result graph
 against a SHACL shape - considered and rejected as out of scope for this
 class.
 
-**A real, pre-existing ``StarLayerGraph.query()`` gap, found while building
-this class, not assumed away**: ``entailment=ENTAILMENT.RDF``/``RDFS``
-rewrites a query's algebra to express the entailment rule - but that
-rewrite only ever runs when ``query_object`` is a plain string (inside
-``query_cache.prepare_query_cached``, which ``StarLayerGraph.query()``
-only calls on the ``isinstance(query_object, str)`` branch). Hand it an
-*already-prepared* ``Query`` object instead (exactly what preparing once
-via :func:`starlayer.sparql.parse12.prepare_query_12` and reusing it would
-otherwise do) with ``entailment=ENTAILMENT.RDFS`` and the rewrite silently
-never happens - confirmed live: the same query returns results against
-raw text + ``entailment=ENTAILMENT.RDFS``, and an empty result against a
-pre-prepared ``Query`` object + the identical ``entailment=``, no error
-either way. Since this class's own purpose is exactly "prepare once, reuse
-across calls with a bound entailment regime," silently shipping that bug
-through it would make the entailment-binding feature actively wrong for
-two of the four real regimes. Worked around here (see :meth:`run`) rather
-than fixed at the ``StarLayerGraph.query()`` level - that method's own
-algebra-rewrite step mutates a tree in place with no safe, cheap way to
-copy an ``rdflib`` ``CompValue`` tree first (confirmed: a plain
-``copy.deepcopy`` fails outright, ``CompValue.__init__()`` has no
-zero-argument reconstruction path pickle/copy needs), so fixing it
-properly there is a larger, riskier change to a heavily-shared method -
-out of scope for building this class. Flagged in
-``StarLayerGraph.query()``'s own docstring too.
+Oxigraph runs the query text, so construction only checks the syntax (with StarLayer's own parser); the RDF / RDFS
+entailment regimes rewrite the text on each run, inside ``StarLayerGraph.query()``.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
-
-from starlayer._optional import have_rdflib, require_rdflib
-
-# rdflib is an optional extra: the prepared-query object, and the rdflib-graph run path that uses it, need it; running
-# against a StarLayerGraph / StarLayerDataset (Oxigraph executes the text) does not.
-
-def prepare_query_12(*args: Any, **kwargs: Any) -> Any:
-    """``starlayer.sparql.parse12.prepare_query_12``, imported on first call (that module needs rdflib)."""
-    from starlayer.sparql.parse12 import prepare_query_12 as prepare
-
-    return prepare(*args, **kwargs)
-
-
-# entailment=ENTAILMENT.RDF/.RDFS rewrite the query's own algebra - see this
-# module's own docstring for why that rewrite is silently skipped when
-# query_object isn't a plain string. run() falls back to the original text
-# for exactly these two regimes so the rewrite actually happens.
-_RDF_REGIME = "http://www.w3.org/ns/entailment/RDF"
-_RDFS_REGIME = "http://www.w3.org/ns/entailment/RDFS"
 
 # Sentinel for "no timeout= override bound" - lets run() omit the kwarg
 # entirely and fall through to StarLayerGraph.query()'s own real default,
@@ -111,16 +70,10 @@ class StarQuery:
         """
         self._text = text
         self._base = base
-        # With rdflib the query is prepared here (the object an rdflib graph runs); without it StarLayer's own parser checks the
-        # syntax, so a bad query raises here either way.
-        self._prepared = None
-        if have_rdflib():
-            self._prepared = prepare_query_12(text, base=base, initNs=initNs)
-        else:
-            from .parse_sparql import parse_sparql
+        from .parse_sparql import parse_sparql
 
-            head = "".join(f"PREFIX {k}: <{getattr(v, 'value', v)}>\n" for k, v in (initNs or {}).items())
-            parse_sparql(head + text, base)
+        # StarLayer's own parser checks the syntax, so a bad query raises here
+        parse_sparql(text, base, {k: str(getattr(v, "value", v)) for k, v in (initNs or {}).items()})
         self.initNs = initNs
         self.initBindings = initBindings
         self.entailment = entailment
@@ -159,32 +112,20 @@ class StarQuery:
             kwargs["timeout"] = self.timeout
         kwargs.update(overrides)
 
-        from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
+        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-        if is_oxigraph_input(graph):
-            # The wrapper runs the query text on Oxigraph (no prepared query object). RDF / RDFS entailment rewrites the text;
-            # the OWL regimes run on a temporary closure copy (see StarLayerGraph.query). timeout is only meaningful for OWL-Direct, as
-            # on StarLayerGraph.query(), which is where a misuse raises.
-            return graph.query(
-                self._text,
-                initNs=kwargs["initNs"],
-                initBindings=kwargs["initBindings"],
-                base=kwargs.get("base", self._base),
-                entailment=kwargs["entailment"],
-                infer=kwargs["infer"],
-                engine=kwargs["engine"],
-                timeout=kwargs.get("timeout"),
-            )
-
-        require_rdflib("Running a StarQuery against an rdflib graph")
-        if getattr(kwargs["entailment"], "value", str(kwargs["entailment"])) in (_RDF_REGIME, _RDFS_REGIME):
-            # See this module's own docstring: only a plain string triggers
-            # StarLayerGraph.query()'s own entailment-rewrite step for
-            # these two regimes - the prepared Query object's algebra is
-            # never rewritten. Falls back to the original text so the
-            # rewrite actually happens; the target graph's own per-instance
-            # prepared-query cache still avoids re-preparing on repeated
-            # calls against the *same* graph.
-            kwargs.setdefault("base", self._base)
-            return graph.query(self._text, **kwargs)
-        return graph.query(self._prepared, **kwargs)
+        if not _ox.is_oxigraph_input(graph):
+            graph = _ox.to_oxgraph(graph)  # an rdflib graph is copied in by the rdflib bridge (rdflib is then needed)
+        # The wrapper runs the query text on Oxigraph. RDF / RDFS entailment rewrites the text; the OWL regimes run on a temporary
+        # closure copy (see StarLayerGraph.query). timeout is only meaningful for OWL-Direct, as on StarLayerGraph.query(), which is
+        # where a misuse raises.
+        return graph.query(
+            self._text,
+            initNs=kwargs["initNs"],
+            initBindings=kwargs["initBindings"],
+            base=kwargs.get("base", self._base),
+            entailment=kwargs["entailment"],
+            infer=kwargs["infer"],
+            engine=kwargs["engine"],
+            timeout=kwargs.get("timeout"),
+        )

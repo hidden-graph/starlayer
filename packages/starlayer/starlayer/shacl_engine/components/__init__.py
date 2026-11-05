@@ -4,7 +4,6 @@ from starlayer.shacl_engine.components import (  # noqa: F401
     core_string_pair,
     core_value,
     expression_components,
-    extensions,
     registry,
     sparql_constraints,
 )

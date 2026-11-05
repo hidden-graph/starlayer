@@ -1,21 +1,8 @@
-"""``_EXPR_NODE_FAMILY``: name -> argument-signature family, for every one
-of rdflib's 63 expression builtins. Shared, dependency-free source of truth (lives here, not inside ``salg/``: ``sqe:``, ``srl:`` and the shared
-encoder all use it, and none of them should import ``salg``)
-for ``expr_validation.py`` (generates the per-builtin SHACL shapes from it)
-and ``salg/sparql_ontology.py`` (generates per-builtin ``rdfs:subClassOf``
-declarations from it) — lives in its own module, not either of those,
-specifically so ``sparql_ontology.py`` never needs ``pyshacl`` (a
-``sparql_shapes.py``-only dependency) just to read this table.
-
-``from_rdf._discover_expr_evalfns()`` is the live source of truth for the
-*name list* (rebuilt by walking rdflib's own pyparsing grammar, so it can't
-drift out of sync with whatever rdflib version is installed); the family for
-each name was confirmed by building a real query exercising it and
-inspecting the decoded algebra node's own keys directly — not guessed from
-the name, since that's genuinely unreliable here (e.g. ``Builtin_REPLACE``'s
-keys are ``arg``/``pattern``/``replacement``/``flags``, not
-``arg1``..``arg4``; ``Builtin_BNODE``'s sole argument is optional unlike
-every other one-arg builtin).
+"""``_EXPR_NODE_FAMILY``: name -> argument-signature family, for every SPARQL expression builtin (the node names are the parser's:
+``Builtin_STR``, ``Builtin_REPLACE``, ...). The one source of truth for ``expr_validation.py``, which generates the per-builtin
+SHACL shapes of the shared ``spexpr:`` vocabulary from it. The family for each name is the shape of the parser's node, not guessed
+from the name (``Builtin_REPLACE``'s fields are ``arg``/``pattern``/``replacement``/``flags``, not ``arg1``..``arg4``;
+``Builtin_BNODE``'s sole argument is optional unlike every other one-arg builtin).
 """
 
 from __future__ import annotations

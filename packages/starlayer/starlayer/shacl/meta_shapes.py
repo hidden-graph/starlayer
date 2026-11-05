@@ -35,17 +35,11 @@ from starlayer.shacl_engine.terms import (
     to_engine,
 )
 
-# check_sparql_query_text()'s own SALG structural-validation result cache -
-# salg.validate_query() is a real pySHACL validation pass (shapes/ontology
-# graphs rebuilt from Turtle each call, RDFS inference enabled), not cheap,
-# and otherwise uncached. Keyed directly on the exact inputs that determine
-# its result (predicate, the literal query text, and its resolved prefix
-# map) - no graph-identity/blank-node concern here the way
-# _meta_validate_cache_key has, so no rdfc10_hash needed; these values are
-# already directly, stably hashable. Same bounded-LRU shape as
-# _META_VALIDATE_CACHE, kept as a separate cache since it's keyed on
-# different things (one query's text+prefixes, not a whole shapes graph's
-# content).
+# check_sparql_query_text()'s own sqe structural-validation result cache: validating an encoded query is a real SHACL
+# validation pass, not cheap, and otherwise uncached. Keyed directly on the exact inputs that determine its result
+# (predicate, the literal query text, and its resolved prefix map), which are already directly, stably hashable. Same bounded-LRU
+# shape as _META_VALIDATE_CACHE, kept as a separate cache since it's keyed on different things (one query's text+prefixes, not a
+# whole shapes graph's content).
 _SPARQL_STRUCTURE_CACHE_MAXSIZE = 256
 _SPARQL_STRUCTURE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
 
@@ -144,18 +138,21 @@ def parameter_value_shapes(shapes_graph: Any) -> Any:
 def _template_unbound_variables(shapes_graph: Any, template: Any) -> list[str]:
     """The variables a rule template's ``sh:construct`` builds triples from that nothing binds: not a parameter (its path's local name), not ``this``, and not in
     the query's own pattern. Empty when the query does not parse (that is reported elsewhere) or the template has no single query."""
-    import starlayer.sparql
+    from starlayer.sparql.parse_sparql import _pattern_vars, _term_vars
 
     texts = [t.value for t in shapes_graph.objects(template, SH.construct) if isinstance(t, ox.Literal)]
     if len(texts) != 1:
         return []
     try:
-        query = starlayer.sparql.prepare_query_12(texts[0], initNs={**{p: ns for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, template)})
-        algebra = query.algebra
-        if algebra.name != "ConstructQuery":
+        ast = _parse_embedded_query(texts[0], {**{p: ns for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, template)})
+        if ast.kind != "ConstructQuery":
             return []
-        used = {str(term) for triple in algebra.template for term in triple if type(term).__name__ == "Variable"}
-        bound = {str(v) for v in getattr(algebra.p, "_vars", ())}
+        used_vars: set = set()
+        for triple in ast.f["template"] or []:
+            for part in ("s", "p", "o"):
+                _term_vars(triple.f[part], used_vars)
+        used = {v.value for v in used_vars}
+        bound = {v.value for v in _pattern_vars(ast.f["where"])}
     except Exception:  # noqa: BLE001 - a query that cannot be read is reported by sparql_query_problems
         return []
     local = lambda iri: re.split(r"[#/]", text(iri))[-1]  # noqa: E731
@@ -280,7 +277,7 @@ def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dic
 # SHACL-SPARQL's own pre-bound pseudo-variables are supplied externally by
 # pySHACL's own execution machinery before a sh:select/sh:ask/sh:construct
 # query ever runs - never by anything in the query's own WHERE pattern -
-# for a CONSTRAINT or RULE query. salg:noUnboundProjectedVariables (a
+# for a CONSTRAINT or RULE query. the sqe: unbound-variable checks (a
 # plain, SHACL-unaware generic SPARQL check) has no way to know this, so
 # without this exemption it would flag every single `$this`-only validator
 # (an extremely common, perfectly valid pattern - e.g.
@@ -302,30 +299,33 @@ def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dic
 _SHACL_PREBOUND_VARIABLE_NAMES = frozenset({"this", "value", "PATH"})
 
 
-def _is_prebound_variable_only_report(report_graph: Any) -> bool:
-    """True iff every violation in a ``salg.validate_query()`` report is a
-    ``salg:noUnboundProjectedVariables`` hit naming only a SHACL pre-bound
-    pseudo-variable (``$this``/``$value``/``$PATH``) - a false positive
-    this check should suppress, not a real defect. ``False`` (never
-    suppressed) for an empty result set too - that would mean ``conforms``
-    was already ``True`` and there was nothing to call this for in the
-    first place.
-    """
-    from starlayer.sparql import SALG
+_UNBOUND_VARIABLE_MESSAGE = re.compile(r"^(?:Projected variable|Template variable|Variable) (\S+) (?:is never bound|is used inside an expression)")
 
-    report_graph = engine_view(report_graph, "SALG report")  # whatever graph class the SPARQL layer returns
-    unbound_component = f"{SALG.NoUnboundProjectedVariablesConstraintComponent}"  # str-ok: an IRI of an rdflib Namespace
+
+def _is_prebound_variable_only_report(report_graph: Any) -> bool:
+    """True iff every violation in an ``sqe_validate()`` report is an unbound-variable hit naming only a SHACL pre-bound
+    pseudo-variable (``$this``/``$value``/``$PATH``) - a false positive this check should suppress, not a real defect. The
+    variable is read from the result message the ``sqe:`` shapes write ("Projected variable this is never bound ...").
+    ``False`` (never suppressed) for an empty result set too - that would mean ``conforms`` was already ``True`` and there was
+    nothing to call this for in the first place.
+    """
+    report_graph = engine_view(report_graph, "sqe report")
     results = list(report_graph.subjects(RDF.type, SH.ValidationResult))
     if not results:
         return False
     for result in results:
-        component = report_graph.value(result, SH.sourceConstraintComponent)
-        if component is None or text(component) != unbound_component:
-            return False
-        value = report_graph.value(result, SH.value)
-        if value is None or text(value).removeprefix("urn:starlayer:variable:") not in _SHACL_PREBOUND_VARIABLE_NAMES:  # a variable is an IRI at the boundary
+        message = report_graph.value(result, SH.resultMessage)
+        match = _UNBOUND_VARIABLE_MESSAGE.match(text(message)) if message is not None else None
+        if match is None or match.group(1) not in _SHACL_PREBOUND_VARIABLE_NAMES:
             return False
     return True
+
+
+def _parse_embedded_query(query_text: str, prefixes: dict[str, str]) -> Any:
+    """The parse tree of the SPARQL text embedded in a shapes graph, with ``prefixes`` in force."""
+    from starlayer.sparql.parse_sparql import parse_sparql
+
+    return parse_sparql(query_text, None, prefixes)
 
 
 def check_sparql_query_text(shapes_graph: Any) -> None:
@@ -342,13 +342,10 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
     Python-level check, not another SHACL shape, because "is this string
     valid SPARQL" isn't RDF-structural - no shape can express it.
 
-    A literal that parses is additionally encoded as a ``salg:`` (SPARQL-
-    algebra-as-RDF) graph and validated against
-    ``starlayer.sparql.salg``'s own general-purpose SPARQL-structure
-    shapes - which already has a real check for the unbound-projected-
-    variable case (``salg:noUnboundProjectedVariables``), just never
-    pointed at a SHACL shape's own embedded query text before this. This
-    is real extra validation work (pySHACL with RDFS inference, not just a
+    A literal that parses is additionally encoded as an ``sqe:`` (SPARQL-query-as-RDF) tree and validated against
+    ``sqe:``'s own shapes - which have a real check for the unbound-projected-
+    variable case. This
+    is real extra validation work (SHACL validation, not just a
     parse), so results are cached per distinct (predicate, text, prefixes)
     - repeated calls against the same shapes graph only pay this once per
     distinct embedded query, the same reason ``meta_validate()`` itself
@@ -366,7 +363,7 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
     special handling for the parse step - they parse as ordinary ``Var``
     tokens regardless of whether they're bound, which only matters at
     execution time. They *do* need special handling for the structural
-    step above: ``salg:noUnboundProjectedVariables`` has no SHACL
+    step above: the ``sqe:`` unbound-variable checks have no SHACL
     awareness, so a perfectly valid ``$this``-only validator (e.g.
     ``SELECT $this WHERE { FILTER(...) }``, never referencing ``$this``
     directly in its own pattern - these variables are bound externally by
@@ -382,7 +379,7 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
     Args:
         shapes_graph: The shapes graph to scan.
 
-    Raises ``ShapeError`` naming the offending predicate and the underlying parse error, or the SALG structural-validation report.
+    Raises ``ShapeError`` naming the offending predicate and the underlying parse error, or the ``sqe:`` structural-validation report.
     """
     from starlayer.shacl.errors import ShapeError
 
@@ -397,8 +394,8 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
     """Each defect of an embedded query as ``(the node that holds it, sh:select/sh:ask/sh:construct, what is wrong)``: text that is not SPARQL,
     a query of another form than the predicate says (a SELECT in ``sh:construct``), or one that fails the SPARQL structure check (see
     ``check_sparql_query_text``, which raises the first). A tool shows these next to the other problems of a shapes graph."""
-    import starlayer.sparql
-    from starlayer.sparql import salg
+    from starlayer.sparql.parse_sparql import SparqlSyntaxError, ast_to_triples
+    from starlayer.sparql.sqe.shapes import sqe_validate
 
     shapes_graph = engine_view(shapes_graph, "shapes graph")
     for predicate in (SH.select, SH.ask, SH.construct):
@@ -409,13 +406,13 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
             # The engine also resolves a prefix the graph itself binds (a file's @prefix, with no sh:declare), so this does too.
             prefixes = {**{p: ns for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, query_node)}
             try:
-                query = starlayer.sparql.prepare_query_12(text_literal.value, initNs=prefixes)
-            except Exception as exc:
+                query = _parse_embedded_query(text_literal.value, prefixes)
+            except (SparqlSyntaxError, ValueError) as exc:
                 yield query_node, predicate, f"{name} value is not valid SPARQL: {exc}"
                 continue
             algebra_name, form = _QUERY_FORMS[predicate]
-            if query.algebra.name != algebra_name:
-                actual = next((f for n, f in _QUERY_FORMS.values() if n == query.algebra.name), query.algebra.name)
+            if query.kind != algebra_name:
+                actual = next((f for n, f in _QUERY_FORMS.values() if n == query.kind), query.kind)
                 yield query_node, predicate, f"{name} must hold a {form} query, but this is a {actual} query"
                 continue
 
@@ -429,8 +426,11 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
             if cached is not None:
                 conforms, report_text = cached
             else:
-                encoded_graph, _root = starlayer.sparql.query_to_rdf(query)
-                conforms, report_graph, report_text = salg.validate_query(encoded_graph)
+                from starlayer.graph.oxgraph.core import StarLayerGraph
+
+                encoded_graph = StarLayerGraph(prefixes={})
+                encoded_graph.extend(ast_to_triples(query)[0])
+                conforms, report_graph, report_text = sqe_validate(encoded_graph)
                 if not conforms and not is_target and _is_prebound_variable_only_report(report_graph):
                     conforms = True
                 _SPARQL_STRUCTURE_CACHE[cache_key] = (conforms, report_text)

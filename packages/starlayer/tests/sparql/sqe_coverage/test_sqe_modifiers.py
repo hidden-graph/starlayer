@@ -1,16 +1,14 @@
 """sqe coverage set: solution modifiers, SELECT *, CONSTRUCT WHERE.
 
 Opt-in (``pytest --sqe-coverage``): each query is parsed to an sqe tree,
-decoded and run (the decoded form is a prepared rdflib query, so it runs on a
-plain ``rdflib.Graph``), and the rows are compared with the original text on the same
-data. Unsupported constructs must raise, never be silently dropped.
+rendered back to text, and the rows of the rendered text are compared with the original text's on the same
+data (a plain ``rdflib.Graph``, the independent reference). Unsupported constructs must raise, never be silently dropped.
 """
 
 import pytest
 from rdflib import Graph, Literal, Namespace
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
-    sqe_tree_to_query,
     sqe_tree_to_text,
     sqe_validate,
 )
@@ -64,12 +62,9 @@ def test_modifier_query_matches_rdflib(name, data):
     assert_no_salg_terms(graph)
     expected = _rows(data, text)
 
-    decoded = _rows(data, sqe_tree_to_query(graph, root))
-    assert decoded == expected
-
     regenerated = sqe_tree_to_text(graph, root)
     graph2, root2 = sqe_parse_to_tree(regenerated)
-    assert _rows(data, sqe_tree_to_query(graph2, root2)) == expected
+    assert _rows(data, sqe_tree_to_text(graph2, root2)) == expected
 
 
 def test_select_star_and_projection_are_exclusive():

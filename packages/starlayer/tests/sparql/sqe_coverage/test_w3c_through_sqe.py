@@ -21,7 +21,7 @@ from starlayer.graph import isomorphic
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.sparql_text import strip_version_directive
 from starlayer.shacl_engine.terms import from_engine
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_query, sqe_tree_to_text
+from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text
 from tests.sparql.w3c_sparql12.harness import (
     bindings_match,
     load_index,
@@ -70,7 +70,6 @@ def run_entry(entry) -> None:
     assert_no_salg_terms(graph)
     regenerated = sqe_tree_to_text(graph, root)
     graph2, root2 = sqe_parse_to_tree(regenerated)
-    sqe_tree_to_query(graph2, root2)
     if entry.test_type != "QueryEvaluationTest":
         return
 

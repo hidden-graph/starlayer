@@ -84,16 +84,14 @@ ui:rdflib-13 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 13 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.sparql._syntax_checks.check_parse_tree" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-14 a slkg:UpstreamIssue ;
     rdfs:label "Codepoint and surrogate escapes are accepted anywhere" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 14 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.sparql._syntax_checks.reject_surrogate_escapes" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-15 a slkg:UpstreamIssue ;
     rdfs:label "A simple literal and its `^^xsd:string` form are different terms" ;
@@ -328,8 +326,7 @@ ui:rdflib-32 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 32 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.sparql.parse12.prepare_update_12" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-33 a slkg:UpstreamIssue ;
     rdfs:label "A join with a non-lazy right side drops duplicate solutions (a subquery with LIMIT loses rows)" ;
@@ -364,24 +361,21 @@ ui:rdflib-40 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 40 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.sparql._grammar12._fix_rdflib_lexical_gaps" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-41 a slkg:UpstreamIssue ;
     rdfs:label "An escaped single quote is rejected in a double-quoted string, and an escaped double quote in a single-quoted one" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 41 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.sparql._grammar12._fix_rdflib_lexical_gaps" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-42 a slkg:UpstreamIssue ;
     rdfs:label "`PN_LOCAL_ESC` keeps its backslash" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 42 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.sparql._grammar12._fix_rdflib_lexical_gaps" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-43 a slkg:UpstreamIssue ;
     rdfs:label "`FILTER(false)` in a group is dropped" ;

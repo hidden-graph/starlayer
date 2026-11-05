@@ -11,7 +11,6 @@ import pytest
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
-    sqe_tree_to_query,
     sqe_tree_to_text,
     sqe_validate,
 )
@@ -220,7 +219,6 @@ def _check(data, text, name):
     expected = _rows(data, text)
     if name not in MAY_BE_EMPTY:
         assert expected not in ([], False), f"feature query {name!r} returns nothing on the test data"
-    sqe_tree_to_query(tree, root)  # the rdflib decoding still has to succeed; it is no longer executed (see d2-gaps.md G10)
     regenerated = sqe_tree_to_text(tree, root)
     assert _rows(data, regenerated) == expected, f"regenerated text differs:\n{regenerated}"
     tree2, root2 = sqe_parse_to_tree(regenerated)
@@ -244,4 +242,3 @@ def test_custom_function_call(data):
     text = P + "SELECT ?s WHERE { ?s ex:num ?n FILTER(<http://x/f>(?n) ) }"
     tree, root = sqe_parse_to_tree(text)
     assert "ex:f(" in sqe_tree_to_text(tree, root)
-    sqe_tree_to_query(tree, root)  # decodes; rdflib has no such function to run

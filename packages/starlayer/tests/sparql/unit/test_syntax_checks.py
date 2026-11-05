@@ -1,10 +1,11 @@
-"""Grammar rules rdflib accepts but SPARQL 1.2 forbids; see
-starlayer/sparql/_syntax_checks.py."""
+"""Grammar rules rdflib's parser accepted but SPARQL 1.2 forbids (once starlayer/sparql/_syntax_checks.py), now enforced by
+StarLayer's own parser (``parse_sparql``)."""
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.sparql._syntax_checks import SPARQLSyntaxError
-from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
+from starlayer.sparql.parse_sparql import SparqlSyntaxError
+from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
+from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 
 BAD_QUERIES = {
     "nested aggregate": "SELECT (COUNT(COUNT(*)) AS ?c) WHERE { ?s ?p ?o }",
@@ -29,7 +30,7 @@ GOOD_QUERIES = [
 
 @pytest.mark.parametrize("text", BAD_QUERIES.values(), ids=BAD_QUERIES.keys())
 def test_bad_query_rejected(text):
-    with pytest.raises(SPARQLSyntaxError):
+    with pytest.raises(SparqlSyntaxError):
         prepare_query_12(text)
 
 
@@ -39,7 +40,7 @@ def test_good_query_accepted(text):
 
 
 def test_bad_update_rejected():
-    with pytest.raises(SPARQLSyntaxError):
+    with pytest.raises(SparqlSyntaxError):
         prepare_update_12('INSERT DATA { <http://ex/a> <http://ex/b> "\\uD800" }')
 
 
@@ -54,10 +55,8 @@ def test_strlang_empty_tag_is_an_error():
 
 
 def test_escaped_backslash_before_u_is_not_an_escape():
-    """The check pairs `\\\\` first; rdflib itself cannot parse this text, so test the check alone."""
-    from starlayer.sparql._syntax_checks import reject_surrogate_escapes
-
-    reject_surrogate_escapes('"\\\\uD800"')
+    """The text ``"\\\\uD800"`` is an escaped backslash followed by ``uD800``, not a surrogate escape."""
+    prepare_query_12('SELECT * WHERE { ?s ?p "\\\\uD800" }')
 
 
 def test_sameterm_treats_simple_literal_and_xsd_string_as_one_term():

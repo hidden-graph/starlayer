@@ -46,7 +46,6 @@ PKG_ROOT = REPO_ROOT / "packages/starlayer/starlayer"
 _ALL_FILES = [
     ("__init__.py", "starlayer"),
     ("sparql/__init__.py", "starlayer.sparql"),
-    ("sparql/salg/__init__.py", "starlayer.sparql.salg"),
     ("sparql/sqe/__init__.py", "starlayer.sparql.sqe"),
     ("graph/rdfc.py", "starlayer.graph"),
     ("graph/compare.py", "starlayer.graph"),
@@ -58,7 +57,7 @@ _ALL_FILES = [
     ("shacl/__init__.py", "starlayer.shacl"),
     ("shacl/shacl_profiling.py", "starlayer.shacl"),
 ]
-_BUCKET_ORDER = ["starlayer", "starlayer.graph", "starlayer.sparql", "starlayer.sparql.salg", "starlayer.sparql.sqe", "starlayer.shacl"]
+_BUCKET_ORDER = ["starlayer", "starlayer.graph", "starlayer.sparql", "starlayer.sparql.sqe", "starlayer.shacl"]
 
 
 def _load_dataset() -> Dataset:

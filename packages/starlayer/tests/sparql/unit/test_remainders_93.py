@@ -5,10 +5,10 @@ for VALUES triple terms, BIND scope and SELECT * with grouping."""
 from __future__ import annotations
 
 import pytest
-from pyparsing import ParseBaseException
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.sparql._syntax_checks import SPARQLSyntaxError
-from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
+from starlayer.sparql.parse_sparql import SparqlSyntaxError
+from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
+from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 
 P = "PREFIX : <http://e/> "
 REIFIES = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies>"
@@ -69,7 +69,7 @@ def test_a_bare_reifier_inside_a_reified_triple_parses():
 
 @pytest.mark.parametrize("reifier", ["1", '"x"', "( )"])
 def test_a_reifier_cannot_be_a_literal_or_nil(reifier):
-    with pytest.raises(ParseBaseException):
+    with pytest.raises(SparqlSyntaxError):
         prepare_query_12(P + "SELECT * { :a :p :b ~ " + reifier + " }")
 
 
@@ -120,7 +120,7 @@ def test_triple_accepts_triple_term_and_accessor_arguments():
     ],
 )
 def test_syntax_rules_the_grammar_states_are_enforced(query):
-    with pytest.raises(SPARQLSyntaxError):
+    with pytest.raises(SparqlSyntaxError):
         prepare_query_12(P + query)
 
 

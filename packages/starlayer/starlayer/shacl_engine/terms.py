@@ -333,7 +333,7 @@ def engine_view(graph: Any, where: str = "graph") -> Any:
 
 
 def __getattr__(name: str) -> Any:
-    # ``LegacyTermView`` (an rdflib-term view of an engine graph, for the salg component owners) lives in the bridge
+    # ``LegacyTermView`` (an rdflib-term view of an engine graph) lives in the bridge
     if name == "LegacyTermView":
         return _bridge().LegacyTermView
     raise AttributeError(name)

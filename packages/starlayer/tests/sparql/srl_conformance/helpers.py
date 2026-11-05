@@ -13,7 +13,6 @@ from starlayer.sparql._srl_ast import (
     _FilterElement,
     _NegationElement,
 )
-from starlayer.sparql.srl_eval import _eval_expr
 from starlayer.sparql.srl import (
     parse_ruleset,
     ruleset_to_text,
@@ -22,6 +21,7 @@ from starlayer.sparql.srl import (
     srl_tree_to_text,
     srl_validate,
 )
+from starlayer.sparql.srl_eval import _eval_expr
 
 __all__ = ["canonical_blank_nodes", "expression_results", "isomorphic", "parse_ruleset", "parsed", "ruleset_to_text", "ruleset_to_tree",
            "srl_parse_to_tree", "srl_tree_to_text", "srl_validate", "tree_of"]
