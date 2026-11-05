@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import pathlib
 
+from docs_ref import REPO_BLOB
 from rdflib import RDF, RDFS, Graph, Namespace
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -20,7 +21,7 @@ CURATED_PATH = REPO_ROOT / "tools/kg/codekg/curated/functionality.ttl"
 OUT_PATH = REPO_ROOT / "docs/generated/functionality-overview.generated.md"
 
 SLKG = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg#")
-BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/"
+BLOB_BASE = REPO_BLOB
 
 
 def main() -> None:

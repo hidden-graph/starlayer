@@ -18,7 +18,7 @@ What StarLayer does today, and what is planned.
 **Planned / deferred:**
 
 - rdflib 8 compatibility (currently pinned to rdflib 7.x; revisit once a stable rdflib 8 ships).
-- Built-in fetching of owl:imports, and one import mechanism shared by graphs, SHACL and SRL. ([details](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/future_enhancements.md))
+- Built-in fetching of owl:imports, and one import mechanism shared by graphs, SHACL and SRL. ([details](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/docs/future_enhancements.md))
 
 ## SPARQL
 
@@ -41,7 +41,7 @@ What StarLayer does today, and what is planned.
 
 **Planned / deferred:**
 
-- Aggregation, and converting a rule set to SPARQL - waiting on the specification. ([details](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/future_enhancements.md))
+- Aggregation, and converting a rule set to SPARQL - waiting on the specification. ([details](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/docs/future_enhancements.md))
 
 ## Manchester Syntax
 
@@ -69,9 +69,9 @@ What StarLayer does today, and what is planned.
 
 **Planned / deferred:**
 
-- SHACL 1.2 User Interfaces: property roles (shui:propertyRole) are accepted but not interpreted, and no default widget scoring catalog ships (the specification publishes none). ([details](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/shacl/shacl12-gap-matrix.md))
-- SHACL Compact syntax support, plus an ontology and shapes over that syntax (mirroring the Manchester and SPARQL syntax-as-RDF pattern) to drive validation and an editor. ([details](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/shacl/shacl12-gap-matrix.md))
-- SHACL UI shapes for the SHACL validation shapes, so a form can edit a shapes graph, starting from the archived presentation shapes. ([details](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/docs/future_enhancements.md))
+- SHACL 1.2 User Interfaces: property roles (shui:propertyRole) are accepted but not interpreted, and no default widget scoring catalog ships (the specification publishes none). ([details](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/docs/shacl/shacl12-gap-matrix.md))
+- SHACL Compact syntax support, plus an ontology and shapes over that syntax (mirroring the Manchester and SPARQL syntax-as-RDF pattern) to drive validation and an editor. ([details](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/docs/shacl/shacl12-gap-matrix.md))
+- SHACL UI shapes for the SHACL validation shapes, so a form can edit a shapes graph, starting from the archived presentation shapes. ([details](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/docs/future_enhancements.md))
 
 ## Other
 

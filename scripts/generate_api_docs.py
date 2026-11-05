@@ -28,6 +28,7 @@ import pathlib
 import sys
 from collections import defaultdict
 
+from docs_ref import REPO_BLOB
 from rdflib import RDF, RDFS, Dataset, Namespace
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -39,7 +40,7 @@ REFERENCE_PATH = OUT_DIR / "api-reference.generated.md"
 SLKG = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg#")
 DCTERMS = Namespace("http://purl.org/dc/terms/")
 
-BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/"
+BLOB_BASE = REPO_BLOB + "packages/starlayer/starlayer/"
 PKG_ROOT = REPO_ROOT / "packages/starlayer/starlayer"
 
 # (file relative to packages/starlayer/starlayer, display bucket)
