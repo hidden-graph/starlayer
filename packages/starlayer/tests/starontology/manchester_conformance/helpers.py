@@ -5,9 +5,10 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.namespace import OWL, RDF
+import pyoxigraph as ox
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.parsers._ox_terms import OWL, RDF, BNode, URIRef
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 
 HERE = Path(__file__).parent
@@ -29,11 +30,22 @@ UNORDERED_LIST_PREDICATES = (
 # Order *is* significant here: owl:propertyChainAxiom is left as a real rdf:List.
 
 
+Graph = StarLayerGraph
+
+
 def to_graph(triples) -> Graph:
     g = Graph()
-    for t in triples:
-        g.add(t)
+    g.extend(list(triples))
     return g
+
+
+def rdf_list(g, head) -> list:
+    """The members of the rdf:List at ``head`` (empty for rdf:nil)."""
+    members = []
+    while head is not None and head != RDF.nil:
+        members.append(g.value(head, RDF.first))
+        head = g.value(head, RDF.rest)
+    return members
 
 
 def parse_to_graph(text: str, base: str | None = None) -> Graph:
@@ -85,8 +97,8 @@ def normalise_oracle_noise(graph: Graph, *, other: Graph | None = None) -> Graph
     for s, p, o in graph:
         if p == OWL.distinctMembers:
             p = OWL.members
-        if isinstance(o, Literal) and o.language:
-            o = Literal(str(o), lang=o.language.lower())
+        if isinstance(o, ox.Literal) and o.language:
+            o = ox.Literal(o.value, language=o.language.lower())
         out.add((s, p, o))
     if other is not None and (HARNESS_ONTOLOGY, RDF.type, OWL.Ontology) not in other:
         out.remove((HARNESS_ONTOLOGY, RDF.type, OWL.Ontology))
@@ -127,5 +139,5 @@ def owlapi_graph_from_golden(golden: dict) -> Graph:
 
 __all__ = [
     "BNode", "URIRef", "GOLDEN_DIR", "flatten_unordered_lists", "load_golden",
-    "owlapi_graph_from_golden", "parse_to_graph", "same_owl", "to_graph",
+    "owlapi_graph_from_golden", "parse_to_graph", "rdf_list", "same_owl", "to_graph",
 ]

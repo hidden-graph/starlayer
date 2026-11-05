@@ -16,8 +16,9 @@ check on the asserted graph.
 from __future__ import annotations
 
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
-from rdflib.namespace import RDF
+from starlayer.graph.oxgraph import StarLayerGraph as Graph
+from starlayer.graph.parsers._ox_terms import RDF, BNode, URIRef, Vocab
+from starlayer.graph.parsers._ox_terms import lexical as Literal
 from starlayer.starontology.manchester import (
     MANCH,
     _concrete_classes,
@@ -47,8 +48,7 @@ EquivalentClasses: A, B
 
 def _tree(text: str = RICH) -> Graph:
     g = Graph()
-    for t in manchester_parse_to_tree(text):
-        g.add(t)
+    g.extend(list(manchester_parse_to_tree(text)))
     return g
 
 
@@ -91,14 +91,13 @@ def test_dropping_the_type_of_any_node_class_is_caught():
                 continue
             seen.add(cls)
             mutant = Graph()
-            for t in g:
-                mutant.add(t)
+            mutant.extend(list(g))
             mutant.remove((node, RDF.type, cls))
             # Only a node that still has a manch: property is a meaningful mutant.
-            if not any(str(p).startswith(str(MANCH)) for _, p, _ in mutant.triples((node, None, None))):
+            if not any(p in MANCH for _, p, _ in mutant.triples((node, None, None))):
                 continue
             if not _preflight(mutant):
-                missed.append((case_id, str(cls).rsplit("#", 1)[-1]))
+                missed.append((case_id, cls.value.rsplit("#", 1)[-1]))
     assert len(seen) > 40, "the corpus should exercise most concrete classes"
     assert not missed, f"type removal not caught for: {missed}"
 
@@ -125,9 +124,7 @@ def test_an_unknown_manch_type_is_rejected():
 
 
 def test_the_report_graph_carries_the_preflight_findings():
-    from rdflib.namespace import Namespace
-
-    sh = Namespace("http://www.w3.org/ns/shacl#")
+    sh = Vocab("http://www.w3.org/ns/shacl#")
     g = _tree()
     frame = next(g.subjects(RDF.type, MANCH.ClassFrame))
     g.remove((frame, RDF.type, MANCH.ClassFrame))
@@ -143,7 +140,7 @@ LIST_PREDICATES = [MANCH.frames, MANCH.prefixes, MANCH.imports, MANCH.individual
                    MANCH.literals, MANCH.operands, MANCH.items, MANCH.clauses]
 
 
-@pytest.mark.parametrize("predicate", LIST_PREDICATES, ids=lambda p: str(p).rsplit("#", 1)[-1])
+@pytest.mark.parametrize("predicate", LIST_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
 def test_an_unterminated_list_is_rejected(predicate):
     g = _tree()
     last = _cells(g, _head_of(g, predicate))[-1]
@@ -151,7 +148,7 @@ def test_an_unterminated_list_is_rejected(predicate):
     assert not manchester_validate(g)[0]
 
 
-@pytest.mark.parametrize("predicate", LIST_PREDICATES, ids=lambda p: str(p).rsplit("#", 1)[-1])
+@pytest.mark.parametrize("predicate", LIST_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
 def test_a_cyclic_list_is_rejected(predicate):
     g = _tree()
     head = _head_of(g, predicate)
@@ -189,11 +186,10 @@ def test_every_single_triple_removal_that_validates_still_decodes():
     base = _tree()
     holes = []
     for t in sorted(base, key=str):
-        if not (t[1] == RDF.type or str(t[1]).startswith(str(MANCH)) or t[1] in (RDF.first, RDF.rest)):
+        if not (t[1] == RDF.type or t[1] in MANCH or t[1] in (RDF.first, RDF.rest)):
             continue
         mutant = Graph()
-        for u in base:
-            mutant.add(u)
+        mutant.extend(list(base))
         mutant.remove(t)
         if not manchester_validate(mutant)[0]:
             continue

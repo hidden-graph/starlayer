@@ -5,7 +5,6 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Literal as RdLiteral
 from starlayer.graph.oxgraph import StarLayerDataset
 
 warnings.simplefilter("ignore")
@@ -49,12 +48,12 @@ def test_quads_restore_a_triple_term():
 def test_manchester_float_lexical_form_is_single_precision(text, expected):
     import struct
 
-    from rdflib.namespace import XSD
+    from starlayer.graph.parsers._ox_terms import XSD
     from starlayer.graph.parsers.manchester_parser import parse_manchester
 
     head = "Prefix: : <http://ex.org/>\nOntology: <http://ex.org/o>\nIndividual: a\n Facts: d "
-    lits = [o for _, _, o in parse_manchester(head + text + "\n") if isinstance(o, RdLiteral) and o.datatype == XSD.float]
-    assert [str(o) for o in lits] == [expected]
+    lits = [o for _, _, o in parse_manchester(head + text + "\n") if isinstance(o, ox.Literal) and o.datatype == XSD.float]
+    assert [o.value for o in lits] == [expected]
     # reads back as the single-precision value the source text means
     def single(x):
         return struct.unpack(">f", struct.pack(">f", float(x)))[0]

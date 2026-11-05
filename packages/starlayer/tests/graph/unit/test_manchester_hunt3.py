@@ -5,11 +5,12 @@ one ontology per document, ``languageTag`` non-empty, ``description2List`` with 
 ``literal`` without a boolean form, and the round trip parse -> serialize -> parse being stable.
 """
 
+import pyoxigraph as ox
 import pytest
-from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import XSD
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.parsers._ox_terms import XSD, URIRef
+from starlayer.graph.parsers._ox_terms import lexical as Literal
 from starlayer.graph.parsers.errors import ManchesterSyntaxError
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 from starlayer.starontology.manchester import (
@@ -57,7 +58,7 @@ def test_good_language_tag_still_parses():
 def test_true_is_an_individual_name_for_an_object_property():
     triples = parse_manchester(H + 'ObjectProperty: p\nIndividual: i\n  Facts: p true\n')
     assert (URIRef(EX + 'i'), URIRef(EX + 'p'), URIRef(EX + 'true')) in triples
-    assert not any(isinstance(o, Literal) for _, _, o in triples)
+    assert not any(isinstance(o, ox.Literal) for _, _, o in triples)
 
 
 def test_true_is_a_name_when_the_property_is_undeclared():
@@ -68,7 +69,7 @@ def test_true_is_a_name_when_the_property_is_undeclared():
 def test_true_in_a_value_restriction_on_an_object_property_is_a_name():
     triples = parse_manchester(H + 'ObjectProperty: p\nClass: A\n  SubClassOf: p value true\n')
     assert any(o == URIRef(EX + 'true') for _, _, o in triples)
-    assert not any(isinstance(o, Literal) for _, _, o in triples)
+    assert not any(isinstance(o, ox.Literal) for _, _, o in triples)
 
 
 def test_true_stays_a_boolean_for_a_declared_data_property():
@@ -80,7 +81,7 @@ def test_true_stays_a_boolean_for_a_declared_data_property():
 
 def test_overflowing_float_is_INF():
     triples = parse_manchester(H + 'Individual: a\n Facts: d 1e400f, d -1e400f\n')
-    floats = {str(o) for _, _, o in triples if isinstance(o, Literal) and o.datatype == XSD.float}
+    floats = {o.value for _, _, o in triples if isinstance(o, ox.Literal) and o.datatype == XSD.float}
     assert floats == {'INF', '-INF'}
 
 
@@ -106,9 +107,9 @@ def test_single_member_misc_axiom_is_a_syntax_error(line):
 
 def test_empty_graph_is_not_a_bare_stopiteration():
     with pytest.raises(ValueError, match='manch:Document'):
-        manchester_tree_to_text(Graph())
+        manchester_tree_to_text(StarLayerGraph())
     with pytest.raises(ValueError, match='manch:Document'):
-        manchester_tree_to_owl(Graph())
+        manchester_tree_to_owl(StarLayerGraph())
 
 
 def test_deeply_nested_expression_is_a_syntax_error():

@@ -18,7 +18,6 @@ shape (``test_decoded_document_is_a_plain_namedtuple_tree``).
 """
 
 import pytest
-from rdflib import Graph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.parsers.manchester_parser import parse_manchester
@@ -127,6 +126,12 @@ DOCUMENTS = [
 ]
 
 
+def _graph(triples):
+    g = StarLayerGraph()
+    g.extend(list(triples))
+    return g
+
+
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_ast_roundtrip_preserves_owl_semantics(text):
     graph = manchester_parse_to_tree(text)
@@ -135,7 +140,7 @@ def test_ast_roundtrip_preserves_owl_semantics(text):
     original_triples = parse_manchester(text)
     roundtripped_triples = parse_manchester(rendered)
 
-    assert isomorphic(original_triples, roundtripped_triples), (
+    assert isomorphic(_graph(original_triples), _graph(roundtripped_triples)), (
         f'round-trip diverged for input:\n{text}\n\nre-rendered as:\n{rendered}'
     )
     assert len(original_triples) > 0  # guard against a vacuously-true empty comparison
@@ -151,7 +156,7 @@ def test_ast_roundtrip_is_stable_under_a_second_pass():
     graph2 = manchester_parse_to_tree(rendered_once)
     rendered_twice = manchester_tree_to_text(graph2)
 
-    assert isomorphic(parse_manchester(rendered_once), parse_manchester(rendered_twice))
+    assert isomorphic(_graph(parse_manchester(rendered_once)), _graph(parse_manchester(rendered_twice)))
 
 
 def test_decoded_document_is_a_plain_namedtuple_tree():
@@ -159,7 +164,7 @@ def test_decoded_document_is_a_plain_namedtuple_tree():
     tree-RDF, not this intermediate object - see the module's own
     docstring), but this still verifies its internal shape directly."""
     text = HEADER + 'Class: Cat\n    SubClassOf: Animal\n'
-    graph = manchester_parse_to_tree(text, graph=Graph())  # the private decoder reads rdflib terms
+    graph = manchester_parse_to_tree(text, graph=StarLayerGraph())
     document = _tree_to_document(graph, _find_root(graph))
 
     assert document.frames[0].kind == 'Class'

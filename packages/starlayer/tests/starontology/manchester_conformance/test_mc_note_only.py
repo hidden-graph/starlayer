@@ -7,13 +7,13 @@ finding code is a known gap and is applied as a strict xfail.
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
-from rdflib import BNode, Literal, URIRef
-from rdflib.collection import Collection
-from rdflib.namespace import OWL, RDF, RDFS, XSD
+from starlayer.graph.parsers._ox_terms import OWL, RDF, RDFS, XSD, BNode, URIRef
+from starlayer.graph.parsers._ox_terms import lexical as Literal
 
 from .corpus import CASES
-from .helpers import parse_to_graph
+from .helpers import parse_to_graph, rdf_list
 from .known_failures import ORACLE_DEVIATIONS, ORACLE_REJECTS
 
 EX = "http://example.org/o#"
@@ -43,7 +43,7 @@ def check_some_not(g):
 
 def _intersection_members(g, owner):
     cls = g.value(URIRef(EX + owner), OWL.equivalentClass)
-    return list(Collection(g, g.value(cls, OWL.intersectionOf)))
+    return rdf_list(g, g.value(cls, OWL.intersectionOf))
 
 
 def check_that_not(g):
@@ -64,7 +64,7 @@ def check_that_and_not(g):
 def _range_is(datatype):
     def check(g):
         assert (URIRef(EX + "d"), RDFS.range, datatype) in g
-        assert (URIRef(EX + "d"), RDFS.range, URIRef(EX + str(datatype).rsplit("#", 1)[1])) not in g
+        assert (URIRef(EX + "d"), RDFS.range, URIRef(EX + datatype.value.rsplit("#", 1)[1])) not in g
     return check
 
 
@@ -78,7 +78,7 @@ def check_short_name_in_facet(g):
 
 
 def check_short_names_in_literals(g):
-    values = {(str(o), o.datatype) for o in g.objects(URIRef(EX + "i"), URIRef(EX + "d")) if isinstance(o, Literal)}
+    values = {(o.value, o.datatype) for o in g.objects(URIRef(EX + "i"), URIRef(EX + "d")) if isinstance(o, ox.Literal)}
     assert values == {("5", XSD.integer), ("1.5", XSD.decimal), ("2.5", XSD.float), ("x", XSD.string)}, values
 
 
@@ -96,7 +96,7 @@ def _facet_check(*expected):
 
     def check(g):
         (dt,) = list(g.objects(URIRef(EX + "d"), RDFS.range))
-        cells = list(Collection(g, g.value(dt, OWL.withRestrictions)))
+        cells = rdf_list(g, g.value(dt, OWL.withRestrictions))
         got = {}
         for cell in cells:
             ((p, o),) = [(p, o) for p, o in g.predicate_objects(cell)]

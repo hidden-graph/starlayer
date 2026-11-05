@@ -12,9 +12,9 @@ Two directions get tested:
 """
 
 import pytest
-from rdflib import RDF, BNode, Graph
-from rdflib.collection import Collection
 from starlayer import starontology
+from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.parsers._ox_terms import RDF, BNode
 from starlayer.starontology import manchester as ms
 from starlayer.starontology.manchester import MANCH, manchester_parse_to_tree
 from tests.graph.unit.test_manchester_ast import DOCUMENTS
@@ -44,7 +44,7 @@ def _encode_data_prop_range():
         '    Domain: Person\n'
         '    Range: xsd:integer\n'
     )
-    return manchester_parse_to_tree(text, graph=Graph())  # edited below with rdflib's Collection and set
+    return manchester_parse_to_tree(text, graph=StarLayerGraph())  # edited below
 
 
 def test_wrong_item_type_under_data_prop_range_clause_fails():
@@ -54,16 +54,16 @@ def test_wrong_item_type_under_data_prop_range_clause_fails():
     graph = _encode_data_prop_range()
     clause = next(graph.subjects(RDF.type, MANCH.DataPropRangeClause))
     items_list = next(graph.objects(clause, MANCH.items))
-    item = next(Collection(graph, items_list).__iter__())
+    item = graph.value(items_list, RDF.first)
     old_value = next(graph.objects(item, MANCH.value))
     graph.remove((item, MANCH.value, old_value))
 
     bad_and = BNode()
     graph.add((bad_and, RDF.type, MANCH.And))
-    ops = BNode()
-    Collection(graph, ops, [MANCH.ClassExpression])
+    ops = ms._build_rdf_list(graph, [MANCH.ClassExpression])
     graph.add((bad_and, MANCH.operands, ops))
-    graph.set((item, MANCH.value, bad_and))
+    graph.remove((item, MANCH.value, None))
+    graph.add((item, MANCH.value, bad_and))
 
     conforms, _, results_text = ms.manchester_validate(graph)
     assert not conforms
@@ -80,15 +80,15 @@ def test_misc_axiom_item_of_wrong_family_fails():
         'Prefix: : <http://example.org/>\n'
         'EquivalentClasses: Cat, Feline\n'
     )
-    graph = manchester_parse_to_tree(text, graph=Graph())  # edited with rdflib's Collection
+    graph = manchester_parse_to_tree(text, graph=StarLayerGraph())  # edited below
     misc = next(graph.subjects(RDF.type, MANCH.MiscEquivalentClassesAxiom))
     items_list = next(graph.objects(misc, MANCH.items))
-    coll = Collection(graph, items_list)
 
     bad = BNode()
     graph.add((bad, RDF.type, MANCH.Inverse))
     graph.add((bad, MANCH.operand, MANCH.someProp))
-    coll[0] = bad
+    graph.remove((items_list, RDF.first, None))  # the first cell of the list now holds `bad`
+    graph.add((items_list, RDF.first, bad))
 
     conforms, _, results_text = ms.manchester_validate(graph)
     assert not conforms

@@ -26,8 +26,10 @@ from pathlib import Path
 SUITE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SUITE.parent))
 
-from rdflib import BNode, Graph, Literal, URIRef  # noqa: E402
-from rdflib.namespace import RDF  # noqa: E402
+import pyoxigraph as ox  # noqa: E402
+from starlayer.graph.oxgraph import StarLayerGraph as Graph  # noqa: E402
+from starlayer.graph.parsers._ox_terms import RDF, BNode, URIRef  # noqa: E402
+from starlayer.graph.parsers._ox_terms import lexical as Literal  # noqa: E402
 from starlayer.starontology.manchester import (  # noqa: E402
     MANCH,
     manchester_parse_to_tree,
@@ -39,11 +41,11 @@ from manchester_conformance.corpus import CASES  # noqa: E402
 
 
 def local(term) -> str:
-    return str(term).rsplit("#", 1)[-1]
+    return term.value.rsplit("#", 1)[-1]
 
 
 def types_of(g, node) -> str:
-    return ",".join(sorted(local(o) for o in g.objects(node, RDF.type) if str(o).startswith(str(MANCH)))) or "(untyped)"
+    return ",".join(sorted(local(o) for o in g.objects(node, RDF.type) if o.value.startswith(str(MANCH)))) or "(untyped)"
 
 
 def verdict(g):
@@ -74,11 +76,10 @@ def main() -> int:
         except Exception:  # noqa: BLE001
             continue
         base = Graph()
-        for t in tree:
-            base.add(t)
+        base.extend(list(tree))
         for s, p, o in sorted(base, key=str):
-            in_manch = str(p).startswith(str(MANCH))
-            is_type = p == RDF.type and str(o).startswith(str(MANCH))
+            in_manch = p in MANCH
+            is_type = p == RDF.type and isinstance(o, URIRef) and o in MANCH
             if not (in_manch or is_type or p in (RDF.first, RDF.rest)):
                 continue
             ops = []
@@ -96,8 +97,7 @@ def main() -> int:
                     continue
                 seen.add(signature)
                 g = Graph()
-                for t in base:
-                    g.add(t)
+                g.extend(list(base))
                 if op in ("remove", "drop-type", "break-rest"):
                     g.remove((s, p, o))
                 elif op.startswith("wrongkind"):
@@ -105,7 +105,7 @@ def main() -> int:
                     g.add((s, p, Literal("MUTANT")))
                 else:  # duplicate
                     other = URIRef("urn:mutant:other") if isinstance(o, URIRef) else (
-                        Literal("MUTANT") if isinstance(o, Literal) else BNode())
+                        Literal("MUTANT") if isinstance(o, ox.Literal) else BNode())
                     g.add((s, p, other if other != o else URIRef("urn:mutant:other2")))
                 result, detail = verdict(g)
                 results.append([result, *signature, detail, case.id])
