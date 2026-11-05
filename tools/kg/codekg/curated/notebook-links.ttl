@@ -286,7 +286,7 @@ nl:04a-6d36cd11 a slkg:NotebookExample ;
 nl:06b-252791c5 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06b-backend-graph-databases.ipynb" ;
     slkg:cellId "252791c5" ;
-    slkg:cellHash "aa0c78883712c3ee" ;
+    slkg:cellHash "7e8ddddc1017efad" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Runs a query with a SERVICE block against a remote SPARQL endpoint on a StarLayerGraph; skips when the endpoint is unreachable." ;
     slkg:demonstratesIdentifier
