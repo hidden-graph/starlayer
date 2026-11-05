@@ -48,20 +48,21 @@ import re
 from typing import TYPE_CHECKING, NamedTuple
 from urllib.parse import urljoin
 
-# Term classes: rdflib's when it is installed, small stand-ins when it is not (see _terms.py); only the encoder at the end of this
-# module, which writes the tree into an rdflib graph, needs rdflib itself.
-from starlayer.sparql._terms import (
-    RDF,
-    XSD,
-    BNode,
-    Literal,
-    URIRef,
-    Variable,
-    encode_dirlang_datatype,
-)
+# Terms are pyoxigraph terms (``_oxterms`` makes the stand-ins for text an RDF term cannot be: a relative IRI, a bad label).
+import pyoxigraph as ox
+
+from starlayer.sparql import _oxterms as T
+from starlayer.sparql._oxterms import RDF, XSD
 
 if TYPE_CHECKING:
-    from rdflib import Graph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
+
+Variable = ox.Variable
+
+
+def _vn(v) -> str:
+    """A variable as ``?name`` (for messages)."""
+    return "?" + v.value
 
 
 def _join(base_uri, ref):
@@ -222,7 +223,7 @@ def _unquote(raw: str) -> str:
 
 
 class Node:
-    """An AST node: ``kind`` plus ordered fields. Terms (IRI, literal, variable) are rdflib terms, not Nodes."""
+    """An AST node: ``kind`` plus ordered fields. Terms (IRI, literal, variable) are pyoxigraph terms, not Nodes."""
 
     __slots__ = ("kind", "f", "pos")
 
@@ -238,7 +239,7 @@ class Node:
         return f"{self.kind}({', '.join(f'{k}={v!r}' for k, v in self.f.items())})"
 
 
-_RDF_REIFIES = URIRef(str(RDF) + "reifies")
+_RDF_REIFIES = RDF.reifies
 
 _ZERO = ("NOW", "UUID", "STRUUID", "RAND")
 _ONE = (
@@ -358,19 +359,22 @@ class _Parser:
 
     # -- terms --------------------------------------------------------------
 
-    def _iri_text(self, raw: str) -> URIRef:
+    def _iri_string(self, raw: str) -> str:
         inner = _decode_uchars(raw[1:-1])
         if self.base and not re.match(r"[A-Za-z][A-Za-z0-9+.\-]*:", inner):
             inner = _join(self.base, inner)
-        return URIRef(inner)
+        return inner
 
-    def _pname(self, tok: Tok) -> URIRef:
+    def _iri_text(self, raw: str) -> ox.NamedNode:
+        return T.iri(self._iri_string(raw))
+
+    def _pname(self, tok: Tok) -> ox.NamedNode:
         prefix, _, local = tok.text.partition(":")
         if prefix not in self.prefixes:
             self.err(f"undeclared prefix {prefix!r}", tok)
-        return URIRef(self.prefixes[prefix] + re.sub(r"\\(.)", r"\1", local))
+        return T.iri(self.prefixes[prefix] + re.sub(r"\\(.)", r"\1", local))
 
-    def iri(self) -> URIRef:
+    def iri(self) -> ox.NamedNode:
         t = self.peek()
         if t.kind == "IRI":
             self.i += 1
@@ -383,14 +387,14 @@ class _Parser:
     def at_iri(self, k: int = 0) -> bool:
         return self.peek(k).kind in ("IRI", "PNAME")
 
-    def var(self) -> Variable:
+    def var(self) -> ox.Variable:
         t = self.peek()
         if t.kind != "VAR":
             self.err("expected a variable")
         self.i += 1
-        return Variable(t.text[1:])
+        return ox.Variable(t.text[1:])
 
-    def bnode(self) -> BNode:
+    def bnode(self) -> ox.BlankNode:
         t = self.peek()
         if t.kind == "BNODE":
             self.i += 1
@@ -399,27 +403,27 @@ class _Parser:
                 self.err(f"blank node label {t.text} is already used in an INSERT DATA of another operation", t)
             if self._label_bgp.setdefault((self._in_template, label), self._bgp) != self._bgp:
                 self.err(f"blank node label {t.text} is used in two different basic graph patterns", t)
-            return BNode(label)
+            return T.bnode(label)
         if self.at_p("[") and self.at_p("]", k=1):
             self.i += 2
-            return BNode()
+            return ox.BlankNode()
         self.err("expected a blank node")
 
     def at_bnode(self) -> bool:
         return self.peek().kind == "BNODE" or (self.at_p("[") and self.at_p("]", k=1))
 
-    def string(self) -> Literal:
+    def string(self) -> ox.Literal:
         t = self.peek()
         if t.kind != "STR":
             self.err("expected a string")
         self.i += 1
-        return Literal(_unquote(t.text))
+        return T.plain_literal(_unquote(t.text))
 
     def at_literal(self) -> bool:
         t = self.peek()
         return t.kind in ("STR", "INT", "DEC", "DBL") or (t.kind == "W" and t.text in ("true", "false"))
 
-    def literal(self, signed: bool = True) -> Literal:
+    def literal(self, signed: bool = True) -> ox.Literal:
         """RDFLiteral | NumericLiteral | BooleanLiteral."""
         t = self.peek()
         if t.kind == "STR":
@@ -432,14 +436,12 @@ class _Parser:
                     lang, direction = tag.split("--")
                     if direction not in ("ltr", "rtl"):
                         self.err("base direction must be ltr or rtl", nx)
-                    return Literal(s, datatype=encode_dirlang_datatype(lang.lower(), direction))
-                return Literal(s, lang=tag)
+                    return T.directional(s, lang, direction)
+                return T.language_literal(s, tag)
             if nx.kind == "P" and nx.text == "^^":
                 self.i += 1
-                # normalize=False: rdflib's Literal rewrites some lexical forms by default ("...Z"^^xsd:dateTime becomes
-                # "...+00:00"); a query's literal is kept exactly as written, as the current path does.
-                return Literal(s, datatype=self.iri(), normalize=False)
-            return Literal(s)
+                return T.typed_literal(s, self.iri())
+            return T.plain_literal(s)
         sign = ""
         if signed and self.at_p("+", "-") and self.signed_number_ahead():
             sign = self.next().text
@@ -447,11 +449,10 @@ class _Parser:
         if t.kind in ("INT", "DEC", "DBL"):
             self.i += 1
             dt = {"INT": XSD.integer, "DEC": XSD.decimal, "DBL": XSD.double}[t.kind]
-            # normalize=False: "007", "+5" and "1E0" keep the lexical form written (rdflib would rewrite them)
-            return Literal(sign + t.text, datatype=dt, normalize=False)
+            return T.typed_literal(sign + t.text, dt)
         if t.kind == "W" and t.text in ("true", "false"):
             self.i += 1
-            return Literal(t.text, datatype=XSD.boolean, normalize=False)
+            return T.typed_literal(t.text, XSD.boolean)
         self.err("expected a literal")
 
     def signed_number_ahead(self) -> bool:
@@ -477,7 +478,7 @@ class _Parser:
                 if t.kind != "IRI":
                     self.err("expected an IRI after BASE")
                 self.i += 1
-                self.base = str(self._iri_text(t.text))
+                self.base = self._iri_string(t.text)
                 self.prologue.append(("base", t.text[1:-1]))
             elif self.accept_kw("PREFIX"):
                 t = self.peek()
@@ -488,8 +489,9 @@ class _Parser:
                 if iri.kind != "IRI":
                     self.err("expected an IRI after the prefix label")
                 self.i += 1
-                self.prefixes[t.text[:-1]] = str(self._iri_text(iri.text))
-                self.prologue.append(("prefix", t.text[:-1], str(self._iri_text(iri.text))))
+                namespace = self._iri_string(iri.text)
+                self.prefixes[t.text[:-1]] = namespace
+                self.prologue.append(("prefix", t.text[:-1], namespace))
             elif self.accept_kw("VERSION"):
                 t = self.peek()
                 if t.kind != "STR" or t.text[:3] in ('"""', "'''"):
@@ -661,9 +663,9 @@ class _Parser:
             self._bgp, self._in_template = outer
             self._data_op = None
         for term in _quad_terms(items):
-            if not variables and isinstance(term, Variable):
+            if not variables and isinstance(term, ox.Variable):
                 self.err(f"variables are not allowed in {what}", start)
-            if not bnodes and isinstance(term, BNode):
+            if not bnodes and isinstance(term, ox.BlankNode):
                 self.err(
                     f"blank nodes (labels, [], collections, annotations and reified triples without an explicit "
                     f"reifier) are not allowed in {what}",
@@ -850,12 +852,12 @@ class _Parser:
                 self.i += 1
                 q.f["offset"] = self._integer()
 
-    def _integer(self) -> Literal:
+    def _integer(self) -> ox.Literal:
         t = self.peek()
         if t.kind != "INT":
             self.err("expected an integer")
         self.i += 1
-        return Literal(t.text, datatype=XSD.integer, normalize=False)
+        return T.typed_literal(t.text, XSD.integer)
 
     def values_clause(self, q: Node):
         q.f["values"] = self.inline_data() if self.at_kw("VALUES") else None
@@ -1021,7 +1023,7 @@ class _Parser:
 
     def triples_node(self, out: list, path: bool):
         if self.accept_p("["):
-            b = BNode()
+            b = ox.BlankNode()
             self.property_list(b, out, path, required=True)
             self.expect_p("]")
             return b
@@ -1034,11 +1036,11 @@ class _Parser:
         self.expect_p(")")
         if not items:
             return RDF.nil
-        head = BNode()
+        head = ox.BlankNode()
         cur = head
         for k, item in enumerate(items):
             out.append(Node("TriplePattern", s=cur, p=RDF.first, o=item))
-            nxt = RDF.nil if k == len(items) - 1 else BNode()
+            nxt = RDF.nil if k == len(items) - 1 else ox.BlankNode()
             out.append(Node("TriplePattern", s=cur, p=RDF.rest, o=nxt))
             cur = nxt
         return head
@@ -1085,7 +1087,7 @@ class _Parser:
             else:
                 self.i += 1
                 if reifier is None:
-                    reifier = BNode()
+                    reifier = ox.BlankNode()
                     out.append(Node("TriplePattern", s=reifier, p=_RDF_REIFIES, o=tt))
                 self.property_list(reifier, out, path, required=True)
                 self.expect_p("|}")
@@ -1101,7 +1103,7 @@ class _Parser:
             return self.iri()
         if self.at_bnode():
             return self.bnode()
-        return BNode()
+        return ox.BlankNode()
 
     def reified_triple(self, out: list):
         """ReifiedTriple ::= '<<' ReifiedTripleSubject Verb ReifiedTripleObject Reifier? '>>'"""
@@ -1135,7 +1137,7 @@ class _Parser:
             o = self.literal()
         else:
             self.err("expected an object in a reified triple")
-        r = BNode()
+        r = ox.BlankNode()
         if self.accept_p("~"):
             r = self.reifier_id()
         self.expect_p(">>")
@@ -1162,7 +1164,7 @@ class _Parser:
         else:
             self.err("expected a subject in a triple term")
         p = self.verb_simple() if not data else (RDF.type if self.accept_a() else self.iri())
-        if isinstance(p, Variable) and data:
+        if isinstance(p, ox.Variable) and data:
             self.err("a variable cannot appear in a VALUES triple term")
         if self.at_p("<<("):
             o = self.triple_term(data)
@@ -1538,7 +1540,7 @@ def _flatten(kind: str, parts: list):
 
 
 def _term_vars(t, vs: set) -> None:
-    if isinstance(t, Variable):
+    if isinstance(t, ox.Variable):
         vs.add(t)
     elif isinstance(t, Node) and t.kind == "TripleTerm":
         for k in ("subject", "predicate", "object"):
@@ -1553,7 +1555,7 @@ def _pattern_vars(where: list | None) -> set:
         if k == "TriplePattern":
             _term_vars(el.f["s"], vs)
             _term_vars(el.f["o"], vs)
-            if isinstance(el.f["p"], Variable):
+            if isinstance(el.f["p"], ox.Variable):
                 vs.add(el.f["p"])
         elif k == "Optional":
             vs |= _pattern_vars(el.f["where"])
@@ -1601,7 +1603,7 @@ def _has_aggregate(e) -> bool:
 
 def _expr_vars(e, out: set) -> None:
     """Variables an expression reads outside aggregates and EXISTS patterns."""
-    if isinstance(e, Variable):
+    if isinstance(e, ox.Variable):
         out.add(e)
     elif isinstance(e, Node):
         if e.kind.startswith("Aggregate_") or e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
@@ -1647,7 +1649,7 @@ class _Checker:
             k = el.kind
             if k == "Bind":
                 if el.f["var"] in seen:
-                    self.fail(f"BIND target {el.f['var'].n3()} is already in scope in the group", el)
+                    self.fail(f"BIND target {_vn(el.f['var'])} is already in scope in the group", el)
                 self.expr(el.f["expr"], False)
             elif k == "Filter":
                 self.expr(el.f["expr"], False)
@@ -1683,12 +1685,12 @@ class _Checker:
         group_vars: set = set()
         if group_by:
             for c in group_by:
-                if isinstance(c, Variable):
+                if isinstance(c, ox.Variable):
                     group_vars.add(c)
                 elif isinstance(c, Node) and c.kind == "GroupAs":
                     v = c.f["var"]
                     if v in _pattern_vars(where) or v in group_vars:
-                        self.fail(f"{v.n3()} is already in scope at GROUP BY (... AS {v.n3()})", c)
+                        self.fail(f"{_vn(v)} is already in scope at GROUP BY (... AS {_vn(v)})", c)
                     group_vars.add(v)
             clash_scope = set(group_vars)
         # the trailing VALUES is joined in before the SELECT expressions run: its variables are in scope and "grouped"
@@ -1699,15 +1701,15 @@ class _Checker:
             for p in proj:
                 v = p.f["var"]
                 if p.kind == "ProjectExpr" and (v in clash_scope or v in projected):
-                    self.fail(f"{v.n3()} is already in scope at SELECT (... AS {v.n3()})", p)
+                    self.fail(f"{_vn(v)} is already in scope at SELECT (... AS {_vn(v)})", p)
                 if v in projected:
-                    self.fail(f"{v.n3()} is projected twice", p)
+                    self.fail(f"{_vn(v)} is projected twice", p)
                 projected.add(v)
         if aggregated and proj is not None:
             earlier: set = set()
             for p in proj:
                 if p.kind == "ProjectVar" and p.f["var"] not in in_scope:
-                    self.fail(f"{p.f['var'].n3()} is projected but not grouped", p)
+                    self.fail(f"{_vn(p.f['var'])} is projected but not grouped", p)
                 if p.kind == "ProjectExpr":
                     used: set = set()
                     _expr_vars(p.f["expr"], used)
@@ -1758,18 +1760,28 @@ def parse_sparql_update(text: str, base: str | None = None) -> Node:
 # ---------------------------------------------------------------------------
 
 
-def _list(graph: Graph, nodes: list):
+class _Sink(list):
+    """The triples an encoder produces, in order; ``add`` is the graph method the encoder code was written against."""
+
+    def add(self, triple) -> None:
+        self.append(triple)
+
+
+def _list(graph: _Sink, nodes: list):
+    """The RDF list of ``nodes`` (its triples go to ``graph``); ``rdf:nil`` for no nodes."""
     if not nodes:
         return RDF.nil
-    from rdflib.collection import Collection
-
-    head = BNode()
-    Collection(graph, head, nodes)
+    head = cur = ox.BlankNode()
+    for i, item in enumerate(nodes):
+        graph.add((cur, RDF.first, item))
+        nxt = RDF.nil if i == len(nodes) - 1 else ox.BlankNode()
+        graph.add((cur, RDF.rest, nxt))
+        cur = nxt
     return head
 
 
 class _Encoder:
-    def __init__(self, graph: Graph, triple_order=None):
+    def __init__(self, graph: _Sink, triple_order=None):
         from .sqe import vocab as v
         from .vocab import PY_STR_DATATYPE, SPEXPR, VARIABLE_DATATYPE
 
@@ -1782,27 +1794,27 @@ class _Encoder:
 
     # terms and expressions ----------------------------------------------------
     def term(self, t):
-        if isinstance(t, Variable):
-            return Literal(str(t), datatype=self.VAR)
+        if isinstance(t, ox.Variable):
+            return ox.Literal(t.value, datatype=self.VAR)
         if isinstance(t, Node):
             return self.node(t)
         if type(t) is str:
-            return Literal(t, datatype=self.PY)
+            return ox.Literal(t, datatype=self.PY)
         return t
 
     def node(self, n: Node):
         v, g = self.v, self.g
         if n.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
-            b = BNode()
+            b = ox.BlankNode()
             g.add((b, RDF.type, v.EXISTS))
             if n.kind == "Builtin_NOTEXISTS":
-                g.add((b, v.NEGATED, Literal(True)))
+                g.add((b, v.NEGATED, T.boolean()))
             g.add((b, v.WHERE, self.where(n.f["graph"])))
             return b
         if n.kind in ("InvPath", "SequencePath", "AlternativePath", "MulPath", "NegatedPath"):
             return self.path(n)
         ns = v.SQE if n.kind == "TripleTerm" else self.SPEXPR
-        b = BNode()
+        b = ox.BlankNode()
         g.add((b, RDF.type, ns[n.kind]))
         for k, val in n.f.items():
             if isinstance(val, list):
@@ -1813,20 +1825,20 @@ class _Encoder:
 
     def path(self, n: Node):
         g, S = self.g, self.SPEXPR
-        b = BNode()
+        b = ox.BlankNode()
         g.add((b, RDF.type, S[n.kind]))
         if n.kind == "InvPath":
             g.add((b, S.arg, self.term(n.f["arg"])))
         elif n.kind == "MulPath":
             g.add((b, S.path, self.term(n.f["path"])))
-            g.add((b, S.mod, Literal(n.f["mod"])))
+            g.add((b, S.mod, T.plain_literal(n.f["mod"])))
         else:
             g.add((b, S.args, _list(g, [self.term(x) for x in n.f["args"]])))
         return b
 
     # patterns -------------------------------------------------------------------
     def triple(self, el: Node):
-        b, v, g = BNode(), self.v, self.g
+        b, v, g = ox.BlankNode(), self.v, self.g
         g.add((b, RDF.type, v.TRIPLE_PATTERN))
         g.add((b, v.TRIPLE_PATTERN_SUBJECT, self.term(el.f["s"])))
         g.add((b, v.TRIPLE_PATTERN_PREDICATE, self.term(el.f["p"])))
@@ -1845,7 +1857,7 @@ class _Encoder:
         k = el.kind
         if k == "TriplePattern":
             return self.triple(el)
-        b = BNode()
+        b = ox.BlankNode()
         if k in ("Optional", "Minus"):
             g.add((b, RDF.type, v.OPTIONAL if k == "Optional" else v.MINUS))
             g.add((b, v.WHERE, self.where(el.f["where"])))
@@ -1853,7 +1865,7 @@ class _Encoder:
             g.add((b, RDF.type, v.SERVICE))
             g.add((b, v.SERVICE_TERM, self.term(el.f["term"])))
             if el.f["silent"]:
-                g.add((b, v.SERVICE_SILENT, Literal(True)))
+                g.add((b, v.SERVICE_SILENT, T.boolean()))
             g.add((b, v.WHERE, self.where(el.f["where"])))
         elif k == "Filter":
             g.add((b, RDF.type, v.FILTER))
@@ -1882,7 +1894,7 @@ class _Encoder:
 
     def values(self, el: Node):
         v, g = self.v, self.g
-        b = BNode()
+        b = ox.BlankNode()
         g.add((b, RDF.type, v.VALUES))
         g.add((b, v.VALUES_VARS, _list(g, [self.term(x) for x in el.f["vars"]])))
         rows = []
@@ -1892,14 +1904,14 @@ class _Encoder:
         return b
 
     def sub_select(self, q: Node):
-        b = BNode()
+        b = ox.BlankNode()
         self.g.add((b, RDF.type, self.v.SUB_SELECT))
         self.g.add((b, RDF.type, self.v.SELECT_QUERY))
         self.body(q, b, "SelectQuery")
         return b
 
     def alias(self, expr, var):
-        b, v = BNode(), self.v
+        b, v = ox.BlankNode(), self.v
         self.g.add((b, RDF.type, v.ALIAS))
         self.g.add((b, v.EXPR, self.term(expr)))
         self.g.add((b, v.BIND_VAR, self.term(var)))
@@ -1915,11 +1927,11 @@ class _Encoder:
                 ]
                 g.add((root, v.PROJECTION, _list(g, items)))
             else:
-                g.add((root, v.SELECT_ALL, Literal(True)))
+                g.add((root, v.SELECT_ALL, T.boolean()))
             if q.f["modifier"] == "DISTINCT":
-                g.add((root, v.DISTINCT, Literal(True)))
+                g.add((root, v.DISTINCT, T.boolean()))
             elif q.f["modifier"] == "REDUCED":
-                g.add((root, v.REDUCED, Literal(True)))
+                g.add((root, v.REDUCED, T.boolean()))
         elif kind == "ConstructQuery":
             template = q.f["template"] if q.f["template"] is not None else q.f["where"]
             if self.triple_order is not None:
@@ -1927,17 +1939,17 @@ class _Encoder:
             g.add((root, v.TEMPLATE, _list(g, [self.triple(t) for t in template])))
         elif kind == "DescribeQuery":
             if q.f["targets"] is None:
-                g.add((root, v.DESCRIBE_ALL, Literal(True)))
+                g.add((root, v.DESCRIBE_ALL, T.boolean()))
             else:
                 g.add((root, v.DESCRIBE, _list(g, [self.term(t) for t in q.f["targets"]])))
         if q.f.get("datasets"):
             clauses = []
             for named, iri in q.f["datasets"]:
-                c = BNode()
+                c = ox.BlankNode()
                 g.add((c, RDF.type, v.DATASET_CLAUSE))
                 g.add((c, v.DATASET_SOURCE, iri))
                 if named:
-                    g.add((c, v.DATASET_NAMED, Literal(True)))
+                    g.add((c, v.DATASET_NAMED, T.boolean()))
                 clauses.append(c)
             g.add((root, v.DATASET, _list(g, clauses)))
         if q.f["where"] is not None:
@@ -1953,11 +1965,11 @@ class _Encoder:
         if q.f["order_by"]:
             conds = []
             for c in q.f["order_by"]:
-                b = BNode()
+                b = ox.BlankNode()
                 g.add((b, RDF.type, v.ORDER_CONDITION))
                 g.add((b, v.EXPR, self.term(c.f["expr"])))
                 if c.f["desc"]:
-                    g.add((b, v.ORDER_DESCENDING, Literal(True)))
+                    g.add((b, v.ORDER_DESCENDING, T.boolean()))
                 conds.append(b)
             g.add((root, v.ORDER_BY, _list(g, conds)))
         if q.f["limit"] is not None:
@@ -1984,15 +1996,15 @@ class _Encoder:
         v, g = self.v, self.g
         for decl in decls:
             if decl[0] == "base":
-                g.add((root, v.PROLOGUE_BASE, URIRef(decl[1])))
+                g.add((root, v.PROLOGUE_BASE, T.iri(decl[1])))
             elif decl[0] == "prefix":
-                b = BNode()
+                b = ox.BlankNode()
                 g.add((b, RDF.type, v.PREFIX_BINDING))
-                g.add((b, v.PREFIX_LABEL, Literal(decl[1], datatype=self.PY)))
-                g.add((b, v.PREFIX_NAMESPACE, URIRef(decl[2])))
+                g.add((b, v.PREFIX_LABEL, ox.Literal(decl[1], datatype=self.PY)))
+                g.add((b, v.PREFIX_NAMESPACE, T.iri(decl[2])))
                 g.add((root, v.PROLOGUE_PREFIX, b))
             elif decl[0] == "version":
-                g.add((root, v.VERSION, Literal(decl[1])))
+                g.add((root, v.VERSION, T.plain_literal(decl[1])))
 
     # SPARQL Update -------------------------------------------------------------
     def update(self, u: Node, root):
@@ -2003,7 +2015,7 @@ class _Encoder:
 
     def graph_ref(self, n: Node):
         v, g = self.v, self.g
-        b = BNode()
+        b = ox.BlankNode()
         if n.kind == "GraphRef":
             g.add((b, RDF.type, v.GRAPH_REF))
             g.add((b, v.GRAPH_REF_IRI, n.f["iri"]))
@@ -2016,7 +2028,7 @@ class _Encoder:
         out = []
         for item in items:
             if item.kind == "QuadGraph":
-                b = BNode()
+                b = ox.BlankNode()
                 g.add((b, RDF.type, v.QUAD_GRAPH))
                 g.add((b, v.QUAD_GRAPH_NAME, self.term(item.f["term"])))
                 g.add((b, v.QUAD_TRIPLES, _list(g, [self.triple(t) for t in item.f["triples"]])))
@@ -2027,7 +2039,7 @@ class _Encoder:
 
     def operation(self, o: Node):
         v, g = self.v, self.g
-        b = BNode()
+        b = ox.BlankNode()
         k = o.kind
         g.add((b, RDF.type, {
             "InsertData": v.INSERT_DATA, "DeleteData": v.DELETE_DATA, "DeleteWhere": v.DELETE_WHERE, "Modify": v.MODIFY,
@@ -2035,7 +2047,7 @@ class _Encoder:
             "Copy": v.COPY,
         }[k]))  # fmt: skip
         if o.f.get("silent"):
-            g.add((b, v.SERVICE_SILENT, Literal(True)))
+            g.add((b, v.SERVICE_SILENT, T.boolean()))
         if k in ("InsertData", "DeleteData", "DeleteWhere"):
             g.add((b, v.QUADS, self.quads(o.f["quads"])))
         elif k == "Modify":
@@ -2048,11 +2060,11 @@ class _Encoder:
             if o.f["using"]:
                 clauses = []
                 for named, iri in o.f["using"]:
-                    c = BNode()
+                    c = ox.BlankNode()
                     g.add((c, RDF.type, v.DATASET_CLAUSE))
                     g.add((c, v.DATASET_SOURCE, iri))
                     if named:
-                        g.add((c, v.DATASET_NAMED, Literal(True)))
+                        g.add((c, v.DATASET_NAMED, T.boolean()))
                     clauses.append(c)
                 g.add((b, v.MODIFY_USING, _list(g, clauses)))
             g.add((b, v.WHERE, self.where(o.f["where"])))
@@ -2097,48 +2109,52 @@ def run_with_deeper_stack(fn, *args, **kwargs):
         sys.setrecursionlimit(limit)
 
 
-def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=None) -> tuple[Graph, object]:
-    """Encode a parsed query as ``sqe:`` RDF (``triple_order``: an optional callback that reorders a run of
-    patterns, used by the differential tests to mimic rdflib's ``reorderTriples``).
+def ast_to_triples(q: Node, root=None, *, triple_order=None) -> tuple[list, object]:
+    """The ``sqe:`` tree of a parsed query or update as a list of ``(s, p, o)`` triples of pyoxigraph terms, and its root
+    (a fresh blank node unless ``root`` is given). Literals keep the lexical form written (no store has touched them).
 
     Raises:
         SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
     """
-    from starlayer._optional import require_rdflib
-
-    require_rdflib("Encoding a SPARQL parse tree as an sqe: RDF tree")
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
-    if graph is not None and _ox.is_oxigraph_input(graph):  # an StarLayerGraph target: encode on rdflib terms, then add them to it; root is pyoxigraph
-        return _ox.write_boundary(graph, lambda g, r: _ast_to_rdflib_tree(q, g, r, triple_order), root)
-    return _ast_to_rdflib_tree(q, graph, root, triple_order)
+    root = root if root is not None else ox.BlankNode()
+    try:
+        return run_with_deeper_stack(_encode_ast, q, root, triple_order), root
+    except RecursionError:
+        raise SparqlSyntaxError("expression or pattern nested too deeply to encode") from None
 
 
-def _ast_to_rdflib_tree(q: Node, graph, root, triple_order) -> tuple[Graph, object]:
-    if graph is None and root is None:  # a retry must start from a fresh graph, so only then is one safe
-        try:
-            return run_with_deeper_stack(_ast_to_tree, q, graph, root, triple_order)
-        except RecursionError:
-            raise SparqlSyntaxError("expression or pattern nested too deeply to encode") from None
-    return _ast_to_tree(q, graph, root, triple_order)
-
-
-def _ast_to_tree(q: Node, graph, root, triple_order) -> tuple[Graph, object]:
-    from .spexpr_codec import _new_tree_graph
-
-    graph = graph if graph is not None else _new_tree_graph()
-    root = root if root is not None else BNode()
-    enc = _Encoder(graph, triple_order)
+def _encode_ast(q: Node, root, triple_order) -> list:
+    sink = _Sink()
+    enc = _Encoder(sink, triple_order)
     if q.kind == "UpdateRequest":
         enc.update(q, root)
     else:
         enc.query(q, root)
+    return list(sink)
+
+
+def ast_to_tree(q: Node, graph: StarLayerGraph | None = None, root=None, *, triple_order=None) -> tuple[StarLayerGraph, object]:
+    """Encode a parsed query or update as ``sqe:`` RDF in ``graph`` (a fresh ``StarLayerGraph`` when none is given) and return
+    ``(graph, root)``. ``triple_order``: an optional callback that reorders a run of patterns (the differential tests use it).
+
+    The graph is an Oxigraph store, which rewrites some literal lexical forms (``"007"^^xsd:integer`` is stored as ``"7"``);
+    ``ast_to_triples`` keeps them.
+
+    Raises:
+        SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
+    """
+    from starlayer.graph.oxgraph.core import StarLayerGraph
+
+    triples, root = ast_to_triples(q, root, triple_order=triple_order)
+    if graph is None:
+        graph = StarLayerGraph(prefixes={})
+    graph.extend(triples)
     return graph, root
 
 
 def sparql_to_tree(
-    text: str, base: str | None = None, graph: Graph | None = None, root=None, *, validate: bool = False
-) -> tuple[Graph, object]:
+    text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None, *, validate: bool = False
+) -> tuple[StarLayerGraph, object]:
     """SPARQL 1.2 query text straight to ``sqe:`` tree-RDF, with the new parser.
 
     With ``validate=True`` the tree is also checked against the ``sqe:`` SHACL shapes (about 100 ms).
@@ -2155,8 +2171,8 @@ def sparql_to_tree(
 
 
 def sparql_update_to_tree(
-    text: str, base: str | None = None, graph: Graph | None = None, root=None, *, validate: bool = False
-) -> tuple[Graph, object]:
+    text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None, *, validate: bool = False
+) -> tuple[StarLayerGraph, object]:
     """SPARQL 1.2 Update text to ``sqe:`` tree-RDF (root typed ``sqe:UpdateRequest``); ``validate=True`` checks the SHACL shapes."""
     g, r = ast_to_tree(parse_sparql_update(text, base), graph, root)
     if validate:

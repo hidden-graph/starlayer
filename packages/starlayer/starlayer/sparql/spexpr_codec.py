@@ -35,7 +35,7 @@ from rdflib.plugins.sparql.parserutils import CompValue, Expr
 # snapshots that grammar when this module is imported (the old rule 'sparql/__init__ imports parse12 first', kept here so the
 # package facade can stay free of rdflib imports).
 from . import parse12 as _parse12  # noqa: F401,E402
-from .vocab import (
+from ._vocab_rdflib import (
     PY_STR_DATATYPE,
     QUERY,
     QUERY_COLLECTION,

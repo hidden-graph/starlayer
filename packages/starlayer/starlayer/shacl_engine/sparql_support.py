@@ -173,8 +173,8 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
 
 
 def _var_name(variable: Any) -> str:
-    """The name of a variable of the parser's AST (a ``str`` subclass)."""
-    return str(variable)  # str-ok: a query variable, never an engine term
+    """The name of a variable of the parser's AST (a ``pyoxigraph.Variable``)."""
+    return variable.value
 
 
 def run_query(

@@ -32,8 +32,12 @@ from __future__ import annotations
 import os
 import re
 
-from .._terms import BNode, Literal, URIRef, Variable
-from ..parse_sparql import Node, SparqlSyntaxError, ast_to_tree, parse_sparql
+import pyoxigraph as ox
+
+from ..parse_sparql import Node, SparqlSyntaxError, ast_to_triples, parse_sparql
+from ._memtree import TreeIndex
+
+BNode, Literal, URIRef, Variable = ox.BlankNode, ox.Literal, ox.NamedNode, ox.Variable
 
 _EXISTS_WORD = re.compile(r"(?i)\bEXISTS\b")
 _NONDETERMINISTIC = {"RAND", "UUID", "STRUUID", "BNODE"}
@@ -46,8 +50,7 @@ def rewrite_enabled() -> bool:
 
 def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) -> str:
     """``text`` with its correlated ``FILTER [NOT] EXISTS`` blocks rewritten as joins, or ``text`` itself when there is
-    nothing to rewrite or anything is in doubt (including when rdflib, which the text renderer needs, is not installed: the rewrite
-    only makes the query faster). ``prefixes`` are the prefix declarations the query text relies on."""
+    nothing to rewrite or anything is in doubt (the rewrite only makes the query faster). ``prefixes`` are the prefix declarations the query text relies on."""
     if not rewrite_enabled() or not _EXISTS_WORD.search(text):
         return text
     try:
@@ -57,8 +60,8 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
             return text
         from .to_text import sqe_tree_to_text
 
-        graph, root = ast_to_tree(tree)
-        out = sqe_tree_to_text(graph, root)
+        triples, root = ast_to_triples(tree)
+        out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
         return out
     except (ImportError, SparqlSyntaxError, ValueError, KeyError, NotImplementedError, RecursionError, TypeError, AttributeError):
@@ -166,7 +169,7 @@ def _rewrite_here(where: list) -> bool:
                 continue
             if not any(_vars(f, set()) & a_vars for f in q_filters):
                 continue
-            shared = sorted(_vars(q, set()) & a_vars, key=str)
+            shared = sorted(_vars(q, set()) & a_vars, key=lambda v: v.value)
             sub = Node(
                 "SubSelect", modifier="DISTINCT", projection=[Node("ProjectVar", var=v) for v in shared], datasets=[],
                 where=[*triples, *q_triples, *q_filters], group_by=None, having=None, order_by=None, limit=None,

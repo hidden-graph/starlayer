@@ -22,7 +22,7 @@ from rdflib.namespace import RDF
 from starlayer.shacl_engine.components.registry import Violation, component
 from starlayer.shacl_engine.plan import ShapeError
 
-from ..vocab import SALG
+from .._vocab_rdflib import SALG
 from .semantic_checks import _unbound_projected_variables_for_node
 
 

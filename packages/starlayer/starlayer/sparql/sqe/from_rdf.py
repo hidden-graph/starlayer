@@ -30,7 +30,7 @@ from rdflib.plugins.sparql.sparql import Query
 
 from ..spexpr_codec import _DECODE_HOOK, _EXPR_EVALFNS
 from ..spexpr_codec import _decode as _decode_generic
-from .vocab import (
+from ._vocab_rdflib import (
     ALIAS,
     ASK_QUERY,
     BIND,

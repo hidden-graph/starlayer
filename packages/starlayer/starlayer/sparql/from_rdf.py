@@ -27,10 +27,10 @@ from rdflib import BNode, Graph
 from rdflib.collection import Collection
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update
 
-from .spexpr_codec import _decode, _decode_list_field
-from .vocab import (
+from ._vocab_rdflib import (
     SALG,
 )
+from .spexpr_codec import _decode, _decode_list_field
 
 
 def rdf_to_query(graph: Graph, root: BNode) -> Query:

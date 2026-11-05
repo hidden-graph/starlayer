@@ -683,15 +683,9 @@ _GITHUB_BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/package
 _GITHUB_RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/starontology/"
 
 
-def _resource_iri(name: str) -> Any:
-    """The resource IRI: an rdflib ``URIRef`` when rdflib is installed (what the profiles graph's callers compare it with), else a
-    pyoxigraph ``NamedNode``."""
-    iri = _GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name]
-    if _optional.have_rdflib():
-        from rdflib import URIRef
-
-        return URIRef(iri)
-    return ox.NamedNode(iri)
+def _resource_iri(name: str) -> ox.NamedNode:
+    """The resource IRI as a pyoxigraph ``NamedNode`` (rdflib is not imported)."""
+    return ox.NamedNode(_GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name])
 
 
 def _raw_filename(name: str) -> str | None:
@@ -732,7 +726,12 @@ def get_resource_iri(name: str) -> Any:
     """
     if name not in _FILENAME_BY_NAME:
         return None
-    return _resource_iri(name)
+    iri = _resource_iri(name)
+    if _optional.have_rdflib():  # what the profiles graph's callers compare it with
+        from rdflib import URIRef
+
+        return URIRef(iri.value)
+    return iri
 
 
 def get_raw_url(name: str) -> str | None:

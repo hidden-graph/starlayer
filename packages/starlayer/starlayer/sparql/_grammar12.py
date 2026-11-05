@@ -74,8 +74,8 @@ from rdflib.plugins.sparql.parser import (
 )
 from rdflib.plugins.sparql.parserutils import Comp, CompValue, Param
 
+from ._vocab_rdflib import encode_dirlang_datatype
 from .triple_term import TripleTermNode
-from .vocab import encode_dirlang_datatype
 
 # RDF 1.2's "a triple term's subject is never a Literal, and never itself a
 # nested triple term (nesting is only legal in object position)" rule turns

@@ -29,7 +29,7 @@ _LAZY = {
     "queries_to_collection": "to_rdf",
     "query_to_rdf": "to_rdf",
     "update_to_rdf": "to_rdf",
-    "SALG": "vocab",
+    "SALG": "_vocab_rdflib",  # the rdflib namespace the salg encoder uses (the pyoxigraph SQE / SPEXPR are in sparql.vocab)
 }
 
 
