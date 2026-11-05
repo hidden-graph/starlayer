@@ -241,7 +241,6 @@ class TestBaseDirectionPolicy:
 
     def test_matches_the_old_encoding_module(self):
         from rdflib import URIRef
-
         from starlayer.graph.model import encoding as old
 
         assert DIRLANG_NS == old.DIRLANG_NS

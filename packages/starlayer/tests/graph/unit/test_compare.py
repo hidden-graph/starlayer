@@ -195,7 +195,6 @@ def _people(n, city_suffix=""):
 
 def test_isomorphic_does_not_need_rdflibs_refinement_for_many_similar_blank_nodes(monkeypatch):
     import rdflib.compare
-
     import starlayer.graph.compare as compare
 
     def refuse(*_args, **_kwargs):
