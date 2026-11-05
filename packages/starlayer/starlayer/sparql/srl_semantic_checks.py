@@ -27,16 +27,16 @@ per-element-kind condition it enforces.
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 from dataclasses import dataclass
 
-from rdflib import Variable
-from rdflib.plugins.sparql import algebra
+import pyoxigraph as ox
 
 from . import _srl_ast as srl_ast
+from .expr_text import expr_nodes, expr_variables
+from .parse_sparql import Node
 from .triple_term import TripleTermNode
+
+Variable = ox.Variable
 
 
 @dataclass(frozen=True)
@@ -63,47 +63,19 @@ def _triple_vars(triple: srl_ast.TriplePattern) -> set[Variable]:
 
 
 def _expr_vars(expr) -> set[Variable]:
-    """Every ``Variable`` leaf anywhere in a real rdflib ``Expr``/``CompValue``
-    expression tree - the same generic ``algebra.traverse`` walk
-    ``srl.py`` already uses for prefixed-name resolution, here just
-    observing rather than rewriting (``visitPost`` always returns ``None``,
-    so the tree itself is left unchanged).
-
-    Args:
-        expr: The rdflib expression tree to scan.
-
-    Returns:
-        Every ``Variable`` found anywhere in ``expr``.
-    """
-    found: set[Variable] = set()
-
-    def _visit(node):
-        if isinstance(node, Variable):
-            found.add(node)
-        return None
-
-    algebra.traverse(expr, visitPost=_visit)
-    return found
+    """Every variable anywhere in an expression tree."""
+    return expr_variables(expr)
 
 
 def _has_aggregate(expr) -> bool:
     """True if an ``Aggregate_*`` node (COUNT, SUM, ...) or an ``EXISTS`` / ``NOT EXISTS`` occurs anywhere in ``expr``.
     Aggregation is a separate rule element in SRL (still an open issue),
     never a function inside ``FILTER`` or ``SET``; use a ``NOT { ... }`` negation element instead of ``NOT EXISTS``."""
-    found = False
-
-    def _visit(node):
-        nonlocal found
-        if str(getattr(node, "name", "")).startswith("Aggregate_") or getattr(node, "name", "") in (
-            "Builtin_EXISTS",
-            "Builtin_NOTEXISTS",
-        ):
-            # EXISTS needs a graph pattern the rule evaluator does not run: reject it here rather than crash later (#96)
-            found = True
-        return None
-
-    algebra.traverse(expr, visitPost=_visit)
-    return found
+    # EXISTS needs a graph pattern the rule evaluator does not run: reject it here rather than crash later (#96)
+    return any(
+        isinstance(n, Node) and (n.kind.startswith("Aggregate_") or n.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"))
+        for n in expr_nodes(expr)
+    )
 
 
 def _check_sequence(
@@ -217,6 +189,6 @@ def _check_ruleset(ruleset: srl_ast.RuleSet) -> list[_SRLWellFormednessIssue]:
         _check_triple_term_positions(None, block.triples, issues)
         # a DATA block holds ground facts: the grammar (§7.6) does not allow a variable in one
         for t in block.triples:
-            for v in sorted(_term_vars(t.subject) | _term_vars(t.predicate) | _term_vars(t.object)):
+            for v in sorted(_term_vars(t.subject) | _term_vars(t.predicate) | _term_vars(t.object), key=lambda x: x.value):
                 issues.append(_SRLWellFormednessIssue(None, "variable_in_data", v, "DATA block"))
     return issues

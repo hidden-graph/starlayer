@@ -6,15 +6,14 @@ import functools
 import itertools
 import re
 
-from rdflib import Graph, Literal, URIRef, Variable
-from rdflib.plugins.sparql.parserutils import value
-from rdflib.plugins.sparql.sparql import FrozenBindings, QueryContext
+import pyoxigraph as ox
 from starlayer.graph.compare import isomorphic
 from starlayer.sparql._srl_ast import (
     _AssignmentElement,
     _FilterElement,
     _NegationElement,
 )
+from starlayer.sparql.srl_eval import _eval_expr
 from starlayer.sparql.srl import (
     parse_ruleset,
     ruleset_to_text,
@@ -59,27 +58,32 @@ def _expressions(elements):
             yield from _expressions(element.inner)
 
 
-_VALUES = (Literal(1), Literal(2), Literal(-3), Literal(2.5), Literal("a"), Literal(True), URIRef("http://example.org/c"))
+_XSD = "http://www.w3.org/2001/XMLSchema#"
+_VALUES = (
+    ox.Literal("1", datatype=ox.NamedNode(_XSD + "integer")),
+    ox.Literal("2", datatype=ox.NamedNode(_XSD + "integer")),
+    ox.Literal("-3", datatype=ox.NamedNode(_XSD + "integer")),
+    ox.Literal("2.5", datatype=ox.NamedNode(_XSD + "decimal")),
+    ox.Literal("a"),
+    ox.Literal("true", datatype=ox.NamedNode(_XSD + "boolean")),
+    ox.NamedNode("http://example.org/c"),
+)
 
 
 def expression_results(ruleset) -> list:
     """What every FILTER / SET expression of ``ruleset`` evaluates to under a grid of bindings.
 
     Used to check that text -> AST -> text -> AST preserves *meaning*, not just shape: a renderer that drops
-    parentheses produces text that parses fine and means something else. Errors are results too (a SPARQL
-    error is part of an expression's meaning), recorded by exception type.
+    parentheses produces text that parses fine and means something else. Evaluated by the SRL evaluator's own expression
+    path (Oxigraph); an error is a result too (a SPARQL error is part of an expression's meaning), recorded as ``None``.
     """
-    context = QueryContext(Graph())
     results = []
     for rule in ruleset.rules:
         for expression in _expressions(rule.body):
-            for y, z in itertools.product(_VALUES, (Literal(3), Literal("s"))):
-                bindings = FrozenBindings(context, {
-                    Variable("x"): URIRef("http://example.org/a"), Variable("y"): y, Variable("z"): z,
-                    Variable("w"): Literal(2),
-                })
-                try:
-                    results.append(repr(value(bindings, expression, variables=False)))
-                except Exception as error:  # noqa: BLE001
-                    results.append(f"error:{type(error).__name__}")
+            for y, z in itertools.product(_VALUES, (ox.Literal("3", datatype=ox.NamedNode(_XSD + "integer")), ox.Literal("s"))):
+                bindings = {
+                    ox.Variable("x"): ox.NamedNode("http://example.org/a"), ox.Variable("y"): y, ox.Variable("z"): z,
+                    ox.Variable("w"): ox.Literal("2", datatype=ox.NamedNode(_XSD + "integer")),
+                }
+                results.append(repr(_eval_expr(expression, bindings)))
     return results

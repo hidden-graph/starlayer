@@ -17,12 +17,11 @@ privately below.
 from __future__ import annotations
 
 import functools
-from collections.abc import Iterable
 from typing import Any
 
-import pyoxigraph as ox
-
 from starlayer import starontology
+
+from ..expr_validation import rdfs_entailed_copy, rdfs_schema
 
 SHAPES_TURTLE = starontology.get_ontology_graph("sqe_shacl").serialize(format="turtle12")
 
@@ -32,71 +31,15 @@ def _merge_into(dst, src):
     dst.extend(src)
 
 
-_RDFS = "http://www.w3.org/2000/01/rdf-schema#"
-_RDF_TYPE = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
-
-
-def _closure(pairs: dict) -> dict:
-    """The transitive closure of a ``{node: {direct supers}}`` map (a node is not its own super unless a cycle says so)."""
-    out: dict = {}
-    for start in pairs:
-        seen: set = set()
-        stack = list(pairs[start])
-        while stack:
-            node = stack.pop()
-            if node not in seen:
-                seen.add(node)
-                stack.extend(pairs.get(node, ()))
-        out[start] = seen
-    return out
-
-
 @functools.lru_cache(maxsize=1)
 def _schema() -> tuple[dict, dict, dict, dict]:
-    """``(super-properties, super-classes, domains, ranges)`` of the ``sqe:`` + ``spexpr:`` ontology, each transitively closed
-    (RDFS rules 5, 11 as maps; 2, 3, 7, 9 are applied by ``_entailed_copy``)."""
-    ontology = _ontology_graph()
-    sub_prop: dict = {}
-    sub_class: dict = {}
-    domains: dict = {}
-    ranges: dict = {}
-    for s, p, o in ontology.triples((None, None, None)):
-        if not isinstance(p, ox.NamedNode):
-            continue
-        target = {_RDFS + "subPropertyOf": sub_prop, _RDFS + "subClassOf": sub_class, _RDFS + "domain": domains, _RDFS + "range": ranges}.get(p.value)
-        if target is not None:
-            target.setdefault(s, set()).add(o)
-    sub_prop, sub_class = _closure(sub_prop), _closure(sub_class)
-    return sub_prop, sub_class, domains, ranges
+    """The closed schema maps of the ``sqe:`` + ``spexpr:`` ontology (see ``expr_validation.rdfs_schema``)."""
+    return rdfs_schema(_ontology_graph())
 
 
 def _entailed_copy(data_graph: Any) -> Any:
-    """A copy of ``data_graph`` closed under the RDFS rules the ``sqe:`` shapes rely on: sub-property (rdfs7), domain (rdfs2),
-    range (rdfs3) and sub-class (rdfs9) inference from the ontology. Done here, natively, because the general RDFS closure
-    (``infer()``) runs on owlrl and so on rdflib."""
-    sub_prop, sub_class, domains, ranges = _schema()
-    copy = data_graph.copy()
-    added: set = set()
-    typed: list = []
-
-    def type_it(node: Any, classes: Iterable) -> None:
-        for cls in classes:
-            typed.append((node, cls))
-
-    for s, p, o in list(data_graph.triples((None, None, None))):
-        for q in (p, *sub_prop.get(p, ())):
-            if q != p:
-                added.add((s, q, o))
-            type_it(s, domains.get(q, ()))
-            if not isinstance(o, (ox.Literal, ox.Triple)):
-                type_it(o, ranges.get(q, ()))
-        if p == _RDF_TYPE:
-            type_it(s, [o])
-    for node, cls in typed:
-        for c in (cls, *sub_class.get(cls, ())):
-            added.add((node, _RDF_TYPE, c))
-    copy.extend(list(added))
-    return copy
+    """``data_graph`` closed under the RDFS rules the ``sqe:`` shapes rely on (see ``expr_validation.rdfs_entailed_copy``)."""
+    return rdfs_entailed_copy(data_graph, _schema())
 
 
 def _shapes_graph() -> Any:

@@ -5,9 +5,8 @@ SRL (SPARQL Rules) text -> the ``_srl_ast`` tree, on the same tokenizer and prod
 addition), ``Constraint`` and ``Expression``, so :class:`_SrlParser` subclasses the query parser and adds only what is
 new in the SRL grammar (``RULE``, ``DATA``, ``WHERE [DATA]``, ``NOT [DATA]``, ``SET(?v := expr)``, ``IMPORTS``).
 
-``parse_srl(text, base)`` returns a ``RuleSet`` whose expressions are rdflib ``Expr``/``CompValue`` nodes, the form the
-SRL evaluator and the ``srl:`` tree encoder consume. The conversion from the parser's generic ``Node`` is mechanical
-(the node kinds are rdflib's own names); it is the one place this module still touches rdflib's expression types.
+``parse_srl(text, base)`` returns a ``RuleSet`` of pyoxigraph terms whose expressions are the parser's own ``Node`` trees,
+the form the SRL evaluator and the ``srl:`` tree encoder consume.
 
 Static checks that belong to the rule set (a variable bound, ``SET`` not reusing a variable) stay in
 ``srl_semantic_checks``; ``srl.parse_ruleset`` calls them and the ``srl:`` shapes after this.
@@ -15,17 +14,11 @@ Static checks that belong to the rule set (a variable bound, ``SET`` not reusing
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 import pyoxigraph as ox
-from rdflib import BNode, Literal, URIRef, Variable
-from rdflib.plugins.sparql.parserutils import CompValue, Expr
 
-from . import _oxterms as _T
 from . import _srl_ast as srl_ast
 from .parse_sparql import Node, _Parser
-from .triple_term import TripleTermNode
+from .triple_term import ExprNode, TripleTermNode
 
 __all__ = ["parse_srl"]
 
@@ -53,60 +46,26 @@ def _srl_error(message: str, cause: Exception | None = None) -> Exception:
     return err
 
 
-def _evalfns() -> dict:
-    from .spexpr_codec import _EXPR_EVALFNS
-
-    return _EXPR_EVALFNS
-
-
-def _rl(term):
-    """A term of the parser (pyoxigraph) as the rdflib term the SRL tree holds; anything else unchanged. The one place SRL
-    converts: the parser builds pyoxigraph terms, the SRL tree and evaluator are still rdflib-based."""
-    if isinstance(term, ox.NamedNode):
-        return URIRef(_T.iri_text(term))
-    if isinstance(term, ox.BlankNode):
-        return BNode(_T.bnode_label(term))
-    if isinstance(term, ox.Variable):
-        return Variable(term.value)
-    if isinstance(term, ox.Literal):
-        tag = _T.language_of(term)
-        if tag is not None:
-            lang, _, direction = tag.partition("--")
-            if direction:
-                from ._vocab_rdflib import encode_dirlang_datatype
-
-                return Literal(term.value, datatype=encode_dirlang_datatype(lang.lower(), direction))
-            return Literal(term.value, lang=lang)
-        if term.datatype == _T.XSD.string:
-            return Literal(term.value)
-        return Literal(term.value, datatype=URIRef(_T.iri_text(term.datatype)), normalize=False)
-    return term
-
-
 def _convert(value):
-    """A parser ``Node`` (or a list of them, or a term) as the rdflib expression value the SRL tree holds."""
+    """A parser ``Node`` (or a list of them, or a term) as the value the SRL tree holds: the same tree, with a triple term as a
+    ``TripleTermNode``, after the check that every built-in is one SRL's BuiltInCall lists."""
     if isinstance(value, Node):
         if value.kind in _NOT_IN_SRL:
             raise _srl_error(f"SRL: {_NOT_IN_SRL[value.kind]} is not part of SRL's built-in function set (spec BuiltInCall)")
         fields = {k: _convert(v) for k, v in value.f.items()}
-        if value.kind == "TripleTerm":
-            node = TripleTermNode("TripleTerm")
-            node.update(fields)
-            return node
-        evalfn = _evalfns().get(value.kind)
-        if evalfn is not None:
-            return Expr(value.kind, evalfn, **fields)
-        return CompValue(value.kind, **fields)
+        node = TripleTermNode("TripleTerm", **fields) if value.kind == "TripleTerm" else ExprNode(value.kind, **fields)
+        node.pos = value.pos
+        return node
     if isinstance(value, list):
         return [_convert(v) for v in value]
-    return _rl(value)
+    return value
 
 
 def _term(value):
     """A term of a triple: a triple term node becomes a ``TripleTermNode``, everything else is already a term."""
     if isinstance(value, Node) and value.kind == "TripleTerm":
         return _convert(value)
-    return _rl(value)
+    return value
 
 
 def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
@@ -121,7 +80,7 @@ def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
     if isinstance(predicate, Node):
         if predicate.kind == "SequencePath":
             args = predicate.f["args"]
-            nodes = [subject, *(BNode() for _ in args[:-1]), obj]
+            nodes = [subject, *(ox.BlankNode() for _ in args[:-1]), obj]
             return [t for i, arg in enumerate(args) for t in _expand_path(nodes[i], arg, nodes[i + 1])]
         if predicate.kind == "InvPath":
             return _expand_path(obj, predicate.f["arg"], subject)
@@ -129,7 +88,7 @@ def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
             f"SRL: property path {_path_text(predicate)} is not allowed: SRL property paths use only the / and ^ operators "
             "(write a repeated or optional step with a recursive rule instead)"
         )
-    return [srl_ast.TriplePattern(subject=_term(subject), predicate=_rl(predicate), object=_term(obj))]
+    return [srl_ast.TriplePattern(subject=_term(subject), predicate=predicate, object=_term(obj))]
 
 
 def _path_text(path) -> str:
@@ -143,7 +102,7 @@ def _path_text(path) -> str:
             return "(" + sep.join(_path_text(a) for a in path.f["args"]) + ")"
         if path.kind == "NegatedPath":
             return "!(" + "|".join(_path_text(a) for a in path.f["args"]) + ")"
-    return _rl(path).n3() if isinstance(path, (ox.NamedNode, ox.Variable)) else str(path)
+    return str(path)
 
 
 def _triples(items: list[Node]) -> list[srl_ast.TriplePattern]:
@@ -198,7 +157,7 @@ class _SrlParser(_Parser):
     def _assignment(self) -> srl_ast._AssignmentElement:
         self.expect_kw("SET")
         self.expect_p("(")
-        var = _rl(self.var())
+        var = self.var()
         t = self.peek()
         if not (t.kind == "PNAME" and t.text == ":" and self.at_p("=", k=1)):
             self.err("expected ':='")
@@ -237,17 +196,17 @@ class _SrlParser(_Parser):
         self.expect_kw("WHERE")
         data = self.accept_kw("DATA")
         body = self._body()
-        return srl_ast._Rule(head=head, body=body, evaldata=not data, id=_rl(rule_id) if rule_id is not None else None)
+        return srl_ast._Rule(head=head, body=body, evaldata=not data, id=rule_id)
 
     def parse_ruleset(self) -> srl_ast.RuleSet:
-        imports: list[URIRef] = []
+        imports: list[ox.NamedNode] = []
         rules: list[srl_ast._Rule] = []
         data_blocks: list[srl_ast._Data] = []
         while self.peek().kind != "EOF":
             if self.at_kw("BASE", "PREFIX", "VERSION"):
                 self.parse_prologue()
             elif self.accept_kw("IMPORTS"):
-                imports.append(_rl(self.iri()))
+                imports.append(self.iri())
             elif self.at_kw("RULE"):
                 rules.append(self._rule())
             elif self.at_kw("DATA"):
@@ -266,11 +225,9 @@ def parse_srl(text: str, base: str | None = None) -> srl_ast.RuleSet:
     Raises:
         SRLParseError: For a syntax error, an undeclared prefix, or a property path SRL does not allow.
     """
-    from ._syntax_checks import reject_surrogate_escapes
     from .parse_sparql import SparqlSyntaxError as _Err
 
     try:
-        reject_surrogate_escapes(text)
         return _SrlParser(text, base).parse_ruleset()
     except _Err as exc:
         raise _srl_error(str(exc), exc) from exc

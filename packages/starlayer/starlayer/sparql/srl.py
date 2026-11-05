@@ -13,19 +13,15 @@ Manchester's tree edits) - they're inference rules built directly out of
 SPARQL triple patterns/filter expressions, run *against* a graph. That's a
 SPARQL-adjacent artifact, and it can't cleanly separate from
 ``starlayer.sparql``'s shared internals the way Manchester's syntax-tree
-module could: ``_encode``/``_decode``/``_new_tree_graph`` (``to_rdf.py``/
-``from_rdf.py``) are reused
+module could: the term and expression encoder of ``parse_sparql`` is reused
 directly below, not reimplemented - moving this module out of
-``starlayer.sparql`` would mean forking that machinery. Staying here means
-every cross-reference below is an ordinary same-package import, not a
-cross-package one - no circular-import discipline needed, unlike
-``starontology.manchester``'s deferred ``starlayer.graph`` imports.
+``starlayer.sparql`` would mean forking that machinery.
 
 Six entry points, forming two independent round trips (text<->tree-RDF,
 text<->RuleSet) plus a third already covered by the first two composed
 (tree-RDF<->RuleSet):
 
-- ``srl_parse_to_tree(text, base=None) -> (Graph, root)`` - SRL text straight
+- ``srl_parse_to_tree(text, base=None) -> (graph, root)`` - SRL text straight
   to its ``srl:``-encoded tree-RDF. Composes ``parse_ruleset`` +
   ``ruleset_to_tree``.
 - ``srl_tree_to_text(graph, root) -> str`` - the inverse. Composes
@@ -45,7 +41,7 @@ text<->RuleSet) plus a third already covered by the first two composed
 - ``tree_to_ruleset(graph, root) -> RuleSet`` - decode ``srl:``-encoded
   tree-RDF into a real ``RuleSet``, e.g. after programmatically editing the
   RDF via plain graph surgery.
-- ``ruleset_to_tree(ruleset, graph=None) -> (Graph, root)`` - the inverse:
+- ``ruleset_to_tree(ruleset, graph=None) -> (graph, root)`` - the inverse:
   encode a ``RuleSet`` (e.g. one built or edited programmatically - rules
   combined, a filter rewritten) back to ``srl:`` tree-RDF.
 
@@ -58,10 +54,8 @@ raw ``srl:`` ontology/shapes graphs themselves can already get them from
 ``get_ontology_graph("srl_shacl")``. Exposing a second path to the exact
 same two graphs here would just be another way to do what that one already
 does. ``srl_validate()`` still needs its own private, combined copy
-internally (an ``srl:expr``/``srl:assign`` expression tree is validated by
-the *existing* ``salg:ExpressionShape``, not a separate ``srl:`` expression
-vocabulary - so both the ``srl:`` and ``salg:`` ontology/shapes graphs are
-needed together for RDFS reasoning to resolve that dispatch) - see
+internally (an ``srl:expr``/``srl:assign`` expression tree is validated by the shared ``spexpr:`` expression shapes, so the ``srl:``, ``spexpr:`` and ``sqe:`` ontology/shapes graphs are
+needed together for the RDFS closure to resolve that dispatch) - see
 ``_ontology_graph()``/``_shapes_graph()`` below.
 
 Deliberately outside this module's scope, unchanged, living in their own
@@ -108,20 +102,15 @@ sibling files:
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+from typing import Any
 
-# isort: split
-from rdflib import RDF, BNode, Graph, Namespace, URIRef
-from rdflib.collection import Collection
-from rdflib.namespace import NamespaceManager
-from rdflib.plugins.sparql import algebra
-from rdflib.plugins.sparql.parserutils import CompValue
+import pyoxigraph as ox
 
 from starlayer._ox_out import ox_out
 
+from . import _oxterms as _T
 from . import _srl_ast as srl_ast
-from ._sqe_rdflib import _encode_expr
-from ._sqe_rdflib import expr_text as _sqe_expr_text
+from ._oxterms import NS, RDF
 from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     PlanEdge,
     PlanRule,
@@ -130,12 +119,12 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     RuleSet,
     TriplePattern,
 )
-from .spexpr_codec import _NS_OVERRIDES, _decode, _encode, _new_tree_graph
-from .sqe._vocab_rdflib import SQE as _SQE
+from .parse_sparql import _Encoder, _list, _Sink
 from .srl_semantic_checks import _check_ruleset
 from .triple_term import TripleTermNode
+from .vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
 
-SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
+SRL = NS("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
 # ---------------------------------------------------------------------------
 # srl: vocabulary - field names taken verbatim from the
@@ -150,35 +139,28 @@ _FILTER_ELEMENT = SRL.FilterElement
 _NEGATION_ELEMENT = SRL.NegationElement
 _ASSIGNMENT_ELEMENT = SRL.AssignmentElement
 
-_TRIPLE_SUBJECT = SRL.subject
-_TRIPLE_PREDICATE = SRL.predicate
-_TRIPLE_OBJECT = SRL.object
+_TRIPLE_SUBJECT = SRL["subject"]
+_TRIPLE_PREDICATE = SRL["predicate"]
+_TRIPLE_OBJECT = SRL["object"]
 
-_RULES = SRL.rules
-_DATA = SRL.data
-_IMPORTS = SRL.imports
-_HEAD = SRL.head
-_BODY = SRL.body
-_INNER = SRL.inner
-_TRIPLES = SRL.triples
+_RULES = SRL["rules"]
+_DATA = SRL["data"]
+_IMPORTS = SRL["imports"]
+_HEAD = SRL["head"]
+_BODY = SRL["body"]
+_INNER = SRL["inner"]
+_TRIPLES = SRL["triples"]
 
 # The spec reuses the name "evaldata" for two components (rule.evaldata and
 # negation.evaldata), and "data" for a third (ruleset.data) - each gets its own
 # predicate URI to avoid a same-URI-different-shape collision within one shared
 # graph. The flag is the spec's own: true = match the evaluation graph (plain
 # WHERE / NOT), false = match the base graph only (WHERE DATA / NOT DATA).
-_RULE_EVALDATA_FLAG = SRL.ruleEvaldata
-_RULE_ID = SRL.id
-_EXPR = SRL.expr
-_VAR = SRL.var
-_NEGATION_EVALDATA_FLAG = SRL.negationEvaldata
-
-
-def _merge_into(dst, src):
-    """``dst += src`` for graphs of either kind (the ontology loaders return whatever class ``StarLayerGraph`` is)."""
-    from starlayer.graph.oxgraph._rdflib_bridge import merge_into
-
-    merge_into(dst, src)
+_RULE_EVALDATA_FLAG = SRL["ruleEvaldata"]
+_RULE_ID = SRL["id"]
+_EXPR = SRL["expr"]
+_VAR = SRL["var"]
+_NEGATION_EVALDATA_FLAG = SRL["negationEvaldata"]
 
 
 class SRLError(ValueError):
@@ -214,11 +196,8 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
     """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
 
-    Two-pass, matching rdflib's own ``parseQuery``/``translateQuery`` split:
-    parse raw (leaving prefixed names unresolved), build a real ``Prologue``
-    from the parsed ``BASE``/``PREFIX`` decls and resolve every prefixed/
-    relative name against it in one tree pass, then convert the resolved
-    tree into real ``srl_ast`` dataclasses.
+    The text is read by StarLayer's own SPARQL 1.2 parser (``parse_srl``), with prefixed and relative names resolved
+    against the text's own ``PREFIX`` / ``BASE`` declarations.
 
     A successfully-returned ``RuleSet`` is also guaranteed §4.2 well-formed
     (every filter/assignment/head variable properly bound, no ``SET(...)``
@@ -265,307 +244,319 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
 
 
 # ---------------------------------------------------------------------------
-# RuleSet -> srl: tree-RDF. Every term/expression leaf
-# delegates straight to to_rdf._encode - this only has bespoke logic for
-# the srl:-specific container shapes.
+# RuleSet -> srl: tree-RDF. Every term/expression leaf is written as the sqe: / spexpr: encoder writes it
+# (``parse_sparql._Encoder``); this only has bespoke logic for the srl:-specific container shapes.
 # ---------------------------------------------------------------------------
 
-def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Graph | None = None) -> tuple[Graph, BNode]:
+
+def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None) -> tuple[Any, Any]:
     """Encode ``ruleset`` as ``srl:`` tree-RDF.
 
-    Useful on its own (not just inside ``srl_parse_to_tree``) for a ``RuleSet``
-    built or edited programmatically - rules combined, a filter rewritten -
-    that now needs to go back into RDF, e.g. for storage or SHACL
-    validation, without round-tripping through text.
+    Useful on its own (not just inside ``srl_parse_to_tree``) for a ``RuleSet`` built or edited programmatically - rules
+    combined, a filter rewritten - that now needs to go back into RDF, e.g. for storage or SHACL validation, without
+    round-tripping through text.
 
     Args:
         ruleset: The RuleSet to encode.
-        graph: Graph to add the encoding to (an ``StarLayerGraph``, which gets pyoxigraph terms, or an rdflib graph); a fresh
-            ``rdflib.Graph`` if not given.
+        graph: Graph to add the encoding to (an ``StarLayerGraph``, which gets pyoxigraph terms, or an rdflib graph, which
+            gets rdflib terms and needs rdflib); a fresh ``StarLayerGraph`` if not given.
 
     Returns:
-        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node (a pyoxigraph term for an ``StarLayerGraph``).
+        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node (a pyoxigraph term for a ``StarLayerGraph``).
     """
+    sink = _Sink()
+    root = _Writer(sink).ruleset(ruleset)
+    if graph is None:
+        from starlayer.graph.oxgraph.core import StarLayerGraph
+
+        graph = StarLayerGraph(prefixes={})
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    if graph is not None and _ox.is_oxigraph_input(graph):  # an StarLayerGraph target: encode on rdflib terms, then add them to it
-        return _ox.write_boundary(graph, lambda g: _ruleset_to_rdflib_tree(ruleset, _new_tree_graph()))
-    return _ruleset_to_rdflib_tree(ruleset, graph if graph is not None else _new_tree_graph())
+    if _ox.is_oxigraph_input(graph):
+        graph.extend(list(sink))
+        return graph, root
+    for s, p, o in _ox.to_rdflib_triples(sink):
+        graph.add((s, p, o))
+    return graph, _ox.to_rdflib_term(root)
 
 
-def _ruleset_to_rdflib_tree(ruleset: srl_ast.RuleSet, graph: Graph) -> tuple[Graph, BNode]:
-    root = BNode()
-    graph.add((root, RDF.type, _RULE_SET))
-    graph.add((root, _RULES, _rdf_list(graph, [_rule_to_rdf(r, graph) for r in ruleset.rules])))
-    graph.add((root, _DATA, _rdf_list(graph, [_data_to_rdf(d, graph) for d in ruleset.data])))
-    graph.add((root, _IMPORTS, _rdf_list(graph, list(ruleset.imports))))
-    return graph, root
+class _Writer:
+    """The ``srl:`` tree of a rule set, as triples of pyoxigraph terms."""
 
+    def __init__(self, sink: _Sink) -> None:
+        self.g = sink
+        self.enc = _Encoder(sink)
 
-def _rdf_list(graph: Graph, items: list) -> BNode | URIRef:
-    if not items:
-        return RDF.nil
-    list_node = BNode()
-    Collection(graph, list_node, items)
-    return list_node
+    def node(self, value):
+        """One leaf of the tree: a term, a triple term, an expression, or a flag."""
+        if isinstance(value, bool):
+            return _T.boolean(value)
+        return self.enc.term(value)
 
+    def ruleset(self, ruleset: srl_ast.RuleSet):
+        g = self.g
+        root = ox.BlankNode()
+        g.add((root, RDF.type, _RULE_SET))
+        g.add((root, _RULES, _list(g, [self.rule(r) for r in ruleset.rules])))
+        g.add((root, _DATA, _list(g, [self.data(d) for d in ruleset.data])))
+        g.add((root, _IMPORTS, _list(g, list(ruleset.imports))))
+        return root
 
-def _encode_node(value, graph: Graph):
-    """Encode one leaf of the tree: an expression, a triple term, or a plain term/flag.
-
-    Expressions and triple terms are encoded exactly as ``sqe:`` encodes them (``sqe.to_rdf._encode_expr``):
-    after ``simplifyFilters`` collapses rdflib's precedence chains to their minimal form, with triple terms
-    typed ``sqe:TripleTerm`` and aggregates ``spexpr:``, so the tree contains no ``salg:`` term and validates
-    against the ``spexpr:``/``sqe:`` shapes alone. Anything else (an IRI, variable, literal, blank node, a
-    boolean flag) goes through the shared term encoder, with triple terms inside it typed the same way.
-    """
-    if isinstance(value, CompValue):
-        return _encode_expr(algebra.simplifyFilters(value), graph)
-    token = _NS_OVERRIDES.set({"TripleTerm": _SQE})
-    try:
-        return _encode(value, graph)
-    finally:
-        _NS_OVERRIDES.reset(token)
-
-
-def _triple_to_rdf(triple: srl_ast.TriplePattern, graph: Graph) -> BNode:
-    node = BNode()
-    graph.add((node, RDF.type, _TRIPLE_PATTERN))
-    graph.add((node, _TRIPLE_SUBJECT, _encode_node(triple.subject, graph)))
-    graph.add((node, _TRIPLE_PREDICATE, _encode_node(triple.predicate, graph)))
-    graph.add((node, _TRIPLE_OBJECT, _encode_node(triple.object, graph)))
-    return node
-
-
-def _body_element_to_rdf(element: srl_ast.BodyElement, graph: Graph) -> BNode:
-    if isinstance(element, srl_ast.TriplePattern):
-        return _triple_to_rdf(element, graph)
-    if isinstance(element, srl_ast._FilterElement):
-        node = BNode()
-        graph.add((node, RDF.type, _FILTER_ELEMENT))
-        graph.add((node, _EXPR, _encode_node(element.expr, graph)))
+    def triple(self, triple: srl_ast.TriplePattern):
+        g, node = self.g, ox.BlankNode()
+        g.add((node, RDF.type, _TRIPLE_PATTERN))
+        g.add((node, _TRIPLE_SUBJECT, self.node(triple.subject)))
+        g.add((node, _TRIPLE_PREDICATE, self.node(triple.predicate)))
+        g.add((node, _TRIPLE_OBJECT, self.node(triple.object)))
         return node
-    if isinstance(element, srl_ast._AssignmentElement):
-        node = BNode()
-        graph.add((node, RDF.type, _ASSIGNMENT_ELEMENT))
-        graph.add((node, _VAR, _encode_node(element.var, graph)))
-        graph.add((node, _EXPR, _encode_node(element.expr, graph)))
+
+    def body_element(self, element: srl_ast.BodyElement):
+        g = self.g
+        if isinstance(element, srl_ast.TriplePattern):
+            return self.triple(element)
+        node = ox.BlankNode()
+        if isinstance(element, srl_ast._FilterElement):
+            g.add((node, RDF.type, _FILTER_ELEMENT))
+            g.add((node, _EXPR, self.node(element.expr)))
+        elif isinstance(element, srl_ast._AssignmentElement):
+            g.add((node, RDF.type, _ASSIGNMENT_ELEMENT))
+            g.add((node, _VAR, self.node(element.var)))
+            g.add((node, _EXPR, self.node(element.expr)))
+        elif isinstance(element, srl_ast._NegationElement):
+            g.add((node, RDF.type, _NEGATION_ELEMENT))
+            g.add((node, _INNER, _list(g, [self.body_element(e) for e in element.inner])))
+            g.add((node, _NEGATION_EVALDATA_FLAG, self.node(element.evaldata)))
+        else:  # pragma: no cover
+            raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")
         return node
-    if isinstance(element, srl_ast._NegationElement):
-        node = BNode()
-        graph.add((node, RDF.type, _NEGATION_ELEMENT))
-        inner_nodes = [_body_element_to_rdf(e, graph) for e in element.inner]
-        graph.add((node, _INNER, _rdf_list(graph, inner_nodes)))
-        graph.add((node, _NEGATION_EVALDATA_FLAG, _encode_node(element.evaldata, graph)))
+
+    def rule(self, rule: srl_ast._Rule):
+        g, node = self.g, ox.BlankNode()
+        g.add((node, RDF.type, _RULE))
+        g.add((node, _HEAD, _list(g, [self.triple(t) for t in rule.head])))
+        g.add((node, _BODY, _list(g, [self.body_element(e) for e in rule.body])))
+        g.add((node, _RULE_EVALDATA_FLAG, self.node(rule.evaldata)))
+        if rule.id is not None:
+            g.add((node, _RULE_ID, rule.id))
         return node
-    raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")  # pragma: no cover
 
-
-def _rule_to_rdf(rule: srl_ast._Rule, graph: Graph) -> BNode:
-    node = BNode()
-    graph.add((node, RDF.type, _RULE))
-    head_nodes = [_triple_to_rdf(t, graph) for t in rule.head]
-    graph.add((node, _HEAD, _rdf_list(graph, head_nodes)))
-    body_nodes = [_body_element_to_rdf(e, graph) for e in rule.body]
-    graph.add((node, _BODY, _rdf_list(graph, body_nodes)))
-    graph.add((node, _RULE_EVALDATA_FLAG, _encode_node(rule.evaldata, graph)))
-    if rule.id is not None:
-        graph.add((node, _RULE_ID, rule.id))
-    return node
-
-
-def _data_to_rdf(data: srl_ast._Data, graph: Graph) -> BNode:
-    node = BNode()
-    graph.add((node, RDF.type, _DATA_BLOCK))
-    triple_nodes = [_triple_to_rdf(t, graph) for t in data.triples]
-    graph.add((node, _TRIPLES, _rdf_list(graph, triple_nodes)))
-    return node
+    def data(self, data: srl_ast._Data):
+        g, node = self.g, ox.BlankNode()
+        g.add((node, RDF.type, _DATA_BLOCK))
+        g.add((node, _TRIPLES, _list(g, [self.triple(t) for t in data.triples])))
+        return node
 
 
 # ---------------------------------------------------------------------------
-# srl: tree-RDF -> RuleSet - the inverse, same
-# "bespoke containers, delegate leaves" split.
+# srl: tree-RDF -> RuleSet - the inverse, same "bespoke containers, delegate leaves" split.
 # ---------------------------------------------------------------------------
 
 class SRLDecodeError(SRLError):
     """Raised for an ``srl:`` graph shape ``tree_to_ruleset`` doesn't recognize."""
 
 
-def _read_rdf_list(node, graph: Graph) -> list:
-    if node == RDF.nil:
+def _read_list(node, graph) -> list:
+    if node is None or node == RDF.nil:
         return []
-    return list(Collection(graph, node))
+    return list(graph.items(node))
 
 
-def _decode_triple(node, graph: Graph) -> srl_ast.TriplePattern:
+def _decode_expr(node, graph):
+    """An expression leaf: a term as it is, an ``spexpr:`` node as the parser's tree of the text the node renders to."""
+    from .parse_sparql import SparqlSyntaxError, _Parser
+    from .parse_srl import _convert
+    from .sqe.expr_text import expr_text
+
+    if node is None:
+        return None
+    if isinstance(node, ox.BlankNode) and (node, RDF.type, None) in graph:
+        text = expr_text(node, graph, {})
+        try:
+            parser = _Parser(text, None)
+            expr = parser.expression()
+            if parser.peek().kind != "EOF":
+                raise SparqlSyntaxError("trailing text after the expression")
+        except SparqlSyntaxError as exc:
+            raise SRLDecodeError(f"srl: cannot read the expression {text!r}: {exc}") from exc
+        return _convert(expr)
+    return _decode_term(node, graph)
+
+
+def _decode_term(node, graph):
+    from .sqe.vocab import (
+        TRIPLE_PATTERN_OBJECT,
+        TRIPLE_PATTERN_PREDICATE,
+        TRIPLE_PATTERN_SUBJECT,
+        TRIPLE_TERM,
+    )
+
+    if node is None:
+        return None
+    if isinstance(node, ox.Literal):
+        if node.datatype == VARIABLE_DATATYPE:
+            return ox.Variable(node.value)
+        if node.datatype == PY_STR_DATATYPE:
+            return node.value
+        return node
+    if isinstance(node, ox.BlankNode) and (node, RDF.type, TRIPLE_TERM) in graph:
+        parts = {
+            name: _decode_term(graph.value(node, predicate), graph)
+            for name, predicate in (
+                ("subject", TRIPLE_PATTERN_SUBJECT),
+                ("predicate", TRIPLE_PATTERN_PREDICATE),
+                ("object", TRIPLE_PATTERN_OBJECT),
+            )
+        }
+        return TripleTermNode("TripleTerm", **parts).validate()
+    return node
+
+
+def _decode_triple(node, graph) -> srl_ast.TriplePattern:
     return srl_ast.TriplePattern(
-        subject=_decode(graph.value(node, _TRIPLE_SUBJECT), graph),
-        predicate=_decode(graph.value(node, _TRIPLE_PREDICATE), graph),
-        object=_decode(graph.value(node, _TRIPLE_OBJECT), graph),
+        subject=_decode_term(graph.value(node, _TRIPLE_SUBJECT), graph),
+        predicate=_decode_term(graph.value(node, _TRIPLE_PREDICATE), graph),
+        object=_decode_term(graph.value(node, _TRIPLE_OBJECT), graph),
     )
 
 
-def _node_type(node, graph: Graph):
-    return graph.value(node, RDF.type)
+def _is_true(node) -> bool:
+    return isinstance(node, ox.Literal) and node.value in ("true", "1")
 
 
-def _decode_body_element(node, graph: Graph) -> srl_ast.BodyElement:
-    t = _node_type(node, graph)
+def _decode_body_element(node, graph) -> srl_ast.BodyElement:
+    t = graph.value(node, RDF.type)
     if t == _TRIPLE_PATTERN:
         return _decode_triple(node, graph)
     if t == _FILTER_ELEMENT:
-        return srl_ast._FilterElement(expr=_decode(graph.value(node, _EXPR), graph))
+        return srl_ast._FilterElement(expr=_decode_expr(graph.value(node, _EXPR), graph))
     if t == _ASSIGNMENT_ELEMENT:
         return srl_ast._AssignmentElement(
-            var=_decode(graph.value(node, _VAR), graph),
-            expr=_decode(graph.value(node, _EXPR), graph),
+            var=_decode_term(graph.value(node, _VAR), graph),
+            expr=_decode_expr(graph.value(node, _EXPR), graph),
         )
     if t == _NEGATION_ELEMENT:
-        inner = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _INNER), graph)]
-        evaldata = bool(_decode(graph.value(node, _NEGATION_EVALDATA_FLAG), graph))
-        return srl_ast._NegationElement(inner=inner, evaldata=evaldata)
+        inner = [_decode_body_element(n, graph) for n in _read_list(graph.value(node, _INNER), graph)]
+        return srl_ast._NegationElement(inner=inner, evaldata=_is_true(graph.value(node, _NEGATION_EVALDATA_FLAG)))
     raise SRLDecodeError(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
 
 
-def _decode_rule(node, graph: Graph) -> srl_ast._Rule:
-    head = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, _HEAD), graph)]
-    body = [_decode_body_element(n, graph) for n in _read_rdf_list(graph.value(node, _BODY), graph)]
-    evaldata = bool(_decode(graph.value(node, _RULE_EVALDATA_FLAG), graph))
-    rule_id = graph.value(node, _RULE_ID)
-    return srl_ast._Rule(head=head, body=body, evaldata=evaldata, id=rule_id)
+def _decode_rule(node, graph) -> srl_ast._Rule:
+    head = [_decode_triple(n, graph) for n in _read_list(graph.value(node, _HEAD), graph)]
+    body = [_decode_body_element(n, graph) for n in _read_list(graph.value(node, _BODY), graph)]
+    evaldata = _is_true(graph.value(node, _RULE_EVALDATA_FLAG))
+    return srl_ast._Rule(head=head, body=body, evaldata=evaldata, id=graph.value(node, _RULE_ID))
 
 
-def _decode_data(node, graph: Graph) -> srl_ast._Data:
-    triples = [_decode_triple(n, graph) for n in _read_rdf_list(graph.value(node, _TRIPLES), graph)]
-    return srl_ast._Data(triples=triples)
+def _decode_data(node, graph) -> srl_ast._Data:
+    return srl_ast._Data(triples=[_decode_triple(n, graph) for n in _read_list(graph.value(node, _TRIPLES), graph)])
 
 
-def tree_to_ruleset(graph: Graph, root) -> srl_ast.RuleSet:
+def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
     """Decode the ``srl:RuleSet`` node ``root`` in ``graph`` (as returned by
     ``srl_parse_to_tree``/``ruleset_to_tree``, or an LLM-authored ``srl:`` graph
     not yet decoded) back into a real ``srl_ast.RuleSet``."""
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from .sqe._memtree import as_engine_graph
 
-    graph, root = _ox.read_boundary(graph, root)  # an StarLayerGraph is read as a snapshot of rdflib terms
-    rules = [_decode_rule(n, graph) for n in _read_rdf_list(graph.value(root, _RULES), graph)]
-    data = [_decode_data(n, graph) for n in _read_rdf_list(graph.value(root, _DATA), graph)]
-    imports = list(_read_rdf_list(graph.value(root, _IMPORTS), graph))
+    graph, root = as_engine_graph(graph, root)
+    rules = [_decode_rule(n, graph) for n in _read_list(graph.value(root, _RULES), graph)]
+    data = [_decode_data(n, graph) for n in _read_list(graph.value(root, _DATA), graph)]
+    imports = _read_list(graph.value(root, _IMPORTS), graph)
     return srl_ast.RuleSet(rules=rules, data=data, imports=imports)
 
 
 # ---------------------------------------------------------------------------
-# RuleSet -> SRL text - the inverse of parse_ruleset,
-# working directly on the dataclass tree, no RDF involved.
+# RuleSet -> SRL text - the inverse of parse_ruleset, working directly on the dataclass tree, no RDF involved.
 # ---------------------------------------------------------------------------
 
-def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: NamespaceManager | None = None) -> str:
+def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: Any = None) -> str:
     """Render ``ruleset`` back into SRL text - ``IMPORTS``/``DATA`` blocks
     first, then each ``RULE``, in the order they appear on the dataclass
     tree.
 
-    **No original ``PREFIX``/``BASE`` declarations are preserved** - like
-    rdflib's own ``translateAlgebra``, the parsed syntax tree only ever
+    **No original ``PREFIX``/``BASE`` declarations are preserved**: the parsed syntax tree only ever
     holds fully-resolved absolute IRIs; prefix declarations are consumed
     during parsing and never stored.
 
     Args:
         ruleset: The RuleSet to render.
-        namespace_manager: If given (an rdflib ``NamespaceManager``, a prefix -> namespace ``dict`` or an ``StarLayerGraph``), render
-            prefixed names instead of full
+        namespace_manager: If given (a prefix -> namespace ``dict``, a ``StarLayerGraph`` (its ``prefixes``) or an rdflib
+            ``NamespaceManager``), render prefixed names instead of full
             ``<...>`` IRIs wherever a match exists - purely cosmetic, the
             resulting text still parses identically either way.
 
     Returns:
         The rendered SRL text.
     """
-    namespace_manager = _namespace_manager_of(namespace_manager)
-    lines = [f"IMPORTS {_term_text(iri_, namespace_manager)}" for iri_ in ruleset.imports]
-    lines += [_data_text(block, namespace_manager) for block in ruleset.data]
-    lines += [_rule_text(rule, namespace_manager) for rule in ruleset.rules]
+    prefixes = _prefixes_of(namespace_manager)
+    lines = [f"IMPORTS {_term_text(iri_, prefixes)}" for iri_ in ruleset.imports]
+    lines += [_data_text(block, prefixes) for block in ruleset.data]
+    lines += [_rule_text(rule, prefixes) for rule in ruleset.rules]
     return "\n".join(lines)
 
 
-def _namespace_manager_of(source):
-    """``source`` as an rdflib ``NamespaceManager`` (or ``None``): a prefix -> namespace mapping, or an ``StarLayerGraph`` (its
-    ``prefixes``), is turned into one; a ``NamespaceManager`` passes through."""
+def _prefixes_of(source) -> dict[str, str]:
+    """``source`` as a prefix -> namespace dict: a dict, a ``StarLayerGraph`` (its ``prefixes``) or anything with
+    ``namespaces()`` (an rdflib ``NamespaceManager``); ``None`` is no prefixes."""
     if source is None:
-        return None
-    from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
-
-    prefixes = getattr(source, "prefixes", None) if is_oxigraph_input(source) else source if isinstance(source, dict) else None
-    if prefixes is None:
-        return source
-    from rdflib import Graph as _Graph
-
-    graph = _Graph(bind_namespaces="none")
-    for prefix, namespace in prefixes.items():
-        graph.bind(prefix, str(namespace))
-    return graph.namespace_manager
+        return {}
+    prefixes = source if isinstance(source, dict) else getattr(source, "prefixes", None)
+    if prefixes is None and hasattr(source, "namespaces"):
+        prefixes = dict(source.namespaces())
+    return {str(k): str(v) for k, v in (prefixes or {}).items()}
 
 
-def _term_text(term, namespace_manager: NamespaceManager | None) -> str:
-    from rdflib import BNode as _BNode
-    from rdflib import Literal as _Literal
-    from rdflib import URIRef as _URIRef
-    from rdflib import Variable as _Variable
+def _term_text(term, prefixes: dict) -> str:
+    from .sqe.expr_text import expr_text
 
-    if isinstance(term, _Variable):
-        return "?" + str(term)
-    if isinstance(term, (_URIRef, _BNode, _Literal)):
-        return term.n3(namespace_manager) if namespace_manager is not None else term.n3()
+    if isinstance(term, ox.Variable):
+        return "?" + term.value
+    if isinstance(term, (ox.NamedNode, ox.Literal)):
+        return expr_text(term, None, prefixes)
+    if isinstance(term, ox.BlankNode):
+        return "_:" + _T.bnode_label(term)
     if isinstance(term, TripleTermNode):
-        s, p, o = (_term_text(term.get(part), namespace_manager) for part in ("subject", "predicate", "object"))
+        s, p, o = (_term_text(term.get(part), prefixes) for part in ("subject", "predicate", "object"))
         return f"<<( {s} {p} {o} )>>"
     raise NotImplementedError(f"starlayer.sparql.srl: no text rendering for term {term!r}")
 
 
-def _triple_text(triple: srl_ast.TriplePattern, namespace_manager: NamespaceManager | None) -> str:
-    subject = _term_text(triple.subject, namespace_manager)
-    predicate = _term_text(triple.predicate, namespace_manager)
-    obj = _term_text(triple.object, namespace_manager)
-    return f"{subject} {predicate} {obj} ."
+def _triple_text(triple: srl_ast.TriplePattern, prefixes: dict) -> str:
+    return f"{_term_text(triple.subject, prefixes)} {_term_text(triple.predicate, prefixes)} {_term_text(triple.object, prefixes)} ."
 
 
-def _block_text(triples: list[srl_ast.TriplePattern], namespace_manager: NamespaceManager | None) -> str:
-    return " ".join(_triple_text(t, namespace_manager) for t in triples)
+def _block_text(triples: list[srl_ast.TriplePattern], prefixes: dict) -> str:
+    return " ".join(_triple_text(t, prefixes) for t in triples)
 
 
-def _expr_text(expr, namespace_manager: NamespaceManager | None) -> str:
-    """An expression as SPARQL text, rendered by ``sqe:``'s renderer from the same tree the encoder builds.
+def _expr_text(expr, prefixes: dict) -> str:
+    """An expression as SPARQL text, rendered by ``sqe:``'s renderer from the same tree the encoder builds."""
+    from .expr_text import render_expression
 
-    (The older route, rdflib's ``translateAlgebra`` placeholder renderer, printed ``{Function}``,
-    ``{UnaryMinus}`` and ``{TripleTerm}`` for calls, unary operators and triple terms, and dropped the
-    parentheses that make ``(?y + 1) * 2`` mean what it says.)
-    """
-    graph = Graph()
-    node = _encode_expr(algebra.simplifyFilters(expr), graph)
-    prefixes = {prefix: str(namespace) for prefix, namespace in namespace_manager.namespaces()} if namespace_manager is not None else {}
-    return _sqe_expr_text(node, graph, prefixes)
+    return render_expression(expr, prefixes)
 
 
-def _body_element_text(element: srl_ast.BodyElement, namespace_manager: NamespaceManager | None) -> str:
+def _body_element_text(element: srl_ast.BodyElement, prefixes: dict) -> str:
     if isinstance(element, srl_ast.TriplePattern):
-        return _triple_text(element, namespace_manager)
+        return _triple_text(element, prefixes)
     if isinstance(element, srl_ast._FilterElement):
-        return f"FILTER({_expr_text(element.expr, namespace_manager)})"
+        return f"FILTER({_expr_text(element.expr, prefixes)})"
     if isinstance(element, srl_ast._AssignmentElement):
-        var = _term_text(element.var, namespace_manager)
-        return f"SET ({var} := {_expr_text(element.expr, namespace_manager)})"
+        return f"SET ({_term_text(element.var, prefixes)} := {_expr_text(element.expr, prefixes)})"
     if isinstance(element, srl_ast._NegationElement):
-        inner = " ".join(_body_element_text(e, namespace_manager) for e in element.inner)
+        inner = " ".join(_body_element_text(e, prefixes) for e in element.inner)
         data = "" if element.evaldata else "DATA "
         return f"NOT {data}{{ {inner} }}"
     raise NotImplementedError(f"starlayer.sparql.srl: no text rendering yet for body element {element!r}")
 
 
-def _data_text(data: srl_ast._Data, namespace_manager: NamespaceManager | None) -> str:
-    return f"DATA {{ {_block_text(data.triples, namespace_manager)} }}"
+def _data_text(data: srl_ast._Data, prefixes: dict) -> str:
+    return f"DATA {{ {_block_text(data.triples, prefixes)} }}"
 
 
-def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) -> str:
-    rule_id = f"{_term_text(rule.id, namespace_manager)} " if rule.id is not None else ""
-    head = _block_text(rule.head, namespace_manager)
-    body = " ".join(_body_element_text(e, namespace_manager) for e in rule.body)
+def _rule_text(rule: srl_ast._Rule, prefixes: dict) -> str:
+    rule_id = f"{_term_text(rule.id, prefixes)} " if rule.id is not None else ""
+    head = _block_text(rule.head, prefixes)
+    body = " ".join(_body_element_text(e, prefixes) for e in rule.body)
     data = "" if rule.evaldata else "DATA "
     return f"RULE {rule_id}{{ {head} }} WHERE {data}{{ {body} }}"
 
@@ -575,14 +566,14 @@ def _rule_text(rule: srl_ast._Rule, namespace_manager: NamespaceManager | None) 
 # srl_parse_to_tree()/srl_tree_to_text() naming.
 # ---------------------------------------------------------------------------
 
-def srl_parse_to_tree(text: str, base: str | None = None, graph: Graph | None = None) -> tuple[Graph, BNode]:
+def srl_parse_to_tree(text: str, base: str | None = None, graph: Any = None) -> tuple[Any, Any]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
     ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (an ``StarLayerGraph``, which gives pyoxigraph terms,
-    or an rdflib graph) is where the tree is written, a fresh ``rdflib.Graph`` when omitted."""
+    or an rdflib graph) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
     return ruleset_to_tree(parse_ruleset(text, base), graph)
 
 
-def srl_tree_to_text(graph: Graph, root) -> str:
+def srl_tree_to_text(graph: Any, root) -> str:
     """The inverse of ``srl_parse_to_tree``. Composes ``tree_to_ruleset`` +
     ``ruleset_to_text``."""
     return ruleset_to_text(tree_to_ruleset(graph, root))
@@ -594,8 +585,8 @@ def srl_tree_to_text(graph: Graph, root) -> str:
 
 
 def _rename_blank_nodes(term, mapping: dict):
-    if isinstance(term, BNode):
-        return mapping.setdefault(term, BNode())
+    if isinstance(term, ox.BlankNode):
+        return mapping.setdefault(term, ox.BlankNode())
     if isinstance(term, TripleTermNode):
         parts = {k: _rename_blank_nodes(term.get(k), mapping) for k in ("subject", "predicate", "object")}
         return TripleTermNode("TripleTerm", **parts)
@@ -654,17 +645,17 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
         else:
             data = list(rs.data)
         for import_iri in rs.imports:
-            if str(import_iri) in visited:
+            if _T.iri_text(import_iri) in visited:
                 continue
-            visited.add(str(import_iri))
+            visited.add(_T.iri_text(import_iri))
             try:
-                loaded = loader(str(import_iri))
+                loaded = loader(_T.iri_text(import_iri))
             except Exception as exc:
                 reason = "not found" if isinstance(exc, KeyError) else f"{type(exc).__name__}: {exc}"
                 raise SRLImportError(f"SRL: cannot read the import <{import_iri}>: {reason}") from exc
             if isinstance(loaded, str):
                 try:
-                    loaded = parse_ruleset(loaded, base=str(import_iri))
+                    loaded = parse_ruleset(loaded, base=_T.iri_text(import_iri))
                 except SRLParseError as exc:
                     raise SRLImportError(f"SRL: the import <{import_iri}> is not a valid rule set: {exc}") from exc
             sub_rules, sub_data = _merge(loaded, renamed=True)
@@ -682,20 +673,20 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
 # docstring for why.
 # ---------------------------------------------------------------------------
 
-def _ontology_graph() -> Graph:
+def _ontology_graph() -> Any:
     """The ``srl:`` RDFS ontology, combined with the shared ``spexpr:`` expression ontology and ``sqe:``'s
     (which supplies ``sqe:TripleTerm``) - private: see module docstring for why this isn't exposed publicly.
 
     All three must be loaded together: this module's own SHACL shapes use ``sh:class spexpr:Expression`` and
     ``spexpr:Variable``, and the RDFS subclass entailment those checks depend on only resolves correctly when
-    the ontologies are in the same graph. Nothing here comes from ``salg:``: SRL is published with ``spexpr:``
-    and ``sqe:``, not with the algebra-tree encoding.
+    the ontologies are in the same graph. SRL is published with ``spexpr:`` and ``sqe:``.
 
     Returns:
         A fresh combined ontology graph.
     """
     from starlayer import starontology
 
+    from .expr_validation import _merge_into
     from .expr_validation import ontology_graph as spexpr_ontology_graph
 
     g = spexpr_ontology_graph()
@@ -704,11 +695,12 @@ def _ontology_graph() -> Graph:
     return g
 
 
-def _shapes_graph() -> Graph:
+def _shapes_graph() -> Any:
     """A fresh graph of the ``srl:`` shapes, combined with the shared ``spexpr:`` expression shapes and
-    ``sqe:``'s (the triple-term shapes) - private, same reasoning as ``_ontology_graph()`` above. No ``salg:``."""
+    ``sqe:``'s (the triple-term shapes) - private, same reasoning as ``_ontology_graph()`` above."""
     from starlayer import starontology
 
+    from .expr_validation import _merge_into
     from .expr_validation import shapes_graph as spexpr_shapes_graph
 
     g = spexpr_shapes_graph()
@@ -717,16 +709,19 @@ def _shapes_graph() -> Graph:
     return g
 
 
-_validation_graphs_cache: tuple[Graph, Graph] | None = None
+_validation_graphs_cache: tuple[Any, Any, Any] | None = None
 
 
-def _validation_graphs() -> tuple[Graph, Graph]:
-    """The ``(shapes, ontology)`` graphs ``srl_validate`` uses, built once and
+def _validation_graphs() -> tuple[Any, Any, Any]:
+    """The ``(shapes, ontology, closed schema maps)`` ``srl_validate`` uses, built once and
     reused: validation does not modify them, and building them costs about 20 ms
     per call."""
     global _validation_graphs_cache
     if _validation_graphs_cache is None:
-        _validation_graphs_cache = (_shapes_graph(), _ontology_graph())
+        from .expr_validation import rdfs_schema
+
+        ontology = _ontology_graph()
+        _validation_graphs_cache = (_shapes_graph(), ontology, rdfs_schema(ontology))
     return _validation_graphs_cache
 
 
@@ -737,14 +732,14 @@ def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
     conforms, report_graph, report_text = srl_validate(graph)
     if conforms:
         return
-    shacl_message = Namespace("http://www.w3.org/ns/shacl#").resultMessage
-    messages = sorted({str(m) for m in report_graph.objects(None, shacl_message)})
+    shacl_message = ox.NamedNode("http://www.w3.org/ns/shacl#resultMessage")
+    messages = sorted({m.value for m in report_graph.objects(None, shacl_message)})
     detail = "; ".join(messages) if messages else report_text.strip().splitlines()[0]
     raise SRLParseError(f"SRL: rule set does not conform to the srl: shapes: {detail}")
 
 
 @ox_out("data_graph")
-def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
+def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """Validate ``data_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
     shapes.
@@ -764,13 +759,15 @@ def srl_validate(data_graph: Graph) -> tuple[bool, Graph, str]:
     """
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
-    from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 
+    from .expr_validation import rdfs_entailed_copy
+    from .sqe._memtree import as_engine_graph
+
+    shapes, _ontology, schema = _validation_graphs()
+    data_graph, _ = as_engine_graph(data_graph)
     result = starlayer.shacl.validate(
-        data_graph,
-        shacl_graph=_validation_graphs()[0],
-        ont_graph=_validation_graphs()[1],
-        inference=ENTAILMENT.RDFS,
+        rdfs_entailed_copy(data_graph, schema),  # the RDFS closure the shapes rely on, done natively
+        shacl_graph=shapes,
         invalid_terms="lenient",  # query / ontology trees hold relative IRIs: opaque terms to the shapes
         advanced=True,
         max_validation_depth=100,

@@ -20,7 +20,7 @@ PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 RULE { ?x :exposedTo ?v } WHERE { ?x :hasVulnerability ?v . }
 RULE { ?x :exposedTo ?v } WHERE { ?x :dependsOn ?y . ?y :exposedTo ?v . }
 RULE { ?x :status :criticallyExposed }
-WHERE { ?x :exposedTo ?v . ?v :severity ?s . FILTER(?s >= 9.0) }
+WHERE { ?x :exposedTo ?v . ?v :severity ?s . FILTER(?s >= 9.5) }
 RULE { ?x :status :safeToDeploy }
 WHERE { ?x rdf:type :Component . NOT { ?x :status :criticallyExposed } }
 RULE { [] rdf:type :Notification ; :concerns ?x }
@@ -53,13 +53,13 @@ def test_data_block_roundtrips():
 def test_imports_roundtrips():
     text = "IMPORTS <http://example.org/other-ruleset>\nPREFIX : <http://example.org/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y . }"
     rs, rs2, _ = _roundtrip(text)
-    assert rs2.imports == rs.imports == [__import__("rdflib").URIRef("http://example.org/other-ruleset")]
+    assert rs2.imports == rs.imports == [__import__("pyoxigraph").NamedNode("http://example.org/other-ruleset")]
 
 
 def test_assignment_and_filter_expression_roundtrip():
     text = """
     PREFIX : <http://example.org/>
-    RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.0) }
+    RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.5) }
     """
     rs, rs2, _ = _roundtrip(text)
     assert rs == rs2
@@ -90,7 +90,7 @@ def test_blank_node_identity_preserved_across_roundtrip():
 
 
 def test_root_typed_as_ruleset():
-    from rdflib import RDF
+    from starlayer.sparql._oxterms import RDF
     from starlayer.sparql.srl import SRL
 
     rs = parse_ruleset("PREFIX : <http://example.org/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y . }")

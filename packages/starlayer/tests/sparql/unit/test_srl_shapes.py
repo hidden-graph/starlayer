@@ -174,7 +174,7 @@ def test_a_valid_rule_set_passes_the_shape_check_at_parse_time():
 def test_validating_does_not_change_the_cached_shapes_graphs():
     from starlayer.sparql import srl
 
-    shapes, ontology = srl._validation_graphs()
+    shapes, ontology, _schema = srl._validation_graphs()
     before = (len(shapes), len(ontology))
     srl.parse_ruleset(
         "PREFIX : <http://example.org/>\nRULE { ?x :b ?y } WHERE { ?x :a ?y }"

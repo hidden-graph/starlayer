@@ -1,3 +1,4 @@
+import pytest
 """Tests for starlayer.sparql.srl.parse_ruleset - SRL text
 syntax parsing (WD-sparql12-rl-20260919 §7.6 grammar), Phase 1 of the SRL
 implementation plan (see docs/working/archive/functionality-overview.md).
@@ -10,8 +11,8 @@ here would propagate silently into that later test's own "matches the
 spec's stated output" assertion.
 """
 
-import pytest
-from rdflib import RDF, BNode, Literal, URIRef, Variable
+import pyoxigraph as ox
+from starlayer.sparql._oxterms import RDF
 from starlayer.sparql._srl_ast import (
     _AssignmentElement as AssignmentElement,
 )
@@ -26,6 +27,8 @@ from starlayer.sparql.srl import (
     TriplePattern,
     parse_ruleset,
 )
+
+BNode, Literal, URIRef, Variable = ox.BlankNode, ox.Literal, ox.NamedNode, ox.Variable
 
 EX = "http://example.org/"
 
@@ -78,18 +81,12 @@ def test_r3_filter_element():
     assert isinstance(rule.body[1], TriplePattern)
     filter_elt = rule.body[2]
     assert isinstance(filter_elt, FilterElement)
-    # The expression is a real rdflib Expr tree - reused as-is (see
-    # srl.py's docstring for why no bespoke SRL expression AST
-    # exists); spot-check it evaluates as expected rather than trying to
-    # match its internal CompValue shape exactly.
-    from rdflib.plugins.sparql.evaluate import _ebv
-    from rdflib.plugins.sparql.sparql import FrozenBindings, QueryContext
+    # The expression is the parser's own tree; spot-check it evaluates as expected (through the evaluator's expression path)
+    from starlayer.sparql.srl_eval import _eval_ebv
 
-    ctx = QueryContext()
-    c = FrozenBindings(ctx, {Variable("s"): Literal(9.5)})
-    assert _ebv(filter_elt.expr, c) is True
-    c2 = FrozenBindings(ctx, {Variable("s"): Literal(1.0)})
-    assert _ebv(filter_elt.expr, c2) is False
+    xsd = "http://www.w3.org/2001/XMLSchema#"
+    assert _eval_ebv(filter_elt.expr, {Variable("s"): Literal("9.5", datatype=URIRef(xsd + "double"))}) is True
+    assert _eval_ebv(filter_elt.expr, {Variable("s"): Literal("1.0", datatype=URIRef(xsd + "double"))}) is False
 
 
 def test_r4_negation_element_body_restricted_shape():
