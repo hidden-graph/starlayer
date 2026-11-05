@@ -19,7 +19,7 @@ ql:call-chain-from a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-what-s-the-call-chain-from-entry ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of the starting function or method" ;
-            slkg:paramExample "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer" ;
+            slkg:paramExample "starlayer.graph.oxgraph.core._Base.infer" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:call-chain-from-tree .
@@ -38,7 +38,7 @@ ql:callees-of a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-what-functions-methods-does-function-x-call ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a function or method" ;
-            slkg:paramExample "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer" ;
+            slkg:paramExample "starlayer.graph.oxgraph.core._Base.infer" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:callees-of-tree .
@@ -96,7 +96,7 @@ ql:capability-of-symbol a slkg:NamedQuery ;
     slkg:aboutTopic ql:topic-capabilities ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of the implementing symbol" ;
-            slkg:paramExample "starlayer.graph.graph.starlayer_graph.StarLayerGraph" ;
+            slkg:paramExample "starlayer.graph.oxgraph.core.StarLayerGraph" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:capability-of-symbol-tree .
@@ -191,7 +191,7 @@ ql:members-of-class a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-what-s-the-public-api-surface-of ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a class" ;
-            slkg:paramExample "starlayer.graph.graph.starlayer_graph.StarLayerGraph" ;
+            slkg:paramExample "starlayer.graph.oxgraph.core.StarLayerGraph" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:members-of-class-tree .
@@ -227,7 +227,7 @@ ql:parameters-of a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-what-are-a-function-method-s-parameters ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a function or method" ;
-            slkg:paramExample "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer" ;
+            slkg:paramExample "starlayer.graph.oxgraph.core._Base.infer" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:parameters-of-tree .
@@ -323,7 +323,7 @@ ql:upstream-workarounds a slkg:NamedQuery ;
             slkg:paramRequired false ],
         [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a function to ask about" ;
-            slkg:paramExample "starlayer.graph.query.evaluate_patches.patch_evalfilter_forgotten_vars" ;
+            slkg:paramExample "starlayer.sparql._syntax_checks.check_parse_tree" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired false ] ;
     slkg:queryRoot ql:upstream-workarounds-tree .
@@ -335,7 +335,7 @@ ql:who-instantiates a slkg:NamedQuery ;
     slkg:answersCompetencyQuestion ql:cq-which-classes-are-ever-instantiated-and-from ;
     slkg:queryParameter [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a class" ;
-            slkg:paramExample "starlayer.graph.graph.starlayer_graph.StarLayerGraph" ;
+            slkg:paramExample "starlayer.graph.oxgraph.core.StarLayerGraph" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired true ] ;
     slkg:queryRoot ql:who-instantiates-tree .

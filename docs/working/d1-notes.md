@@ -37,5 +37,10 @@ Decisions the docs did not settle; each is the simplest option consistent with `
 15. `README.md` example prints `.value` of the pyoxigraph result terms (`test_readme_example.py` is unchanged).
 16. `scripts/generate_api_docs.py` lost its entries for the deleted `entailment_rdf(s)` modules and the `graph/query` facade.
 17. The 20 notebook links whose cells changed only by the rename were restamped after checking each is a rename-only edit.
+18. **Curated KG files** (`functionality.ttl`, `query-library.ttl`, `notebook-links.ttl`) cite the new identifiers (`oxgraph.core.StarLayerGraph`,
+    `core._Base.<method>` for methods the base class defines); the storage capability text now says one Oxigraph store; the entailment
+    capability cites `oxgraph.helpers.entailment`; `test_a_known_call_edge_is_found` expects `encoding._reencode_tt` as the caller of `tt_hash`.
+19. **Guide 06b is broken** (not fixed, notebooks are not edited beyond the rename): it imports `starlayer.graph.backends.native` for
+    `http_update` / `http_construct` against Fuseki / Oxigraph servers, which D1 deleted. It needs a rewrite or retirement (D3).
 12. **Left alone:** `scripts/b1_*.py` (one-off classification experiments that name the deleted files in strings) and the stray tracked
     file `tests/shacl/integration/test_expression_node_types.py-E`.

@@ -288,9 +288,9 @@ nl:06b-252791c5 a slkg:NotebookExample ;
     slkg:cellId "252791c5" ;
     slkg:cellHash "0285d0e4eebe2756" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
-    rdfs:comment "Connects a StarLayerGraph to a SPARQL endpoint; in rdf-1.2 mode queries go through the native HTTP layer." ;
+    rdfs:comment "Writes a reification into a StarLayerGraph and round-trips it through a SPARQL endpoint (uses the deleted backends.native; guide needs a rewrite)." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.backends.native" .
+        "starlayer.graph.oxgraph.core.StarLayerGraph" .
 
 nl:03-b337c254 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;

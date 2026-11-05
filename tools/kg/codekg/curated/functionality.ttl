@@ -45,7 +45,7 @@ cur:cap-rdf-graph-2 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "storage" ;
     rdfs:comment "In-memory graph management through rdflib using an RDF 1.1 transformation of RDF 1.2 graphs (the default backend)." ;
-    slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph" .
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.core.StarLayerGraph" .
 
 cur:cap-rdf-graph-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -55,8 +55,8 @@ cur:cap-rdf-graph-3 a slkg:Capability ;
     slkg:implementsSpecification tr:rdf12-turtle, tr:rdf12-n-triples, tr:rdf12-xml ;
     rdfs:comment "Parse and serialize various RDF formats including both 1.1 and 1.2 versions of Turtle, LongTurtle, N-Triples, N-Quads, TriG and RDF/XML. Parse and serialize JSON-LD 1.1 (1.2 pending)." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse",
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.serialize" .
+        "starlayer.graph.oxgraph.core._Base.parse",
+        "starlayer.graph.oxgraph.core._Base.serialize" .
 
 cur:cap-rdf-graph-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -65,15 +65,15 @@ cur:cap-rdf-graph-4 a slkg:Capability ;
     slkg:appRole "storage" ;
     slkg:implementsSpecification tr:rdf12-concepts ;
     rdfs:comment "Multi-graph datasets with named graphs." ;
-    slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_dataset.StarLayerDataset" .
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.core.StarLayerDataset" .
 
 cur:cap-rdf-graph-5 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
     slkg:position 5 ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "storage" ;
-    rdfs:comment "Storage backends: the default in-memory rdflib store; Oxigraph in memory, on disk or as a server; Fuseki as a server; and SQLAlchemy-backed storage through a store plugin. Oxigraph and Fuseki use their own RDF 1.2 support when available." ;
-    slkg:implementedByIdentifier "starlayer.graph.backends.native" .
+    rdfs:comment "Storage: one Oxigraph store, in memory or on disk." ;
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.core.StarLayerDataset" .
 
 cur:cap-rdf-graph-6 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -104,7 +104,7 @@ cur:cap-rdf-graph-8 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "storage" ;
     rdfs:comment "Resolve owl:imports using a loader you supply, so you decide how an imported document is fetched. There is no built-in fetching." ;
-    slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.resolve_imports" .
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.core._Base.resolve_imports" .
 
 cur:cap-rdf-graph-9 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -113,8 +113,8 @@ cur:cap-rdf-graph-9 a slkg:Capability ;
     slkg:appRole "query" ;
     rdfs:comment "Concise bounded descriptions of a resource, and lookup of the triple terms that have at least one reifier." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.cbd",
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.reifications" .
+        "starlayer.graph.oxgraph.core._Base.cbd",
+        "starlayer.graph.oxgraph.core._Base.reifications" .
 
 cur:cap-rdf-graph-13 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -154,7 +154,7 @@ cur:cap-sparql-1 a slkg:Capability ;
     slkg:appRole "query" ;
     slkg:implementsSpecification tr:sparql12-query ;
     rdfs:comment "SPARQL 1.2 queries over StarLayer graphs." ;
-    slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.query" .
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.core._Base.query" .
 
 cur:cap-sparql-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;
@@ -186,7 +186,7 @@ cur:cap-sparql-5 a slkg:Capability ;
     slkg:appRole "query", "storage" ;
     slkg:implementsSpecification tr:sparql12-update ;
     rdfs:comment "SPARQL 1.2 Update over StarLayer graphs and datasets: INSERT DATA, DELETE DATA and DELETE/INSERT WHERE, including triple terms." ;
-    slkg:implementedByIdentifier "starlayer.graph.graph.starlayer_graph.StarLayerGraph.update" .
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.core._Base.update" .
 
 
 ### SRL (SPARQL Rules)
@@ -294,8 +294,8 @@ cur:cap-manchester-1 a slkg:Capability ;
     slkg:implementsSpecification tr:owl2-manchester-syntax ;
     rdfs:comment "Manchester OWL syntax support for parse and serialize." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.parse",
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.serialize" .
+        "starlayer.graph.oxgraph.core._Base.parse",
+        "starlayer.graph.oxgraph.core._Base.serialize" .
 
 cur:cap-manchester-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-manchester ;
@@ -327,9 +327,8 @@ cur:cap-reasoning-1 a slkg:Capability ;
     slkg:implementsSpecification tr:sparql12-entailment ;
     rdfs:comment "Support for reasoning and inference using various entailment regimes: RDF, RDFS, OWL-RL, and OWL-DL." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer",
-        "starlayer.sparql.entailment_rdf",
-        "starlayer.sparql.entailment_rdfs" .
+        "starlayer.graph.oxgraph.core._Base.infer",
+        "starlayer.graph.oxgraph.helpers.entailment" .
 
 cur:cap-reasoning-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-reasoning ;
@@ -349,8 +348,8 @@ cur:cap-reasoning-3 a slkg:Capability ;
     slkg:implementsSpecification tr:sparql12-entailment ;
     rdfs:comment "Support for both graph reasoning and query-time reasoning." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.infer",
-        "starlayer.graph.graph.starlayer_graph.StarLayerGraph.query" .
+        "starlayer.graph.oxgraph.core._Base.infer",
+        "starlayer.graph.oxgraph.core._Base.query" .
 
 
 ### SHACL
@@ -487,7 +486,7 @@ cur:cap-other-1 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "interchange" ;
     rdfs:comment "VERSION-directive conformance warnings." ;
-    slkg:implementedByIdentifier "starlayer.graph.parsers.syntax" .
+    slkg:implementedByIdentifier "starlayer.graph.oxgraph.ntversion" .
 
 cur:cap-other-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
