@@ -11,8 +11,8 @@ Some corruptions are legitimately valid and are listed here, with the reason:
 Opt-in (``pytest --sqe-coverage``); about 5 minutes.
 """
 
-import pytest
 import pyoxigraph as ox
+import pytest
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
 
 pytestmark = pytest.mark.sqe_coverage
