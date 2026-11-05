@@ -5,7 +5,6 @@ the shape. With ``per="shape"`` those are done once; ``choice.resolve(node, data
 a node's data. The answer must not change, so each is checked against ``select_widget`` for the same node."""
 
 import pytest
-from rdflib import Namespace
 from starlayer import StarShaclSchema, starontology
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection as uws
@@ -16,8 +15,9 @@ from starlayer.shacl.ui_widget_selection import (
     select_widget,
     select_widgets,
 )
+from starlayer.shacl_engine.terms import NS
 
-EX = Namespace("http://example.org/")
+EX = NS("http://example.org/")
 PREFIXES = (
     "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
     "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"

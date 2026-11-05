@@ -4,11 +4,11 @@ added by a higher layer is never blocked by a condition in a lower one (which a 
 shared by every layer, would do)."""
 
 import pytest
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+from starlayer.shacl_engine.terms import NS
 
-EX = Namespace("http://example.org/")
+EX = NS("http://example.org/")
 PREFIXES = (
     "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
     "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"

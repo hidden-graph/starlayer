@@ -1,10 +1,10 @@
 import pytest
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
+from starlayer.shacl_engine.terms import NS
 
-EX = Namespace("http://example.org/")
-SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
+EX = NS("http://example.org/")
+SHUI = NS("http://www.w3.org/ns/shacl-ui#")
 
 # SHACL 1.2 User Interfaces (https://www.w3.org/TR/shacl12-ui/) Section 3
 # "Scoring System" - the widget *selection* algorithm, built entirely on

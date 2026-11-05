@@ -24,6 +24,7 @@ from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.shapes_graphs import shapes_graph_members
 from starlayer.shacl.subgraph_extraction import extract_subgraph
 from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
+from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
 from starlayer.shacl.validator import (
     StarShaclSchema,
     apply_rules,
@@ -32,17 +33,6 @@ from starlayer.shacl.validator import (
     validate,
     validate_each,
 )
-
-
-def __getattr__(name: str):
-    """``select_widget`` / ``select_widgets`` (SHACL UI widget selection) read their graphs as rdflib terms, so the module is imported on first
-    use: importing ``starlayer.shacl`` does not need rdflib, which is an optional extra."""
-    if name in ("select_widget", "select_widgets"):
-        from starlayer.shacl import ui_widget_selection
-
-        return getattr(ui_widget_selection, name)
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-
 
 # Everything an application needs is importable from here: apps do not reach into submodules (a need to is a missing
 # public component). Processing modes: validate / validate_each / apply_rules / evaluate / extract_subgraph, with the
@@ -69,6 +59,8 @@ __all__ = [
     "ValidationResult",
     "RulesResult",
     "target_nodes",
+    "select_widget",
+    "select_widgets",
     "StarLayerGraphProtocol",
     "MutableStarLayerGraphProtocol",
     "evaluate_expression",

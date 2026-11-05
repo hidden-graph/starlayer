@@ -30,16 +30,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from starlayer._optional import require_rdflib
+import pyoxigraph as ox
 
-require_rdflib("SHACL UI widget selection (starlayer.shacl.ui_widget_selection)")
+from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+from starlayer.shacl.validator import validate
+from starlayer.shacl_engine.terms import NS, RDF, SH
 
-from rdflib import RDF, BNode, Namespace, URIRef  # noqa: E402
-
-from starlayer.shacl.validator import validate  # noqa: E402
-
-SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
-SH = Namespace("http://www.w3.org/ns/shacl#")
+# The terms are pyoxigraph terms. The graphs are read as they are (``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store``), with
+# no copy. An rdflib graph or term (an optional extra; a caller holding one has rdflib) is converted at the public functions only
+# (``_Boundary``), and the answer is converted back.
+SHUI = NS("http://www.w3.org/ns/shacl-ui#")
 
 Role = Literal["editor", "viewer"]
 
@@ -91,6 +91,73 @@ def _widget_roles(widget: Any, *graphs: Any) -> set[str]:
 _TARGET_PREDICATES = (
     SH.targetNode, SH.targetClass, SH.targetSubjectsOf, SH.targetObjectsOf, SH.target, SH.targetWhere,
 )
+_OWL_IMPORTS = ox.NamedNode("http://www.w3.org/2002/07/owl#imports")
+_OX_TERMS = (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)
+
+
+# ---- the boundary with rdflib ------------------------------------------------------------------------------------------
+
+
+def _as_ox_graph(value: Any) -> Any:
+    """``value`` as something this module reads: ``StarLayerGraph`` / ``StarLayerDataset`` as they are, a ``pyoxigraph.Store`` as a
+    dataset, ``None`` as an empty graph, an rdflib graph as a converted copy."""
+    if value is None:
+        return StarLayerGraph()
+    if isinstance(value, (StarLayerGraph, StarLayerDataset)):
+        return value
+    if isinstance(value, ox.Store):
+        return StarLayerDataset(store=value)
+    from starlayer.graph.oxgraph._rdflib_bridge import to_oxgraph
+
+    return to_oxgraph(value, "graph")
+
+
+def _term_in(term: Any) -> Any:
+    """A caller's node as a pyoxigraph term (an rdflib term is converted; ``None`` stays)."""
+    if term is None or isinstance(term, _OX_TERMS):
+        return term
+    from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
+
+    return from_rdflib_term(term)
+
+
+def _term_out(term: Any, as_ox: bool) -> Any:
+    if term is None or as_ox:
+        return term
+    from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term
+
+    return to_rdflib_term(term)
+
+
+class _Boundary:
+    """What the public functions do with their arguments: graphs and nodes in as pyoxigraph, the answer out in the caller's term family.
+
+    The answer is in pyoxigraph terms when ``shape_node`` or ``focus_node`` is a pyoxigraph term, else in rdflib terms (the family of
+    the nodes the caller wrote, whatever the graphs are)."""
+
+    def __init__(self, shape_node: Any, focus_node: Any, shapes_graph: Any, scoring_graph: Any) -> None:
+        self.as_ox = isinstance(shape_node, _OX_TERMS) or isinstance(focus_node, _OX_TERMS)
+        self.shape_node = _term_in(shape_node)
+        self.focus_node = _term_in(focus_node)
+        self.shapes_graph = _as_ox_graph(shapes_graph)
+        self.scoring_graph = self.shapes_graph if scoring_graph is shapes_graph and scoring_graph is not None else _as_ox_graph(scoring_graph)
+
+    def out(self, term: Any) -> Any:
+        return _term_out(term, self.as_ox)
+
+    def choice_out(self, choice: WidgetChoice) -> WidgetChoice:
+        if self.as_ox:
+            return choice
+        candidates = tuple(
+            WidgetCandidate(
+                widget=self.out(c.widget), score=c.score, data_checks=tuple((self.out(node), flag) for node, flag in c.data_checks)
+            )
+            for c in choice.candidates
+        )
+        return WidgetChoice(
+            property_shape=self.out(choice.property_shape), candidates=candidates,
+            _shapes_graph=choice._shapes_graph, _scoring_graph=choice._scoring_graph,
+        )
 
 
 def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: Any) -> frozenset:
@@ -102,31 +169,26 @@ def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: 
     ignored (the whole report's ``conforms`` is not used). ``owl:imports`` in ``shapes_graph`` is left unresolved
     (it plays no part in the check). Built on ``starlayer.shacl``'s public ``validate()``.
     """
-    from rdflib import OWL, Graph
-
     from starlayer.shacl.validator import _find_genuine_report_node
 
     nodes = tuple(nodes)
-    probe_shapes = Graph()
-    probe_shapes += shapes_graph
-    for predicate in (*_TARGET_PREDICATES, OWL.imports):
+    probe_shapes = StarLayerGraph()
+    probe_shapes.extend(iter(shapes_graph))
+    for predicate in (*_TARGET_PREDICATES, _OWL_IMPORTS):
         probe_shapes.remove((None, predicate, None))
-    wrapper = BNode()
+    wrapper = ox.BlankNode()
     probe_shapes.add((wrapper, RDF.type, SH.NodeShape))
     probe_shapes.add((wrapper, SH.node, shape))
     for node in nodes:
         probe_shapes.add((wrapper, SH.targetNode, node))
     result = validate(base_graph, probe_shapes, meta_shacl=False, ignore_imports=True)
     violating: set[Any] = set()
-    from starlayer.shacl_engine.terms import from_engine, to_engine
-
-    report = result.report_graph  # an StarLayerGraph: pyoxigraph terms, which this module's rdflib terms are converted from
+    report = result.report_graph
     report_node = _find_genuine_report_node(report)
     if report_node is not None:
-        wrapper_term = to_engine(wrapper)
         for result_node in report.objects(report_node, SH.result):
-            if wrapper_term in set(report.objects(result_node, SH.sourceShape)):
-                violating.update(from_engine(n) for n in report.objects(result_node, SH.focusNode))
+            if wrapper in set(report.objects(result_node, SH.sourceShape)):
+                violating.update(report.objects(result_node, SH.focusNode))
     return frozenset(n for n in nodes if n not in violating)
 
 
@@ -195,11 +257,9 @@ def _data_condition_holds(
     data_graph_shape = next(scoring_graph.objects(node, SHUI.dataGraphShape), None)
     if data_graph_shape is None:
         return True
-    from rdflib import Graph
-
-    shape_definitions = Graph()
-    shape_definitions += shapes_graph
-    shape_definitions += scoring_graph
+    shape_definitions = StarLayerGraph()
+    shape_definitions.extend(iter(shapes_graph))
+    shape_definitions.extend(iter(scoring_graph))
     return _node_conforms(focus_node, data_graph_shape, base_graph=data_graph, shapes_graph=shape_definitions)
 
 
@@ -256,41 +316,13 @@ def _ranked_scores(shapes_graph: Any, scoring_graph: Any, role: str) -> list[tup
         except (TypeError, ValueError):
             continue  # a score that is not a number is skipped, like a score node with no widget or no value
         ranked.append((score, widget, score_node))
-    ranked.sort(key=lambda entry: (-entry[0], str(entry[1])))
+    ranked.sort(key=lambda entry: (-entry[0], entry[1].value))
     return ranked
 
 
 def _as_float(term: Any) -> float:
-    """``float`` of a literal of either term family: an rdflib ``Literal`` converts itself, a pyoxigraph one by its lexical form."""
-    return float(getattr(term, "value", term))
-
-
-def _via_rdflib(fn: Any, kwargs: dict[str, Any]) -> tuple[bool, Any]:
-    """If any graph argument is an ``StarLayerGraph`` / ``StarLayerDataset`` / ``Store``, run ``fn`` on snapshot ``rdflib.Graph`` copies of the
-    shapes and scoring graphs (this module reads them with rdflib terms; one passed twice is copied once) and return
-    ``(True, result)``; else ``(False, None)``. The data graph is not copied: it only goes to ``validate()``, which takes it as
-    it is. When ``shape_node`` or ``focus_node`` is a pyoxigraph term, the answer's IRIs come back as pyoxigraph terms,
-    otherwise as rdflib terms."""
-    from starlayer.graph.oxgraph import _rdflib_bridge as ox
-
-    ox_nodes = any(isinstance(kwargs.get(name), (ox.ox.NamedNode, ox.ox.BlankNode)) for name in ("shape_node", "focus_node"))
-    if not ox_nodes and not any(ox.is_oxigraph_input(kwargs.get(name)) for name in ("shapes_graph", "scoring_graph")):
-        return False, None  # the data graph needs no copy (it only goes to validate()), so it does not count here
-    copies: dict[int, Any] = {}
-    converted = dict(kwargs)
-    for name in ("shapes_graph", "scoring_graph"):
-        value = kwargs.get(name)
-        if ox.is_oxigraph_input(value):
-            converted[name] = copies.setdefault(id(value), ox.to_rdflib_graph(value))
-    want_ox = ox_nodes
-    for name in ("shape_node", "focus_node"):
-        converted[name] = ox.from_engine_if_ox(kwargs.get(name))
-    result = fn(**converted)
-    if not want_ox:
-        return True, result
-    if isinstance(result, dict):
-        return True, {ox.to_engine_if_rdflib(k): ox.to_engine_if_rdflib(v) for k, v in result.items()}
-    return True, ox.to_engine_if_rdflib(result)
+    """``float`` of a literal by its lexical form (``ValueError`` for text that is not a number, an IRI included)."""
+    return float(term.value)
 
 
 DEFAULT_WIDGET_SCORE = 40.0   # SHACL UI 4.3: the score D of a widget a shape names and the scoring graph does not score, when the configuration gives none
@@ -299,7 +331,7 @@ DEFAULT_WIDGET_SCORE = 40.0   # SHACL UI 4.3: the score D of a widget a shape na
 def default_widget_score(shapes_graph: Any) -> float:
     """The score D of a widget a shape names with ``shui:editor`` or ``shui:viewer`` that the scoring graph does not score (SHACL UI 4.3): the
     ``shui:defaultWidgetScore`` of the global configuration (a node of ``shapes_graph``; with several, the first by IRI), else 40."""
-    for _node, value in sorted(shapes_graph.subject_objects(SHUI.defaultWidgetScore), key=lambda pair: (str(pair[0]), str(pair[1]))):
+    for _node, value in sorted(_as_ox_graph(shapes_graph).subject_objects(SHUI.defaultWidgetScore), key=lambda pair: (pair[0].value, pair[1].value)):
         try:
             return _as_float(value)
         except (TypeError, ValueError):
@@ -314,10 +346,10 @@ def _ranked_with_declared(shape_node: Any, shapes_graph: Any, scoring_graph: Any
     ranked = _ranked_scores(shapes_graph, scoring_graph, role)
     predicate = SHUI.editor if role == "editor" else SHUI.viewer
     scored = {widget for widget in scoring_graph.objects(None, SHUI.widget)}
-    declared = [w for w in shapes_graph.objects(shape_node, predicate) if isinstance(w, URIRef) and w not in scored]
+    declared = [w for w in shapes_graph.objects(shape_node, predicate) if isinstance(w, ox.NamedNode) and w not in scored]
     if declared:
         d = default_widget_score(shapes_graph)
-        ranked = sorted([*ranked, *((d, widget, None) for widget in declared)], key=lambda entry: (-entry[0], str(entry[1])))
+        ranked = sorted([*ranked, *((d, widget, None) for widget in declared)], key=lambda entry: (-entry[0], entry[1].value))
     return ranked
 
 
@@ -329,8 +361,7 @@ def select_widget(
     shapes_graph: Any,
     scoring_graph: Any | None = None,
     role: Role,
-    _batch: _ConformanceBatch | None = None,
-) -> URIRef | None:
+) -> Any | None:
     """Select the ``shui:editor``/``shui:viewer`` widget ``shape_node``
     should use for ``focus_node``, per the spec's own Section 3.2 "Select
     Function" procedure:
@@ -372,22 +403,16 @@ def select_widget(
     explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
     property with none gets ``None``.
     """
-    if _batch is None:
-        handled, answer = _via_rdflib(
-            select_widget,
-            dict(shape_node=shape_node, focus_node=focus_node, data_graph=data_graph, shapes_graph=shapes_graph,
-                 scoring_graph=scoring_graph, role=role),
-        )
-        if handled:
-            return answer
     if role not in ("editor", "viewer"):
         raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
     if focus_node is not None and data_graph is None:
         raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
-    if scoring_graph is None:
-        from rdflib import Graph
+    b = _Boundary(shape_node, focus_node, shapes_graph, scoring_graph)
+    return b.out(_select(b.shape_node, b.focus_node, data_graph, b.shapes_graph, b.scoring_graph, role, None))
 
-        scoring_graph = Graph()
+
+def _select(shape_node: Any, focus_node: Any, data_graph: Any, shapes_graph: Any, scoring_graph: Any, role: str,
+            batch: _ConformanceBatch | None) -> Any | None:
     ranked = _ranked_with_declared(shape_node, shapes_graph, scoring_graph, role)
 
     common = {
@@ -396,7 +421,7 @@ def select_widget(
         "data_graph": data_graph,
         "shapes_graph": shapes_graph,
         "scoring_graph": scoring_graph,
-        "batch": _batch,
+        "batch": batch,
     }
     for _score, widget, score_node in ranked:
         # A condition written on the score itself (shui:shapesGraphShape / shui:dataGraphShape, as the Working
@@ -418,7 +443,7 @@ class WidgetCandidate:
     that still need a focus node: ``(node, has_shape_condition)`` for each score or matcher that carries a
     ``shui:dataGraphShape``. A candidate with none applies to every node."""
 
-    widget: URIRef
+    widget: ox.NamedNode
     score: float
     data_checks: tuple[tuple[Any, bool], ...] = ()
 
@@ -448,7 +473,7 @@ class WidgetChoice:
         return any(candidate.needs_data for candidate in self.candidates)
 
     @property
-    def widget_without_data(self) -> URIRef | None:
+    def widget_without_data(self) -> ox.NamedNode | None:
         """What :func:`select_widget` gives with no focus node (Section 3.4 steps 1 and 3): a candidate whose data
         conditions all sit beside a shape condition is accepted, one with a data condition alone is rejected."""
         for candidate in self.candidates:
@@ -456,22 +481,20 @@ class WidgetChoice:
                 return candidate.widget
         return None
 
-    def resolve(self, focus_node: Any, data_graph: Any) -> URIRef | None:
+    def resolve(self, focus_node: Any, data_graph: Any) -> ox.NamedNode | None:
         """The widget for one node: see :func:`check_data_matchers`."""
         return check_data_matchers(self, focus_node=focus_node, data_graph=data_graph)
 
 
-def check_data_matchers(choice: WidgetChoice, *, focus_node: Any, data_graph: Any) -> URIRef | None:
+def check_data_matchers(choice: WidgetChoice, *, focus_node: Any, data_graph: Any) -> ox.NamedNode | None:
     """Finish a per-shape choice for one node: the first candidate whose data conditions hold for ``focus_node`` in
     ``data_graph``. Gives the same widget as ``select_widget`` with that focus node, but validates only the few
     conditions that read data (GitHub issue #14)."""
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
-    focus_node = _ox.from_engine_if_ox(focus_node)
+    focus_node = _term_in(focus_node)
     for candidate in choice.candidates:
         if all(
             _data_condition_holds(
-                node,
+                _term_in(node),
                 focus_node=focus_node,
                 data_graph=data_graph,
                 shapes_graph=choice._shapes_graph,
@@ -552,37 +575,28 @@ def select_widgets(
     answer (``choice.widget_without_data``) serves every node. The result of ``resolve`` is the same as
     ``select_widget`` with that node. ``focus_node`` and ``data_graph`` are not accepted with ``per="shape"``.
     """
-    handled, answer = _via_rdflib(
-        lambda **kw: select_widgets(per=per, **kw),
-        dict(shape_node=shape_node, focus_node=focus_node, data_graph=data_graph, shapes_graph=shapes_graph,
-             scoring_graph=scoring_graph, role=role),
-    )
-    if handled:
-        return answer
     if per not in ("node", "shape"):
         raise ValueError("per must be 'node' or 'shape'")
     if role not in ("editor", "viewer"):
         raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
-    if (shape_node, None, None) not in shapes_graph:
+    b = _Boundary(shape_node, focus_node, shapes_graph, scoring_graph)
+    shapes, scoring = b.shapes_graph, b.scoring_graph
+    if (b.shape_node, None, None) not in shapes:
         raise ValueError(f"shape_node {shape_node!r} is not a subject in the shapes graph")
     if per == "shape" and (focus_node is not None or data_graph is not None):
         raise ValueError("per='shape' answers for the shape; pass the node to choice.resolve(focus_node, data_graph)")
-    properties = list(shapes_graph.objects(shape_node, SH.property))
-    if scoring_graph is None:
-        from rdflib import Graph
-
-        scoring_graph = Graph()
-    batch = _ConformanceBatch(properties, base_graph=shapes_graph, shapes_graph=scoring_graph)
+    properties = list(shapes.objects(b.shape_node, SH.property))
+    if properties and focus_node is not None and data_graph is None:
+        raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
+    batch = _ConformanceBatch(properties, base_graph=shapes, shapes_graph=scoring)
     if per == "shape":
         return {
-            prop: _choice_for_property(prop, shapes_graph=shapes_graph, scoring_graph=scoring_graph, role=role, batch=batch)
+            b.out(prop): b.choice_out(
+                _choice_for_property(prop, shapes_graph=shapes, scoring_graph=scoring, role=role, batch=batch)
+            )
             for prop in properties
         }
-    result: dict[Any, Any] = {}
-    for prop in properties:
-        result[prop] = select_widget(
-            shape_node=prop, focus_node=focus_node,
-            data_graph=data_graph, shapes_graph=shapes_graph, scoring_graph=scoring_graph, role=role,
-            _batch=batch,
-        )
-    return result
+    return {
+        b.out(prop): b.out(_select(prop, b.focus_node, data_graph, shapes, scoring, role, batch))
+        for prop in properties
+    }

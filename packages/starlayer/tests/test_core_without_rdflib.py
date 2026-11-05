@@ -127,6 +127,48 @@ def test_shacl_sparql_constraints_and_exists_queries():
     assert "done" in out
 
 
+def test_widget_selection_runs_without_rdflib():
+    out = ok("""
+        import pyoxigraph as ox
+        from starlayer import StarLayerGraph
+        from starlayer.shacl import select_widget, select_widgets
+
+        shapes = StarLayerGraph()
+        shapes.parse(format="turtle12", data='''
+            @prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+            :S a sh:NodeShape ; sh:property :P , :Q .
+            :P sh:path :p ; shui:editor shui:TextFieldEditor .
+            :Q sh:path :q .
+            [ a shui:WidgetScore ; shui:widget shui:TextAreaEditor ; shui:score 5 ] .
+        ''')
+        S = ox.NamedNode("http://e/S")
+        got = select_widgets(shape_node=S, shapes_graph=shapes, scoring_graph=shapes, role="editor")
+        print(sorted((k.value, v.value if v else None) for k, v in got.items()))
+        print(select_widget(shape_node=ox.NamedNode("http://e/P"), shapes_graph=shapes, role="editor").value)
+    """)
+    assert "http://www.w3.org/ns/shacl-ui#TextAreaEditor" in out and "TextFieldEditor" in out
+
+
+def test_canonical_hashing_and_isomorphism_run_without_rdflib():
+    out = ok("""
+        from starlayer import StarLayerGraph
+        from starlayer.graph.rdfc import rdfc10_hash, to_canonical_nquads, CanonicalizationComplexityError
+        from starlayer.graph import isomorphic
+
+        a, b = StarLayerGraph(), StarLayerGraph()
+        a.parse(format="turtle", data="<http://e/a> <http://e/p> [ <http://e/q> 1 ] .")
+        b.parse(format="turtle", data="<http://e/a> <http://e/p> [ <http://e/q> 1 ] .")
+        assert isomorphic(a, b) and rdfc10_hash(a) == rdfc10_hash(b)
+        ring = StarLayerGraph()
+        ring.parse(format="turtle", data="".join(f"_:b{i} <http://e/p> _:b{j} . " for i in range(10) for j in range(10) if i != j))
+        try:
+            to_canonical_nquads(ring)
+        except CanonicalizationComplexityError:
+            print("refused")
+    """)
+    assert "refused" in out
+
+
 def test_native_sparql_parse_helpers_import_lazily():
     # the SPARQL facade names are lazy: a name that needs rdflib raises the clear error, the rest of the package imports
     result = run_blocked("""
@@ -207,12 +249,9 @@ def test_the_stand_in_dirlang_datatype_matches_the_vocabulary():
         "from starlayer.graph import StarLayerGraph, ENTAILMENT; g = StarLayerGraph(); "
         "g.update('INSERT DATA { <http://e/s> a <http://e/C> }'); g.infer(entailment=ENTAILMENT['OWL-RDF-Based'])",
         "from starlayer.graph import StarLayerGraph, ENTAILMENT; StarLayerGraph().query('SELECT * WHERE {?s ?p ?o}', entailment=ENTAILMENT.RDFS)",
-        "import starlayer.shacl.ui_widget_selection",
-        "from starlayer.shacl import select_widget",
         "from starlayer.sparql import prepare_query_12",
         "import starlayer.sparql.srl",
         "import starlayer.starontology.manchester",
-        "from starlayer.graph.compare import to_isomorphic; to_isomorphic(object())",
     ],
 )
 def test_an_rdflib_feature_raises_a_clear_import_error(code):
