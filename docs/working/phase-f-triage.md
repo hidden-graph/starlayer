@@ -45,9 +45,9 @@ reports (or waiting for a release) with the xfail kept; 3, 9, 27, 28, 29, 30 are
 | 25 | `path=` graph cannot be pickled | document | decided | S |
 | 26 | `VERSION` line written only when needed | document | decided; label is a hint | S |
 | 27 | RDFC-1.0 canonicaliser has no guard against symmetric graphs | address | upstream report (a work limit); the local heuristic stays; corrected measurement: a long path is slow, not a hang | S (report) |
-| 28 | (E1) sqe tree remnants | address (mostly moot) | `sqe_tree_to_query` and the rdflib encoder are gone (retired in E4; only a test comment mentions it), so that clause is moot; what remains is the opaque stand-in for ill-formed IRIs/tags and numeric-form drift on a text round trip. Rewrite the row to those two; document the numeric drift (follows from row 1) and keep the stand-in | S |
-| 29 | `get_resource_iri()` returns `URIRef` or `NamedNode` by environment | address | a return type that depends on what is installed is a trap; always `NamedNode` (rdflib users convert) is a small API decision, do it before 1.0 | S to M (callers in tests, docs) |
-| 30 | Manchester parse keeps literals as written, then the store normalises | address | write `^^xsd:string` consistently or make the single-term rule explicit in the writer; small and local; otherwise document with row 1 | S |
+| 28 | (E1) sqe tree remnants | document (row rewritten) | `sqe_tree_to_query` and the rdflib encoder are gone (retired in E4; only a test comment mentions it), so that clause is moot; what remains is the opaque stand-in for ill-formed IRIs/tags and numeric-form drift on a text round trip. Rewrite the row to those two; document the numeric drift (follows from row 1) and keep the stand-in | S |
+| 29 | `get_resource_iri()` returns `URIRef` or `NamedNode` by environment | resolved | already returns a `NamedNode` in every environment (E2); only the row text was stale | none |
+| 30 | Manchester parse keeps literals as written, then the store normalises | document | not a defect: in RDF 1.1/1.2 a plain literal and `"x"^^xsd:string` are one term, so omitting `^^xsd:string` in the writer is correct | none |
 | 31 | Manchester: relative IRI / space raises `ManchesterSyntaxError`; writer declares prefixes | document | stricter and correct; rdflib accepted garbage | S |
 | 32 | `manchester_validate` needs rdflib; stale leniency list | document (the rdflib need); address the list | owner decision keeps owlrl; the stale two-input leniency list in `test_lenient_where_owlapi_is_lenient` is a test clean-up | S |
 
