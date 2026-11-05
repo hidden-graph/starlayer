@@ -41,18 +41,9 @@ classifiers = [
 # Optional rdflib: from_rdflib / to_rdflib, Manchester syntax, SRL / salg / sqe trees, SHACL UI widget selection. Without it these
 # raise an ImportError that names this extra. `pip install starlayer[rdflib]`.
 rdflib = ["rdflib>=7.0"]
-# setuptools<81 pin: rdflib-sqlalchemy still imports pkg_resources at module
-# load (setuptools>=81 removed it) - remove once rdflib-sqlalchemy drops the
-# pkg_resources import upstream.
-sqlalchemy = ["rdflib>=7.0", "rdflib-sqlalchemy>=0.5", "setuptools<81"]
 # owlrl computes the RDFS and OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph, so
 # the extra includes rdflib.
 reasoning = ["owlrl>=6", "rdflib>=7.0"]
-# Oxigraph as an rdflib Store (oxrdflib's OxigraphStore, wrapping pyoxigraph),
-# usable in rdf-1.2 native mode via StarLayerGraph(store=OxigraphStore(...),
-# backend='rdf-1.2') - real triple terms + SPARQL 1.2, in-process, no HTTP.
-# See starlayer/graph/backends/native_oxigraph.py. Opt-in, never a default.
-oxigraph = ["rdflib>=7.0", "oxrdflib>=0.4", "pyoxigraph>=0.5.13"]
 # The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can
 # dispatch to - see starlayer/graph/graph/owl_dl.py and owl_dl_rustdl.py.
 # Neither is core: "hermit" also needs a real JVM on PATH that pip alone
@@ -94,7 +85,7 @@ testpaths = ["packages/starlayer/tests"]
 # Lets tests import the build-time modules in scripts/ (build_meta_shapes.py) and the code-KG tooling in tools/kg (the `codekg` package) directly.
 pythonpath = ["scripts", "tools/kg"]
 markers = [
-    "integration: tests requiring a running Fuseki/Oxigraph server or a real backend store (e.g. SQLite via rdflib-sqlalchemy) - the 'full testing' tier.",
+    "integration: tests requiring a running Fuseki/Oxigraph server - the 'full testing' tier.",
     "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks.",
     "store_matrix: the W3C conformance suites run through every store (in-process, on-disk and server-backed Oxigraph, Fuseki) - slow, opt-in: pytest --store-matrix (or STARLAYER_STORE_MATRIX=1, or -m store_matrix). See tests/conftest.py.",
     "srl_stratification: extended checks of SRL's stratification algorithm - opt-in: pytest --srl-stratification (or STARLAYER_SRL_STRATIFICATION=1, or -m srl_stratification). See tests/conftest.py.",

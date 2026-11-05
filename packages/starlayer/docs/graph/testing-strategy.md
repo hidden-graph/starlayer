@@ -48,7 +48,6 @@ Covers three backend families, each in its own file under `tests/integration/`:
 |---|---|---|
 | `test_fuseki_backend.py` | Apache Jena Fuseki, `rdf-1.1` and `rdf-1.2` modes | `docker run ... atomgraph/fuseki` — see the file's own docstring |
 | `test_oxigraph_backend.py` | Oxigraph, native `rdf-1.2` | `docker run ... ghcr.io/oxigraph/oxigraph` — see the file's own docstring |
-| `test_sqlalchemy_backend.py` | SQLite via `rdflib-sqlalchemy`, `rdf-1.1` | the `sqlalchemy` extra (`pip install -e ".[sqlalchemy]"`) — no server |
 
 Every test class self-skips (`skipif`) when its backend isn't reachable, so this is safe to run with only some backends up — each file's docstring has the exact command for the one it needs.
 

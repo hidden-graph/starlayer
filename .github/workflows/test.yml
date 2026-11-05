@@ -84,7 +84,7 @@ jobs:
       # consolidation - install from "." here, not "packages/starlayer").
       - name: Install starlayer
         run: |
-          pip install -e ".[sqlalchemy,test]"
+          pip install -e ".[test]"
 
       - name: Wait for Oxigraph
         run: |
