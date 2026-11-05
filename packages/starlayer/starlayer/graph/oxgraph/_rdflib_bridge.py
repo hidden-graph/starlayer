@@ -15,6 +15,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer._optional import RDFLIB_EXTRA_HINT, have_rdflib, require_rdflib  # noqa: F401  (re-exported)
+
 
 def to_rdflib_term(term: Any) -> Any:
     """pyoxigraph term -> rdflib / StarLayer term (a triple term becomes a ``TripleTerm``)."""

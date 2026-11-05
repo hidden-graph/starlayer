@@ -693,6 +693,7 @@ class _Base:
         this graph."""
         from starlayer.graph.oxgraph import _rdflib_bridge
 
+        _rdflib_bridge.require_rdflib("to_rdflib()")
         return _rdflib_bridge.to_rdflib_rdf11(self, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
 
     def _refuse_path_pickle(self) -> None:
@@ -733,6 +734,7 @@ class StarLayerGraph(_Base):
             return graph.copy()
         if isinstance(graph, (StarLayerDataset, ox.Store)):
             raise TypeError(f"StarLayerGraph.from_rdflib takes an rdflib graph, not {type(graph).__name__}")
+        _rdflib_bridge.require_rdflib("from_rdflib()")
         return _rdflib_bridge.to_oxgraph(graph, "graph", restore_directions=True)
 
     @property
@@ -824,6 +826,7 @@ class StarLayerDataset(_Base):
 
         if isinstance(dataset, StarLayerDataset):
             return dataset.copy()
+        _rdflib_bridge.require_rdflib("from_rdflib()")
         return _rdflib_bridge.to_oxdataset(dataset)
 
     def _query_store(self) -> ox.Store:

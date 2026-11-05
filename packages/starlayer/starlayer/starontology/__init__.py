@@ -183,9 +183,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from rdflib import Namespace, URIRef
+import pyoxigraph as ox
 
-PROF = Namespace("http://www.w3.org/ns/dx/prof/")
+from starlayer import _optional
+
+
+def __getattr__(name: str) -> Any:
+    """``PROF``, the profiles vocabulary as an rdflib ``Namespace``, is built on first use: rdflib is an optional extra."""
+    if name == "PROF":
+        from starlayer._optional import require_rdflib
+
+        require_rdflib("starlayer.starontology.PROF (an rdflib Namespace)")
+        from rdflib import Namespace
+
+        return Namespace("http://www.w3.org/ns/dx/prof/")
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 _HERE = Path(__file__).parent
 
@@ -555,16 +568,17 @@ def _used_prefixes(graph: Any) -> dict[str, str]:
     return used
 
 
-def _named_graph(context_iri: URIRef) -> Any:
+def _named_graph(context_iri: Any) -> Any:
     """A fresh, independent ``StarLayerGraph`` with the triples of the entry whose resource IRI is ``context_iri`` (the IRI is
     ``_GITHUB_BLOB_BASE`` plus the entry's filename), its identifier that IRI and its prefixes those its IRIs use."""
     import pyoxigraph as ox
 
     from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    filename = str(context_iri)[len(_GITHUB_BLOB_BASE) :]
+    iri = getattr(context_iri, "value", str(context_iri))
+    filename = iri[len(_GITHUB_BLOB_BASE) :]
     source, used = _file_graph(filename)
-    graph = StarLayerGraph(prefixes=dict(used), identifier=ox.NamedNode(str(context_iri)))
+    graph = StarLayerGraph(prefixes=dict(used), identifier=ox.NamedNode(iri))
     graph.extend(list(source))
     return graph
 
@@ -669,8 +683,15 @@ _GITHUB_BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/package
 _GITHUB_RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/main/packages/starlayer/starlayer/starontology/"
 
 
-def _resource_iri(name: str) -> URIRef:
-    return URIRef(_GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name])
+def _resource_iri(name: str) -> Any:
+    """The resource IRI: an rdflib ``URIRef`` when rdflib is installed (what the profiles graph's callers compare it with), else a
+    pyoxigraph ``NamedNode``."""
+    iri = _GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name]
+    if _optional.have_rdflib():
+        from rdflib import URIRef
+
+        return URIRef(iri)
+    return ox.NamedNode(iri)
 
 
 def _raw_filename(name: str) -> str | None:
@@ -679,7 +700,7 @@ def _raw_filename(name: str) -> str | None:
     return _FILENAME_BY_NAME.get(name)
 
 
-def get_resource_iri(name: str) -> URIRef | None:
+def get_resource_iri(name: str) -> Any:
     """The stable resource IRI ``get_conformance_profiles()`` uses to
     identify ``name``'s own registered file as a ``prof:isProfileOf``
     subject (a GitHub blob URL - see ``_GITHUB_BLOB_BASE``'s own
@@ -787,7 +808,7 @@ def get_conformance_profiles(url: str | None = None) -> Any:
         for prefix, namespace in _used_prefixes(graph).items():
             graph.bind(prefix, namespace)
         return graph
-    return _named_graph(URIRef(_GITHUB_BLOB_BASE + _PROFILES_FILENAME))
+    return _named_graph(ox.NamedNode(_GITHUB_BLOB_BASE + _PROFILES_FILENAME))
 
 
 # get_profile_graph() (a per-entry filter over get_conformance_profiles())

@@ -7,13 +7,42 @@
 # deterministic, non-pytest repro — not a guess) — install() is idempotent
 # per its own docstring, so forcing it first here is safe regardless of
 # whether a caller also imports parse12 directly later.
-from . import parse12 as _parse12  # noqa: F401
-from .check import check_query
-from .from_rdf import rdf_to_collection, rdf_to_query, rdf_to_update
-from .parse12 import prepare_query_12, prepare_update_12
-from .star_query import StarQuery
-from .to_rdf import queries_to_collection, query_to_rdf, update_to_rdf
-from .vocab import SALG
+#
+# rdflib is an optional extra, and this facade's names are rdflib-based (the SPARQL 1.2 parse/prepare machinery, salg trees,
+# ``StarQuery``), while ``StarLayerGraph`` / ``StarLayerDataset`` reach into ``starlayer.sparql.*`` submodules for query support.
+# So this package imports nothing eagerly; every public name is imported from its submodule on first access (PEP 562).
+# The ordering rule above now lives in ``spexpr_codec.py`` (the module that snapshots the grammar), which imports ``parse12``
+# first. Without rdflib, a name that needs it raises an ImportError naming the extra.
+from __future__ import annotations
+
+import importlib
+from typing import Any
+
+_LAZY = {
+    "check_query": "check",
+    "rdf_to_collection": "from_rdf",
+    "rdf_to_query": "from_rdf",
+    "rdf_to_update": "from_rdf",
+    "prepare_query_12": "parse12",
+    "prepare_update_12": "parse12",
+    "StarQuery": "star_query",
+    "queries_to_collection": "to_rdf",
+    "query_to_rdf": "to_rdf",
+    "update_to_rdf": "to_rdf",
+    "SALG": "vocab",
+}
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY:
+        value = getattr(importlib.import_module(f"{__name__}.{_LAZY[name]}"), name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_LAZY))
 
 # salg: itself (ontology_graph/shapes_graph/validate_query/
 # find_unbound_projected_variables/UnboundProjectedVariable) - broken out

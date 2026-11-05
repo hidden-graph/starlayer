@@ -7,6 +7,9 @@ that is the design (and not one function per operator name).
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from rdflib import BNode, Graph, URIRef
 from rdflib.namespace import RDF
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update

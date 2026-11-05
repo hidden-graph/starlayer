@@ -24,14 +24,14 @@ from __future__ import annotations
 import hashlib
 from collections import OrderedDict
 from collections.abc import Callable
-from typing import Any
-
-from rdflib import Graph, Literal, URIRef
-from rdflib.namespace import RDF, XSD
-from rdflib.query import Result
-from rdflib.term import Node
+from typing import TYPE_CHECKING, Any
 
 from starlayer.graph.model.triple import TripleTerm
+
+if TYPE_CHECKING:  # rdflib is an optional extra: only the functions that build or test rdflib terms import it, when called
+    from rdflib import Graph, Literal, URIRef
+    from rdflib.query import Result
+    from rdflib.term import Node
 
 TT_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/tt#'       # triple-term content-addressed URIs
 DIRLANG_NS = 'https://github.com/hidden-graph/starlayergraph/ns/dirlang#'  # dirLangString datatype encoding
@@ -39,21 +39,46 @@ BN_NS      = 'https://github.com/hidden-graph/starlayergraph/ns/bn#'       # nat
 
 # The RDF 1.2 Interoperability vocabulary (https://w3c.github.io/rdf-interop/spec/,
 # an Editor's Draft): a node typed TT_CLASS, described by three properties. These
-# constants are the only place the vocabulary is spelled out.
-_RDF_NS = str(RDF)
-TT_CLASS = URIRef(_RDF_NS + 'PropositionForm')
-TT_SUBJECT = URIRef(_RDF_NS + 'propositionFormSubject')
-TT_PREDICATE = URIRef(_RDF_NS + 'propositionFormPredicate')
-TT_OBJECT = URIRef(_RDF_NS + 'propositionFormObject')
+# constants are the only place the vocabulary is spelled out. They are rdflib URIRefs,
+# built on first use (module attribute access or ``_consts()``), so importing this
+# module does not import rdflib.
+_RDF_NS = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+_LAZY_NAMES = frozenset({
+    'TT_CLASS', 'TT_SUBJECT', 'TT_PREDICATE', 'TT_OBJECT',
+    'ENCODING_PREDS', 'ENCODING_MARKERS', '_CANONICALIZABLE_NUMERIC_DATATYPES',
+})
+_CONSTS: dict[str, Any] = {}
 
-# Predicates used in the internal TripleTerm URIRef encoding - shared by
-# StarLayerGraph and StarLayerDataset's _is_encoding_triple() checks and by
-# restore_select_bindings() below.
-ENCODING_PREDS = frozenset({TT_SUBJECT, TT_PREDICATE, TT_OBJECT})
 
-# Every term that marks a triple as encoding infrastructure: the three
-# description predicates, and the class in (node rdf:type TT_CLASS).
-ENCODING_MARKERS = ENCODING_PREDS | {TT_CLASS}
+def _consts() -> dict[str, Any]:
+    """The rdflib-term constants (``TT_CLASS``, ``TT_SUBJECT``, ``TT_PREDICATE``, ``TT_OBJECT``, ``ENCODING_PREDS``,
+    ``ENCODING_MARKERS``, ``_CANONICALIZABLE_NUMERIC_DATATYPES``); raises the ImportError naming the extra without rdflib."""
+    if not _CONSTS:
+        from starlayer._optional import require_rdflib
+
+        require_rdflib("the rdflib triple-term encoding (starlayer.graph.model.encoding)")
+        from rdflib import URIRef
+        from rdflib.namespace import XSD
+
+        cls = URIRef(_RDF_NS + 'PropositionForm')
+        subj = URIRef(_RDF_NS + 'propositionFormSubject')
+        pred = URIRef(_RDF_NS + 'propositionFormPredicate')
+        obj = URIRef(_RDF_NS + 'propositionFormObject')
+        # Predicates used in the internal TripleTerm URIRef encoding, and every term that marks a triple as encoding
+        # infrastructure (the three description predicates, and the class in (node rdf:type TT_CLASS)).
+        preds = frozenset({subj, pred, obj})
+        _CONSTS.update(
+            TT_CLASS=cls, TT_SUBJECT=subj, TT_PREDICATE=pred, TT_OBJECT=obj,
+            ENCODING_PREDS=preds, ENCODING_MARKERS=preds | {cls},
+            _CANONICALIZABLE_NUMERIC_DATATYPES=frozenset({XSD.decimal, XSD.double, XSD.float}),
+        )
+    return _CONSTS
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY_NAMES:
+        return _consts()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def encoding_triples(node: Node, s: Node, p: Node, o: Node) -> tuple:
@@ -61,11 +86,14 @@ def encoding_triples(node: Node, s: Node, p: Node, o: Node) -> tuple:
     subject, predicate and object. ``node`` names the triple term; ``s`` and
     ``o`` are its already-resolved components (a nested triple term is
     passed as its own node)."""
+    from rdflib import RDF
+
+    c = _consts()
     return (
-        (node, RDF.type, TT_CLASS),
-        (node, TT_SUBJECT, s),
-        (node, TT_PREDICATE, p),
-        (node, TT_OBJECT, o),
+        (node, RDF.type, c['TT_CLASS']),
+        (node, c['TT_SUBJECT'], s),
+        (node, c['TT_PREDICATE'], p),
+        (node, c['TT_OBJECT'], o),
     )
 
 
@@ -85,8 +113,9 @@ def term_key(term: Node) -> str:
     Returns:
         The term's N3-serialized canonical string form.
     """
-    if isinstance(term, Node):
-        return term.n3()
+    n3 = getattr(term, 'n3', None)  # every rdflib Node has it
+    if callable(n3):
+        return n3()
     return str(term)
 
 
@@ -203,6 +232,8 @@ def encode_dirlang_datatype(language: str, direction: str) -> URIRef:
     Returns:
         A URIRef under DIRLANG_NS whose local name is "<language>--<direction>".
     """
+    from rdflib import URIRef
+
     return URIRef(f'{DIRLANG_NS}{language}--{direction}')
 
 
@@ -231,9 +262,6 @@ def decode_dirlang_datatype(datatype: URIRef) -> tuple[str, str] | None:
     return language, direction
 
 
-_CANONICALIZABLE_NUMERIC_DATATYPES = frozenset({XSD.decimal, XSD.double, XSD.float})
-
-
 def _canonicalize_numeric_literal(literal: Literal) -> Literal:
     """Reformat a decimal/double/float-typed Literal's lexical form to its
     XSD canonical form. A no-op for anything already canonical, or for any
@@ -259,6 +287,9 @@ def _canonicalize_numeric_literal(literal: Literal) -> Literal:
         or the original object unchanged if it was already canonical or
         not one of the canonicalizable numeric datatypes.
     """
+    from rdflib import Literal
+    from rdflib.namespace import XSD
+
     dt = literal.datatype
     lex = str(literal)
     if dt == XSD.decimal:
@@ -323,7 +354,7 @@ def canonicalize_query_result_value(node: Node | TripleTerm) -> Node | TripleTer
         result = TripleTerm(new_subject, node.predicate, new_object)
         result._namespace_manager = node._namespace_manager
         return result
-    if isinstance(node, Literal) and node.datatype in _CANONICALIZABLE_NUMERIC_DATATYPES:
+    if getattr(node, 'datatype', None) is not None and node.datatype in _consts()['_CANONICALIZABLE_NUMERIC_DATATYPES']:
         return _canonicalize_numeric_literal(node)
     return node
 
@@ -355,13 +386,16 @@ def restore_select_bindings(r: Result, restore_fn: Callable[[Any], Any]) -> None
             dirlang Literal) to its public form, looking it up in whichever
             registry/registries the caller's graph or dataset maintains.
     """
+    from rdflib import URIRef
+
+    markers = _consts()['ENCODING_MARKERS']
     r.bindings = [
         {var: canonicalize_query_result_value(restore_fn(row.get(var))) if row.get(var) is not None else None
          for var in r.vars}
         for row in r.bindings
         if not (any(isinstance(v, URIRef) and str(v).startswith(TT_NS)
                     for v in row.values())
-                and ENCODING_MARKERS.intersection(row.values()))
+                and markers.intersection(row.values()))
     ]
 
 
@@ -385,6 +419,8 @@ def _reencode_tt(tt: TripleTerm, out_graph: Graph) -> URIRef:
     """
     s_n = _reencode_tt(tt.subject, out_graph) if isinstance(tt.subject, TripleTerm) else tt.subject
     o_n = _reencode_tt(tt.object, out_graph) if isinstance(tt.object, TripleTerm) else tt.object
+    from rdflib import URIRef
+
     uri = URIRef(TT_NS + tt_hash(term_key(s_n), term_key(tt.predicate), term_key(o_n)))
     for triple in encoding_triples(uri, s_n, tt.predicate, o_n):
         out_graph.add(triple)
@@ -420,7 +456,9 @@ def inject_missing_tt_encoding(graph: Graph, restore_fn: Callable[[Any], Any]) -
         restore_fn: Resolves a tt:HASH URIRef to its TripleTerm, if known to
             the caller's own registry/registries.
     """
-    already_encoded = {s for s, _p, _o in graph.triples((None, RDF.type, TT_CLASS))}
+    from rdflib import RDF, URIRef
+
+    already_encoded = {s for s, _p, _o in graph.triples((None, RDF.type, _consts()['TT_CLASS']))}
     candidates = {
         term for s, p, o in graph for term in (s, o)
         if isinstance(term, URIRef) and str(term).startswith(TT_NS)

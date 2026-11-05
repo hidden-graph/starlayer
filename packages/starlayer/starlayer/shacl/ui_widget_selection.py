@@ -30,9 +30,13 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
-from rdflib import RDF, BNode, Namespace, URIRef
+from starlayer._optional import require_rdflib
 
-from starlayer.shacl.validator import validate
+require_rdflib("SHACL UI widget selection (starlayer.shacl.ui_widget_selection)")
+
+from rdflib import RDF, BNode, Namespace, URIRef  # noqa: E402
+
+from starlayer.shacl.validator import validate  # noqa: E402
 
 SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
 SH = Namespace("http://www.w3.org/ns/shacl#")

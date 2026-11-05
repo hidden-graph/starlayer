@@ -35,25 +35,36 @@ two paths to the same two graphs. Get them directly:
 ``starontology.get_ontology_graph("sqe_owl")``/``"sqe_shacl"``.
 """
 
-from .from_rdf import sqe_tree_to_query
-from .to_rdf import SQEError, SQEValidationError, sqe_parse_to_tree
-from .to_text import sqe_tree_to_text
-from .vocab import SQE
+from __future__ import annotations
 
-__all__ = [
-    "SQE",
-    "SQEError",
-    "SQEValidationError",
-    "sqe_parse_to_tree",
-    "sqe_tree_to_query",
-    "sqe_tree_to_text",
-]
+import importlib
+from typing import Any
 
-try:
-    from .shapes import sqe_validate
+# The trees are rdflib graphs, and rdflib is an optional extra, so nothing is imported until a name is used (PEP 562). The
+# submodules ``rewrite`` (and ``entailment``) are used by ``StarLayerGraph.query`` and import without rdflib.
+_LAZY = {
+    "SQE": "vocab",
+    "SQEError": "to_rdf",
+    "SQEValidationError": "to_rdf",
+    "sqe_parse_to_tree": "to_rdf",
+    "sqe_tree_to_query": "from_rdf",
+    "sqe_tree_to_text": "to_text",
+    "sqe_validate": "shapes",
+}
 
-    __all__ += ["sqe_validate"]
-except ImportError:
-    # pyshacl is a test/optional dependency - shapes.py is unusable
-    # without it, but the rest of this submodule must still import fine.
-    pass
+__all__ = sorted(_LAZY)
+
+
+def __getattr__(name: str) -> Any:
+    if name in _LAZY:
+        from starlayer._optional import require_rdflib
+
+        require_rdflib(f"starlayer.sparql.sqe.{name} (the sqe: query tree is an rdflib graph)")
+        value = getattr(importlib.import_module(f"{__name__}.{_LAZY[name]}"), name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__() -> list[str]:
+    return sorted(set(globals()) | set(_LAZY))

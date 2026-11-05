@@ -34,22 +34,30 @@ Cost: ``difference`` and ``intersection`` stream the first operand and test memb
 from __future__ import annotations
 
 import functools
+import sys
 from collections.abc import Iterable, Iterator
 from typing import Any
 
 import pyoxigraph as ox
-import rdflib
 
 __all__ = ["difference", "intersection", "symmetric_difference", "union"]
+
+
+def _rdflib() -> Any:
+    """The ``rdflib`` module if it is loaded, else ``None``. rdflib is an optional extra and is never imported here: an rdflib graph
+    can only reach this module if its owner has already imported rdflib."""
+    return sys.modules.get("rdflib")
 
 
 def _family(x: Any) -> str:
     if isinstance(x, (ox.Store, ox.Dataset)):
         return "ox"
-    if isinstance(x, rdflib.ConjunctiveGraph):  # includes rdflib.Dataset
-        return "rdflib-dataset"
-    if isinstance(x, rdflib.Graph):
-        return "rdflib-graph"
+    rdflib = _rdflib()
+    if rdflib is not None:
+        if isinstance(x, rdflib.ConjunctiveGraph):  # includes rdflib.Dataset
+            return "rdflib-dataset"
+        if isinstance(x, rdflib.Graph):
+            return "rdflib-graph"
     raise TypeError(
         f"set operations take an rdflib Graph/Dataset or a pyoxigraph Store/Dataset, not {type(x).__name__}"
         + (" (an OxigraphGraph view: pass its .store)" if type(x).__name__ == "OxigraphGraph" else "")
@@ -145,7 +153,8 @@ _ADAPTERS = {"rdflib-graph": _RdflibGraph, "rdflib-dataset": _RdflibDataset, "ox
 
 def _bind_prefixes(result: Any, *sources: Any) -> None:
     """Carry the operands' prefix bindings onto an rdflib result, as ``Graph.__add__`` does."""
-    if not isinstance(result, rdflib.Graph):
+    rdflib = _rdflib()
+    if rdflib is None or not isinstance(result, rdflib.Graph):
         return
     for src in sources:
         for prefix, namespace in src.namespaces():

@@ -48,6 +48,9 @@ cases well outside any realistic input this codebase produces.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 import functools
 import hashlib
 import itertools

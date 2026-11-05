@@ -76,6 +76,9 @@ check to a SPARQL-based constraint the same way the list shape was.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from rdflib import Graph
 
 from starlayer import starontology

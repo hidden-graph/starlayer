@@ -55,6 +55,9 @@ def _regime_iri(x: Any) -> str:
 
 
 def _resolve_owlrl_semantics(regimes: frozenset[str]) -> Any:
+    from starlayer._optional import require_rdflib
+
+    require_rdflib("infer() with the RDFS or OWL-RL regime (owlrl runs on an rdflib copy of the graph)")
     try:
         import owlrl
     except ImportError as exc:

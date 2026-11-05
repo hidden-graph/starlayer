@@ -53,6 +53,9 @@ untouched - anything else still failing is likewise a bug here.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from rdflib import BNode, Graph, Literal, Namespace, URIRef
 from rdflib.collection import Collection
 from rdflib.namespace import RDF, RDFS

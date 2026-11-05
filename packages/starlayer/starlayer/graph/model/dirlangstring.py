@@ -13,8 +13,6 @@ starlayer.graph.model.encoding. StarLayerGraph encodes/decodes at its read/write
 boundary so callers only ever see DirLangString or plain rdflib terms.
 """
 
-from rdflib import Literal
-
 from starlayer.graph.model.encoding import (
     decode_dirlang_datatype,
     encode_dirlang_datatype,
@@ -58,7 +56,7 @@ class DirLangString:
 
     def n3(self, namespace_manager=None) -> str:
         """Returns the N3/Turtle-1.2 (``"text"@lang--dir``) text form."""
-        return f'{Literal(self.value).n3(namespace_manager)}@{self.language}--{self.direction}'
+        return f'{_quoted(self.value)}@{self.language}--{self.direction}'
 
     def __str__(self):
         return self.value
@@ -67,8 +65,17 @@ class DirLangString:
         return f'DirLangString({self.value!r}, {self.language!r}, {self.direction!r})'
 
 
-def encode_dirlangstring(dls: DirLangString) -> Literal:
-    """Return the internal Literal encoding of a DirLangString."""
+def _quoted(text: str) -> str:
+    """``text`` as a double-quoted N-Triples string (pyoxigraph writes it; no rdflib needed)."""
+    import pyoxigraph as ox
+
+    return str(ox.Literal(text))
+
+
+def encode_dirlangstring(dls: DirLangString):
+    """Return the internal (rdflib) Literal encoding of a DirLangString; needs rdflib."""
+    from rdflib import Literal
+
     return Literal(dls.value, datatype=encode_dirlang_datatype(dls.language, dls.direction))
 
 
