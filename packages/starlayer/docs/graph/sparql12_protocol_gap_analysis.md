@@ -1,5 +1,7 @@
 # SPARQL 1.2 Protocol vs. Implementation — Conformance Status
 
+> **Historical (D1, 2026-11).** This document describes the old rdflib-based `StarLayerGraph` (`backend=`, `rdf-1.1` / `rdf-1.2`, rdflib stores, the HTTP client `backends/native.py`, SPARQL lowering), which was deleted when the Oxigraph-backed classes took the names `StarLayerGraph` / `StarLayerDataset`. For the code as it is now read `starlayer/graph/CLAUDE.md` and guide `docs/guides/02d-oxigraph-wrapper.ipynb`.
+
 **Reviewed:** 2026-09-27, against the editor's draft at `https://www.w3.org/TR/sparql12-protocol/`. This is a snapshot conformance checklist for the one place this document's requirements actually land in this codebase — `starlayergraph/backends/native.py`, the HTTP client the native (`backend="rdf-1.2"`) backend uses to talk to a real SPARQL endpoint (Fuseki, Oxigraph). The in-memory (`backend="rdf-1.1"`, default) backend never makes an HTTP request at all and is out of scope for this document entirely.
 
 ## What's new in the 1.2 revision

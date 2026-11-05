@@ -294,18 +294,9 @@ def _encode_list(items: list, graph: Graph) -> BNode | URIRef:
     not a gap in this project's own encoding: ``algebra.translate``
     produces ``Extend(var=None)``/``Group.expr=[None, ...]`` for this
     legal-per-grammar construct, which then crashes rdflib's own
-    ``evalAggregateJoin`` — see the sibling ``starlayer.graph`` package's
-    ``docs/graph/rdflib-upstream-issues.md`` Issue 5 for the full repro,
-    and its own
-    ``starlayer.graph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key``
-    for the actual fix (a parse-tree pre-processing patch, applied
-    automatically the moment ``starlayer.graph`` is imported — which every real
-    usage of this project already does, since it needs a backend to
-    execute against). Once that patch is active, ``algebra.translate``
-    itself never produces the broken ``[None]`` shape in the first place,
-    so this function never sees it — this check only still fires if
-    ``starlayer.sparql`` is used standalone, with `starlayer.graph` never
-    imported at all.
+    ``evalAggregateJoin`` (``docs/upstream-issues/rdflib-upstream-issues.md``). StarLayer no longer patches rdflib (the patch was
+    deleted when Oxigraph became the executor), so this function raises for that shape; an explicit ``AS ?var`` alias on the
+    grouping expression avoids it.
     """
     encoded_items = [_encode(item, graph) for item in items]
     if any(encoded is None for encoded in encoded_items):
@@ -314,20 +305,9 @@ def _encode_list(items: list, graph: Graph) -> BNode | URIRef:
         # this is unambiguously the case documented above, not a generic
         # "something failed silently" situation.
         raise NotImplementedError(
-            "starlayer.sparql: cannot encode a GROUP BY clause using an "
-            "un-aliased, expression-valued grouping key (e.g. `GROUP BY "
-            "(?o+1)` with no `AS ?var`) — confirmed this is not a gap in "
-            "this project's own encoding, but a genuine bug in plain, "
-            "unmodified rdflib itself (see the sibling starlayer.graph "
-            "repo's docs/upstream-issues/rdflib-upstream-issues.md Issue 9). This is "
-            "already fixed transparently if `starlayer.graph` has been "
-            "imported (`import starlayer.graph` applies "
-            "patch_group_by_unaliased_expression_key at import time) — "
-            "if you're seeing this, starlayer.sparql is being used "
-            "without starlayer.graph ever imported. Either import "
-            "starlayer.graph first, or add an explicit `AS ?var` alias to the "
-            "grouping expression (`GROUP BY (?o+1 AS ?k)`, which works "
-            "correctly in plain rdflib too) to work around it."
+            "starlayer.sparql: cannot encode a GROUP BY clause using an un-aliased, expression-valued grouping key "
+            "(e.g. `GROUP BY (?o+1)` with no `AS ?var`): rdflib's parser leaves no variable for it "
+            "(docs/upstream-issues/rdflib-upstream-issues.md). Add an explicit alias, `GROUP BY (?o+1 AS ?k)`."
         )
     return _build_rdf_list(encoded_items, graph)
 

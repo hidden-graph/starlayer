@@ -1,5 +1,7 @@
 # Configuring a Reasoning-Enabled Fuseki Backend
 
+> **Historical (D1, 2026-11).** This document describes the old rdflib-based `StarLayerGraph` (`backend=`, `rdf-1.1` / `rdf-1.2`, rdflib stores, the HTTP client `backends/native.py`, SPARQL lowering), which was deleted when the Oxigraph-backed classes took the names `StarLayerGraph` / `StarLayerDataset`. For the code as it is now read `starlayer/graph/CLAUDE.md` and guide `docs/guides/02d-oxigraph-wrapper.ipynb`.
+
 *Last reviewed: 2026-09-20*
 
 `StarLayerGraph.query(..., entailment="native")` (only legal with `backend="rdf-1.2"`) adds no rewriting or materialization of its own - it's a self-documenting label on top of what `native_query()` already does, which is send SPARQL text straight through to the endpoint unmodified (see `backends/native.py`'s own module docstring). That means entailment support for a native-backed `StarLayerGraph` is entirely a property of how the *endpoint itself* is configured, not something this library provides. This doc shows two ways to configure a real Apache Jena Fuseki instance to reason before answering queries - both confirmed live (2026-09-20, Fuseki 6.1.0 via `atomgraph/fuseki:6.1.0`, the same image `docs/upstream-issues/fuseki-upstream-issues.md` uses), then queried successfully through `StarLayerGraph`'s own `entailment="native"` path.

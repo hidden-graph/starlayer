@@ -1,9 +1,6 @@
-"""SPARQL execution for the wrapper, on the same semantics as ``starlayer.graph.query.direct``: the text goes to
-``Store.query`` / ``Store.update`` as it is, ``initNs`` -> ``prefixes=``, ``base`` -> ``base_iri=``, ``initBindings`` ->
-``substitutions=`` with the documented ``VALUES`` fallback when the variable is not projected.
-
-``direct.run_direct`` itself returns rdflib terms and an rdflib ``Result``, and cannot select a default graph, so this module
-builds the wrapper's ``Result`` over pyoxigraph terms.
+"""SPARQL execution for the wrapper: the text goes to ``Store.query`` / ``Store.update`` as it is, ``initNs`` -> ``prefixes=``,
+``base`` -> ``base_iri=``, ``initBindings`` -> ``substitutions=`` with a ``VALUES`` fallback when the variable is not projected.
+The result is the wrapper's ``Result`` over pyoxigraph terms.
 """
 
 from __future__ import annotations

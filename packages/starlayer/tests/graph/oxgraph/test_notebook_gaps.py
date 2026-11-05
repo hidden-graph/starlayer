@@ -91,6 +91,6 @@ def test_dataset_reifier_methods_keep_graphs():
 
 def test_backend_keyword_is_rejected_with_directions():
     for cls in (StarLayerGraph, StarLayerDataset):
-        with pytest.raises(TypeError, match=r"store=.*path=.*http_select"):
+        with pytest.raises(TypeError, match=r"store=.*path=.*SERVICE"):
             cls(backend="rdf-1.2")
     assert StarLayerGraph(backend=None).prefixes is not None
