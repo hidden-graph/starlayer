@@ -35,6 +35,9 @@ known limit. Nothing here is posted to any outside forum. Add items as they are 
 | 27 | `isomorphic()` on two Oxigraph-backed graphs always uses the native canonicaliser, which has no guard against symmetric blank-node graphs: comparing untrusted ones can hang (the rdflib path raised `CanonicalizationComplexityError`) | decide at the end (a cheap symmetry pre-check would do) |
 | 28 | Without rdflib installed: `StarQuery` checks syntax only when the query first runs; a correlated `FILTER [NOT] EXISTS` is not rewritten as a join (same rows, slower); the sqe text path is unavailable (sqe trees are rdflib graphs) | decide at the end |
 | 29 | `starontology.get_resource_iri()` returns an rdflib `URIRef` when rdflib is installed and a `NamedNode` otherwise | decide at the end (always `NamedNode`?) |
+| 30 | Manchester parse keeps datatyped literals as written (rdflib normalised them); the store then normalises them like every other format; a plain literal and `"x"^^xsd:string` are one term, so the writer no longer writes `^^xsd:string` | decide at the end |
+| 31 | Manchester: a relative IRI with no base or an IRI with a space raises `ManchesterSyntaxError` (rdflib's `URIRef` accepted any string); the writer declares `owl:`, `rdf:`, `rdfs:`, `xsd:` when the graph binds neither prefix nor namespace | decide at the end |
+| 32 | `manchester_validate` needs rdflib (its RDFS closure runs owlrl on an rdflib copy); `--manchester-conformance` `test_lenient_where_owlapi_is_lenient` lists two inputs (`one-member-disjointclasses`, `empty-language-tag`) the parser rejects, a stale leniency list that predates this work | decide at the end |
 
 ## Process
 
