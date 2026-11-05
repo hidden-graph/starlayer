@@ -12,10 +12,16 @@ Opt-in (``pytest --sqe-coverage``); about 5 minutes.
 """
 
 import pytest
-from rdflib import RDF, Graph, Literal
+import pyoxigraph as ox
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
 
 pytestmark = pytest.mark.sqe_coverage
+
+RDF_TYPE = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
+
+
+def Literal(text):  # noqa: N802
+    return ox.Literal(text)
 
 TREES = [
     """PREFIX ex:<http://x/>
@@ -40,7 +46,7 @@ REPEATABLE = {"prologuePrefix"}
 
 
 def _local(uri) -> str:
-    return str(uri).split("#")[-1]
+    return getattr(uri, "value", str(uri)).split("#")[-1]
 
 
 _PARSED = [sqe_parse_to_tree(text) for text in TREES]  # parsed once: blank-node labels differ between parses
@@ -49,11 +55,11 @@ _PARSED = [sqe_parse_to_tree(text) for text in TREES]  # parsed once: blank-node
 def _mutations():
     for index, (tree, _root) in enumerate(_PARSED):
         seen = set()
-        for subject, kind in tree.subject_objects(RDF.type):
-            if "/ns/sparql/" not in str(kind):
+        for subject, kind in tree.subject_objects(RDF_TYPE):
+            if "/ns/sparql/" not in getattr(kind, "value", str(kind)):
                 continue
             for predicate, obj in tree.predicate_objects(subject):
-                if predicate == RDF.type or (_local(kind), _local(predicate)) in seen:
+                if predicate == RDF_TYPE or (_local(kind), _local(predicate)) in seen:
                     continue
                 seen.add((_local(kind), _local(predicate)))
                 for mutation in ("remove", "junk", "duplicate"):
@@ -63,9 +69,7 @@ def _mutations():
 @pytest.mark.parametrize("index,subject,predicate,obj,mutation", list(_mutations()))
 def test_corruption_is_noticed_unless_it_is_legitimately_valid(index, subject, predicate, obj, mutation):
     tree, _root = _PARSED[index]
-    corrupted = Graph()
-    for triple in tree:
-        corrupted.add(triple)
+    corrupted = tree.copy()
     if mutation == "remove":
         corrupted.remove((subject, predicate, obj))
     elif mutation == "junk":
