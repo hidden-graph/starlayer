@@ -164,7 +164,7 @@ def test_uncommon_predicates_are_marked_secondary_on_the_node_shape_form_only(ui
     stsh:secondary true on that field of the node shape form; the property shape form has no such mark."""
     node_fields, prop_fields = fields_of(ui, STSH.NodeShapeForm), fields_of(ui, STSH.PropertyShapeForm)
     flagged = {p for p in node_fields if (p, STSH.nodePrimary, Literal(False)) in ui}
-    assert len(flagged) == 14 and sh("datatype") in flagged and sh("pattern") in flagged
+    assert len(flagged) == 23 and sh("datatype") in flagged and sh("pattern") in flagged
     assert {p for p, f in node_fields.items() if (f, STSH.secondary, Literal(True)) in ui} == flagged
     assert not list(ui.triples((None, STSH.secondary, None)) ) or all(f in node_fields.values() for f, _, _ in ui.triples((None, STSH.secondary, None)))
     assert not any((f, STSH.secondary, None) in ui for f in prop_fields.values())
