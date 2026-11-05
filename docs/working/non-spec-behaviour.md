@@ -32,6 +32,9 @@ known limit. Nothing here is posted to any outside forum. Add items as they are 
 | 24 | A plain `turtle` parse does not read the basic encoding as triple terms (`interop.from_basic` does) | the encoding is ordinary RDF 1.1 triples | b1-classification.md O4 | decided (2026-11-06) | document |
 | 25 | A graph opened with `path=` cannot be pickled (`TypeError`); `copy.copy` / `deepcopy` of it is an in-memory copy | - | oxgraph-wrapper.md | decided (2026-11-06) | document |
 | 26 | The `VERSION "1.2"` line is written only when the data uses a 1.2 feature or `rdf_version="1.2"` is given; a document's own label is never checked (`RDF12ConformanceWarning` dropped) | the label is a hint (RDF 1.2 Concepts 2.1) | oxgraph-wrapper.md | decided (2026-11-06) | document |
+| 27 | `isomorphic()` on two Oxigraph-backed graphs always uses the native canonicaliser, which has no guard against symmetric blank-node graphs: comparing untrusted ones can hang (the rdflib path raised `CanonicalizationComplexityError`) | decide at the end (a cheap symmetry pre-check would do) |
+| 28 | Without rdflib installed: `StarQuery` checks syntax only when the query first runs; a correlated `FILTER [NOT] EXISTS` is not rewritten as a join (same rows, slower); the sqe text path is unavailable (sqe trees are rdflib graphs) | decide at the end |
+| 29 | `starontology.get_resource_iri()` returns an rdflib `URIRef` when rdflib is installed and a `NamedNode` otherwise | decide at the end (always `NamedNode`?) |
 
 ## Process
 
