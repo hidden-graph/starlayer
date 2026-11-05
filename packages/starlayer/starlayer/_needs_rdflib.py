@@ -1,6 +1,6 @@
 """Importing this module raises the clear ``ImportError`` when rdflib is not installed.
 
-A module that is rdflib-based throughout (the Manchester syntax, the SRL and salg machinery, the ``sqe:`` trees, ...) starts with
+A module that is rdflib-based throughout (the SRL and salg machinery, the ``sqe:`` trees, ...) starts with
 ``import starlayer._needs_rdflib`` before its own ``import rdflib``. Without rdflib the user then reads "starlayer.sparql.srl needs
 rdflib ... pip install starlayer[rdflib]" instead of a bare ``ModuleNotFoundError``. With rdflib it costs one cached import.
 """

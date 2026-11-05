@@ -103,19 +103,26 @@ this module ever sees them), the same bar ``salg:`` itself holds for SPARQL
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 from collections import namedtuple
 from typing import Any
 
-from rdflib import BNode, Graph, Literal, Namespace, URIRef
-from rdflib.collection import Collection
-from rdflib.namespace import RDF, XSD
+from starlayer.graph.parsers._ox_terms import (
+    OWL,
+    RDF,
+    RDFS,
+    XSD,
+    BNode,
+    Literal,
+    URIRef,
+    Vocab,
+    lexical,
+)
 
 from . import get_ontology_graph
 
-MANCH = Namespace("https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#")
+Graph = Any  # a StarLayerGraph (pyoxigraph terms)
+
+MANCH = Vocab("https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#")
 
 # ---------------------------------------------------------------------------
 # Frame/clause/misc dispatch tables - the one place a new frame/clause type
@@ -266,7 +273,13 @@ def _build_rdf_list(g, items):
 def _read_rdf_list(g, node):
     if node is None or node == RDF.nil:
         return []
-    return list(Collection(g, node))
+    items = []
+    seen = set()
+    while node is not None and node != RDF.nil and node not in seen:
+        seen.add(node)
+        items.append(g.value(node, RDF.first))
+        node = g.value(node, RDF.rest)
+    return items
 
 
 # ---------------------------------------------------------------------------
@@ -284,12 +297,12 @@ _NODEID_PREFIX = 'urn:starlayer:manchester:nodeid:'
 
 
 def _enc_term(term):
-    return URIRef(_NODEID_PREFIX + str(term)) if isinstance(term, BNode) else term
+    return URIRef(_NODEID_PREFIX + term.value) if isinstance(term, BNode) else term
 
 
 def _dec_term(term):
-    if isinstance(term, URIRef) and str(term).startswith(_NODEID_PREFIX):
-        return BNode(str(term)[len(_NODEID_PREFIX):])
+    if isinstance(term, URIRef) and term.value.startswith(_NODEID_PREFIX):
+        return BNode(term.value[len(_NODEID_PREFIX):])
     return term
 
 
@@ -349,7 +362,7 @@ def _encode_class_expr(g, expr):
         node = BNode()
         g.add((node, RDF.type, MANCH[tag]))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
-        g.add((node, MANCH.cardinality, Literal(n, datatype=XSD.nonNegativeInteger)))
+        g.add((node, MANCH.cardinality, lexical(n, XSD.nonNegativeInteger)))
         if filler is not None:
             encode_filler = _encode_data_range if tag.startswith('D') else _encode_class_expr
             g.add((node, MANCH.filler, encode_filler(g, filler)))
@@ -486,7 +499,7 @@ def _encode_fact_item(g, anns, fact):
     negative, prop, value = fact
     node = BNode()
     g.add((node, RDF.type, MANCH.FactItem))
-    g.add((node, MANCH.negative, Literal(negative)))
+    g.add((node, MANCH.negative, lexical(negative)))
     g.add((node, MANCH.property, prop))
     g.add((node, MANCH.value, _enc_term(value)))
     ann_list = _encode_annotations(g, anns)
@@ -557,13 +570,14 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
         from starlayer.graph.oxgraph.core import StarLayerGraph
 
         graph = StarLayerGraph()
-    tree = _manchester_parse_to_rdflib_tree(text, base)
-    graph.bind("manch", str(MANCH) if _ox.is_oxigraph_input(graph) else MANCH)
+    tree = _manchester_parse_to_tree_graph(text, base)
+    graph.bind("manch", str(MANCH))
     _ox.merge_into(graph, tree)
     return graph
 
 
-def _manchester_parse_to_rdflib_tree(text: str, base: str | None) -> Graph:
+def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
+    from starlayer.graph.oxgraph.core import StarLayerGraph
     from starlayer.graph.parsers.manchester_parser import (
         _Cursor,
         _tokenize,
@@ -573,8 +587,8 @@ def _manchester_parse_to_rdflib_tree(text: str, base: str | None) -> Graph:
     class _SyntaxTreeCursor(_Cursor):
         def __init__(self, tokens, base):
             super().__init__(tokens, base)
-            self.syntax_tree_graph = Graph()
-            self.syntax_tree_graph.bind('manch', MANCH)
+            self.syntax_tree_graph = StarLayerGraph()
+            self.syntax_tree_graph.bind('manch', str(MANCH))
             self._prefix_nodes = []
             self._header_node = None
             self._frame_nodes = []
@@ -627,7 +641,7 @@ def _manchester_parse_to_rdflib_tree(text: str, base: str | None) -> Graph:
             item_nodes = _encode_clause_items(g, clause_class, frame_kind, clause_kind, items)
             g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
             if clause_kind in _REVERSED_CLAUSE_KEYWORDS:
-                g.add((node, MANCH.reversed, Literal(True)))
+                g.add((node, MANCH.reversed, lexical(True)))
             self._current_frame_clause_nodes.append(node)
 
         def record_frame_end(self):
@@ -732,7 +746,7 @@ def _decode_class_expr(g, node):
     for tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         if MANCH[tag] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
-            n = int(g.value(node, MANCH.cardinality))
+            n = int(g.value(node, MANCH.cardinality).value)
             filler_node = g.value(node, MANCH.filler)
             decode_filler = _decode_data_range if tag.startswith('D') else _decode_class_expr
             return (tag, n, prop, decode_filler(g, filler_node) if filler_node is not None else None)
@@ -795,11 +809,16 @@ def _decode_annotations(g, ann_list_node):
     return [_decode_annotation(g, node) for node in _read_rdf_list(g, ann_list_node)]
 
 
+def _is_true(term):
+    """A boolean literal's value (``bool(Literal)`` is True for any literal, ``"false"`` included)."""
+    return term is not None and term.value in ('true', '1')
+
+
 def _decode_clause(g, node):
     types = _node_types(g, node)
     clause_class = next(t for t in types if t in _CLAUSE_CLASS_TO_KIND)
     _frame_kind, clause_kind = _CLAUSE_CLASS_TO_KIND[clause_class]
-    if bool(g.value(node, MANCH.reversed)):
+    if _is_true(g.value(node, MANCH.reversed)):
         clause_kind = {'SubClassOf:': 'SuperClassOf:', 'SubPropertyOf:': 'SuperPropertyOf:'}[clause_kind]
     item_nodes = _read_rdf_list(g, g.value(node, MANCH.items))
 
@@ -809,7 +828,7 @@ def _decode_clause(g, node):
     if clause_kind == 'Facts:':
         items = []
         for n in item_nodes:
-            negative = bool(g.value(n, MANCH.negative))
+            negative = _is_true(g.value(n, MANCH.negative))
             prop = g.value(n, MANCH.property)
             value = _dec_term(g.value(n, MANCH.value))
             anns = _decode_annotations(g, g.value(n, MANCH.annotations))
@@ -855,7 +874,7 @@ def _tree_to_document(graph: Graph, root) -> Document:
     """Decode a ``manch:``-shaped RDF graph back into a real ``Document``
     object. ``root`` must be the ``manch:Document`` node, as returned by
     ``manchester_parse_to_tree``."""
-    prefixes = [PrefixDecl(str(graph.value(n, MANCH.prefixLabel)), str(graph.value(n, MANCH.prefixIri)))
+    prefixes = [PrefixDecl(graph.value(n, MANCH.prefixLabel).value, graph.value(n, MANCH.prefixIri).value)
                 for n in _read_rdf_list(graph, graph.value(root, MANCH.prefixes))]
     header_node = graph.value(root, MANCH.header)
     header = None
@@ -878,17 +897,17 @@ def _tree_to_document(graph: Graph, root) -> Document:
 
 def _render_name(node) -> str:
     if isinstance(node, BNode):
-        return f'_:{node}'
-    return f'<{node}>'
+        return f'_:{node.value}'
+    return f'<{node.value}>'
 
 
 def _render_literal(lit: Literal) -> str:
     # The note's quotedString escapes exactly two characters: the double quote and the backslash.
-    text = str(lit).replace('\\', '\\\\').replace('"', '\\"')
+    text = lit.value.replace('\\', '\\\\').replace('"', '\\"')
     if lit.language:
         return f'"{text}"@{lit.language}'
-    if lit.datatype:
-        return f'"{text}"^^<{lit.datatype}>'
+    if lit.datatype and lit.datatype != XSD.string:  # a plain literal is xsd:string in RDF 1.1 / 1.2
+        return f'"{text}"^^<{lit.datatype.value}>'
     return f'"{text}"'
 
 
@@ -1072,9 +1091,9 @@ def _document_to_text(document: Document) -> str:
         lines.append(f'Prefix: {label}: <{p.iri}>')
     if document.header is not None:
         h = document.header
-        header_line = 'Ontology:' if h.iri is None else f'Ontology: <{h.iri}>'
+        header_line = 'Ontology:' if h.iri is None else f'Ontology: <{h.iri.value}>'
         if h.version is not None:
-            header_line += f' <{h.version}>'
+            header_line += f' <{h.version.value}>'
         lines.append(header_line)
         for imp in h.imports:
             lines.append(f'Import: {_render_name(imp)}')
@@ -1094,9 +1113,7 @@ def _document_to_text(document: Document) -> str:
 def manchester_tree_to_text(graph: Graph) -> str:
     """Thin wrapper composing ``_tree_to_document`` + ``_document_to_text``
     for a caller who just wants text back. ``graph`` may be an ``StarLayerGraph`` (read as a snapshot)."""
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
-    (graph,) = _ox.read_boundary(graph)
+    graph = _as_graph(graph)
     root = _find_root(graph)
     try:
         return _document_to_text(_tree_to_document(graph, root))
@@ -1132,25 +1149,28 @@ def manchester_tree_to_owl(graph: Any) -> Any:
     return owl_graph
 
 
-def _vocabulary_snapshot() -> Any:
-    """The ``manch:`` OWL vocabulary as an rdflib snapshot: the pre-flight below reads rdflib terms, and
-    ``get_ontology_graph`` returns an ``StarLayerGraph``."""
+def _as_graph(graph: Any) -> Any:
+    """A ``StarLayerGraph`` for any graph a caller may pass (a dataset gives its default graph; an rdflib graph is converted,
+    which imports rdflib)."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    (snapshot,) = _ox.read_boundary(get_ontology_graph("manchester_owl"))
-    return snapshot
+    graph = _ox.to_oxgraph(graph)
+    return graph.to_graph() if hasattr(graph, "to_graph") else graph
+
+
+def _vocabulary_snapshot() -> Any:
+    """The ``manch:`` OWL vocabulary, as the ``StarLayerGraph`` ``get_ontology_graph`` returns."""
+    return get_ontology_graph("manchester_owl")
 
 
 def _concrete_classes() -> frozenset:
     """The ``manch:`` classes that have no subclass: the only types a tree node may be *asserted* with
     (abstract ones such as ``manch:Frame`` exist to dispatch shapes, and are inferred)."""
-    from rdflib.namespace import OWL, RDFS
-
     onto = _vocabulary_snapshot()
     classes = {
         c for c in set(onto.subjects(RDF.type, RDFS.Class)) | set(onto.subjects(RDF.type, OWL.Class))
         | set(onto.subjects(RDFS.subClassOf)) | set(onto.objects(None, RDFS.subClassOf))
-        if isinstance(c, URIRef) and str(c).startswith(str(MANCH))
+        if isinstance(c, URIRef) and c in MANCH
     }
     with_subclasses = {
         o for s_, o in onto.subject_objects(RDFS.subClassOf) if s_ != o and isinstance(o, URIRef)
@@ -1195,25 +1215,23 @@ def _preflight(data_graph: Graph) -> list[tuple]:
 
     has_manch_property: dict = {}
     for s_, p_, o_ in data_graph:
-        if isinstance(p_, URIRef) and str(p_).startswith(str(MANCH)) and p_ != MANCH.negative:
+        if isinstance(p_, URIRef) and p_ in MANCH and p_ != MANCH.negative:
             has_manch_property.setdefault(s_, set()).add(p_)
-        if p_ == RDF.type and isinstance(o_, URIRef) and str(o_).startswith(str(MANCH)) and o_ not in known:
-            problems.append((s_, f"{o_} is not a class of the manch: vocabulary"))
+        if p_ == RDF.type and isinstance(o_, URIRef) and o_ in MANCH and o_ not in known:
+            problems.append((s_, f"{o_.value} is not a class of the manch: vocabulary"))
     for node, props in has_manch_property.items():
         if not (set(data_graph.objects(node, RDF.type)) & concrete):
-            names = ", ".join(sorted(str(p_).rsplit("#", 1)[-1] for p_ in props))
+            names = ", ".join(sorted(p_.value.rsplit("#", 1)[-1] for p_ in props))
             problems.append((node, f"node has manch:{names} but no asserted concrete manch: type"))
     return problems
 
 
 def _known_classes() -> frozenset:
-    from rdflib.namespace import OWL, RDFS
-
     onto = _vocabulary_snapshot()
     return frozenset(
         c for c in set(onto.subjects(RDF.type, RDFS.Class)) | set(onto.subjects(RDF.type, OWL.Class))
         | set(onto.subjects(RDFS.subClassOf)) | set(onto.objects(None, RDFS.subClassOf))
-        if isinstance(c, URIRef) and str(c).startswith(str(MANCH))
+        if isinstance(c, URIRef) and c in MANCH
     )
 
 
@@ -1257,11 +1275,9 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
-    from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
 
-    (snapshot,) = _ox.read_boundary(data_graph)  # the pre-flight reads rdflib terms: an StarLayerGraph is read as a snapshot
-    problems = _preflight(snapshot)
+    problems = _preflight(_as_graph(data_graph))
     if any("cycle" in message for _, message in problems):
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.
         return False, _preflight_report(problems, None), _preflight_text(problems, "")
@@ -1290,9 +1306,7 @@ _SH = "http://www.w3.org/ns/shacl#"
 
 def _preflight_report(problems, report_graph):
     """``report_graph`` (or a fresh one) with the pre-flight findings added as sh:ValidationResult."""
-    from rdflib.namespace import Namespace
-
-    sh = Namespace(_SH)
+    sh = Vocab(_SH)
     if report_graph is None:
         from starlayer.graph.oxgraph.core import StarLayerGraph
 
@@ -1310,12 +1324,16 @@ def _preflight_report(problems, report_graph):
             report_graph.add((report_node, sh.result, res))
     if report_node is not None:
         report_graph.remove((report_node, sh.conforms, None))
-        report_graph.add((report_node, sh.conforms, Literal(False)))
+        report_graph.add((report_node, sh.conforms, lexical(False)))
     return report_graph
 
 
+def _show(node):
+    return node.value if isinstance(node, (URIRef, BNode)) else str(node)
+
+
 def _preflight_text(problems, shacl_text):
-    lines = "\n".join(f"  - {m}" + (f" (node {f})" if f is not None else "") for f, m in problems)
+    lines = "\n".join(f"  - {m}" + (f" (node {_show(f)})" if f is not None else "") for f, m in problems)
     text = (
         "Validation Report\nConforms: False\n\n"
         f"Pre-flight problems (asserted graph, checked before inference):\n{lines}\n"
