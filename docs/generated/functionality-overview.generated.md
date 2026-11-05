@@ -13,7 +13,7 @@ What StarLayer does today, and what is planned.
 - RDFC-1.0 canonicalization and hashing of RDF 1.2 graphs. ([rdf-canon](https://www.w3.org/TR/rdf-canon))
 - Resolve owl:imports using a loader you supply, so you decide how an imported document is fetched. There is no built-in fetching.
 - Concise bounded descriptions of a resource, and lookup of the triple terms that have at least one reifier.
-- Triple terms are stored using the vocabulary of the RDF 1.2 Interoperability specification (each one a node typed rdf:PropositionForm), found by that type, and converted to and from the standard's blank-node form when writing or reading plain RDF formats.
+- Triple terms are converted to and from the basic encoding of the RDF 1.2 Interoperability specification (a blank node typed rdf:PropositionForm with three description properties) when writing or reading plain RDF 1.1 formats.
 
 **Planned / deferred:**
 
