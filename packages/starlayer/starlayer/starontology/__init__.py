@@ -721,12 +721,7 @@ def get_resource_iri(name: str) -> Any:
     """
     if name not in _FILENAME_BY_NAME:
         return None
-    iri = _resource_iri(name)
-    if _optional.have_rdflib():  # what the profiles graph's callers compare it with
-        from rdflib import URIRef
-
-        return URIRef(iri.value)
-    return iri
+    return _resource_iri(name)
 
 
 def get_raw_url(name: str) -> str | None:
