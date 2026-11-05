@@ -10,6 +10,9 @@ real function explicitly (idempotent).
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from collections.abc import Iterator
 from typing import Any
 

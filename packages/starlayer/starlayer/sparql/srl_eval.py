@@ -32,6 +32,9 @@ node-per-solution head instantiation (§6.4).
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 import datetime
 from contextvars import ContextVar
 from dataclasses import dataclass

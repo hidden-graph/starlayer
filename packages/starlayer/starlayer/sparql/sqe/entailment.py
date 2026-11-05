@@ -33,6 +33,9 @@ Rows are a bag, as in the rdflib version: a fact derivable in two ways (an asser
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 import functools
 from typing import Any
 

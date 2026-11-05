@@ -45,14 +45,23 @@ Errors are :class:`SparqlSyntaxError` with ``line``/``col``/``pos``.
 from __future__ import annotations
 
 import re
-from typing import NamedTuple
+from typing import TYPE_CHECKING, NamedTuple
 from urllib.parse import urljoin
 
-from rdflib import BNode, Graph, Literal, URIRef, Variable
-from rdflib.collection import Collection
-from rdflib.namespace import RDF, XSD
+# Term classes: rdflib's when it is installed, small stand-ins when it is not (see _terms.py); only the encoder at the end of this
+# module, which writes the tree into an rdflib graph, needs rdflib itself.
+from starlayer.sparql._terms import (
+    RDF,
+    XSD,
+    BNode,
+    Literal,
+    URIRef,
+    Variable,
+    encode_dirlang_datatype,
+)
 
-from starlayer.sparql.vocab import encode_dirlang_datatype
+if TYPE_CHECKING:
+    from rdflib import Graph
 
 
 def _join(base_uri, ref):
@@ -1752,6 +1761,8 @@ def parse_sparql_update(text: str, base: str | None = None) -> Node:
 def _list(graph: Graph, nodes: list):
     if not nodes:
         return RDF.nil
+    from rdflib.collection import Collection
+
     head = BNode()
     Collection(graph, head, nodes)
     return head
@@ -2093,6 +2104,9 @@ def ast_to_tree(q: Node, graph: Graph | None = None, root=None, *, triple_order=
     Raises:
         SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
     """
+    from starlayer._optional import require_rdflib
+
+    require_rdflib("Encoding a SPARQL parse tree as an sqe: RDF tree")
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
     if graph is not None and _ox.is_oxigraph_input(graph):  # an StarLayerGraph target: encode on rdflib terms, then add them to it; root is pyoxigraph

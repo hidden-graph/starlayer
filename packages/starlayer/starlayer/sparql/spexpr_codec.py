@@ -11,6 +11,9 @@ Encoding half first (was ``to_rdf.py``), decoding half after it (was ``from_rdf.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from contextvars import ContextVar
 
 # ---- decoding half: imports
@@ -28,6 +31,10 @@ from rdflib.paths import (
 )
 from rdflib.plugins.sparql.parserutils import CompValue, Expr
 
+# Must come first among this package's modules: it extends rdflib's shared grammar in place, and ``_discover_expr_evalfns()`` below
+# snapshots that grammar when this module is imported (the old rule 'sparql/__init__ imports parse12 first', kept here so the
+# package facade can stay free of rdflib imports).
+from . import parse12 as _parse12  # noqa: F401,E402
 from .vocab import (
     PY_STR_DATATYPE,
     QUERY,

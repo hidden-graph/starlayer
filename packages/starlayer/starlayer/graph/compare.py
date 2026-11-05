@@ -87,12 +87,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from rdflib import BNode, Graph, Literal, Namespace, URIRef
-from rdflib.compare import graph_diff as _rdflib_graph_diff
-from rdflib.compare import isomorphic as _rdflib_isomorphic
-from rdflib.compare import to_isomorphic as _rdflib_to_isomorphic
-from rdflib.namespace import XSD
-
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.encoding import encode_dirlang_datatype
 from starlayer.graph.model.triple import TripleTerm
@@ -106,10 +100,14 @@ __all__ = ["isomorphic", "graph_diff", "to_isomorphic", "to_canonical_hash"]
 # never emitted by any parser/serializer in this codebase, so it can never
 # collide with a source graph's own use of classic RDF reification
 # (rdf:subject/predicate/object) on unrelated blank nodes.
-_TT = Namespace("urn:starlayer:canon-tt#")
+_TT_PREFIX = "urn:starlayer:canon-tt#"
 
 
-_TT_PREFIX = str(_TT)
+def _need_rdflib(feature: str) -> None:
+    """Raise the clear ImportError when rdflib is not installed (this module's decomposition and rdflib-graph comparison run on it)."""
+    from starlayer._optional import require_rdflib
+
+    require_rdflib(feature)
 
 
 def _escape_predicate(p: Any) -> Any:
@@ -117,6 +115,8 @@ def _escape_predicate(p: Any) -> Any:
     namespace is moved under ``..#escaped:`` so it can never be mistaken for
     one of the three synthetic edges (``subject``/``predicate``/``object``)
     that stand for a triple term."""
+    from rdflib import URIRef
+
     if isinstance(p, URIRef) and str(p).startswith(_TT_PREFIX):
         return URIRef(_TT_PREFIX + "escaped:" + str(p)[len(_TT_PREFIX) :])
     return p
@@ -149,6 +149,8 @@ def _quads_of(graph: Any) -> list:
     default = getattr(graph, "default_graph", None)
     if default is None:
         default = getattr(graph, "default_context", None)
+    from rdflib import Graph
+
     default_id = default.identifier
     out = []
     for s, p, o, g in graph.quads():
@@ -162,6 +164,10 @@ def _decompose_quads(quads: Any) -> list:
     fragment placed in the same graph as the quad that held the term, see
     the module docstring for why that suffices. Returns de-duplicated quads
     (a set, as a graph would be); the decomposition is injective."""
+    from rdflib import BNode, Literal, URIRef
+    from rdflib.namespace import XSD
+
+    _need_rdflib("decomposing triple terms for rdflib")
     out: dict = {}
 
     def _term(node: Any, g: Any) -> Any:
@@ -175,9 +181,9 @@ def _decompose_quads(quads: Any) -> list:
         (already a plain rdflib term) passes through unchanged."""
         if isinstance(node, TripleTerm):
             tt_node = BNode()
-            out[(tt_node, _TT.subject, _term(node.subject, g), g)] = None
-            out[(tt_node, _TT.predicate, node.predicate, g)] = None
-            out[(tt_node, _TT.object, _term(node.object, g), g)] = None
+            out[(tt_node, URIRef(_TT_PREFIX + "subject"), _term(node.subject, g), g)] = None
+            out[(tt_node, URIRef(_TT_PREFIX + "predicate"), node.predicate, g)] = None
+            out[(tt_node, URIRef(_TT_PREFIX + "object"), _term(node.object, g), g)] = None
             return tt_node
         if isinstance(node, DirLangString):
             return Literal(node.value, datatype=encode_dirlang_datatype(node.language, node.direction))
@@ -193,11 +199,13 @@ def _decompose_quads(quads: Any) -> list:
     return list(out)
 
 
-def _decompose(graph: Any) -> Graph:
+def _decompose(graph: Any) -> Any:
     """Return a plain ``rdflib.Graph`` with every triple term replaced by a
     synthetic reification fragment - see module docstring for why this is
     sufficient for correct isomorphism/canonicalization.
     """
+    from rdflib import Graph
+
     from starlayer.graph.oxgraph._rdflib_bridge import (
         is_oxigraph_input,
         to_rdflib_triples,
@@ -226,6 +234,20 @@ def _reject_dataset(*graphs: Any) -> None:
             )
 
 
+def _ox_quads(graph: Any) -> list:
+    """The quads of a ``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store`` as pyoxigraph quads (a graph's triples go
+    into the default graph)."""
+    import pyoxigraph as ox
+
+    if isinstance(graph, ox.Store):
+        return list(graph)
+    from starlayer.graph.oxgraph.core import StarLayerDataset
+
+    if isinstance(graph, StarLayerDataset):
+        return list(graph.quads())
+    return [ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in graph]
+
+
 def isomorphic(graph1: Any, graph2: Any) -> bool:
     """RDF-1.2-aware replacement for ``rdflib.compare.isomorphic`` - correct
     for graphs containing triple terms (including ones with nested blank
@@ -238,6 +260,13 @@ def isomorphic(graph1: Any, graph2: Any) -> bool:
     compared as datasets: equal canonical N-Quads (RDFC-1.0), so graph names
     count. A dataset and a plain graph are compared as the dataset's quads
     against the graph's triples (default graph only)."""
+    from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input
+
+    if is_oxigraph_input(graph1) and is_oxigraph_input(graph2):
+        # Both sides are Oxigraph-backed: compare natively (RDFC-1.0 on Oxigraph), no rdflib needed.
+        from starlayer.graph import rdfc_native
+
+        return rdfc_native.isomorphic(_ox_quads(graph1), _ox_quads(graph2))
     if _is_quad_store(graph1) or _is_quad_store(graph2):
         return _canonical_nquads_of(graph1) == _canonical_nquads_of(graph2)
     left, right = _decompose(graph1), _decompose(graph2)
@@ -250,6 +279,8 @@ def isomorphic(graph1: Any, graph2: Any) -> bool:
     try:
         return _canonical_nquads_of(left) == _canonical_nquads_of(right)
     except Exception:
+        from rdflib.compare import isomorphic as _rdflib_isomorphic
+
         return _rdflib_isomorphic(left, right)
 
 
@@ -267,6 +298,9 @@ def graph_diff(g1: Any, g2: Any):
             here; use ``isomorphic()`` or ``rdfc.to_canonical_nquads``).
     """
     _reject_dataset(g1, g2)
+    _need_rdflib("graph_diff")
+    from rdflib.compare import graph_diff as _rdflib_graph_diff
+
     return _rdflib_graph_diff(_decompose(g1), _decompose(g2))
 
 
@@ -279,6 +313,9 @@ def to_isomorphic(graph: Any):
     Raises:
         TypeError: for a dataset (use ``rdfc.to_canonical_nquads``)."""
     _reject_dataset(graph)
+    _need_rdflib("to_isomorphic")
+    from rdflib.compare import to_isomorphic as _rdflib_to_isomorphic
+
     return _rdflib_to_isomorphic(_decompose(graph))
 
 
@@ -297,4 +334,7 @@ def to_canonical_hash(graph: Any) -> int:
         from starlayer.graph.rdfc import rdfc10_hash
 
         return int(rdfc10_hash(graph), 16)
+    _need_rdflib("to_canonical_hash")
+    from rdflib.compare import to_isomorphic as _rdflib_to_isomorphic
+
     return _rdflib_to_isomorphic(_decompose(graph)).graph_digest()

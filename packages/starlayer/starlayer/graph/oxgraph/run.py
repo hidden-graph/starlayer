@@ -88,6 +88,9 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
     pfx = merge_prefixes(prefixes, init_ns)
     sent = text
     if entailment is not None:  # query-time RDF / RDFS entailment: the query is rewritten, the data is not touched
+        from starlayer._optional import require_rdflib
+
+        require_rdflib("Query-time RDF / RDFS entailment (entailment=...)")
         from starlayer.sparql.sqe.entailment import rewrite_for_entailment
 
         sent = rewrite_for_entailment(text, entailment, prefixes=pfx, base=base)
@@ -102,7 +105,7 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
     subs = None
     if init_bindings:
         subs = {ox.Variable(str(getattr(k, "value", k)).lstrip("?$")): terms.term(v) for k, v in init_bindings.items()}
-    else:  # a correlated FILTER [NOT] EXISTS is much faster as a join (sparql/sqe/rewrite.py); same rows
+    elif "EXISTS" in text.upper():  # a correlated FILTER [NOT] EXISTS is much faster as a join (sparql/sqe/rewrite.py); same rows
         from starlayer.sparql.sqe.rewrite import rewrite_exists_text
 
         sent = rewrite_exists_text(sent, prefixes=pfx, base=base)

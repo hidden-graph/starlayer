@@ -7,10 +7,10 @@ Entailment regimes are the W3C IRIs in ``ENTAILMENT``.
 """
 
 from starlayer.graph.compare import isomorphic
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
 from starlayer.graph.oxgraph.helpers.imports import can_resolve_import
 
 __all__ = [

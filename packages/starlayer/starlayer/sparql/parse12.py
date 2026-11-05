@@ -13,6 +13,9 @@ called on it immediately, completely unmodified.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 import re
 import threading
 from collections.abc import Mapping

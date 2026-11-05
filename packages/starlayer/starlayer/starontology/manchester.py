@@ -103,6 +103,9 @@ this module ever sees them), the same bar ``salg:`` itself holds for SPARQL
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from collections import namedtuple
 from typing import Any
 

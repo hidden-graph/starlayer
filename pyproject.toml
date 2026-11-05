@@ -11,11 +11,10 @@ license = { file = "LICENSE" }
 authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
-    "rdflib>=7.0",
     "requests>=2.28",
-    # owlrl computes the RDFS and OWL 2 RL closures behind entailment (inference=, sh:entailment): the native SHACL engine
-    # needs it whenever a regime is asked for, so it is core, not an extra.
-    "owlrl>=6",
+    # rdflib is NOT a core dependency: graphs, parsing, SPARQL query and update, SHACL validation and rules run on pyoxigraph.
+    # It is the `rdflib` extra (from_rdflib / to_rdflib, the Manchester syntax, the SRL / salg / sqe tree machinery, SHACL UI
+    # widget selection, and owlrl, which computes the RDFS / OWL 2 RL closures behind inference on an rdflib copy).
     # pyoxigraph is core: starlayer.shacl_engine and starlayer.graph.oxgraph import it at
     # module level. 0.5.13 is the minimum supported Oxigraph: older versions abort the
     # process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
@@ -39,27 +38,32 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
+# Optional rdflib: from_rdflib / to_rdflib, Manchester syntax, SRL / salg / sqe trees, SHACL UI widget selection. Without it these
+# raise an ImportError that names this extra. `pip install starlayer[rdflib]`.
+rdflib = ["rdflib>=7.0"]
 # setuptools<81 pin: rdflib-sqlalchemy still imports pkg_resources at module
 # load (setuptools>=81 removed it) - remove once rdflib-sqlalchemy drops the
 # pkg_resources import upstream.
-sqlalchemy = ["rdflib-sqlalchemy>=0.5", "setuptools<81"]
-# owlrl is a core dependency now; the extra stays so `pip install starlayer[reasoning]` (named in messages and docs) keeps working.
-reasoning = ["owlrl>=6"]
+sqlalchemy = ["rdflib>=7.0", "rdflib-sqlalchemy>=0.5", "setuptools<81"]
+# owlrl computes the RDFS and OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph, so
+# the extra includes rdflib.
+reasoning = ["owlrl>=6", "rdflib>=7.0"]
 # Oxigraph as an rdflib Store (oxrdflib's OxigraphStore, wrapping pyoxigraph),
 # usable in rdf-1.2 native mode via StarLayerGraph(store=OxigraphStore(...),
 # backend='rdf-1.2') - real triple terms + SPARQL 1.2, in-process, no HTTP.
 # See starlayer/graph/backends/native_oxigraph.py. Opt-in, never a default.
-oxigraph = ["oxrdflib>=0.4", "pyoxigraph>=0.5.13"]
+oxigraph = ["rdflib>=7.0", "oxrdflib>=0.4", "pyoxigraph>=0.5.13"]
 # The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can
 # dispatch to - see starlayer/graph/graph/owl_dl.py and owl_dl_rustdl.py.
 # Neither is core: "hermit" also needs a real JVM on PATH that pip alone
 # can't provide, and "rustdl" is a different, non-strictly-better tradeoff
 # (no JVM, but not provably complete on full SROIQ) - both opt-in, symmetrically.
-hermit = ["owlready2>=0.51"]
-rustdl = ["rustdl>=0.4"]
-test = ["pytest>=8.0", "hypothesis>=6"]
+hermit = ["rdflib>=7.0", "owlready2>=0.51"]
+rustdl = ["rdflib>=7.0", "rustdl>=0.4"]
+# The tests import rdflib (an oracle and the optional-feature tests) and owlrl in many places.
+test = ["pytest>=8.0", "hypothesis>=6", "rdflib>=7.0", "owlrl>=6"]
 # Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
-notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6"]
+notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "rdflib>=7.0", "owlrl>=6"]
 # pytest-benchmark for benchmarks-graph/benchmarks-shacl's own test_bench_*.py
 # regression guards (outside `testpaths`, so a bare `pytest` never collects
 # them - see .github/workflows/benchmark.yml and each dir's own README).

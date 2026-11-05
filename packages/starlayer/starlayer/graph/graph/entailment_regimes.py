@@ -34,19 +34,34 @@ rather than naming a regime).
 
 from __future__ import annotations
 
-from rdflib import Namespace
+from typing import Any
 
-ENTAILMENT = Namespace("http://www.w3.org/ns/entailment/")
+# rdflib terms (a ``Namespace`` of ``URIRef``s), built on first use: rdflib is an optional extra. The pyoxigraph-term form of these
+# IRIs, which ``starlayer.graph.ENTAILMENT`` is, lives in ``starlayer.graph.oxgraph.helpers.entailment``.
+_CACHE: dict[str, Any] = {}
 
-# Every regime IRI this project recognizes by name, supported or not -
-# used to produce a clear "unsupported regime" error (naming the IRI)
-# rather than a generic "unrecognized value" one for a real-but-unbuilt
-# regime like D or RIF (which has no IRI at all, so can never reach this
-# set in the first place).
-KNOWN_REGIMES = frozenset({ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT.D, ENTAILMENT["OWL-RDF-Based"], ENTAILMENT["OWL-Direct"]})
 
-# Regimes this project actually implements a materialization/query path
-# for. D is intentionally excluded - recognized by IRI, but unsupported
-# (see module docstring) - so a caller gets "known but unsupported",
-# distinct from "never heard of this IRI at all".
-SUPPORTED_REGIMES = frozenset({ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"], ENTAILMENT["OWL-Direct"]})
+def _build() -> dict[str, Any]:
+    if not _CACHE:
+        from starlayer._optional import require_rdflib
+
+        require_rdflib("the rdflib form of the entailment regime IRIs (starlayer.graph.graph.entailment_regimes)")
+        from rdflib import Namespace
+
+        ns = Namespace("http://www.w3.org/ns/entailment/")
+        # Every regime IRI this project recognizes by name, supported or not - used to produce a clear "unsupported regime" error
+        # (naming the IRI) rather than a generic "unrecognized value" one for a real-but-unbuilt regime like D or RIF (which has no
+        # IRI at all, so can never reach this set in the first place).
+        known = frozenset({ns.RDF, ns.RDFS, ns.D, ns["OWL-RDF-Based"], ns["OWL-Direct"]})
+        # Regimes this project actually implements a materialization/query path for. D is intentionally excluded - recognized by
+        # IRI, but unsupported (see module docstring) - so a caller gets "known but unsupported", distinct from "never heard of
+        # this IRI at all".
+        supported = frozenset({ns.RDF, ns.RDFS, ns["OWL-RDF-Based"], ns["OWL-Direct"]})
+        _CACHE.update(ENTAILMENT=ns, KNOWN_REGIMES=known, SUPPORTED_REGIMES=supported)
+    return _CACHE
+
+
+def __getattr__(name: str) -> Any:
+    if name in ("ENTAILMENT", "KNOWN_REGIMES", "SUPPORTED_REGIMES"):
+        return _build()[name]
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

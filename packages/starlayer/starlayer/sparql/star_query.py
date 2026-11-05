@@ -41,16 +41,24 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from rdflib.query import Result
+from starlayer._optional import have_rdflib, require_rdflib
 
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.sparql.parse12 import prepare_query_12
+# rdflib is an optional extra: the prepared-query object, and the rdflib-graph run path that uses it, need it; running
+# against a StarLayerGraph / StarLayerDataset (Oxigraph executes the text) does not.
+
+def prepare_query_12(*args: Any, **kwargs: Any) -> Any:
+    """``starlayer.sparql.parse12.prepare_query_12``, imported on first call (that module needs rdflib)."""
+    from starlayer.sparql.parse12 import prepare_query_12 as prepare
+
+    return prepare(*args, **kwargs)
+
 
 # entailment=ENTAILMENT.RDF/.RDFS rewrite the query's own algebra - see this
 # module's own docstring for why that rewrite is silently skipped when
 # query_object isn't a plain string. run() falls back to the original text
 # for exactly these two regimes so the rewrite actually happens.
-_TEXT_REWRITE_ENTAILMENTS = (ENTAILMENT.RDF, ENTAILMENT.RDFS)
+_RDF_REGIME = "http://www.w3.org/ns/entailment/RDF"
+_RDFS_REGIME = "http://www.w3.org/ns/entailment/RDFS"
 
 # Sentinel for "no timeout= override bound" - lets run() omit the kwarg
 # entirely and fall through to StarLayerGraph.query()'s own real default,
@@ -103,7 +111,10 @@ class StarQuery:
         """
         self._text = text
         self._base = base
-        self._prepared = prepare_query_12(text, base=base, initNs=initNs)
+        # Syntax is checked here when rdflib is installed; without it, a bad query raises when it is first run on Oxigraph.
+        self._prepared = None
+        if have_rdflib():
+            self._prepared = prepare_query_12(text, base=base, initNs=initNs)
         self.initNs = initNs
         self.initBindings = initBindings
         self.entailment = entailment
@@ -111,7 +122,7 @@ class StarQuery:
         self.engine = engine
         self.timeout = timeout
 
-    def run(self, graph: Any, **overrides: Any) -> Result:
+    def run(self, graph: Any, **overrides: Any) -> Any:
         """Run the bound query against ``graph``.
 
         Any option bound at construction can be overridden for just this
@@ -159,7 +170,8 @@ class StarQuery:
                 timeout=kwargs.get("timeout"),
             )
 
-        if kwargs["entailment"] in _TEXT_REWRITE_ENTAILMENTS:
+        require_rdflib("Running a StarQuery against an rdflib graph")
+        if getattr(kwargs["entailment"], "value", str(kwargs["entailment"])) in (_RDF_REGIME, _RDFS_REGIME):
             # See this module's own docstring: only a plain string triggers
             # StarLayerGraph.query()'s own entailment-rewrite step for
             # these two regimes - the prepared Query object's algebra is

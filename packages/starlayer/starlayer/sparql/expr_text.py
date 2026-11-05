@@ -12,6 +12,9 @@ Raises ``NotImplementedError`` for a node kind it does not handle (``EXISTS`` an
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from rdflib import BNode, Literal, URIRef, Variable
 from rdflib.plugins.sparql.parserutils import CompValue
 

@@ -168,6 +168,9 @@ Two shapes need a convention beyond that generic rule:
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from rdflib import Namespace, URIRef
 
 SALG = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")

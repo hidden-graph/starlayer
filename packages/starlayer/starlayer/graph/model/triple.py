@@ -4,7 +4,27 @@ starlayer.graph.model.triple
 Core RDF 1.2 types: TripleTerm.
 """
 
-from rdflib import BNode, URIRef
+import sys
+
+import pyoxigraph as ox
+
+
+def _iri_and_bnode_types() -> tuple[tuple[type, ...], tuple[type, ...]]:
+    """The classes that count as an IRI and as a blank node: pyoxigraph's always, rdflib's when rdflib has been imported (rdflib is an
+    optional extra, so it is never imported here; a user holding an rdflib term has imported it)."""
+    iri: tuple[type, ...] = (ox.NamedNode,)
+    bnode: tuple[type, ...] = (ox.BlankNode,)
+    rdflib = sys.modules.get("rdflib")
+    if rdflib is not None:
+        iri += (rdflib.URIRef,)
+        bnode += (rdflib.BNode,)
+    return iri, bnode
+
+
+def _n3(term, namespace_manager):
+    """N3 text of a component: rdflib terms have ``n3``; a pyoxigraph term's ``str`` is its N-Triples form."""
+    n3 = getattr(term, "n3", None)
+    return n3(namespace_manager) if callable(n3) else str(term)
 
 
 class TripleTerm:
@@ -38,12 +58,13 @@ class TripleTerm:
         # Literal-valued subject) with no error of its own - this
         # constructor must not then silently accept it and construct an
         # equally-invalid TripleTerm object.
-        if not isinstance(subject, (URIRef, BNode)):
+        iri_types, bnode_types = _iri_and_bnode_types()
+        if not isinstance(subject, iri_types + bnode_types):
             raise ValueError(
                 "RDF 1.2: the subject of a triple term must be an IRI or blank node, "
                 f"not {type(subject).__name__} ({subject!r})."
             )
-        if not isinstance(predicate, URIRef):
+        if not isinstance(predicate, iri_types):
             raise ValueError(
                 "RDF 1.2: the predicate of a triple term must be an IRI, "
                 f"not {type(predicate).__name__} ({predicate!r})."
@@ -86,7 +107,7 @@ class TripleTerm:
     def n3(self, namespace_manager=None):
         """Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form."""
         nm = namespace_manager if namespace_manager is not None else self._namespace_manager
-        return f'<<( {self.subject.n3(nm)} {self.predicate.n3(nm)} {self.object.n3(nm)} )>>'
+        return f'<<( {_n3(self.subject, nm)} {_n3(self.predicate, nm)} {_n3(self.object, nm)} )>>'
 
     def __str__(self):
         try:

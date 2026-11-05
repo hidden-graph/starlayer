@@ -20,6 +20,9 @@ encoder in ``to_rdf.py`` and the design note in ``vocab.py``.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 from rdflib import BNode, Graph
 from rdflib.collection import Collection
 from rdflib.plugins.sparql.sparql import Prologue, Query, Update

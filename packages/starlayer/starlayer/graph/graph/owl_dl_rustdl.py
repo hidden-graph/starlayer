@@ -89,6 +89,9 @@ just filling in what RustDL's parser needs to see explicitly.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 import tempfile
 from pathlib import Path
 

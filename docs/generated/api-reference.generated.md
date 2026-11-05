@@ -12,7 +12,7 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 The whole store. ``default_union`` (default True) makes ``triples`` / ``len`` / ``iter`` / SPARQL's default graph the
 union of all graphs, as the engine's graph view does; False restricts them to the default graph (rdflib's ``Dataset``).
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L805-L989)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L807-L992)
 
 ---
 
@@ -25,7 +25,7 @@ def clear(self) -> StarLayerDataset
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.clear](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L952-L955)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.clear](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L955-L958)
 
 ---
 
@@ -38,7 +38,7 @@ def copy(self) -> StarLayerDataset
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.copy](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L973-L980)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.copy](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L976-L983)
 
 ---
 
@@ -53,7 +53,7 @@ A view of the dataset's default graph (re-made on each access; it shares this da
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L885-L887)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L888-L890)
 
 ---
 
@@ -66,7 +66,7 @@ def default_union(self) -> bool
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.default_union](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L838-L839)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.default_union](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L841-L842)
 
 ---
 
@@ -87,7 +87,7 @@ named graphs too, prefixes, ``default_union``) or from a plain graph (its triple
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L819-L827)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L821-L830)
 
 ---
 
@@ -106,7 +106,7 @@ A view of one graph (created, empty, if it does not exist yet); shares this data
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L924-L929)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L927-L932)
 
 ---
 
@@ -119,7 +119,7 @@ def graph_names(self) -> list[Any]
 
 **Returns:** `list[Any]`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graph_names](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L935-L936)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graph_names](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L938-L939)
 
 ---
 
@@ -134,7 +134,7 @@ The default graph, then every named graph (empty ones included).
 
 **Returns:** `list[StarLayerGraph]`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graphs](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L931-L933)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graphs](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L934-L936)
 
 ---
 
@@ -151,7 +151,7 @@ def has_graph(self, identifier: Any) -> bool
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.has_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L938-L940)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.has_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L941-L943)
 
 ---
 
@@ -170,7 +170,7 @@ Quads matching ``(s, p, o[, graph])``; graph ``None`` is any graph (the default 
 
 **Returns:** `Iterator[ox.Quad]`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L850-L854)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L853-L857)
 
 ---
 
@@ -191,7 +191,7 @@ A dataset of the ``rdf:reifies`` triples of every reified triple term matching `
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L911-L913)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L914-L916)
 
 ---
 
@@ -210,7 +210,7 @@ A dataset of the ``reifier rdf:reifies <triple term>`` triples of ``reifier``, p
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L919-L921)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L922-L924)
 
 ---
 
@@ -229,7 +229,7 @@ A dataset of the annotation triples ``(reifier, predicate, value)`` of every rei
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L915-L917)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L918-L920)
 
 ---
 
@@ -251,7 +251,7 @@ came from. ``list(reification.reifiers(ds))`` gives the reifier nodes alone.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L906-L909)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L909-L912)
 
 ---
 
@@ -268,7 +268,7 @@ def remove(self, pattern: tuple) -> StarLayerDataset
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L876-L882)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L879-L885)
 
 ---
 
@@ -287,7 +287,7 @@ Remove a named graph with its triples (the default graph is emptied).
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.remove_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L942-L950)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.remove_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L945-L953)
 
 ---
 
@@ -303,7 +303,7 @@ collapse). It is a copy: it can be queried or compared on its own.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L889-L894)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L892-L897)
 
 ---
 
@@ -313,7 +313,7 @@ collapse). It is a copy: it can be queried or compared on its own.
 One graph of a store: the default graph (``identifier=None``) or the named graph ``identifier`` (a ``NamedNode``,
 ``BlankNode``, or an IRI string).
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L713-L802)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L714-L804)
 
 ---
 
@@ -326,7 +326,7 @@ def clear(self) -> StarLayerGraph
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L775-L778)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L777-L780)
 
 ---
 
@@ -342,7 +342,7 @@ An independent in-memory copy of this graph (same identifier, own copy of the pr
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L786-L793)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L788-L795)
 
 ---
 
@@ -365,7 +365,7 @@ For an rdflib dataset's named graphs use ``StarLayerDataset.from_rdflib``.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L724-L736)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L725-L738)
 
 ---
 
@@ -378,42 +378,7 @@ def identifier(self) -> Any
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L739-L740)
-
----
-
-<a id="entity-starlayer-sparql-star_query-StarQuery"></a>
-### `StarQuery`  _(class)_
-
-A SPARQL query, prepared once, bound with the options
-``StarLayerGraph.query()`` otherwise takes per call - run it against as
-many graphs as you like via :meth:`run`.
-
-**Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/star_query.py#L62-L172)
-
----
-
-<a id="entity-starlayer-sparql-star_query-StarQuery-run"></a>
-### `StarQuery.run`  _(method)_
-
-```python
-def run(self, graph: Any, **overrides: Any) -> Result
-```
-
-Run the bound query against ``graph``.
-
-Any option bound at construction can be overridden for just this
-one call via ``**overrides`` - the bound value itself is never
-changed.
-
-**Parameters:**
-
-- `graph: Any` - The graph to query (a ``StarLayerGraph``, or anything else ``StarLayerGraph.query()``'s own ``query_object`` parameter already accepts a prepared ``Query`` against). ``infer``/``engine``/``timeout``/``processor``/``result``/ ``use_store_provided``, overriding the bound value (or ``StarLayerGraph.query()``'s own default) for this call only.
-- `overrides: Any`
-
-**Returns:** `Result` - Whatever ``graph.query()`` itself returns for this query.
-
-**Source:** [starlayer.sparql.star_query.StarQuery.run](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/star_query.py#L114-L172)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/oxgraph/core.py#L741-L742)
 
 ---
 
@@ -705,7 +670,7 @@ terminating early." Confirmed live that without this, the official
 test suite's own poisoning fixture (test074, a 10-node blank-node
 clique) hangs indefinitely rather than raising anything.
 
-**Source:** [starlayer.graph.rdfc.CanonicalizationComplexityError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L82-L91)
+**Source:** [starlayer.graph.rdfc.CanonicalizationComplexityError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L85-L94)
 
 ---
 
@@ -719,7 +684,7 @@ equal and have the same hash. Per RDF 1.2 Concepts sec 3.4.1, a language
 tag's case does not participate in the abstract syntax - it is folded to
 lowercase here, mirroring rdflib.Literal's existing behaviour for lang=.
 
-**Source:** [starlayer.graph.model.dirlangstring.DirLangString](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/dirlangstring.py#L26-L67)
+**Source:** [starlayer.graph.model.dirlangstring.DirLangString](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/dirlangstring.py#L24-L65)
 
 ---
 
@@ -738,7 +703,7 @@ Returns the N3/Turtle-1.2 (``"text"@lang--dir``) text form.
 
 **Returns:** `str`
 
-**Source:** [starlayer.graph.model.dirlangstring.DirLangString.n3](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/dirlangstring.py#L59-L61)
+**Source:** [starlayer.graph.model.dirlangstring.DirLangString.n3](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/dirlangstring.py#L57-L59)
 
 ---
 
@@ -755,7 +720,7 @@ _namespace_manager is set by StarLayerGraph._restore() when returning a
 TripleTerm from a query result so that __str__ can emit prefixed names.
 It is excluded from equality and hashing.
 
-**Source:** [starlayer.graph.model.triple.TripleTerm](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/triple.py#L10-L109)
+**Source:** [starlayer.graph.model.triple.TripleTerm](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/triple.py#L30-L130)
 
 ---
 
@@ -772,7 +737,7 @@ Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form.
 
 - `namespace_manager: None = None`
 
-**Source:** [starlayer.graph.model.triple.TripleTerm.n3](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/triple.py#L86-L89)
+**Source:** [starlayer.graph.model.triple.TripleTerm.n3](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/model/triple.py#L107-L110)
 
 ---
 
@@ -830,7 +795,7 @@ Raises:
 - `g1: Any`
 - `g2: Any`
 
-**Source:** [starlayer.graph.compare.graph_diff](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L256-L270)
+**Source:** [starlayer.graph.compare.graph_diff](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L287-L304)
 
 ---
 
@@ -860,7 +825,7 @@ against the graph's triples (default graph only).
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L229-L253)
+**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L251-L284)
 
 ---
 
@@ -886,7 +851,7 @@ not a hex string).
 
 **Returns:** `str`
 
-**Source:** [starlayer.graph.rdfc.rdfc10_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L401-L410)
+**Source:** [starlayer.graph.rdfc.rdfc10_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L404-L413)
 
 ---
 
@@ -913,7 +878,7 @@ hash read as an integer.
 
 **Returns:** `int`
 
-**Source:** [starlayer.graph.compare.to_canonical_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L285-L300)
+**Source:** [starlayer.graph.compare.to_canonical_hash](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L322-L340)
 
 ---
 
@@ -939,7 +904,7 @@ module and ``starlayer.graph.compare`` docstrings.
 
 **Returns:** `str`
 
-**Source:** [starlayer.graph.rdfc.to_canonical_nquads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L375-L398)
+**Source:** [starlayer.graph.rdfc.to_canonical_nquads](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/rdfc.py#L378-L401)
 
 ---
 
@@ -962,268 +927,7 @@ Raises:
 
 - `graph: Any`
 
-**Source:** [starlayer.graph.compare.to_isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L273-L282)
-
----
-
-## `starlayer.sparql`
-
-[Back to overview](api-overview.generated.md#starlayersparql)
-
-<a id="entity-starlayer-sparql-check-check_query"></a>
-### `check_query`  _(function)_
-
-```python
-def check_query(text: str, prepare: bool=False) -> str | None
-```
-
-``None`` when ``text`` is a SPARQL 1.2 query (or update) by StarLayer's grammar; else the parser's first line about what is wrong.
-
-``prepare``: also prepare it as a query, which finds a prefix nothing declares (the grammar accepts it); for a query whose text
-carries all its ``PREFIX`` lines.
-
-**Parameters:**
-
-- `text: str`
-- `prepare: bool = False`
-
-**Returns:** `str | None`
-
-**Source:** [starlayer.sparql.check.check_query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/check.py#L8-L22)
-
----
-
-<a id="entity-starlayer-sparql-parse12-prepare_query_12"></a>
-### `prepare_query_12`  _(function)_
-
-```python
-def prepare_query_12(text: str, base: str | None=None, initNs: Mapping[str, Any] | None=None) -> Query
-```
-
-Parses and translates SPARQL 1.2 query text into a real,
-executable-shaped rdflib ``Query``.
-
-``query.algebra`` contains genuine ``TripleTermNode`` nodes in
-triple-pattern position, not a lowered SPARQL-1.1-equivalent shape.
-
-``base``/``initNs`` are threaded straight through to ``translateQuery``
-— same two parameters, same precedence, as plain rdflib's own
-``prepareQuery(queryString, initNs=None, base=None)``: ``initNs`` seeds
-the query's Prologue first, then any ``BASE``/``PREFIX`` declaration
-actually written in ``text`` is applied after and overrides it (per
-``rdflib.plugins.sparql.algebra.translatePrologue``'s own source —
-``initNs`` binds first, the parsed prologue's own declarations are
-applied in a loop afterward).
-
-**Parameters:**
-
-- `text: str` - The SPARQL 1.2 query text to parse and translate.
-- `base: str | None = None` - Optional base IRI, passed through to ``translateQuery``.
-- `initNs: Mapping[str, Any] | None = None` - Optional namespace prefix bindings seeded into the query's Prologue before its own ``BASE``/``PREFIX`` declarations are applied.
-
-**Returns:** `Query` - The translated, executable-shaped ``Query``, with ``CONSTRUCT WHERE`` shorthand canonicalized and triple-term pattern-subject use rejected.
-
-**Source:** [starlayer.sparql.parse12.prepare_query_12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/parse12.py#L153-L187)
-
----
-
-<a id="entity-starlayer-sparql-parse12-prepare_update_12"></a>
-### `prepare_update_12`  _(function)_
-
-```python
-def prepare_update_12(text: str, base: str | None=None, initNs: Mapping[str, Any] | None=None) -> Update
-```
-
-``prepare_query_12``'s counterpart for SPARQL 1.2 Update text — same
-``base``/``initNs`` passthrough to ``translateUpdate``.
-
-**Parameters:**
-
-- `text: str` - The SPARQL 1.2 Update text to parse and translate.
-- `base: str | None = None` - Optional base IRI, passed through to ``translateUpdate``.
-- `initNs: Mapping[str, Any] | None = None` - Optional namespace prefix bindings seeded into the request's Prologue before its own ``BASE``/``PREFIX`` declarations are applied.
-
-**Returns:** `Update` - The translated, executable-shaped ``Update``.
-
-**Source:** [starlayer.sparql.parse12.prepare_update_12](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/parse12.py#L190-L215)
-
----
-
-<a id="entity-starlayer-sparql-to_rdf-queries_to_collection"></a>
-### `queries_to_collection`  _(function)_
-
-```python
-def queries_to_collection(queries: list[Query], graph: Graph | None=None) -> tuple[Graph, BNode]
-```
-
-Encodes a list of independent, prepared rdflib ``Query`` objects as
-one RDF ``salg:QueryCollection``.
-
-The collection-of-independent-queries counterpart of
-``update_to_rdf``'s single-request ``salg:operations`` list - see
-``vocab.QUERY_COLLECTION``. Unlike an Update's operations, which
-share one Prologue across the whole request, each query keeps its
-own — ``query_to_rdf`` already encodes it per query, so nothing extra
-is needed here for that.
-
-**Parameters:**
-
-- `queries: list[Query]` - The independent queries to encode.
-- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
-
-**Returns:** `tuple[Graph, BNode]` - ``(graph, root)`` — ``root`` is a dedicated container node holding ``salg:queries`` (an ``rdf:List`` of the member queries' own ``salg:Query``-typed roots, in the order given — order isn't semantically meaningful for a collection, but is preserved anyway since ``rdf:List`` is ordered regardless).
-
-**Source:** [starlayer.sparql.to_rdf.queries_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L98-L129)
-
----
-
-<a id="entity-starlayer-sparql-to_rdf-query_to_rdf"></a>
-### `query_to_rdf`  _(function)_
-
-```python
-def query_to_rdf(query: Query, graph: Graph | None=None) -> tuple[Graph, BNode]
-```
-
-Encode a prepared rdflib ``Query`` (from ``prepareQuery``/``translateQuery``,
-starlayer.graph's SPARQL-1.2-aware variants included) as RDF triples.
-
-``root`` is the node for ``query.algebra``, additionally typed
-``salg:Query`` (see ``vocab.QUERY``) so encoded queries in a larger
-store can always be found via ``?q a salg:Query`` regardless of query
-form.
-
-**Parameters:**
-
-- `query: Query` - The prepared query to encode.
-- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
-
-**Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
-
-**Source:** [starlayer.sparql.to_rdf.query_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L24-L52)
-
----
-
-<a id="entity-starlayer-sparql-from_rdf-rdf_to_collection"></a>
-### `rdf_to_collection`  _(function)_
-
-```python
-def rdf_to_collection(graph: Graph, root: BNode) -> list[Query]
-```
-
-Decode ``root`` (as produced by ``to_rdf.queries_to_collection``)
-back into a list of independent, directly executable rdflib ``Query``
-objects, in the same order they were encoded.
-
-Each member is decoded via ``rdf_to_query`` individually — not the
-generic ``_decode`` walker an ordinary ``rdf:List`` goes through
-elsewhere in this module — since each member needs that function's own
-per-query handling (recomputed ``_vars``/``lazy`` bookkeeping via
-``_addVars``/``analyse``, its own reconstructed Prologue), the same
-reason ``rdf_to_update`` doesn't reuse plain ``_decode`` for its own
-operations list's *individual members* either (only the list structure
-itself goes through the generic walker there).
-
-**Parameters:**
-
-- `graph: Graph` - The graph holding the encoded collection.
-- `root: BNode` - The collection's root node, as returned by ``to_rdf.queries_to_collection``.
-
-**Returns:** `list[Query]` - The member queries, in the order they were encoded.
-
-**Source:** [starlayer.sparql.from_rdf.rdf_to_collection](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L113-L136)
-
----
-
-<a id="entity-starlayer-sparql-from_rdf-rdf_to_query"></a>
-### `rdf_to_query`  _(function)_
-
-```python
-def rdf_to_query(graph: Graph, root: BNode) -> Query
-```
-
-Decode ``root`` (as produced by ``to_rdf.query_to_rdf``) back into an
-rdflib ``Query`` — same type ``prepareQuery``/``translateQuery`` return.
-
-The returned ``Query``'s ``Prologue`` is reconstructed from
-``salg:base``/``salg:prologuePrefix`` on ``root`` (see vocab.py's
-"Prologue (BASE/PREFIX)" section) — this fixes real evaluation-time
-behavior (``BASE``-relative ``IRI()``/``URI()`` builtin resolution), but
-does *not* make ``algebra.translateAlgebra`` emit prefixed names: that
-function never reads ``query.prologue`` at all, confirmed empirically,
-so its output stays full-IRI-only regardless.
-
-**Parameters:**
-
-- `graph: Graph` - The graph holding the encoded query.
-- `root: BNode` - The query's root node, as returned by ``to_rdf.query_to_rdf``.
-
-**Returns:** `Query` - A fully reconstructed, evaluator-ready ``Query``.
-
-**Source:** [starlayer.sparql.from_rdf.rdf_to_query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L33-L72)
-
----
-
-<a id="entity-starlayer-sparql-from_rdf-rdf_to_update"></a>
-### `rdf_to_update`  _(function)_
-
-```python
-def rdf_to_update(graph: Graph, root: BNode) -> Update
-```
-
-Decode ``root`` (as produced by ``to_rdf.update_to_rdf``) back into an
-rdflib ``Update`` — same type ``prepareUpdate``/``translateUpdate``
-return, runnable via ``rdflib.plugins.sparql.update.evalUpdate``.
-
-Unlike a Query's algebra, an Update operation's WHERE clause (Modify)
-never gets the _vars/lazy bookkeeping pass in stock rdflib either —
-``translateUpdate`` never calls ``_addVars``/``analyse`` the way
-``translateQuery`` does for a SELECT/etc. — so there's nothing to
-recompute here to match. The request's single shared Prologue (see
-``update_to_rdf``) is reconstructed the same way as a Query's, and
-assigned to every operation — ``evalUpdate`` reads ``u.prologue`` off
-each operation individually, even though it's the same object for all
-of them in a real ``prepareUpdate`` result too.
-
-**Parameters:**
-
-- `graph: Graph` - The graph holding the encoded update.
-- `root: BNode` - The update's root node, as returned by ``to_rdf.update_to_rdf``.
-
-**Returns:** `Update` - A fully reconstructed ``Update``.
-
-**Source:** [starlayer.sparql.from_rdf.rdf_to_update](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/from_rdf.py#L75-L110)
-
----
-
-<a id="entity-starlayer-sparql-to_rdf-update_to_rdf"></a>
-### `update_to_rdf`  _(function)_
-
-```python
-def update_to_rdf(update: Update, graph: Graph | None=None) -> tuple[Graph, BNode]
-```
-
-Encode a prepared rdflib ``Update`` (from ``prepareUpdate``/
-``translateUpdate``) as RDF triples.
-
-``update.algebra`` is a ``List[CompValue]`` — one operation per
-semicolon-separated request in the Update string, executed in that
-order. ``root`` is a dedicated container node (not itself a CompValue,
-typed ``salg:Update`` — see ``vocab.UPDATE``) holding ``salg:operations``
-(an ``rdf:List`` of the encoded operations — order matters and must
-survive the round-trip) plus the request's shared Prologue
-(``salg:base``/``salg:prologuePrefix`` — SPARQL Update has one Prologue
-per request, not one per operation, unlike a Query). Each operation node
-is additionally typed ``salg:UpdateOperation`` (see
-``vocab.UPDATE_OPERATION``).
-
-**Parameters:**
-
-- `update: Update` - The prepared update to encode.
-- `graph: Graph | None = None` - The graph to add the encoding triples to; a fresh plain ``rdflib.Graph`` (see ``_new_tree_graph``) if omitted.
-
-**Returns:** `tuple[Graph, BNode]` - ``(graph, root)``.
-
-**Source:** [starlayer.sparql.to_rdf.update_to_rdf](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/to_rdf.py#L55-L95)
+**Source:** [starlayer.graph.compare.to_isomorphic](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/graph/compare.py#L307-L319)
 
 ---
 
@@ -1242,7 +946,7 @@ Attributes:
     variable: The unbound variable named in `PV`.
     projected_vars: The node's full `PV`, for context.
 
-**Source:** [starlayer.sparql.salg.semantic_checks.UnboundProjectedVariable](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/semantic_checks.py#L86-L98)
+**Source:** [starlayer.sparql.salg.semantic_checks.UnboundProjectedVariable](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/semantic_checks.py#L89-L101)
 
 ---
 
@@ -1272,7 +976,7 @@ constraint whenever ``starlayer.sparql.validate()`` validates a graph whose
 
 **Returns:** `list[UnboundProjectedVariable]` - One `UnboundProjectedVariable` per offending `PV` variable, across every `Project` node in `data_graph` (empty if none).
 
-**Source:** [starlayer.sparql.salg.semantic_checks.find_unbound_projected_variables](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/semantic_checks.py#L179-L203)
+**Source:** [starlayer.sparql.salg.semantic_checks.find_unbound_projected_variables](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/semantic_checks.py#L182-L206)
 
 ---
 
@@ -1300,133 +1004,7 @@ opinion about expressions/variables/paths at all - entirely
 
 **Returns:** `Graph` - A fresh ``StarLayerGraph`` combining both ontologies (callers get their own copy, not a shared module-level instance).
 
-**Source:** [starlayer.sparql.salg.sparql_ontology.ontology_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/sparql_ontology.py#L120-L142)
-
----
-
-## `starlayer.sparql.sqe`
-
-[Back to overview](api-overview.generated.md#starlayersparqlsqe)
-
-<a id="entity-starlayer-sparql-sqe-to_rdf-SQEError"></a>
-### `SQEError`  _(class)_
-
-Base class for every ``sqe:``-specific exception
-(``SQEValidationError`` here) - gives a caller two real catch
-granularities, "this specific failure" vs. "any ``sqe:`` failure",
-the same two-tier shape ``srl.py``'s own ``SRLError``/
-``SRLParseError`` already established for the identical reason.
-
-**Source:** [starlayer.sparql.sqe.to_rdf.SQEError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L82-L87)
-
----
-
-<a id="entity-starlayer-sparql-sqe-to_rdf-SQEValidationError"></a>
-### `SQEValidationError`  _(class)_
-
-Raised by :func:`sqe_parse_to_tree` when the text parses fine but
-the resulting ``sqe:`` tree fails ``sqe:``'s own SHACL shapes (most
-notably the unbound-projected-variable check) - "this text doesn't
-produce a usable ``sqe:`` tree", matching the same "succeed with a
-usable object, or raise" contract ``prepareQuery()``/
-``srl.parse_ruleset()`` already give their own callers, rather than
-handing back a tree that's already known to be unusable and leaving
-it to the caller to remember to check.
-
-Carries the full validation report as attributes, not just a
-message, so a caller who wants the structured detail doesn't have to
-re-run :func:`sqe_validate` themselves to get it.
-
-Attributes:
-    report_graph: The full ``sh:ValidationReport`` graph.
-    report_text: The same report, rendered as text (this
-        exception's own ``str()`` is a short prefix plus this text).
-
-**Source:** [starlayer.sparql.sqe.to_rdf.SQEValidationError](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L90-L113)
-
----
-
-<a id="entity-starlayer-sparql-sqe-to_rdf-sqe_parse_to_tree"></a>
-### `sqe_parse_to_tree`  _(function)_
-
-```python
-def sqe_parse_to_tree(text: str, graph: Graph | None=None, root: IdentifiedNode | None=None) -> tuple[Graph, IdentifiedNode]
-```
-
-Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT`` query text as
-``sqe:`` RDF, and validate the result. The one public encoding entry
-point - parses ``text`` with StarLayer's own SPARQL 1.2 parser
-(``sparql.parse_sparql``: every query form, FROM / FROM NAMED, SERVICE,
-VERSION, and Update), then validates via :func:`sqe_validate`
-before returning - a caller only ever gets back a tree already
-confirmed to satisfy ``sqe:``'s own shapes (including the
-unbound-projected-variable check), never one silently known to fail.
-
-Validation only runs here, at creation time - it has no way to see,
-and does not re-run for, any edit made to the tree afterward (see
-the guide notebook's own section on this). Call :func:`sqe_validate`
-yourself again after editing a tree directly.
-
-**Parameters:**
-
-- `text: str` - The SPARQL query text to encode.
-- `graph: Graph | None = None` - The graph to add the ``sqe:`` RDF to: an ``StarLayerGraph`` (pyoxigraph terms) or an rdflib graph (rdflib terms). Defaults to a fresh ``StarLayerGraph``.
-- `root: IdentifiedNode | None = None` - The node to use as the query's own root - any ``URIRef``/ ``BNode``. Defaults to a fresh ``BNode()``. Give a real ``URIRef`` to make the query findable by that identity later (e.g. ``graph.value(my_iri, RDF.type, SQE.Query)``), rather than only via the ``root`` value this function itself returns - useful once a graph accumulates more than one encoded query (via repeated calls sharing one ``graph=``), where a bare `?s a sqe:Query` lookup can no longer tell them apart on its own.
-
-**Returns:** `tuple[Graph, IdentifiedNode]` - A ``(graph, root)`` tuple; with no ``graph`` given, an ``StarLayerGraph`` and a pyoxigraph ``root``.
-
-**Source:** [starlayer.sparql.sqe.to_rdf.sqe_parse_to_tree](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_rdf.py#L122-L170)
-
----
-
-<a id="entity-starlayer-sparql-sqe-from_rdf-sqe_tree_to_query"></a>
-### `sqe_tree_to_query`  _(function)_
-
-```python
-def sqe_tree_to_query(graph: Graph, root) -> Query
-```
-
-Decode ``root`` (one of ``sqe:SelectQuery``/``sqe:AskQuery``/
-``sqe:ConstructQuery``, as produced by
-``to_rdf.sqe_parse_to_tree``) back into a real rdflib ``Query``.
-
-The returned ``Query``'s own ``.prologue`` is empty (rdflib's default,
-no prefixes) — execution never needs prefixes once every term is
-already a resolved ``URIRef``. The *original* preserved prefixes live
-on ``root`` itself (``salg:prologuePrefix``, via ``to_rdf.py``'s
-``_encode_prologue``) and are read directly by ``to_text.py`` for
-prefix-aware rendering, not threaded through here.
-
-**Parameters:**
-
-- `graph: Graph` - The ``sqe:`` RDF graph containing ``root``.
-- `root: None` - The query root node to decode.
-
-**Returns:** `Query` - A real, executable rdflib ``Query``.
-
-**Source:** [starlayer.sparql.sqe.from_rdf.sqe_tree_to_query](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/from_rdf.py#L98-L122)
-
----
-
-<a id="entity-starlayer-sparql-sqe-to_text-sqe_tree_to_text"></a>
-### `sqe_tree_to_text`  _(function)_
-
-```python
-def sqe_tree_to_text(graph: Graph, root) -> str
-```
-
-Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
-into SPARQL query text, re-abbreviating terms using the ``PREFIX``
-declarations preserved on ``root`` wherever one matches.
-
-**Parameters:**
-
-- `graph: Graph` - The ``sqe:`` RDF graph containing ``root``.
-- `root: None` - The query root node to render.
-
-**Returns:** `str` - The rendered SPARQL query text.
-
-**Source:** [starlayer.sparql.sqe.to_text.sqe_tree_to_text](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/sqe/to_text.py#L129-L149)
+**Source:** [starlayer.sparql.salg.sparql_ontology.ontology_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/sparql/salg/sparql_ontology.py#L123-L145)
 
 ---
 
@@ -1945,116 +1523,6 @@ Repetition paths stop on a cycle. Raises ``ShapeError`` for a path expression th
 **Returns:** `frozenset[Any]`
 
 **Source:** [starlayer.shacl.paths.path_values](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/paths.py#L18-L27)
-
----
-
-<a id="entity-starlayer-shacl-ui_widget_selection-select_widget"></a>
-### `select_widget`  _(function)_
-
-```python
-def select_widget(*, shape_node: Any, focus_node: Any | None=None, data_graph: Any | None=None, shapes_graph: Any, scoring_graph: Any | None=None, role: Role, _batch: _ConformanceBatch | None=None) -> URIRef | None
-```
-
-Select the ``shui:editor``/``shui:viewer`` widget ``shape_node``
-should use for ``focus_node``, per the spec's own Section 3.2 "Select
-Function" procedure:
-
-1. Prepare the scores (SHACL UI 4.3): for each widget ``shape_node`` names with ``shui:editor``/``shui:viewer`` that no
-   ``shui:WidgetScore`` of ``scoring_graph`` is for, add a score of ``default_widget_score`` (the ``shui:defaultWidgetScore`` of the
-   configuration in ``shapes_graph``, else 40). A widget the scoring graph scores at all keeps only its own scores, whether or not they
-   cover this shape (the draft says so).
-2. Collect every ``shui:WidgetScore`` in ``scoring_graph`` with both a ``shui:widget`` and a ``shui:score``, with those added,
-   ranked highest-score-first and then by widget IRI.
-3. Walk that ranked list and return the first entry whose conditions hold: the
-   ``shui:shapesGraphShape`` / ``shui:dataGraphShape`` written on the score itself (none means it applies
-   to everything, as an added score does for this shape), and then, if its widget has a ``shui:WidgetAcceptMatcher``, that matcher too.
-   Conditions on a score are local to it, so a catalog layered on top can add a score for a widget another
-   layer conditioned without having to remove anything; a per-widget matcher is shared by every layer.
-
-Returns ``None`` if nothing matches at all. ``data_graph``/
-``shapes_graph``/``scoring_graph`` may be the same object - the spec
-doesn't require them to be separate graphs, just separate *roles*.
-
-``focus_node`` and ``data_graph`` are optional. They are used only to
-check a matcher's ``shui:dataGraphShape``. With no ``focus_node`` a matcher
-that has only a data condition rejects its widget (Section 3.4 step 1),
-while one with a ``shui:shapesGraphShape`` is decided by that alone, so
-the choice is per shape rather than per node. Passing a ``focus_node``
-without a ``data_graph`` raises ``ValueError``.
-
-**``role`` limits the candidates in the scoring catalog to that role.** The draft's Select Function
-(Section 3.2) takes a widget predicate and its Score Function (Section 3.5) lists every ``shui:WidgetScore``
-without a type, but Sections 4.1 and 4.2 say an editor is chosen for ``shui:editor`` and a viewer for
-``shui:viewer``. A widget counts as an editor if it is one of the draft's built-in editors (Section 9.1) or the
-catalog or shapes graph types it ``shui:Editor`` (or ``shui:SingleEditor``/``shui:MultiEditor``), and as a
-viewer likewise (Section 9.2). A widget with no known role, such as a custom one, is a candidate for both. A
-widget the shape names itself with ``shui:editor``/``shui:viewer`` is not checked. So a property with only
-viewers in the catalog gets ``None`` for ``role="editor"`` (GitHub issue #9).
-
-``scoring_graph`` is optional: omit it (or pass ``None``) when widgets
-are fixed in the shapes graph and there is no scoring catalog - an
-explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
-property with none gets ``None``.
-
-**Parameters:**
-
-- `shape_node: Any`
-- `focus_node: Any | None = None`
-- `data_graph: Any | None = None`
-- `shapes_graph: Any`
-- `scoring_graph: Any | None = None`
-- `role: Role`
-- `_batch: _ConformanceBatch | None = None`
-
-**Returns:** `URIRef | None`
-
-**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L320-L406)
-
----
-
-<a id="entity-starlayer-shacl-ui_widget_selection-select_widgets"></a>
-### `select_widgets`  _(function)_
-
-```python
-def select_widgets(*, shape_node: Any, focus_node: Any | None=None, data_graph: Any | None=None, shapes_graph: Any, scoring_graph: Any | None=None, role: Role, per: Literal['node', 'shape']='node') -> dict[Any, Any]
-```
-
-Batch sibling of :func:`select_widget` - walks ``shape_node``'s own
-``sh:property`` list and runs :func:`select_widget` once per property,
-returning ``{property_shape: widget}`` for the given ``role``
-(``"editor"`` or ``"viewer"``). Every ``sh:property`` of ``shape_node``
-is a key.
-
-``shape_node`` is a ``sh:NodeShape`` here (unlike :func:`select_widget`,
-whose own ``shape_node`` is a single property shape) - its
-``sh:property`` list is exactly what's walked.
-
-A property for which :func:`select_widget` returns ``None`` maps to
-``None``, so the dict always lists every property of the shape.
-
-``focus_node``, ``data_graph`` and ``scoring_graph`` are optional, as
-for :func:`select_widget`.
-
-**``per="shape"``** (GitHub issue #14) answers once per property shape instead of once per node, for a UI that
-shows many nodes of the same shape. It returns ``{property_shape: WidgetChoice}``; the expensive checks (a
-condition's ``shui:shapesGraphShape``) are done once, and ``choice.resolve(focus_node, data_graph)`` finishes the
-choice for one node by validating only the conditions that read its data. ``choice.needs_data`` False means one
-answer (``choice.widget_without_data``) serves every node. The result of ``resolve`` is the same as
-``select_widget`` with that node. ``focus_node`` and ``data_graph`` are not accepted with ``per="shape"``.
-
-**Parameters:**
-
-- `shape_node: Any`
-- `focus_node: Any | None = None`
-- `data_graph: Any | None = None`
-- `shapes_graph: Any`
-- `scoring_graph: Any | None = None`
-- `role: Role`
-- `per: Literal['node', 'shape'] = 'node'`
-
-**Returns:** `dict[Any, Any]`
-
-**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L518-L584)
 
 ---
 

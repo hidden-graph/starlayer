@@ -32,8 +32,7 @@ from __future__ import annotations
 import os
 import re
 
-from rdflib import BNode, Literal, URIRef, Variable
-
+from .._terms import BNode, Literal, URIRef, Variable
 from ..parse_sparql import Node, SparqlSyntaxError, ast_to_tree, parse_sparql
 
 _EXISTS_WORD = re.compile(r"(?i)\bEXISTS\b")
@@ -47,7 +46,8 @@ def rewrite_enabled() -> bool:
 
 def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) -> str:
     """``text`` with its correlated ``FILTER [NOT] EXISTS`` blocks rewritten as joins, or ``text`` itself when there is
-    nothing to rewrite or anything is in doubt. ``prefixes`` are the prefix declarations the query text relies on."""
+    nothing to rewrite or anything is in doubt (including when rdflib, which the text renderer needs, is not installed: the rewrite
+    only makes the query faster). ``prefixes`` are the prefix declarations the query text relies on."""
     if not rewrite_enabled() or not _EXISTS_WORD.search(text):
         return text
     try:
@@ -61,7 +61,7 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
         out = sqe_tree_to_text(graph, root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
         return out
-    except (SparqlSyntaxError, ValueError, KeyError, NotImplementedError, RecursionError, TypeError, AttributeError):
+    except (ImportError, SparqlSyntaxError, ValueError, KeyError, NotImplementedError, RecursionError, TypeError, AttributeError):
         return text
 
 

@@ -29,6 +29,9 @@ needs a real JVM at runtime to run it - see `_require_java()` below.
 
 from __future__ import annotations
 
+import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+
+# isort: split
 import shutil
 import tempfile
 from pathlib import Path
