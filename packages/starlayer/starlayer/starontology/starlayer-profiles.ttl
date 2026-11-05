@@ -95,19 +95,19 @@ slp:SparqlQuery a prof:Profile ;
         prof:hasRole role:validation
     ], [
         a prof:ResourceDescriptor ;
-        rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:) - the one slice salg:/sqe:/srl: all need identically." ;
+        rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:) - the one slice sqe:/srl: both need identically." ;
         rdfs:label "spexpr_owl" ;
         prof:hasArtifact starontology:spexpr-ontology.ttl ;
         prof:hasRole role:schema
     ], [
         a prof:ResourceDescriptor ;
-        rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not the resolved salg: algebra." ;
+        rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not a resolved algebra." ;
         rdfs:label "sqe_owl" ;
         prof:hasArtifact starontology:sqe-ontology.ttl ;
         prof:hasRole role:schema
     ], [
         a prof:ResourceDescriptor ;
-        rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by salg:/sqe:/srl: alike (each via owl:imports), not defined separately by any one of them." ;
+        rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by sqe:/srl: alike (each via owl:imports), not defined separately by either of them." ;
         rdfs:label "spexpr_shacl" ;
         prof:hasArtifact starontology:spexpr_shapes.ttl ;
         prof:hasRole role:validation

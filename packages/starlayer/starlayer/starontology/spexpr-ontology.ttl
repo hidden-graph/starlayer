@@ -3,10 +3,10 @@
 
 spexpr:AdditiveExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
-spexpr:AlternativePath rdfs:comment "path1|path2 (alternative) - salg:args, same list shape as SequencePath." ;
+spexpr:AlternativePath rdfs:comment "path1|path2 (alternative) - spexpr:args, same list shape as SequencePath." ;
     rdfs:subClassOf spexpr:Path .
 
-spexpr:ArithmeticExpression rdfs:comment "+/-/*// chains - salg:expr, salg:op, salg:other (always a list)." ;
+spexpr:ArithmeticExpression rdfs:comment "+/-/*// chains - spexpr:expr, spexpr:op, spexpr:other (always a list)." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:Builtin_ABS rdfs:subClassOf spexpr:OneArgExpression .
@@ -119,12 +119,12 @@ spexpr:Builtin_sameTerm rdfs:subClassOf spexpr:TwoArgExpression .
 
 spexpr:ConditionalAndExpression rdfs:subClassOf spexpr:ConditionalExpression .
 
-spexpr:ConditionalExpression rdfs:comment "&&/|| chains - salg:expr plus an optional salg:other list." ;
+spexpr:ConditionalExpression rdfs:comment "&&/|| chains - spexpr:expr plus an optional spexpr:other list." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ConditionalOrExpression rdfs:subClassOf spexpr:ConditionalExpression .
 
-spexpr:ExistsExpression rdfs:comment "EXISTS{}/NOT EXISTS{} - salg:graph, not salg:expr (a raw, untranslated parse-tree fragment, deliberately unshaped further - see shapes.py)." ;
+spexpr:ExistsExpression rdfs:comment "EXISTS{}/NOT EXISTS{} - spexpr:graph, not spexpr:expr (a raw, untranslated parse-tree fragment, deliberately unshaped further - see shapes.py)." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:Expression rdfs:comment "A SPARQL expression-tree node (a FILTER/BIND/ORDER BY expression, or any of rdflib's ~63 expression builtins)." ;
@@ -132,30 +132,30 @@ spexpr:Expression rdfs:comment "A SPARQL expression-tree node (a FILTER/BIND/ORD
 
 spexpr:Function rdfs:subClassOf spexpr:FunctionExpression .
 
-spexpr:FunctionExpression rdfs:comment "A call to any registered/custom SPARQL function - salg:iri/distinct/expr." ;
+spexpr:FunctionExpression rdfs:comment "A call to any registered/custom SPARQL function - spexpr:iri/distinct/expr." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:InvPath rdfs:comment "^path (inverse) - salg:arg the wrapped path/IRI." ;
+spexpr:InvPath rdfs:comment "^path (inverse) - spexpr:arg the wrapped path/IRI." ;
     rdfs:subClassOf spexpr:Path .
 
-spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string. Not spexpr:PlainString-tagged, unlike salg:silent/salg:graphiri/salg:op - confirmed via to_rdf._encode_path's own MulPath branch (Literal(path.mod), no datatype argument), which is what makes shapes.py's own salg:MulPathShape sh:in (\"*\" \"+\" \"?\") check actually match (that check compares against plain literals; PlainString-tagging it would break the match, since sh:in's term-equality is exact and the two datatypes differ). This comment previously claimed PlainString-tagging incorrectly - found and corrected 2026-08-16, a dedicated ontology audit. The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." ;
+spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - spexpr:path the repeated path/IRI, spexpr:mod the bare \"*\"/\"+\"/\"?\" modifier string. The modifier is a plain literal, not spexpr:PlainString-tagged, which is what makes the MulPathShape sh:in (\"*\" \"+\" \"?\") check match (sh:in compares terms exactly, so a datatype would break it)." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:MultiplicativeExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
-spexpr:NegatedPath rdfs:comment "!path / !(path1|path2) (negated property set) - salg:args, same list shape as SequencePath/AlternativePath." ;
+spexpr:NegatedPath rdfs:comment "!path / !(path1|path2) (negated property set) - spexpr:args, same list shape as SequencePath/AlternativePath." ;
     rdfs:subClassOf spexpr:Path .
 
-spexpr:OneArgExpression rdfs:comment "Exactly one required argument (salg:arg)." ;
+spexpr:OneArgExpression rdfs:comment "Exactly one required argument (spexpr:arg)." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:OptionalOneArgExpression rdfs:comment "Zero or one argument (salg:arg) - BNODE()/BNODE(?x) only." ;
+spexpr:OptionalOneArgExpression rdfs:comment "Zero or one argument (spexpr:arg) - BNODE()/BNODE(?x) only." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:Path rdfs:comment "A SPARQL property-path expression - the salg: mirror of rdflib.paths.Path's own class hierarchy." .
+spexpr:Path rdfs:comment "A SPARQL property-path expression - the property-path class hierarchy." .
 
 spexpr:PlainString a rdfs:Datatype ;
-    rdfs:comment "A plain, untagged bare string value (not a real RDF term) that needs a reserved datatype to survive RDF round-trip without colliding with an ordinary xsd:string-typed value - e.g. an operator symbol, a prefix label, a bare SPARQL grammar keyword. The shared, technology-neutral home for this concept (reused directly by salg:/sqe:, see vocab.py's PY_STR_DATATYPE) - renamed and moved here from salg:PyStr 2026-10-15, the same spexpr:-not-salg: reasoning already applied to Variable." .
+    rdfs:comment "A plain, untagged bare string value (not a real RDF term) that needs a reserved datatype to survive RDF round-trip without colliding with an ordinary xsd:string-typed value - e.g. an operator symbol, a prefix label, a bare SPARQL grammar keyword. The shared, technology-neutral home for this concept (reused directly by spexpr:/sqe:, see vocab.py's PY_STR_DATATYPE) - renamed and moved here from PyStr 2026-10-15." .
 
 spexpr:RegexExpression rdfs:comment "REGEX(text, pattern[, flags]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .
@@ -166,22 +166,22 @@ spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN." ;
 spexpr:ReplaceExpression rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:SequencePath rdfs:comment "path1/path2 (sequence) - salg:args a well-formed rdf:List of the sequenced paths/IRIs." ;
+spexpr:SequencePath rdfs:comment "path1/path2 (sequence) - spexpr:args a well-formed rdf:List of the sequenced paths/IRIs." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:ThreeArgExpression rdfs:comment "Exactly three required arguments (salg:arg1/arg2/arg3) - IF() only." ;
+spexpr:ThreeArgExpression rdfs:comment "Exactly three required arguments (spexpr:arg1/arg2/arg3) - IF() only." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:TrueFilter rdfs:comment "The constant-true expression rdflib substitutes for an OPTIONAL with no inline FILTER. No properties of its own." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:TwoArgExpression rdfs:comment "Exactly two required arguments (salg:arg1/arg2)." ;
+spexpr:TwoArgExpression rdfs:comment "Exactly two required arguments (spexpr:arg1/arg2)." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:UnaryExpression rdfs:comment "Exactly one required operand (salg:expr) - !/-/+ prefix operators." ;
+spexpr:UnaryExpression rdfs:comment "Exactly one required operand (spexpr:expr) - !/-/+ prefix operators." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:UnaryMinus rdfs:subClassOf spexpr:UnaryExpression .
@@ -190,7 +190,7 @@ spexpr:UnaryNot rdfs:subClassOf spexpr:UnaryExpression .
 
 spexpr:UnaryPlus rdfs:subClassOf spexpr:UnaryExpression .
 
-spexpr:VariadicArgExpression rdfs:comment "salg:arg is itself a list of arguments - CONCAT/COALESCE only." ;
+spexpr:VariadicArgExpression rdfs:comment "spexpr:arg is itself a list of arguments - CONCAT/COALESCE only." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ZeroArgExpression rdfs:comment "No arguments (NOW/UUID/STRUUID/RAND)." ;

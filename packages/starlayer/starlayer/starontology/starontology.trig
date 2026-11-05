@@ -3113,7 +3113,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n8aa05e67ba6140d585d0f7825e3eccd8b225 ;
+        sh:in _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3322,7 +3322,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n8aa05e67ba6140d585d0f7825e3eccd8b225 ;
+        sh:in _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3704,7 +3704,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n8aa05e67ba6140d585d0f7825e3eccd8b225 ;
+        sh:in _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5274,11 +5274,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n8aa05e67ba6140d585d0f7825e3eccd8b226 rdf:first sh:IRI ;
+    _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n8aa05e67ba6140d585d0f7825e3eccd8b225 rdf:first sh:BlankNode ;
-        rdf:rest _:n8aa05e67ba6140d585d0f7825e3eccd8b226 .
+    _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 rdf:first sh:BlankNode ;
+        rdf:rest _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -9670,7 +9670,7 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Aggregate_Sum rdfs:subClassOf spexpr:Aggregate .
 
-    spexpr:AlternativePath rdfs:comment "path1|path2 (alternative) - salg:args, same list shape as SequencePath." ;
+    spexpr:AlternativePath rdfs:comment "path1|path2 (alternative) - spexpr:args, same list shape as SequencePath." ;
         rdfs:subClassOf spexpr:Path .
 
     spexpr:Builtin_ABS rdfs:subClassOf spexpr:OneArgExpression .
@@ -9803,24 +9803,24 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:Function rdfs:subClassOf spexpr:FunctionExpression .
 
-    spexpr:InvPath rdfs:comment "^path (inverse) - salg:arg the wrapped path/IRI." ;
+    spexpr:InvPath rdfs:comment "^path (inverse) - spexpr:arg the wrapped path/IRI." ;
         rdfs:subClassOf spexpr:Path .
 
-    spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - salg:path the repeated path/IRI, salg:mod the bare \"*\"/\"+\"/\"?\" modifier string. Not spexpr:PlainString-tagged, unlike salg:silent/salg:graphiri/salg:op - confirmed via to_rdf._encode_path's own MulPath branch (Literal(path.mod), no datatype argument), which is what makes shapes.py's own salg:MulPathShape sh:in (\"*\" \"+\" \"?\") check actually match (that check compares against plain literals; PlainString-tagging it would break the match, since sh:in's term-equality is exact and the two datatypes differ). This comment previously claimed PlainString-tagging incorrectly - found and corrected 2026-08-16, a dedicated ontology audit. The live rdflib object's own zero/more boolean flags are deliberately not encoded, since both are always fully derivable from salg:mod alone (confirmed by reading rdflib.paths.MulPath's own constructor)." ;
+    spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - spexpr:path the repeated path/IRI, spexpr:mod the bare \"*\"/\"+\"/\"?\" modifier string. The modifier is a plain literal, not spexpr:PlainString-tagged, which is what makes the MulPathShape sh:in (\"*\" \"+\" \"?\") check match (sh:in compares terms exactly, so a datatype would break it)." ;
         rdfs:subClassOf spexpr:Path .
 
     spexpr:MultiplicativeExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
-    spexpr:NegatedPath rdfs:comment "!path / !(path1|path2) (negated property set) - salg:args, same list shape as SequencePath/AlternativePath." ;
+    spexpr:NegatedPath rdfs:comment "!path / !(path1|path2) (negated property set) - spexpr:args, same list shape as SequencePath/AlternativePath." ;
         rdfs:subClassOf spexpr:Path .
 
     spexpr:PlainString a rdfs:Datatype ;
-        rdfs:comment "A plain, untagged bare string value (not a real RDF term) that needs a reserved datatype to survive RDF round-trip without colliding with an ordinary xsd:string-typed value - e.g. an operator symbol, a prefix label, a bare SPARQL grammar keyword. The shared, technology-neutral home for this concept (reused directly by salg:/sqe:, see vocab.py's PY_STR_DATATYPE) - renamed and moved here from salg:PyStr 2026-10-15, the same spexpr:-not-salg: reasoning already applied to Variable." .
+        rdfs:comment "A plain, untagged bare string value (not a real RDF term) that needs a reserved datatype to survive RDF round-trip without colliding with an ordinary xsd:string-typed value - e.g. an operator symbol, a prefix label, a bare SPARQL grammar keyword. The shared, technology-neutral home for this concept (reused directly by spexpr:/sqe:, see vocab.py's PY_STR_DATATYPE) - renamed and moved here from PyStr 2026-10-15." .
 
     spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:SequencePath rdfs:comment "path1/path2 (sequence) - salg:args a well-formed rdf:List of the sequenced paths/IRIs." ;
+    spexpr:SequencePath rdfs:comment "path1/path2 (sequence) - spexpr:args a well-formed rdf:List of the sequenced paths/IRIs." ;
         rdfs:subClassOf spexpr:Path .
 
     spexpr:TrueFilter rdfs:comment "The constant-true expression rdflib substitutes for an OPTIONAL with no inline FILTER. No properties of its own." ;
@@ -9832,10 +9832,10 @@ starontology:spexpr-ontology.ttl {
 
     spexpr:UnaryPlus rdfs:subClassOf spexpr:UnaryExpression .
 
-    spexpr:FunctionExpression rdfs:comment "A call to any registered/custom SPARQL function - salg:iri/distinct/expr." ;
+    spexpr:FunctionExpression rdfs:comment "A call to any registered/custom SPARQL function - spexpr:iri/distinct/expr." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:OptionalOneArgExpression rdfs:comment "Zero or one argument (salg:arg) - BNODE()/BNODE(?x) only." ;
+    spexpr:OptionalOneArgExpression rdfs:comment "Zero or one argument (spexpr:arg) - BNODE()/BNODE(?x) only." ;
         rdfs:subClassOf spexpr:Expression .
 
     spexpr:RegexExpression rdfs:comment "REGEX(text, pattern[, flags]) - unique key names." ;
@@ -9850,39 +9850,39 @@ starontology:spexpr-ontology.ttl {
     spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:ThreeArgExpression rdfs:comment "Exactly three required arguments (salg:arg1/arg2/arg3) - IF() only." ;
+    spexpr:ThreeArgExpression rdfs:comment "Exactly three required arguments (spexpr:arg1/arg2/arg3) - IF() only." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:ArithmeticExpression rdfs:comment "+/-/*// chains - salg:expr, salg:op, salg:other (always a list)." ;
+    spexpr:ArithmeticExpression rdfs:comment "+/-/*// chains - spexpr:expr, spexpr:op, spexpr:other (always a list)." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:ConditionalExpression rdfs:comment "&&/|| chains - salg:expr plus an optional salg:other list." ;
+    spexpr:ConditionalExpression rdfs:comment "&&/|| chains - spexpr:expr plus an optional spexpr:other list." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:ExistsExpression rdfs:comment "EXISTS{}/NOT EXISTS{} - salg:graph, not salg:expr (a raw, untranslated parse-tree fragment, deliberately unshaped further - see shapes.py)." ;
+    spexpr:ExistsExpression rdfs:comment "EXISTS{}/NOT EXISTS{} - spexpr:graph, not spexpr:expr (a raw, untranslated parse-tree fragment, deliberately unshaped further - see shapes.py)." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:VariadicArgExpression rdfs:comment "salg:arg is itself a list of arguments - CONCAT/COALESCE only." ;
+    spexpr:VariadicArgExpression rdfs:comment "spexpr:arg is itself a list of arguments - CONCAT/COALESCE only." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:UnaryExpression rdfs:comment "Exactly one required operand (salg:expr) - !/-/+ prefix operators." ;
+    spexpr:UnaryExpression rdfs:comment "Exactly one required operand (spexpr:expr) - !/-/+ prefix operators." ;
         rdfs:subClassOf spexpr:Expression .
 
     spexpr:ZeroArgExpression rdfs:comment "No arguments (NOW/UUID/STRUUID/RAND)." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:Path rdfs:comment "A SPARQL property-path expression - the salg: mirror of rdflib.paths.Path's own class hierarchy." .
+    spexpr:Path rdfs:comment "A SPARQL property-path expression - the property-path class hierarchy." .
 
     spexpr:Aggregate rdfs:comment "An aggregate call (COUNT/SUM/MIN/MAX/AVG/SAMPLE/GROUP_CONCAT) in a projection, HAVING or ORDER BY expression - spexpr:vars the aggregated expression (or the marker *), spexpr:distinct DISTINCT or empty." ;
         rdfs:subClassOf spexpr:Expression .
 
-    spexpr:TwoArgExpression rdfs:comment "Exactly two required arguments (salg:arg1/arg2)." ;
+    spexpr:TwoArgExpression rdfs:comment "Exactly two required arguments (spexpr:arg1/arg2)." ;
         rdfs:subClassOf spexpr:Expression .
 
     spexpr:Expression rdfs:label "Expression" ;
         rdfs:comment "A SPARQL expression-tree node (a FILTER/BIND/ORDER BY expression, or any of rdflib's ~63 expression builtins)." .
 
-    spexpr:OneArgExpression rdfs:comment "Exactly one required argument (salg:arg)." ;
+    spexpr:OneArgExpression rdfs:comment "Exactly one required argument (spexpr:arg)." ;
         rdfs:subClassOf spexpr:Expression .
 }
 
@@ -9913,7 +9913,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:AlternativePathShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:AlternativePath must have exactly one salg:args, a well-formed rdf:List of path/IRI values" ;
+                sh:message "spexpr:AlternativePath must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
                 sh:minCount 1 ;
                 sh:node spexpr:PathArgsListShape ;
                 sh:path spexpr:args ] ;
@@ -9922,7 +9922,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:InvPathShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:InvPath must have exactly one salg:arg, a path or IRI" ;
+                sh:message "spexpr:InvPath must have exactly one spexpr:arg, a path or IRI" ;
                 sh:minCount 1 ;
                 sh:node spexpr:PathOrIriShape ;
                 sh:path spexpr:arg ] ;
@@ -9931,13 +9931,13 @@ starontology:spexpr_shapes.ttl {
     spexpr:MulPathShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:MulPath must have exactly one salg:path, a path or IRI" ;
+                sh:message "spexpr:MulPath must have exactly one spexpr:path, a path or IRI" ;
                 sh:minCount 1 ;
                 sh:node spexpr:PathOrIriShape ;
                 sh:path spexpr:path ],
             [ sh:in ( "*" "+" "?" ) ;
                 sh:maxCount 1 ;
-                sh:message "salg:MulPath must have exactly one salg:mod, a bare asterisk/plus/question-mark modifier string" ;
+                sh:message "spexpr:MulPath must have exactly one spexpr:mod, a bare asterisk/plus/question-mark modifier string" ;
                 sh:minCount 1 ;
                 sh:path spexpr:mod ] ;
         sh:targetClass spexpr:MulPath .
@@ -9945,7 +9945,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:NegatedPathShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:NegatedPath must have exactly one salg:args, a well-formed rdf:List of path/IRI values" ;
+                sh:message "spexpr:NegatedPath must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
                 sh:minCount 1 ;
                 sh:node spexpr:PathArgsListShape ;
                 sh:path spexpr:args ] ;
@@ -9954,7 +9954,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:SequencePathShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:SequencePath must have exactly one salg:args, a well-formed rdf:List of path/IRI values" ;
+                sh:message "spexpr:SequencePath must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
                 sh:minCount 1 ;
                 sh:node spexpr:PathArgsListShape ;
                 sh:path spexpr:args ] ;
@@ -9963,17 +9963,17 @@ starontology:spexpr_shapes.ttl {
     spexpr:_ArithmeticExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:other, a well-formed rdf:List of expressions" ;
+                sh:message "expected exactly one spexpr:other, a well-formed rdf:List of expressions" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionListShape ;
                 sh:path spexpr:other ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:expr" ;
+                sh:message "expected exactly one spexpr:expr" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:expr ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:op, a well-formed rdf:List of spexpr:PlainString-tagged operator strings" ;
+                sh:message "expected exactly one spexpr:op, a well-formed rdf:List of spexpr:PlainString-tagged operator strings" ;
                 sh:minCount 1 ;
                 sh:node spexpr:OperatorStringListShape ;
                 sh:path spexpr:op ] .
@@ -9981,36 +9981,36 @@ starontology:spexpr_shapes.ttl {
     spexpr:_ConditionalExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:expr" ;
+                sh:message "expected exactly one spexpr:expr" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:expr ],
             [ sh:maxCount 1 ;
-                sh:message "salg:other is optional (absent means a single-condition expression) but a well-formed rdf:List of expressions when present" ;
+                sh:message "spexpr:other is optional (absent means a single-condition expression) but a well-formed rdf:List of expressions when present" ;
                 sh:node spexpr:ExpressionListShape ;
                 sh:path spexpr:other ] .
 
     spexpr:_ExistsExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:graph" ;
+                sh:message "expected exactly one spexpr:graph" ;
                 sh:minCount 1 ;
                 sh:path spexpr:graph ] .
 
     spexpr:_FunctionExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:Function must have exactly one salg:iri, an IRI" ;
+                sh:message "spexpr:Function must have exactly one spexpr:iri, an IRI" ;
                 sh:minCount 1 ;
                 sh:nodeKind sh:IRI ;
                 sh:path spexpr:iri ],
             [ sh:maxCount 1 ;
-                sh:message "salg:Function's salg:distinct must have exactly one value (a spexpr:PlainString-tagged DISTINCT keyword, or rdf:nil when absent) - confirmed always present, empirically, same as the aggregate bodies' own salg:distinct above" ;
+                sh:message "spexpr:Function's spexpr:distinct must have exactly one value (a spexpr:PlainString-tagged DISTINCT keyword, or rdf:nil when absent) - confirmed always present, empirically, same as the aggregate bodies' own spexpr:distinct above" ;
                 sh:minCount 1 ;
                 sh:node spexpr:DistinctMarkerShape ;
                 sh:path spexpr:distinct ],
             [ sh:maxCount 1 ;
-                sh:message "salg:Function must have exactly one salg:expr, a well-formed rdf:List of call arguments" ;
+                sh:message "spexpr:Function must have exactly one spexpr:expr, a well-formed rdf:List of call arguments" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionListShape ;
                 sh:path spexpr:expr ] .
@@ -10018,7 +10018,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:_OneArgExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg" ;
+                sh:message "expected exactly one spexpr:arg" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg ] .
@@ -10026,23 +10026,23 @@ starontology:spexpr_shapes.ttl {
     spexpr:_OptionalOneArgExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:arg is optional (absent means BNODE()'s no-argument form) but at most one" ;
+                sh:message "spexpr:arg is optional (absent means BNODE()'s no-argument form) but at most one" ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg ] .
 
     spexpr:_RegexExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:flags is optional but at most one" ;
+                sh:message "spexpr:flags is optional but at most one" ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:flags ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:pattern" ;
+                sh:message "expected exactly one spexpr:pattern" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:pattern ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:text" ;
+                sh:message "expected exactly one spexpr:text" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:text ] .
@@ -10050,19 +10050,19 @@ starontology:spexpr_shapes.ttl {
     spexpr:_RelationalExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:other, an expression or (for IN/NOT IN) a well-formed rdf:List of expressions" ;
+                sh:message "expected exactly one spexpr:other, an expression or (for IN/NOT IN) a well-formed rdf:List of expressions" ;
                 sh:minCount 1 ;
                 sh:node [ sh:or ( spexpr:ExpressionShape spexpr:ExpressionListShape ) ] ;
                 sh:path spexpr:other ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:expr" ;
+                sh:message "expected exactly one spexpr:expr" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:expr ],
             [ sh:datatype spexpr:PlainString ;
                 sh:in ( "="^^spexpr:PlainString "!="^^spexpr:PlainString "<"^^spexpr:PlainString ">"^^spexpr:PlainString "<="^^spexpr:PlainString ">="^^spexpr:PlainString "IN"^^spexpr:PlainString "NOT IN"^^spexpr:PlainString ) ;
                 sh:maxCount 1 ;
-                sh:message "expected exactly one salg:op, a spexpr:PlainString-tagged operator symbol" ;
+                sh:message "expected exactly one spexpr:op, a spexpr:PlainString-tagged operator symbol" ;
                 sh:minCount 1 ;
                 sh:nodeKind sh:Literal ;
                 sh:path spexpr:op ] .
@@ -10070,21 +10070,21 @@ starontology:spexpr_shapes.ttl {
     spexpr:_ReplaceExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg" ;
+                sh:message "expected exactly one spexpr:arg" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:replacement" ;
+                sh:message "expected exactly one spexpr:replacement" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:replacement ],
             [ sh:maxCount 1 ;
-                sh:message "salg:flags is optional but at most one" ;
+                sh:message "spexpr:flags is optional but at most one" ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:flags ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:pattern" ;
+                sh:message "expected exactly one spexpr:pattern" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:pattern ] .
@@ -10110,16 +10110,16 @@ starontology:spexpr_shapes.ttl {
     spexpr:_SubstrExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "salg:length is optional but at most one" ;
+                sh:message "spexpr:length is optional but at most one" ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:length ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:start" ;
+                sh:message "expected exactly one spexpr:start" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:start ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg" ;
+                sh:message "expected exactly one spexpr:arg" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg ] .
@@ -10127,17 +10127,17 @@ starontology:spexpr_shapes.ttl {
     spexpr:_ThreeArgExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg3" ;
+                sh:message "expected exactly one spexpr:arg3" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg3 ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg1" ;
+                sh:message "expected exactly one spexpr:arg1" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg1 ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg2" ;
+                sh:message "expected exactly one spexpr:arg2" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg2 ] .
@@ -10145,12 +10145,12 @@ starontology:spexpr_shapes.ttl {
     spexpr:_TwoArgExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg2" ;
+                sh:message "expected exactly one spexpr:arg2" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg2 ],
             [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg1" ;
+                sh:message "expected exactly one spexpr:arg1" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:arg1 ] .
@@ -10158,7 +10158,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:_UnaryExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:expr" ;
+                sh:message "expected exactly one spexpr:expr" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionShape ;
                 sh:path spexpr:expr ] .
@@ -10166,7 +10166,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:_VariadicArgExprBodyShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:property [ sh:maxCount 1 ;
-                sh:message "expected exactly one salg:arg, a well-formed rdf:List of expression values" ;
+                sh:message "expected exactly one spexpr:arg, a well-formed rdf:List of expression values" ;
                 sh:minCount 1 ;
                 sh:node spexpr:ExpressionListShape ;
                 sh:path spexpr:arg ] .
@@ -10185,7 +10185,6 @@ starontology:spexpr_shapes.ttl {
                 sh:message "expected a well-formed rdf:List of spexpr:PlainString-tagged operator strings, each one of the real Arithmetic operators (+/-/*//), shared by AdditiveExpression and MultiplicativeExpression alike" ;
                 sh:select """
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#>
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             SELECT $this
             WHERE {
@@ -10203,7 +10202,7 @@ starontology:spexpr_shapes.ttl {
     spexpr:PathShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
         sh:class spexpr:Path ;
-        sh:message "expected a recognized property-path operator (see salg:Path in salg-ontology.ttl)" .
+        sh:message "expected a recognized property-path operator (see spexpr:Path)" .
 
     spexpr:VariableShape a sh:NodeShape ;
         rdfs:isDefinedBy spexpr:ShapesGraph ;
@@ -10522,7 +10521,7 @@ starontology:sqe-ontology.ttl {
         rdfs:comment "A VERSION \"x\" declaration of the query prologue (a plain string) on a query root; may repeat." .
 
     sqe:where a rdf:Property ;
-        rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not the salg: algebra's nested LeftJoin/Filter wrapping." .
+        rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not a resolved algebra's nested LeftJoin/Filter wrapping." .
 
     sqe:with a rdf:Property ;
         rdfs:comment "WITH iri of a Modify." ;
@@ -11782,7 +11781,7 @@ starontology:srl-ontology.ttl {
         rdfs:comment "One top-level DATA {} block - srl:triples, ground only, §4.1." .
 
     srl:FilterElement a rdfs:Class ;
-        rdfs:comment "FILTER Constraint - srl:expr, a real salg: expression tree, §4.1." ;
+        rdfs:comment "FILTER Constraint - srl:expr, a spexpr: expression tree, §4.1." ;
         rdfs:subClassOf srl:BodyElement,
             srl:NegationBodyElement .
 
@@ -11827,7 +11826,7 @@ starontology:srl_shapes.ttl {
     srl:AssignmentElementShape a sh:NodeShape ;
         sh:property [ sh:class spexpr:Expression ;
                 sh:maxCount 1 ;
-                sh:message "srl:AssignmentElement must have exactly one srl:expr, a salg: expression" ;
+                sh:message "srl:AssignmentElement must have exactly one srl:expr, a spexpr: expression" ;
                 sh:minCount 1 ;
                 sh:path srl:expr ],
             [ sh:datatype spexpr:Variable ;
@@ -11848,7 +11847,7 @@ starontology:srl_shapes.ttl {
     srl:FilterElementShape a sh:NodeShape ;
         sh:property [ sh:class spexpr:Expression ;
                 sh:maxCount 1 ;
-                sh:message "srl:FilterElement must have exactly one srl:expr, a salg: expression" ;
+                sh:message "srl:FilterElement must have exactly one srl:expr, a spexpr: expression" ;
                 sh:minCount 1 ;
                 sh:path srl:expr ] ;
         sh:targetClass srl:FilterElement .
@@ -12117,17 +12116,17 @@ starontology:starlayer-profiles.ttl {
                 prof:hasRole role:validation ],
             [ a prof:ResourceDescriptor ;
                 rdfs:label "spexpr_owl" ;
-                rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:) - the one slice salg:/sqe:/srl: all need identically." ;
+                rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:) - the one slice sqe:/srl: both need identically." ;
                 prof:hasArtifact starontology:spexpr-ontology.ttl ;
                 prof:hasRole role:schema ],
             [ a prof:ResourceDescriptor ;
                 rdfs:label "sqe_owl" ;
-                rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not the resolved salg: algebra." ;
+                rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not a resolved algebra." ;
                 prof:hasArtifact starontology:sqe-ontology.ttl ;
                 prof:hasRole role:schema ],
             [ a prof:ResourceDescriptor ;
                 rdfs:label "spexpr_shacl" ;
-                rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by salg:/sqe:/srl: alike (each via owl:imports), not defined separately by any one of them." ;
+                rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by sqe:/srl: alike (each via owl:imports), not defined separately by either of them." ;
                 prof:hasArtifact starontology:spexpr_shapes.ttl ;
                 prof:hasRole role:validation ] ;
         prof:isProfileOf tr:sparql12-query .

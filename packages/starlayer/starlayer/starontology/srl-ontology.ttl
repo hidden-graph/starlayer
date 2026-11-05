@@ -12,7 +12,7 @@ srl:Data a rdfs:Class ;
     rdfs:comment "One top-level DATA {} block - srl:triples, ground only, §4.1." .
 
 srl:FilterElement a rdfs:Class ;
-    rdfs:comment "FILTER Constraint - srl:expr, a real salg: expression tree, §4.1." ;
+    rdfs:comment "FILTER Constraint - srl:expr, a spexpr: expression tree, §4.1." ;
     rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement .
 
 srl:NegationBodyElement a rdfs:Class ;

@@ -12,7 +12,6 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix role: <http://www.w3.org/ns/dx/prof/role/> .
-@prefix salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 @prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
