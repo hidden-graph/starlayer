@@ -80,7 +80,8 @@ def sqe_parse_to_tree(
 
     Args:
         text: The SPARQL query text to encode.
-        graph: The graph to add the ``sqe:`` RDF to: a ``StarLayerGraph`` (pyoxigraph terms). Defaults to a fresh one.
+        graph: The graph to add the ``sqe:`` RDF to: a ``StarLayerGraph`` (pyoxigraph terms), or an rdflib graph (filled with
+            rdflib terms; rdflib is then needed). Defaults to a fresh ``StarLayerGraph``.
         root: The node to use as the query's own root - any ``NamedNode``/
             ``BlankNode``. Defaults to a fresh blank node. Give a real
             IRI to make the query findable by that identity later
@@ -118,12 +119,19 @@ def sqe_parse_to_tree(
         if not isinstance(root, (ox.NamedNode, ox.BlankNode)):
             raise TypeError(f"root must be an IRI or a blank node, not {type(root).__name__}")
     triples, root = ast_to_triples(ast, root)
-    if graph is None:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-        graph = StarLayerGraph(prefixes={})
-    graph.extend(triples)
-    conforms, report_graph, report_text = sqe_validate(graph)
+    foreign = graph if graph is not None and not getattr(graph, "engine_terms", False) else None
+    tree = StarLayerGraph(prefixes={}) if graph is None or foreign is not None else graph
+    tree.extend(triples)
+    conforms, report_graph, report_text = sqe_validate(tree)
     if not conforms:
         raise SQEValidationError(report_text, report_graph)
-    return graph, root
+    if foreign is not None:  # an rdflib graph is filled with the tree (needs rdflib, which it already is)
+        from ._memtree import fill_foreign
+
+        fill_foreign(foreign, tree)
+        from starlayer.shacl_engine.terms import from_engine
+
+        return foreign, from_engine(root)
+    return tree, root

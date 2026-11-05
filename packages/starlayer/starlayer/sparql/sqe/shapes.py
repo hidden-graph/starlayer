@@ -137,6 +137,9 @@ def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
 
+    from ._memtree import as_engine_graph
+
+    data_graph, _ = as_engine_graph(data_graph)
     result = starlayer.shacl.validate(
         _entailed_copy(data_graph),
         shacl_graph=_shapes_graph(),

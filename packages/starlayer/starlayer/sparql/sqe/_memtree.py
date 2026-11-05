@@ -41,3 +41,23 @@ class TreeIndex:
         while head != RDF.nil:
             yield self.value(head, RDF.first)
             head = self.value(head, RDF.rest)
+
+
+def as_engine_graph(graph: Any, root: Any = None) -> tuple[Any, Any]:
+    """``(graph, root)`` with pyoxigraph terms: a ``StarLayerGraph`` or ``TreeIndex`` passes as it is; an rdflib graph (and an rdflib
+    root) is copied by the rdflib bridge, relative IRIs becoming the stand-ins ``_oxterms`` takes apart again. Needs rdflib only
+    when handed an rdflib graph."""
+    if graph is None or getattr(graph, "engine_terms", False) or isinstance(graph, TreeIndex):
+        return graph, root
+    from starlayer.shacl_engine.terms import engine_view, term_policy, to_engine
+
+    with term_policy("lenient"):
+        return engine_view(graph), to_engine(root)
+
+
+def fill_foreign(target: Any, tree: Any) -> None:
+    """Copy the triples of the ``StarLayerGraph`` ``tree`` into ``target``, an rdflib graph (terms converted by the bridge)."""
+    from starlayer.shacl_engine.terms import from_engine
+
+    for s, p, o in tree.triples((None, None, None)):
+        target.add((from_engine(s), from_engine(p), from_engine(o)))

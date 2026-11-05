@@ -50,6 +50,37 @@ takes them apart, and `sqe_tree_to_text` writes the original text back. `sqe_val
 `sqe/from_rdf.py` (`sqe_tree_to_query`: decodes a tree to an rdflib `Query`; reads the `StarLayerGraph` through the bridge's
 snapshot). `from starlayer.sparql.sqe import sqe_tree_to_query` calls `require_rdflib`. Retire it with salg.
 
-## Tests changed
+## Other changes that came with it
 
-See the commit messages; the list of weakened or removed expectations is below.
+- `sqe_validate` closes the tree under the RDFS rules the sqe shapes need (sub-property, domain, range, sub-class from the sqe and
+  spexpr ontology) in `sqe/shapes.py`, instead of `inference=ENTAILMENT.RDFS`: the general RDFS closure (`infer()`) runs on owlrl and
+  so on rdflib. The result is the same for the shapes (all sqe tests and the shape-mutation audit pass).
+- `starontology._resource_iri` is always a `NamedNode` (it imported rdflib to make a `URIRef`, which loaded rdflib on every
+  ontology load); the public `get_resource_iri` still returns a `URIRef` when rdflib is installed (non-spec-behaviour row 29).
+- `sqe_tree_to_text` and `sqe_validate` still accept an rdflib graph (and root): it is copied to a `StarLayerGraph` with the
+  bridge (`sqe/_memtree.as_engine_graph`), which `tools/kg/codekg/queries.py` (the query library is an rdflib graph) relies on.
+  `sqe_parse_to_tree(graph=<rdflib graph>)` fills it with rdflib terms; a relative IRI then shows as its stand-in IRI.
+
+## Tests changed (none skipped or xfailed)
+
+- `tests/test_core_without_rdflib.py`: the `_terms` stand-in tests are gone (`_terms.py` is deleted); the ImportError case for
+  `query(entailment=RDFS)` is gone (it now works without rdflib); new tests run `sqe_parse_to_tree`, `sqe_tree_to_text`,
+  `sqe_validate`, `rewrite_exists_text`, the RDF and RDFS entailment rewrites and `StarQuery`'s syntax check with rdflib blocked,
+  check `sqe_tree_to_query` still says it needs rdflib, and check the sqe text path loads no rdflib module.
+- `tests/sparql/test_parse_sparql.py`: **weakened one check.** `test_numeric_literals_keep_their_lexical_form` used to check that
+  `sqe_tree_to_text(*sparql_to_tree(q))` keeps `007`, `+5`, `1E0`; `sparql_to_tree` now returns a store-backed `StarLayerGraph`, and
+  Oxigraph normalises those lexical forms on storage. The check now renders through `TreeIndex` (no store), which keeps them, and
+  the parser-level checks (the AST holds the lexical form) are unchanged.
+- `tests/sparql/parse_sparql_support.py`, `test_parse_sparql*.py`, `parse_sparql_conformance/test_coverage_matrix.py`: the tree
+  comparison uses native `isomorphic` on `StarLayerGraph`s and pyoxigraph terms instead of rdflib's.
+- `tests/sparql/unit/{test_query_collection,test_shacl_shapes}.py`: import the salg names from `_vocab_rdflib`.
+- `tests/sparql/unit/test_sqe_ontology.py`, `test_parse_sparql_update.py`: pyoxigraph terms for roots and tree edits.
+- `tests/kg/unit/test_queries.py`: one rdflib `URIRef` in an rdflib library graph.
+- The opt-in `--sqe-coverage` set (with `STARLAYER_SQE_FUZZ_EXAMPLES=20`) passes unchanged: 2,444 passed, 3 xfailed.
+
+## Decisions for the owner
+
+1. Lexical forms in a stored sqe tree (`sqe_parse_to_tree` returns a store-backed graph): accepted as the store's known
+   normalisation (issue #190); the rewrites avoid it. Alternative: an in-memory `TreeIndex`-style graph type for trees.
+2. `sqe_tree_to_query` stays rdflib-only (retire with salg), as does `_vocab_rdflib.py` and friends until SRL / salg convert.
+3. The native RDFS rules in `sqe/shapes.py` are a private mini-closure; a native RDFS regime in `infer()` would replace it.

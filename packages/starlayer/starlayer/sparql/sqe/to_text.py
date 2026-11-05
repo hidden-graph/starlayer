@@ -143,7 +143,9 @@ def sqe_tree_to_text(graph: Any, root) -> str:
         SqeTextTooDeepError: the tree nests too deeply to render within the Python stack.
     """
     from ..parse_sparql import run_with_deeper_stack
+    from ._memtree import as_engine_graph
 
+    graph, root = as_engine_graph(graph, root)
     try:
         return run_with_deeper_stack(_tree_to_text, graph, root)
     except RecursionError:
