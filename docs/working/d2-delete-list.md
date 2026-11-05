@@ -74,11 +74,9 @@ moved verbatim (old class names) into `<name>_oldclass.py`, which D1 deletes who
 | graph/unit/test_group_filter_falsy_literal_oldclass.py | 19 | 49 | rdflib Graph variant, algebra patch idempotence |
 | graph/w3c_sparql12/test_w3c_sparql12_eval_oldclass.py + harness_oldclass.py | 110 | 552 + 462 | live Oxigraph / Fuseki / OxigraphStore variants of the W3C eval on the old class |
 | graph/oxgraph/test_migration_gaps_oldclass.py | 1 | 125 | `from_rdflib` of an old-class graph with a triple term |
-| sparql/unit/test_phase6_serialize12_oldclass.py | 1 | | NOT dropped behaviour: blocked by gap G9; re-migrate rather than delete |
 | sparql/unit/test_remainders_93_oldclass.py | 2 | | `rdf11_to_sparql11_text` (lowering) |
 | shacl/unit/test_engine_normalization_oldclass.py | 1 | | normalising an old-class instance |
 | shacl/unit/test_graph_protocol_contract_oldclass.py | 1 | | old class vs `StarLayerGraphProtocol`; NOT dropped behaviour, gap G2 |
-| shacl/integration/test_select_widgets_per_shape_oldclass.py | 1 | | NOT dropped behaviour: gap G1 |
 
 Also removed from migrated files without a copy (old-vs-new comparators; see the commit messages): 3 tests of
 `graph/unit/test_update_hunt3.py` (mem vs ox store comparator, triple-term-refused update, prepared query accepted) and 4 REPLACE
@@ -87,8 +85,8 @@ tests of `test_contracts_hunt3.py` (pinned by the strict xfails of `test_oxigrap
 Also at D1: the `parser` fixture of `graph/conftest.py` (used only by D files above and `test_starlayer_graph_oldclass.py`; it imports the
 hand parser lazily now). `fixture_ttl` stays if a kept test uses it.
 
-Still on the old class and still passing, outside the lists above (opt-in `--sqe-coverage`): `sparql/sqe_coverage/test_sqe_features.py`
-(3 references), `test_sqe_property_based.py` (1), `test_parser_differential.py` (2); gap G10.
+The opt-in `--sqe-coverage` files (`test_sqe_features.py`, `test_sqe_property_based.py`, `test_parser_differential.py`) are on OxDataset
+now (gap G10 resolved on `mig-d2-fixes`); no old-class reference is left in them.
 
 Totals: 39 whole-file entries (about 1,260 collected tests, about 9,800 lines, counting the 4 shacl entries) and 24 `*_oldclass`
 files (about 280 tests, about 3,500 lines including the 2 W3C harness files). Old-class references left in tests: see the final report.

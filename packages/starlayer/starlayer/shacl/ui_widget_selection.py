@@ -248,12 +248,17 @@ def _ranked_scores(shapes_graph: Any, scoring_graph: Any, role: str) -> list[tup
         if roles and role not in roles:
             continue  # a widget known only as the other role is not a candidate (draft Sections 4.1 and 4.2)
         try:
-            score = float(score_value)
+            score = _as_float(score_value)
         except (TypeError, ValueError):
             continue  # a score that is not a number is skipped, like a score node with no widget or no value
         ranked.append((score, widget, score_node))
     ranked.sort(key=lambda entry: (-entry[0], str(entry[1])))
     return ranked
+
+
+def _as_float(term: Any) -> float:
+    """``float`` of a literal of either term family: an rdflib ``Literal`` converts itself, a pyoxigraph one by its lexical form."""
+    return float(getattr(term, "value", term))
 
 
 def _via_rdflib(fn: Any, kwargs: dict[str, Any]) -> tuple[bool, Any]:
@@ -292,7 +297,7 @@ def default_widget_score(shapes_graph: Any) -> float:
     ``shui:defaultWidgetScore`` of the global configuration (a node of ``shapes_graph``; with several, the first by IRI), else 40."""
     for _node, value in sorted(shapes_graph.subject_objects(SHUI.defaultWidgetScore), key=lambda pair: (str(pair[0]), str(pair[1]))):
         try:
-            return float(value)
+            return _as_float(value)
         except (TypeError, ValueError):
             continue
     return DEFAULT_WIDGET_SCORE

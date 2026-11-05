@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import operator
 import time
 
 import pyoxigraph as ox
@@ -11,24 +10,9 @@ from rdflib import BNode, Graph, Literal, URIRef
 from starlayer.graph import setops
 from starlayer.graph.oxgraph import OxDataset, OxGraph
 
-_OPERATORS = {"union": operator.add, "difference": operator.sub, "intersection": operator.and_, "symmetric_difference": operator.xor}
-
-
-def _op(name):
-    """The setops function; for an OxGraph / OxDataset operand the documented equivalent, the operator (+ - & ^).
-    The functions of graph/setops.py take rdflib and pyoxigraph operands; the wrappers have the operators (and `+=`)."""
-    fn = getattr(setops, name)
-
-    def call(a, b, into=None):
-        if isinstance(a, (OxGraph, OxDataset)):
-            assert into is None, "into= has no operator equivalent"
-            return _OPERATORS[name](a, b)
-        return fn(a, b) if into is None else fn(a, b, into=into)
-
-    return call
-
-
-union, intersection, difference, symmetric_difference = (_op(n) for n in ("union", "intersection", "difference", "symmetric_difference"))
+union, intersection, difference, symmetric_difference = (
+    getattr(setops, n) for n in ("union", "intersection", "difference", "symmetric_difference")
+)
 
 
 def TripleTerm(s, p, o):  # noqa: N802
@@ -110,10 +94,6 @@ def test_result_has_the_first_operands_type(make) -> None:
 
 def test_into_accumulates_and_may_be_an_operand(make) -> None:
     a, b = make("1"), make("2")
-    if isinstance(a, OxGraph):  # an OxGraph has `+=` (union into the left operand); difference/intersection have no into=
-        a += b
-        assert _subjects(a) == {"1", "2"} and _subjects(b) == {"2"}
-        return
     out = union(a, b, into=a)
     assert out is a and _subjects(a) == {"1", "2"} and _subjects(b) == {"2"}
     target = make("9")
