@@ -1330,7 +1330,7 @@ returned graph shares no blank node with ``shapes_graph`` beyond the parameter's
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.meta_shapes.parameter_value_shapes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/meta_shapes.py#L54-L141)
+**Source:** [starlayer.shacl.meta_shapes.parameter_value_shapes](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/meta_shapes.py#L48-L135)
 
 ---
 
@@ -1510,7 +1510,7 @@ a query of another form than the predicate says (a SELECT in ``sh:construct``), 
 
 **Returns:** `Iterator[tuple[Any, Any, str]]`
 
-**Source:** [starlayer.shacl.meta_shapes.sparql_query_problems](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/meta_shapes.py#L396-L441)
+**Source:** [starlayer.shacl.meta_shapes.sparql_query_problems](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/meta_shapes.py#L393-L441)
 
 ---
 

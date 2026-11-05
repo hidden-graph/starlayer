@@ -276,9 +276,8 @@ stsh:NamedParameterExpressionFunctionForm a sh:NodeShape ;
         stsh:NamedParameterExpressionFunctionForm_rdfs_comment,
         stsh:NamedParameterExpressionFunctionForm_rdfs_label,
         stsh:NamedParameterExpressionFunctionForm_sh_bodyExpression,
-        stsh:NamedParameterExpressionFunctionForm_sh_labelTemplate,
         stsh:NamedParameterExpressionFunctionForm_sh_parameter ;
-    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression sh:labelTemplate rdfs:label rdfs:comment ) ;
+    stsh:formFields ( rdf:type sh:parameter sh:bodyExpression rdfs:label rdfs:comment ) ;
     stsh:formFor sh:NamedParameterExpressionFunction ;
     stsh:formRequired ( sh:bodyExpression ) .
 
@@ -288,7 +287,6 @@ stsh:NodeShapeForm a sh:NodeShape ;
         stsh:NodeShapeForm_rdfs_comment,
         stsh:NodeShapeForm_rdfs_isDefinedBy,
         stsh:NodeShapeForm_rdfs_label,
-        stsh:NodeShapeForm_rdfs_seeAlso,
         stsh:NodeShapeForm_rdfs_subClassOf,
         stsh:NodeShapeForm_sh_and,
         stsh:NodeShapeForm_sh_class,
@@ -347,82 +345,29 @@ stsh:NodeShapeForm a sh:NodeShape ;
 stsh:ParameterForm a sh:NodeShape ;
     rdfs:label "Form for a Parameter"@en ;
     sh:property stsh:ParameterForm_rdf_type,
-        stsh:ParameterForm_rdfs_comment,
-        stsh:ParameterForm_rdfs_isDefinedBy,
-        stsh:ParameterForm_rdfs_label,
-        stsh:ParameterForm_rdfs_seeAlso,
-        stsh:ParameterForm_rdfs_subClassOf,
-        stsh:ParameterForm_sh_and,
         stsh:ParameterForm_sh_class,
-        stsh:ParameterForm_sh_codeIdentifier,
-        stsh:ParameterForm_sh_codeType,
         stsh:ParameterForm_sh_datatype,
         stsh:ParameterForm_sh_defaultValue,
         stsh:ParameterForm_sh_description,
-        stsh:ParameterForm_sh_disjoint,
-        stsh:ParameterForm_sh_equals,
-        stsh:ParameterForm_sh_expression,
-        stsh:ParameterForm_sh_flags,
         stsh:ParameterForm_sh_group,
-        stsh:ParameterForm_sh_hasValue,
-        stsh:ParameterForm_sh_in,
         stsh:ParameterForm_sh_keyParameter,
-        stsh:ParameterForm_sh_languageIn,
-        stsh:ParameterForm_sh_lessThan,
-        stsh:ParameterForm_sh_lessThanOrEquals,
-        stsh:ParameterForm_sh_maxCount,
-        stsh:ParameterForm_sh_maxExclusive,
-        stsh:ParameterForm_sh_maxInclusive,
-        stsh:ParameterForm_sh_maxLength,
-        stsh:ParameterForm_sh_maxListLength,
-        stsh:ParameterForm_sh_memberShape,
-        stsh:ParameterForm_sh_minCount,
-        stsh:ParameterForm_sh_minExclusive,
-        stsh:ParameterForm_sh_minInclusive,
-        stsh:ParameterForm_sh_minLength,
-        stsh:ParameterForm_sh_minListLength,
         stsh:ParameterForm_sh_name,
-        stsh:ParameterForm_sh_node,
-        stsh:ParameterForm_sh_nodeByExpression,
         stsh:ParameterForm_sh_nodeKind,
-        stsh:ParameterForm_sh_not,
         stsh:ParameterForm_sh_optional,
-        stsh:ParameterForm_sh_or,
         stsh:ParameterForm_sh_order,
-        stsh:ParameterForm_sh_path,
-        stsh:ParameterForm_sh_pattern,
-        stsh:ParameterForm_sh_property,
-        stsh:ParameterForm_sh_qualifiedMaxCount,
-        stsh:ParameterForm_sh_qualifiedMinCount,
-        stsh:ParameterForm_sh_qualifiedValueShape,
-        stsh:ParameterForm_sh_qualifiedValueShapesDisjoint,
-        stsh:ParameterForm_sh_reificationRequired,
-        stsh:ParameterForm_sh_reifierShape,
-        stsh:ParameterForm_sh_rootClass,
-        stsh:ParameterForm_sh_singleLine,
-        stsh:ParameterForm_sh_someValue,
-        stsh:ParameterForm_sh_sparql,
-        stsh:ParameterForm_sh_subsetOf,
-        stsh:ParameterForm_sh_uniqueLang,
-        stsh:ParameterForm_sh_uniqueMembers,
-        stsh:ParameterForm_sh_uniqueValuesFor,
-        stsh:ParameterForm_sh_unit,
-        stsh:ParameterForm_sh_xone,
-        stsh:ParameterForm_shui_editor,
-        stsh:ParameterForm_shui_propertyRole,
-        stsh:ParameterForm_shui_viewer ;
-    stsh:formFields ( sh:optional sh:keyParameter ) ;
-    stsh:formFieldsExcept ( sh:targetClass sh:targetNode sh:targetSubjectsOf sh:targetObjectsOf sh:target sh:targetWhere sh:rule sh:message sh:severity sh:deactivated sh:values ) ;
-    stsh:formFieldsOf sh:PropertyShape ;
+        stsh:ParameterForm_sh_path ;
+    stsh:formFields ( rdf:type sh:name sh:description sh:path sh:optional sh:keyParameter sh:defaultValue sh:class sh:datatype sh:nodeKind sh:order sh:group ) ;
     stsh:formFor sh:Parameter ;
     stsh:formRequired ( sh:path ) .
 
 stsh:PrefixDeclarationForm a sh:NodeShape ;
     rdfs:label "Form for a PrefixDeclaration"@en ;
     sh:property stsh:PrefixDeclarationForm_rdf_type,
+        stsh:PrefixDeclarationForm_rdfs_comment,
+        stsh:PrefixDeclarationForm_rdfs_label,
         stsh:PrefixDeclarationForm_sh_namespace,
         stsh:PrefixDeclarationForm_sh_prefix ;
-    stsh:formFields ( rdf:type sh:prefix sh:namespace ) ;
+    stsh:formFields ( rdf:type rdfs:label rdfs:comment sh:prefix sh:namespace ) ;
     stsh:formFor sh:PrefixDeclaration ;
     stsh:formRequired ( sh:prefix sh:namespace ) .
 
@@ -453,7 +398,6 @@ stsh:PropertyShapeForm a sh:NodeShape ;
         stsh:PropertyShapeForm_rdfs_comment,
         stsh:PropertyShapeForm_rdfs_isDefinedBy,
         stsh:PropertyShapeForm_rdfs_label,
-        stsh:PropertyShapeForm_rdfs_seeAlso,
         stsh:PropertyShapeForm_rdfs_subClassOf,
         stsh:PropertyShapeForm_sh_and,
         stsh:PropertyShapeForm_sh_class,
@@ -797,6 +741,65 @@ sh:closed sh:group stsh:ClosedGroup ;
 sh:ignoredProperties sh:group stsh:ClosedGroup ;
     sh:order 2 ;
     stsh:nodeFormField true .
+
+sh:lessThan sh:group stsh:ComparisonGroup ;
+    sh:order 3 ;
+    stsh:propertyFormField true .
+
+sh:lessThanOrEquals sh:group stsh:ComparisonGroup ;
+    sh:order 4 ;
+    stsh:propertyFormField true .
+
+sh:maxCount sh:group stsh:CardinalityGroup ;
+    sh:order 2 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:minCount sh:group stsh:CardinalityGroup ;
+    sh:order 1 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:qualifiedMaxCount sh:group stsh:QualifiedGroup ;
+    sh:order 3 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:qualifiedMinCount sh:group stsh:QualifiedGroup ;
+    sh:order 2 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:qualifiedValueShape sh:group stsh:QualifiedGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 1 ;
+    stsh:propertyFormField true .
+
+sh:qualifiedValueShapesDisjoint sh:group stsh:QualifiedGroup ;
+    sh:order 4 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:reificationRequired sh:group stsh:ReificationGroup ;
+    sh:order 2 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:reifierShape sh:group stsh:ReificationGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 1 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:uniqueLang sh:group stsh:StringGroup ;
+    sh:order 6 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:values sh:group stsh:MetadataGroup ;
+    sh:order 4 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
 
 stsh:AskValidatorForm_rdf_type a sh:PropertyShape ;
     sh:group stsh:TypeGroup ;
@@ -1148,13 +1151,6 @@ stsh:NamedParameterExpressionFunctionForm_sh_bodyExpression a sh:PropertyShape ;
     sh:order 8 ;
     sh:path sh:bodyExpression .
 
-stsh:NamedParameterExpressionFunctionForm_sh_labelTemplate a sh:PropertyShape ;
-    sh:group stsh:RulesGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:Literal ;
-    sh:order 22 ;
-    sh:path sh:labelTemplate .
-
 stsh:NamedParameterExpressionFunctionForm_sh_parameter a sh:PropertyShape ;
     sh:group stsh:RulesGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -1185,12 +1181,6 @@ stsh:NodeShapeForm_rdfs_label a sh:PropertyShape ;
     sh:nodeKind sh:Literal ;
     sh:order 3 ;
     sh:path rdfs:label .
-
-stsh:NodeShapeForm_rdfs_seeAlso a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 6 ;
-    sh:path rdfs:seeAlso .
 
 stsh:NodeShapeForm_rdfs_subClassOf a sh:PropertyShape ;
     sh:group stsh:MetadataGroup ;
@@ -1230,7 +1220,8 @@ stsh:NodeShapeForm_sh_codeType a sh:PropertyShape ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 10 ;
-    sh:path sh:codeType .
+    sh:path sh:codeType ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_datatype a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
@@ -1257,13 +1248,15 @@ stsh:NodeShapeForm_sh_disjoint a sh:PropertyShape ;
     sh:group stsh:ComparisonGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
-    sh:path sh:disjoint .
+    sh:path sh:disjoint ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_equals a sh:PropertyShape ;
     sh:group stsh:ComparisonGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 1 ;
-    sh:path sh:equals .
+    sh:path sh:equals ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_expression a sh:PropertyShape ;
     sh:group stsh:CompositionGroup ;
@@ -1283,7 +1276,8 @@ stsh:NodeShapeForm_sh_hasValue a sh:PropertyShape ;
     sh:group stsh:ValueEnumerationGroup ;
     sh:nodeKind sh:IRIOrLiteral ;
     sh:order 2 ;
-    sh:path sh:hasValue .
+    sh:path sh:hasValue ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_ignoredProperties a sh:PropertyShape ;
     sh:group stsh:ClosedGroup ;
@@ -1295,7 +1289,8 @@ stsh:NodeShapeForm_sh_in a sh:PropertyShape ;
     sh:group stsh:ValueEnumerationGroup ;
     sh:maxCount 1 ;
     sh:order 1 ;
-    sh:path sh:in .
+    sh:path sh:in ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_languageIn a sh:PropertyShape ;
     sh:group stsh:StringGroup ;
@@ -1400,7 +1395,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n7a5df8fb388742f19b64e897e1e8daf7b75 ;
+    sh:in _:n5b91425148d6401fbaf1f984ab746fb7b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1423,7 +1418,8 @@ stsh:NodeShapeForm_sh_order a sh:PropertyShape ;
     sh:maxCount 1 ;
     sh:nodeKind sh:Literal ;
     sh:order 1 ;
-    sh:path sh:order .
+    sh:path sh:order ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_pattern a sh:PropertyShape ;
     sh:datatype xsd:string ;
@@ -1443,7 +1439,8 @@ stsh:NodeShapeForm_sh_rootClass a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
-    sh:path sh:rootClass .
+    sh:path sh:rootClass ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_rule a sh:PropertyShape ;
     sh:group stsh:RulesGroup ;
@@ -1484,7 +1481,8 @@ stsh:NodeShapeForm_sh_subsetOf a sh:PropertyShape ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 5 ;
-    sh:path sh:subsetOf .
+    sh:path sh:subsetOf ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_target a sh:PropertyShape ;
     sh:group stsh:TargetGroup ;
@@ -1541,7 +1539,8 @@ stsh:NodeShapeForm_sh_unit a sh:PropertyShape ;
     sh:group stsh:MetadataGroup ;
     sh:nodeKind sh:IRIOrLiteral ;
     sh:order 8 ;
-    sh:path sh:unit .
+    sh:path sh:unit ;
+    stsh:secondary true .
 
 stsh:NodeShapeForm_sh_xone a sh:PropertyShape ;
     sh:group stsh:CompositionGroup ;
@@ -1555,63 +1554,11 @@ stsh:ParameterForm_rdf_type a sh:PropertyShape ;
     sh:order 1 ;
     sh:path rdf:type .
 
-stsh:ParameterForm_rdfs_comment a sh:PropertyShape ;
-    sh:group stsh:NamingGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 4 ;
-    sh:path rdfs:comment .
-
-stsh:ParameterForm_rdfs_isDefinedBy a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:IRI ;
-    sh:order 5 ;
-    sh:path rdfs:isDefinedBy .
-
-stsh:ParameterForm_rdfs_label a sh:PropertyShape ;
-    sh:group stsh:NamingGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 3 ;
-    sh:path rdfs:label .
-
-stsh:ParameterForm_rdfs_seeAlso a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 6 ;
-    sh:path rdfs:seeAlso .
-
-stsh:ParameterForm_rdfs_subClassOf a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 7 ;
-    sh:path rdfs:subClassOf .
-
-stsh:ParameterForm_sh_and a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 2 ;
-    sh:path sh:and .
-
 stsh:ParameterForm_sh_class a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 1 ;
     sh:path sh:class .
-
-stsh:ParameterForm_sh_codeIdentifier a sh:PropertyShape ;
-    sh:datatype xsd:string ;
-    sh:group stsh:MetadataGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:Literal ;
-    sh:order 9 ;
-    sh:path sh:codeIdentifier .
-
-stsh:ParameterForm_sh_codeType a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:IRI ;
-    sh:order 10 ;
-    sh:path sh:codeType .
 
 stsh:ParameterForm_sh_datatype a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
@@ -1632,31 +1579,6 @@ stsh:ParameterForm_sh_description a sh:PropertyShape ;
     sh:order 2 ;
     sh:path sh:description .
 
-stsh:ParameterForm_sh_disjoint a sh:PropertyShape ;
-    sh:group stsh:ComparisonGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 2 ;
-    sh:path sh:disjoint .
-
-stsh:ParameterForm_sh_equals a sh:PropertyShape ;
-    sh:group stsh:ComparisonGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 1 ;
-    sh:path sh:equals .
-
-stsh:ParameterForm_sh_expression a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 10 ;
-    sh:path sh:expression .
-
-stsh:ParameterForm_sh_flags a sh:PropertyShape ;
-    sh:datatype xsd:string ;
-    sh:group stsh:StringGroup ;
-    sh:maxCount 1 ;
-    sh:order 4 ;
-    sh:path sh:flags .
-
 stsh:ParameterForm_sh_group a sh:PropertyShape ;
     sh:class sh:PropertyGroup ;
     sh:group stsh:MetadataGroup ;
@@ -1664,18 +1586,6 @@ stsh:ParameterForm_sh_group a sh:PropertyShape ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
     sh:path sh:group .
-
-stsh:ParameterForm_sh_hasValue a sh:PropertyShape ;
-    sh:group stsh:ValueEnumerationGroup ;
-    sh:nodeKind sh:IRIOrLiteral ;
-    sh:order 2 ;
-    sh:path sh:hasValue .
-
-stsh:ParameterForm_sh_in a sh:PropertyShape ;
-    sh:group stsh:ValueEnumerationGroup ;
-    sh:maxCount 1 ;
-    sh:order 1 ;
-    sh:path sh:in .
 
 stsh:ParameterForm_sh_keyParameter a sh:PropertyShape ;
     sh:datatype xsd:boolean ;
@@ -1686,131 +1596,19 @@ stsh:ParameterForm_sh_keyParameter a sh:PropertyShape ;
     sh:path sh:keyParameter ;
     stsh:formHeldBy sh:NamedParameterExpressionFunction .
 
-stsh:ParameterForm_sh_languageIn a sh:PropertyShape ;
-    sh:group stsh:StringGroup ;
-    sh:maxCount 1 ;
-    sh:order 5 ;
-    sh:path sh:languageIn .
-
-stsh:ParameterForm_sh_lessThan a sh:PropertyShape ;
-    sh:group stsh:ComparisonGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 3 ;
-    sh:path sh:lessThan .
-
-stsh:ParameterForm_sh_lessThanOrEquals a sh:PropertyShape ;
-    sh:group stsh:ComparisonGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 4 ;
-    sh:path sh:lessThanOrEquals .
-
-stsh:ParameterForm_sh_maxCount a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:CardinalityGroup ;
-    sh:maxCount 1 ;
-    sh:order 2 ;
-    sh:path sh:maxCount .
-
-stsh:ParameterForm_sh_maxExclusive a sh:PropertyShape ;
-    sh:group stsh:ValueRangeGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:Literal ;
-    sh:order 4 ;
-    sh:path sh:maxExclusive .
-
-stsh:ParameterForm_sh_maxInclusive a sh:PropertyShape ;
-    sh:group stsh:ValueRangeGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:Literal ;
-    sh:order 3 ;
-    sh:path sh:maxInclusive .
-
-stsh:ParameterForm_sh_maxLength a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:StringGroup ;
-    sh:maxCount 1 ;
-    sh:order 2 ;
-    sh:path sh:maxLength .
-
-stsh:ParameterForm_sh_maxListLength a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:ListGroup ;
-    sh:maxCount 1 ;
-    sh:order 2 ;
-    sh:path sh:maxListLength .
-
-stsh:ParameterForm_sh_memberShape a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 8 ;
-    sh:path sh:memberShape .
-
-stsh:ParameterForm_sh_minCount a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:CardinalityGroup ;
-    sh:maxCount 1 ;
-    sh:order 1 ;
-    sh:path sh:minCount .
-
-stsh:ParameterForm_sh_minExclusive a sh:PropertyShape ;
-    sh:group stsh:ValueRangeGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:Literal ;
-    sh:order 2 ;
-    sh:path sh:minExclusive .
-
-stsh:ParameterForm_sh_minInclusive a sh:PropertyShape ;
-    sh:group stsh:ValueRangeGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:Literal ;
-    sh:order 1 ;
-    sh:path sh:minInclusive .
-
-stsh:ParameterForm_sh_minLength a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:StringGroup ;
-    sh:maxCount 1 ;
-    sh:order 1 ;
-    sh:path sh:minLength .
-
-stsh:ParameterForm_sh_minListLength a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:ListGroup ;
-    sh:maxCount 1 ;
-    sh:order 1 ;
-    sh:path sh:minListLength .
-
 stsh:ParameterForm_sh_name a sh:PropertyShape ;
     sh:group stsh:NamingGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 1 ;
     sh:path sh:name .
 
-stsh:ParameterForm_sh_node a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 5 ;
-    sh:path sh:node .
-
-stsh:ParameterForm_sh_nodeByExpression a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 9 ;
-    sh:path sh:nodeByExpression .
-
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n7a5df8fb388742f19b64e897e1e8daf7b75 ;
+    sh:in _:n5b91425148d6401fbaf1f984ab746fb7b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
     sh:path sh:nodeKind .
-
-stsh:ParameterForm_sh_not a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 1 ;
-    sh:path sh:not .
 
 stsh:ParameterForm_sh_optional a sh:PropertyShape ;
     sh:datatype xsd:boolean ;
@@ -1820,12 +1618,6 @@ stsh:ParameterForm_sh_optional a sh:PropertyShape ;
     sh:order 3 ;
     sh:path sh:optional ;
     stsh:formHeldBy sh:ConstraintComponent .
-
-stsh:ParameterForm_sh_or a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 3 ;
-    sh:path sh:or .
 
 stsh:ParameterForm_sh_order a sh:PropertyShape ;
     sh:group stsh:MetadataGroup ;
@@ -1842,150 +1634,23 @@ stsh:ParameterForm_sh_path a sh:PropertyShape ;
     sh:order 1 ;
     sh:path sh:path .
 
-stsh:ParameterForm_sh_pattern a sh:PropertyShape ;
-    sh:datatype xsd:string ;
-    sh:group stsh:StringGroup ;
-    sh:maxCount 1 ;
-    sh:order 3 ;
-    sh:path sh:pattern .
-
-stsh:ParameterForm_sh_property a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 6 ;
-    sh:path sh:property .
-
-stsh:ParameterForm_sh_qualifiedMaxCount a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:QualifiedGroup ;
-    sh:maxCount 1 ;
-    sh:order 3 ;
-    sh:path sh:qualifiedMaxCount .
-
-stsh:ParameterForm_sh_qualifiedMinCount a sh:PropertyShape ;
-    sh:datatype xsd:integer ;
-    sh:group stsh:QualifiedGroup ;
-    sh:maxCount 1 ;
-    sh:order 2 ;
-    sh:path sh:qualifiedMinCount .
-
-stsh:ParameterForm_sh_qualifiedValueShape a sh:PropertyShape ;
-    sh:group stsh:QualifiedGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 1 ;
-    sh:path sh:qualifiedValueShape .
-
-stsh:ParameterForm_sh_qualifiedValueShapesDisjoint a sh:PropertyShape ;
-    sh:datatype xsd:boolean ;
-    sh:group stsh:QualifiedGroup ;
-    sh:maxCount 1 ;
-    sh:order 4 ;
-    sh:path sh:qualifiedValueShapesDisjoint .
-
-stsh:ParameterForm_sh_reificationRequired a sh:PropertyShape ;
-    sh:datatype xsd:boolean ;
-    sh:group stsh:ReificationGroup ;
-    sh:maxCount 1 ;
-    sh:order 2 ;
-    sh:path sh:reificationRequired .
-
-stsh:ParameterForm_sh_reifierShape a sh:PropertyShape ;
-    sh:group stsh:ReificationGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 1 ;
-    sh:path sh:reifierShape .
-
-stsh:ParameterForm_sh_rootClass a sh:PropertyShape ;
-    sh:group stsh:ValueTypeGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 2 ;
-    sh:path sh:rootClass .
-
-stsh:ParameterForm_sh_singleLine a sh:PropertyShape ;
-    sh:datatype xsd:boolean ;
-    sh:group stsh:StringGroup ;
-    sh:maxCount 1 ;
-    sh:order 7 ;
-    sh:path sh:singleLine .
-
-stsh:ParameterForm_sh_someValue a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 7 ;
-    sh:path sh:someValue .
-
-stsh:ParameterForm_sh_sparql a sh:PropertyShape ;
-    sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 1 ;
-    sh:path sh:sparql .
-
-stsh:ParameterForm_sh_subsetOf a sh:PropertyShape ;
-    sh:group stsh:ComparisonGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:IRI ;
-    sh:order 5 ;
-    sh:path sh:subsetOf .
-
-stsh:ParameterForm_sh_uniqueLang a sh:PropertyShape ;
-    sh:datatype xsd:boolean ;
-    sh:group stsh:StringGroup ;
-    sh:maxCount 1 ;
-    sh:order 6 ;
-    sh:path sh:uniqueLang .
-
-stsh:ParameterForm_sh_uniqueMembers a sh:PropertyShape ;
-    sh:datatype xsd:boolean ;
-    sh:group stsh:ListGroup ;
-    sh:maxCount 1 ;
-    sh:order 3 ;
-    sh:path sh:uniqueMembers .
-
-stsh:ParameterForm_sh_uniqueValuesFor a sh:PropertyShape ;
-    sh:group stsh:CrossNodeGroup ;
-    sh:maxCount 1 ;
-    sh:nodeKind sh:IRI ;
-    sh:order 1 ;
-    sh:path sh:uniqueValuesFor .
-
-stsh:ParameterForm_sh_unit a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRIOrLiteral ;
-    sh:order 8 ;
-    sh:path sh:unit .
-
-stsh:ParameterForm_sh_xone a sh:PropertyShape ;
-    sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 4 ;
-    sh:path sh:xone .
-
-stsh:ParameterForm_shui_editor a sh:PropertyShape ;
-    sh:group stsh:WidgetGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 1 ;
-    sh:path shui:editor .
-
-stsh:ParameterForm_shui_propertyRole a sh:PropertyShape ;
-    sh:group stsh:WidgetGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 3 ;
-    sh:path shui:propertyRole .
-
-stsh:ParameterForm_shui_viewer a sh:PropertyShape ;
-    sh:group stsh:WidgetGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 2 ;
-    sh:path shui:viewer .
-
 stsh:PrefixDeclarationForm_rdf_type a sh:PropertyShape ;
     sh:group stsh:TypeGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 1 ;
     sh:path rdf:type .
+
+stsh:PrefixDeclarationForm_rdfs_comment a sh:PropertyShape ;
+    sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 4 ;
+    sh:path rdfs:comment .
+
+stsh:PrefixDeclarationForm_rdfs_label a sh:PropertyShape ;
+    sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 3 ;
+    sh:path rdfs:label .
 
 stsh:PrefixDeclarationForm_sh_namespace a sh:PropertyShape ;
     sh:group stsh:DefinitionGroup ;
@@ -2096,12 +1761,6 @@ stsh:PropertyShapeForm_rdfs_label a sh:PropertyShape ;
     sh:nodeKind sh:Literal ;
     sh:order 3 ;
     sh:path rdfs:label .
-
-stsh:PropertyShapeForm_rdfs_seeAlso a sh:PropertyShape ;
-    sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 6 ;
-    sh:path rdfs:seeAlso .
 
 stsh:PropertyShapeForm_rdfs_subClassOf a sh:PropertyShape ;
     sh:group stsh:MetadataGroup ;
@@ -2327,7 +1986,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n7a5df8fb388742f19b64e897e1e8daf7b75 ;
+    sh:in _:n5b91425148d6401fbaf1f984ab746fb7b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -3180,6 +2839,12 @@ stsh:WidgetScoreForm_shui_widget a sh:PropertyShape ;
     sh:order 11 ;
     sh:path shui:widget .
 
+sh:and sh:group stsh:CompositionGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 2 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
+
 sh:annotationValue sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:IRIOrLiteral ;
     sh:order 17 .
@@ -3189,147 +2854,6 @@ sh:annotationVarName sh:datatype xsd:string ;
     sh:nodeKind sh:Literal ;
     sh:order 16 ;
     stsh:formMaxCount 1 .
-
-sh:defaultValue sh:group stsh:MetadataGroup ;
-    sh:order 3 ;
-    stsh:propertyFormField true .
-
-sh:group sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 2 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:hasRule sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 19 .
-
-sh:includesRuleSet sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 20 .
-
-sh:keyParameter sh:datatype xsd:boolean ;
-    sh:group stsh:CardinalityGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 4 ;
-    stsh:formHeldBy sh:NamedParameterExpressionFunction ;
-    stsh:formMaxCount 1 .
-
-sh:lessThan sh:group stsh:ComparisonGroup ;
-    sh:order 3 ;
-    stsh:propertyFormField true .
-
-sh:lessThanOrEquals sh:group stsh:ComparisonGroup ;
-    sh:order 4 ;
-    stsh:propertyFormField true .
-
-sh:maxCount sh:group stsh:CardinalityGroup ;
-    sh:order 2 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:minCount sh:group stsh:CardinalityGroup ;
-    sh:order 1 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:nodeValidator sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 7 ;
-    stsh:formMaxCount 1 .
-
-sh:object sh:group stsh:DefinitionGroup ;
-    sh:order 6 .
-
-sh:optional sh:datatype xsd:boolean ;
-    sh:group stsh:CardinalityGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 3 ;
-    stsh:formHeldBy sh:ConstraintComponent ;
-    stsh:formMaxCount 1 .
-
-sh:predicate sh:group stsh:DefinitionGroup ;
-    sh:order 5 .
-
-sh:propertyValidator sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 8 ;
-    stsh:formMaxCount 1 .
-
-sh:qualifiedMaxCount sh:group stsh:QualifiedGroup ;
-    sh:order 3 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:qualifiedMinCount sh:group stsh:QualifiedGroup ;
-    sh:order 2 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:qualifiedValueShape sh:group stsh:QualifiedGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 1 ;
-    stsh:propertyFormField true .
-
-sh:qualifiedValueShapesDisjoint sh:group stsh:QualifiedGroup ;
-    sh:order 4 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:reificationRequired sh:group stsh:ReificationGroup ;
-    sh:order 2 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:reifierShape sh:group stsh:ReificationGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 1 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:subject sh:group stsh:DefinitionGroup ;
-    sh:order 4 .
-
-sh:uniqueLang sh:group stsh:StringGroup ;
-    sh:order 6 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-sh:validator sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 6 ;
-    stsh:formMaxCount 1 .
-
-sh:values sh:group stsh:MetadataGroup ;
-    sh:order 4 ;
-    stsh:formMaxCount 1 ;
-    stsh:propertyFormField true .
-
-rdfs:seeAlso sh:group stsh:MetadataGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 6 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
-sh:ConstraintComponent sh:group stsh:RulesGroup ;
-    sh:order 4 .
-
-sh:and sh:group stsh:CompositionGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 2 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
-sh:annotationProperty sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 15 ;
-    stsh:formMaxCount 1 .
-
-sh:class sh:group stsh:ValueTypeGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 1 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
 
 sh:codeIdentifier sh:datatype xsd:string ;
     sh:group stsh:MetadataGroup ;
@@ -3344,24 +2868,19 @@ sh:codeType sh:group stsh:MetadataGroup ;
     sh:order 10 ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
-sh:datatype sh:group stsh:ValueTypeGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 3 ;
-    stsh:formMaxCount 1 ;
-    stsh:nodeFormField true ;
     stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
 sh:disjoint sh:group stsh:ComparisonGroup ;
     sh:order 2 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
 sh:equals sh:group stsh:ComparisonGroup ;
     sh:order 1 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
 sh:expression sh:group stsh:CompositionGroup ;
@@ -3377,17 +2896,39 @@ sh:flags sh:group stsh:StringGroup ;
     stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
+sh:hasRule sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 19 .
+
 sh:hasValue sh:group stsh:ValueEnumerationGroup ;
     sh:nodeKind sh:IRIOrLiteral ;
     sh:order 2 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
 sh:in sh:group stsh:ValueEnumerationGroup ;
     sh:order 1 ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
+
+sh:includesRuleSet sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 20 .
+
+sh:keyParameter sh:datatype xsd:boolean ;
+    sh:group stsh:CardinalityGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 4 ;
+    stsh:formHeldBy sh:NamedParameterExpressionFunction ;
+    stsh:formMaxCount 1 .
+
+sh:labelTemplate sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 22 ;
+    stsh:formMaxCount 1 .
 
 sh:languageIn sh:group stsh:StringGroup ;
     sh:order 5 ;
@@ -3457,11 +2998,6 @@ sh:minListLength sh:group stsh:ListGroup ;
     stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
-sh:namespace sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRIOrLiteral ;
-    sh:order 10 ;
-    stsh:formMaxCount 1 .
-
 sh:node sh:group stsh:CompositionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 5 ;
@@ -3474,12 +3010,10 @@ sh:nodeByExpression sh:group stsh:CompositionGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
-sh:nodeKind sh:group stsh:ValueTypeGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 4 ;
-    stsh:formMaxCount 1 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
+sh:nodeValidator sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 7 ;
+    stsh:formMaxCount 1 .
 
 sh:not sh:group stsh:CompositionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -3487,16 +3021,20 @@ sh:not sh:group stsh:CompositionGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
+sh:object sh:group stsh:DefinitionGroup ;
+    sh:order 6 .
+
+sh:optional sh:datatype xsd:boolean ;
+    sh:group stsh:CardinalityGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 3 ;
+    stsh:formHeldBy sh:ConstraintComponent ;
+    stsh:formMaxCount 1 .
+
 sh:or sh:group stsh:CompositionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 3 ;
     stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
-sh:path sh:group stsh:PathGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 1 ;
-    stsh:formMaxCount 1 ;
     stsh:propertyFormField true .
 
 sh:pattern sh:group stsh:StringGroup ;
@@ -3506,10 +3044,8 @@ sh:pattern sh:group stsh:StringGroup ;
     stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
-sh:prefix sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 9 ;
-    stsh:formMaxCount 1 .
+sh:predicate sh:group stsh:DefinitionGroup ;
+    sh:order 5 .
 
 sh:property sh:group stsh:CompositionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -3517,10 +3053,16 @@ sh:property sh:group stsh:CompositionGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
+sh:propertyValidator sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 8 ;
+    stsh:formMaxCount 1 .
+
 sh:rootClass sh:group stsh:ValueTypeGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
 sh:rule sh:group stsh:RulesGroup ;
@@ -3548,10 +3090,14 @@ sh:sparql sh:group stsh:RulesGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
+sh:subject sh:group stsh:DefinitionGroup ;
+    sh:order 4 .
+
 sh:subsetOf sh:group stsh:ComparisonGroup ;
     sh:order 5 ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
 sh:target sh:group stsh:TargetGroup ;
@@ -3605,7 +3151,13 @@ sh:unit sh:group stsh:MetadataGroup ;
     sh:nodeKind sh:IRIOrLiteral ;
     sh:order 8 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
+
+sh:validator sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 6 ;
+    stsh:formMaxCount 1 .
 
 sh:xone sh:group stsh:CompositionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -3613,63 +3165,33 @@ sh:xone sh:group stsh:CompositionGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
-rdfs:member sh:group stsh:DefinitionGroup ;
+sh:ConstraintComponent sh:group stsh:RulesGroup ;
+    sh:order 4 .
+
+sh:annotationProperty sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:IRI ;
-    sh:order 15 .
+    sh:order 15 ;
+    stsh:formMaxCount 1 .
 
-owl:imports sh:group stsh:DefinitionGroup ;
+sh:defaultValue sh:group stsh:MetadataGroup ;
+    sh:order 3 ;
+    stsh:propertyFormField true .
+
+sh:group sh:group stsh:MetadataGroup ;
     sh:nodeKind sh:IRI ;
-    sh:order 16 .
+    sh:order 2 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
 
-sh:condition sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 10 .
+sh:namespace sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRIOrLiteral ;
+    sh:order 10 ;
+    stsh:formMaxCount 1 .
 
-sh:conformsToShapesGraph sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 29 ;
-    stsh:formOnlyFor sh:DataGraph .
-
-sh:entailment sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 17 ;
-    stsh:formOnlyFor sh:RulesGraph,
-        sh:ShapesGraph .
-
-sh:expectedPredicate sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 20 .
-
-sh:labelTemplate sh:group stsh:RulesGroup ;
+sh:prefix sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:Literal ;
-    sh:order 22 ;
+    sh:order 9 ;
     stsh:formMaxCount 1 .
-
-sh:layer sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 18 ;
-    stsh:formMaxCount 1 .
-
-sh:returnType sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 7 ;
-    stsh:formMaxCount 1 .
-
-sh:runOnce sh:datatype xsd:boolean ;
-    sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 19 ;
-    stsh:formMaxCount 1 .
-
-sh:shapesGraph sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 27 ;
-    stsh:formOnlyFor sh:DataGraph .
-
-sh:suggestedShapesGraph sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 28 ;
-    stsh:formOnlyFor sh:DataGraph .
 
 shui:editor sh:group stsh:WidgetGroup ;
     sh:nodeKind sh:IRI ;
@@ -3681,20 +3203,10 @@ shui:propertyRole sh:group stsh:WidgetGroup ;
     sh:order 3 ;
     stsh:propertyFormField true .
 
-shui:score sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 12 ;
-    stsh:formMaxCount 1 .
-
 shui:viewer sh:group stsh:WidgetGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
     stsh:propertyFormField true .
-
-stsh:ClosedGroup a sh:PropertyGroup ;
-    sh:description "Restricting a focus node to only the explicitly listed properties."@en ;
-    sh:name "Closed Shapes"@en ;
-    sh:order 11 .
 
 stsh:CrossNodeGroup a sh:PropertyGroup ;
     sh:description "Constraints spanning multiple focus nodes (e.g. sh:uniqueValuesFor)."@en ;
@@ -3708,36 +3220,118 @@ rdfs:isDefinedBy sh:group stsh:MetadataGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
+rdfs:member sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 15 .
+
 rdfs:subClassOf sh:group stsh:MetadataGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 7 ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
-sh:ask sh:group stsh:DefinitionGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 2 ;
-    stsh:formMaxCount 1 ;
-    stsh:multiline true .
+owl:imports sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 16 .
 
-sh:description sh:group stsh:NamingGroup ;
-    sh:nodeKind sh:Literal ;
-    sh:order 2 ;
-    stsh:multiline true ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
-sh:name sh:group stsh:NamingGroup ;
-    sh:nodeKind sh:Literal ;
+sh:class sh:group stsh:ValueTypeGroup ;
+    sh:nodeKind sh:IRI ;
     sh:order 1 ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
+
+sh:condition sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 10 .
+
+sh:conformsToShapesGraph sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 29 ;
+    stsh:formOnlyFor sh:DataGraph .
+
+sh:datatype sh:group stsh:ValueTypeGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 3 ;
+    stsh:formMaxCount 1 ;
+    stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
+    stsh:propertyFormField true .
+
+sh:entailment sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 17 ;
+    stsh:formOnlyFor sh:RulesGraph,
+        sh:ShapesGraph .
+
+sh:expectedPredicate sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 20 .
+
+sh:layer sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 18 ;
+    stsh:formMaxCount 1 .
+
+sh:nodeKind sh:group stsh:ValueTypeGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 4 ;
+    stsh:formMaxCount 1 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
+
+sh:path sh:group stsh:PathGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 1 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+sh:returnType sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 7 ;
+    stsh:formMaxCount 1 .
+
+sh:runOnce sh:datatype xsd:boolean ;
+    sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 19 ;
+    stsh:formMaxCount 1 .
 
 sh:severity sh:group stsh:NamingGroup ;
     sh:order 6 ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
+
+sh:shapesGraph sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 27 ;
+    stsh:formOnlyFor sh:DataGraph .
+
+sh:suggestedShapesGraph sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 28 ;
+    stsh:formOnlyFor sh:DataGraph .
+
+shui:score sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 12 ;
+    stsh:formMaxCount 1 .
+
+stsh:ClosedGroup a sh:PropertyGroup ;
+    sh:description "Restricting a focus node to only the explicitly listed properties."@en ;
+    sh:name "Closed Shapes"@en ;
+    sh:order 11 .
+
+stsh:ReificationGroup a sh:PropertyGroup ;
+    sh:description "RDF 1.2 triple-term reification constraints (sh:reifierShape, sh:reificationRequired)."@en ;
+    sh:name "Reification"@en ;
+    sh:order 14 .
+
+sh:ask sh:group stsh:DefinitionGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 2 ;
+    stsh:formMaxCount 1 ;
+    stsh:multiline true .
 
 shui:dataGraphShape sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -3762,6 +3356,19 @@ sh:construct sh:group stsh:DefinitionGroup ;
 sh:declare sh:group stsh:RulesGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 21 .
+
+sh:description sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 2 ;
+    stsh:multiline true ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
+
+sh:name sh:group stsh:NamingGroup ;
+    sh:nodeKind sh:Literal ;
+    sh:order 1 ;
+    stsh:nodeFormField true ;
+    stsh:propertyFormField true .
 
 sh:resultAnnotation sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -3800,10 +3407,10 @@ shui:timeZone sh:datatype xsd:string ;
     sh:order 24 ;
     stsh:formMaxCount 1 .
 
-stsh:ReificationGroup a sh:PropertyGroup ;
-    sh:description "RDF 1.2 triple-term reification constraints (sh:reifierShape, sh:reificationRequired)."@en ;
-    sh:name "Reification"@en ;
-    sh:order 14 .
+stsh:ValueEnumerationGroup a sh:PropertyGroup ;
+    sh:description "Allow-listing or requiring specific values — sh:in/sh:hasValue."@en ;
+    sh:name "Value Enumeration"@en ;
+    sh:order 7 .
 
 shui:widget sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
@@ -3814,16 +3421,6 @@ stsh:NodeExpressionGroup a sh:PropertyGroup ;
     sh:description "The expression type and its defining value — sh:union, sh:intersection, sh:nodes, sh:constant, sh:function, sh:arguments, sh:filterShape."@en ;
     sh:name "Node Expression"@en ;
     sh:order 1 .
-
-stsh:PathGroup a sh:PropertyGroup ;
-    sh:description "sh:path and its operators (inverse, alternative, repeated) that connect a focus node to its value nodes."@en ;
-    sh:name "Property Paths"@en ;
-    sh:order 2 .
-
-stsh:ValueEnumerationGroup a sh:PropertyGroup ;
-    sh:description "Allow-listing or requiring specific values — sh:in/sh:hasValue."@en ;
-    sh:name "Value Enumeration"@en ;
-    sh:order 7 .
 
 sh:deactivated sh:group stsh:NamingGroup ;
     sh:order 7 ;
@@ -3838,17 +3435,33 @@ sh:message sh:group stsh:NamingGroup ;
     stsh:nodeFormField true ;
     stsh:propertyFormField true .
 
+stsh:CardinalityGroup a sh:PropertyGroup ;
+    sh:description "How many values a path may or must have — sh:minCount/sh:maxCount."@en ;
+    sh:name "Cardinality"@en ;
+    sh:order 3 .
+
+stsh:PathGroup a sh:PropertyGroup ;
+    sh:description "sh:path and its operators (inverse, alternative, repeated) that connect a focus node to its value nodes."@en ;
+    sh:name "Property Paths"@en ;
+    sh:order 2 .
+
+stsh:QualifiedGroup a sh:PropertyGroup ;
+    sh:description "Counting how many values conform to a shape, rather than requiring all-or-none."@en ;
+    sh:name "Qualified Value Shapes"@en ;
+    sh:order 10 .
+
+stsh:ListGroup a sh:PropertyGroup ;
+    sh:description "Well-formedness and length/uniqueness rules for SHACL-list-valued properties."@en ;
+    sh:name "List Constraints"@en ;
+    sh:order 12 .
+
 sh:order sh:group stsh:MetadataGroup ;
     sh:nodeKind sh:Literal ;
     sh:order 1 ;
     stsh:formMaxCount 1 ;
     stsh:nodeFormField true ;
+    stsh:nodePrimary false ;
     stsh:propertyFormField true .
-
-stsh:CardinalityGroup a sh:PropertyGroup ;
-    sh:description "How many values a path may or must have — sh:minCount/sh:maxCount."@en ;
-    sh:name "Cardinality"@en ;
-    sh:order 3 .
 
 sh:select sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:Literal ;
@@ -3856,38 +3469,28 @@ sh:select sh:group stsh:DefinitionGroup ;
     stsh:formMaxCount 1 ;
     stsh:multiline true .
 
-stsh:ListGroup a sh:PropertyGroup ;
-    sh:description "Well-formedness and length/uniqueness rules for SHACL-list-valued properties."@en ;
-    sh:name "List Constraints"@en ;
-    sh:order 12 .
-
-stsh:QualifiedGroup a sh:PropertyGroup ;
-    sh:description "Counting how many values conform to a shape, rather than requiring all-or-none."@en ;
-    sh:name "Qualified Value Shapes"@en ;
-    sh:order 10 .
-
-sh:parameter sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 5 .
-
-sh:prefixes sh:group stsh:RulesGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 17 .
-
 stsh:ValueRangeGroup a sh:PropertyGroup ;
     sh:description "Numeric/ordinal bounds on a value — sh:minInclusive and its siblings."@en ;
     sh:name "Value Range"@en ;
     sh:order 5 .
 
-stsh:ValueTypeGroup a sh:PropertyGroup ;
-    sh:description "What kind of RDF term or class a value node must be — sh:class/sh:datatype/sh:nodeKind."@en ;
-    sh:name "Value Type"@en ;
-    sh:order 4 .
+sh:parameter sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 5 .
 
 stsh:ComparisonGroup a sh:PropertyGroup ;
     sh:description "Comparing one property's values against another's — sh:equals/sh:disjoint/sh:lessThan and siblings."@en ;
     sh:name "Value Comparison"@en ;
     sh:order 8 .
+
+sh:prefixes sh:group stsh:RulesGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 17 .
+
+stsh:ValueTypeGroup a sh:PropertyGroup ;
+    sh:description "What kind of RDF term or class a value node must be — sh:class/sh:datatype/sh:nodeKind."@en ;
+    sh:name "Value Type"@en ;
+    sh:order 4 .
 
 stsh:TargetGroup a sh:PropertyGroup ;
     sh:description "How a shape selects its focus nodes — sh:targetClass, sh:targetNode, and the rest of the targeting predicates."@en ;
@@ -3904,11 +3507,6 @@ stsh:TypeGroup a sh:PropertyGroup ;
     sh:name "Type"@en ;
     sh:order 0 .
 
-stsh:WidgetGroup a sh:PropertyGroup ;
-    sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en ;
-    sh:name "SHACL 1.2 UI Widgets"@en ;
-    sh:order 16 .
-
 stsh:CompositionGroup a sh:PropertyGroup ;
     sh:description "Combining shapes logically or by nesting — sh:not/sh:and/sh:or/sh:xone/sh:node/sh:property."@en ;
     sh:name "Shape Composition"@en ;
@@ -3918,6 +3516,11 @@ stsh:MetadataGroup a sh:PropertyGroup ;
     sh:description "Annotation-only predicates with no effect on conformance — sh:message/sh:severity/sh:name/etc."@en ;
     sh:name "Non-Validating Metadata"@en ;
     sh:order 15 .
+
+stsh:WidgetGroup a sh:PropertyGroup ;
+    sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en ;
+    sh:name "SHACL 1.2 UI Widgets"@en ;
+    sh:order 16 .
 
 rdfs:comment sh:group stsh:NamingGroup ;
     sh:nodeKind sh:Literal ;
@@ -3953,8 +3556,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n7a5df8fb388742f19b64e897e1e8daf7b76 rdf:first sh:IRI ;
+_:n5b91425148d6401fbaf1f984ab746fb7b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n7a5df8fb388742f19b64e897e1e8daf7b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n7a5df8fb388742f19b64e897e1e8daf7b76 .
+_:n5b91425148d6401fbaf1f984ab746fb7b75 rdf:first sh:BlankNode ;
+    rdf:rest _:n5b91425148d6401fbaf1f984ab746fb7b76 .

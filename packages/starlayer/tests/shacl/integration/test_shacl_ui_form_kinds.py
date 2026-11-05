@@ -159,9 +159,10 @@ def test_the_group_and_shapes_graph_forms_state_what_a_field_takes(ui) -> None:
 
 
 def test_both_shape_forms_have_a_field_for_each_property_a_shape_can_have(ui) -> None:
-    wanted = {SH.target, SH.targetWhere, SH.nodeByExpression, RDFS.label, RDFS.comment, RDFS.seeAlso, RDFS.subClassOf, SH.equals, SH.disjoint}
+    wanted = {SH.target, SH.targetWhere, SH.nodeByExpression, RDFS.label, RDFS.comment, RDFS.subClassOf, SH.equals, SH.disjoint}
     for name in ("NodeShapeForm", "PropertyShapeForm"):
         assert wanted <= set(fields(ui, name)), (name, wanted - set(fields(ui, name)))
+        assert RDFS.seeAlso not in fields(ui, name), "no SHACL specification names rdfs:seeAlso: it shows as an other property when a node has it"
 
 
 def test_target_and_target_where_are_in_the_targeting_group_and_are_branches_of_the_tree(ui) -> None:
@@ -391,14 +392,11 @@ def test_every_required_field_of_every_form_is_in_a_minimal_valid_element(ui) ->
     assert not accepted('ex:C a sh:ConstraintComponent .')
 
 
-def test_a_parameter_form_has_the_fields_of_a_property_shape_less_what_has_no_meaning_for_a_parameter(ui) -> None:
-    """SPARQL Extensions 4.2.1: sh:Parameter is a subclass of sh:PropertyShape and all properties applicable to property shapes may be used. Nothing is validated against
-    data for a parameter, so targets, rules and what a result carries are left out; sh:optional and sh:keyParameter are added, each for one kind of holder."""
-    parameter, shape = set(fields(ui, "ParameterForm")), set(fields(ui, "PropertyShapeForm"))
-    gone = {SH.targetClass, SH.targetNode, SH.targetSubjectsOf, SH.targetObjectsOf, SH.target, SH.targetWhere, SH.rule, SH.message, SH.severity, SH.deactivated, SH.values}
-    assert parameter == (shape - gone) | {SH.optional, SH.keyParameter}
-    assert not parameter & gone
-    assert {SH["class"], SH.datatype, SH.minCount, SH.pattern, SH.group, SH.defaultValue, SH.codeIdentifier} <= parameter
+def test_a_parameter_form_has_what_a_parameter_is_for_and_not_all_that_a_property_shape_may_have(ui) -> None:
+    """SPARQL Extensions 4.2.1: sh:Parameter is a subclass of sh:PropertyShape and all properties applicable to property shapes may be used, but the form lists what a parameter is for;
+    a value of another property shape property is still the file's, and a tool shows it as another property."""
+    parameter = set(fields(ui, "ParameterForm"))
+    assert parameter == {RDF.type, SH.name, SH.description, SH.path, SH.optional, SH.keyParameter, SH.defaultValue, SH["class"], SH.datatype, SH.nodeKind, SH.order, SH.group}
     assert (fields(ui, "ParameterForm")[SH.path], SH.minCount, Literal(1)) in ui, "exactly one sh:path (4.2.1)"
 
 
