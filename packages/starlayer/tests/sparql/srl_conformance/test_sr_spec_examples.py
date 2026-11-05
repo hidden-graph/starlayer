@@ -7,6 +7,7 @@ import pytest
 from .corpus import PRELUDE
 from .grammar import SPEC_EXAMPLES
 from .helpers import (
+    as_stored,
     canonical_blank_nodes,
     expression_results,
     parse_ruleset,
@@ -45,4 +46,4 @@ def test_example_round_trips_and_keeps_its_meaning(block, request):
     assert expression_results(original) == expression_results(again)
     graph, root = srl_parse_to_tree(TEXT[block])
     assert srl_validate(graph)[0]
-    assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(text)
+    assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(original)))

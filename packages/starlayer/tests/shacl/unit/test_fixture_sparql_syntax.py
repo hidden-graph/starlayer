@@ -9,8 +9,8 @@ at the pre-rename `pyshacl-starlight` vocabulary. Both would have failed
 this test immediately instead of sitting broken until something happened to
 execute them.
 
-Only *parses* each embedded query (via `starlayer.sparql.parse12.prepare_query_12`
-- the same grammar `StarLayerGraph.query()` uses at runtime), doesn't
+Only *parses* each embedded query (via `starlayer.sparql.parse_sparql.parse_sparql`,
+StarLayer's own SPARQL 1.2 parser), doesn't
 execute it - fast, and needs no fixture data or focus/value bindings.
 """
 
@@ -22,7 +22,7 @@ import os
 import pytest
 from rdflib import Graph, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.sparql.parse12 import prepare_query_12
+from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 

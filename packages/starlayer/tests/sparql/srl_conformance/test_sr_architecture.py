@@ -50,12 +50,19 @@ TREE_CASES = [c for c in CASES if c.id in {
 
 
 def _salg_terms(graph) -> set[str]:
+    """Every ``salg:`` IRI (or literal datatype) in a graph of rdflib terms or of pyoxigraph terms (an ``StarLayerGraph``)."""
+    import pyoxigraph as ox
+
     found = set()
     for triple in graph:
         for term in triple:
-            if isinstance(term, URIRef) and str(term).startswith(SALG):
+            if isinstance(term, ox.NamedNode) and term.value.startswith(SALG):
+                found.add(term.value)
+            elif isinstance(term, ox.Literal) and term.datatype.value.startswith(SALG):
+                found.add(term.datatype.value)
+            elif isinstance(term, URIRef) and str(term).startswith(SALG):
                 found.add(str(term))
-            if isinstance(term, Literal) and term.datatype and str(term.datatype).startswith(SALG):
+            elif isinstance(term, Literal) and term.datatype and str(term.datatype).startswith(SALG):
                 found.add(str(term.datatype))
     return found
 
@@ -83,6 +90,7 @@ def test_validation_graphs_do_not_load_salg():
     from starlayer.sparql.srl import _ontology_graph, _shapes_graph
 
     ontology, shapes = _salg_terms(_ontology_graph()), _salg_terms(_shapes_graph())
+    assert len(_ontology_graph()) > 100 and len(_shapes_graph()) > 100  # the check is not vacuous
     assert not ontology and not shapes, f"salg: terms: {len(ontology)} in the ontology, {len(shapes)} in the shapes"
 
 

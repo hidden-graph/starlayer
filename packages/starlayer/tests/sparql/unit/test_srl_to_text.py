@@ -77,7 +77,7 @@ def test_where_data_rule_renders_and_reparses():
 def test_rule_id_renders_and_reparses():
     text = "PREFIX ex: <http://example.org/>\nRULE <http://example.org/r1> { ?x ex:p ?y } WHERE { ?x ex:q ?y . }"
     rs, rendered, rs2 = _roundtrip(text)
-    assert rs.rules[0].id.n3() in rendered or str(rs.rules[0].id) in rendered
+    assert str(rs.rules[0].id) in rendered  # the IRI in angle brackets
     assert rs == rs2
 
 

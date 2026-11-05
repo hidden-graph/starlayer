@@ -1,252 +1,80 @@
-"""``TripleTermNode`` — the algebra-tree representation of a SPARQL 1.2
-``<<( s p o )>>``/``TRIPLE(s, p, o)`` triple term.
+"""``TripleTermNode``: the SRL syntax tree's form of an RDF 1.2 triple term ``<<( s p o )>>`` / ``TRIPLE(s, p, o)``.
 
-A plain ``CompValue('TripleTerm', subject=, predicate=, object=)`` node
-cannot survive rdflib's own ``algebra.translateQuery``/``translateUpdate``
-unmodified: ``reorderTriples``/``_knownTerms`` (BGP join-order optimization)
-require every triple-pattern term to be hashable, and a bare ``CompValue``
-(an ``OrderedDict`` subclass) is not. A further, less obvious requirement
-found empirically: when two triples tie on ``_knownTerms``' sort key (common
-for fully-ground triples), rdflib's own sort falls back to comparing the raw
-triples with ``<``, so the term must be *orderable* too, not merely hashable.
-
-Subclassing ``CompValue`` (rather than substituting some other, unrelated
-hashable object) is what makes this safe on both fronts: rdflib's
-``_addVars``/``analyse`` bookkeeping pass walks the tree via a generic
-recursive traversal (``_traverseAgg``) that is closed over
-``CompValue``/``list``/``tuple``/``ParseResults`` — nothing else. A
-non-``CompValue`` proxy would make any ``Variable`` nested inside a
-pattern-with-variables triple term invisible to that traversal, silently
-under-computing ``_vars`` on every ancestor node. A ``CompValue`` subclass
-does not have this problem: the existing generic recursion already finds
-nested variables correctly, for free.
+A pattern or template may hold variables inside a triple term, so it cannot be a ``pyoxigraph.Triple`` (which holds only
+terms). ``TripleTermNode`` is the parser's own ``Node`` of kind ``TripleTerm`` (the form ``parse_sparql`` gives and the
+``sqe:`` / ``srl:`` encoder writes as ``sqe:TripleTerm``) made comparable and hashable, so rules can be compared, deduplicated
+and matched against each other. Its three slots hold pyoxigraph terms (and variables) or further triple terms.
 """
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
+from .parse_sparql import Node
 
-# isort: split
-from rdflib.plugins.sparql.parserutils import CompValue
+_SLOTS = ("subject", "predicate", "object")
 
 
 class InvalidTripleTermError(ValueError):
     """A triple term is being used somewhere RDF 1.2 never permits one.
 
-    Covers two distinct rules, both enforced here as hard backstops
-    regardless of construction path (parsed from SPARQL 1.2 text, decoded
-    from RDF via ``from_rdf.py``, or built programmatically) rather than
-    relying on the grammar alone to reject them:
+    **1. A triple term's own subject or predicate is itself a triple term.** RDF 1.2's grammar
+    (https://www.w3.org/TR/rdf12-turtle/#grammar-production-tripleTerm) has ``ttSubject ::= iri | BlankNode`` and
+    ``ttObject ::= iri | BlankNode | literal | tripleTerm``: nesting is legal only in object position. Checked by
+    ``TripleTermNode.validate()``.
 
-    **1. A triple term's own subject/predicate slot is itself a triple
-    term** — illegal per RDF 1.2's grammar
-    (https://www.w3.org/TR/rdf12-turtle/#grammar-production-tripleTerm):
-
-        tripleTerm ::= '<<(' ttSubject verb ttObject ')>>'
-        ttSubject  ::= iri | BlankNode
-        ttObject   ::= iri | BlankNode | literal | tripleTerm
-
-    Neither ``ttSubject`` nor ``verb`` (the predicate production) has a
-    ``tripleTerm`` alternative — unconditionally, not just when the triple
-    term is used as an expression value. Nesting a triple term is legal
-    only in *object* position, where ``ttObject`` explicitly allows it.
-    Enforced by ``TripleTermNode.validate()``/``_reject_nested_triple_term``
-    below, called at every construction site.
-
-    **2. A whole triple term is used as the *subject* of an ordinary
-    triple/quad pattern** (one level up from rule 1 — not nested *inside*
-    another triple term at all, just an everyday `<<( s p o )>> :q :r .`
-    pattern) — illegal per RDF 1.2 Concepts' own normative triple-formation
-    rules (https://www.w3.org/TR/rdf12-concepts/#section-triple-terms),
-    quoted directly, not paraphrased:
-
-        "If s is an IRI or a blank node, p is an IRI, and o is an RDF
-        triple, then (s, p, o) is an RDF triple."
-
-    That is the *only* rule admitting a triple term anywhere in a triple,
-    and it only ever permits one as ``o`` — every triple-formation rule
-    requires ``s`` to be an IRI or blank node, full stop.
-
-    **Does not affect the RDF 1.2 reifier-shorthand form** (`<<s p o>>`/
-    `<<s p o ~ r>>`, no parens) in subject position: that shorthand
-    desugars (`grammar12.py`'s own `_reify`) to an ordinary blank-node
-    reifier substituted into the pattern, with the actual triple term only
-    ever appearing as the *object* of a separate `rdf:reifies` triple —
-    exactly the shape rule 2 allows. `<<:x ?R :z >> :p <<:a :b ?C ~
-    _:bnode >> .` still produces three ordinary, fully legal triples, none
-    with a triple term as subject.
-
-    Both rules are deliberately enforced as semantic checks — rule 1 at
-    ``TripleTermNode`` construction, rule 2 via a post-translation tree
-    walk (see ``_reject_triple_term_pattern_subjects`` below) — rather than
-    by further constraining the SPARQL grammar itself, since the grammar's
-    own splice points (`GraphTerm`/`VarOrTerm`/`GraphNode`/`GraphNodePath`
-    in `grammar12.py`) are shared, interconnected pyparsing objects where a
-    narrow, surgical grammar-level fix risks silently breaking a
-    legitimate case elsewhere in the tree - the semantic check catches
-    what parsing alone can't, without touching grammar internals at all.
-    Rule 2 in particular is enforced generically across both ordinary BGP
-    triples and SPARQL Update's quad/triple patterns, not just one code
-    path — see ``_reject_triple_term_pattern_subjects`` below.
+    **2. A whole triple term is the subject of an ordinary triple.** RDF 1.2 Concepts only forms a triple ``(s, p, o)`` with
+    ``s`` an IRI or blank node and ``p`` an IRI; a triple term is legal only as ``o``. For SRL rule sets this is the
+    ``triple_term_in_subject`` / ``triple_term_in_predicate`` well-formedness issue (``srl_semantic_checks``).
     """
 
 
-def _reject_nested_triple_term(value, position: str, node: TripleTermNode) -> None:
-    if isinstance(value, TripleTermNode):
-        raise InvalidTripleTermError(
-            f"RDF 1.2: a triple term's {position} may never itself be a triple term "
-            f"(nesting a triple term is legal only in object position) — "
-            f"got {value!r} as the {position} of {node!r}"
-        )
+def _value_key(value):
+    """A comparable, hashable key for a term, a node or a list of them."""
+    if isinstance(value, ExprNode):
+        return value._key()
+    if isinstance(value, (list, tuple)):
+        return tuple(_value_key(v) for v in value)
+    return (type(value).__name__, repr(value))
 
 
-def _sort_key(value):
-    """A stable, total-ordering key for one subject/predicate/object slot.
+class ExprNode(Node):
+    """A parser ``Node`` of an SRL expression, comparable and hashable by what it holds (the source offset is ignored), so
+    rules and rule sets can be compared and a rule set read back from its ``srl:`` tree equals the one it was written from."""
 
-    Always a plain ``str`` — never the raw nested tuple ``TripleTermNode
-    ._sort_key()`` produces — which matters more than it looks: two
-    *sibling* triples in the same BGP can tie on rdflib's outer sort key
-    (`_knownTerms`) and fall back to comparing raw triples slot-by-slot
-    with ``<``. If triple A's subject is a ground triple term with a
-    *nested* triple-term subject (recursing into another 3-tuple) while
-    triple B's subject in that same slot is an ordinary, non-nested term
-    (a plain ``repr()`` string), Python ends up comparing a ``tuple``
-    against a ``str`` at that slot — a real, reproducible ``TypeError``.
-    Wrapping the nested case in `repr(...)` keeps every slot's key a `str`
-    unconditionally, so two sort keys are always comparable regardless of
-    how deeply either side nests — the actual order chosen still doesn't
-    matter semantically, only that comparisons never raise.
-    """
-    if isinstance(value, TripleTermNode):
-        return repr(value._sort_key())
-    return repr(value)
+    __slots__ = ()
 
+    def _key(self) -> tuple:
+        return (self.kind, tuple((k, _value_key(v)) for k, v in self.f.items()))
 
-class TripleTermNode(CompValue):
-    """A ``CompValue`` subclass for SPARQL 1.2 triple terms — see module
-    docstring for why plain ``CompValue`` isn't sufficient here specifically
-    (every other operator/expression name in this project's vocabulary is
-    fine as a bare ``CompValue``)."""
+    def __hash__(self) -> int:
+        return hash(self._key())
 
-    def _sort_key(self):
-        return (
-            _sort_key(self.get("subject")),
-            _sort_key(self.get("predicate")),
-            _sort_key(self.get("object")),
-        )
-
-    def __hash__(self):
-        return hash(self._sort_key())
-
-    def __eq__(self, other):
-        if isinstance(other, TripleTermNode):
-            return self._sort_key() == other._sort_key()
+    def __eq__(self, other) -> bool:
+        if isinstance(other, ExprNode):
+            return self._key() == other._key()
         return NotImplemented
 
-    # A total order against every other term, a triple term after all of them: rdflib's reorderTriples sorts whole triples
-    # and falls back to comparing slot by slot when two tie, so a triple term and an IRI in the same slot were compared
-    # (GitHub issue #74: "TypeError: '<' not supported between instances of 'TripleTermNode' and 'URIRef'").
-    def __lt__(self, other):
-        if isinstance(other, TripleTermNode):
-            return self._sort_key() < other._sort_key()
-        return False
 
-    def __gt__(self, other):
-        if isinstance(other, TripleTermNode):
-            return self._sort_key() > other._sort_key()
-        return True
+class TripleTermNode(ExprNode):
+    """A triple term with ``subject``, ``predicate`` and ``object`` slots (``.get(name)`` reads one)."""
 
-    def __le__(self, other):
-        return not self.__gt__(other)
+    __slots__ = ()
 
-    def __ge__(self, other):
-        return not self.__lt__(other)
+    def __init__(self, kind: str = "TripleTerm", **f):
+        super().__init__(kind, **f)
+
+    def get(self, name: str, default=None):
+        return self.f.get(name, default)
 
     def validate(self) -> TripleTermNode:
-        """Raise ``InvalidTripleTermError`` if this node's own subject or
-        predicate is itself a triple term — see that exception's docstring
-        for why.
-
-        Not enforced automatically on every dict mutation (kept explicit
-        rather than hooking ``update()``/``__setitem__``, to avoid
-        surprising ``CompValue``'s existing, delicately-hash/order-balanced
-        behavior) — call this at every construction site instead:
-        ``grammar12.py``'s ``_promote`` and ``from_rdf.py``'s ``TripleTerm``
-        decode branch both do.
+        """Raise ``InvalidTripleTermError`` if this node's own subject or predicate is itself a triple term.
 
         Returns:
-            self, so this can be chained directly onto a construction call.
+            self, so it can be chained onto a construction call.
         """
-        _reject_nested_triple_term(self.get("subject"), "subject", self)
-        _reject_nested_triple_term(self.get("predicate"), "predicate", self)
-        return self
-
-
-def _reject_triple_term_pattern_subjects(root) -> None:
-    """Post-translation hard backstop for ``InvalidTripleTermError``'s rule
-    2 — see that class's own docstring for the full RDF 1.2 Concepts
-    citation and reasoning. Call this once, on the *finished* algebra tree
-    (a ``Query``'s ``.algebra``, or an ``Update``'s ``.algebra`` list of
-    operations) — after ``translateQuery``/``translateUpdate`` (or this
-    project's own ``from_rdf.rdf_to_query``/``rdf_to_update`` decode
-    equivalents) have already assembled every ordinary triple/quad pattern
-    into its final ``(s, p, o)`` tuple form.
-
-    Deliberately generic over both shapes a triple list can appear in this
-    codebase's algebra representation, found by walking the *whole* tree
-    once rather than special-casing each operator by name:
-
-    - A ``BGP`` node's own ``.triples`` (an ordinary list of ``(s, p, o)``
-      tuples) — reached wherever it sits in the tree (top-level, or nested
-      under ``Filter``/``LeftJoin``/``Union``/``Minus``/``Graph``/a
-      subquery/etc.), since the walk recurses into every ``CompValue``'s
-      own values generically.
-    - An Update operation's flat ``.triples``/``.quads`` attributes
-      (``InsertData``/``DeleteData``/``DeleteWhere``, and ``Modify``'s own
-      ``.insert``/``.delete``, each a ``CompValue`` carrying triples/quads
-      directly rather than via a nested ``BGP`` — see ``vocab.py``'s
-      "Update's quads-by-graph maps" convention). A ``Modify``'s own
-      ``.where`` (an ordinary nested pattern tree) is covered for free by
-      the same generic recursion, no special-casing needed.
-
-    ``seen`` guards against re-walking the same node twice when a value
-    appears in more than one place in the tree (rare, but ``id()``-keyed
-    rather than value-keyed since these nodes aren't reliably hashable
-    before ``TripleTermNode``'s own hash/eq existed, and value-equality
-    isn't what "already visited" means here anyway).
-    """
-    seen: set = set()
-
-    def _check_triples(triples) -> None:
-        for t in triples:
-            s = t[0]
-            if isinstance(s, TripleTermNode):
+        for slot in ("subject", "predicate"):
+            if isinstance(self.f.get(slot), TripleTermNode):
                 raise InvalidTripleTermError(
-                    "RDF 1.2: a triple term may never be the subject of an "
-                    "ordinary triple pattern (a triple term is only ever "
-                    f"legal as an object) — got {s!r} as the subject of {t!r}"
+                    f"RDF 1.2: a triple term's {slot} may never itself be a triple term "
+                    f"(nesting a triple term is legal only in object position), got {self.f.get(slot)!r} as the {slot} of {self!r}"
                 )
-
-    def _walk(node) -> None:
-        if isinstance(node, TripleTermNode):
-            return  # already validated at its own construction; nothing further to check inside it
-        if isinstance(node, CompValue):
-            key = id(node)
-            if key in seen:
-                return
-            seen.add(key)
-            triples = node.get("triples")
-            if isinstance(triples, list):
-                _check_triples(triples)
-            quads = node.get("quads")
-            if isinstance(quads, dict):
-                for graph_triples in quads.values():
-                    _check_triples(graph_triples)
-            for value in node.values():
-                _walk(value)
-            return
-        if isinstance(node, (list, tuple)):
-            for item in node:
-                _walk(item)
-
-    _walk(root)
+        return self

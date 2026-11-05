@@ -54,12 +54,6 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 - **[`rdfc10_hash`](api-reference.generated.md#entity-starlayer-graph-rdfc-rdfc10_hash)** (function) - The hex digest of ``graph``'s canonical N-Quads text, stable under blank-node relabelling.
 - **[`to_canonical_nquads`](api-reference.generated.md#entity-starlayer-graph-rdfc-to_canonical_nquads)** (function) - The canonical N-Quads text of ``graph`` (RDFC-1.0 section 4.4.3 step 7): blank nodes labelled ``c14n0``, ``c14n1``, ..., lines sorted. ``hash_algorithm`` is ``"sha256"`` or ``"sha384"`` (the two the specification names); it also drives the canonical labelling.
 
-## `starlayer.sparql.salg`
-
-- **[`UnboundProjectedVariable`](api-reference.generated.md#entity-starlayer-sparql-salg-semantic_checks-UnboundProjectedVariable)** (class) - One `Project` node whose `PV` names a variable never bound anywhere in its own pattern subtree.
-- **[`find_unbound_projected_variables`](api-reference.generated.md#entity-starlayer-sparql-salg-semantic_checks-find_unbound_projected_variables)** (function) - Returns every ``UnboundProjectedVariable`` finding in ``data_graph``.
-- **[`ontology_graph`](api-reference.generated.md#entity-starlayer-sparql-salg-sparql_ontology-ontology_graph)** (function) - Build a fresh graph: the RDFS ontology in ``salg-ontology.ttl`` merged with ``spexpr-ontology.ttl`` (lives in the ``starontology`` package).
-
 ## `starlayer.shacl`
 
 - **[`EvaluationFailure`](api-reference.generated.md#entity-starlayer-shacl_engine-expressions-EvaluationFailure)** (class) - A node expression has no result for this data (Node Expressions 3.3), as opposed to an empty result.

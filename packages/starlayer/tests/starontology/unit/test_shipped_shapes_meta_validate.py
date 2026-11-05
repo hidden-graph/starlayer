@@ -23,7 +23,7 @@ _SHAPES_GRAPHS = sorted([name for name in starontology._REGISTRY if name.endswit
 
 
 def test_the_registry_has_shapes_graphs_to_check() -> None:
-    assert len(_SHAPES_GRAPHS) >= 7, _SHAPES_GRAPHS
+    assert len(_SHAPES_GRAPHS) >= 6, _SHAPES_GRAPHS  # (7 before sparql_shacl, the salg shapes, was retired)
 
 
 @pytest.mark.parametrize("name", _SHAPES_GRAPHS)

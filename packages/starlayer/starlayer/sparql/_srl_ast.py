@@ -2,11 +2,7 @@
 Only ``RuleSet`` and ``TriplePattern`` are re-exported from ``srl.py``
 (e.g. ``srl.RuleSet``), so there's one real path to those two, not two
 paths - everything else here (``_Rule``, ``_Data``, ``_FilterElement``,
-``_AssignmentElement``, ``_NegationElement``) is private: no public
-function or method requires any of them directly, and the only way a
-caller would ever touch one is by walking ``RuleSet.rules``/
-``Rule.head``/``Rule.body``, an inspection/editing concern this API
-doesn't cover yet.
+``_AssignmentElement``, ``_NegationElement``) is private.
 
 Python dataclasses for the SRL abstract syntax tree, mirroring
 `WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_ §4.1
@@ -14,91 +10,93 @@ Python dataclasses for the SRL abstract syntax tree, mirroring
 field-for-field - field names here are the spec's own attribute names
 (``rule.head``, ``ruleset.data``, ``negation.inner``, ...), not invented.
 
-Deliberately plain dataclasses, not ``rdflib.plugins.sparql.parserutils
-.CompValue``: unlike ``starlayer.sparql``'s existing SPARQL 1.2 work
-(``triple_term.TripleTermNode``, ``grammar12.py``), SRL text never feeds
-rdflib's own algebra/``translateQuery``/``translateUpdate`` machinery, so
-there is no ``CompValue``-specific requirement (hashability for
-``reorderTriples``, etc.) to satisfy here - a real dataclass tree is
-simpler and gets real type checking.
-
-Terms reuse plain rdflib types directly - no new term representation is
-minted. A triple pattern/template's subject/object may additionally be a
-``starlayer.sparql.triple_term.TripleTermNode`` (RDF 1.2 triple term) per the
-spec's own grammar (productions 25-46 "Data", 47-60 "Template", 61-82
-"Pattern" all admit reified-triple/triple-term syntax structurally
-identical to Turtle 1.2's own). ``srl.py`` parses, renders and encodes them,
-and ``srl_eval.py`` matches and builds them; a reified triple or annotation is
-expanded at parse time into a reifier plus ``rdf:reifies <<( s p o )>>``.
+Terms are pyoxigraph terms (``NamedNode``, ``BlankNode``, ``Literal``, ``Variable``). A triple pattern/template's
+subject/object may additionally be a ``starlayer.sparql.triple_term.TripleTermNode`` (RDF 1.2 triple term). Expressions
+(filters, assignments) are the parser's own ``Node`` trees (``parse_sparql.Node``), or a bare term. A reified triple or
+annotation is expanded at parse time into a reifier plus ``rdf:reifies <<( s p o )>>``.
 """
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 from dataclasses import dataclass, field
 from typing import Any
 
-from rdflib import BNode, Graph, Literal, URIRef, Variable
-from rdflib.plugins.sparql.parserutils import Expr
+import pyoxigraph as ox
 
+from .parse_sparql import Node
 from .triple_term import TripleTermNode
 
-# VarOrRDFTerm (template/pattern position) - a Variable, an ordinary ground
-# RDF term, or (per the spec's grammar, not yet emitted by srl.py -
-# see module docstring) a triple term.
-Term = Variable | URIRef | BNode | Literal | TripleTermNode
+Variable = ox.Variable
 
-# VarOrIri (predicate position) - narrower than Term: never a Literal,
-# BNode, or triple term, per the spec's own predicate-position grammar
-# (Verb/VerbPath/VerbTemplate all reduce to "Var | iri").
-PredicateTerm = Variable | URIRef
+# VarOrRDFTerm (template/pattern position)
+Term = ox.Variable | ox.NamedNode | ox.BlankNode | ox.Literal | TripleTermNode
+
+# VarOrIri (predicate position)
+PredicateTerm = ox.Variable | ox.NamedNode
+
+Expr = Node | Term
 
 
 def _is_ox_term(value: Any) -> bool:
-    import pyoxigraph as ox
-
     return isinstance(value, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple, ox.Variable))
 
 
+def _is_foreign_term(value: Any) -> bool:
+    """An rdflib (or rdflib-based StarLayer) term, recognised without importing rdflib."""
+    module = type(value).__module__
+    return module.startswith("rdflib") or module.startswith("starlayer.graph.model")
+
+
 def _ox_to_srl_term(value: Any) -> Any:
-    """A pyoxigraph term (or ``pyoxigraph.Variable``) as the rdflib / StarLayer term the SRL evaluator works on."""
-    import pyoxigraph as ox
+    """A pyoxigraph term as a term of the SRL tree: a ``pyoxigraph.Triple`` becomes a ``TripleTermNode``."""
+    if isinstance(value, ox.Triple):
+        return TripleTermNode(
+            "TripleTerm",
+            subject=_ox_to_srl_term(value.subject),
+            predicate=_ox_to_srl_term(value.predicate),
+            object=_ox_to_srl_term(value.object),
+        )
+    return value
 
-    if isinstance(value, ox.Variable):
-        return Variable(value.value)
-    from starlayer.shacl_engine.terms import from_engine
 
-    return from_engine(value)
+def _coerce_term(value: Any) -> Any:
+    """``value`` as a term of the SRL tree: a pyoxigraph term (or triple), or an rdflib / StarLayer term (converted by the
+    rdflib bridge, which is imported only then); anything else comes back unchanged."""
+    if isinstance(value, TripleTermNode):
+        parts = {k: _coerce_term(v) for k, v in value.f.items()}
+        if all(parts[k] is value.f[k] for k in parts):
+            return value
+        return TripleTermNode("TripleTerm", **parts)
+    if _is_ox_term(value):
+        return _ox_to_srl_term(value)
+    if _is_foreign_term(value):
+        if type(value).__name__ == "Variable":
+            return ox.Variable(str(value))
+        from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
+
+        return _ox_to_srl_term(from_rdflib_term(value))
+    return value
 
 
 def check_goal_pattern(goal_pattern: Any) -> TriplePattern:
-    """``goal_pattern`` as a ``TriplePattern`` of rdflib terms, raising instead of letting a wrong-typed term match nothing.
+    """``goal_pattern`` as a ``TriplePattern`` of pyoxigraph terms, raising instead of letting a wrong-typed term match nothing.
 
-    Accepted in each position: rdflib / StarLayer terms (``Variable``, ``URIRef``, ``BNode``, ``Literal``, ``TripleTerm``) and
-    pyoxigraph terms (``NamedNode``, ``BlankNode``, ``Literal``, ``Triple``, ``Variable``). The predicate must be an IRI or a
-    variable.
+    Accepted in each position: pyoxigraph terms (``NamedNode``, ``BlankNode``, ``Literal``, ``Triple``, ``Variable``) and
+    rdflib / StarLayer terms. The predicate must be an IRI or a variable.
 
     Raises:
         TypeError: If ``goal_pattern`` is not a ``TriplePattern``, or a position holds something that is not an RDF term or
             variable (a plain ``str``, ``None``, a number), or the predicate is not an IRI or variable.
     """
-    from rdflib.term import Node
-
-    from starlayer.graph.model.triple import TripleTerm
-
     if not isinstance(goal_pattern, TriplePattern):
         raise TypeError(f"the goal pattern must be a TriplePattern, not {type(goal_pattern).__name__}")
     parts = []
     for name in ("subject", "predicate", "object"):
-        value = getattr(goal_pattern, name)
-        if _is_ox_term(value):
-            value = _ox_to_srl_term(value)
-        if not isinstance(value, (Node, TripleTerm, TripleTermNode)):
+        value = _coerce_term(getattr(goal_pattern, name))
+        if not isinstance(value, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Variable, TripleTermNode)):
             raise TypeError(f"goal pattern {name} must be an RDF term or variable, not {value!r} ({type(value).__name__})")
         parts.append(value)
-    if not isinstance(parts[1], (Variable, URIRef)):
+    if not isinstance(parts[1], (ox.Variable, ox.NamedNode)):
         raise TypeError(f"goal pattern predicate must be an IRI or a variable, not {parts[1]!r}")
     return TriplePattern(*parts)
 
@@ -124,11 +122,12 @@ class TriplePattern:
     object: Term
 
     def __post_init__(self) -> None:
-        # pyoxigraph terms (and ``pyoxigraph.Variable``) are accepted and stored as the rdflib terms the evaluator runs on
+        # a pyoxigraph triple is stored as a TripleTermNode, an rdflib term as its pyoxigraph form
         for name in ("subject", "predicate", "object"):
             value = getattr(self, name)
-            if _is_ox_term(value):
-                object.__setattr__(self, name, _ox_to_srl_term(value))
+            converted = _coerce_term(value)
+            if converted is not value:
+                object.__setattr__(self, name, converted)
 
 
 # §4.1 calls a rule's own head elements "triple templates" - same shape as
@@ -139,10 +138,8 @@ TripleTemplate = TriplePattern
 @dataclass(frozen=True)
 class _FilterElement:
     """§4.1 "Filter element" - ``filter.expr``, a boolean-valued SPARQL 1.2
-    expression. ``expr`` is a real rdflib ``Expr``/``CompValue`` tree,
-    produced by ``srl.py`` reusing rdflib's own ``Constraint``/
-    ``Expression`` productions unmodified (see that module's docstring) -
-    not a bespoke SRL expression AST.
+    expression. ``expr`` is the parser's ``Node`` tree (or a bare term), produced by
+    ``parse_srl`` on SPARQL's own ``Constraint`` / ``Expression`` productions.
 
     Private: no public function or method takes or returns one - only
     reachable by walking ``Rule.body``, the same test applied to
@@ -165,7 +162,7 @@ class _AssignmentElement:
         expr: The expression assigned to ``var``.
     """
 
-    var: Variable
+    var: ox.Variable
     expr: Expr
 
 
@@ -213,7 +210,7 @@ def _triple_term_has_variable(term: Any) -> bool:
     if not isinstance(term, TripleTermNode):
         return False
     return any(
-        isinstance(part, (Variable, BNode)) or _triple_term_has_variable(part)
+        isinstance(part, (ox.Variable, ox.BlankNode)) or _triple_term_has_variable(part)
         for part in (term.get("subject"), term.get("predicate"), term.get("object"))
     )
 
@@ -239,7 +236,7 @@ class _Rule:
     head: list[TripleTemplate] = field(default_factory=list)
     body: list[BodyElement] = field(default_factory=list)
     evaldata: bool = True
-    id: URIRef | None = None
+    id: ox.NamedNode | None = None
 
     @property
     def _is_run_once(self) -> bool:
@@ -263,8 +260,8 @@ class _Rule:
         if any(isinstance(e, _AssignmentElement) for e in self.body):
             return True
         return any(
-            isinstance(t.subject, BNode)
-            or isinstance(t.object, BNode)
+            isinstance(t.subject, ox.BlankNode)
+            or isinstance(t.object, ox.BlankNode)
             or _triple_term_has_variable(t.subject)
             or _triple_term_has_variable(t.object)
             for t in self.head
@@ -297,7 +294,7 @@ class PlanRule:
     """
 
     index: int
-    id: URIRef | None
+    id: ox.NamedNode | None
     text: str
 
 
@@ -365,7 +362,7 @@ class RuleSet:
 
     rules: list[_Rule] = field(default_factory=list)
     data: list[_Data] = field(default_factory=list)
-    imports: list[URIRef] = field(default_factory=list)
+    imports: list[ox.NamedNode] = field(default_factory=list)
     prefixes: dict[str, str] = field(default_factory=dict, compare=False, repr=False)
     """The ``PREFIX`` declarations of the text this rule set was parsed from (prefix -> namespace), empty for one built by hand.
     Informative only: names in the rules are already absolute IRIs, and it takes no part in equality. ``infer()`` on an
@@ -412,7 +409,7 @@ class RuleSet:
         index = {id(rule): i for i, rule in enumerate(self.rules)}
 
         def plan_rule(rule: _Rule) -> PlanRule:
-            return PlanRule(index[id(rule)], rule.id, srl._rule_text(rule, None))
+            return PlanRule(index[id(rule)], rule.id, srl._rule_text(rule, {}))
 
         return RulePlan(
             strata=[
@@ -424,7 +421,7 @@ class RuleSet:
 
     def infer(
         self,
-        base_graph: Graph,
+        base_graph: Any,
         *,
         inference: Any | None = None,
         schema: Any | None = None,
@@ -533,7 +530,7 @@ class RuleSet:
 
     def query(
         self,
-        base_graph: Graph,
+        base_graph: Any,
         goal_pattern: TriplePattern,
         *,
         inference: Any | None = None,
@@ -554,8 +551,8 @@ class RuleSet:
             imports_loader: Same meaning as :meth:`infer`'s own ``imports_loader=``.
 
         Returns:
-            One ``dict[Variable, term]`` solution per match. For an rdflib / StarLayer ``base_graph`` the keys are
-            ``rdflib.Variable`` and the values rdflib terms. For an Oxigraph ``base_graph`` (``StarLayerGraph`` / ``StarLayerDataset`` /
+            One ``dict[Variable, term]`` solution per match. For an rdflib ``base_graph`` the keys are
+            ``rdflib.Variable`` and the values rdflib terms (rdflib is then needed). For an Oxigraph ``base_graph`` (``StarLayerGraph`` / ``StarLayerDataset`` /
             ``Store``) the keys are ``pyoxigraph.Variable``, as in the wrapper's own query results (``result.vars``), and the
             values pyoxigraph terms. The goal pattern may use either kind of term in either case.
 
@@ -576,5 +573,10 @@ class RuleSet:
         if from_oxigraph:  # the solutions hold pyoxigraph terms, as the wrapper's own query results do
             import pyoxigraph as ox
 
-            return [{ox.Variable(str(var)): value for var, value in row.items()} for row in rows]
-        return [{var: _ox.to_rdflib_term(value) for var, value in row.items()} for row in rows]
+            return [{ox.Variable(var.value): value for var, value in row.items()} for row in rows]
+        from starlayer._optional import require_rdflib
+
+        require_rdflib("Querying an rdflib graph with an SRL rule set")
+        from rdflib import Variable as RVariable
+
+        return [{RVariable(var.value): _ox.to_rdflib_term(value) for var, value in row.items()} for row in rows]

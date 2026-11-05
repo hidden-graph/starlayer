@@ -57,12 +57,12 @@ def test_infer_accepts_a_starlayer_dataset():
 
 def test_document_base_wins_over_the_base_argument():
     text = "BASE <http://b/x/>\nRULE { ?x <q> ?y } WHERE { ?x <p> ?y }"
-    assert str(parse_ruleset(text, base="http://c/").rules[0].head[0].predicate) == "http://b/x/q"
+    assert parse_ruleset(text, base="http://c/").rules[0].head[0].predicate.value == "http://b/x/q"
 
 
 def test_base_argument_is_the_initial_base():
     text = "RULE { ?x <q> ?y } WHERE { ?x <p> ?y }"
-    assert str(parse_ruleset(text, base="http://c/").rules[0].head[0].predicate) == "http://c/q"
+    assert parse_ruleset(text, base="http://c/").rules[0].head[0].predicate.value == "http://c/q"
 
 
 def test_undeclared_prefix_is_an_srl_parse_error():

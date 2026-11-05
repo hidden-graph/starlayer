@@ -3,8 +3,8 @@ they are expanded into plain triple patterns when the rule is built."""
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
-from rdflib import BNode, URIRef, Variable
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import srl
@@ -15,7 +15,13 @@ P = f"PREFIX ex: <{EX}>\n"
 
 
 def _u(local):
+    from rdflib import URIRef
+
     return URIRef(EX + local)
+
+
+def _o(local):
+    return ox.NamedNode(EX + local)
 
 
 def _base():
@@ -42,9 +48,9 @@ def test_a_sequence_path_is_expanded_into_two_triple_patterns_joined_by_a_blank_
     )
     assert len(body) == 2
     first, second = body
-    assert first.subject == Variable("x") and first.predicate == _u("dependsOn")
-    assert isinstance(first.object, BNode) and second.subject == first.object
-    assert second.predicate == _u("hasVulnerability") and second.object == Variable("v")
+    assert first.subject == ox.Variable("x") and first.predicate == _o("dependsOn")
+    assert isinstance(first.object, ox.BlankNode) and second.subject == first.object
+    assert second.predicate == _o("hasVulnerability") and second.object == ox.Variable("v")
 
 
 def test_an_inverse_path_swaps_subject_and_object():
@@ -54,7 +60,7 @@ def test_an_inverse_path_swaps_subject_and_object():
         .body
     )
     assert [(t.subject, t.predicate, t.object) for t in body] == [
-        (Variable("x"), _u("hasVulnerability"), Variable("v"))
+        (ox.Variable("x"), _o("hasVulnerability"), ox.Variable("v"))
     ]
 
 

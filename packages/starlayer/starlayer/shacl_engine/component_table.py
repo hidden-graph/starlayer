@@ -31,7 +31,6 @@ from starlayer.shacl_engine.expressions import OPERATORS, SHNEX, SPARQL_NS
 from starlayer.shacl_engine.plan import SH
 
 UNVERIFIED = "unverified"
-_SALG = "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#"
 
 
 def _local(iri: str) -> str:
@@ -111,10 +110,6 @@ _COMPONENT_META: dict[str, dict[str, Any]] = {
     "SPARQLConstraintComponent": _c(
         F, ["sparql"], sparql=True, shapes=True, clause="SPARQL-Related Features 3",
         note="the sh:sparql node (select, prefixes, message, severity, resultAnnotation) is read from the term store",
-    ),  # fmt: skip
-    _SALG + "NoUnboundProjectedVariablesConstraintComponent": _c(
-        V, ["noUnboundProjectedVariables"], clause="extension (starlayer.sparql.salg), not SHACL",
-        note="lazy trampoline into starlayer.sparql.salg.engine_components; a port may omit it",
     ),  # fmt: skip
 }
 

@@ -5,10 +5,7 @@ editor (see sqe/vocab.py's own module docstring for the full design).
 Three things get verified, mirroring the standards already established
 elsewhere in this package:
 
-1. Round-trip + execution (same standard as test_ast_ontology.py/
-   test_roundtrip.py): text -> parse tree -> sqe: RDF -> reconstructed
-   parse tree -> translateQuery -> execute, compared against the
-   originally-prepared query's own real execution, by result set.
+1. (The decode-to-an-rdflib-Query round trip, ``sqe_tree_to_query``, was retired with the salg encoder.)
 2. Text round-trip, which the other RDF-as-SPARQL layers don't have:
    sqe: RDF -> rendered text -> re-parsed -> executed, still compared
    against the original - and the original PREFIX declaration is
@@ -28,7 +25,6 @@ from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql.sqe import (
     SQEValidationError,
     sqe_parse_to_tree,
-    sqe_tree_to_query,
     sqe_tree_to_text,
     sqe_validate,
 )
@@ -89,23 +85,6 @@ def _canon(res):
 
 class TestRoundtripResultEquivalence:
     @pytest.mark.parametrize("query_text", QUERIES)
-    def test_rdf_roundtrip(self, fixture_graph, query_text):
-        prepared = prepareQuery(query_text)
-        original = evalQuery(fixture_graph, prepared)
-
-        graph, root = sqe_parse_to_tree(query_text)
-        reconstructed = sqe_tree_to_query(graph, root)
-        roundtripped = evalQuery(fixture_graph, reconstructed)
-
-        canon_original = _canon(original)
-        canon_roundtripped = _canon(roundtripped)
-        assert canon_original == canon_roundtripped
-        # guard against a vacuously-true empty comparison (not meaningful for
-        # ASK's plain boolean result)
-        if not isinstance(canon_original, bool):
-            assert len(canon_original) > 0
-
-    @pytest.mark.parametrize("query_text", QUERIES)
     def test_text_roundtrip(self, fixture_graph, query_text):
         """Encode -> render text -> re-parse -> execute - the path only
         sqe: has (salg:/ssyn:/sast: all accept unprefixed-only text
@@ -165,9 +144,6 @@ class TestRootParameter:
     def test_named_root_round_trips_through_query_and_text(self):
         my_iri = ox.NamedNode("urn:test:query1")
         graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
-
-        reconstructed = sqe_tree_to_query(graph, root)
-        assert reconstructed.algebra is not None
 
         rendered = sqe_tree_to_text(graph, root)
         assert "SELECT ?s" in rendered
@@ -553,9 +529,9 @@ class TestSqeDoesNotDependOnSalg:
         import sys
 
         code = (
-            "import sys; from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate, sqe_tree_to_text, sqe_tree_to_query\\n"
+            "import sys; from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate, sqe_tree_to_text\\n"
             "t, r = sqe_parse_to_tree('SELECT ?s WHERE { ?s ?p ?o FILTER(STRLEN(STR(?o)) > 1) }')\\n"
-            "assert sqe_validate(t)[0]; sqe_tree_to_text(t, r); sqe_tree_to_query(t, r)\\n"
+            "assert sqe_validate(t)[0]; sqe_tree_to_text(t, r)\\n"
             "loaded = sorted(m for m in sys.modules if m.startswith('starlayer.sparql.salg'))\\n"
             "print('LOADED', loaded)\\n"
         )

@@ -1,11 +1,13 @@
-"""Regression tests for the rdflib lexical defects repaired in ``_grammar12._fix_rdflib_lexical_gaps``
-(upstream-issues items 19 to 21) and for a bare ``~`` in a reified triple (SPARQL 1.2 ``Reifier``)."""
+"""Lexical edge cases of the SRL parser (negative numbers, string and unicode escapes, local-name escapes; once upstream-issues
+items 19 to 21 against rdflib's grammar) and a bare ``~`` in a reified triple (SPARQL 1.2 ``Reifier``)."""
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
-import starlayer.sparql  # noqa: F401 - installs the grammar fixes
-from rdflib import RDF, XSD, BNode, Literal, URIRef
+from rdflib import Literal as RLiteral
+from rdflib import URIRef as RURIRef
+from starlayer.sparql._oxterms import RDF, XSD
 from starlayer.sparql.srl import parse_ruleset
 
 PRE = "PREFIX : <http://e/>\n"
@@ -23,9 +25,8 @@ def _objects(text: str):
 def test_negative_numbers(lexical, datatype):
     (obj,) = _objects(f"DATA {{ :a :b {lexical} }}")
     # lexical fidelity: the form is kept as written ("-.5" stays "-.5"), the value is the same
-    assert str(obj) == lexical
+    assert obj.value == lexical
     assert obj.datatype == datatype
-    assert obj.value == Literal(lexical.replace("-.", "-0."), datatype=datatype).value
 
 
 @pytest.mark.parametrize(
@@ -34,39 +35,30 @@ def test_negative_numbers(lexical, datatype):
 )
 def test_string_escapes(source, value):
     (obj,) = _objects(f"DATA {{ :a :b {source} }}")
-    assert obj == Literal(value)
+    assert obj == ox.Literal(value)
 
 
 def test_unicode_escapes():
     (obj,) = _objects(r'DATA { :a :b "é \U0001F600" }')
-    assert obj == Literal("é 😀")
+    assert obj == ox.Literal("é 😀")
 
 
 def test_local_name_escapes():
     rs = parse_ruleset(PRE + r"DATA { :a\-b :c\.d :e%20f }", validate=False)
     (t,) = rs.data[0].triples
     assert (t.subject, t.predicate, t.object) == (
-        URIRef("http://e/a-b"),
-        URIRef("http://e/c.d"),
-        URIRef("http://e/e%20f"),
+        ox.NamedNode("http://e/a-b"),
+        ox.NamedNode("http://e/c.d"),
+        ox.NamedNode("http://e/e%20f"),
     )
-
-
-def test_plain_sparql_gets_the_same_fixes():
-    from rdflib.plugins.sparql import prepareQuery
-
-    q = prepareQuery(PRE + r"""SELECT * WHERE { ?s ?p -1.5, "a\'b" . :a\-b ?p ?o }""")
-    triples = q.algebra.p.p.triples
-    assert (triples[0][2], triples[1][2]) == (Literal("-1.5", datatype=XSD.decimal), Literal("a'b"))
-    assert triples[2][0] == URIRef("http://e/a-b")
 
 
 def test_bare_tilde_in_a_reified_triple_names_a_fresh_reifier():
     rs = parse_ruleset(PRE + "RULE { ?x :p ?y } WHERE { << ?x :q ?y ~ >> :source ?s }", validate=False)
     triples = rs.rules[0].body
-    reifies = [t for t in triples if t.predicate == URIRef(str(RDF._NS) + "reifies")]
+    reifies = [t for t in triples if t.predicate == RDF.reifies]
     assert len(reifies) == 1
-    assert isinstance(reifies[0].subject, BNode)
+    assert isinstance(reifies[0].subject, ox.BlankNode)
 
 
 def test_evaluation_compares_values_not_lexical_forms():
@@ -77,5 +69,5 @@ def test_evaluation_compares_values_not_lexical_forms():
         validate=False,
     )
     out = rs.infer(Graph())
-    assert (URIRef("http://e/a"), URIRef("http://e/neg"), Literal(True)) in out
-    assert (URIRef("http://e/b"), URIRef("http://e/neg"), Literal(True)) not in out
+    assert (RURIRef("http://e/a"), RURIRef("http://e/neg"), RLiteral(True)) in out
+    assert (RURIRef("http://e/b"), RURIRef("http://e/neg"), RLiteral(True)) not in out

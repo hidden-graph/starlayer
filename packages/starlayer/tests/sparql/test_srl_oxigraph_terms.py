@@ -95,11 +95,11 @@ def test_goal_that_is_not_a_triple_pattern_raises(ruleset):
         ruleset.query(_graph(), (ox.Variable("x"), _ex("p"), _ex("o")))
 
 
-def test_triple_pattern_stores_rdflib_terms():
-    pattern = srl.TriplePattern(subject=ox.Variable("x"), predicate=_ex("p"), object=ox.Literal("a"))
-    assert pattern.subject == rdflib.Variable("x")
-    assert pattern.predicate == rdflib.URIRef(EX + "p")
-    assert pattern.object == rdflib.Literal("a")
+def test_triple_pattern_stores_pyoxigraph_terms():
+    pattern = srl.TriplePattern(subject=rdflib.Variable("x"), predicate=rdflib.URIRef(EX + "p"), object=rdflib.Literal("a"))
+    assert pattern.subject == ox.Variable("x")
+    assert pattern.predicate == ox.NamedNode(EX + "p")
+    assert pattern.object == ox.Literal("a")
 
 
 @pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])

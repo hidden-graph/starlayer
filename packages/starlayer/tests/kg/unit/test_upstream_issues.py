@@ -81,7 +81,7 @@ def test_every_workaround_exists_in_the_code_graph(graph, codekg_dataset):
     dataset = codekg_dataset
     known = {o.value for n in dataset.graph_names() for o in dataset.graph(n).objects(None, DCTERMS.identifier)}
     cited = {str(o) for o in graph.objects(None, CODEKG_NS.workedAroundByIdentifier)}
-    assert len(cited) >= 5
+    assert len(cited) >= 3  # 5 before the rdflib grammar workarounds were deleted with the grammar (E4)
     assert not sorted(cited - known), f"workarounds the code KG does not have: {sorted(cited - known)}"
 
 

@@ -472,7 +472,11 @@ def test_blank_node_in_a_body_pattern_is_treated_as_a_variable_for_dependencies(
 
 
 def test_triple_term_in_a_pattern_depends_on_a_triple_term_template_with_variables():
+    import pyoxigraph as ox
     from starlayer.sparql.triple_term import TripleTermNode
+
+    Variable = ox.Variable
+    _p = lambda local: ox.NamedNode(EX + local)  # noqa: E731
 
     q = _p("q")
     producer = _ast_rule(
@@ -506,7 +510,11 @@ def test_triple_term_in_a_pattern_depends_on_a_triple_term_template_with_variabl
 
 
 def test_head_with_a_triple_term_containing_a_variable_makes_a_run_once_rule():
+    import pyoxigraph as ox
     from starlayer.sparql.triple_term import TripleTermNode
+
+    Variable = ox.Variable
+    _p = lambda local: ox.NamedNode(EX + local)  # noqa: E731
 
     with_var = TripleTermNode(
         "TripleTerm", subject=Variable("a"), predicate=_p("q"), object=_p("o")

@@ -3,8 +3,9 @@ a loader; each document is read once; rules and DATA are merged; failures are er
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
-from rdflib import BNode, Graph, URIRef
+from rdflib import Graph, URIRef
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLImportError, parse_ruleset, resolve_imports
 from starlayer.sparql.srl_eval import SRLImportsNotSupportedError
@@ -153,7 +154,7 @@ def test_data_is_merged_and_blank_nodes_in_different_documents_stay_distinct():
     root = parse_ruleset(P + f"IMPORTS <{BASE_LIB}>\nDATA {{ _:x ex:q 2 . }}")
     resolved = resolve_imports(root, _Loader({BASE_LIB: lib}))
     subjects = [t.subject for block in resolved.data for t in block.triples]
-    assert len(subjects) == 2 and all(isinstance(s, BNode) for s in subjects)
+    assert len(subjects) == 2 and all(isinstance(s, ox.BlankNode) for s in subjects)
     assert (
         subjects[0] != subjects[1]
     )  # the same label `_:x` in two documents is two nodes
@@ -169,4 +170,4 @@ def test_the_importing_rule_set_comes_first_then_its_imports_in_order():
         + f"IMPORTS <{EX}1.srl>\nIMPORTS <{EX}2.srl>\nRULE {{ ?x ex:own ?y }} WHERE {{ ?x ex:p ?y }}"
     )
     heads = [r.head[0].predicate for r in resolve_imports(root, _Loader(docs)).rules]
-    assert heads == [_u("own"), _u("one"), _u("two")]
+    assert heads == [ox.NamedNode(EX + name) for name in ("own", "one", "two")]

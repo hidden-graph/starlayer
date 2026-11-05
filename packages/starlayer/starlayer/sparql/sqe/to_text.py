@@ -11,8 +11,7 @@ project's own ``CLAUDE.md``, and ``ssyn_to_text.py`` already accepted the
 same limit ("full IRIs only, no prefixes"). Going through that pipeline
 for text output would silently discard every prefix ``to_rdf.py`` took
 care to preserve. Execution doesn't need any of this - ``from_rdf.py``'s
-``sqe_tree_to_query`` + rdflib's own unmodified ``translateQuery`` handles
-that unaffected by anything in this module.
+the rendered text is what runs (``StarLayerGraph.query()``).
 
 Expression text comes from ``expr_text.py``, which renders straight from the
 sqe tree (aggregates, EXISTS bodies, triple terms and the SPARQL 1.2 builtins

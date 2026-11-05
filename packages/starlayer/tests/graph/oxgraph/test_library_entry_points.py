@@ -222,7 +222,6 @@ def test_sqe_round_trip_in_an_oxigraph_graph(cls):
     assert graph is tree and len(tree) > 0
     assert isinstance(root, (ox.BlankNode, ox.NamedNode))
     assert sqe.sqe_tree_to_text(tree, root) == sqe.sqe_tree_to_text(*sqe.sqe_parse_to_tree(QUERY))
-    assert sqe.sqe_tree_to_query(tree, root) is not None
 
 
 def test_sqe_given_root_and_shared_graph():

@@ -9,13 +9,13 @@ SPARQL Update trees (``sqe:UpdateRequest``, from ``parse_sparql.sparql_update_to
 ``sqe_validate`` and ``sqe_tree_to_text``; anything else raises rather than being dropped.
 
 Not flattened into the top-level ``starlayer.sparql`` namespace - same
-precedent ``salg``/``srl`` already follow: ``from starlayer.sparql import
+precedent ``srl`` already follows: ``from starlayer.sparql import
 sqe``, then ``sqe.sqe_parse_to_tree(...)``/etc.
 
-Four public functions, the whole functional surface: ``sqe_parse_to_tree``
+Three public functions, the whole functional surface: ``sqe_parse_to_tree``
 (encode - validates the result and raises ``SQEValidationError`` on a
 non-conforming tree, see below), ``sqe_tree_to_text`` (render back to
-text), ``sqe_tree_to_query`` (decode to a real executable ``Query``),
+text; run the text with ``StarLayerGraph.query()``),
 ``sqe_validate`` (SHACL - still needed standalone for re-validating a tree
 edited by hand after parsing, since such edits bypass
 ``sqe_parse_to_tree`` entirely). ``to_rdf.py``'s own ``_query_to_sqe_rdf``
@@ -41,13 +41,12 @@ import importlib
 from typing import Any
 
 # Names are imported on first use (PEP 562), so ``import starlayer.sparql.sqe`` stays cheap. The trees are ``StarLayerGraph``s of
-# pyoxigraph terms and nothing here needs rdflib, except ``sqe_tree_to_query``, which decodes a tree to an rdflib ``Query``.
+# pyoxigraph terms and nothing here needs rdflib.
 _LAZY = {
     "SQE": "vocab",
     "SQEError": "to_rdf",
     "SQEValidationError": "to_rdf",
     "sqe_parse_to_tree": "to_rdf",
-    "sqe_tree_to_query": "from_rdf",
     "sqe_tree_to_text": "to_text",
     "sqe_validate": "shapes",
 }
@@ -57,10 +56,6 @@ __all__ = sorted(_LAZY)
 
 def __getattr__(name: str) -> Any:
     if name in _LAZY:
-        if name == "sqe_tree_to_query":
-            from starlayer._optional import require_rdflib
-
-            require_rdflib("starlayer.sparql.sqe.sqe_tree_to_query (it returns an rdflib Query)")
         value = getattr(importlib.import_module(f"{__name__}.{_LAZY[name]}"), name)
         globals()[name] = value
         return value

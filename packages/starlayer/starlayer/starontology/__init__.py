@@ -4,9 +4,9 @@ subpackage ends up consuming them.
 
 **Why this exists as one place.** These files could otherwise live
 scattered across whichever package happens to consume them first (e.g.
-``manch:``/``skos:`` inside a graph-focused package, ``salg:`` inside a
+``manch:``/``skos:`` inside a graph-focused package, ``sqe:``/``srl:`` inside a
 sparql-focused one). That would make "where do I edit the ``manch:``
-vocabulary" and "where do I edit the ``salg:`` vocabulary" different
+vocabulary" and "where do I edit the ``sqe:`` vocabulary" different
 answers depending on which package happens to need it - a real
 editing/discoverability cost, not just an aesthetic one. Consolidating
 them here means one place to look, one place to edit, regardless of which
@@ -14,7 +14,7 @@ sibling subpackage(s) end up consuming a given file.
 
 **Why this is part of ``starlayer`` rather than a separately installed
 package.** `starlayer.sparql` has a hard, eager runtime dependency on this
-subpackage (`sparql_shapes.py`/`srl.py` both call `get_ontology_graph()`
+subpackage (`srl.py`/`sqe/shapes.py` both call `get_ontology_graph()`
 to build their shapes). Two packages that can't function without each
 other would be packaging overhead with no real isolation benefit - the
 same reasoning that keeps `starlayer.graph`/`.sparql`/`.shacl` merged into
@@ -30,7 +30,7 @@ ends up consuming a given file. This top-level module
 nothing more, never wraps `pyshacl`/`starlayer.shacl`. *How* to validate
 (which reasoning settings, which severity flags) stays each vocabulary's
 own concern, genuinely different per vocabulary -
-`starlayer.sparql.salg.sparql_shapes.validate_query()` for `salg:` still lives
+`starlayer.sparql.srl.srl_validate()` for `srl:` lives
 outside this subpackage entirely.
 
 `starontology.manchester`/`starontology.skos` are the exceptions - real
@@ -64,12 +64,11 @@ content as Turtle text: ``get_ontology_graph(name).serialize(format=
 'turtle12')``.
 
 **What's here**: an OWL/RDFS ontology and a SHACL shapes graph for each of
-six vocabularies, plus further registered entries with no ontology
+five vocabularies, plus further registered entries with no ontology
 counterpart: ``shacl_shacl`` (see below), and the SHACL vocabulary, UI and
 rules entries ``shacl_vocabulary``, ``shacl_shacl_rules``, ``shacl_shacl_ui``,
 ``shacl_shacl_ui_scores`` and ``shacl_ui_baseline`` (each described in its
-registry entry). ``sorted(_REGISTRY)`` is the full list; the ``salg:`` pair
-is registered but left out of ``get_ontology_list()``.
+registry entry). ``sorted(_REGISTRY)`` is the full list.
 The filenames below are each entry's own identity (both as a dict key
 into the dataset described further below and as the ``.../<filename>``
 suffix of its ``get_resource_iri()`` IRI):
@@ -87,24 +86,18 @@ suffix of its ``get_resource_iri()`` IRI):
   this is a real semantic ontology (actual axioms about an existing
   vocabulary), not a syntax tree represented as RDF, so it doesn't get the
   ``"syntax-tree-graph"`` label the others earn.
-- ``salg:`` (``salg-ontology.ttl`` / ``sparql_shapes.ttl``) - a SPARQL 1.2
-  query/update's own algebra as RDF (a resolved, `translateQuery`'d
-  syntax tree, one level past the raw parse tree `sqe:` below encodes).
-  Type ``"syntax-tree-graph"``.
 - ``sqe:`` (``sqe-ontology.ttl`` / ``sqe_shapes.ttl``) - a SPARQL
   `SELECT`/`ASK`/`CONSTRUCT` query's own raw parse tree (pre-
   `translateQuery`), as a flat, human-readable RDF tree meant for hand/UI
-  editing - deliberately not `salg:`'s resolved algebra, which isn't
-  readable or editable the same way (see
-  `starlayer.sparql.sqe`'s own module docstrings). Type ``"syntax-tree-graph"``.
+  editing (see `starlayer.sparql.sqe`'s own module docstrings). Type ``"syntax-tree-graph"``.
 - ``srl:`` (``srl-ontology.ttl`` / ``srl_shapes.ttl``) - SRL's
   own rule-set syntax tree, as RDF (see `starlayer.sparql.srl`).
   Type ``"syntax-tree-graph"``.
 - ``spexpr:`` (``spexpr-ontology.ttl`` / ``spexpr_shapes.ttl``) - the
   SPARQL expression/variable/property-path vocabulary, the one slice
-  ``salg:``/``sqe:``/``srl:`` all need identically (their own expression
+  ``sqe:``/``srl:`` both need identically (their own expression
   encoding, reused unchanged rather than reimplemented per-vocabulary);
-  each of those three's own shapes file imports this one's shapes via
+  each of those two's own shapes file imports this one's shapes via
   ``owl:imports`` rather than defining it separately. Type
   ``"syntax-tree-graph"``.
 
@@ -153,10 +146,7 @@ ontology/syntax-tree graph (``role:schema``) and shapes graph
 not claim to be a profile of the public specification itself: data that
 conforms to it conforms to the StarLayer profile that lists it, and that
 profile's ``prof:isProfileOf`` link carries the claim to the public layer.
-``sparql_shacl``/``sparql_owl`` (``salg:``) are deliberately excluded
-entirely - unlike the other pairs, ``salg:`` is this project's own internal
-SPARQL algebra encoding, not something meant to carry a public-facing
-conformance claim. This plugs directly into
+This plugs directly into
 ``starlayer.shacl.profiling.derive_conforms_to()``'s own
 ``specification_graph=`` parameter - see ``get_conformance_profiles()``'s
 own docstring for the full design and a worked example. There is
@@ -209,9 +199,7 @@ _HERE = Path(__file__).parent
 _DATASET_TTL_PATH = _HERE / "starontology.trig"
 
 # Prefixes bound onto every graph this module hands out (and written into the
-# header of starontology.trig). Callers rely on them being present: for
-# example salg/sparql_shapes.py appends hand-written ``salg:`` Turtle to a
-# serialized copy of an entry.
+# header of starontology.trig). Callers rely on them being present.
 _PREFIXES: dict[str, str] = {
     "conformance": "https://github.com/hidden-graph/starlayer/ns/conformance#",
     "dcterms": "http://purl.org/dc/terms/",
@@ -223,7 +211,6 @@ _PREFIXES: dict[str, str] = {
     "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
     "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
     "role": "http://www.w3.org/ns/dx/prof/role/",
-    "salg": "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#",
     "sh": "http://www.w3.org/ns/shacl#",
     "shnex": "http://www.w3.org/ns/shacl-node-expr#",
     "shsh": "http://www.w3.org/ns/shacl-shacl#",
@@ -248,8 +235,6 @@ _FILENAME_BY_NAME: dict[str, str] = {
     "manchester_shacl": "manchester_shapes.ttl",
     "skos_owl": "skos-ontology.ttl",
     "skos_shacl": "skos_shapes.ttl",
-    "sparql_owl": "salg-ontology.ttl",
-    "sparql_shacl": "sparql_shapes.ttl",
     "sqe_owl": "sqe-ontology.ttl",
     "sqe_shacl": "sqe_shapes.ttl",
     "srl_owl": "srl-ontology.ttl",
@@ -335,34 +320,13 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], Any]]] = {
         ),
         lambda: _load("skos_shacl"),
     ),
-    "sparql_owl": (
-        OntologyInfo(
-            name="sparql_owl",
-            description=(
-                "A SPARQL 1.2 query/update's own algebra as RDF (salg:) - "
-                "encode/edit/decode/re-execute a query as data."
-            ),
-            type="syntax-tree-graph",
-        ),
-        lambda: _load("sparql_owl"),
-    ),
-    "sparql_shacl": (
-        OntologyInfo(
-            name="sparql_shacl",
-            description="SHACL shapes validating a salg: algebra graph's own structural well-formedness.",
-            type="shacl",
-        ),
-        lambda: _load("sparql_shacl"),
-    ),
     "sqe_owl": (
         OntologyInfo(
             name="sqe_owl",
             description=(
                 "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, "
                 "pre-translateQuery, as a flat, human-readable RDF tree "
-                "(sqe:) meant for hand/UI editing - deliberately not the "
-                "resolved salg: algebra, which isn't readable or editable "
-                "the same way. v1 scope reduction: no aggregates/"
+                "(sqe:) meant for hand/UI editing. v1 scope reduction: no aggregates/"
                 "subqueries/VALUES/Update yet (property paths ARE covered)."
             ),
             type="syntax-tree-graph",
@@ -405,8 +369,8 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], Any]]] = {
             name="spexpr_owl",
             description=(
                 "The SPARQL expression/variable/property-path vocabulary "
-                "(spexpr:), carved out of salg: - the one slice "
-                "salg:/sqe:/srl: all need identically (their own expression "
+                "(spexpr:), shared by sqe: and srl: - the one slice "
+                "they both need identically (their own expression "
                 "encoding, reused unchanged, not reimplemented per-vocabulary)."
             ),
             type="syntax-tree-graph",
@@ -418,7 +382,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], Any]]] = {
             name="spexpr_shacl",
             description=(
                 "SHACL shapes validating an spexpr: expression/variable/path "
-                "value's own well-formedness - imported by salg:/sqe:/srl: "
+                "value's own well-formedness - imported by sqe:/srl: "
                 "alike (each via owl:imports), not defined separately by any "
                 "one of them."
             ),
@@ -586,29 +550,11 @@ def _load(name: str) -> Any:
     return _named_graph(_resource_iri(name))
 
 
-#  salg: (sparql_owl/sparql_shacl) is purely an internal encoding - the
-# raw SPARQL 1.2 algebra representation starlayer.sparql's own
-# query_to_rdf()/rdf_to_query() machinery uses, and sqe:/srl: import its
-# shared expression vocabulary - not something an external caller is
-# meant to reach for directly (sqe: is the human-readable, UI-editable
-# public-facing analog). Excluded from get_ontology_list()'s own
-# enumeration so it doesn't show up as a thing to pick; still a real,
-# fully registered entry otherwise - get_ontology_graph()/
-# get_resource_iri()/get_raw_url()/local_loader() all still resolve it
-# by name normally, since internal code (srl.py, salg/sparql_ontology.py,
-# salg/sparql_shapes.py) genuinely depends on being able to.
-_EXCLUDED_FROM_ONTOLOGY_LIST = frozenset({"sparql_owl", "sparql_shacl"})
-
-
 def get_ontology_list() -> tuple[OntologyInfo, ...]:
-    """Every registered ontology/shapes file's metadata, sorted by name.
-
-    Excludes the ``salg:`` pair (``sparql_owl``/``sparql_shacl``) - see
-    ``_EXCLUDED_FROM_ONTOLOGY_LIST``'s own comment just above.
-    """
+    """Every registered ontology/shapes file's metadata, sorted by name."""
     return tuple(
         sorted(
-            (info for name, (info, _loader) in _REGISTRY.items() if name not in _EXCLUDED_FROM_ONTOLOGY_LIST),
+            (info for info, _loader in _REGISTRY.values()),
             key=lambda info: info.name,
         )
     )
@@ -642,7 +588,6 @@ def get_ontology_graph(name: str) -> Any:
 _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART = (
     "manchester_shacl",
     "skos_shacl",
-    "sparql_shacl",
     "sqe_shacl",
     "srl_shacl",
     "spexpr_shacl",
@@ -809,7 +754,7 @@ def get_conformance_profiles(url: str | None = None) -> Any:
 
 # Every registered shapes entry's own real sh:ShapesGraph node IRI (the one
 # each shapes file's own owl:imports triples actually point at, e.g.
-# sqe_shapes.ttl's sqe:ShapesGraph owl:imports salg:ShapesGraph) - a
+# sqe_shapes.ttl's sqe:ShapesGraph owl:imports spexpr:ShapesGraph) - a
 # genuinely different identity than get_resource_iri()'s own GitHub-blob-URL
 # scheme (built for prof:isProfileOf, a separate concern - see
 # starlayer/shacl/CLAUDE.md for why these two identities exist and don't

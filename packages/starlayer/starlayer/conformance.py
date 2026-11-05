@@ -48,7 +48,7 @@ spec (https://www.w3.org/TR/dx-prof/) that no standard "does not conform"
 predicate exists anywhere in the vocabularies this module otherwise reuses
 - so asserting one at all means minting our own, under this project's own
 established ``https://github.com/hidden-graph/<subpackage>/ns/<name>#``
-pattern (see ``starlayer.sparql.vocab.SALG``/``SRL``/etc. for precedent).
+pattern (see ``starlayer.sparql.vocab.SQE``/``SRL``/etc. for precedent).
 User feedback: prose alone buries an exclusion inside a header comment a
 caller querying the graph would never see - the same problem the
 per-resource ``rdfs:comment`` triples (above) already partly addressed,

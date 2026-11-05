@@ -33,15 +33,8 @@ def _rdflib(graph):
 
 
 class TestGetOntologyList:
-    def test_returns_all_entries_except_the_internal_salg_pair(self):
-        """sparql_owl/sparql_shacl (salg:) are deliberately excluded (2026-10-14) -
-        salg: is purely an internal encoding (starlayer.sparql's own
-        query_to_rdf()/rdf_to_query() machinery; sqe:/srl: import its
-        shared expression vocabulary), not something an external caller
-        is meant to reach for directly - sqe: is the human-readable,
-        UI-editable public-facing analog. They're still real, fully
-        registered entries otherwise - see TestGetOntologyGraph below,
-        which confirms get_ontology_graph() still resolves them by name."""
+    def test_returns_all_registered_entries(self):
+        """(The salg: pair, sparql_owl/sparql_shacl, was retired with the salg export.)"""
         names = {info.name for info in starontology.get_ontology_list()}
         assert names == {
             "manchester_owl", "manchester_shacl",
@@ -65,8 +58,7 @@ class TestGetOntologyList:
     def test_shapes_entries_are_type_shacl(self):
         """shacl_shacl has no ontology counterpart to pair with, but it's
         still a SHACL shapes graph - same type as the four entries that
-        do (sparql_shacl excluded from this list - see the class's own
-        test above)."""
+        do."""
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
         assert shacl_names == {
             "manchester_shacl", "skos_shacl", "sqe_shacl", "srl_shacl",
@@ -85,27 +77,24 @@ class TestGetOntologyList:
         assert skos_entry.type == "owl"
 
     def test_manchester_sqe_srl_spexpr_owl_entries_are_type_syntax_tree_graph(self):
-        """sparql_owl excluded from this list too - see the class's own
-        first test above."""
         syntax_tree_graph_names = {
             info.name for info in starontology.get_ontology_list() if info.type == "syntax-tree-graph"
         }
         assert syntax_tree_graph_names == {"manchester_owl", "sqe_owl", "srl_owl", "spexpr_owl"}
 
-    def test_salg_pair_is_excluded_from_the_list_but_still_a_real_registered_entry(self):
+    def test_the_retired_salg_pair_is_gone(self):
         names = {info.name for info in starontology.get_ontology_list()}
-        assert "sparql_owl" not in names
-        assert "sparql_shacl" not in names
-        # still real and loadable directly by name - just not enumerated.
-        assert len(starontology.get_ontology_graph("sparql_owl")) > 0
-        assert len(starontology.get_ontology_graph("sparql_shacl")) > 0
+        assert "sparql_owl" not in names and "sparql_shacl" not in names
+        with pytest.raises(KeyError):
+            starontology.get_ontology_graph("sparql_owl")
+        with pytest.raises(KeyError):
+            starontology.get_ontology_graph("sparql_shacl")
 
 
 class TestGetOntologyGraph:
     @pytest.mark.parametrize("name", [
         "manchester_owl", "manchester_shacl",
         "skos_owl", "skos_shacl",
-        "sparql_owl", "sparql_shacl",
         "srl_owl", "srl_shacl",
         "shacl_shacl",
     ])
@@ -162,9 +151,7 @@ class TestConformanceProfilesContent:
     StarLayer profile that lists it, and that profile's own isProfileOf link
     carries the claim up.
 
-    sparql_shacl/sparql_owl (salg:) are deliberately not in any profile -
-    salg: is this project's own internal SPARQL algebra encoding, not
-    something meant to carry a public-facing conformance claim."""
+    (The salg: pair, once left out of every profile on purpose, is retired.)"""
 
     @pytest.mark.parametrize("name", sorted(_EXPECTED_PROFILES))
     def test_each_profile_is_a_profile_of_the_public_layer(self, name):
@@ -200,16 +187,6 @@ class TestConformanceProfilesContent:
         graph = _rdflib(starontology.get_conformance_profiles())
         for info in starontology.get_ontology_list():
             assert (URIRef(starontology.get_resource_iri(info.name).value), PROF.isProfileOf, None) not in graph
-
-    def test_sparql_shacl_is_registered_but_in_no_profile(self):
-        """salg: is excluded from the public profiles (2026-10-11)."""
-        from rdflib import Namespace, URIRef
-
-        PROF = Namespace("http://www.w3.org/ns/dx/prof/")
-        graph = _rdflib(starontology.get_conformance_profiles())
-        for name in ("sparql_shacl", "sparql_owl"):
-            assert (None, PROF.hasArtifact, URIRef(starontology.get_resource_iri(name).value)) not in graph
-
 
 class TestGetConformanceProfiles:
     """2026-10-09: the prof:isProfileOf mapping for every pair now lives
@@ -448,8 +425,6 @@ _TTL_FILENAME = {
     "manchester_shacl": "manchester_shapes.ttl",
     "skos_owl": "skos-ontology.ttl",
     "skos_shacl": "skos_shapes.ttl",
-    "sparql_owl": "salg-ontology.ttl",
-    "sparql_shacl": "sparql_shapes.ttl",
     "sqe_owl": "sqe-ontology.ttl",
     "sqe_shacl": "sqe_shapes.ttl",
     "srl_owl": "srl-ontology.ttl",
@@ -470,8 +445,8 @@ class TestLocalLoader:
     def test_resolves_a_real_sh_shapesgraph_iri(self):
         from rdflib import Namespace as RdfNamespace
 
-        SALG = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/algebra#")
-        resolved = starontology.local_loader(SALG.ShapesGraph)
+        SQE = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
+        resolved = starontology.local_loader(SQE.ShapesGraph)
         assert resolved is not None
         assert len(resolved) > 0
 

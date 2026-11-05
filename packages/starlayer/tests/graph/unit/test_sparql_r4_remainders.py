@@ -6,7 +6,7 @@ import pytest
 from rdflib import BNode, Namespace
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.sparql.parse12 import prepare_update_12
+from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 
 warnings.simplefilter("ignore")
 E = Namespace("http://e/")

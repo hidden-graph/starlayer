@@ -32,20 +32,20 @@ node-per-solution head instantiation (§6.4).
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 import datetime
 from contextvars import ContextVar
 from dataclasses import dataclass
 
 import pyoxigraph as ox
-from rdflib import BNode, Literal, URIRef, Variable
-from rdflib.plugins.sparql import algebra
 
 from . import _srl_ast as srl_ast
+from .expr_text import expr_variables
+from .parse_sparql import Node
 from .srl import SRLError
 from .triple_term import TripleTermNode
+
+Variable = ox.Variable
+BNode = ox.BlankNode
 
 
 class SRLEvalError(SRLError):
@@ -277,7 +277,7 @@ class _InvalidInstance(Exception):
 
 def _graph_term(term, resolve=None):
     """The graph-storable form of a pattern/template term, as a pyoxigraph term: a ``TripleTermNode`` becomes an ``ox.Triple``
-    (recursively); a leaf is converted from its rdflib form. ``resolve`` maps a leaf (variable or blank node) to its value
+    (recursively); a leaf is a term already. ``resolve`` maps a leaf (variable or blank node) to its value
     (already a pyoxigraph term), and is ``None`` for ground terms (DATA blocks).
 
     Raises:
@@ -293,10 +293,8 @@ def _graph_term(term, resolve=None):
 
 
 def _ox_term(term):
-    """An rdflib term of a rule as the pyoxigraph term the evaluation graphs hold."""
-    from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
-
-    return from_rdflib_term(term)
+    """A ground term of a rule as the pyoxigraph term the evaluation graphs hold (it already is one)."""
+    return term
 
 
 def _pattern_term_text(term) -> str:
@@ -304,7 +302,7 @@ def _pattern_term_text(term) -> str:
     from starlayer.graph.oxgraph.run import _sparql_term
 
     if isinstance(term, Variable):
-        return "?" + str(term)
+        return "?" + term.value
     if isinstance(term, TripleTermNode):
         s, p, o = (_pattern_term_text(part) for part in _triple_term_parts(term))
         return f"<<( {s} {p} {o} )>>"
@@ -313,13 +311,13 @@ def _pattern_term_text(term) -> str:
 
 def _match(run: list[srl_ast.TriplePattern], g) -> list[dict]:
     """Every solution of the basic graph pattern ``run`` against ``g`` (an ``StarLayerGraph``), found by running the pattern as a
-    SPARQL 1.2 query. Keys are rdflib ``Variable`` s, values pyoxigraph terms."""
+    SPARQL 1.2 query. Keys are ``pyoxigraph.Variable`` s, values pyoxigraph terms."""
     body = " . ".join(
         f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}"
         for t in run
     )
     result = g.query(f"SELECT * WHERE {{ {body} }}")
-    return [{Variable(name): term for name, term in binding.items()} for binding in result.bindings]
+    return [{Variable(str(name).lstrip("?")): term for name, term in binding.items()} for binding in result.bindings]
 
 
 def _compatible(mu1: dict, mu2: dict) -> bool:
@@ -327,12 +325,7 @@ def _compatible(mu1: dict, mu2: dict) -> bool:
 
 
 def _collect_vars_in_expr(expr, found: set[Variable]) -> None:
-    def _visit(node):
-        if isinstance(node, Variable):
-            found.add(node)
-        return None
-
-    algebra.traverse(expr, visitPost=_visit)
+    found.update(expr_variables(expr))
 
 
 def _collect_variables(rule: srl_ast._Rule) -> set[Variable]:
@@ -432,12 +425,11 @@ _RENDERED: ContextVar = ContextVar("srl_rendered", default=None)  # id(expr) -> 
 def _with_now(node, now_text: str):
     """``node`` with each ``NOW()`` replaced by the literal of the evaluation instant (a SPARQL engine would read the clock
     once per query, so each solution would see its own instant)."""
-    if isinstance(node, algebra.CompValue):
-        if node.name == "Builtin_NOW":
-            return Literal(now_text, datatype=URIRef("http://www.w3.org/2001/XMLSchema#dateTime"))
-        out = algebra.CompValue(node.name)
-        for key, value in dict.items(node):
-            out[key] = _with_now(value, now_text)
+    if isinstance(node, Node):
+        if node.kind == "Builtin_NOW":
+            return ox.Literal(now_text, datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#dateTime"))
+        out = type(node)(node.kind, **{k: _with_now(v, now_text) for k, v in node.f.items()})
+        out.pos = node.pos
         return out
     if isinstance(node, list):
         return [_with_now(item, now_text) for item in node]
@@ -457,8 +449,7 @@ def _expression_text(expr) -> str:
         return cached[1]
     now = _NOW.get() or datetime.datetime.now(datetime.timezone.utc)
     text = render_expression(_with_now(expr, now.strftime("%Y-%m-%dT%H:%M:%S.%fZ")))
-    used: set[Variable] = set()
-    _collect_vars_in_expr(expr, used)
+    used = expr_variables(expr)
     cache[id(expr)] = (expr, text, used)
     return text
 
@@ -467,8 +458,8 @@ def _bound(expr, mu: dict) -> tuple[str, dict]:
     """``(projection, substitutions)`` for ``expr`` under ``mu``: the engine pre-binds a variable only if the query projects it,
     and rejects one the query does not mention, so only the variables ``expr`` uses that ``mu`` binds go in."""
     used = _RENDERED.get()[id(expr)][2]
-    names = sorted(str(var) for var in used if var in mu)
-    return "".join(f"?{name} " for name in names), {ox.Variable(name): mu[Variable(name)] for name in names}
+    names = sorted(var.value for var in used if var in mu)
+    return "".join(f"?{name} " for name in names), {ox.Variable(name): mu[ox.Variable(name)] for name in names}
 
 
 def _eval_ebv(expr, mu: dict) -> bool:
@@ -485,7 +476,7 @@ def _eval_expr(expr, mu: dict):
     """Evaluates ``expr`` under solution ``mu``, matching §6.3's ``evalFunction``/§6.4's "if x is not an error" check.
 
     Args:
-        expr: The rdflib expression to evaluate.
+        expr: The expression to evaluate.
         mu: The current variable bindings.
 
     Returns:
@@ -620,10 +611,8 @@ _NOW: ContextVar = ContextVar("srl_now", default=None)
 
 def flatten_dataset(graph):
     """``graph`` as an ``StarLayerGraph`` the rules are evaluated on: an ``StarLayerGraph`` as it is; an ``StarLayerDataset`` / ``Store`` as the
-    union of its graphs; an rdflib graph (or, for a dataset, its default graph or the union of all graphs) copied in. Nothing
-    here changes ``graph``."""
-    from rdflib import ConjunctiveGraph, Dataset
-
+    union of its graphs; an rdflib graph (or, for a dataset, its default graph or the union of all graphs) copied in by the
+    rdflib bridge (rdflib is then needed). Nothing here changes ``graph``."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
     from starlayer.graph.oxgraph.core import StarLayerGraph
     from starlayer.shacl_engine.graphs import new_graph
@@ -634,8 +623,13 @@ def flatten_dataset(graph):
     if _ox.is_oxigraph_input(graph):
         flat.extend(list(iter(graph)))
         return flat
+    from starlayer._optional import require_rdflib
+
+    require_rdflib("Running SRL rules on an rdflib graph")
+    from rdflib import ConjunctiveGraph, Dataset
+
     triples = graph.triples((None, None, None)) if isinstance(graph, (Dataset, ConjunctiveGraph)) else iter(graph)
-    flat.extend((_ox_term(s), _ox_term(p), _ox_term(o)) for s, p, o in triples)
+    flat.extend((_ox.from_rdflib_term(s), _ox.from_rdflib_term(p), _ox.from_rdflib_term(o)) for s, p, o in triples)
     return flat
 
 
@@ -644,6 +638,9 @@ def to_foreign(inferred, original):
     when that is an rdflib ``Graph`` subclass (the old-style graph, which can hold triple terms), otherwise a plain
     ``rdflib.Graph``. A result that holds a triple term, which a plain ``rdflib.Graph`` cannot hold, is returned as the
     ``StarLayerGraph`` it is."""
+    from starlayer._optional import require_rdflib
+
+    require_rdflib("Returning the inferred triples as an rdflib graph")
     from rdflib import ConjunctiveGraph, Dataset, Graph
 
     from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term

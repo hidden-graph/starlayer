@@ -1,4 +1,4 @@
-"""Tests for starlayer.sparql.StarQuery - binds a SPARQL query (prepared
+"""Tests for starlayer.sparql.StarQuery - binds a SPARQL query (syntax-checked
 once) plus StarLayerGraph.query()'s own per-call options, so the same
 query can run against several different graphs without repeating them.
 """
@@ -28,18 +28,18 @@ class TestRunsAgainstDifferentGraphs:
         assert {r.s.value for r in q.run(g2)} == {str(EX.bob)}
 
     def test_prepares_only_once(self):
-        """The whole point - prepare_query_12 runs at construction, not on
+        """The whole point - the query is parsed at construction, not on
         every run() call. Confirmed by swapping in a spy and counting."""
-        import starlayer.sparql.star_query as star_query_mod
+        import starlayer.sparql.parse_sparql as parse_mod
 
         calls = []
-        real = star_query_mod.prepare_query_12
+        real = parse_mod.parse_sparql
 
         def spy(*args, **kwargs):
             calls.append(1)
             return real(*args, **kwargs)
 
-        star_query_mod.prepare_query_12 = spy
+        parse_mod.parse_sparql = spy
         try:
             q = StarQuery("SELECT ?s WHERE { ?s ?p ?o }")
             assert len(calls) == 1
@@ -47,7 +47,7 @@ class TestRunsAgainstDifferentGraphs:
             q.run(_graph("@prefix ex: <http://example.org/> . ex:x ex:y ex:z ."))
             assert len(calls) == 1
         finally:
-            star_query_mod.prepare_query_12 = real
+            parse_mod.parse_sparql = real
 
 
 class TestEntailmentBinding:

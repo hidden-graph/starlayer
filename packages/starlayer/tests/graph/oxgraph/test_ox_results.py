@@ -246,7 +246,7 @@ def test_srl_tree_and_validate():
     ok, report, _text = srl_validate(graph)
     assert_ox(report)
     default_graph, _ = srl_parse_to_tree(text)
-    assert isinstance(default_graph, RdflibGraph) and not isinstance(default_graph, StarLayerGraph)  # the default is a plain rdflib Graph
+    assert isinstance(default_graph, StarLayerGraph)  # the default is a StarLayerGraph (pyoxigraph terms)
     assert_ox(srl_validate(default_graph)[1], max_prefixes=40)
 
 

@@ -30,7 +30,7 @@ dict), because the ``sqe:``/``spexpr:`` vocabulary is itself generic: an
 expression node of kind ``Builtin_STR`` with field ``arg`` is encoded as
 ``[] a spexpr:Builtin_STR ; spexpr:arg ...``. :func:`sparql_to_tree` encodes
 the AST as ``sqe:`` RDF (the same shapes ``sqe.sqe_parse_to_tree`` produces),
-so ``sqe_tree_to_text`` and ``sqe_tree_to_query`` work on its output.
+so ``sqe_tree_to_text`` works on its output.
 
 Entry points::
 
@@ -1727,14 +1727,17 @@ def _check_query(q: Node, text: str = "") -> None:
 # ---------------------------------------------------------------------------
 
 
-def parse_sparql(text: str, base: str | None = None) -> Node:
-    """Parse SPARQL 1.2 query text to an AST.
+def parse_sparql(text: str, base: str | None = None, prefixes: dict[str, str] | None = None) -> Node:
+    """Parse SPARQL 1.2 query text to an AST. ``prefixes`` (prefix -> namespace) are in force as if declared before the text
+    (they are not recorded as the query's own ``PREFIX`` lines).
 
     Raises:
         SparqlSyntaxError: For anything outside the grammar (with line and column).
     """
     try:
-        return _Parser(text, base).parse_query()
+        parser = _Parser(text, base)
+        parser.prefixes.update(prefixes or {})
+        return parser.parse_query()
     except RecursionError:  # the grammar nests without limit, Python's stack does not (as in manchester_parser.run_guarded)
         raise SparqlSyntaxError("expression or pattern nested too deeply to parse", text, 0) from None
 
