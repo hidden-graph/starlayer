@@ -194,12 +194,14 @@ def _people(n, city_suffix=""):
 
 
 def test_isomorphic_does_not_need_rdflibs_refinement_for_many_similar_blank_nodes(monkeypatch):
+    import rdflib.compare
+
     import starlayer.graph.compare as compare
 
     def refuse(*_args, **_kwargs):
         raise AssertionError("rdflib's isomorphism routine was reached")
 
-    monkeypatch.setattr(compare, "_rdflib_isomorphic", refuse)
+    monkeypatch.setattr(rdflib.compare, "isomorphic", refuse)
     assert compare.isomorphic(_people(300), _people(300))
     assert not compare.isomorphic(_people(300), _people(300, city_suffix="!"))
 

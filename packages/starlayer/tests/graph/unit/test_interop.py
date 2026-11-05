@@ -240,12 +240,14 @@ class TestBaseDirectionPolicy:
         assert f"^^<{DIRLANG_NS}he--rtl>" in out and "--rtl " not in out.replace(f"{DIRLANG_NS}he--rtl", "")
 
     def test_matches_the_old_encoding_module(self):
+        from rdflib import URIRef
+
         from starlayer.graph.model import encoding as old
 
         assert DIRLANG_NS == old.DIRLANG_NS
         (out,) = encode_directions([q(iri("a"), iri("p"), self.L)])
         assert str(out.object.datatype.value) == str(old.encode_dirlang_datatype("he", "rtl"))
-        assert old.decode_dirlang_datatype(old.URIRef(out.object.datatype.value)) == ("he", "rtl")
+        assert old.decode_dirlang_datatype(URIRef(out.object.datatype.value)) == ("he", "rtl")
 
     def test_decode_inverts_and_works_inside_triple_terms(self):
         data = [q(iri("a"), iri("p"), tt(iri("s"), iri("p"), self.L)), q(iri("a"), iri("p"), self.L)]
