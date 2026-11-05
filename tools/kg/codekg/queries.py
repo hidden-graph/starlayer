@@ -7,7 +7,7 @@ small table. Start with ``list_queries()``, or ``find-symbol``::
     >>> from codekg import queries
     >>> [q.name for q in queries.list_queries(topic="call-graph")]
     ['call-chain-from', 'call-cycles', 'callees-of', 'callers-of', 'who-instantiates']
-    >>> print(queries.run_query("callers-of", symbol="starlayer.graph.model.encoding.tt_hash"))
+    >>> print(queries.run_query("callers-of", symbol="starlayer.graph.interop.to_basic"))
 
 Every result is limited (25 rows by default; ``limit=`` and ``offset=`` page through it) and says when it was cut
 short. The graph is built from the source and **can lag it**: line numbers in a result should be checked against

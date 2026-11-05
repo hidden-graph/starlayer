@@ -4,21 +4,15 @@ The draft's Select Function takes a widget predicate and its Score Function list
 Sections 4.1 and 4.2 pick an editor for ``shui:editor`` and a viewer for ``shui:viewer``, and the built-in scores are
 written per role."""
 
+import pyoxigraph as ox
 import pytest
-from rdflib import Namespace, URIRef
 from starlayer import starontology
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+from starlayer.shacl_engine.terms import NS
 
-from ._rdflib_view import rd
-
-
-def _onto(name):
-    return rd(starontology.get_ontology_graph(name))
-
-
-EX = Namespace("http://example.org/")
+EX = NS("http://example.org/")
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
 ex:S a sh:NodeShape ; sh:property ex:P . ex:P a sh:PropertyShape ; sh:path ex:nick ."""
@@ -109,23 +103,23 @@ def test_select_widget_single_applies_the_same_filter(shapes):
 
 # --- the built-in lists
 def test_builtin_lists_match_the_widgets_the_shipped_shapes_document():
-    graph = _onto("shacl_shacl")
+    graph = starontology.get_ontology_graph("shacl_shacl")
     documented = {
-        s for s in set(graph.subjects()) if isinstance(s, URIRef) and str(s).startswith(str(SHUI))
-        and str(s).endswith(("Editor", "Viewer")) and (s, URIRef("http://www.w3.org/ns/shacl#name"), None) in graph
+        s for s in set(graph.subjects()) if isinstance(s, ox.NamedNode) and s.value.startswith(str(SHUI))
+        and s.value.endswith(("Editor", "Viewer")) and (s, ox.NamedNode("http://www.w3.org/ns/shacl#name"), None) in graph
     }
     # shui:editor/shui:viewer are properties, not widgets
     documented -= {SHUI.editor, SHUI.viewer}
     assert len(documented) == 26
     assert uws._BUILTIN_EDITORS | uws._BUILTIN_VIEWERS == documented
     assert not uws._BUILTIN_EDITORS & uws._BUILTIN_VIEWERS
-    assert all(str(w).endswith("Editor") for w in uws._BUILTIN_EDITORS)
-    assert all(str(w).endswith("Viewer") for w in uws._BUILTIN_VIEWERS)
+    assert all(w.value.endswith("Editor") for w in uws._BUILTIN_EDITORS)
+    assert all(w.value.endswith("Viewer") for w in uws._BUILTIN_VIEWERS)
 
 
 def test_every_builtin_widget_is_only_a_candidate_for_its_own_role(shapes):
     for widget in uws._BUILTIN_EDITORS | uws._BUILTIN_VIEWERS:
-        catalog = f"[] a shui:WidgetScore ; shui:widget <{widget}> ; shui:score 1.0 ."
+        catalog = f"[] a shui:WidgetScore ; shui:widget <{widget.value}> ; shui:score 1.0 ."
         own = "editor" if widget in uws._BUILTIN_EDITORS else "viewer"
         other = "viewer" if own == "editor" else "editor"
         assert (_pick(shapes, catalog, own), _pick(shapes, catalog, other)) == (widget, None), widget

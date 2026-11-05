@@ -16,6 +16,7 @@ test_skos_shapes.py; packages/starlayer/tests/sparql/unit/test_shacl_shapes.py,
 test_srl_shapes.py).
 """
 
+import pyoxigraph as ox
 import pytest
 from rdflib import Graph
 from starlayer import starontology
@@ -188,26 +189,26 @@ class TestConformanceProfilesContent:
             role = next(graph.objects(descriptor, PROF.hasRole))
             by_role[role].add(next(graph.objects(descriptor, PROF.hasArtifact)))
         _, shapes, ontologies = _EXPECTED_PROFILES[name]
-        assert by_role[ROLE.validation] == {starontology.get_resource_iri(n) for n in shapes}
-        assert by_role[ROLE.schema] == {starontology.get_resource_iri(n) for n in ontologies}
+        assert {str(x) for x in by_role[ROLE.validation]} == {starontology.get_resource_iri(n).value for n in shapes}
+        assert {str(x) for x in by_role[ROLE.schema]} == {starontology.get_resource_iri(n).value for n in ontologies}
 
     def test_shapes_graphs_are_not_declared_profiles_of_the_public_layer(self):
         """The layering: no registered file has its own prof:isProfileOf."""
-        from rdflib import Namespace
+        from rdflib import Namespace, URIRef
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
         for info in starontology.get_ontology_list():
-            assert (starontology.get_resource_iri(info.name), PROF.isProfileOf, None) not in graph
+            assert (URIRef(starontology.get_resource_iri(info.name).value), PROF.isProfileOf, None) not in graph
 
     def test_sparql_shacl_is_registered_but_in_no_profile(self):
         """salg: is excluded from the public profiles (2026-10-11)."""
-        from rdflib import Namespace
+        from rdflib import Namespace, URIRef
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
         for name in ("sparql_shacl", "sparql_owl"):
-            assert (None, PROF.hasArtifact, starontology.get_resource_iri(name)) not in graph
+            assert (None, PROF.hasArtifact, URIRef(starontology.get_resource_iri(name).value)) not in graph
 
 
 class TestGetConformanceProfiles:
@@ -277,8 +278,8 @@ class TestGetResourceIri:
             (next(graph.objects(d, PROF.hasRole)), next(graph.objects(d, PROF.hasArtifact)))
             for d in graph.objects(profile, PROF.hasResource)
         }
-        assert (ROLE.validation, starontology.get_resource_iri("skos_shacl")) in artifacts
-        assert (ROLE.schema, starontology.get_resource_iri("skos_owl")) in artifacts
+        assert (ROLE.validation, URIRef(starontology.get_resource_iri("skos_shacl").value)) in artifacts
+        assert (ROLE.schema, URIRef(starontology.get_resource_iri("skos_owl").value)) in artifacts
 
     def test_shacl_shacl_has_a_real_resource_iri(self):
         """shacl_shacl gets a real, stable IRI here too - used by
@@ -289,10 +290,14 @@ class TestGetResourceIri:
         predates both and needed no change for either."""
         iri = starontology.get_resource_iri("shacl_shacl")
         assert iri is not None
-        assert str(iri).endswith("shacl12-shacl.ttl")
+        assert isinstance(iri, ox.NamedNode) and iri.value.endswith("shacl12-shacl.ttl")
 
     def test_unknown_name_returns_none(self):
         assert starontology.get_resource_iri("not_a_real_name") is None
+
+    def test_every_resource_iri_is_a_pyoxigraph_named_node(self):
+        names = [info.name for info in starontology.get_ontology_list()]
+        assert names and all(isinstance(starontology.get_resource_iri(n), ox.NamedNode) for n in names)
 
 
 class TestGetRawUrl:
@@ -306,8 +311,8 @@ class TestGetRawUrl:
     def test_differs_from_get_resource_iri_but_names_the_same_file(self):
         iri = starontology.get_resource_iri("skos_shacl")
         url = starontology.get_raw_url("skos_shacl")
-        assert url != str(iri)
-        assert iri.rsplit("/", 1)[-1] == url.rsplit("/", 1)[-1]
+        assert url != iri.value
+        assert iri.value.rsplit("/", 1)[-1] == url.rsplit("/", 1)[-1]
 
     def test_is_a_real_raw_githubusercontent_url(self):
         url = starontology.get_raw_url("skos_shacl")
@@ -382,7 +387,7 @@ class TestPublishedFiles:
 
         for name in self._all_names():
             iri = (
-                str(starontology.get_resource_iri(name))
+                starontology.get_resource_iri(name).value
                 if name != "starlayer_profiles"
                 else starontology._GITHUB_BLOB_BASE + starontology._PROFILES_FILENAME
             )

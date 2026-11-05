@@ -1,9 +1,7 @@
 """``derive_shape``: infer a SHACL shapes graph from the data of an ``StarLayerGraph`` / ``StarLayerDataset``.
 
 One ``sh:NodeShape`` per distinct ``rdf:type`` found (never per-node or heuristic clustering), optionally reconciled against
-a template shape. Native over pyoxigraph terms and the wrapper API (no rdflib). The rdflib module
-``graph/graph/shape_derivation.py`` is no longer called by the library (it is kept only for its ``DEFAULT_IGNORED_PROPERTIES``
-constant that a test reads; D4 backlog).
+a template shape. Native over pyoxigraph terms and the wrapper API (no rdflib).
 
 Two phases:
 

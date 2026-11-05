@@ -225,7 +225,7 @@ class TestInferDelta:
         assert (EX.fido, RDF.type, EX.Animal) in delta
 
     def test_original_decomposed_union_delta_equals_closure(self) -> None:
-        from starlayer.graph.compare import _decompose
+        from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
 
         g = _rdfs_graph()
 
@@ -252,7 +252,8 @@ class TestInferDelta:
         # Mirrors TestInferWithTripleTerms.test_matches_owlrl_run_on_the_same_decomposition -
         # isomorphic(), not raw equality, for the same _decompose()-mints-a-
         # fresh-BNode-per-call reason.
-        from starlayer.graph.compare import _decompose, isomorphic
+        from starlayer.graph.compare import isomorphic
+        from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
 
         g = _rdfs_graph()
         g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
@@ -319,7 +320,8 @@ class TestInferWithTripleTerms:
         # now preserves the real triple term for its own portion - see the
         # previous test) is the correct oracle comparison for the part that
         # genuinely still goes through decomposition.
-        from starlayer.graph.compare import _decompose, isomorphic
+        from starlayer.graph.compare import isomorphic
+        from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
 
         g = _rdfs_graph()
         g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))

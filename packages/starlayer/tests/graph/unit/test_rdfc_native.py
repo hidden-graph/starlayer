@@ -1,10 +1,8 @@
-"""starlayer.graph.rdfc_native: Oxigraph's RDFC-1.0, the W3C suite, properties, and cross-checks against the
-old rdfc.py / compare.py."""
+"""starlayer.graph.rdfc_native: Oxigraph's RDFC-1.0, the W3C suite, properties, and a brute-force oracle."""
 
 from __future__ import annotations
 
 import random
-import warnings
 from pathlib import Path
 
 import pyoxigraph as ox
@@ -13,6 +11,7 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 from starlayer.graph.interop import to_basic
 from starlayer.graph.rdfc_native import (
+    CanonicalizationComplexityError,
     canonical_hash,
     canonical_nquads,
     canonical_quads,
@@ -79,9 +78,56 @@ def test_w3c_rdfc10_eval(name, action, result, alg):
     assert got == (SUITE / result).read_text(encoding="utf-8")
 
 
-@pytest.mark.skip(reason="test074 (poison clique, a NEGATIVE test: must raise): pyoxigraph 0.5.13 does not finish (>20 s); no DoS defence")
 def test_w3c_poison_negative():
-    raise AssertionError
+    """test074: a 10-blank-node clique is a NEGATIVE test, canonicalisation must raise instead of hanging."""
+    manifest = (SUITE / "manifest.ttl").read_text(encoding="utf-8")
+    assert "test074c a rdfc:RDFC10NegativeEvalTest" in manifest
+    quads = parse_nq((SUITE / "rdfc10/test074-in.nq").read_text(encoding="utf-8"))
+    with pytest.raises(CanonicalizationComplexityError):
+        canonical_nquads(quads)
+
+
+def _clique(n):
+    p = ox.NamedNode("http://e/p")
+    b = [B(f"b{i}") for i in range(n)]
+    return [q(b[i], p, b[j]) for i in range(n) for j in range(n) if i != j]
+
+
+def _torus(n):
+    p = ox.NamedNode("http://e/p")
+    b = {(i, j): B(f"g{i}_{j}") for i in range(n) for j in range(n)}
+    return [q(x, p, b[((i + 1) % n, j)]) for (i, j), x in b.items()] + [q(x, p, b[(i, (j + 1) % n)]) for (i, j), x in b.items()]
+
+
+@pytest.mark.parametrize("data", [_clique(10), _clique(8), _torus(6)], ids=["clique-10", "clique-8", "torus-6x6"])
+def test_symmetric_blank_node_structures_raise_instead_of_hanging(data):
+    with pytest.raises(CanonicalizationComplexityError):
+        canonical_nquads(data)
+    with pytest.raises(CanonicalizationComplexityError):
+        isomorphic(data, data)
+    with pytest.raises(CanonicalizationComplexityError):
+        isomorphic(data, data, basic=True)
+
+
+def test_a_symmetric_structure_inside_triple_terms_raises_too():
+    p = ox.NamedNode("http://e/p")
+    b = [B(f"b{i}") for i in range(10)]
+    data = [q(iri("s"), p, tt(b[i], p, b[j])) for i in range(10) for j in range(10) if i != j]
+    with pytest.raises(CanonicalizationComplexityError):
+        canonical_nquads(data)
+
+
+def test_large_but_harmless_blank_node_structures_are_accepted():
+    p = ox.NamedNode("http://e/p")
+    cycle = [q(B(f"c{i}"), p, B(f"c{(i + 1) % 100}")) for i in range(100)]
+    leaves = [q(iri("s"), p, B(f"l{i}")) for i in range(500)]
+    hub = [q(B("hub"), p, B(f"h{i}")) for i in range(100)]
+    path = [q(B(f"q{i}"), p, B(f"q{i + 1}")) for i in range(60)]
+    seven = _clique(7)
+    for data in (leaves, hub, path):
+        assert isomorphic(data, relabel(data, random.Random(1)))
+    assert isomorphic(seven, relabel(seven, random.Random(1)))
+    assert canonical_nquads(cycle)
 
 
 # ----------------------------------------------------------------------------------------- spec examples
@@ -230,74 +276,26 @@ class TestBlankNodeGraphNames:
         assert not isomorphic(a, [q(iri("s"), iri("p"), iri("o"))])
 
 
-# -------------------------------------------------------------------------------- cross-check with the old code
-
-
-def _old_modules():
-    try:
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            from starlayer.graph.compare import isomorphic as old_iso
-            from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
-            from starlayer.graph.rdfc import to_canonical_nquads as old_c14n
-    except ImportError:  # pragma: no cover - the old code may be retired
-        pytest.skip("old rdfc.py/compare.py not available")
-    return StarLayerGraph, StarLayerDataset, old_iso, old_c14n
-
-
-def _to_old(qs):
-    StarLayerGraph, StarLayerDataset, _, _ = _old_modules()
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        if any(not isinstance(x.graph_name, ox.DefaultGraph) for x in qs):
-            d = StarLayerDataset()
-            d.parse(data=ox.serialize(qs, format=ox.RdfFormat.TRIG).decode(), format="trig12")
-            return d
-        g = StarLayerGraph()
-        g.parse(data=ox.serialize([ox.Triple(x.subject, x.predicate, x.object) for x in qs], format=ox.RdfFormat.TURTLE).decode(), format="turtle12")
-        return g
+# ----------------------------------------------------------------------------------- verdicts against a brute-force oracle
 
 
 @given(SEEDS)
 @settings(max_examples=150, deadline=None)
-def test_isomorphism_verdicts_agree_with_the_old_code_and_the_oracle(seed):
-    _, _, old_iso, _ = _old_modules()
+def test_isomorphism_verdicts_agree_with_the_oracle(seed):
     rng = random.Random(seed)
     a = gen_dataset(rng)
     r = rng.random()
     b = relabel(a, rng) if r < 0.4 else relabel(mutate(a, rng), rng) if r < 0.85 else gen_dataset(rng)
     truth = brute_isomorphic(a, b)
     assert isomorphic(a, b) is isomorphic(a, b, basic=True) is truth
-    assert old_iso(_to_old(a), _to_old(b)) is truth
-
-
-def _repeats_a_blank_node_within_a_quad(qs):
-    for x in qs:
-        ids = [t.value for t in (x.subject, x.object, x.graph_name) if isinstance(t, B)]
-        if len(ids) != len(set(ids)):
-            return True
-    return False
-
-
-@given(SEEDS)
-@settings(max_examples=150, deadline=None)
-def test_canonical_strings_equal_the_old_code_when_no_quad_repeats_a_blank_node(seed):
-    _, _, _, old_c14n = _old_modules()
-    a = gen_dataset(random.Random(seed), triple_terms=False, directions=False, max_bnodes=5)
-    if _repeats_a_blank_node_within_a_quad(a):
-        return
-    assert old_c14n(_to_old(a)) == canonical_nquads(a, basic=False)
 
 
 def test_known_disagreement_a_blank_node_twice_in_one_quad():
-    """DISAGREEMENT (documented in docs/working/interop-and-rdfc.md). For `_:b0 p _:b2 _:b0` (b0 is subject and graph name)
-    the old rdfc.py adds the quad twice to b0's list (step 2 per component), so b0's first-degree hash differs and the
-    labels swap. Oxigraph counts the quad once (the spec's own gloss: 'the set of quads of which it is a component').
-    Hand check: sha256 of b0's first-degree line is smaller than b2's, so b0 is c14n0, which is Oxigraph's answer."""
-    _, _, _, old_c14n = _old_modules()
+    """For `_:b0 p _:b2 _:b0` (b0 is subject and graph name) Oxigraph counts the quad once in b0's list (the spec's own gloss:
+    'the set of quads of which it is a component'); the removed pure-Python rdfc.py added it twice and swapped the labels
+    (documented in docs/working/interop-and-rdfc.md). Hand check: sha256 of b0's first-degree line is smaller than b2's, so b0 is c14n0."""
     a = parse_nq("_:b0 <http://e/p> _:b2 _:b0 .\n")
     assert canonical_nquads(a, basic=False) == "_:c14n0 <http://e/p> _:c14n1 _:c14n0 .\n"
-    assert old_c14n(_to_old(a)) == "_:c14n1 <http://e/p> _:c14n0 _:c14n1 .\n"
     import hashlib
 
     h = lambda s: hashlib.sha256(s.encode()).hexdigest()  # noqa: E731

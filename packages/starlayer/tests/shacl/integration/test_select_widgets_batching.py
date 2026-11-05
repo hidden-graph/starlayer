@@ -4,12 +4,12 @@ seconds for a shape with a few dozen properties). The answers must not change, s
 one-property-at-a-time ``select_widget()`` and against the widget expected by hand."""
 
 import pytest
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
+from starlayer.shacl_engine.terms import NS
 
-EX = Namespace("http://example.org/")
+EX = NS("http://example.org/")
 
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .

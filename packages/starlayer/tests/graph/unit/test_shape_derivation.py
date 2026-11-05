@@ -1,4 +1,4 @@
-"""Tests for StarLayerGraph.derive_shape() / starlayer.graph.graph.shape_derivation.
+"""Tests for StarLayerGraph.derive_shape() / starlayer.graph.oxgraph.helpers.shapes.
 
 Two phases exercised: fresh derivation (no template - Phase A) and
 template-merge (Phase B's per-constraint-component relax table). Every
@@ -13,14 +13,13 @@ import starlayer.shacl
 from rdflib import RDF, BNode, Graph, Literal, Namespace
 from rdflib.collection import Collection
 from rdflib.namespace import RDFS
-from starlayer.graph.graph.shape_derivation import DEFAULT_IGNORED_PROPERTIES
 from starlayer.graph.model import TripleTerm
 from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.oxgraph.helpers.shapes import DEFAULT_IGNORED_PROPERTIES
 
 EX = Namespace('http://example.org/')
 # A plain Namespace, not rdflib.namespace.SH - sh:TripleTerm and SHACL 1.2's
-# list-valued sh:nodeKind aren't in rdflib's own closed term list. Matches
-# shape_derivation.py's own SH import.
+# list-valued sh:nodeKind aren't in rdflib's own closed term list.
 SH = Namespace('http://www.w3.org/ns/shacl#')
 
 
@@ -127,7 +126,7 @@ class TestFreshDerivation:
         paths = {p for prop in shape.objects(node_shape, SH.property) for p in shape.objects(prop, SH.path)}
         assert RDFS.label not in paths
         ignored_list = shape.value(node_shape, SH.ignoredProperties)
-        assert DEFAULT_IGNORED_PROPERTIES <= set(Collection(shape, ignored_list))
+        assert {p.value for p in DEFAULT_IGNORED_PROPERTIES} <= {str(x) for x in Collection(shape, ignored_list)}
 
     def test_use_default_ignored_properties_false_opt_out(self):
         g = _make_people_graph()
@@ -308,6 +307,6 @@ class TestTemplateMerge:
 def test_derive_never_imports_pyshacl_directly():
     import inspect
 
-    import starlayer.graph.graph.shape_derivation as mod
+    import starlayer.graph.oxgraph.helpers.shapes as mod
     source = inspect.getsource(mod)
     assert not re.search(r'^\s*(import pyshacl|from pyshacl)', source, re.MULTILINE)

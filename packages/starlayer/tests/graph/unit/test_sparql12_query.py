@@ -541,8 +541,8 @@ class TestQ15:
         )
 
     def test_open_scan_no_encoding_predicates(self, g):
-        from starlayer.graph.model.encoding import ENCODING_PREDS
-        encoding_preds = set(ENCODING_PREDS)
+        rdf = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#'
+        encoding_preds = {URIRef(rdf + n) for n in ('propositionFormSubject', 'propositionFormPredicate', 'propositionFormObject')}
         r = g.query('SELECT * WHERE { ?s ?p ?o }')
         p_var = 1
         leaked = [row for row in list(r) if row[p_var] in encoding_preds]
