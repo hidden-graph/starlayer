@@ -185,18 +185,13 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer import _optional
-
 
 def __getattr__(name: str) -> Any:
-    """``PROF``, the profiles vocabulary as an rdflib ``Namespace``, is built on first use: rdflib is an optional extra."""
+    """``PROF``, the profiles vocabulary as a namespace of pyoxigraph ``NamedNode`` constants (``PROF.hasResource``), is built on first use."""
     if name == "PROF":
-        from starlayer._optional import require_rdflib
+        from starlayer.shacl_engine.terms import NS
 
-        require_rdflib("starlayer.starontology.PROF (an rdflib Namespace)")
-        from rdflib import Namespace
-
-        return Namespace("http://www.w3.org/ns/dx/prof/")
+        return NS("http://www.w3.org/ns/dx/prof/")
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -684,14 +679,8 @@ _GITHUB_RAW_BASE = "https://raw.githubusercontent.com/hidden-graph/starlayer/mai
 
 
 def _resource_iri(name: str) -> Any:
-    """The resource IRI: an rdflib ``URIRef`` when rdflib is installed (what the profiles graph's callers compare it with), else a
-    pyoxigraph ``NamedNode``."""
-    iri = _GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name]
-    if _optional.have_rdflib():
-        from rdflib import URIRef
-
-        return URIRef(iri)
-    return ox.NamedNode(iri)
+    """The resource IRI as a pyoxigraph ``NamedNode``."""
+    return ox.NamedNode(_GITHUB_BLOB_BASE + _FILENAME_BY_NAME[name])
 
 
 def _raw_filename(name: str) -> str | None:
@@ -701,7 +690,7 @@ def _raw_filename(name: str) -> str | None:
 
 
 def get_resource_iri(name: str) -> Any:
-    """The stable resource IRI ``get_conformance_profiles()`` uses to
+    """The stable resource IRI (a pyoxigraph ``NamedNode``, whatever is installed) ``get_conformance_profiles()`` uses to
     identify ``name``'s own registered file as a ``prof:isProfileOf``
     subject (a GitHub blob URL - see ``_GITHUB_BLOB_BASE``'s own
     neighboring comment for the convention). Returns ``None`` for an
