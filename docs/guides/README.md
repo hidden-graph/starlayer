@@ -31,7 +31,7 @@ This is the single master index for every guide notebook - every notebook's own 
    - **5.d [The SHACL library registry](05d-shacl-library-registry.ipynb)** - loading the bundled ontologies and shapes by name, validating data against them, the StarLayer profiles that tie each shapes graph to its specification, and fetching each file directly from GitHub.
 6. **Other**
    - **6.a [Serialization formats](06a-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
-   - **6.b [Choosing where your data lives](06b-backend-graph-databases.ipynb)** - remote SPARQL endpoints, SQLAlchemy-backed storage, and embedded Oxigraph - Transport and Persistence, independent of the RDF 1.1/1.2 representation.
+   - **6.b [Choosing where your data lives](06b-backend-graph-databases.ipynb)** - an on-disk Oxigraph store, and reading a remote SPARQL endpoint from a query with `SERVICE`.
    - **6.c [Canonical hashing and graph comparison](06c-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
 
 ## Appendices

@@ -88,8 +88,8 @@ def _no_backend(backend: Any) -> None:
     if backend is not None:
         raise TypeError(
             f"backend={backend!r} is not an option of the Oxigraph wrapper: it is always an Oxigraph store speaking RDF 1.2. "
-            "Choose the storage with store= (a pyoxigraph.Store) or path= (an on-disk store); for a remote SPARQL endpoint use "
-            "the HTTP functions of starlayer.graph.backends.native (http_select, http_update, ...)"
+            "Choose the storage with store= (a pyoxigraph.Store) or path= (an on-disk store); a remote SPARQL endpoint "
+            "can be read from a query with SERVICE"
         )
 
 

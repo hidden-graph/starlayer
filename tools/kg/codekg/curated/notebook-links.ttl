@@ -286,11 +286,11 @@ nl:04a-6d36cd11 a slkg:NotebookExample ;
 nl:06b-252791c5 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06b-backend-graph-databases.ipynb" ;
     slkg:cellId "252791c5" ;
-    slkg:cellHash "0285d0e4eebe2756" ;
+    slkg:cellHash "aa0c78883712c3ee" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
-    rdfs:comment "Writes a reification into a StarLayerGraph and round-trips it through a SPARQL endpoint (uses the deleted backends.native; guide needs a rewrite)." ;
+    rdfs:comment "Runs a query with a SERVICE block against a remote SPARQL endpoint on a StarLayerGraph; skips when the endpoint is unreachable." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core.StarLayerGraph" .
+        "starlayer.graph.oxgraph.core._Base.query" .
 
 nl:03-b337c254 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
