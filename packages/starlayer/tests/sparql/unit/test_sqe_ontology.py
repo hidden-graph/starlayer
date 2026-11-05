@@ -22,7 +22,7 @@ elsewhere in this package:
 
 import pyoxigraph as ox
 import pytest
-from rdflib import RDF, Literal, URIRef
+from rdflib import RDF, Literal
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql.sqe import (
@@ -157,13 +157,13 @@ class TestRootParameter:
         assert isinstance(root, ox.BlankNode)
 
     def test_accepts_a_real_uriref(self):
-        my_iri = URIRef("urn:test:query1")
+        my_iri = ox.NamedNode("urn:test:query1")
         graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
         assert root == ox.NamedNode("urn:test:query1")
         assert (my_iri, RDF.type, QUERY) in graph
 
     def test_named_root_round_trips_through_query_and_text(self):
-        my_iri = URIRef("urn:test:query1")
+        my_iri = ox.NamedNode("urn:test:query1")
         graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
 
         reconstructed = sqe_tree_to_query(graph, root)
@@ -176,7 +176,7 @@ class TestRootParameter:
         """The real motivating case: a bare `?s a sqe:Query` lookup can't
         tell two accumulated queries apart, but each one's own given IRI
         can."""
-        iri1, iri2 = URIRef("urn:test:q1"), URIRef("urn:test:q2")
+        iri1, iri2 = ox.NamedNode("urn:test:q1"), ox.NamedNode("urn:test:q2")
         graph, root1 = sqe_parse_to_tree(self.QUERY_TEXT, root=iri1)
         graph, root2 = sqe_parse_to_tree(
             "SELECT ?s WHERE { ?s a <http://example.org/Other> }", graph=graph, root=iri2

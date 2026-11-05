@@ -18,7 +18,7 @@ from rdflib.namespace import RDF
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql import queries_to_collection, rdf_to_collection
-from starlayer.sparql.vocab import QUERY_COLLECTION
+from starlayer.sparql._vocab_rdflib import QUERY_COLLECTION
 from tests.sparql.unit.test_roundtrip import QUERIES, _canon
 
 
@@ -56,7 +56,7 @@ def test_collection_root_is_typed_and_distinct_from_member_queries():
     # The collection root itself must not also be typed salg:Query — it's a
     # container, not a query (mirrors salg:Update's own root, which is
     # likewise never typed as any individual operation).
-    from starlayer.sparql.vocab import QUERY
+    from starlayer.sparql._vocab_rdflib import QUERY
 
     assert (root, RDF.type, QUERY) not in graph
 

@@ -13,16 +13,19 @@ Three gates:
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
-from rdflib import RDF, XSD, Literal, URIRef, Variable
+from starlayer.sparql._oxterms import RDF, XSD
 from starlayer.sparql.parse_sparql import (
     Node,
     SparqlSyntaxError,
+    ast_to_triples,
     parse_sparql,
     sparql_to_tree,
     tokenize,
 )
 from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
+from starlayer.sparql.sqe._memtree import TreeIndex
 from tests.sparql.parse_sparql_support import (
     canonical_graph,
     entry_key,
@@ -82,7 +85,7 @@ def test_w3c_suites_are_not_empty():
 @pytest.mark.skipif(not _POSITIVE, reason="W3C SPARQL 1.2 test data not fetched")
 @pytest.mark.parametrize("entry", _POSITIVE, ids=entry_key)
 def test_tree_text_fixpoint(entry):
-    from rdflib.compare import isomorphic
+    from starlayer.graph import isomorphic
 
     tree = sparql_to_tree(entry.read(entry.query_file))
     again = sparql_to_tree(sqe_tree_to_text(*tree))
@@ -92,7 +95,7 @@ def test_tree_text_fixpoint(entry):
 @pytest.mark.skipif(not _POSITIVE11, reason="W3C SPARQL 1.1 test data not fetched")
 @pytest.mark.parametrize("entry", _POSITIVE11, ids=lambda e: e.key)
 def test_w3c11_tree_text_fixpoint(entry):
-    from rdflib.compare import isomorphic
+    from starlayer.graph import isomorphic
 
     tree = sparql_to_tree(entry.read())
     again = sparql_to_tree(sqe_tree_to_text(*tree))
@@ -126,6 +129,12 @@ def test_every_positive_tree_validates_against_the_sqe_shapes(key, text):
 # ---------------------------------------------------------------------------
 
 P = "PREFIX : <http://e/>\n"
+
+URIRef, Variable = ox.NamedNode, ox.Variable
+
+
+def Literal(value):  # noqa: N802 - a plain string or an integer, as the parser makes them
+    return ox.Literal(str(value), datatype=XSD.integer) if isinstance(value, int) else ox.Literal(value)
 
 
 def test_tokenizer_positions_and_kinds():
@@ -164,7 +173,7 @@ def test_annotation_and_reifier_expand_to_rdf_reifies():
     triples = [(t["s"], t["p"]) for t in q["where"]]
     assert triples == [
         (Variable("s"), URIRef("http://e/p")),
-        (URIRef("http://e/r"), RDF.reifies if hasattr(RDF, "reifies") else URIRef(str(RDF) + "reifies")),
+        (URIRef("http://e/r"), RDF.reifies),
         (URIRef("http://e/r"), URIRef("http://e/a")),
     ]
     assert isinstance(q["where"][1]["o"], Node) and q["where"][1]["o"].kind == "TripleTerm"
@@ -235,7 +244,7 @@ def _round_trip(text: str) -> str:
     tree = sparql_to_tree(text)
     assert sqe_validate(tree[0])[0]
     rendered = sqe_tree_to_text(*tree)
-    from rdflib.compare import isomorphic
+    from starlayer.graph import isomorphic
 
     again = sparql_to_tree(rendered)
     assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
@@ -259,7 +268,7 @@ def test_dataset_clauses_describe_service_and_version_are_in_the_tree():
     from starlayer.sparql.sqe import SQE
 
     assert (root, RDF.type, SQE.DescribeQuery) in g and (root, RDF.type, SQE.Query) in g
-    assert [str(o) for o in g.objects(root, SQE.version)] == ["1.2"]
+    assert [o.value for o in g.objects(root, SQE.version)] == ["1.2"]
 
 
 @pytest.mark.parametrize(
@@ -315,18 +324,19 @@ def test_existing_trees_are_unchanged_by_the_vocabulary_additions():
 def test_numeric_literals_keep_their_lexical_form(literal, lexical, datatype):
     q = parse_sparql(f"SELECT * {{ ?s ?p {literal} }}")
     o = q["where"][0]["o"]
-    assert str(o) == lexical and o.datatype == datatype
-    rendered = sqe_tree_to_text(*sparql_to_tree(f"SELECT * {{ ?s ?p {literal} }}"))
-    assert lexical in rendered
+    assert o.value == lexical and o.datatype == datatype
+    # the text keeps the lexical form when the tree never goes through a store (Oxigraph rewrites "007"^^xsd:integer to "7")
+    triples, root = ast_to_triples(parse_sparql(f"SELECT * {{ ?s ?p {literal} }}"))
+    assert lexical in sqe_tree_to_text(TreeIndex(triples), root)
 
 
 def test_typed_and_boolean_literals_keep_their_lexical_form():
     q = parse_sparql(
         'SELECT * { ?s ?p "2001-01-01T00:00:00Z"^^<http://www.w3.org/2001/XMLSchema#dateTime> , "01"^^<http://www.w3.org/2001/XMLSchema#integer> , true }'
     )
-    assert [str(t["o"]) for t in q["where"]] == ["2001-01-01T00:00:00Z", "01", "true"]
+    assert [t["o"].value for t in q["where"]] == ["2001-01-01T00:00:00Z", "01", "true"]
     q = parse_sparql("SELECT * { ?s ?p ?o } LIMIT 010 OFFSET 00")
-    assert (str(q["limit"]), str(q["offset"])) == ("010", "00")
+    assert (q["limit"].value, q["offset"].value) == ("010", "00")
 
 
 @pytest.mark.parametrize(

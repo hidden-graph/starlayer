@@ -12,9 +12,10 @@ Gates, mirroring the query ones in ``test_parse_sparql.py``:
 
 from __future__ import annotations
 
+import pyoxigraph as ox
 import pytest
-from rdflib import RDF, Literal, URIRef
-from rdflib.compare import isomorphic
+from starlayer.graph import isomorphic
+from starlayer.sparql._oxterms import RDF
 from starlayer.sparql.parse_sparql import (
     Node,
     SparqlSyntaxError,
@@ -239,7 +240,7 @@ def test_ast_of_a_request():
     )
     assert u.kind == "UpdateRequest" and [o.kind for o in u["operations"]] == ["Modify", "Clear"]
     m, c = u["operations"]
-    assert m["with_"] == URIRef("http://e/g") and m["using"] == [(True, URIRef("http://e/n"))]
+    assert m["with_"] == ox.NamedNode("http://e/g") and m["using"] == [(True, ox.NamedNode("http://e/n"))]
     assert c["silent"] is True and c["target"].kind == "NamedGraphs"
     assert isinstance(m["delete"][0], Node) and m["prologue"] == [("prefix", "", "http://e/")] and c["prologue"] == []
 
@@ -247,11 +248,10 @@ def test_ast_of_a_request():
 def test_tree_of_a_request_is_typed_and_ordered():
     g, root = sparql_update_to_tree(P + "INSERT DATA { :s :p :o GRAPH :g { :a :b :c } } ; DROP ALL")
     assert (root, RDF.type, SQE.UpdateRequest) in g
-    from rdflib.collection import Collection
 
-    ops = list(Collection(g, g.value(root, SQE.operations)))
+    ops = list(g.items(g.value(root, SQE.operations)))
     assert [g.value(o, RDF.type) for o in ops] == [SQE.InsertData, SQE.Drop]
-    quads = list(Collection(g, g.value(ops[0], SQE.quads)))
+    quads = list(g.items(g.value(ops[0], SQE.quads)))
     assert (quads[0], RDF.type, SQE.TriplePattern) in g and (quads[1], RDF.type, SQE.QuadGraph) in g
     assert (g.value(ops[1], SQE.target), RDF.type, SQE.AllGraphs) in g
 
@@ -275,6 +275,11 @@ def test_text_of_a_request_is_valid_update_text():
 # ---------------------------------------------------------------------------
 
 
+def _set(g, subject, predicate, value):
+    g.remove((subject, predicate, None))
+    g.add((subject, predicate, value))
+
+
 def _mutate(text: str, edit):
     g, root = sparql_update_to_tree(text)
     edit(g, root)
@@ -282,9 +287,8 @@ def _mutate(text: str, edit):
 
 
 def _first_op(g, root):
-    from rdflib.collection import Collection
 
-    return next(iter(Collection(g, g.value(root, SQE.operations))))
+    return next(iter(g.items(g.value(root, SQE.operations))))
 
 
 def test_shapes_accept_the_untouched_trees():
@@ -293,32 +297,29 @@ def test_shapes_accept_the_untouched_trees():
 
 def test_shapes_reject_a_variable_in_insert_data():
     def edit(g, root):
-        from rdflib.collection import Collection
         from starlayer.sparql.vocab import VARIABLE_DATATYPE
 
-        pat = next(iter(Collection(g, g.value(_first_op(g, root), SQE.quads))))
-        g.set((pat, SQE.object, Literal("o", datatype=VARIABLE_DATATYPE)))
+        pat = next(iter(g.items(g.value(_first_op(g, root), SQE.quads))))
+        _set(g, pat, SQE.object, ox.Literal("o", datatype=VARIABLE_DATATYPE))
 
     assert not _mutate(P + "INSERT DATA { :s :p :o }", edit)
 
 
 def test_shapes_reject_a_blank_node_in_delete_data_and_in_delete_template():
-    from rdflib import BNode
-    from rdflib.collection import Collection
 
     def edit_data(g, root):
-        pat = next(iter(Collection(g, g.value(_first_op(g, root), SQE.quads))))
-        g.set((pat, SQE.subject, BNode()))
+        pat = next(iter(g.items(g.value(_first_op(g, root), SQE.quads))))
+        _set(g, pat, SQE.subject, ox.BlankNode())
 
     def edit_template(g, root):
-        pat = next(iter(Collection(g, g.value(_first_op(g, root), SQE.delete))))
-        g.set((pat, SQE.object, BNode()))
+        pat = next(iter(g.items(g.value(_first_op(g, root), SQE.delete))))
+        _set(g, pat, SQE.object, ox.BlankNode())
 
     assert not _mutate(P + "DELETE DATA { :s :p :o }", edit_data)
     assert not _mutate(P + "DELETE { ?s :p ?o } WHERE { ?s :p ?o }", edit_template)
     # the same edit is fine in an INSERT template
-    assert _mutate(P + "INSERT { ?s :p ?o } WHERE { ?s :p ?o }", lambda g, r: g.set(
-        (next(iter(Collection(g, g.value(_first_op(g, r), SQE.insert)))), SQE.object, BNode())))
+    assert _mutate(P + "INSERT { ?s :p ?o } WHERE { ?s :p ?o }", lambda g, r: _set(
+        g, next(iter(g.items(g.value(_first_op(g, r), SQE.insert)))), SQE.object, ox.BlankNode()))
 
 
 def _target(g, r, p=None):
@@ -332,9 +333,8 @@ def _retype(g, node, old, new):
 
 
 def _drop_quad_graph_name(g, r):
-    from rdflib.collection import Collection
 
-    qg = next(iter(Collection(g, g.value(_first_op(g, r), SQE.quads))))
+    qg = next(iter(g.items(g.value(_first_op(g, r), SQE.quads))))
     g.remove((qg, SQE.graphName, None))
 
 
@@ -357,7 +357,7 @@ MALFORMED = {
         P + "DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }", lambda g, r: g.remove((_first_op(g, r), SQE.where, None))
     ),
     "a load without a source": (P + "LOAD <a>", lambda g, r: g.remove((_first_op(g, r), SQE.loadFrom, None))),
-    "a non-boolean silent": (P + "LOAD <a>", lambda g, r: g.set((_first_op(g, r), SQE.silent, Literal("yes")))),
+    "a non-boolean silent": (P + "LOAD <a>", lambda g, r: _set(g, _first_op(g, r), SQE.silent, ox.Literal("yes"))),
     "a quad graph without a name": (P + "INSERT DATA { GRAPH :g { :a :b :c } }", _drop_quad_graph_name),
 }
 
