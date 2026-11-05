@@ -82,9 +82,7 @@ cur:cap-rdf-graph-6 a slkg:Capability ;
     slkg:appRole "interchange" ;
     slkg:implementsSpecification tr:rdf12-concepts ;
     rdfs:comment "RDF-1.2-aware graph isomorphism and comparison." ;
-    slkg:implementedByIdentifier 
-        "starlayer.graph.compare.graph_diff",
-        "starlayer.graph.compare.isomorphic" .
+    slkg:implementedByIdentifier "starlayer.graph.compare.isomorphic" .
 
 cur:cap-rdf-graph-7 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
