@@ -1,4 +1,4 @@
-"""``starlayer-kg.trig``: the whole KG in one TriG file that an agent loads with OxDataset and queries.
+"""``starlayer-kg.trig``: the whole KG in one TriG file that an agent loads with StarLayerDataset and queries.
 
 The comparison tests are the point: queries read out of the graph and run with ``kg.query`` must give the answers
 StarLayer's own query tool gives. Only StarLayer's classes are used here, never rdflib directly.
@@ -18,14 +18,14 @@ from codekg import (
     queries,
 )
 from rdflib import RDF, BNode, Literal, URIRef
-from starlayer.graph.oxgraph import OxDataset
+from starlayer.graph.oxgraph import StarLayerDataset
 
 # ---------------------------------------------------------------------------
 # the comparison helper (no KG needed)
 
 
-def _dataset(*graphs: tuple[str, list[tuple]]) -> OxDataset:
-    ds = OxDataset()
+def _dataset(*graphs: tuple[str, list[tuple]]) -> StarLayerDataset:
+    ds = StarLayerDataset()
     for name, triples in graphs:
         g = ds.graph(URIRef(name))
         for t in triples:
@@ -55,9 +55,9 @@ def test_the_comparison_treats_renamed_blank_nodes_as_the_same():
 
 
 @pytest.fixture(scope="module")
-def kg(built_kg_files) -> OxDataset:
+def kg(built_kg_files) -> StarLayerDataset:
     """Loaded the way an agent would: into memory, with the graphs seen as one."""
-    dataset = OxDataset(default_union=True)
+    dataset = StarLayerDataset(default_union=True)
     dataset.parse(str(KG_TRIG_PATH), format="trig12")
     return dataset
 

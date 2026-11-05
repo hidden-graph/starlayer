@@ -5,7 +5,7 @@ one-property-at-a-time ``select_widget()`` and against the widget expected by ha
 
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
 
@@ -61,7 +61,7 @@ EXPECTED = {
 
 @pytest.fixture(scope="module")
 def graphs():
-    shapes, catalog = OxGraph(), OxGraph()
+    shapes, catalog = StarLayerGraph(), StarLayerGraph()
     shapes.parse(data=SHAPES, format="turtle12")
     catalog.parse(data=CATALOG, format="turtle12")
     return shapes, catalog
@@ -109,7 +109,7 @@ def test_a_wrong_batch_answer_would_be_noticed(graphs, monkeypatch):
 
 def test_a_data_matcher_with_a_focus_node_still_works(graphs):
     shapes, catalog = graphs
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:age 3 .", format="turtle12")
     result = select_widgets(
         shape_node=EX.S, focus_node=EX.alice, data_graph=data, shapes_graph=shapes, scoring_graph=catalog, role="editor"

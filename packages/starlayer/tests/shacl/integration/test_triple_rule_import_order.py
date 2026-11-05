@@ -13,14 +13,14 @@ SCRIPT = textwrap.dedent(
     import warnings; warnings.simplefilter('ignore')
     from rdflib import URIRef
     from starlayer.shacl_engine.terms import iri_text
-    from starlayer.graph.oxgraph import OxGraph
+    from starlayer.graph.oxgraph import StarLayerGraph
     from starlayer.shacl import StarShaclSchema
     P = '@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . '
-    s = OxGraph()
+    s = StarLayerGraph()
     s.parse(data=P + 'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule ex:RA, ex:RB . ex:RuleSetA a sh:RuleSet ; sh:hasRule ex:RA . '
             'ex:RA a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ta ; sh:object 1 . '
             'ex:RB a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:tb ; sh:object 1 .', format='turtle12')
-    d = OxGraph()
+    d = StarLayerGraph()
     d.parse(data=P + 'ex:a ex:z 0 .', format='turtle12')
     r = StarShaclSchema(shacl_graph=s).apply_rules(
         data_graph=d, meta_shacl=False, rule_set=URIRef('http://ex/RuleSetA'), include_source_rule_provenance=True)

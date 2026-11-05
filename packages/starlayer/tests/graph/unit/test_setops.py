@@ -8,7 +8,7 @@ import pyoxigraph as ox
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
 from starlayer.graph import setops
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 union, intersection, difference, symmetric_difference = (
     getattr(setops, n) for n in ("union", "intersection", "difference", "symmetric_difference")
@@ -47,7 +47,7 @@ def _subjects(g) -> set[str]:
 
 @pytest.fixture(params=["rdflib", "starlayer", "oxigraph"])
 def make(request):
-    return {"rdflib": lambda *n: _triples(*n), "starlayer": lambda *n: _triples(*n, cls=OxGraph), "oxigraph": _ox}[
+    return {"rdflib": lambda *n: _triples(*n), "starlayer": lambda *n: _triples(*n, cls=StarLayerGraph), "oxigraph": _ox}[
         request.param
     ]
 
@@ -114,8 +114,8 @@ def test_blank_nodes_compare_by_label_not_by_isomorphism() -> None:
 
 
 def test_triple_terms_compare_by_structure() -> None:
-    def tt(o: str) -> OxGraph:
-        g = OxGraph()
+    def tt(o: str) -> StarLayerGraph:
+        g = StarLayerGraph()
         g.add((_u("r"), URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"), TripleTerm(ox.NamedNode(E + "s"), ox.NamedNode(E + "p"), ox.NamedNode(E + o))))
         return g
 
@@ -134,8 +134,8 @@ def test_triple_terms_compare_by_structure() -> None:
 
 
 def test_datasets_compare_quads_with_their_graph_names() -> None:
-    def ds(*graphs: str) -> OxDataset:
-        d = OxDataset()
+    def ds(*graphs: str) -> StarLayerDataset:
+        d = StarLayerDataset()
         for g in graphs:
             d.graph(_u(g)).add((_u("s"), _u("p"), Literal("x")))
         return d

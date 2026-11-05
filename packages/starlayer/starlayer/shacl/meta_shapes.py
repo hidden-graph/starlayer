@@ -52,7 +52,7 @@ _SPARQL_STRUCTURE_CACHE: OrderedDict[tuple, tuple] = OrderedDict()
 
 
 def parameter_value_shapes(shapes_graph: Any) -> Any:
-    """Shapes that check what a shapes graph gives for the parameters of its constraint components, as an ``OxGraph``.
+    """Shapes that check what a shapes graph gives for the parameters of its constraint components, as an ``StarLayerGraph``.
 
     SPARQL Extensions 4.2.1: "Shapes that do not conform with the constraints declared for the parameters are ill-formed." A parameter
     of a ``sh:ConstraintComponent`` is a property shape (``sh:datatype``, ``sh:nodeKind``, ``sh:class``, ``sh:in``, ...) for the values a
@@ -176,7 +176,7 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
     file with a fresh build and fails on drift.
 
     The file is parsed once per process by ``starontology`` and cached there;
-    each call returns a fresh ``OxGraph`` copy, so ``extra_graphs`` can be added (plain
+    each call returns a fresh ``StarLayerGraph`` copy, so ``extra_graphs`` can be added (plain
     triple addition) without affecting later calls.
     """
     # Lazy: starontology must finish importing before this module reads it.
@@ -200,7 +200,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     against the SHACL Shapes SHACL (MetaSHACL) file.") when the shapes graph does not conform. A warning-severity meta-shape is
     advice: it appears in the report but does not make the graph invalid (``allow_warnings=True``; pass ``allow_warnings=False`` to
     count warnings, ``allow_infos=True`` to tolerate infos only). ``extra_graphs`` are added to the meta-shapes. The report is
-    an ``OxGraph``."""
+    an ``StarLayerGraph``."""
     from starlayer.shacl_engine.meta import meta_validate as engine_meta_validate
 
     result = engine_meta_validate(

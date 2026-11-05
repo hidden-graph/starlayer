@@ -1,5 +1,5 @@
 """
-Integration tests for OxGraph.query() with SPARQL 1.2 triple-term syntax.
+Integration tests for StarLayerGraph.query() with SPARQL 1.2 triple-term syntax.
 
 Each test class corresponds to one query example from sparql12_design.md.
 The shared dataset matches the one defined at the top of that document.
@@ -7,9 +7,9 @@ The shared dataset matches the one defined at the top of that document.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
-# OxGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
+# StarLayerGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
 URIRef = ox.NamedNode
 TripleTerm = ox.Triple
 
@@ -40,7 +40,7 @@ DATASET = """
 
 @pytest.fixture
 def g():
-    sg = OxGraph()
+    sg = StarLayerGraph()
     sg.parse(data=DATASET, format='turtle12')
     return sg
 
@@ -378,7 +378,7 @@ class TestQ11:
 
 
 # ---------------------------------------------------------------------------
-# Q12 — CONSTRUCT returns a OxGraph
+# Q12 — CONSTRUCT returns a StarLayerGraph
 # ---------------------------------------------------------------------------
 
 class TestQ12:
@@ -392,7 +392,7 @@ class TestQ12:
               ?stmt :confidence ?conf .
             }
         """)
-        assert isinstance(r.graph, OxGraph)
+        assert isinstance(r.graph, StarLayerGraph)
 
     def test_construct_always_starlayer_graph_no_tt(self, g):
         r = g.query("""
@@ -400,7 +400,7 @@ class TestQ12:
             CONSTRUCT { :a :b :c . }
             WHERE { :alice :says ?tt . }
         """)
-        assert isinstance(r.graph, OxGraph)
+        assert isinstance(r.graph, StarLayerGraph)
 
     def test_construct_plain_triple_content(self, g):
         r = g.query("""
@@ -494,7 +494,7 @@ class TestQ14:
               FILTER(?attr != rdf:reifies)
             }
         """)
-        assert isinstance(r.graph, OxGraph)
+        assert isinstance(r.graph, StarLayerGraph)
         RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
         reifies_triples = list(r.graph.triples((None, RDF_REIFIES, None)))
         assert len(reifies_triples) >= 1, "CONSTRUCT result must contain rdf:reifies triple"
@@ -592,7 +592,7 @@ class TestQ17:
         # injected BIND must come after those WHERE patterns so ?z is already
         # bound when it evaluates - this is the same rule-construction shape a
         # SHACL-AF sh:construct rule uses to reify a freshly-derived fact.
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data="""
             @prefix : <http://example.org/> .
             :a :reach :b .
@@ -728,7 +728,7 @@ class TestQ20:
 
 class TestQ21:
     def test_ground_triple_constructed_on_empty_graph_has_no_side_effects(self):
-        empty = OxGraph()
+        empty = StarLayerGraph()
         assert len(empty) == 0
         r = empty.query("""
             PREFIX :   <http://example.org/>
@@ -742,7 +742,7 @@ class TestQ21:
         assert list(empty.triple_terms()) == []
 
     def test_ground_triple_pattern_matching_still_requires_registration(self):
-        empty = OxGraph()
+        empty = StarLayerGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -766,7 +766,7 @@ class TestQ21:
         assert _uris(list(r2), 0) == {URIRef(EX + 'stmt1')}
 
     def test_nested_ground_triple_restores_correctly_without_registration(self):
-        empty = OxGraph()
+        empty = StarLayerGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT (TRIPLE(:alice, :believes, TRIPLE(:bob, :knows, :carol)) AS ?t) WHERE {}
@@ -783,7 +783,7 @@ class TestQ21:
         # matching semantics (no match on an empty graph) rather than the new
         # ground-value BIND path. Uses the dataset's own << >> (no-parens,
         # reification-shorthand) encoding of :verifiedBy - see TestQ2.
-        empty = OxGraph()
+        empty = StarLayerGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT ?s WHERE {
@@ -801,7 +801,7 @@ class TestQ21:
         assert _uris(list(r2), 0) == {URIRef(EX + 'bob')}
 
     def test_is_triple_of_unregistered_ground_value(self):
-        empty = OxGraph()
+        empty = StarLayerGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT (isTRIPLE(TRIPLE(:bob, :knows, :carol)) AS ?v) WHERE {}
@@ -813,7 +813,7 @@ class TestQ21:
         # CONSTRUCT-template minting (a *new* triple term written by the
         # query) is a distinct code path from ground-value construction in a
         # SELECT/ASK/BIND context, and must keep working unchanged.
-        empty = OxGraph()
+        empty = StarLayerGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -863,7 +863,7 @@ class TestQ22:
         # a legal RDF 1.2 term (see starlayer.sparql/triple_term.py's
         # InvalidTripleTermError docstring for the full investigation,
         # confirmed via a live Oxigraph rejecting exactly this shape).
-        empty = OxGraph()
+        empty = StarLayerGraph()
         r = empty.query("""
             PREFIX :   <http://example.org/>
             SELECT (OBJECT(<<( :p :q <<( :bob :knows :carol )>> )>>) AS ?o) WHERE {}

@@ -1,6 +1,6 @@
 """Isolated regression cases for a specific, narrow class of bug: the
 *original* W3C SPARQL 1.2 query text for these 6 fixtures already passes
-cleanly against OxGraph's in-memory backend (see
+cleanly against StarLayerGraph's in-memory backend (see
 test_w3c_sparql12_eval.py's own test_eval_select_original_query/
 test_eval_construct_original_query for those same 6 IDs) - but the
 *algebra-regenerated* text the downstream starlayer.sparql project's own
@@ -33,7 +33,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 from .harness import bindings_match
 
@@ -205,10 +205,10 @@ CONSTRUCT_CASES = [
 ]
 
 
-def _new_graph(data_format: str | None) -> OxGraph | OxDataset:
+def _new_graph(data_format: str | None) -> StarLayerGraph | StarLayerDataset:
     if data_format in ("trig12", "nq12"):
-        return OxDataset()
-    return OxGraph()
+        return StarLayerDataset()
+    return StarLayerGraph()
 
 
 @pytest.mark.parametrize("name,data,fmt,original,regenerated", SELECT_CASES, ids=[c[0] for c in SELECT_CASES])

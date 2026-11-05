@@ -158,7 +158,7 @@ def validate(
     cache_key = (id(shapes_graph), shapes_graph_resource) if plan_cache is not None and shapes_graph is not None else None
     if plan is None and cache_key is not None:
         plan = plan_cache.get(cache_key)
-    # the term-model boundary: an rdflib / StarLayerGraph input becomes an OxGraph copy; engine terms inside
+    # the term-model boundary: an rdflib / StarLayerGraph input becomes an StarLayerGraph copy; engine terms inside
     original_data = data_graph
     data_graph = engine_view(data_graph, "data graph")
     shapes = engine_view(shapes_graph, "shapes graph")

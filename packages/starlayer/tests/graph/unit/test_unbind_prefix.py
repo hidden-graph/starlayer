@@ -3,14 +3,14 @@
 import warnings
 
 import pyoxigraph as ox
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 warnings.simplefilter("ignore")
 E = lambda n: ox.NamedNode("http://e/" + n)  # noqa: E731
 
 
 def _graph():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.bind("ex", "http://e/")
     g.add((E("a"), E("p"), E("b")))
     return g
@@ -52,7 +52,7 @@ def test_unknown_prefix_is_a_noop():
 
 
 def test_a_dataset_unbind_reaches_every_graph_handle():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.bind("ex", "http://e/")
     handle = ds.graph(ox.NamedNode("http://g"))
     assert "ex" in dict(handle.namespaces())

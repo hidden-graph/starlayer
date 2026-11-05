@@ -1,6 +1,6 @@
 """Gaps found by the B1 classification (``docs/working/b1-classification.md``, branch ``mig-b1-gaps``): pickle and deepcopy,
 ``from_rdflib`` / ``to_rdflib``, the ``VERSION`` line on write, the basic encoding on a plain ``turtle`` parse, exception types
-and the SHACL report. Each is a property of ``OxGraph`` / ``OxDataset`` alone."""
+and the SHACL report. Each is a property of ``StarLayerGraph`` / ``StarLayerDataset`` alone."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import pickle
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import interop
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 EX = "http://example.org/"
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -29,15 +29,15 @@ GRAPH :g2 {{ :c :p :d }}
 """
 
 
-def _graph() -> OxGraph:
-    g = OxGraph()
+def _graph() -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=DOC12, format="turtle")
     g.bind("ex", EX)
     return g
 
 
-def _dataset(union: bool = True) -> OxDataset:
-    d = OxDataset(default_union=union)
+def _dataset(union: bool = True) -> StarLayerDataset:
+    d = StarLayerDataset(default_union=union)
     d.parse(data=TRIG12, format="trig")
     d.store.add_graph(ox.NamedNode(EX + "empty"))
     d.bind("ex", EX)
@@ -45,7 +45,7 @@ def _dataset(union: bool = True) -> OxDataset:
 
 
 def _quads(x) -> set:
-    return set(x.store) if isinstance(x, OxDataset) else set(x.quads())
+    return set(x.store) if isinstance(x, StarLayerDataset) else set(x.quads())
 
 
 # ---- O2: pickle, copy.copy, copy.deepcopy -----------------------------------------------------------------------------------
@@ -57,7 +57,7 @@ class TestRoundTrip:
     def test_graph_with_triple_term_and_prefixes(self, clone):
         g = _graph()
         c = clone(g)
-        assert isinstance(c, OxGraph) and c is not g and c.store is not g.store
+        assert isinstance(c, StarLayerGraph) and c is not g and c.store is not g.store
         assert _quads(c) == _quads(g)
         assert any(isinstance(o, ox.Triple) for _, _, o in c.triples())
         assert c.prefixes == g.prefixes and c.prefixes is not g.prefixes
@@ -88,7 +88,7 @@ class TestRoundTrip:
     def test_dataset(self, clone, union):
         d = _dataset(union)
         c = clone(d)
-        assert isinstance(c, OxDataset) and c.store is not d.store
+        assert isinstance(c, StarLayerDataset) and c.store is not d.store
         assert _quads(c) == _quads(d)
         assert set(c.store.named_graphs()) == set(d.store.named_graphs())
         assert ox.NamedNode(EX + "empty") in set(c.store.named_graphs())  # an empty named graph has no quad
@@ -114,25 +114,25 @@ def test_pickle_protocols_and_nested_use():
     for proto in range(2, pickle.HIGHEST_PROTOCOL + 1):
         assert _quads(pickle.loads(pickle.dumps(d, protocol=proto))) == _quads(d)
     both = pickle.loads(pickle.dumps({"g": _graph(), "d": d}))  # inside another structure, with shared members
-    assert isinstance(both["g"], OxGraph) and isinstance(both["d"], OxDataset)
+    assert isinstance(both["g"], StarLayerGraph) and isinstance(both["d"], StarLayerDataset)
 
 
 def test_deepcopy_of_a_graph_opened_with_a_path_is_an_in_memory_copy(tmp_path):
-    g = OxGraph(path=tmp_path / "db")
+    g = StarLayerGraph(path=tmp_path / "db")
     g.parse(data=DOC12, format="turtle")
     c = copy.deepcopy(g)
     assert c._path is None and _quads(c) == _quads(g)
-    ds = OxDataset(path=tmp_path / "db2")
+    ds = StarLayerDataset(path=tmp_path / "db2")
     ds.parse(data=TRIG12, format="trig")
     assert _quads(copy.copy(ds)) == _quads(ds) and copy.copy(ds)._path is None
 
 
 def test_pickle_of_a_graph_opened_with_a_path_is_refused(tmp_path):
-    for obj in (OxGraph(path=tmp_path / "a"), OxDataset(path=tmp_path / "b")):
+    for obj in (StarLayerGraph(path=tmp_path / "a"), StarLayerDataset(path=tmp_path / "b")):
         with pytest.raises(TypeError, match="on-disk store.*\\.copy\\(\\)"):
             pickle.dumps(obj)
     # the refusal does not damage the object, and its .copy() pickles
-    g = OxGraph(path=tmp_path / "c")
+    g = StarLayerGraph(path=tmp_path / "c")
     g.parse(data=DOC12, format="turtle")
     with pytest.raises(TypeError):
         pickle.dumps(g)
@@ -156,8 +156,8 @@ class TestFromRdflib:
         r.bind("ex", EX)
         r.add((URIRef(EX + "a"), URIRef(EX + "p"), Literal("v", lang="en")))
         r.add((URIRef(EX + "a"), URIRef(EX + "q"), Literal(5)))
-        g = OxGraph.from_rdflib(r)
-        assert isinstance(g, OxGraph) and len(g) == 2
+        g = StarLayerGraph.from_rdflib(r)
+        assert isinstance(g, StarLayerGraph) and len(g) == 2
         assert g.prefixes["ex"] == EX
         assert (ox.NamedNode(EX + "a"), ox.NamedNode(EX + "p"), ox.Literal("v", language="en")) in g
         assert g.identifier == ox.DefaultGraph()
@@ -170,15 +170,15 @@ class TestFromRdflib:
 
         r = rdflib.Graph(identifier=URIRef(EX + "ident"))
         r.add((URIRef(EX + "a"), URIRef(EX + "p"), URIRef(EX + "b")))
-        assert OxGraph.from_rdflib(r).identifier == ox.NamedNode(EX + "ident")
+        assert StarLayerGraph.from_rdflib(r).identifier == ox.NamedNode(EX + "ident")
 
 
     def test_an_ox_graph_is_copied(self):
         g = _graph()
-        c = OxGraph.from_rdflib(g)
+        c = StarLayerGraph.from_rdflib(g)
         assert c is not g and _quads(c) == _quads(g)
         with pytest.raises(TypeError, match="rdflib graph"):
-            OxGraph.from_rdflib(_dataset())
+            StarLayerGraph.from_rdflib(_dataset())
 
     def test_dataset(self):
         import rdflib
@@ -189,12 +189,12 @@ class TestFromRdflib:
         r.graph(URIRef(EX + "g1")).add((URIRef(EX + "c"), URIRef(EX + "p"), Literal("x")))
         r.graph(URIRef(EX + "empty"))
         r.bind("ex", EX)
-        d = OxDataset.from_rdflib(r)
+        d = StarLayerDataset.from_rdflib(r)
         assert d.default_union is True
         assert set(d.store.named_graphs()) == {ox.NamedNode(EX + "g1"), ox.NamedNode(EX + "empty")}
         assert len(d.store) == 2 and d.prefixes["ex"] == EX
         assert ox.Quad(ox.NamedNode(EX + "a"), ox.NamedNode(EX + "p"), ox.NamedNode(EX + "b"), ox.DefaultGraph()) in d.store
-        assert OxDataset.from_rdflib(rdflib.Dataset()).default_union is False
+        assert StarLayerDataset.from_rdflib(rdflib.Dataset()).default_union is False
 
     def test_dataset_from_a_plain_graph_and_from_an_ox_dataset(self):
         import rdflib
@@ -202,10 +202,10 @@ class TestFromRdflib:
 
         r = rdflib.Graph(identifier=URIRef(EX + "ident"))
         r.add((URIRef(EX + "a"), URIRef(EX + "p"), URIRef(EX + "b")))
-        d = OxDataset.from_rdflib(r)
+        d = StarLayerDataset.from_rdflib(r)
         assert list(d.store.named_graphs()) == [] and len(d.store) == 1
         src = _dataset()
-        c = OxDataset.from_rdflib(src)
+        c = StarLayerDataset.from_rdflib(src)
         assert c is not src and c.store is not src.store and _quads(c) == _quads(src)
 
     def test_an_illegal_term_is_an_error(self):
@@ -216,7 +216,7 @@ class TestFromRdflib:
         r = rdflib.Graph()
         r.add((URIRef("not an iri"), URIRef(EX + "p"), URIRef(EX + "b")))
         with pytest.raises(TermError):
-            OxGraph.from_rdflib(r)
+            StarLayerGraph.from_rdflib(r)
 
 
 class TestToRdflib:
@@ -248,7 +248,7 @@ class TestToRdflib:
     def test_graph_without_rdf12_is_unchanged(self):
         import rdflib
 
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=f"@prefix : <{EX}> . :a :p :b, 7 .", format="turtle")
         r = g.to_rdflib()
         assert isinstance(r, rdflib.Graph) and len(r) == 2
@@ -273,7 +273,7 @@ class TestToRdflib:
 
     def test_round_trip_restores_directions_not_triple_terms(self):
         g = _graph()
-        back = OxGraph.from_rdflib(g.to_rdflib())
+        back = StarLayerGraph.from_rdflib(g.to_rdflib())
         assert (ox.NamedNode(EX + "a"), ox.NamedNode(EX + "r"),
                 ox.Literal("x", language="en", direction=ox.BaseDirection.LTR)) in back
         assert not any(isinstance(o, ox.Triple) for _, _, o in back.triples())
@@ -290,14 +290,14 @@ _FORMATS = {"turtle": '@version "1.2" .', "trig": '@version "1.2" .', "nt": 'VER
 class TestVersionLine:
     def test_written_when_the_data_has_a_triple_term_or_a_direction(self, fmt):
         for data in (f"@prefix : <{EX}> . :a :q <<( :x :y :z )>> .", f'@prefix : <{EX}> . :a :q "x"@en--ltr .', DOC12):
-            g = OxGraph()
+            g = StarLayerGraph()
             g.parse(data=data, format="turtle")
             text = g.serialize(format=fmt)
             assert text.startswith(_FORMATS[fmt] + "\n")
             assert text.count("VERSION") + text.count("@version") == 1
 
     def test_not_written_for_rdf11_data_unless_asked(self, fmt):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=f'@prefix : <{EX}> . :a :p :b, "s", "t"@en, 4 .', format="turtle")
         assert "VERSION" not in g.serialize(format=fmt) and "@version" not in g.serialize(format=fmt)
         asked = g.serialize(format=fmt, rdf_version="1.2")
@@ -305,7 +305,7 @@ class TestVersionLine:
         assert g.serialize(format=fmt, rdf_version=None).count("ersion") == 0
 
     def test_a_literal_that_looks_like_a_triple_term_is_not_one(self, fmt):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ox.NamedNode(EX + "a"), ox.NamedNode(EX + "p"), ox.Literal("<<( x )>> and @en--ltr")))
         assert "ersion" not in g.serialize(format=fmt)
 
@@ -317,13 +317,13 @@ class TestVersionLine:
         g = _graph()
         for pretty in (False, True) if fmt in ("turtle", "trig") else (False,):
             text = g.serialize(format=fmt, pretty=pretty)
-            back = OxGraph()
+            back = StarLayerGraph()
             back.parse(data=text, format=fmt)
             assert len(back) == len(g)
             assert any(isinstance(o, ox.Triple) for _, _, o in back.triples())
-        plain = OxGraph()
+        plain = StarLayerGraph()
         plain.add((ox.NamedNode(EX + "a"), ox.NamedNode(EX + "p"), ox.NamedNode(EX + "b")))
-        again = OxGraph()
+        again = StarLayerGraph()
         again.parse(data=plain.serialize(format=fmt, rdf_version="1.2"), format=fmt)
         assert len(again) == 1
 
@@ -331,7 +331,7 @@ class TestVersionLine:
         d = _dataset()
         text = d.serialize(format=fmt)
         assert text.startswith(_FORMATS[fmt] + "\n")
-        parsed = OxDataset()
+        parsed = StarLayerDataset()
         parsed.parse(data=text, format=fmt)
         assert len(parsed.store) > 0
 
@@ -340,7 +340,7 @@ class TestVersionLine:
 def test_pretty_output_has_the_version_line_once(fmt):
     text = _graph().serialize(format=fmt, pretty=True)
     assert text.startswith('@version "1.2" .\n') and text.count("@version") == 1
-    assert OxGraph().serialize(format=fmt, pretty=True, rdf_version="1.2").startswith('@version "1.2" .\n')
+    assert StarLayerGraph().serialize(format=fmt, pretty=True, rdf_version="1.2").startswith('@version "1.2" .\n')
 
 
 def test_only_used_prefixes_keeps_the_version_line_first():
@@ -350,7 +350,7 @@ def test_only_used_prefixes_keeps_the_version_line_first():
 
 
 def test_rdf_xml_and_json_ld_have_no_version_line():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((ox.NamedNode(EX + "a"), ox.NamedNode(EX + "p"), ox.NamedNode(EX + "b")))
     for fmt in ("xml", "json-ld"):
         text = g.serialize(format=fmt, rdf_version="1.2")
@@ -359,7 +359,7 @@ def test_rdf_xml_and_json_ld_have_no_version_line():
 
 def test_a_wrong_version_label_is_read_without_a_warning(recwarn):
     # RDF12ConformanceWarning is gone: the label is a hint (RDF 1.2 Concepts 2.1)
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=f'@version "1.2-basic" .\n@prefix : <{EX}> . :a :q <<( :x :y :z )>> .', format="turtle")
     g.parse(data=f'VERSION "1.1"\n<{EX}a> <{EX}q> <<( <{EX}x> <{EX}y> <{EX}z> )>> .\n', format="nt")
     assert len(g) == 1
@@ -383,7 +383,7 @@ _:b a rdf:PropositionForm ; rdf:propositionFormSubject :x ; rdf:propositionFormP
 
 
 def test_turtle_parse_does_not_adopt_the_basic_encoding():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=BASIC, format="turtle")
     assert len(g) == 5
     assert not any(isinstance(o, ox.Triple) for _, _, o in g.triples())
@@ -391,7 +391,7 @@ def test_turtle_parse_does_not_adopt_the_basic_encoding():
 
 
 def test_from_basic_is_the_way_to_decode_it():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=BASIC, format="turtle")
     decoded = interop.from_basic(list(g.quads()))
     assert len(decoded) == 1 and decoded[0].object == ox.Triple(
@@ -403,15 +403,15 @@ def test_from_basic_is_the_way_to_decode_it():
 
 def test_syntax_errors_are_syntax_error():
     with pytest.raises(SyntaxError):
-        OxGraph().parse(data="<a", format="turtle")
+        StarLayerGraph().parse(data="<a", format="turtle")
     with pytest.raises(SyntaxError):
-        OxGraph().update("INSERT DATA {")
+        StarLayerGraph().update("INSERT DATA {")
     with pytest.raises(SyntaxError):
-        OxGraph().query("SELEC * {}")
+        StarLayerGraph().query("SELEC * {}")
     with pytest.raises(SyntaxError):  # a blank node shared by two INSERT DATA blocks (SPARQL 1.1 update 3.1.1)
-        OxGraph().update("INSERT DATA { _:b <urn:p> 1 } ; INSERT DATA { _:b <urn:p> 2 }")
+        StarLayerGraph().update("INSERT DATA { _:b <urn:p> 1 } ; INSERT DATA { _:b <urn:p> 2 }")
     with pytest.raises(ValueError):
-        OxGraph().parse(data="", format="no-such-format")
+        StarLayerGraph().parse(data="", format="no-such-format")
 
 
 _SHAPES = f"""@prefix ex: <{EX}> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -421,7 +421,7 @@ ex:S a sh:NodeShape ; sh:targetClass ex:P ; sh:property [ sh:path ex:n ; sh:minC
 def test_shacl_report_on_an_oxgraph_has_no_used_graph_line_unless_the_caller_names_one():
     from starlayer.shacl import validate
 
-    data, shapes = OxGraph(), OxGraph()
+    data, shapes = StarLayerGraph(), StarLayerGraph()
     data.parse(data=f"@prefix ex: <{EX}> . ex:a a ex:P .", format="turtle")
     shapes.parse(data=_SHAPES, format="turtle")
     text = validate(data, shapes).report_text
@@ -449,7 +449,7 @@ def test_documented_equivalents():
     from starlayer.graph import isomorphic
     from starlayer.graph.rdfc_native import isomorphic as quads_isomorphic
 
-    a, b = OxGraph(), OxGraph()
+    a, b = StarLayerGraph(), StarLayerGraph()
     a.parse(data=f"<{EX}s> <{EX}p> [ <{EX}q> 1 ] .", format="turtle")
     b.parse(data=f"<{EX}s> <{EX}p> [ <{EX}q> 1 ] .", format="turtle")
     assert isomorphic(a, b) and quads_isomorphic(a.quads(), b.quads())

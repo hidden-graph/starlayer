@@ -324,8 +324,8 @@ def check_graphs(*labelled: tuple[Any, str]) -> tuple[TermError, ...]:
 
 
 def engine_view(graph: Any, where: str = "graph") -> Any:
-    """The engine's term view of ``graph``: an Oxigraph-backed graph (``OxGraph``, ``OxDataset``, ``OxigraphGraph``) as it
-    is; a bare ``pyoxigraph.Store`` as an ``OxDataset``; an rdflib / StarLayer graph as an ``OxGraph`` copy made by the rdflib
+    """The engine's term view of ``graph``: an Oxigraph-backed graph (``StarLayerGraph``, ``StarLayerDataset``, ``OxigraphGraph``) as it
+    is; a bare ``pyoxigraph.Store`` as an ``StarLayerDataset``; an rdflib / StarLayer graph as an ``StarLayerGraph`` copy made by the rdflib
     bridge, which raises ``TermError`` for a term that is not an RDF term (see there)."""
     if graph is None or getattr(graph, "engine_terms", False):
         return graph

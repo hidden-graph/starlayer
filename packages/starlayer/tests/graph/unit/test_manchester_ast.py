@@ -20,7 +20,7 @@ shape (``test_decoded_document_is_a_plain_namedtuple_tree``).
 import pytest
 from rdflib import Graph
 from starlayer.graph.compare import isomorphic
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.parsers.manchester_parser import parse_manchester
 from starlayer.starontology.manchester import (
     _find_root,
@@ -170,6 +170,6 @@ def test_decoded_document_is_a_plain_namedtuple_tree():
 def test_tree_to_owl_matches_compiling_the_text_directly(text):
     graph = manchester_parse_to_tree(text)
     # both sides as OxGraphs: Oxigraph stores a literal in canonical form, so an rdflib-term list would differ lexically
-    expected = OxGraph()
+    expected = StarLayerGraph()
     expected.extend(list(parse_manchester(text)))
     assert isomorphic(manchester_tree_to_owl(graph), expected)

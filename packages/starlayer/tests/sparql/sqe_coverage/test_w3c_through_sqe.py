@@ -18,7 +18,7 @@ from pathlib import Path
 
 import pytest
 from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.sparql_text import strip_version_directive
 from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_query, sqe_tree_to_text
@@ -79,7 +79,7 @@ def run_entry(entry) -> None:
         data.parse(data=entry.read(entry.data_file), format=_data_format(entry))
     result_text = entry.read(entry.result_file)
     if entry.result_file.endswith(".ttl"):
-        expected = OxGraph()
+        expected = StarLayerGraph()
         expected.parse(data=result_text, format="turtle12")
         actual = data.query(regenerated).graph
         assert isomorphic(actual, expected)

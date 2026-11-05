@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.expressions import (
@@ -25,8 +25,8 @@ PREFIXES = """
 """
 
 
-def graph(ttl: str) -> OxGraph:
-    g = OxGraph()
+def graph(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=PREFIXES + ttl, format="turtle")
     return g
 

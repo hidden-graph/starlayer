@@ -43,7 +43,7 @@ for who, certainty in data.query("""
     SELECT ?who ?certainty WHERE {
       ?r rdf:reifies <<( ?who ex:knows ex:bob )>> ; ex:certainty ?certainty .
     }"""):
-    print(who, certainty)          # http://example.org/alice 0.9
+    print(who.value, certainty.value)          # http://example.org/alice 0.9
 
 # Validate with SHACL
 shapes = StarLayerGraph()

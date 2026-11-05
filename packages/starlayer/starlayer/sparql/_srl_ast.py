@@ -481,7 +481,7 @@ class RuleSet:
 
         from . import srl_eval
 
-        from_oxigraph = _ox.is_oxigraph_input(base_graph)  # the rules run on an OxGraph; an rdflib graph is copied in
+        from_oxigraph = _ox.is_oxigraph_input(base_graph)  # the rules run on an StarLayerGraph; an rdflib graph is copied in
         original_graph = base_graph
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
@@ -499,7 +499,7 @@ class RuleSet:
         resolved_schema = schema if isinstance(schema, StarShaclSchema) else StarShaclSchema(shacl_graph=schema)
         # the evaluation graph (base plus inferred), as StarShaclSchema.apply_rules() validates: validating the inferred
         # triples alone reported violations for constraints the base graph satisfies (GitHub issue #96)
-        # (an OxGraph with no prefixes of its own, so the report does not carry an old graph's 29 default prefixes)
+        # (an StarLayerGraph with no prefixes of its own, so the report does not carry an old graph's 29 default prefixes)
         from starlayer.shacl_engine.graphs import new_graph
 
         evaluation = new_graph()
@@ -522,7 +522,7 @@ class RuleSet:
         return inferred
 
     def _with_own_prefixes(self, graph: Any) -> Any:
-        """Bind this rule set's own ``PREFIX`` declarations on an ``OxGraph`` result (the input graph's prefixes are already
+        """Bind this rule set's own ``PREFIX`` declarations on an ``StarLayerGraph`` result (the input graph's prefixes are already
         there); a prefix the input graph binds differently is left as the input has it."""
         for prefix, namespace in self.prefixes.items():
             graph.bind(prefix, str(namespace), override=False)
@@ -552,7 +552,7 @@ class RuleSet:
 
         Returns:
             One ``dict[Variable, term]`` solution per match. For an rdflib / StarLayer ``base_graph`` the keys are
-            ``rdflib.Variable`` and the values rdflib terms. For an Oxigraph ``base_graph`` (``OxGraph`` / ``OxDataset`` /
+            ``rdflib.Variable`` and the values rdflib terms. For an Oxigraph ``base_graph`` (``StarLayerGraph`` / ``StarLayerDataset`` /
             ``Store``) the keys are ``pyoxigraph.Variable``, as in the wrapper's own query results (``result.vars``), and the
             values pyoxigraph terms. The goal pattern may use either kind of term in either case.
 

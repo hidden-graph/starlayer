@@ -1,7 +1,7 @@
 """
 Unit tests for rdf:dirLangString (RDF 1.2 base-direction-tagged literals).
 
-Covers the DirLangString value type, OxGraph read/write interception,
+Covers the DirLangString value type, StarLayerGraph read/write interception,
 Turtle/N-Triples/N-Quads/TriG/RDF-XML/TriX/JSON-LD 1.2 parser and serializer
 round-trips, and the SPARQL 1.2 base-direction functions.
 """
@@ -19,7 +19,7 @@ from starlayer.graph.model.encoding import (
     decode_dirlang_datatype,
     encode_dirlang_datatype,
 )
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 EX = "http://example.org/"
 XSD_BOOL = "http://www.w3.org/2001/XMLSchema#boolean"
@@ -30,7 +30,7 @@ def ex(local):
 
 
 def dls(value, lang, direction):
-    """A directional language-tagged literal as a pyoxigraph term (what OxGraph stores and returns)."""
+    """A directional language-tagged literal as a pyoxigraph term (what StarLayerGraph stores and returns)."""
     return ox.Literal(value, language=lang, direction=ox.BaseDirection.LTR if direction == "ltr" else ox.BaseDirection.RTL)
 
 
@@ -44,7 +44,7 @@ FALSE = ox.Literal("false", datatype=ox.NamedNode(XSD_BOOL))
 
 def round_trip(g, fmt):
     text = g.serialize(format=fmt)
-    g2 = OxGraph()
+    g2 = StarLayerGraph()
     g2.parse(data=text, format=fmt)
     return text, g2
 
@@ -105,44 +105,44 @@ class TestEncodeDecode:
 
 
 # ---------------------------------------------------------------------------
-# OxGraph read/write
+# StarLayerGraph read/write
 # ---------------------------------------------------------------------------
 
 class TestOxGraphIntegration:
     def test_add_and_read_back(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         results = list(g.triples((ex('a'), ex('greets'), None)))
         assert results == [(ex('a'), ex('greets'), d)]
 
     def test_contains(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         assert (ex('a'), ex('greets'), d) in g
         assert (ex('a'), ex('greets'), dls('Hello', 'en', 'rtl')) not in g
 
     def test_len_counts_it_once(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('a'), ex('greets'), dls('Hello', 'en', 'ltr')))
         assert len(g) == 1
 
     def test_remove(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         g.remove((ex('a'), ex('greets'), d))
         assert len(g) == 0
 
     def test_subject_position_rejected(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         d = dls('Hello', 'en', 'ltr')
         with pytest.raises(TypeError):  # a literal subject is a TypeError (O5); the old wrapper raised ValueError
             g.add((d, ex('p'), ex('o')))
 
     def test_triples_choices(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         d1 = dls('Hello', 'en', 'ltr')
         d2 = dls('Bonjour', 'fr', 'ltr')
         g.add((ex('a'), ex('greets'), d1))
@@ -152,7 +152,7 @@ class TestOxGraphIntegration:
 
     def test_nested_in_triple_term_object(self):
         d = dls('Hello', 'en', 'ltr')
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('alice'), ex('says'), (ex('bob'), ex('greets'), d)))
         results = list(g.triples((ex('alice'), ex('says'), None)))
         assert len(results) == 1
@@ -160,7 +160,7 @@ class TestOxGraphIntegration:
         assert outer.object == d
 
     def test_init_bindings_matches_registered_value(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         d = dls('Hello', 'en', 'ltr')
         g.add((ex('a'), ex('greets'), d))
         r = g.query(
@@ -176,24 +176,24 @@ class TestOxGraphIntegration:
 
 class TestTurtle12:
     def test_parse_ltr(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=f'<{EX}s> <{EX}p> "hello"@en--ltr .', format='turtle12')
         results = list(g.triples((None, None, None)))
         assert results == [(ex('s'), ex('p'), dls('hello', 'en', 'ltr'))]
 
     def test_parse_rtl_non_ascii(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=f'<{EX}s> <{EX}p> "HTML היא שפת סימון"@he--rtl .', format='turtle12')
         obj = next(g.objects(ex('s'), ex('p')))
         assert obj == dls('HTML היא שפת סימון', 'he', 'rtl')
 
     def test_invalid_direction_raises(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         with pytest.raises(SyntaxError, match="ltr.*rtl"):  # Oxigraph raises SyntaxError (O5)
             g.parse(data=f'<{EX}s> <{EX}p> "hello"@en--sideways .', format='turtle12')
 
     def test_round_trip_turtle12(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, 'turtle12')
         assert '"hello"@en--ltr' in text
@@ -204,7 +204,7 @@ class TestTurtle12:
     def test_version_directive_emitted_even_without_triple_terms(self):
         # A graph with only a DirLangString (no TripleTerm at all) must still
         # get the @version "1.2" directive - it's new RDF 1.2 syntax too.
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text = g.serialize(format='turtle12')
         assert '@version "1.2" .' in text
@@ -217,12 +217,12 @@ class TestTurtle12:
 class TestNTriples12:
     def test_parse(self):
         nt = f'<{EX}s> <{EX}p> "hello"@en--ltr .\n'
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=nt, format='nt12')
         assert list(g.triples((None, None, None))) == [(ex('s'), ex('p'), dls('hello', 'en', 'ltr'))]
 
     def test_round_trip_nt12(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, 'nt12')
         assert '"hello"@en--ltr' in text
@@ -230,7 +230,7 @@ class TestNTriples12:
         assert list(g2.triples((None, None, None))) == list(g.triples((None, None, None)))
 
     def test_round_trip_nq12(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, 'nq12')
         assert '"hello"@en--ltr' in text
@@ -238,14 +238,14 @@ class TestNTriples12:
 
 
 # ---------------------------------------------------------------------------
-# TriG 1.2 (via OxDataset)
+# TriG 1.2 (via StarLayerDataset)
 # ---------------------------------------------------------------------------
 
 class TestTrig12:
     def test_round_trip(self):
-        from starlayer.graph.oxgraph import OxDataset
+        from starlayer.graph.oxgraph import StarLayerDataset
 
-        ds = OxDataset()
+        ds = StarLayerDataset()
         ds.parse(data=f'''
             @prefix : <{EX}> .
             GRAPH :g1 {{ :s :p "hello"@en--ltr . }}
@@ -253,7 +253,7 @@ class TestTrig12:
         text = ds.serialize(format='trig12')
         assert '"hello"@en--ltr' in text
 
-        ds2 = OxDataset()
+        ds2 = StarLayerDataset()
         ds2.parse(data=text, format='trig12')
         quads = list(ds2.quads((None, None, None)))
         assert any(o == dls('hello', 'en', 'ltr') for _, _, o, _ in quads)
@@ -266,7 +266,7 @@ class TestTrig12:
 class TestOtherFormats:
     @pytest.mark.parametrize('fmt', ['rdfxml12'])
     def test_round_trip(self, fmt):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), dls('hello', 'en', 'ltr')))
         text, g2 = round_trip(g, fmt)
         assert list(g2.triples((None, None, None))) == [(ex('s'), ex('p'), dls('hello', 'en', 'ltr'))]
@@ -279,7 +279,7 @@ class TestOtherFormats:
 class TestSparqlFunctions:
     @pytest.fixture
     def g(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('dir'),   ex('title'), dls('HTML page', 'en', 'ltr')))
         g.add((ex('lang'),  ex('title'), ox.Literal('plain lang', language='en')))
         g.add((ex('plain'), ex('title'), olit('no lang at all')))

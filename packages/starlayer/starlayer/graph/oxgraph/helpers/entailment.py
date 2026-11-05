@@ -1,4 +1,4 @@
-"""``infer()``: RDFS / RDF / OWL-RL (owlrl) and OWL-DL (HermiT, rustdl) closure over an ``OxGraph`` / ``OxDataset``.
+"""``infer()``: RDFS / RDF / OWL-RL (owlrl) and OWL-DL (HermiT, rustdl) closure over an ``StarLayerGraph`` / ``StarLayerDataset``.
 
 Ported from ``StarLayerGraph.infer`` and ``graph/graph/entailment_regimes.py``. The RDF regime is computed natively on pyoxigraph
 terms. owlrl and the OWL-DL bridges work on rdflib graphs, so the store is copied to one inside the call
@@ -189,7 +189,7 @@ def infer(g: Any, entailment: Any = ENTAILMENT.RDFS, *, mode: str = "full", targ
 
     ``mode`` "full" returns a new graph with the originals plus the entailed triples, "delta" one with only the new triples,
     "in-place" adds the new triples to ``g`` and returns it. ``entailment`` is a regime IRI (``NamedNode`` or ``str``) or an
-    iterable of them. ``target_graph`` must be an ``OxGraph`` / ``OxDataset``.
+    iterable of them. ``target_graph`` must be an ``StarLayerGraph`` / ``StarLayerDataset``.
     """
     if mode not in VALID_INFER_RETURN_MODES:
         raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
@@ -216,7 +216,7 @@ def infer(g: Any, entailment: Any = ENTAILMENT.RDFS, *, mode: str = "full", targ
     if target_graph is None:
         target_graph = g.empty_like()
     elif not hasattr(target_graph, "extend") or not hasattr(target_graph, "store"):
-        raise TypeError(f"infer() target_graph must be an OxGraph or OxDataset, not {type(target_graph).__name__}.")
+        raise TypeError(f"infer() target_graph must be an StarLayerGraph or StarLayerDataset, not {type(target_graph).__name__}.")
     delta = _delta_for(g, regimes, engine, timeout)
     target_graph.extend(list(g.triples()) + list(delta) if mode == "full" else delta)
     return target_graph

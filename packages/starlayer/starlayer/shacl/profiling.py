@@ -108,7 +108,7 @@ def declared_conformance_profile() -> Any:
     sharing one mutable graph object across callers.
 
     Returns:
-        A fresh ``OxGraph`` containing the bundled conformance statement.
+        A fresh ``StarLayerGraph`` containing the bundled conformance statement.
     """
     from starlayer import starontology
 
@@ -211,7 +211,7 @@ def derive_conforms_to(
             reference.
 
     Returns:
-        A new ``OxGraph``. ``report_graph``/``specification_graph``
+        A new ``StarLayerGraph``. ``report_graph``/``specification_graph``
         are read, never mutated.
 
     Raises:

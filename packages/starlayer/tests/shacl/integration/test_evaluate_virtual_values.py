@@ -21,7 +21,7 @@ result is documented as not meant to be persisted.
 
 import pytest
 from rdflib import Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema
 
 from ._rdflib_view import rd
@@ -38,7 +38,7 @@ PREFIXES = """
 
 class TestBasicComputation:
     def test_computed_value_appears_in_result(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -46,7 +46,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -60,12 +60,12 @@ class TestBasicComputation:
         assert [v.toPython() for v in result.objects(EX.alice, EX.friendCount)] == [2]
 
     def test_original_data_graph_never_mutated(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:friend ex:bob .",
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -81,7 +81,7 @@ class TestBasicComputation:
         assert (EX.alice, EX.friendCount, None) not in [(s, p, None) for s, p, _o in data]
 
     def test_multiple_focus_nodes_each_get_their_own_value(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -90,7 +90,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -104,12 +104,12 @@ class TestBasicComputation:
         assert [v.toPython() for v in result.objects(EX.dave, EX.friendCount)] == [1]
 
     def test_multivalued_computed_property_becomes_multiple_triples(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:friend ex:bob, ex:carol .",
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -125,12 +125,12 @@ class TestBasicComputation:
         # sh:values isn't only reachable via a node shape's sh:property - a
         # PropertyShape can carry its own direct sh:targetNode/sh:targetClass
         # too, per ordinary SHACL Core target semantics.
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="@prefix ex: <http://example.org/> . ex:alice ex:friend ex:bob, ex:carol .",
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -152,7 +152,7 @@ class TestBasicComputation:
         # an earlier version of both this test and the implementation
         # assumed "replace", checked only against this project's own prior
         # (also-wrong) validate() behavior rather than the actual spec text.
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -160,7 +160,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -180,7 +180,7 @@ class TestBasicComputation:
         # sh:hasValue 99 (the *real* stored value) must equally conform -
         # confirming the stored value is still genuinely part of the value
         # set, not merely "not yet proven absent".
-        shapes_99 = OxGraph()
+        shapes_99 = StarLayerGraph()
         shapes_99.parse(
             data=PREFIXES
             + """
@@ -212,9 +212,9 @@ class TestBasicComputation:
         # absent too - the returned subgraph is simply empty, not a copy
         # of data (2026-10-07: evaluate() stopped copying the whole of
         # data_graph).
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES + "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:name ] .",
             format="turtle",
@@ -230,9 +230,9 @@ class TestBasicComputation:
         # forms elsewhere. Skipped means this property shape contributes
         # nothing to the returned subgraph at all - not a crash, and not a
         # fallback to copying data_graph wholesale either.
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:friend ex:bob .", format="turtle")
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -250,7 +250,7 @@ class TestBasicComputation:
         "data graph doubles as shapes graph" allowance. No sh:values/
         sh:defaultValue declarations anywhere in this plain instance data,
         so the result is simply empty, not an error."""
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
         result = rd(StarShaclSchema(shacl_graph=None).evaluate(data_graph=data))
         assert set(result) == set()
@@ -267,7 +267,7 @@ class TestReturnedGraphIsShapeDrivenSubgraph:
     is correctly absent."""
 
     def test_unrelated_predicate_and_unconnected_subject_are_excluded(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -276,7 +276,7 @@ class TestReturnedGraphIsShapeDrivenSubgraph:
             """,
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES + "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:name ] .",
             format="turtle",
@@ -291,12 +291,12 @@ class TestReturnedGraphIsShapeDrivenSubgraph:
         # narrowed back down to only sh:values/sh:defaultValue-bearing ones -
         # a plain constraint-only property shape's real values are included
         # too, with nothing computed for it.
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:age 30 .',
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; "
@@ -320,9 +320,9 @@ class TestIsolationFromApplyRules:
     """
 
     def test_rule_reading_virtual_property_by_path_finds_nothing(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:friend ex:bob, ex:carol .", format="turtle")
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -339,9 +339,9 @@ class TestIsolationFromApplyRules:
         assert list(rd(rule_result.inferred_graph).triples((None, EX.friendCount, None))) == []
 
     def test_rule_recomputing_the_same_expression_materializes_a_real_triple(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:friend ex:bob, ex:carol .", format="turtle")
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -358,12 +358,12 @@ class TestIsolationFromApplyRules:
         # A shapes graph declaring both an sh:values virtual property and an
         # unrelated sh:rule - evaluate() sees the virtual value, apply_rules()
         # produces its own rule-derived triple, neither affects the other.
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:friend ex:bob, ex:carol .",
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -406,9 +406,9 @@ class TestDefaultValueFallback:
     """
 
     def test_default_value_fills_in_when_neither_stored_nor_computed_exists(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:carol a ex:Person .", format="turtle")
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -424,12 +424,12 @@ class TestDefaultValueFallback:
         assert list(data.objects(EX.carol, EX.nickname)) == []  # original graph untouched
 
     def test_default_value_is_skipped_once_sh_values_computes_something(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:bob a ex:Person ; ex:preferredName "Bobby" .',
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -447,12 +447,12 @@ class TestDefaultValueFallback:
         # Even with sh:values present but producing nothing for this focus
         # node, a real stored value alone is enough to keep sh:defaultValue
         # from firing.
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:dave a ex:Person ; ex:nickname "Davey" .',
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -471,9 +471,9 @@ class TestDefaultValueFallback:
         # must still be visited - the original bug's loop only ever
         # iterated sh:values triples, so this shape was silently skipped
         # entirely.
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:erin a ex:Person .", format="turtle")
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -495,12 +495,12 @@ class TestDefaultValueAsNodeExpression:
     """
 
     def test_default_value_as_a_path_expression_falls_back_to_a_sibling_property(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:alice ex:firstName "Alexandra" .',
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -513,7 +513,7 @@ class TestDefaultValueAsNodeExpression:
         assert list(result.objects(EX.alice, EX.nickname)) == [Literal("Alexandra")]
 
     def test_default_value_as_a_path_expression_is_skipped_once_a_real_value_exists(self) -> None:
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -521,7 +521,7 @@ class TestDefaultValueAsNodeExpression:
             """,
             format="turtle",
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=PREFIXES
             + """
@@ -544,9 +544,9 @@ class TestShapesGraphIsNotModified:
         ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property [ sh:path ex:friend ; sh:minCount 1 ] ."""
 
     def _graphs(self):
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person ; ex:friend ex:bob .", format="turtle12")
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle12")
         return data, shapes
 
@@ -582,11 +582,11 @@ class TestFunctionArgumentMustBeAList:
         @prefix xsd: <http://www.w3.org/2001/XMLSchema#> ."""
 
     def _evaluate(self, values: str):
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data=self._PREFIXES + ' ex:alice ex:birthDate "1990-01-01"^^xsd:date ; ex:name "Al" .', format="turtle12"
         )
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data=self._PREFIXES
             + f" ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property [ sh:path ex:out ; sh:values {values} ] .",
@@ -641,7 +641,7 @@ class TestRestrictToFocusNodesAndProperties:
           sh:property [ sh:path ex:first ] ."""
 
     def _graphs(self):
-        data, shapes = OxGraph(), OxGraph()
+        data, shapes = StarLayerGraph(), StarLayerGraph()
         data.parse(data=self._DATA, format="turtle12")
         shapes.parse(data=self._SHAPES, format="turtle12")
         return data, shapes

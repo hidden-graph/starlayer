@@ -22,7 +22,7 @@ import pyoxigraph as ox
 import pytest
 from rdflib import URIRef
 from starlayer.graph.model.conformance import SPARQL12ConformanceWarning
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.sparql_text import check_native_version_conformance
 
 EX = 'http://example.org/'
@@ -36,17 +36,17 @@ class TestSparqlVersionDirective:
     def test_version_directive_no_longer_raises(self):
         # The exact motivating bug: this is valid SPARQL 1.2 syntax (the
         # spec's own example form) and previously raised ParseException.
-        g = OxGraph()
+        g = StarLayerGraph()
         r = g.query('VERSION "1.2"\nSELECT * WHERE { ?s ?p ?o }')
         assert list(r) == []
 
     def test_version_directive_single_quoted(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         r = g.query("VERSION '1.2'\nSELECT * WHERE { ?s ?p ?o }")
         assert list(r) == []
 
     def test_version_1_2_basic_with_triple_term_warns(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         q = f"""VERSION "1.2-basic"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -56,13 +56,13 @@ class TestSparqlVersionDirective:
             g.query(q)
 
     def test_version_1_2_basic_without_triple_term_does_not_warn(self, recwarn):
-        g = OxGraph()
+        g = StarLayerGraph()
         q = f'VERSION "1.2-basic"\nPREFIX : <{EX}>\nSELECT * WHERE {{ ?s ?p ?o }}'
         g.query(q)
         assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
     def test_version_1_2_full_with_triple_term_does_not_warn(self, recwarn):
-        g = OxGraph()
+        g = StarLayerGraph()
         q = f"""VERSION "1.2"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -72,13 +72,13 @@ class TestSparqlVersionDirective:
         assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
     def test_unrecognized_version_label_warns(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         q = 'VERSION "9.9"\nSELECT * WHERE { ?s ?p ?o }'
         with pytest.warns(SPARQL12ConformanceWarning, match='unrecognized'):
             g.query(q)
 
     def test_no_version_directive_does_not_warn(self, recwarn):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.query('SELECT * WHERE { ?s ?p ?o }')
         assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
@@ -87,7 +87,7 @@ class TestSparqlVersionDirective:
         # terms/dirLangString at least as strictly as "1.2-basic" does, so a
         # query declaring "1.1" but using a triple term should warn too, not
         # just "1.2-basic".
-        g = OxGraph()
+        g = StarLayerGraph()
         q = f"""VERSION "1.1"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -98,26 +98,26 @@ class TestSparqlVersionDirective:
 
 
 class TestSparqlUpdateVersionDirective:
-    """OxGraph.update()/OxDataset.update() - found 2026-10-13
+    """StarLayerGraph.update()/StarLayerDataset.update() - found 2026-10-13
     to have the identical gap TestSparqlVersionDirective's own docstring
     already documented for .query(): both called prepare_update_12()
     directly with no VERSION-stripping at all, so a VERSION-prefixed
     Update (legal per the same SPARQL 1.2 Query sec 4.3 prologue grammar
     Update shares) raised a bare ParseException. Checked precisely which
     entry points were actually affected before fixing (not assumed
-    symmetric with .query()) - OxDataset.update()'s own *remote*
+    symmetric with .query()) - StarLayerDataset.update()'s own *remote*
     HTTP-store branch is unaffected (it POSTs text directly, no local
     parse at all), only its local-store branch shares this bug with
-    OxGraph.update().
+    StarLayerGraph.update().
     """
 
     def test_update_version_directive_no_longer_raises(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.update('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
         assert (ex('a'), ex('b'), ex('c')) in g
 
     def test_update_version_1_1_with_triple_term_warns(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         u = f"""VERSION "1.1"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -127,17 +127,17 @@ class TestSparqlUpdateVersionDirective:
             g.update(u)
 
     def test_update_no_version_directive_does_not_warn(self, recwarn):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.update('PREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
         assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
     def test_dataset_update_version_directive_no_longer_raises(self):
-        ds = OxDataset()
+        ds = StarLayerDataset()
         ds.update('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
         assert (ex('a'), ex('b'), ex('c')) in ds.default_graph
 
     def test_dataset_update_version_1_1_with_triple_term_warns(self):
-        ds = OxDataset()
+        ds = StarLayerDataset()
         u = f"""VERSION "1.1"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
@@ -152,7 +152,7 @@ class TestSparqlUpdateVersionDirective:
 
 
 class TestNativeBackendVersionConformance:
-    """OxGraph() sends SPARQL straight through to a
+    """StarLayerGraph() sends SPARQL straight through to a
     real endpoint via HTTP with zero rewriting (correct - Fuseki/Oxigraph
     understand VERSION natively), which means query()/update() never call
     rewrite_sparql12_to_11 and so never ran this check at all until fixed.
@@ -160,7 +160,7 @@ class TestNativeBackendVersionConformance:
     Confirmed live 2026-07-17 against Fuseki 5.5.0 and Oxigraph: both
     execute a VERSION "1.2-basic" + <<( )>> query normally (HTTP 200) with
     no warning or error signal anywhere in the response - so without this
-    fix, a native-backend OxGraph would silently never emit
+    fix, a native-backend StarLayerGraph would silently never emit
     SPARQL12ConformanceWarning for the identical query the default in-memory
     backend does warn on, an inconsistency this project otherwise takes
     care to avoid (see tests/integration/test_cross_backend_parity.py).
@@ -195,7 +195,7 @@ class TestNativeBackendVersionConformance:
 
 
 class TestIdentifierDefault:
-    """A native () OxGraph constructed with no
+    """A native () StarLayerGraph constructed with no
     explicit identifier= used to get rdflib's own default (a fresh random
     BNode) - but query()/update() send SPARQL text straight through
     unscoped (the endpoint's own default graph), while infer()/triples()/
@@ -211,18 +211,18 @@ class TestIdentifierDefault:
     """
 
     def test_native_backend_defaults_identifier_to_dataset_default_graph_id(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         assert g.identifier == ox.DefaultGraph()
 
     def test_native_backend_explicit_none_identifier_also_defaults(self):
         # rdflib's own Graph.__init__ treats an omitted identifier= and an
         # explicit identifier=None identically (identifier or BNode()) -
         # this confirms the same equivalence holds for the new default.
-        g = OxGraph(identifier=None)
+        g = StarLayerGraph(identifier=None)
         assert g.identifier == ox.DefaultGraph()
 
     def test_native_backend_respects_explicit_identifier(self):
-        g = OxGraph(identifier=URIRef(EX + "someGraph"))
+        g = StarLayerGraph(identifier=URIRef(EX + "someGraph"))
         assert g.identifier == ox.NamedNode(EX + "someGraph")
 
 
@@ -260,7 +260,7 @@ class TestRdfXmlVersionAttribute:
     )
 
     def test_real_oxigraph_output_does_not_produce_bogus_triple(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=self._OXIGRAPH_OUTPUT, format='rdfxml12')
         # Exactly the one real triple (stmt rdf:reifies <<(a b c)>>) - no
         # extra (TripleTerm(a,b,c), rdf:version, "1.2") triple.
@@ -279,7 +279,7 @@ class TestVersionLabelIsAHint:
             @prefix : <{EX}> .
             :stmt <http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies> <<( :bob :knows :carol )>> .
         """
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=data, format='turtle12')
         assert g.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
         assert not [w for w in recwarn.list if 'VERSION' in str(w.message)]

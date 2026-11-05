@@ -3,7 +3,7 @@
 import pyoxigraph as ox
 import pytest
 import rdflib
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.sparql import srl
 
 EX = "http://example.org/"
@@ -15,7 +15,7 @@ def _ex(name):
     return ox.NamedNode(EX + name)
 
 
-def _graph(cls=OxGraph):
+def _graph(cls=StarLayerGraph):
     g = cls()
     g.parse(data=DATA, format="turtle")
     return g
@@ -31,7 +31,7 @@ def test_query_with_pyoxigraph_goal_terms(ruleset):
     assert list(ruleset.query(_graph(), goal)) == [{ox.Variable("x"): _ex("db")}]
 
 
-@pytest.mark.parametrize("cls", [OxGraph, OxDataset])
+@pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_query_with_pyoxigraph_variables(ruleset, cls):
     goal = srl.TriplePattern(subject=ox.Variable("x"), predicate=_ex("exposedTo"), object=ox.Variable("v"))
     assert ruleset.query(_graph(cls), goal) == [{ox.Variable("x"): _ex("db"), ox.Variable("v"): _ex("v1")}]
@@ -53,7 +53,7 @@ def test_query_on_an_rdflib_graph_keeps_rdflib_rows_and_takes_pyoxigraph_goal(ru
 
 def test_query_with_pyoxigraph_literal_goals():
     rules = srl.parse_ruleset(f'PREFIX ex: <{EX}> RULE {{ ?x ex:label "a" }} WHERE {{ ?x ex:p ?y }}')
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=f"@prefix ex: <{EX}> . ex:s ex:p ex:o .", format="turtle")
     hit = srl.TriplePattern(subject=ox.Variable("x"), predicate=_ex("label"), object=ox.Literal("a"))
     assert rules.query(g, hit) == [{ox.Variable("x"): _ex("s")}]
@@ -69,7 +69,7 @@ def test_query_with_a_pyoxigraph_blank_node_goal(ruleset):
 
 def test_query_with_a_pyoxigraph_triple_term_goal():
     rules = srl.parse_ruleset(f"PREFIX ex: <{EX}> RULE {{ ?x ex:says <<( ?x ex:p ?y )>> }} WHERE {{ ?x ex:p ?y }}")
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=f"@prefix ex: <{EX}> . ex:s ex:p ex:o .", format="turtle")
     triple = ox.Triple(_ex("s"), _ex("p"), _ex("o"))
     goal = srl.TriplePattern(subject=ox.Variable("x"), predicate=_ex("says"), object=triple)
@@ -102,15 +102,15 @@ def test_triple_pattern_stores_rdflib_terms():
     assert pattern.object == rdflib.Literal("a")
 
 
-@pytest.mark.parametrize("cls", [OxGraph, OxDataset])
+@pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_infer_has_no_rdflib_default_prefixes(ruleset, cls):
     out = ruleset.infer(_graph(cls))
-    assert isinstance(out, OxGraph)
+    assert isinstance(out, StarLayerGraph)
     assert dict(out.prefixes) == {"ex": EX}
 
 
 def test_infer_carries_input_prefixes_and_ruleset_prefixes():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.bind("other", "http://other.example/")
     g.parse(data=DATA, format="turtle")
     rules = srl.parse_ruleset(f"PREFIX r: <{EX}r/> PREFIX ex: <{EX}> RULE {{ ?x r:q ?v }} WHERE {{ ?x ex:hasVulnerability ?v }}")
@@ -119,13 +119,13 @@ def test_infer_carries_input_prefixes_and_ruleset_prefixes():
 
 def test_infer_with_no_prefixes_anywhere_has_none():
     rules = srl.parse_ruleset(f"RULE {{ ?x <{EX}q> ?v }} WHERE {{ ?x <{EX}hasVulnerability> ?v }}")
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((_ex("db"), _ex("hasVulnerability"), _ex("v1")))
     assert dict(rules.infer(g).prefixes) == {}
 
 
 def test_infer_with_a_schema_has_no_default_prefixes(ruleset):
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="@prefix sh: <http://www.w3.org/ns/shacl#> . [] a sh:NodeShape ; sh:targetClass <http://example.org/Nothing> .",
         format="turtle",
@@ -135,7 +135,7 @@ def test_infer_with_a_schema_has_no_default_prefixes(ruleset):
 
 
 def test_ruleset_to_tree_into_an_oxgraph_adds_no_prefixes(ruleset):
-    tree, _root = srl.ruleset_to_tree(ruleset, OxGraph())
+    tree, _root = srl.ruleset_to_tree(ruleset, StarLayerGraph())
     assert dict(tree.prefixes) == {}
 
 

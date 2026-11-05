@@ -140,8 +140,8 @@ def sqe_parse_to_tree(
 
     Args:
         text: The SPARQL query text to encode.
-        graph: The graph to add the ``sqe:`` RDF to: an ``OxGraph`` (pyoxigraph terms) or an rdflib graph (rdflib terms).
-            Defaults to a fresh ``OxGraph``.
+        graph: The graph to add the ``sqe:`` RDF to: an ``StarLayerGraph`` (pyoxigraph terms) or an rdflib graph (rdflib terms).
+            Defaults to a fresh ``StarLayerGraph``.
         root: The node to use as the query's own root - any ``URIRef``/
             ``BNode``. Defaults to a fresh ``BNode()``. Give a real
             ``URIRef`` to make the query findable by that identity later
@@ -153,7 +153,7 @@ def sqe_parse_to_tree(
             apart on its own.
 
     Returns:
-        A ``(graph, root)`` tuple; with no ``graph`` given, an ``OxGraph`` and a pyoxigraph ``root``.
+        A ``(graph, root)`` tuple; with no ``graph`` given, an ``StarLayerGraph`` and a pyoxigraph ``root``.
 
     Raises:
         SparqlSyntaxError: For text outside the SPARQL 1.2 query
@@ -163,9 +163,9 @@ def sqe_parse_to_tree(
     """
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-    if graph is None:  # encode on a scratch rdflib graph, return a fresh OxGraph
+    if graph is None:  # encode on a scratch rdflib graph, return a fresh StarLayerGraph
         return _ox.default_boundary(lambda g, r: _parse_to_rdflib_tree(text, g, r), root)
-    if _ox.is_oxigraph_input(graph):  # an OxGraph target: encode on rdflib terms, then add them to it
+    if _ox.is_oxigraph_input(graph):  # an StarLayerGraph target: encode on rdflib terms, then add them to it
         return _ox.write_boundary(graph, lambda g, r: _parse_to_rdflib_tree(text, g, r), root)
     return _parse_to_rdflib_tree(text, graph, root)
 

@@ -10,7 +10,7 @@ which shape it's attached to, which that per-shape loop cannot express.
 """
 
 from rdflib import RDF, Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._shape_loader import load_shape
@@ -26,7 +26,7 @@ def test_cross_shape_layering_orders_by_layer_not_by_shape_order() -> None:
     (order 10) runs afterward - ex:stage2 would never appear. Only a real
     cross-shape, layer-ordered fixpoint gets this right.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -60,7 +60,7 @@ def test_cross_shape_layering_orders_by_layer_not_by_shape_order() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.start, EX.marker, Literal(True)))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
@@ -76,7 +76,7 @@ def test_run_once_rule_fires_exactly_once_despite_minting_fresh_blank_nodes() ->
     ReportableRuntimeError. Marking it sh:runOnce must make it fire exactly
     once and let the call succeed.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -97,7 +97,7 @@ def test_run_once_rule_fires_exactly_once_despite_minting_fresh_blank_nodes() ->
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.start, EX.marker, Literal(True)))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
@@ -116,7 +116,7 @@ def test_sh_order_within_a_layer_is_compared_globally_not_per_shape() -> None:
     every rule's own sh:order globally within the layer, the dependent rule
     would run before the precursor and never see its output.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -154,7 +154,7 @@ def test_sh_order_within_a_layer_is_compared_globally_not_per_shape() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.start, EX.marker, Literal(True)))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
@@ -171,10 +171,10 @@ def test_shapes_graph_without_layer_or_run_once_uses_original_pyshacl_loop() -> 
     time rather than validate() directly, to exercise the actual patched
     call site.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_sparql.ttl"), format="turtle")
 
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.a, EX.reach, EX.b))
     data.add((EX.b, EX.reach, EX.c))
     data.add((EX.c, EX.reach, EX.d))

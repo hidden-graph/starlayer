@@ -1,5 +1,5 @@
 """
-Unit tests for starlayer.graph.graph.OxGraph.
+Unit tests for starlayer.graph.graph.StarLayerGraph.
 
 Covers: rdflib compatibility, TripleTerm add/query, filtering of internal
 encoding triples, from_rdflib(), and Statement operations.
@@ -12,7 +12,7 @@ import pytest
 from rdflib import Graph
 from rdflib import URIRef as RdURIRef
 from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 
@@ -51,7 +51,7 @@ EX = 'http://example.org/'
 
 @pytest.fixture
 def sg():
-    return OxGraph()
+    return StarLayerGraph()
 
 
 # ---------------------------------------------------------------------------
@@ -113,12 +113,12 @@ class TestNamedViewAndQuadFormats:
     def test_serialize_trig_uses_own_identifier(self):
         """A named-graph view writes its own identifier as the GRAPH block name (the old class compared with plain rdflib)."""
         identifier = URIRef(EX + 'mygraph')
-        sg = OxGraph(identifier=identifier)
+        sg = StarLayerGraph(identifier=identifier)
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         out = sg.serialize(format='trig')
         assert f'<{EX}mygraph> {{' in out
-        from starlayer.graph.oxgraph import OxDataset
-        ds = OxDataset().parse(data=out, format='trig')
+        from starlayer.graph.oxgraph import StarLayerDataset
+        ds = StarLayerDataset().parse(data=out, format='trig')
         assert [(q.subject.value, q.graph_name.value) for q in ds.quads()] == [(EX + 's', EX + 'mygraph')]
 
     @pytest.mark.parametrize('fmt, data', [
@@ -128,8 +128,8 @@ class TestNamedViewAndQuadFormats:
         ('trig', f'<{EX}default> <{EX}p> <{EX}o> .\n<{EX}g1> {{ <{EX}named> <{EX}p> <{EX}o> . }}\n'),
     ])
     def test_a_document_with_named_graphs_is_refused_by_a_graph_view(self, sg, fmt, data):
-        # The old class dropped a single graph's name and raised MultipleGraphsError for two; an OxGraph refuses any
-        # named graph (parse into an OxDataset), and the graph is left unchanged.
+        # The old class dropped a single graph's name and raised MultipleGraphsError for two; an StarLayerGraph refuses any
+        # named graph (parse into an StarLayerDataset), and the graph is left unchanged.
         with pytest.raises(ValueError, match='named graphs'):
             sg.parse(data=data, format=fmt)
         assert len(sg) == 0
@@ -143,7 +143,7 @@ class TestNamedViewAndQuadFormats:
 # serializer plugin raises "...only makes sense for context-aware stores"
 # for any non-context-aware store (no single-graph fallback, unlike
 # TrigSerializer's own - see rdflib.plugins.serializers.trig), which
-# OxGraph used to just inherit via blind delegation. Now wraps the
+# StarLayerGraph used to just inherit via blind delegation. Now wraps the
 # graph as the one context of a real Dataset first, so all six dataset
 # formats (nquads/trig, nq12/trig12) behave consistently.
 # ---------------------------------------------------------------------------
@@ -151,7 +151,7 @@ class TestNamedViewAndQuadFormats:
 class TestBareQuadFormatsSerializing:
     def test_nquads_assigns_graph_name_from_identifier(self):
         identifier = URIRef(EX + 'mygraph')
-        sg = OxGraph(identifier=identifier)
+        sg = StarLayerGraph(identifier=identifier)
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         text = sg.serialize(format='nquads')
         assert str(identifier) in text
@@ -160,7 +160,7 @@ class TestBareQuadFormatsSerializing:
     @pytest.mark.parametrize('fmt', ['trix', 'trix12'])
     def test_trix_is_refused(self, fmt):
         """TriX was dropped (decision 2026-10-31): a clear error, not rdflib's plugin."""
-        sg = OxGraph(identifier=URIRef(EX + 'mygraph'))
+        sg = StarLayerGraph(identifier=URIRef(EX + 'mygraph'))
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         with pytest.raises(ValueError, match='unknown RDF format'):
             sg.serialize(format=fmt)
@@ -168,7 +168,7 @@ class TestBareQuadFormatsSerializing:
             sg.parse(data='<trix/>', format=fmt)
 
     def test_nquads_serialize_returns_self_when_destination_given(self, tmp_path):
-        sg = OxGraph(identifier=URIRef(EX+'mygraph'))
+        sg = StarLayerGraph(identifier=URIRef(EX+'mygraph'))
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         dest = tmp_path / 'out.nq'
         result = sg.serialize(destination=str(dest), format='nquads')
@@ -180,7 +180,7 @@ class TestBareQuadFormatsSerializing:
 # Chaining contract (return self, matching rdflib) - regressions fixed
 # 2026-10-04. rdflib's own Graph.add()/.addN()/.remove()/.serialize()/.open()
 # all return self (or the serialized text when destination is None) so
-# calls can chain; several OxGraph overrides had silently dropped
+# calls can chain; several StarLayerGraph overrides had silently dropped
 # this by falling off the end of the function (add/remove), forwarding
 # rdflib's own unrelated raw return value (open), or returning a throwaway
 # internal object instead of self (serialize's destination-given branches).
@@ -312,32 +312,32 @@ class TestFromRdflib:
     def test_from_rdflib_plain_triples(self):
         raw = Graph()
         raw.add((RdURIRef(EX+'s'), RdURIRef(EX+'p'), RdURIRef(EX+'o')))
-        sg = OxGraph.from_rdflib(raw)
+        sg = StarLayerGraph.from_rdflib(raw)
         assert (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')) in sg
 
     def test_from_rdflib_preserves_a_real_identifier(self):
-        """A source graph's own caller-given .identifier is preserved onto the converted OxGraph (2026-10-09)."""
+        """A source graph's own caller-given .identifier is preserved onto the converted StarLayerGraph (2026-10-09)."""
         raw = Graph(identifier=RdURIRef(EX + 's'))
         raw.add((RdURIRef(EX+'s'), RdURIRef(EX+'p'), RdURIRef(EX+'o')))
-        sg = OxGraph.from_rdflib(raw)
+        sg = StarLayerGraph.from_rdflib(raw)
         assert sg.identifier == URIRef(EX + 's')
 
     def test_from_rdflib_default_bnode_identifier_still_works(self):
         """A source graph with no caller-given identifier (a random BNode) converts to the default graph."""
         raw = Graph()
         raw.add((RdURIRef(EX+'s'), RdURIRef(EX+'p'), RdURIRef(EX+'o')))
-        sg = OxGraph.from_rdflib(raw)
+        sg = StarLayerGraph.from_rdflib(raw)
         assert isinstance(sg.identifier, ox.DefaultGraph)
 
     def test_from_rdflib_dataset_source_does_not_preserve_identifier(self):
-        """A whole Dataset has no single identity of its own: the OxGraph is the default graph (it is empty here: the
+        """A whole Dataset has no single identity of its own: the StarLayerGraph is the default graph (it is empty here: the
         triples are in a named graph and an rdflib Dataset is not a union by default)."""
         from rdflib import Dataset
 
         ds = Dataset()
         named = ds.graph(RdURIRef(EX + 'named1'))
         named.add((RdURIRef(EX+'s'), RdURIRef(EX+'p'), RdURIRef(EX+'o')))
-        sg = OxGraph.from_rdflib(ds)
+        sg = StarLayerGraph.from_rdflib(ds)
         assert isinstance(sg.identifier, ox.DefaultGraph)
 
     def test_from_rdflib_named_graph_pulled_from_dataset_preserves_identifier(self):
@@ -347,7 +347,7 @@ class TestFromRdflib:
         ds = Dataset()
         named = ds.graph(RdURIRef(EX + 'named1'))
         named.add((RdURIRef(EX+'s'), RdURIRef(EX+'p'), RdURIRef(EX+'o')))
-        sg = OxGraph.from_rdflib(named)
+        sg = StarLayerGraph.from_rdflib(named)
         assert sg.identifier == URIRef(EX + 'named1')
 
 
@@ -361,7 +361,7 @@ class TestFromRdflibDataset:
         named = ds.graph(RdURIRef(EX+'g1'))
         named.add((RdURIRef(EX+'named_s'), RdURIRef(EX+'p'), RdURIRef(EX+'named_o')))
 
-        sg = OxGraph.from_rdflib(ds)
+        sg = StarLayerGraph.from_rdflib(ds)
         assert len(sg) == 1
         assert (URIRef(EX+'default_s'), URIRef(EX+'p'), URIRef(EX+'default_o')) in sg
         assert (URIRef(EX+'named_s'), URIRef(EX+'p'), URIRef(EX+'named_o')) not in sg
@@ -373,7 +373,7 @@ class TestFromRdflibDataset:
         named = ds.graph(RdURIRef(EX+'g1'))
         named.add((RdURIRef(EX+'named_s'), RdURIRef(EX+'p'), RdURIRef(EX+'named_o')))
 
-        sg = OxGraph.from_rdflib(ds)
+        sg = StarLayerGraph.from_rdflib(ds)
         assert len(sg) == 2
         assert (URIRef(EX+'default_s'), URIRef(EX+'p'), URIRef(EX+'default_o')) in sg
         assert (URIRef(EX+'named_s'), URIRef(EX+'p'), URIRef(EX+'named_o')) in sg
@@ -392,7 +392,7 @@ class TestStatements:
         assert isinstance(o, ox.Triple)
 
     def test_add_reification_returns_self(self, sg):
-        """Matches every other mutating method on OxGraph (add(),
+        """Matches every other mutating method on StarLayerGraph (add(),
         remove(), addN(), etc) - added 2026-10-04, this used to return
         None, the one mutating method that didn't support chaining."""
         result = sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
@@ -400,7 +400,7 @@ class TestStatements:
 
     def test_remove_reification_returns_self(self, sg):
         """Matches add_reification() and every other mutating method on
-        OxGraph - added 2026-10-04, this used to return None."""
+        StarLayerGraph - added 2026-10-04, this used to return None."""
         sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         result = sg.remove_reification(URIRef(EX+'stmt'))
         assert result is sg
@@ -468,7 +468,7 @@ class TestStatements:
 class TestTripleTermsQuery:
     @pytest.fixture
     def sg_two_tts(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         g.add_reification(URIRef(EX+'claim'),
                            (URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol')))
@@ -515,7 +515,7 @@ class TestTripleTermsQuery:
 class TestQnameTerm:
     @pytest.fixture
     def sg(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind('ex', EX)
         return g
 
@@ -534,7 +534,7 @@ class TestQnameTerm:
         assert sg.qname_term(Literal('hi', lang='en')) == '"hi"@en'
 
     def test_literal_with_datatype(self, sg):
-        # bonus over qname(), which raises outright on a Literal: the datatype IRI is compacted too (an OxGraph has no
+        # bonus over qname(), which raises outright on a Literal: the datatype IRI is compacted too (an StarLayerGraph has no
         # default xsd binding, so the test binds it).
         sg.bind('xsd', _XSD)
         assert sg.qname_term(Literal(42)) == '"42"^^xsd:integer'
@@ -611,7 +611,7 @@ class TestTripleTermImmutability:
 class TestConvenienceMethodWildcards:
     @pytest.fixture
     def g(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((URIRef(EX+'stmt1'), RDF_REIFIES,
                TripleTerm(URIRef(EX+'alice'), URIRef(EX+'knows'), URIRef(EX+'bob'))))
         g.add((URIRef(EX+'stmt2'), RDF_REIFIES,
@@ -679,13 +679,13 @@ class TestIsomorphic:
         """Two separately-parsed graphs, same shape, different arbitrary
         BNode labels inside a triple term - must compare as isomorphic
         (this was the documented caveat / bug this override fixes)."""
-        g1 = OxGraph()
+        g1 = StarLayerGraph()
         g1.parse(data='''
             @prefix : <http://example.org/> .
             :a :says <<( _:x :knows :carol )>> .
             _:x :name "Bob" .
         ''', format='turtle12')
-        g2 = OxGraph()
+        g2 = StarLayerGraph()
         g2.parse(data='''
             @prefix : <http://example.org/> .
             :a :says <<( _:differentlabel :knows :carol )>> .
@@ -696,13 +696,13 @@ class TestIsomorphic:
     def test_genuinely_different_graphs_not_isomorphic(self):
         """Guard against over-permissiveness: a real structural difference
         must still compare as not isomorphic."""
-        g1 = OxGraph()
+        g1 = StarLayerGraph()
         g1.parse(data='''
             @prefix : <http://example.org/> .
             :a :says <<( _:x :knows :carol )>> .
             _:x :name "Bob" .
         ''', format='turtle12')
-        g2 = OxGraph()
+        g2 = StarLayerGraph()
         g2.parse(data='''
             @prefix : <http://example.org/> .
             :a :says <<( _:x :knows :dave )>> .
@@ -713,14 +713,14 @@ class TestIsomorphic:
     def test_nested_triple_term_with_bnode(self):
         """A BNode inside a nested (triple-term-in-triple-term) component
         must also be treated as relabelable."""
-        g1 = OxGraph()
+        g1 = StarLayerGraph()
         g1.parse(data='''
             @prefix : <http://example.org/> .
             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
             :r rdf:reifies <<( :a :believes <<( _:x :knows :carol )>> )>> .
             _:x :name "Bob" .
         ''', format='turtle12')
-        g2 = OxGraph()
+        g2 = StarLayerGraph()
         g2.parse(data='''
             @prefix : <http://example.org/> .
             @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
@@ -732,12 +732,12 @@ class TestIsomorphic:
     def test_no_triple_terms_still_works(self):
         """Plain graphs with no tt: content at all - the unfold is a no-op,
         ordinary rdflib isomorphism still applies."""
-        g1 = OxGraph()
+        g1 = StarLayerGraph()
         g1.parse(data='@prefix : <http://example.org/> .\n:a :knows :bob .\n', format='turtle12')
-        g2 = OxGraph()
+        g2 = StarLayerGraph()
         g2.parse(data='@prefix : <http://example.org/> .\n:a :knows :bob .\n', format='turtle12')
         assert isomorphic(g1, g2)
-        g3 = OxGraph()
+        g3 = StarLayerGraph()
         g3.parse(data='@prefix : <http://example.org/> .\n:a :knows :carol .\n', format='turtle12')
         assert not isomorphic(g1, g3)
 
@@ -748,12 +748,12 @@ class TestIsomorphic:
 
 class TestSameLineParsing:
     def test_prefix_and_triple_same_line(self):
-        sg = OxGraph()
+        sg = StarLayerGraph()
         sg.parse(data='@prefix : <http://example.org/> . :a :knows :bob .', format='turtle12')
         assert len(sg) == 1
         assert (URIRef(EX + 'a'), URIRef(EX + 'knows'), URIRef(EX + 'bob')) in sg
 
     def test_two_triples_same_line(self):
-        sg = OxGraph()
+        sg = StarLayerGraph()
         sg.parse(data='@prefix : <http://example.org/> .\n:a :b :c . :d :e :f .', format='turtle12')
         assert len(sg) == 2

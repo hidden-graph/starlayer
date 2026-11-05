@@ -82,9 +82,9 @@ def test_check_ignores_the_build_stamp_when_comparing_trig_files() -> None:
     import build
 
     def trig(built_at: str, value: str) -> bytes:
-        from starlayer.graph.oxgraph import OxDataset
+        from starlayer.graph.oxgraph import StarLayerDataset
 
-        ds = OxDataset()
+        ds = StarLayerDataset()
         ds.graph(URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/build")).add(
             (URIRef("http://example.org/b"), URIRef("http://example.org/builtAt"), Literal(built_at))
         )

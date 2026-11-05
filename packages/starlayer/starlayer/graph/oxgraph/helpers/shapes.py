@@ -1,9 +1,9 @@
-"""``derive_shape``: infer a SHACL shapes graph from the data of an ``OxGraph`` / ``OxDataset``.
+"""``derive_shape``: infer a SHACL shapes graph from the data of an ``StarLayerGraph`` / ``StarLayerDataset``.
 
 One ``sh:NodeShape`` per distinct ``rdf:type`` found (never per-node or heuristic clustering), optionally reconciled against
-a template shape. Native over pyoxigraph terms and the wrapper API (no rdflib); the old rdflib module
-``graph/graph/shape_derivation.py`` stays until the old ``StarLayerGraph`` goes, and ``test_helpers_conformance.py`` compares
-the two up to blank-node isomorphism.
+a template shape. Native over pyoxigraph terms and the wrapper API (no rdflib). The rdflib module
+``graph/graph/shape_derivation.py`` is no longer called by the library (it is kept only for its ``DEFAULT_IGNORED_PROPERTIES``
+constant that a test reads; D4 backlog).
 
 Two phases:
 
@@ -468,16 +468,16 @@ def _derive_with_template(data: Any, template_shape: Any, ignored: set[Any], wor
 
 def derive_shape(g: Any, template_shape: Any = None, *, ignored_properties: Any = None, use_default_ignored_properties: bool = True) -> Any:
     """One closed ``sh:NodeShape`` per ``rdf:type`` found in ``g``, optionally reconciled with ``template_shape`` (an
-    ``OxGraph`` / ``OxDataset``, or an rdflib graph whose terms are converted). ``ignored_properties`` are pyoxigraph
-    ``NamedNode``s (rdflib IRIs are converted). Returns a new ``OxGraph`` with ``g``'s prefixes plus ``sh``."""
-    from starlayer.graph.oxgraph.core import OxGraph
+    ``StarLayerGraph`` / ``StarLayerDataset``, or an rdflib graph whose terms are converted). ``ignored_properties`` are pyoxigraph
+    ``NamedNode``s (rdflib IRIs are converted). Returns a new ``StarLayerGraph`` with ``g``'s prefixes plus ``sh``."""
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
     ignored: set[Any] = set(_ALWAYS_IGNORED)
     if use_default_ignored_properties:
         ignored |= DEFAULT_IGNORED_PROPERTIES
     ignored |= {terms.term(p) for p in ignored_properties or ()}
 
-    out = OxGraph(prefixes=dict(g.prefixes))
+    out = StarLayerGraph(prefixes=dict(g.prefixes))
     out.prefixes.setdefault("sh", _SH_NS)
     if template_shape is None:
         return _derive_fresh(g, ignored, out)

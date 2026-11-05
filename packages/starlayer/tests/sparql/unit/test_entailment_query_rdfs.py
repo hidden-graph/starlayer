@@ -1,11 +1,11 @@
-"""Migrated from tests/sparql/unit/test_entailment_rdfs.py: the same tests, on an ``OxGraph``, with the query-time rewrite of
+"""Migrated from tests/sparql/unit/test_entailment_rdfs.py: the same tests, on an ``StarLayerGraph``, with the query-time rewrite of
 ``starlayer.sparql.sqe.entailment`` (text in, text out, Oxigraph evaluates) instead of the rdflib-algebra rewrite. Differences from
 the original are listed in the module docstring of ``tests/graph/oxgraph/test_entailment_query.py``.
 """
 
 import pytest
 from rdflib import RDF, RDFS, Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
 from starlayer.sparql.sqe.entailment import rewrite_for_entailment
 
@@ -50,7 +50,7 @@ def prepareQuery(text, initNs=None):  # noqa: N802
 
 
 def Graph():  # noqa: N802
-    return OxGraph()
+    return StarLayerGraph()
 
 
 def _run(graph, text, regime, ns):
@@ -73,7 +73,7 @@ def _query(graph, text: str):
 def _materialize(*triples) -> Graph:
     import rdflib
 
-    g = rdflib.Graph()  # owlrl works on an rdflib graph; the closure is copied into an OxGraph and queried there
+    g = rdflib.Graph()  # owlrl works on an rdflib graph; the closure is copied into an StarLayerGraph and queried there
     for t in triples:
         g.add(t)
     owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(g)

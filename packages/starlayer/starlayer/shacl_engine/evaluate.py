@@ -47,7 +47,7 @@ def evaluate(
     to that closure only); entailed triples count as stored triples. ``rules_entailment`` also runs the rules the
     shapes graph's ``sh:entailment`` selects, before evaluating. ``focus_nodes`` restricts evaluation to those nodes (the
     shapes' targets are still resolved over the whole data graph); ``properties`` to property shapes whose ``sh:path`` is one
-    of those predicates. Returns a new graph (an ``OxGraph``) with the data graph's prefixes.
+    of those predicates. Returns a new graph (an ``StarLayerGraph``) with the data graph's prefixes.
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 

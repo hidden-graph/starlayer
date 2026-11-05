@@ -19,7 +19,7 @@ Supported (SHACL 1.2 forms only; no SHACL-AF 2017 behaviour, no JS rules, no pyS
 The algorithm is the draft's pseudocode: layers ascending; per layer one pass over run-once rules (by order group), then
 the iterating rules (by order group) repeated until nothing new is inferred.
 
-Performance note: SPARQL runs on a materialised ``OxGraph`` (base copy plus inferred), built once per
+Performance note: SPARQL runs on a materialised ``StarLayerGraph`` (base copy plus inferred), built once per
 ``InferredView`` and kept in step incrementally. A native overlay query (union dataset, or the backend's own
 ``sparql_query``) is the follow-up.
 """
@@ -167,7 +167,7 @@ class InferredView:
 
     # -- SPARQL: through the materialised union
     def materialised(self) -> Any:
-        """An ``OxGraph`` holding the base and the inferred triples (built once, then kept in step by ``add`` / ``remove``)."""
+        """An ``StarLayerGraph`` holding the base and the inferred triples (built once, then kept in step by ``add`` / ``remove``)."""
         if self._mat is None:
             from starlayer.shacl_engine.graphs import new_graph
 
@@ -591,7 +591,7 @@ def apply_rules(
     every rule of the shapes graph. A failing rule fails the whole rule set: ``RuleError`` is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
     check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"))
-    data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, an OxGraph copy inside
+    data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, an StarLayerGraph copy inside
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
     rule_sets = None if rule_sets is None else [to_engine(s) for s in rule_sets]
     view = new_overlay(data_graph)

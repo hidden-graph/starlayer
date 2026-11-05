@@ -8,7 +8,7 @@ No xfail shims: a failing entry is a to-do.
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.expressions import evaluate_expression
@@ -55,7 +55,7 @@ def pytest_generate_tests(metafunc):
 
 
 def _eval(entry: ManifestEntry) -> None:
-    graph = clone_graph(load_document(entry.source_path), OxGraph)
+    graph = clone_graph(load_document(entry.source_path), StarLayerGraph)
     action = next(entry.graph.objects(entry.iri, MF.action))
     expr = next(entry.graph.objects(action, SHT.nodeExpr))
     focus = next(entry.graph.objects(action, SHT.focusNode), None)
@@ -108,11 +108,11 @@ def _validate(entry: ManifestEntry) -> None:
     action = next(entry.graph.objects(entry.iri, MF.action))
     data = clone_graph(
         load_document(uri_to_path(next(entry.graph.objects(action, SHT.dataGraph)))),
-        OxGraph,
+        StarLayerGraph,
     )
     shapes = clone_graph(
         load_document(uri_to_path(next(entry.graph.objects(action, SHT.shapesGraph)))),
-        OxGraph,
+        StarLayerGraph,
     )
     expected = next(entry.graph.objects(entry.iri, MF.result))
     expected_graph = node_closure(entry.graph, expected)

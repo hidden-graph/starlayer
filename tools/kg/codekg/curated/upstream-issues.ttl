@@ -14,80 +14,70 @@ ui:rdflib-1 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 1 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_multiplicative_expression_type_promotion" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-2 a slkg:UpstreamIssue ;
     rdfs:label "`translateAlgebra` regenerates invalid or crashing SPARQL text" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 2 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.algebra_translator_patches.patch_algebra_translator_bugs" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-5 a slkg:UpstreamIssue ;
     rdfs:label "Un-aliased computed `GROUP BY` key crashes" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 5 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_group_by_unaliased_expression_key" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-6 a slkg:UpstreamIssue ;
     rdfs:label "A `SELECT` row with no variable bindings gets silently dropped when iterated" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 6 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.result_patches.patch_result_iter_empty_binding_row" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-7 a slkg:UpstreamIssue ;
     rdfs:label "`xsd:integer()` cannot cast a decimal, double, float or boolean" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 7 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_integer_cast_from_numeric_and_boolean" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-8 a slkg:UpstreamIssue ;
     rdfs:label "`FILTER` forgets a variable bound outside its group" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 8 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalfilter_forgotten_vars" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-9 a slkg:UpstreamIssue ;
     rdfs:label "`INSERT DATA` into a `Dataset`'s default graph crashes" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 9 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalinsertdata_quad_unpacking" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-10 a slkg:UpstreamIssue ;
     rdfs:label "`REPLACE` ignores its flags argument" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 10 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.custom_functions._register_dirlang_string_functions._replace" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-11 a slkg:UpstreamIssue ;
     rdfs:label "`STRLANG` accepts an empty language tag" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 11 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_strlang_rejects_empty_language_tag" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-12 a slkg:UpstreamIssue ;
     rdfs:label "`CEIL`, `FLOOR` and `ROUND` of a decimal give a non-canonical lexical form" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 12 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_decimal_result_lexical_form" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-13 a slkg:UpstreamIssue ;
     rdfs:label "Queries that break the grammar are accepted" ;
@@ -110,32 +100,28 @@ ui:rdflib-15 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 15 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_sameterm_simple_literal_is_xsd_string" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-16 a slkg:UpstreamIssue ;
     rdfs:label "A `FILTER` in a nested group sees variables bound outside the group" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 16 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_evalfilter_forgotten_vars" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-17 a slkg:UpstreamIssue ;
     rdfs:label "An explicit `GROUP BY` over no solutions returns one empty row" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 17 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_aggregate_join_no_row_for_empty_explicit_group" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-18 a slkg:UpstreamIssue ;
     rdfs:label "`CONSTRUCT` keeps template triples that are not valid RDF" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 18 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_construct_skips_encoding_solutions" .
+    slkg:issueStatus "documented-only" .
 
 ui:pyshacl-1 a slkg:UpstreamIssue ;
     rdfs:label "`sh:intersection` node expression silently evaluates empty" ;
@@ -230,128 +216,112 @@ ui:rdflib-19 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 19 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.update_patches.patch_update_graph_management" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-20 a slkg:UpstreamIssue ;
     rdfs:label "A negated property set matches the triple-term encoding; isIRI and STR accept a triple term" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 20 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_negated_path_skips_encoding_triples", "starlayer.graph.query.operator_patches.patch_triple_terms_are_not_iris" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-22 a slkg:UpstreamIssue ;
     rdfs:label "SUBSTR with a start position below 1 returns the wrong string" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 22 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_substr_xpath_semantics" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-23 a slkg:UpstreamIssue ;
     rdfs:label "TIMEZONE() drops the minutes of a UTC offset" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 23 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_timezone_keeps_minutes" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-24 a slkg:UpstreamIssue ;
     rdfs:label "IN and NOT IN use term equality and swallow errors; && with an error operand; ordering across types; directional-literal tag case" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 24 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_relational_operators_follow_spec", "starlayer.graph.query.operator_patches.patch_sameterm_simple_literal_is_xsd_string" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-25 a slkg:UpstreamIssue ;
     rdfs:label "SUM and AVG over non-numeric values abort the whole query" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 25 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_sum_avg_errors_are_unbound" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-26 a slkg:UpstreamIssue ;
     rdfs:label "An empty VALUES block crashes" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 26 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_empty_values_clause" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-27 a slkg:UpstreamIssue ;
     rdfs:label "STRDT accepts a non-IRI datatype; STRLANG with an invalid tag raises ValueError" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 27 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_strdt_requires_string_and_iri", "starlayer.graph.query.operator_patches.patch_strlang_rejects_empty_language_tag" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-28 a slkg:UpstreamIssue ;
     rdfs:label "Ill-typed literals: RecursionError, isNumeric true, AttributeError in DAY() and YEAR()" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 28 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_ill_typed_literals_are_errors" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-29 a slkg:UpstreamIssue ;
     rdfs:label "SELECT * lists variables that occur only in a FILTER; DESCRIBE * crashes" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 29 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_select_star_scope_and_describe_star" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-30 a slkg:UpstreamIssue ;
     rdfs:label "xsd:double division by zero is an error instead of INF" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 30 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.operator_patches.patch_multiplicative_expression_type_promotion" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-35 a slkg:UpstreamIssue ;
     rdfs:label "REGEX and REPLACE: an invalid pattern aborts the query; REPLACE mangles $0, flags and zero-length patterns" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 35 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_regex_and_replace_follow_xpath" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-36 a slkg:UpstreamIssue ;
     rdfs:label "ROUND, FLOOR and CEIL raise on NaN, INF and very large doubles" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 36 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_rounding_of_special_doubles" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-37 a slkg:UpstreamIssue ;
     rdfs:label "A language-tagged string orders against a number" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 37 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_relational_operators_follow_spec" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-21 a slkg:UpstreamIssue ;
     rdfs:label "A negated property set with an inverse member crashes or answers wrongly; p* returns a node twice on a cycle" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 21 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.path_patches.patch_negated_set_inverse_member", "starlayer.graph.query.path_patches.patch_repetition_paths_are_distinct" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-31 a slkg:UpstreamIssue ;
     rdfs:label "DELETE DATA, DELETE WHERE and DELETE { } delete from every graph; USING and USING NAMED are wrong; invalid template triples are inserted" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 31 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.update_patches.patch_update_graph_management" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-32 a slkg:UpstreamIssue ;
     rdfs:label "An empty update request crashes" ;
@@ -366,32 +336,28 @@ ui:rdflib-33 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 33 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.evaluate_patches.patch_join_keeps_duplicate_rows" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-34 a slkg:UpstreamIssue ;
     rdfs:label "MIN/MAX return a literal for any term; an error in an aggregate argument becomes the result" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 34 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_min_max_group_concat_terms_and_errors" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-38 a slkg:UpstreamIssue ;
     rdfs:label "A raw TAB inside a SPARQL string literal is turned into spaces" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 38 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.builtin_error_patches.patch_sparql_parser_keeps_tabs" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-39 a slkg:UpstreamIssue ;
     rdfs:label "p+ and p* over a long chain raise RecursionError" ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 39 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.path_patches.patch_repetition_paths_are_distinct" .
+    slkg:issueStatus "documented-only" .
 
 ui:rdflib-40 a slkg:UpstreamIssue ;
     rdfs:label "A negative decimal literal is a parse error" ;
@@ -422,5 +388,4 @@ ui:rdflib-43 a slkg:UpstreamIssue ;
     slkg:upstreamProject "rdflib" ;
     slkg:issueDocPath "docs/upstream-issues/rdflib-upstream-issues.md" ;
     slkg:issueNumber 43 ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.query.algebra_translator_patches.patch_group_filter_falsy_literal" .
+    slkg:issueStatus "documented-only" .

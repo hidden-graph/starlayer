@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Literal, Namespace, URIRef
 from rdflib.namespace import RDF
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import text
 
@@ -20,14 +20,14 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 # report would be pure noise.
 
 
-def _valid_data() -> OxGraph:
-    data = OxGraph()
+def _valid_data() -> StarLayerGraph:
+    data = StarLayerGraph()
     data.add((EX.alice, EX.age, Literal(30)))
     return data
 
 
-def _shapes() -> OxGraph:
-    shapes = OxGraph()
+def _shapes() -> StarLayerGraph:
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -110,7 +110,7 @@ def test_used_data_graph_and_shapes_graph_work_through_apply_rules() -> None:
     # apply_rules() forwards arbitrary kwargs through to validate() via
     # resolve_mode_options/**options - confirm that path actually
     # reaches the new named parameters, not just validate() called directly.
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -125,7 +125,7 @@ def test_used_data_graph_and_shapes_graph_work_through_apply_rules() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.parent, EX.carol))
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -146,9 +146,9 @@ class TestUsedGraphsFallBackToGraphIdentifier:
     shapes_graph_resource= is never overridden by this fallback."""
 
     def test_falls_back_to_identifier_when_a_real_uriref(self) -> None:
-        data = OxGraph(identifier=EX.MyDataGraph)
+        data = StarLayerGraph(identifier=EX.MyDataGraph)
         data.add((EX.alice, EX.age, Literal(30)))
-        shapes = OxGraph(identifier=EX.MyShapesGraph)
+        shapes = StarLayerGraph(identifier=EX.MyShapesGraph)
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -174,7 +174,7 @@ class TestUsedGraphsFallBackToGraphIdentifier:
         assert not any(True for _ in result.report_graph.triples((None, SH.usedShapesGraph, None)))
 
     def test_explicit_iri_is_never_overridden_by_identifier(self) -> None:
-        data = OxGraph(identifier=EX.MyDataGraph)
+        data = StarLayerGraph(identifier=EX.MyDataGraph)
         data.add((EX.alice, EX.age, Literal(30)))
 
         result = StarShaclSchema(shacl_graph=_shapes()).validate(
@@ -190,7 +190,7 @@ class TestUsedGraphsFallBackToGraphIdentifier:
     def test_bare_validate_function_also_falls_back_to_identifier(self) -> None:
         from starlayer.shacl.validator import validate as bare_validate
 
-        data = OxGraph(identifier=EX.MyDataGraph)
+        data = StarLayerGraph(identifier=EX.MyDataGraph)
         data.add((EX.alice, EX.age, Literal(30)))
 
         result = bare_validate(data, _shapes(), meta_shacl=False)
@@ -238,7 +238,7 @@ class TestAutomaticConformsToDerivation:
         assert not any(True for _ in result.report_graph.triples((None, SH.conformsTo, None)))
 
     def test_non_conforming_report_gets_no_conforms_to(self) -> None:
-        bad_shapes = OxGraph()
+        bad_shapes = StarLayerGraph()
         bad_shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -280,9 +280,9 @@ class TestAutomaticConformsToDerivation:
         values, not off whether the caller passed them explicitly - so the
         same-day .identifier fallback (see TestUsedGraphsFallBackToGraphIdentifier
         above) triggers this derivation too, with no extra wiring needed."""
-        data = OxGraph(identifier=EX.MyDataGraph)
+        data = StarLayerGraph(identifier=EX.MyDataGraph)
         data.add((EX.alice, EX.age, Literal(30)))
-        shapes = OxGraph(identifier=EX.MyShapesGraph)
+        shapes = StarLayerGraph(identifier=EX.MyShapesGraph)
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -328,7 +328,7 @@ class TestValidateSpecificationGraphParameter:
 
     def test_schema_rejects_specification_graph_as_a_construction_kwarg(self) -> None:
         with pytest.raises(TypeError):
-            StarShaclSchema(shacl_graph=_shapes(), specification_graph=OxGraph())
+            StarShaclSchema(shacl_graph=_shapes(), specification_graph=StarLayerGraph())
 
     def test_explicit_derive_conforms_to_after_validate_derives_dcterms_conforms_to(self) -> None:
         from starlayer.shacl.shacl_profiling import derive_conforms_to

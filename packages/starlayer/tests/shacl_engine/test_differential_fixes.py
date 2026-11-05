@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError
 from starlayer.shacl_engine.terms import NS as Namespace
@@ -22,21 +22,21 @@ PREFIXES = """
 
 
 def run(shapes: str, data: str = ""):
-    s, d = OxGraph(), OxGraph()
+    s, d = StarLayerGraph(), StarLayerGraph()
     s.parse(data=PREFIXES + shapes, format="turtle")
     d.parse(data=PREFIXES + data, format="turtle")
     return validate(d, s)
 
 
 def test_report_holds_a_triple_term_value():
-    s, d = OxGraph(), OxGraph()
+    s, d = StarLayerGraph(), StarLayerGraph()
     s.parse(data=PREFIXES + "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:nodeKind sh:IRI ] .", format="turtle")
     d.add((EX.a, EX.p, ox.Triple(EX.x, EX.y, EX.z)))
     out = validate(d, s)
     assert not out.conforms
     values = list(out.report_graph.objects(None, SH.value))
     assert values == [ox.Triple(EX.x, EX.y, EX.z)]
-    assert isinstance(out.report_graph, OxGraph)
+    assert isinstance(out.report_graph, StarLayerGraph)
 
 
 @pytest.mark.parametrize(

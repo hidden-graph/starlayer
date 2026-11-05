@@ -169,7 +169,7 @@ def test_rows_show_repository_relative_paths_not_machine_paths(kg):
 @pytest.mark.codekg_queries
 def test_a_known_call_edge_is_found(kg):
     callers = queries.run_query("callers-of", symbol="starlayer.graph.model.encoding.tt_hash", limit=500).as_dicts()
-    assert any("starlayer_graph" in r["caller"] for r in callers)
+    assert any(r["caller"] == "starlayer.graph.model.encoding._reencode_tt" for r in callers)
 
 
 @pytest.mark.codekg_queries

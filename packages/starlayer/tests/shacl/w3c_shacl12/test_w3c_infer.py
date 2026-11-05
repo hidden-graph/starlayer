@@ -34,11 +34,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema  # noqa: E402
 
 from .ids import portable_id  # noqa: E402
-from .known_failures import KNOWN_FAILURES, KNOWN_FAILURES_OXIGRAPH_STORE  # noqa: E402
+from .known_failures import KNOWN_FAILURES  # noqa: E402
 from .manifest import (  # noqa: E402
     ManifestEntry,
     clone_graph,
@@ -47,7 +47,6 @@ from .manifest import (  # noqa: E402
     uri_to_path,
 )
 from .namespaces import MF, SHT  # noqa: E402
-from .stores import oxigraph_store, oxigraph_store_graph  # noqa: E402
 
 VENDOR_ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
 TOP_MANIFEST = VENDOR_ROOT / "tests" / "manifest.ttl"
@@ -75,7 +74,7 @@ def pytest_generate_tests(metafunc):
         )
 
 
-def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=OxGraph) -> OxGraph:
+def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=StarLayerGraph) -> StarLayerGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
     target_iri = next(entry.graph.objects(action, predicate))
     # Fresh copies, not the cached document objects directly - see
@@ -115,7 +114,7 @@ def _same_triples(added: set[tuple], expected: set[tuple]) -> bool:
         return False
     from starlayer.graph.compare import isomorphic
 
-    left, right = OxGraph(), OxGraph()
+    left, right = StarLayerGraph(), StarLayerGraph()
     for triple in added:
         left.add(triple)
     for triple in expected:
@@ -148,19 +147,5 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
 
 
 def test_w3c_infer(entry: ManifestEntry) -> None:
-    _check_infer(entry, OxGraph, KNOWN_FAILURES)
+    _check_infer(entry, StarLayerGraph, KNOWN_FAILURES)
 
-
-@pytest.mark.store_matrix
-@oxigraph_store
-def test_w3c_infer_oxigraph_store(entry: ManifestEntry) -> None:
-    """The same fixtures with data and shapes graphs held in an in-process
-    Oxigraph (rdf-1.2 native mode) instead of the in-memory default."""
-    _check_infer(entry, oxigraph_store_graph, {**KNOWN_FAILURES, **KNOWN_FAILURES_OXIGRAPH_STORE})
-
-
-@pytest.mark.store_matrix
-def test_w3c_infer_other_stores(entry: ManifestEntry, store_under_test) -> None:
-    """The same fixtures with data and shapes graphs held in each further store:
-    the Oxigraph and Fuseki servers (HTTP) and an on-disk Oxigraph."""
-    _check_infer(entry, store_under_test.new_graph, {**KNOWN_FAILURES, **store_under_test.known_failures})

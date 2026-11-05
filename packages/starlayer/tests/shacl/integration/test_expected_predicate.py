@@ -26,7 +26,7 @@ per layer and removes the triples again when the layer ends.
 """
 
 from rdflib import RDF, Literal, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -66,9 +66,9 @@ def test_expected_predicate_materializes_default_value_before_rule_runs() -> Non
     own module docstring for the concrete fixture evidence this is based
     on) - only the rule's own conclusion (ex:isSmall) should persist.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=_rectangle_shapes(with_expected_predicate=True), format="turtle")
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.rect1, RDF.type, EX.Rectangle))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
@@ -81,9 +81,9 @@ def test_without_expected_predicate_default_value_is_never_materialized() -> Non
     """Same shapes minus sh:expectedPredicate - proves the feature is doing
     real work above, not something that would have happened anyway.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=_rectangle_shapes(with_expected_predicate=False), format="turtle")
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.rect1, RDF.type, EX.Rectangle))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
@@ -97,9 +97,9 @@ def test_expected_predicate_does_not_override_an_existing_value() -> None:
     not be materialized on top of it, and the rule must see the real
     asserted value, not the default.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=_rectangle_shapes(with_expected_predicate=True), format="turtle")
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.rect2, RDF.type, EX.Rectangle))
     data.add((EX.rect2, EX.area, Literal(500)))
 
@@ -119,7 +119,7 @@ def test_shapes_graph_without_expected_predicate_uses_original_pyshacl_loop() ->
     anywhere sees zero behavior change - same fallback-safety bar as
     sh:layer/sh:runOnce.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -138,7 +138,7 @@ def test_shapes_graph_without_expected_predicate_uses_original_pyshacl_loop() ->
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, RDF.type, EX.Person))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
@@ -160,7 +160,7 @@ def test_expected_predicate_prefers_sh_values_over_default_value() -> None:
     W3C fixture in tests/w3c_shacl12/ (sparql/rules/expectedPredicate-example),
     this is the narrower unit-level check of the same priority logic.
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -188,7 +188,7 @@ def test_expected_predicate_prefers_sh_values_over_default_value() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.rect1, RDF.type, EX.Rectangle))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)

@@ -1,4 +1,4 @@
-"""The only graph surface the engine touches. A narrow protocol: ``OxGraph`` / ``OxDataset`` and the engine's own views satisfy it, and
+"""The only graph surface the engine touches. A narrow protocol: ``StarLayerGraph`` / ``StarLayerDataset`` and the engine's own views satisfy it, and
 every view also provides ``sparql_query`` (``SparqlCapable``, below).
 
 Terms are pyoxigraph terms (``shacl_engine.terms``). Equality is RDF term
@@ -44,7 +44,7 @@ class SparqlCapable(Protocol):
     defines it: the same as joining the one-row table of those bindings into every basic graph pattern, property path
     and GRAPH pattern of the query. The engine has already rejected queries it must not run (MINUS, VALUES, SERVICE,
     ``AS`` of a pre-bound variable), so implementations need not. The method name is not ``query`` because
-    ``OxGraph.query`` already exists with a different signature. ``custom_functions`` maps function IRIs to Python
+    ``StarLayerGraph.query`` already exists with a different signature. ``custom_functions`` maps function IRIs to Python
     callables (pyoxigraph's ``custom_functions``): the shapes graph's SHACL functions.
     """
 

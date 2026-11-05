@@ -6,7 +6,7 @@ import pytest
 from pyoxigraph import NamedNode as URIRef
 from rdflib import Graph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import (
     RulesResult,
     StarShaclSchema,
@@ -35,8 +35,8 @@ RULES = (
 )
 
 
-def g(ttl: str, ident: str | None = None) -> OxGraph:
-    graph = OxGraph(identifier=URIRef(ident)) if ident else OxGraph()
+def g(ttl: str, ident: str | None = None) -> StarLayerGraph:
+    graph = StarLayerGraph(identifier=URIRef(ident)) if ident else StarLayerGraph()
     graph.parse(data=PFX + ttl, format="turtle")
     return graph
 
@@ -50,7 +50,7 @@ class TestResultTypes:
         result = validate(g(BAD), g(SHAPES))
         assert isinstance(result, ValidationResult)
         assert result.conforms is False
-        assert isinstance(result.report_graph, OxGraph)
+        assert isinstance(result.report_graph, StarLayerGraph)
         assert isinstance(result.report_text, str) and "Conforms: False" in result.report_text
         assert result.data_graph is None
         assert result.diagnostics is not None and result.diagnostics.report_triples == len(result.report_graph)

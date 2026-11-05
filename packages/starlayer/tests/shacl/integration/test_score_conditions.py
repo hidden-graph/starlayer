@@ -5,7 +5,7 @@ shared by every layer, would do)."""
 
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
 
 EX = Namespace("http://example.org/")
@@ -23,14 +23,14 @@ BASE = PREFIXES + """
 ex:Numeric a sh:NodeShape ; sh:property [ sh:path sh:datatype ; sh:in ( xsd:integer ) ; sh:minCount 1 ] ."""
 
 
-def _graph(ttl: str) -> OxGraph:
-    g = OxGraph()
+def _graph(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=ttl, format="turtle12")
     return g
 
 
 @pytest.fixture(scope="module")
-def shapes() -> OxGraph:
+def shapes() -> StarLayerGraph:
     return _graph(SHAPES)
 
 

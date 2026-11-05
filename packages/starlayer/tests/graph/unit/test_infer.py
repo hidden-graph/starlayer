@@ -1,7 +1,7 @@
 """
 tests/unit/test_infer.py
 
-Coverage for OxGraph.infer(), which formalizes the manual
+Coverage for StarLayerGraph.infer(), which formalizes the manual
 owlrl.DeductiveClosure workflow shown in docs/guides/02b-graphs-inferencing.ipynb
 into real API. Per this project's own testing discipline (starlayer.sparql/CLAUDE.md:
 "any new query/update shape needs an execution-comparison test, not just a
@@ -13,11 +13,11 @@ Requires the `reasoning` extra: pip install -e ".[reasoning]"
 """
 
 import pytest
-from rdflib import RDFS, Graph, URIRef
+from rdflib import RDF, RDFS, Graph, Namespace, URIRef
 from rdflib.namespace import OWL
-from starlayer.graph import RDF, Namespace, TripleTerm
+from starlayer.graph import TripleTerm
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 try:
     import owlrl
@@ -45,8 +45,8 @@ def _expand_to_fixpoint(semantics, graph):
             break
 
 
-def _rdfs_graph() -> OxGraph:
-    g = OxGraph()
+def _rdfs_graph() -> StarLayerGraph:
+    g = StarLayerGraph()
     g.bind("ex", EX)
     g.add((EX.Dog, RDFS.subClassOf, EX.Animal))
     g.add((EX.fido, RDF.type, EX.Dog))
@@ -77,11 +77,11 @@ class TestInferRdfs:
 
         assert set(g) == before
         assert closed is not g
-        assert isinstance(closed, OxGraph)
+        assert isinstance(closed, StarLayerGraph)
 
     def test_target_graph_receives_entailed_triples_without_being_cleared(self) -> None:
         g = _rdfs_graph()
-        target = OxGraph()
+        target = StarLayerGraph()
         target.bind("ex", EX)
         target.add((EX.someone, EX.marker, EX.value))
 
@@ -92,7 +92,7 @@ class TestInferRdfs:
         assert (EX.fido, RDF.type, EX.Animal) in result
 
     def test_target_graph_must_be_a_starlayergraph(self) -> None:
-        with pytest.raises(TypeError, match="OxGraph"):
+        with pytest.raises(TypeError, match="StarLayerGraph"):
             _rdfs_graph().infer(target_graph=Graph())
 
     def test_unsupported_entailment_raises(self) -> None:
@@ -111,7 +111,7 @@ class TestInferRdf:
     """
 
     def test_every_used_predicate_gets_property_typed(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
 
@@ -120,7 +120,7 @@ class TestInferRdf:
         assert (EX.knows, RDF.type, RDF.Property) in closed
 
     def test_does_not_duplicate_an_already_asserted_property_type(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
         g.add((EX.knows, RDF.type, RDF.Property))
@@ -138,7 +138,7 @@ class TestInferRdf:
         assert delta == {(RDF.type, RDF.type, RDF.Property)}
 
     def test_axiomatic_triples_only_for_terms_actually_present(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.list1, RDF.first, EX.a))
         g.add((EX.list1, RDF.rest, RDF.nil))
@@ -161,7 +161,7 @@ class TestInferRdf:
         assert (REIFIES, RDF.type, RDF.Property) not in delta
 
     def test_returns_a_new_graph_original_untouched(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
         before = set(g)
@@ -172,7 +172,7 @@ class TestInferRdf:
         assert closed is not g
 
     def test_in_place_mutates_self(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
 
@@ -188,7 +188,7 @@ class TestInferOwlRl:
         # owl:equivalentClass is an OWL construct with no RDFS-only analogue -
         # a plain "rdfs" entailment run should not entail fido's Animal
         # membership through it, but "owl-rl" should.
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.Dog, OWL.equivalentClass, EX.Canine))
         g.add((EX.fido, RDF.type, EX.Canine))
@@ -200,7 +200,7 @@ class TestInferOwlRl:
         assert (EX.fido, RDF.type, EX.Dog) in owl_rl
 
     def test_matches_owlrl_run_directly(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.Dog, OWL.equivalentClass, EX.Canine))
         g.add((EX.fido, RDF.type, EX.Canine))
@@ -237,7 +237,7 @@ class TestInferDelta:
 
     def test_target_graph_receives_only_delta_without_being_cleared(self) -> None:
         g = _rdfs_graph()
-        target = OxGraph()
+        target = StarLayerGraph()
         target.bind("ex", EX)
         target.add((EX.someone, EX.marker, EX.value))
 
@@ -265,7 +265,7 @@ class TestInferDelta:
             oracle_after.add(t)
         _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
-        oracle_delta = OxGraph()
+        oracle_delta = StarLayerGraph()
         for t in oracle_after:
             if t not in oracle_before_set:
                 oracle_delta.add(t)
@@ -332,7 +332,7 @@ class TestInferWithTripleTerms:
             oracle_after.add(t)
         _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
-        oracle_delta = OxGraph()
+        oracle_delta = StarLayerGraph()
         for t in oracle_after:
             if t not in oracle_before_set:
                 oracle_delta.add(t)
@@ -353,7 +353,7 @@ class TestInferWithTripleTerms:
         closure = g.infer(mode="full")
         delta = g.infer(mode="delta")
 
-        union = OxGraph()
+        union = StarLayerGraph()
         for t in g:
             union.add(t)
         for t in delta:
@@ -365,8 +365,8 @@ class TestInferWithTripleTerms:
 
 @owlrl_extra
 class TestInferCombinedRegime:
-    def _domain_graph(self) -> OxGraph:
-        g = OxGraph()
+    def _domain_graph(self) -> StarLayerGraph:
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.a, EX.p, EX.b))
         g.add((EX.p, RDFS.domain, EX.C))
@@ -406,8 +406,8 @@ class TestInferCombinedWithRdf:
     owlrl side alone would not, not a trivially-already-equal result.
     """
 
-    def _list_and_subclass_graph(self) -> OxGraph:
-        g = OxGraph()
+    def _list_and_subclass_graph(self) -> StarLayerGraph:
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.list1, RDF.first, EX.a))
         g.add((EX.list1, RDF.rest, RDF.nil))
@@ -454,7 +454,7 @@ class TestInferCombinedWithRdf:
         # regimes == {ENTAILMENT.RDF} alone must still behave exactly as
         # it did before this combining logic was added - no owlrl import,
         # no merge step.
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
 
@@ -484,7 +484,7 @@ class TestInferInPlace:
 
     def test_target_graph_with_in_place_raises(self) -> None:
         g = _rdfs_graph()
-        target = OxGraph()
+        target = StarLayerGraph()
         with pytest.raises(ValueError, match="target_graph"):
             g.infer(mode="in-place", target_graph=target)
 

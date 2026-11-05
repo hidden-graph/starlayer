@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import extract_subgraph as old_extract
 from starlayer.shacl_engine import validate
@@ -28,8 +28,8 @@ EX = Namespace("http://example.org/")
 PRE = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . "
 
 
-def _g(ttl: str) -> OxGraph:
-    g = OxGraph()
+def _g(ttl: str) -> StarLayerGraph:
+    g = StarLayerGraph()
     g.parse(data=PRE + ttl, format="turtle")
     return g
 
@@ -239,7 +239,7 @@ _PAPER_CASES, _FOCUS, _PREFIXES = _paper_cases()
 def test_paper_cases_agree_with_old_and_conform(name) -> None:
     focus, shapes_ttl, data_ttl = _PAPER_CASES[name]
     for shapes_src in (shapes_ttl, _FOCUS(shapes_ttl, focus)):
-        shapes, data = OxGraph(), OxGraph()
+        shapes, data = StarLayerGraph(), StarLayerGraph()
         shapes.parse(data=_PREFIXES + shapes_src, format="turtle")
         data.parse(data=_PREFIXES + data_ttl, format="turtle")
         _same(data, shapes)
@@ -263,7 +263,7 @@ def test_rejects_str_arguments_and_unknown_shapes() -> None:
     with pytest.raises(TypeError):
         extract_subgraph(g, g, focus_node="http://example.org/je1")
     with pytest.raises(ValueError, match="not a shape"):
-        extract_subgraph(OxGraph(), _g(JE_SHAPE), shape=EX.Nope, focus_node=EX.x)
+        extract_subgraph(StarLayerGraph(), _g(JE_SHAPE), shape=EX.Nope, focus_node=EX.x)
 
 
 def test_does_not_mutate_the_shapes_graph() -> None:

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import Literal
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import paths as _paths
 from starlayer.shacl_engine import targets as _targets
 from starlayer.shacl_engine.plan import ShapeError
@@ -25,11 +25,11 @@ PFX = """@prefix ex: <http://example.com/ns#> . @prefix sh: <http://www.w3.org/n
 @prefix owl: <http://www.w3.org/2002/07/owl#> . """
 
 
-def g(ttl: str) -> OxGraph:
-    return OxGraph().parse(data=PFX + ttl, format="turtle")
+def g(ttl: str) -> StarLayerGraph:
+    return StarLayerGraph().parse(data=PFX + ttl, format="turtle")
 
 
-def path_of(shapes: OxGraph):
+def path_of(shapes: StarLayerGraph):
     return parse_path(shapes, next(shapes.objects(EX.s, SH.path)))
 
 

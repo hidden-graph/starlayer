@@ -17,7 +17,7 @@ from urllib.parse import unquote, urlparse
 import pyoxigraph as ox
 from rdflib import Graph, URIRef
 from rdflib.namespace import RDF
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.terms import from_engine
 
 from ..integration._rdflib_view import RdflibView
@@ -45,7 +45,7 @@ def uri_to_path(iri: URIRef) -> Path:
 def load_document(path: Path) -> Graph:
     """Parse ``path`` as Turtle 1.2, cached, with its own file:// IRI as base.
 
-    Uses ``format="turtle12"`` (OxGraph's own RDF-1.2-aware parser,
+    Uses ``format="turtle12"`` (StarLayerGraph's own RDF-1.2-aware parser,
     ``starlayer.graph.parsers.turtle_parser.StarLayerTurtleParser``), not plain
     ``"turtle"`` - confirmed empirically that several suite fixtures use
     genuine RDF 1.2 Turtle syntax plain rdflib's parser rejects outright:
@@ -62,7 +62,7 @@ def load_document(path: Path) -> Graph:
     path = path.resolve()
     if path not in _DOCUMENT_CACHE:
         # Parsed with pyoxigraph's parser directly and kept as rdflib terms: the parser keeps the lexical forms as written
-        # ("4.0"^^xsd:decimal), which an OxGraph would rewrite on storage; a W3C expected report must be read as written.
+        # ("4.0"^^xsd:decimal), which an StarLayerGraph would rewrite on storage; a W3C expected report must be read as written.
         graph = RdflibView()
         for quad in ox.parse(path=str(path), format=ox.RdfFormat.TURTLE, base_iri=str(file_uri(path))):
             graph.add((from_engine(quad.subject), from_engine(quad.predicate), from_engine(quad.object)))
@@ -70,11 +70,11 @@ def load_document(path: Path) -> Graph:
     return _DOCUMENT_CACHE[path]
 
 
-def clone_graph(source: Graph, new_graph=OxGraph) -> OxGraph:
-    """Return an independent copy of a OxGraph.
+def clone_graph(source: Graph, new_graph=StarLayerGraph) -> StarLayerGraph:
+    """Return an independent copy of a StarLayerGraph.
 
     ``new_graph`` is the factory for the empty graph copied into - the default
-    in-memory ``OxGraph`` unless a suite is being run through another
+    in-memory ``StarLayerGraph`` unless a suite is being run through another
     store (see stores.py).
 
     Round-trips through the public ``.triples()`` view (real, decoded

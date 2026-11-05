@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.sparql_text import strip_version_directive
 
 PRE = "PREFIX : <http://e/> PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
@@ -28,7 +28,7 @@ def Literal(value, lang=None, datatype=None):  # noqa: N802
 
 
 def rows(query: str, data: str | None = None) -> list[dict]:
-    g = OxGraph()
+    g = StarLayerGraph()
     if data:
         g.update(PRE + "INSERT DATA { " + data + " }")
     res = g.query(PRE + query)
@@ -306,26 +306,26 @@ class TestSelectStarScope:
     DATA = ":a :p :b . :b :p :c"
 
     def test_filter_exists_variable_is_not_projected(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.update(PRE + "INSERT DATA { " + self.DATA + " }")
         res = g.query(PRE + "SELECT * { ?s :p ?o FILTER EXISTS { ?o :p ?zz } }")
         assert sorted(v.value for v in res.vars) == ["o", "s"]
         assert len(list(res)) == 1
 
     def test_filter_not_exists_variable_is_not_projected(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.update(PRE + "INSERT DATA { " + self.DATA + " }")
         res = g.query(PRE + "SELECT * { ?s :p ?o FILTER NOT EXISTS { ?o :p ?zz } }")
         assert sorted(v.value for v in res.vars) == ["o", "s"]
 
     def test_optional_variable_is_still_projected(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.update(PRE + "INSERT DATA { " + self.DATA + " }")
         res = g.query(PRE + "SELECT * { ?s :p ?o OPTIONAL { ?o :p ?zz } }")
         assert sorted(v.value for v in res.vars) == ["o", "s", "zz"]
 
     def test_describe_star_describes_bound_resources(self) -> None:
-        g = OxGraph()
+        g = StarLayerGraph()
         g.update(PRE + "INSERT DATA { :a :r :b . :b :x 1 . :z :x 2 }")
         res = g.query(PRE + "DESCRIBE * WHERE { ?s :r ?o }")
         triples = {(s.value, p.value) for s, p, _ in res.graph}
@@ -344,7 +344,7 @@ class TestVersionDirectiveScanner:
         assert text == "PREFIX : <http://a/> SELECT * {}"
 
     def test_query_with_header_comment_and_version_runs(self) -> None:
-        assert list(OxGraph().query('# hello\nVERSION "1.2"\nSELECT * {?s ?p ?o}')) == []
+        assert list(StarLayerGraph().query('# hello\nVERSION "1.2"\nSELECT * {?s ?p ?o}')) == []
 
     def test_escaped_quote_is_part_of_the_label(self) -> None:
         assert strip_version_directive('VERSION "a\\"b" SELECT * {}') == ("SELECT * {}", 'a"b')

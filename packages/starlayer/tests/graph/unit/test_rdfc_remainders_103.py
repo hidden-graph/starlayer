@@ -13,7 +13,7 @@ from starlayer.graph.compare import (
     to_canonical_hash,
     to_isomorphic,
 )
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.rdfc import rdfc10_hash, to_canonical_nquads
 
 E = Namespace("http://e/")
@@ -27,8 +27,8 @@ def _quiet():
         yield
 
 
-def _tt_dataset(label: str) -> OxDataset:
-    ds = OxDataset()
+def _tt_dataset(label: str) -> StarLayerDataset:
+    ds = StarLayerDataset()
     ds.parse(
         data="<http://e/g> { <http://e/s> <http://e/q> <<( _:" + label + " <http://e/p> <http://e/o> )>> . }",
         format="trig12",
@@ -61,7 +61,7 @@ def test_graph_diff_and_to_isomorphic_reject_a_dataset_clearly():
 
 
 def test_isomorphic_entry_points_agree_on_xsd_string():  # the Graph.isomorphic method is not ported: starlayer.graph.isomorphic is the equivalent
-    a, b = OxGraph(), OxGraph()
+    a, b = StarLayerGraph(), StarLayerGraph()
     a.add((E.a, E.p, Literal("x", datatype=XSD.string)))
     b.add((E.a, E.p, Literal("x")))
     from starlayer.graph import isomorphic as graph_isomorphic
@@ -78,7 +78,7 @@ def test_language_tag_case_does_not_change_the_canonical_form():
 
 
 def test_a_blank_node_with_the_internal_edges_is_not_a_triple_term():
-    c = OxGraph()
+    c = StarLayerGraph()
     c.parse(data="<http://e/s1> <http://e/q> <<( <http://e/a> <http://e/p> <http://e/o> )>> .", format="turtle12")
     d = Graph()
     n = BNode()

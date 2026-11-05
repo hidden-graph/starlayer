@@ -26,7 +26,7 @@ _WRAPPERS = {
 _UNARY = {"UnaryMinus": "-", "UnaryPlus": "+", "UnaryNot": "!"}
 
 
-# The argument order of the builtins whose argument names do not sort into it. A tree read back from an ``OxGraph`` lists a node's
+# The argument order of the builtins whose argument names do not sort into it. A tree read back from an ``StarLayerGraph`` lists a node's
 # properties in the store's order, not the order the parser wrote them in, so the order cannot be taken from the node.
 _ARGUMENT_ORDER = {
     "Builtin_REGEX": ("text", "pattern", "flags"),

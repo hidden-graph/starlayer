@@ -1,6 +1,6 @@
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema
 
 EX = Namespace("http://example.org/")
@@ -15,14 +15,14 @@ EX = Namespace("http://example.org/")
 
 
 def test_ask_based_custom_component_flags_violations() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:score 80 .
         ex:bob ex:score 20 .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -45,14 +45,14 @@ def test_ask_based_custom_component_flags_violations() -> None:
 
 
 def test_select_based_custom_component_flags_violations() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:score 80 .
         ex:bob ex:score 20 .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -73,14 +73,14 @@ def test_select_based_custom_component_flags_violations() -> None:
 
 
 def test_ask_based_custom_component_over_rdf12_triple_term_value() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:claims <<( ex:bob ex:age 42 )>> .
         ex:carol ex:claims ex:not_a_triple .
     """, format="turtle12")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -105,13 +105,13 @@ def test_ask_based_custom_component_over_rdf12_triple_term_value() -> None:
 
 
 def test_malformed_custom_validator_raises_cleanly_not_a_confusing_typeerror() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:score 80 .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .

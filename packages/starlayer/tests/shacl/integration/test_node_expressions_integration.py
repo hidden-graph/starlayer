@@ -1,6 +1,6 @@
 from rdflib import Namespace
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -78,10 +78,10 @@ ex:FunctionExprShape a sh:NodeShape ;
 
 
 def test_node_expression_path_carries_triple_term_value() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=PATH_SHAPE, format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -94,11 +94,11 @@ def test_node_expression_path_carries_triple_term_value() -> None:
 
 
 def test_node_expression_union_carries_mixed_values() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.notes, EX.plain_value))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=UNION_SHAPE, format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -110,12 +110,12 @@ def test_node_expression_union_carries_mixed_values() -> None:
 
 
 def test_node_expression_intersection_carries_triple_term_value() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
     data.add((EX.alice, EX.says, EX.plain_value))
     data.add((EX.alice, EX.notes, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=INTERSECTION_SHAPE, format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -133,12 +133,12 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
 
 
 def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, EX.commonval))
     data.add((EX.alice, EX.notes, EX.commonval))
     data.add((EX.alice, EX.notes, EX.otherval))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=INTERSECTION_SHAPE, format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)
@@ -150,10 +150,10 @@ def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
 
 
 def test_node_expression_shacl_function_carries_triple_term_value() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=FUNCTION_SHAPE, format="turtle12")
 
     validator = StarShaclSchema(shacl_graph=shapes)

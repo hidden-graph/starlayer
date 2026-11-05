@@ -9,7 +9,7 @@ import starlayer.sparql
 from rdflib import Graph
 from rdflib.namespace import SH
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.components.registry import REGISTRY
 from starlayer.shacl_engine.terms import text, to_engine
@@ -81,7 +81,7 @@ def test_register_is_idempotent_and_installs_the_real_function():
 def test_non_boolean_marker_is_a_shape_error():
     from starlayer.shacl_engine.plan import ShapeError
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix salg: <https://github.com/hidden-graph/starlayer/ns/sparql/algebra#> .
         <urn:S> a sh:NodeShape ; sh:targetClass salg:Project ; salg:noUnboundProjectedVariables "yes" .""",

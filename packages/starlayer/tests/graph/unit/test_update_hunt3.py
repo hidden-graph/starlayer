@@ -9,7 +9,7 @@ import textwrap
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 warnings.simplefilter("ignore")
 P = "PREFIX : <http://e/> "
@@ -17,9 +17,9 @@ DEFAULT = "DEFAULT"
 
 
 def _dataset(kind, default_union):
-    # `kind` was "mem" (the in-memory rdflib store) or "ox" (an Oxigraph store under the old class); an OxDataset is
+    # `kind` was "mem" (the in-memory rdflib store) or "ox" (an Oxigraph store under the old class); an StarLayerDataset is
     # always an Oxigraph store, so only "mem" remains.
-    return OxDataset(default_union=default_union)
+    return StarLayerDataset(default_union=default_union)
 
 
 def _quads(ds):
@@ -147,21 +147,21 @@ def test_graph_management_of_a_missing_graph_is_an_error_without_silent(kind, up
 
 
 def test_clearing_an_existing_empty_graph_is_not_an_error():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.update(P + "INSERT DATA { GRAPH :g1 { :a :p :b } }")
     ds.update(P + "CLEAR GRAPH :g1")
     ds.update(P + "CLEAR GRAPH :g1")
 
 
 @pytest.mark.parametrize("text", ["", "   ", "# nothing", "PREFIX : <http://e/>"])
-@pytest.mark.parametrize("make", [OxGraph, OxDataset])
+@pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
 def test_an_empty_update_does_nothing(make, text):
     obj = make()
     assert obj.update(text) is None
     assert len(obj) == 0
 
 
-@pytest.mark.parametrize("make", [OxGraph, OxDataset])
+@pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
 def test_one_blank_node_label_in_two_operations_is_rejected(make):
     with pytest.raises(SyntaxError, match="shared by multiple blocks"):
         make().update("INSERT DATA { _:a <http://e/p> 1 } ; INSERT DATA { _:a <http://e/p> 3 }")
@@ -171,7 +171,7 @@ def test_one_blank_node_label_in_two_operations_is_rejected(make):
     assert len(set(g.subjects())) == 2
 
 
-@pytest.mark.parametrize("make", [OxGraph, OxDataset])
+@pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
 @pytest.mark.parametrize("text", ["DELETE WHERE { _:a <http://e/p> ?o }", "DELETE DATA { _:a <http://e/p> 1 }", "DELETE { _:a <http://e/p> ?o } WHERE { ?s <http://e/p> ?o }"])
 def test_blank_nodes_in_a_delete_are_rejected(make, text):
     with pytest.raises(SyntaxError):
@@ -181,11 +181,11 @@ def test_blank_nodes_in_a_delete_are_rejected(make, text):
 _RACE = textwrap.dedent(
     """
     import concurrent.futures as cf, sys
-    from starlayer.graph.oxgraph import OxGraph
+    from starlayer.graph.oxgraph import StarLayerGraph
     from starlayer.sparql import srl
 
     def update(i):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.update("DELETE { ?s <urn:p> ?o } INSERT { ?s <urn:q> ?o } WHERE { ?s <urn:p> ?o FILTER(?o > 0) OPTIONAL { ?s <urn:r> ?x } }")
 
     def rules(i):

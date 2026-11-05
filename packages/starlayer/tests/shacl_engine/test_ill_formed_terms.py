@@ -2,7 +2,7 @@
 
 Strict (default): one up-front ``TermError`` naming every offender and where it is. Lenient: opaque stand-in terms (an Oxigraph
 store cannot hold the original), listed with the original rdflib term on ``Outcome.invalid_terms``; results and the report
-hold the stand-ins. The public entry points raise that error. Ill-formed terms can only come from rdflib graphs: an ``OxGraph``
+hold the stand-ins. The public entry points raise that error. Ill-formed terms can only come from rdflib graphs: an ``StarLayerGraph``
 refuses them when they are added."""
 
 from __future__ import annotations
@@ -11,7 +11,7 @@ import warnings
 
 import pytest
 from rdflib import BNode, Graph, Literal, URIRef
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import evaluate, extract_subgraph, validate, validate_each
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
 from starlayer.shacl_engine.rules import apply_rules
@@ -110,7 +110,7 @@ def test_policy_name_is_checked():
 def test_oxgraph_refuses_an_ill_formed_term_when_it_is_added(name):
     term, kind = ILL_FORMED[name]
     with pytest.raises(TermError) as info:
-        graph_with(term, OxGraph)
+        graph_with(term, StarLayerGraph)
     assert info.value.kind == kind
 
 
@@ -267,10 +267,10 @@ def test_oxigraph_text_parse_errors_stay_parse_errors():
 
 
 def _pairs():
-    data = Graph()  # an OxGraph cannot hold the relative IRI, so the data comes in as a plain rdflib graph
+    data = Graph()  # an StarLayerGraph cannot hold the relative IRI, so the data comes in as a plain rdflib graph
     data.parse(data=PFX + "<http://example.org/ok> ex:p 1 .", format="turtle")
     data.add((URIRef("a"), URIRef(EX + "q"), URIRef(EX + "ok")))
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=IRI_SHAPES, format="turtle")
     return data, shapes
 

@@ -47,37 +47,25 @@ def rdflib_graph(triples: Iterable[tuple[Any, Any, Any]], *, decompose: bool = T
     return out
 
 
-def starlayer_graph(triples: Iterable[tuple[Any, Any, Any]], prefixes: dict[str, str] | None = None) -> Any:
-    """An old-style ``StarLayerGraph`` (keeps triple terms) holding the triples; used where the code to run needs RDF 1.2."""
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph
-
-    g = StarLayerGraph()
-    for prefix, ns in (prefixes or {}).items():
-        g.bind(prefix, ns)
-    for t in to_rdflib_triples(triples):
-        g.add(t)
-    return g
-
-
 def is_oxigraph_input(value: Any) -> bool:
-    """True for an ``OxGraph`` / ``OxDataset`` or a bare ``pyoxigraph.Store``."""
-    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+    """True for an ``StarLayerGraph`` / ``StarLayerDataset`` or a bare ``pyoxigraph.Store``."""
+    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
-    return isinstance(value, (OxGraph, OxDataset, ox.Store))
+    return isinstance(value, (StarLayerGraph, StarLayerDataset, ox.Store))
 
 
 def to_rdflib_graph(value: Any) -> Any:
-    """A snapshot of an ``OxGraph`` / ``OxDataset`` / bare ``Store`` as a plain ``rdflib.Graph`` (the library entry points that
+    """A snapshot of an ``StarLayerGraph`` / ``StarLayerDataset`` / bare ``Store`` as a plain ``rdflib.Graph`` (the library entry points that
     still run on rdflib code call this at the boundary). A dataset or store gives the union of its graphs; a graph view keeps its
     identifier and its prefixes. A triple term, which rdflib cannot hold, becomes the synthetic reification fragment
     ``rdflib_graph(decompose=True)`` writes. The result is a copy: writes to it do not reach ``value``."""
     from rdflib import URIRef
 
-    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
     if isinstance(value, ox.Store):
-        value = OxDataset(store=value)
-    ident = value.identifier if isinstance(value, OxGraph) else None
+        value = StarLayerDataset(store=value)
+    ident = value.identifier if isinstance(value, StarLayerGraph) else None
     g = rdflib_graph(iter(value))
     if isinstance(ident, ox.NamedNode):
         g = _with_identifier(g, URIRef(ident.value))
@@ -87,7 +75,7 @@ def to_rdflib_graph(value: Any) -> Any:
 
 
 def to_rdflib_rdf11(value: Any, *, bnode_prefix: str | None = None, direction_policy: str = "datatype") -> Any:
-    """A snapshot of an ``OxGraph`` as a plain ``rdflib.Graph`` (identifier and prefixes kept), of an ``OxDataset`` / bare ``Store``
+    """A snapshot of an ``StarLayerGraph`` as a plain ``rdflib.Graph`` (identifier and prefixes kept), of an ``StarLayerDataset`` / bare ``Store``
     as an ``rdflib.Dataset`` (named graphs, also empty ones; ``default_union`` kept). RDF 1.2 is presented as RDF 1.1
     (``interop.to_rdf11``): a triple term becomes a blank node described by the ``rdf:PropositionForm`` basic encoding, a
     base-direction literal the datatype-IRI form. ``from_rdflib`` restores the directional literals, not the triple terms
@@ -95,16 +83,16 @@ def to_rdflib_rdf11(value: Any, *, bnode_prefix: str | None = None, direction_po
     from rdflib import BNode, Dataset, Graph, URIRef
 
     from starlayer.graph import interop
-    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
     if isinstance(value, ox.Store):
-        value = OxDataset(store=value)
+        value = StarLayerDataset(store=value)
     quads = interop.to_rdf11(list(value.quads()), bnode_prefix=bnode_prefix, direction_policy=direction_policy)
 
     def name(g: Any) -> Any:
         return None if isinstance(g, ox.DefaultGraph) else URIRef(g.value) if isinstance(g, ox.NamedNode) else BNode(g.value)
 
-    if isinstance(value, OxGraph):
+    if isinstance(value, StarLayerGraph):
         ident = name(value.identifier)
         out: Any = Graph(identifier=ident) if ident is not None else Graph()
         for q in quads:
@@ -138,10 +126,10 @@ def as_rdflib_graph(graph: Any) -> Any:
 
 
 def merge_into(dst: Any, src: Any) -> None:
-    """``dst += src`` for graphs of either kind (``OxGraph`` ``+=`` takes only an ``OxGraph``; rdflib's takes only rdflib). Triples
+    """``dst += src`` for graphs of either kind (``StarLayerGraph`` ``+=`` takes only an ``StarLayerGraph``; rdflib's takes only rdflib). Triples
     only: no prefixes are copied, as with rdflib's ``+=``."""
     if is_oxigraph_input(dst):
-        dst.extend(list(iter(src)))  # OxGraph.add / extend convert rdflib terms
+        dst.extend(list(iter(src)))  # StarLayerGraph.add / extend convert rdflib terms
     elif is_oxigraph_input(src):
         for t in to_rdflib_triples(iter(src)):
             dst.add(t)
@@ -150,15 +138,15 @@ def merge_into(dst: Any, src: Any) -> None:
 
 
 def is_oxigraph_dataset(value: Any) -> bool:
-    """True for an ``OxDataset`` or a bare ``pyoxigraph.Store`` (something with named graphs)."""
-    from starlayer.graph.oxgraph.core import OxDataset
+    """True for an ``StarLayerDataset`` or a bare ``pyoxigraph.Store`` (something with named graphs)."""
+    from starlayer.graph.oxgraph.core import StarLayerDataset
 
-    return isinstance(value, (OxDataset, ox.Store))
+    return isinstance(value, (StarLayerDataset, ox.Store))
 
 
 def rdflib_quads(value: Any) -> list[tuple[Any, Any, Any, Any]]:
-    """Every quad of an ``OxDataset`` / ``Store`` as rdflib terms ``(s, p, o, g)``, ``g`` ``None`` for the default graph. An
-    ``OxGraph`` gives its triples with ``g`` ``None``."""
+    """Every quad of an ``StarLayerDataset`` / ``Store`` as rdflib terms ``(s, p, o, g)``, ``g`` ``None`` for the default graph. An
+    ``StarLayerGraph`` gives its triples with ``g`` ``None``."""
     from starlayer.graph.oxgraph.core import as_store
 
     if is_oxigraph_dataset(value):
@@ -171,12 +159,12 @@ def rdflib_quads(value: Any) -> list[tuple[Any, Any, Any, Any]]:
 
 
 def ox_graph_from(graph: Any) -> Any:
-    """An ``OxGraph`` holding the triples of an rdflib / StarLayer graph (prefixes kept)."""
-    from starlayer.graph.oxgraph.core import OxGraph
+    """An ``StarLayerGraph`` holding the triples of an rdflib / StarLayer graph (prefixes kept)."""
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    if isinstance(graph, OxGraph):
+    if isinstance(graph, StarLayerGraph):
         return graph
-    out = OxGraph()
+    out = StarLayerGraph()
     for prefix, ns in graph.namespaces():
         out.bind(prefix, str(ns))
     copy_into(out, graph)
@@ -216,13 +204,13 @@ def _used_namespace_prefixes(graph: Any, bound: dict[str, str]) -> dict[str, str
 
 
 def ox_result(graph: Any, *sources: Any) -> Any:
-    """An ``OxGraph`` holding the triples of ``graph`` (rdflib terms -> pyoxigraph terms): the result of a library function that
+    """An ``StarLayerGraph`` holding the triples of ``graph`` (rdflib terms -> pyoxigraph terms): the result of a library function that
     ran on rdflib code for an Oxigraph input. Its prefixes are those of the Oxigraph graphs in ``sources`` (the inputs) plus the
-    prefixes of ``graph`` that its IRIs actually use, never the 29 defaults an old-style ``StarLayerGraph`` binds. An ``OxGraph``
+    prefixes of ``graph`` that its IRIs actually use, never the 29 defaults an old-style ``StarLayerGraph`` binds. An ``StarLayerGraph``
     passes through unchanged."""
-    from starlayer.graph.oxgraph.core import OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    if isinstance(graph, OxGraph):
+    if isinstance(graph, StarLayerGraph):
         return graph
     prefixes: dict[str, str] = {}
     for src in sources:
@@ -230,19 +218,19 @@ def ox_result(graph: Any, *sources: Any) -> Any:
             for prefix, ns in dict(getattr(src, "prefixes", {})).items():
                 prefixes.setdefault(prefix, ns)
     prefixes.update(_used_namespace_prefixes(graph, prefixes))
-    out = OxGraph(prefixes=prefixes)
+    out = StarLayerGraph(prefixes=prefixes)
     ident = getattr(graph, "identifier", None)
     from rdflib import URIRef
 
     if isinstance(ident, URIRef):
-        out = OxGraph(prefixes=prefixes, identifier=from_rdflib_term(ident))
+        out = StarLayerGraph(prefixes=prefixes, identifier=from_rdflib_term(ident))
     copy_into(out, graph)
     return out
 
 
 def convert_result(value: Any, *sources: Any) -> Any:
     """``value`` (a graph, a result dataclass such as ``ValidationResult`` / ``RulesResult``, or a tuple / list / dict of those)
-    with every old-style graph in it replaced by an ``OxGraph`` (see ``ox_result``). Anything else is returned unchanged."""
+    with every old-style graph in it replaced by an ``StarLayerGraph`` (see ``ox_result``). Anything else is returned unchanged."""
     import dataclasses
 
     if isinstance(value, ox_types()):
@@ -267,14 +255,14 @@ def convert_result(value: Any, *sources: Any) -> Any:
 
 
 def ox_types() -> tuple[type, ...]:
-    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
-    return (OxGraph, OxDataset)
+    return (StarLayerGraph, StarLayerDataset)
 
 
 def ox_in_ox_out(*graph_params: str, owner_sources: str | None = None) -> Any:
     """Decorator: when any of the named graph parameters (or, for a method, any value of ``self.<owner_sources>``) is an
-    Oxigraph graph / dataset / store, the graphs in the result are returned as ``OxGraph`` (see ``convert_result``). With old-style
+    Oxigraph graph / dataset / store, the graphs in the result are returned as ``StarLayerGraph`` (see ``convert_result``). With old-style
     or rdflib inputs the result is untouched."""
     import functools
     import inspect
@@ -301,7 +289,7 @@ def ox_in_ox_out(*graph_params: str, owner_sources: str | None = None) -> Any:
 
 
 def copy_into(target: Any, triples: Iterable[tuple[Any, Any, Any]]) -> None:
-    """Add rdflib-term triples to an ``OxGraph`` (its ``add`` converts lazily); one call, one transaction."""
+    """Add rdflib-term triples to an ``StarLayerGraph`` (its ``add`` converts lazily); one call, one transaction."""
     target.extend(list(triples))
 
 
@@ -329,8 +317,8 @@ def to_engine_if_rdflib(term: Any) -> Any:
 
 def write_boundary(graph: Any, build: Any, *terms: Any) -> tuple[Any, ...]:
     """For a library function that WRITES a graph with rdflib code. ``build(rdflib_graph_or_None, *rdflib_terms)`` must return
-    ``(graph, *result_terms)``. With an ``OxGraph`` target, ``build`` gets a fresh rdflib graph; its triples are then added to
-    the ``OxGraph`` (one transaction) and the result terms returned as pyoxigraph terms. Any other target is passed through."""
+    ``(graph, *result_terms)``. With an ``StarLayerGraph`` target, ``build`` gets a fresh rdflib graph; its triples are then added to
+    the ``StarLayerGraph`` (one transaction) and the result terms returned as pyoxigraph terms. Any other target is passed through."""
     if graph is None or not is_oxigraph_input(graph):
         return build(graph, *terms)
     temp, *results = build(None, *(from_engine_if_ox(t) for t in terms))
@@ -340,7 +328,7 @@ def write_boundary(graph: Any, build: Any, *terms: Any) -> tuple[Any, ...]:
 
 def default_boundary(build: Any, *terms: Any) -> tuple[Any, ...]:
     """For a library function that WRITES a graph with rdflib code when the caller gave none: ``build(None, *rdflib_terms)`` runs
-    on a scratch rdflib graph and the result is returned as a fresh ``OxGraph`` (see ``ox_result``) with the result terms as
+    on a scratch rdflib graph and the result is returned as a fresh ``StarLayerGraph`` (see ``ox_result``) with the result terms as
     pyoxigraph terms."""
     temp, *results = build(None, *(from_engine_if_ox(t) for t in terms))
     return (ox_result(temp), *(to_engine_if_rdflib(r) for r in results))
@@ -581,33 +569,33 @@ def check_graphs(*labelled: tuple[Any, str]) -> tuple[Any, ...]:
 
 
 def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = False) -> Any:
-    """An Oxigraph-backed graph for any graph a caller may pass: an ``OxGraph`` / ``OxDataset`` as it is, a bare ``pyoxigraph.Store``
-    as an ``OxDataset``, and a plain rdflib graph or an old-style ``StarLayerGraph`` (``from_rdflib``: a supported public input)
-    as an ``OxGraph`` copy with its prefixes and, when it has an IRI identifier, that identifier. ``None`` stays ``None``.
+    """An Oxigraph-backed graph for any graph a caller may pass: an ``StarLayerGraph`` / ``StarLayerDataset`` as it is, a bare ``pyoxigraph.Store``
+    as an ``StarLayerDataset``, and a plain rdflib graph or an old-style ``StarLayerGraph`` (``from_rdflib``: a supported public input)
+    as an ``StarLayerGraph`` copy with its prefixes and, when it has an IRI identifier, that identifier. ``None`` stays ``None``.
 
     A term that is not an RDF term (a relative IRI ...) raises ``TermError`` naming every offender (``where`` labels the graph),
     or, under ``term_policy("lenient")``, is stored as the opaque stand-in (``Outcome.invalid_terms`` lists it; the stand-in, not
     the original, is what an Oxigraph result holds). Oxigraph normalises some literals on insert (``"04"^^xsd:integer`` becomes
-    ``"4"``): ``preserves_lexical_forms`` is False on the result, as for any ``OxGraph``. ``restore_directions=True`` turns a
+    ``"4"``): ``preserves_lexical_forms`` is False on the result, as for any ``StarLayerGraph``. ``restore_directions=True`` turns a
     directional literal decomposed to its datatype-IRI form (``interop.encode_directions``) back into a real one."""
     if value is None:
         return None
-    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
-    if isinstance(value, (OxGraph, OxDataset)):
+    if isinstance(value, (StarLayerGraph, StarLayerDataset)):
         return value
     if isinstance(value, ox.Store):
-        return OxDataset(store=value)
+        return StarLayerDataset(store=value)
     if not hasattr(value, "triples") or not hasattr(value, "namespaces"):
         raise TypeError(
-            f"{where} must be an OxGraph, OxDataset, pyoxigraph Store, StarLayerGraph or rdflib Graph; got {type(value).__name__}"
+            f"{where} must be an StarLayerGraph, StarLayerDataset, pyoxigraph Store, StarLayerGraph or rdflib Graph; got {type(value).__name__}"
         )
     T = _T()
     check_graphs((value, where))
     from rdflib import URIRef
 
     ident = getattr(value, "identifier", None)
-    out = OxGraph(identifier=T.to_engine(ident)) if type(ident) is URIRef else OxGraph()
+    out = StarLayerGraph(identifier=T.to_engine(ident)) if type(ident) is URIRef else StarLayerGraph()
     for prefix, ns in value.namespaces():
         out.bind(prefix, str(ns))
     to_engine = from_rdflib_term if restore_directions else T.to_engine
@@ -616,12 +604,12 @@ def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = F
 
 
 def to_oxdataset(value: Any, where: str = "dataset") -> Any:
-    """A new ``OxDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / StarLayer dataset (every graph, empty named graphs
+    """A new ``StarLayerDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / StarLayer dataset (every graph, empty named graphs
     too, ``default_union`` kept) or from a plain graph (its triples go to the default graph, whatever its identifier). Terms are
     converted and checked as in ``to_oxgraph``, and a decomposed directional literal is restored. Prefixes are copied."""
-    from starlayer.graph.oxgraph.core import OxDataset
+    from starlayer.graph.oxgraph.core import StarLayerDataset
 
-    if isinstance(value, (OxDataset, ox.Store)) or not hasattr(value, "namespaces"):
+    if isinstance(value, (StarLayerDataset, ox.Store)) or not hasattr(value, "namespaces"):
         raise TypeError(f"{where} must be an rdflib Dataset, ConjunctiveGraph, Graph or StarLayerDataset; got {type(value).__name__}")
     if hasattr(value, "graphs") or hasattr(value, "contexts"):
         import warnings
@@ -637,7 +625,7 @@ def to_oxdataset(value: Any, where: str = "dataset") -> Any:
     else:
         graphs, default_id, union = [value], value.identifier, True
     check_graphs(*((g, f"{where} graph {g.identifier}") for g in graphs))
-    out = OxDataset(default_union=union)
+    out = StarLayerDataset(default_union=union)
     for prefix, ns in value.namespaces():
         out.bind(prefix, str(ns))
     for g in graphs:

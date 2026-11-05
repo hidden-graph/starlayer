@@ -6,7 +6,7 @@ import random
 import pytest
 from rdflib import Graph, URIRef
 from rdflib.paths import MulPath
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 E = "http://e/"
 
@@ -16,7 +16,7 @@ def _u(x):
 
 
 def _chain(n):
-    g = OxGraph()
+    g = StarLayerGraph()
     for i in range(n):
         g.add((_u(f"n{i}"), _u("next"), _u(f"n{i + 1}")))
     return g

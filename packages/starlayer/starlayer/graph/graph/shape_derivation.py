@@ -337,7 +337,7 @@ def _derive_fresh(data, ignored) -> Graph:
 # ---------------------------------------------------------------------------
 
 def _iter_violations(report_graph):
-    """The violations of a validation report as rdflib terms (the report is an ``OxGraph``; the shapes being edited are
+    """The violations of a validation report as rdflib terms (the report is an ``StarLayerGraph``; the shapes being edited are
     rdflib graphs)."""
     from starlayer.shacl_engine.terms import from_engine
 

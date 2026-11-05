@@ -116,7 +116,7 @@ def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: 
     violating: set[Any] = set()
     from starlayer.shacl_engine.terms import from_engine, to_engine
 
-    report = result.report_graph  # an OxGraph: pyoxigraph terms, which this module's rdflib terms are converted from
+    report = result.report_graph  # an StarLayerGraph: pyoxigraph terms, which this module's rdflib terms are converted from
     report_node = _find_genuine_report_node(report)
     if report_node is not None:
         wrapper_term = to_engine(wrapper)
@@ -262,7 +262,7 @@ def _as_float(term: Any) -> float:
 
 
 def _via_rdflib(fn: Any, kwargs: dict[str, Any]) -> tuple[bool, Any]:
-    """If any graph argument is an ``OxGraph`` / ``OxDataset`` / ``Store``, run ``fn`` on snapshot ``rdflib.Graph`` copies of the
+    """If any graph argument is an ``StarLayerGraph`` / ``StarLayerDataset`` / ``Store``, run ``fn`` on snapshot ``rdflib.Graph`` copies of the
     shapes and scoring graphs (this module reads them with rdflib terms; one passed twice is copied once) and return
     ``(True, result)``; else ``(False, None)``. The data graph is not copied: it only goes to ``validate()``, which takes it as
     it is. When ``shape_node`` or ``focus_node`` is a pyoxigraph term, the answer's IRIs come back as pyoxigraph terms,

@@ -6,7 +6,7 @@
 * positive syntax: ``pyoxigraph.parse`` accepts the document; negative syntax: it raises ``SyntaxError``;
 * evaluation: the parsed quads are isomorphic (RDFC-1.0, literals compared as terms) with the expected ``.nt`` / ``.nq``;
 * canonical N-Triples / N-Quads: parse, then ``pyoxigraph.serialize`` gives exactly the expected text;
-* through the wrapper: ``OxDataset.parse`` stores what the parser produced (Oxigraph normalises numeric lexical forms on
+* through the wrapper: ``StarLayerDataset.parse`` stores what the parser produced (Oxigraph normalises numeric lexical forms on
   insert, so the expected graph goes through a store too).
 
 ``KNOWN_GAPS`` are tests Oxigraph fails today, each with its cause (``docs/working/phase-c-parser-measurement.md``). They are
@@ -21,7 +21,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import rdfc_native
 from starlayer.graph.oxgraph import ntversion
-from starlayer.graph.oxgraph.core import OxDataset
+from starlayer.graph.oxgraph.core import StarLayerDataset
 
 DATA = Path(__file__).parent / "data"
 MF = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#"
@@ -131,7 +131,7 @@ def test_canonical_ntriples_and_nquads(t: dict) -> None:
 
 @pytest.mark.parametrize("t", _all("Eval", exclude_known=True))
 def test_wrapper_stores_what_the_parser_produced(t: dict) -> None:
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.parse(data=t["file"].read_bytes(), format=t["format"], base=t["base"])
     expected = ox.Store()
     expected.extend(_expected(t))

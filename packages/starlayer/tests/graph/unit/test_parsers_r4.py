@@ -7,19 +7,19 @@ a case where rdflib is lenient is marked, and the grammar (Turtle 1.2 / N-Triple
 import pytest
 import rdflib
 from rdflib import URIRef
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 
 def _turtle(text):
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=text, format='turtle12')
     return g
 
 
 def _turtle_ds(text):
-    d = OxDataset()
+    d = StarLayerDataset()
     d.parse(data=text, format='turtle12')
     return d
 
@@ -102,7 +102,7 @@ def test_invalid_turtle_is_a_syntax_error_through_a_dataset_too(text):
 def test_a_missing_final_dot_is_an_error_in_a_dataset_turtle_document_but_not_in_a_trig_block():
     with pytest.raises(SyntaxError):
         _turtle_ds('<urn:a> <urn:p> <urn:o>')
-    d = OxDataset()
+    d = StarLayerDataset()
     d.parse(data='<urn:g> { <urn:a> <urn:p> <urn:o> }', format='trig12')  # TriG: the last triple of a block may omit '.'
     assert len(list(d.quads())) == 1
 
@@ -162,12 +162,12 @@ def test_two_direction_suffixes_are_rejected_in_turtle_and_ntriples():
     with pytest.raises(SyntaxError):
         _turtle('<urn:a> <urn:p> "x"@en--ltr--rtl .')
     with pytest.raises(SyntaxError):
-        OxGraph().parse(data='<urn:a> <urn:p> "x"@en--ltr--rtl .\n', format='nt12')
+        StarLayerGraph().parse(data='<urn:a> <urn:p> "x"@en--ltr--rtl .\n', format='nt12')
 
 
 def test_a_direction_must_be_lower_case_in_ntriples_as_in_turtle():
     with pytest.raises(SyntaxError):
-        OxGraph().parse(data='<urn:a> <urn:p> "x"@en--LTR .\n', format='nt12')
+        StarLayerGraph().parse(data='<urn:a> <urn:p> "x"@en--LTR .\n', format='nt12')
 
 
 def test_a_bad_escape_is_a_syntax_error():
@@ -201,7 +201,7 @@ BAD_NT = [
 @pytest.mark.parametrize('text,rdflib_rejects', BAD_NT)
 def test_invalid_ntriples_is_an_error(text, rdflib_rejects):
     with pytest.raises(SyntaxError):
-        OxGraph().parse(data=text + '\n', format='nt12')
+        StarLayerGraph().parse(data=text + '\n', format='nt12')
     if rdflib_rejects:
         with pytest.raises(Exception):  # noqa: B017 - rdflib raises various types
             rdflib.Graph().parse(data=text + '\n', format='nt')
@@ -215,9 +215,9 @@ def test_invalid_ntriples_is_an_error(text, rdflib_rejects):
 ])
 def test_invalid_nquads_is_an_error(text):
     with pytest.raises((SyntaxError, ValueError)):  # ValueError: a graph label into a single graph (checked first)
-        OxGraph().parse(data=text + '\n', format='nq12')
+        StarLayerGraph().parse(data=text + '\n', format='nq12')
     with pytest.raises(SyntaxError):
-        OxDataset().parse(data=text + '\n', format='nq12')
+        StarLayerDataset().parse(data=text + '\n', format='nq12')
 
 
 def test_a_literal_graph_label_is_rejected_by_rdflib_too():
@@ -233,7 +233,7 @@ def test_a_literal_graph_label_is_rejected_by_rdflib_too():
     '<urn:a> <urn:p> <<( <urn:s> <urn:p> "o"@en )>> .',
 ])
 def test_valid_ntriples_still_parses(text):
-    assert len(OxGraph().parse(data=text + '\n', format='nt12')) == 1
+    assert len(StarLayerGraph().parse(data=text + '\n', format='nt12')) == 1
 
 
 # ---------------------------------------------------------------------------
@@ -263,11 +263,11 @@ def _graph_names(ds):
     'SELECT\t("a\tb"\tAS\t?x)\tWHERE\t{}',
 ])
 def test_a_raw_tab_in_a_query_string_literal_is_kept(query):
-    (row,) = list(OxGraph().query(query))
+    (row,) = list(StarLayerGraph().query(query))
     assert row[0].value == 'a\tb'
 
 
 def test_a_raw_tab_in_an_update_string_literal_is_kept():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.update('INSERT DATA { <urn:a> <urn:p> "a\tb" }')
     assert next(iter(g.objects())).value == 'a\tb'

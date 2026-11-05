@@ -12,7 +12,7 @@ copy, rewriting a data node's identity inside the results.
 import pytest
 from rdflib import RDF, BNode, Literal, URIRef
 from rdflib.namespace import XSD
-from starlayer.graph.oxgraph.core import OxGraph
+from starlayer.graph.oxgraph.core import StarLayerGraph
 from starlayer.shacl.validator import _find_genuine_report_node
 from starlayer.shacl_engine.terms import from_engine
 
@@ -25,7 +25,7 @@ def _report(order: str):
     *incidental* ValidationReport-typed data node. `order` decides which of the
     two typed nodes is added to the graph first."""
     genuine, incidental, result = BNode("genuine"), BNode("incidental"), BNode("result")
-    g = OxGraph()
+    g = StarLayerGraph()
 
     def add_genuine():
         g.add((genuine, RDF.type, URIRef(SH + "ValidationReport")))
@@ -59,7 +59,7 @@ def test_the_librarys_own_report_link_does_not_hide_the_genuine_report():
 
 
 def test_a_graph_with_one_or_no_report_is_unchanged():
-    g = OxGraph()
+    g = StarLayerGraph()
     assert _find_genuine_report_node(g) is None
     only = BNode("only")
     g.add((only, RDF.type, URIRef(SH + "ValidationReport")))

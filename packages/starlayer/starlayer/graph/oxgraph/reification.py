@@ -1,4 +1,4 @@
-"""RDF 1.2 reifier helpers over ``rdf:reifies``, as thin functions on a wrapper (``OxGraph`` / ``OxDataset``) or a bare
+"""RDF 1.2 reifier helpers over ``rdf:reifies``, as thin functions on a wrapper (``StarLayerGraph`` / ``StarLayerDataset``) or a bare
 ``pyoxigraph.Store`` (treated as a union dataset). Same contract as the methods of the old ``StarLayerGraph``
 (``graph/graph/starlayer_graph.py``: ``add_reification``, ``reifiers``, ``reifications``, ``reifier_annotations``,
 ``reified_triples``), with pyoxigraph terms: a triple term is a ``pyoxigraph.Triple``.
@@ -17,9 +17,9 @@ from starlayer.graph.oxgraph.terms import RDF_REIFIES
 
 def _view(g: Any) -> Any:
     if isinstance(g, ox.Store):
-        from starlayer.graph.oxgraph.core import OxDataset
+        from starlayer.graph.oxgraph.core import StarLayerDataset
 
-        return OxDataset(g)
+        return StarLayerDataset(g)
     return g
 
 

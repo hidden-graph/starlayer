@@ -1,4 +1,4 @@
-"""Behaviour tests of every public method of ``OxGraph`` / ``OxDataset`` / ``Result`` / the reifier helpers."""
+"""Behaviour tests of every public method of ``StarLayerGraph`` / ``StarLayerDataset`` / ``Result`` / the reifier helpers."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ import io
 import pyoxigraph as ox
 import pytest
 from starlayer.graph.oxgraph import (
-    OxDataset,
-    OxGraph,
+    StarLayerDataset,
+    StarLayerGraph,
     as_store,
     config,
     reification,
@@ -28,7 +28,7 @@ def L(v, **kw):
 
 @pytest.fixture
 def g():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((A, P, B))
     g.add((A, P, L("x")))
     g.add((A, Q, C))
@@ -40,21 +40,21 @@ def g():
 def test_store_access_and_as_store(g):
     assert isinstance(g.store, ox.Store)
     assert as_store(g) is g.store and as_store(g.store) is g.store
-    assert as_store(OxDataset(g.store)) is g.store
+    assert as_store(StarLayerDataset(g.store)) is g.store
     with pytest.raises(TypeError):
         as_store(42)
 
 
 def test_store_and_path_exclusive(tmp_path):
     with pytest.raises(ValueError):
-        OxGraph(store=ox.Store(), path=tmp_path / "x")
+        StarLayerGraph(store=ox.Store(), path=tmp_path / "x")
 
 
 def test_graph_shares_store_with_dataset():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.graph(A).add((B, P, C))
-    assert (B, P, C) in OxGraph(ds.store, identifier=A)
-    assert (B, P, C) not in OxGraph(ds.store)
+    assert (B, P, C) in StarLayerGraph(ds.store, identifier=A)
+    assert (B, P, C) not in StarLayerGraph(ds.store)
 
 
 # ---- add / addN / remove / contains / len / iter ------------------------------------------------------------------
@@ -66,7 +66,7 @@ def test_add_len_contains_iter(g):
 
 
 def test_add_accepts_triple_term_objects_and_tuples():
-    g = OxGraph()
+    g = StarLayerGraph()
     tt = ox.Triple(A, P, B)
     g.add((C, N(RDF + "reifies"), tt))
     g.add((C, Q, (A, P, B)))  # a 3-tuple is a triple term
@@ -74,7 +74,7 @@ def test_add_accepts_triple_term_objects_and_tuples():
 
 
 def test_extend_and_addN():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.extend([(A, P, B), (A, P, C)])
     assert len(g) == 2
     g.addN([(B, P, C, g.identifier), (C, P, D, N(EX + "other"))])  # only quads for this graph
@@ -122,7 +122,7 @@ def test_convenience_readers(g):
 
 
 def test_value():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((A, N(RDF + "value"), B))
     g.add((A, N(RDF + "type"), D))
     g.add((A, P, C))
@@ -138,7 +138,7 @@ def test_value():
 
 
 def test_items_reads_a_list():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data="@prefix : <http://example.org/> . :s :p (1 :a 'x') . :t :p () .")
     head = g.value(N(EX + "s"), P, None)
     assert list(g.items(head)) == [L("1", datatype=N("http://www.w3.org/2001/XMLSchema#integer")), A, L("x")]
@@ -146,14 +146,14 @@ def test_items_reads_a_list():
 
 
 def test_items_rejects_cycles_and_broken_lists():
-    g = OxGraph()
+    g = StarLayerGraph()
     b1, b2 = ox.BlankNode("b1"), ox.BlankNode("b2")
     for h, t in ((b1, b2), (b2, b1)):
         g.add((h, N(RDF + "first"), A))
         g.add((h, N(RDF + "rest"), t))
     with pytest.raises(ValueError, match="cycle"):
         list(g.items(b1))
-    g2 = OxGraph()
+    g2 = StarLayerGraph()
     g2.add((b1, N(RDF + "first"), A))
     with pytest.raises(ValueError, match="well-formed"):
         list(g2.items(b1))
@@ -176,7 +176,7 @@ def test_eq_is_identity_only(g):
 def test_rdflib_terms_are_converted_on_the_way_in():
     from rdflib import Literal, URIRef
 
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((URIRef(EX + "a"), URIRef(EX + "p"), Literal("v")))
     assert (A, P, L("v")) in g
     assert (URIRef(EX + "a"), URIRef(EX + "p"), Literal("v")) in g
@@ -184,7 +184,7 @@ def test_rdflib_terms_are_converted_on_the_way_in():
 
 # ---- dataset ------------------------------------------------------------------------------------------------------
 def test_dataset_graph_management():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.add((A, P, B))
     ds.graph(C).add((B, P, D))
     ds.graph("http://example.org/e")  # created empty, IRI string accepted
@@ -202,20 +202,20 @@ def test_dataset_graph_management():
 
 
 def test_dataset_union_counts_a_triple_once():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.add((A, P, B))
     ds.graph(C).add((A, P, B))
     assert len(ds) == 1 and len(list(ds.triples())) == 1 and len(list(ds.quads())) == 2
     assert (A, P, B) in ds and (A, P, B, C) in ds and (A, P, B, D) not in ds
-    ds2 = OxDataset(store=ds.store, default_union=False)
+    ds2 = StarLayerDataset(store=ds.store, default_union=False)
     assert len(ds2) == 1 and not ds2.default_union
-    only_named = OxDataset(default_union=False)
+    only_named = StarLayerDataset(default_union=False)
     only_named.graph(C).add((A, P, B))
-    assert len(only_named) == 0 and OxDataset(store=only_named.store).triples((None, None, None)) is not None
+    assert len(only_named) == 0 and StarLayerDataset(store=only_named.store).triples((None, None, None)) is not None
 
 
 def test_dataset_add_quad_and_remove_in_graph():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.add((A, P, B, C))
     assert (A, P, B) in ds.graph(C) and (A, P, B) not in ds.graph(None)
     ds.remove((A, P, B, C))
@@ -228,12 +228,12 @@ TTL = "@prefix ex: <http://example.org/> . ex:a ex:p ex:b , 'x'@en , 4 ."
 
 @pytest.mark.parametrize("fmt", ["turtle", "turtle12", "ttl"])
 def test_parse_turtle_names(fmt):
-    g = OxGraph().parse(data=TTL, format=fmt)
+    g = StarLayerGraph().parse(data=TTL, format=fmt)
     assert len(g) == 3 and g.prefixes == {"ex": EX}
 
 
 def test_parse_turtle12_syntax_and_lexical_forms_as_written():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data='@prefix : <http://example.org/> . :a :p <<( :b :q :c )>> ; :r "t"@en--rtl . << :a :p :b >> :s 1 .')
     objs = {o for _, _, o in g}
     assert ox.Triple(B, Q, C) in objs
@@ -242,72 +242,72 @@ def test_parse_turtle12_syntax_and_lexical_forms_as_written():
 
 
 def test_parse_formats_round_trip():
-    src = OxDataset()
+    src = StarLayerDataset()
     src.parse(data=TTL)
     src.graph(C).add((B, P, D))
     for fmt in ("trig", "nq", "nquads"):
-        back = OxDataset().parse(data=src.serialize(format=fmt), format=fmt)
+        back = StarLayerDataset().parse(data=src.serialize(format=fmt), format=fmt)
         assert set(back.quads()) == set(src.quads())
-    flat = OxGraph().parse(data=TTL)
+    flat = StarLayerGraph().parse(data=TTL)
     for fmt in ("nt", "xml", "rdf-xml", "turtle", "n3", "jsonld"):
-        back = OxGraph().parse(data=flat.serialize(format=fmt), format=fmt)
+        back = StarLayerGraph().parse(data=flat.serialize(format=fmt), format=fmt)
         assert set(back) == set(flat), fmt
 
 
 def test_parse_sources(tmp_path):
     f = tmp_path / "x.ttl"
     f.write_text(TTL)
-    assert len(OxGraph().parse(str(f))) == 3  # source path, format guessed from the extension
-    assert len(OxGraph().parse(source=f)) == 3
-    assert len(OxGraph().parse(file=str(f), format="turtle")) == 3
+    assert len(StarLayerGraph().parse(str(f))) == 3  # source path, format guessed from the extension
+    assert len(StarLayerGraph().parse(source=f)) == 3
+    assert len(StarLayerGraph().parse(file=str(f), format="turtle")) == 3
     with open(f, "rb") as fh:
-        assert len(OxGraph().parse(file=fh)) == 3
-    assert len(OxGraph().parse(data=TTL.encode())) == 3
+        assert len(StarLayerGraph().parse(file=fh)) == 3
+    assert len(StarLayerGraph().parse(data=TTL.encode())) == 3
     with pytest.raises(ValueError):
-        OxGraph().parse()
+        StarLayerGraph().parse()
     with pytest.raises(ValueError):
-        OxGraph().parse(data=TTL, file=str(f))
+        StarLayerGraph().parse(data=TTL, file=str(f))
 
 
 def test_parse_base_and_unknown_format():
-    g = OxGraph().parse(data="<a> <http://example.org/p> <b> .", format="turtle", base="http://example.org/")
+    g = StarLayerGraph().parse(data="<a> <http://example.org/p> <b> .", format="turtle", base="http://example.org/")
     assert (A, P, B) in g
     with pytest.raises(ValueError, match="unknown RDF format"):
-        OxGraph().parse(data="", format="trix")
+        StarLayerGraph().parse(data="", format="trix")
 
 
 def test_parse_syntax_error_leaves_graph_unchanged():
-    g = OxGraph().parse(data=TTL)
+    g = StarLayerGraph().parse(data=TTL)
     with pytest.raises(SyntaxError):
         g.parse(data="<a> <b> <c> . broken")
     assert len(g) == 3
 
 
 def test_parse_blank_nodes_are_scoped_per_document():
-    g = OxGraph()
+    g = StarLayerGraph()
     doc = "_:b <http://example.org/p> \"1\" ."
     g.parse(data=doc, format="nt")
     g.parse(data=doc, format="nt")
     assert len(g) == 2
-    h = OxGraph()
+    h = StarLayerGraph()
     h.parse(data=doc, format="nt", rename_blank_nodes=False)
     h.parse(data=doc, format="nt", rename_blank_nodes=False)
     assert len(h) == 1
 
 
 def test_parse_into_named_graph_view_and_quad_documents():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.graph(C).parse(data=TTL)
     assert len(ds.graph(C)) == 3 and len(ds.graph(None)) == 0
     trig = "<http://example.org/g> { <http://example.org/a> <http://example.org/p> <http://example.org/b> }"
     with pytest.raises(ValueError, match="named graphs"):
-        OxGraph().parse(data=trig, format="trig")
-    ds2 = OxDataset().parse(data=trig, format="trig")
+        StarLayerGraph().parse(data=trig, format="trig")
+    ds2 = StarLayerDataset().parse(data=trig, format="trig")
     assert ds2.graph_names() == [N(EX + "g")]
 
 
 def test_parse_captures_declared_prefixes_into_the_graphs_dict():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data="@prefix a: <http://a/> . a:x a:y a:z .")
     g.parse(data="@prefix b: <http://b/> . b:x b:y b:z .")
     assert g.prefixes == {"a": "http://a/", "b": "http://b/"}
@@ -350,15 +350,15 @@ def test_serialize_base_and_base_free(g):
 
 
 def test_serialize_dataset_to_a_triple_format_flattens_named_graphs():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.add((A, P, B))
     assert "example.org" in ds.serialize(format="turtle")  # only the default graph has content
     ds.graph(C).add((A, P, B))  # the same triple in a second graph is written once
     ds.graph(C).add((B, P, A))
     for kw in ({}, {"pretty": True}):
-        flat = OxGraph().parse(data=ds.serialize(format="turtle", **kw), format="turtle")
+        flat = StarLayerGraph().parse(data=ds.serialize(format="turtle", **kw), format="turtle")
         assert len(flat) == 2, kw
-    assert len(OxGraph().parse(data=ds.serialize(format="nt"), format="nt")) == 2
+    assert len(StarLayerGraph().parse(data=ds.serialize(format="nt"), format="nt")) == 2
     assert "GRAPH" in ds.serialize(format="trig") or "{" in ds.serialize(format="trig")  # a quad format keeps the graphs
 
 
@@ -371,7 +371,7 @@ def test_serialize_rdf11_without_interop_says_so(g):
 
 
 def test_bind_unbind():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.bind("a", "http://a/")
     g.bind("a", "http://other/", override=False)
     assert g.prefixes == {"a": "http://a/"}
@@ -383,20 +383,20 @@ def test_bind_unbind():
 def test_default_prefixes_are_copied_at_build_time():
     try:
         set_default_prefixes({"ex": EX})
-        g1 = OxGraph()
+        g1 = StarLayerGraph()
         assert g1.prefixes == {"ex": EX} and g1.prefixes is not config.DEFAULT_PREFIXES
         set_default_prefixes({"zz": "http://z/"})
         assert g1.prefixes == {"ex": EX}  # isolated from later changes
-        assert OxDataset().prefixes == {"zz": "http://z/"}
+        assert StarLayerDataset().prefixes == {"zz": "http://z/"}
         g1.prefixes["mine"] = "http://m/"
         assert "mine" not in config.DEFAULT_PREFIXES
     finally:
         set_default_prefixes({})
-    assert OxGraph().prefixes == {}
+    assert StarLayerGraph().prefixes == {}
 
 
 def test_dataset_views_share_the_datasets_prefix_dict():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     assert ds.graph(A).prefixes is ds.prefixes
 
 
@@ -427,7 +427,7 @@ def test_ask(g):
 def test_construct_and_describe(g):
     r = g.query("CONSTRUCT { ?s <http://example.org/z> ?o } WHERE { ?s <http://example.org/q> ?o }")
     assert r.type == "CONSTRUCT" and list(r) == [(A, N(EX + "z"), C)]
-    assert isinstance(r.graph, OxGraph) and len(r.graph) == 1
+    assert isinstance(r.graph, StarLayerGraph) and len(r.graph) == 1
     d = g.query("DESCRIBE <http://example.org/a>")
     assert d.type == "DESCRIBE" and len(d) >= 1 and bool(d)
 
@@ -454,12 +454,12 @@ def test_base_in_query(g):
 
 
 def test_query_graph_view_sees_its_graph_as_default_dataset_sees_the_union():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.add((A, P, B))
     ds.graph(C).add((B, P, D))
     q = "SELECT * WHERE { ?s ?p ?o }"
     assert len(ds.query(q)) == 2
-    assert len(OxDataset(ds.store, default_union=False).query(q)) == 1
+    assert len(StarLayerDataset(ds.store, default_union=False).query(q)) == 1
     assert len(ds.graph(C).query(q)) == 1 and len(ds.graph(None).query(q)) == 1
     assert len(ds.query("SELECT * WHERE { GRAPH ?g { ?s ?p ?o } }")) == 1
 
@@ -478,7 +478,7 @@ def test_sparql12_directly(g):
 
 
 def test_update_operations():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.update("INSERT DATA { <http://example.org/a> <http://example.org/p> 1 }")
     assert len(ds) == 1
     ds.update("INSERT DATA { GRAPH <http://example.org/g> { <http://example.org/a> <http://example.org/p> 2 } }")
@@ -497,7 +497,7 @@ def test_update_operations():
 
 
 def test_update_from_a_graph_view_acts_on_the_store():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     v = ds.graph(C)
     v.update("INSERT DATA { GRAPH <http://example.org/c> { <http://example.org/a> <http://example.org/p> 1 } }")
     assert len(v) == 1
@@ -505,7 +505,7 @@ def test_update_from_a_graph_view_acts_on_the_store():
 
 # ---- set operators --------------------------------------------------------------------------------------------------
 def test_set_operators_on_graphs():
-    x, y = OxGraph(), OxGraph()
+    x, y = StarLayerGraph(), StarLayerGraph()
     x.extend([(A, P, B), (A, P, C)])
     y.extend([(A, P, C), (A, P, D)])
     assert set(x + y) == {(A, P, B), (A, P, C), (A, P, D)}
@@ -520,11 +520,11 @@ def test_set_operators_on_graphs():
     with pytest.raises(TypeError):
         x + 1
     with pytest.raises(TypeError):
-        x + OxDataset()
+        x + StarLayerDataset()
 
 
 def test_set_operators_on_graph_views_of_one_store():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.graph(A).add((B, P, C))
     ds.graph(D).add((B, P, C))
     ds.graph(D).add((B, P, D))
@@ -532,7 +532,7 @@ def test_set_operators_on_graph_views_of_one_store():
 
 
 def test_set_operators_on_datasets():
-    x, y = OxDataset(), OxDataset()
+    x, y = StarLayerDataset(), StarLayerDataset()
     x.add((A, P, B))
     x.add((A, P, B, C))
     y.add((A, P, B))
@@ -544,7 +544,7 @@ def test_set_operators_on_datasets():
 
 # ---- reifiers ---------------------------------------------------------------------------------------------------------
 def test_reification_helpers():
-    g = OxGraph()
+    g = StarLayerGraph()
     t1, t2 = ox.Triple(A, P, B), ox.Triple(A, P, C)
     r1, r2 = N(EX + "r1"), ox.BlankNode()
     assert g.add_reification(r1, t1) is g
@@ -569,7 +569,7 @@ def test_reification_helpers():
 
 
 def test_reification_from_turtle_annotation_syntax():
-    g = OxGraph().parse(data="@prefix : <http://example.org/> . :a :p :b {| :q 'n' |} . :a :p :c ~ :r2 .")
+    g = StarLayerGraph().parse(data="@prefix : <http://example.org/> . :a :p :b {| :q 'n' |} . :a :p :c ~ :r2 .")
     ts = set(g.reifications())
     assert ts == {ox.Triple(A, P, B), ox.Triple(A, P, C)}
     assert {a[2] for t in ts for a in g.reifier_annotations(t)} == {L("n")}
@@ -578,11 +578,11 @@ def test_reification_from_turtle_annotation_syntax():
 # ---- persistence of the wrapper on a path ------------------------------------------------------------------------------
 def test_dataset_on_disk(tmp_path):
     path = tmp_path / "db"
-    ds = OxDataset(path=path)
+    ds = StarLayerDataset(path=path)
     ds.parse(data=TTL)
     ds.graph(C).add((A, P, D))
     del ds
-    again = OxDataset(path=path)
+    again = StarLayerDataset(path=path)
     assert len(again) == 4 and len(again.graph(C)) == 1
 
 
@@ -594,9 +594,9 @@ def test_result_one_shot_note(g):
 
 
 def test_dataset_serializes_to_trig_by_default_and_a_graph_to_turtle():
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.graph(C).add((A, P, B))
     assert "GRAPH" in ds.serialize() or "{" in ds.serialize()
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((A, P, B))
     assert "{" not in g.serialize()

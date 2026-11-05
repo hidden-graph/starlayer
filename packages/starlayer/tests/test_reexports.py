@@ -60,8 +60,8 @@ def test_all_matches_actual_module_exports() -> None:
 
 
 def test_graph_and_validator_work_together_through_the_single_import() -> None:
+    from rdflib import Namespace
     from starlayer import StarLayerGraph, StarShaclSchema
-    from starlayer.graph import Namespace
 
     ex = Namespace("http://example.org/")
     data = StarLayerGraph()

@@ -16,7 +16,7 @@ silent failure mode.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 EX = 'http://example.org/'
 
@@ -27,23 +27,23 @@ def ex(local):
 
 class TestJsonld12IsRejectedAsUnrecognized:
     def test_graph_serialize_rejects(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.add((ex('s'), ex('p'), ex('o')))
         with pytest.raises(ValueError):
             g.serialize(format='jsonld12')
 
     def test_graph_parse_rejects(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         with pytest.raises(ValueError):
             g.parse(data='{}', format='jsonld12')
 
     def test_dataset_serialize_rejects(self):
-        ds = OxDataset()
+        ds = StarLayerDataset()
         ds.default_graph.add((ex('s'), ex('p'), ex('o')))
         with pytest.raises(ValueError):
             ds.serialize(format='jsonld12')
 
     def test_dataset_parse_rejects(self):
-        ds = OxDataset()
+        ds = StarLayerDataset()
         with pytest.raises(ValueError):
             ds.parse(data='{}', format='jsonld12')

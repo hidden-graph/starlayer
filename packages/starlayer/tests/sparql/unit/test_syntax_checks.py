@@ -2,8 +2,7 @@
 starlayer/sparql/_syntax_checks.py."""
 
 import pytest
-import starlayer.graph  # noqa: F401  (applies the STRLANG patch)
-from rdflib import Graph
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql._syntax_checks import SPARQLSyntaxError
 from starlayer.sparql.parse12 import prepare_query_12, prepare_update_12
 
@@ -46,12 +45,12 @@ def test_bad_update_rejected():
 
 def test_strlang_empty_tag_is_an_error():
     row = list(
-        Graph().query(
+        StarLayerGraph().query(
             'SELECT (STRLANG("a", "") AS ?r) (STRLANG("a", "EN") AS ?s) WHERE {}'
         )
     )[0]
     assert row[0] is None
-    assert str(row[1]) == "a" and row[1].language == "en"
+    assert row[1].value == "a" and row[1].language == "en"
 
 
 def test_escaped_backslash_before_u_is_not_an_escape():
@@ -67,5 +66,5 @@ def test_sameterm_treats_simple_literal_and_xsd_string_as_one_term():
         'SELECT (sameTerm("a", "a"^^xsd:string) AS ?same) (sameTerm("a", "b") AS ?diff) '
         '(sameTerm("a", "a"@en) AS ?lang) WHERE {}'
     )
-    same, diff, lang = list(Graph().query(q))[0]
-    assert (bool(same), bool(diff), bool(lang)) == (True, False, False)
+    same, diff, lang = list(StarLayerGraph().query(q))[0]
+    assert (same.value, diff.value, lang.value) == ("true", "false", "false")

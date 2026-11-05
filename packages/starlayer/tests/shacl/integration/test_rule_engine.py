@@ -9,7 +9,7 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 import pyoxigraph as ox
 import pytest
 from rdflib import Literal, Namespace, URIRef
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 from starlayer.shacl_engine.terms import RDF as OXRDF
 from starlayer.shacl_engine.terms import from_engine, text, to_engine
@@ -26,8 +26,8 @@ PREFIXES = """
 """
 
 
-def _graph(turtle: str) -> OxGraph:
-    graph = OxGraph()
+def _graph(turtle: str) -> StarLayerGraph:
+    graph = StarLayerGraph()
     graph.parse(data=PREFIXES + turtle, format="turtle")
     return graph
 

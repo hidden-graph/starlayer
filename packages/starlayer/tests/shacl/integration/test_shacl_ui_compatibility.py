@@ -1,5 +1,5 @@
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
@@ -46,14 +46,14 @@ def _shapes_with_shui_annotations() -> str:
 
 
 def test_shui_annotations_do_not_interfere_with_validation() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Person ; ex:birthDate "1990-01-01"^^<http://www.w3.org/2001/XMLSchema#date> .
         ex:bob a ex:Person .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_shui_annotations(), format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -63,13 +63,13 @@ def test_shui_annotations_do_not_interfere_with_validation() -> None:
 
 
 def test_shui_annotations_do_not_break_meta_shacl_preflight() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice a ex:Person ; ex:birthDate "1990-01-01"^^<http://www.w3.org/2001/XMLSchema#date> .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_shui_annotations(), format="turtle")
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
@@ -77,13 +77,13 @@ def test_shui_annotations_do_not_break_meta_shacl_preflight() -> None:
 
 
 def test_shui_annotations_do_not_interfere_with_rule_application() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:parent ex:carol .
     """, format="turtle")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -105,13 +105,13 @@ def test_shui_annotations_do_not_interfere_with_rule_application() -> None:
 
 
 def test_shui_annotations_do_not_interfere_with_rdf12_triple_term_data() -> None:
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(data="""
         @prefix ex: <http://example.org/> .
         ex:alice ex:claims <<( ex:bob ex:age 42 )>> .
     """, format="turtle12")
 
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .

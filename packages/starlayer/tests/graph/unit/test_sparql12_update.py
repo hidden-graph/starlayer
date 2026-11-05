@@ -1,5 +1,5 @@
 """
-Integration tests for OxGraph.update() with SPARQL 1.2 triple-term syntax.
+Integration tests for StarLayerGraph.update() with SPARQL 1.2 triple-term syntax.
 
 Covers:
   U1 — DELETE WHERE with triple term in WHERE clause
@@ -11,9 +11,9 @@ Covers:
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
-# OxGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
+# StarLayerGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
 URIRef = ox.NamedNode
 TripleTerm = ox.Triple
 
@@ -35,7 +35,7 @@ DATASET = """
 
 @pytest.fixture
 def g():
-    sg = OxGraph()
+    sg = StarLayerGraph()
     sg.parse(data=DATASET, format='turtle12')
     return sg
 
@@ -229,7 +229,7 @@ class TestU4DeletingOneReifierLeavesTheOthers:
 
     @pytest.fixture
     def shared(self):
-        sg = OxGraph()
+        sg = StarLayerGraph()
         sg.parse(data=SHARED, format='turtle12')
         return sg
 

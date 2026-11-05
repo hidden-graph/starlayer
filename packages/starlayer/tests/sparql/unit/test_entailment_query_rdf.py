@@ -1,10 +1,10 @@
-"""Migrated from tests/sparql/unit/test_entailment_rdf.py: the same tests, on an ``OxGraph``, with the query-time rewrite of
+"""Migrated from tests/sparql/unit/test_entailment_rdf.py: the same tests, on an ``StarLayerGraph``, with the query-time rewrite of
 ``starlayer.sparql.sqe.entailment`` (text in, text out, Oxigraph evaluates) instead of the rdflib-algebra rewrite. Differences from
 the original are listed in the module docstring of ``tests/graph/oxgraph/test_entailment_query.py``.
 """
 
 from rdflib import RDF, Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
 from starlayer.sparql.sqe.entailment import rewrite_for_entailment
 
@@ -40,7 +40,7 @@ def prepareQuery(text, initNs=None):  # noqa: N802
 
 
 def Graph():  # noqa: N802
-    return OxGraph()
+    return StarLayerGraph()
 
 
 def _run(graph, text, regime, ns):

@@ -101,53 +101,6 @@ KNOWN_FAILURES: dict[str, str] = {
 }
 
 
-# Entries that pass on the default in-memory store but not through the
-# in-process Oxigraph store (stores.oxigraph_store_graph). Same discipline as
-# KNOWN_FAILURES: every entry names why, and is applied as a strict xfail.
-_OXIGRAPH_LITERAL_NORMALIZATION = (
-    "Oxigraph normalizes literals when it stores them (e.g. \"04\"^^xsd:integer -> \"4\", "
-    "\"1\"^^xsd:boolean -> \"true\", an ill-formed value is rewritten or re-typed), so this fixture's "
-    "exact lexical form / datatype does not survive storage - upstream and by design, tracked as "
-    "oxigraph/oxigraph#526 (an option to avoid literal normalization). "
-    "See docs/upstream-issues/oxigraph-upstream-issues.md, 'Known limitation: literal normalization'."
-)
-
-KNOWN_FAILURES_OXIGRAPH_STORE: dict[str, str] = {
-    # Each fixture's own data contains a literal Oxigraph rewrites on storage
-    # (checked fixture by fixture against the clone held in the store):
-    "tests/node-expr/shnex/remove::remove-list-from-list": _OXIGRAPH_LITERAL_NORMALIZATION,  # "01"^^xsd:integer
-    "tests/node-expr/shnex/distinct::distinct-termEquality": _OXIGRAPH_LITERAL_NORMALIZATION,  # "04"^^xsd:integer
-    "tests/core/property/or-datatypes-001::or-datatypes-001": _OXIGRAPH_LITERAL_NORMALIZATION,  # ill-formed "none"^^xsd:boolean dropped
-    "tests/core/property/datatype-001::datatype-001": _OXIGRAPH_LITERAL_NORMALIZATION,  # "2011-01-01"^^xsd:dateTime gains T00:00:00
-    "tests/core/property/uniqueLang-002::uniqueLang-002": _OXIGRAPH_LITERAL_NORMALIZATION,  # "1"^^xsd:boolean -> "true"
-    "tests/core/property/datatype-ill-formed::datatype-ill-formed": _OXIGRAPH_LITERAL_NORMALIZATION,  # "300"^^xsd:byte -> xsd:integer
-}
-
-
-# The other Oxigraph stores run the same engine, so they share the literal-
-# normalization failures; anything beyond that is added below with its own
-# reason, once observed.
-KNOWN_FAILURES_OXIGRAPH_PERSISTED: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_STORE, **OXIGRAPH_QUERY_BUGS}
-KNOWN_FAILURES_OXIGRAPH_HTTP: dict[str, str] = {**KNOWN_FAILURES_OXIGRAPH_STORE, **OXIGRAPH_QUERY_BUGS}
-_FUSEKI_LITERAL_NORMALIZATION = (
-    "Apache Jena (Fuseki 6.1.0) also rewrites literals when it stores them - this fixture's data holds "
-    "values whose lexical form does not survive (e.g. \"1\"^^xsd:boolean becomes \"true\", \"04\"^^xsd:integer "
-    "becomes \"4\", an ill-formed \"none\"^^xsd:boolean is dropped, \"2011-01-01\"^^xsd:dateTime gains a time "
-    "part), so the exact data the fixture needs is not what comes back. Same effect as "
-    "oxigraph/oxigraph#526, observed on Jena."
-)
-
-# Fuseki's other former failures (RDF lists / nested blank nodes, ~30 fixtures) are fixed: it labels blank nodes
-# with a per-query counter, so this library stores them as skolem IRIs there and rewrites isBLANK / isIRI /
-# ORDER BY to match (see starlayer/graph/backends/skolem_semantics.py). Only literal normalization remains.
-KNOWN_FAILURES_FUSEKI_HTTP: dict[str, str] = {
-    "tests/core/property/datatype-001::datatype-001": _FUSEKI_LITERAL_NORMALIZATION,
-    "tests/core/property/or-datatypes-001::or-datatypes-001": _FUSEKI_LITERAL_NORMALIZATION,
-    "tests/core/property/uniqueLang-002::uniqueLang-002": _FUSEKI_LITERAL_NORMALIZATION,
-    "tests/node-expr/shnex/remove::remove-list-from-list": _FUSEKI_LITERAL_NORMALIZATION,  # "01"^^xsd:integer
-    "tests/node-expr/shnex/distinct::distinct-termEquality": _FUSEKI_LITERAL_NORMALIZATION,  # "04"^^xsd:integer
-}
-
 
 # Entries that fail on any Oxigraph-backed graph (every graph the engine and the public API use) because the store rewrites a literal
 # on insert (starlayer #190; upstream oxigraph#526, #1989, PR #2010). STRICT xfails where they are used: they XPASS, and fail, once a

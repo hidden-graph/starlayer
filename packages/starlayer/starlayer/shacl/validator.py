@@ -36,8 +36,8 @@ def validate(
     """Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``ValidationResult``.
 
     Args:
-        data_graph: The RDF data to validate: an ``OxGraph`` / ``OxDataset`` (used as it is) or an rdflib / old-style ``StarLayerGraph``
-            (copied into an ``OxGraph``). It is never changed unless ``inplace=True``.
+        data_graph: The RDF data to validate: an ``StarLayerGraph`` / ``StarLayerDataset`` (used as it is) or an rdflib / old-style ``StarLayerGraph``
+            (copied into an ``StarLayerGraph``). It is never changed unless ``inplace=True``.
         shacl_graph: The shapes graph. ``None`` reads the shapes from ``data_graph`` itself.
         ont_graph: An optional ontology graph. Its axioms (``rdfs:domain``, ``rdfs:subClassOf`` ...) are visible to entailment, but
             its triples are never copied into ``data_graph``.
@@ -59,7 +59,7 @@ def validate(
             relative IRI, as opaque stand-ins instead of raising ``TermError``). An unknown option is a ``TypeError``.
 
     Returns:
-        A ``ValidationResult``: ``conforms``, ``report_graph`` (an ``OxGraph``) and ``report_text``, ``data_graph`` (the caller's graph when
+        A ``ValidationResult``: ``conforms``, ``report_graph`` (an ``StarLayerGraph``) and ``report_text``, ``data_graph`` (the caller's graph when
         ``inplace=True``, else ``None``) and ``diagnostics``.
     """
     return _adapter.validate(
@@ -266,7 +266,7 @@ class StarShaclSchema:
 
     @property
     def shacl_graph(self) -> Any | None:
-        """The shapes graph, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
+        """The shapes graph, as an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerDataset``)."""
         return self._bound("shacl_graph")
 
     @shacl_graph.setter
@@ -275,7 +275,7 @@ class StarShaclSchema:
 
     @property
     def ont_graph(self) -> Any | None:
-        """The ontology graph, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
+        """The ontology graph, as an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerDataset``)."""
         return self._bound("ont_graph")
 
     @ont_graph.setter
@@ -284,7 +284,7 @@ class StarShaclSchema:
 
     @property
     def data_graph(self) -> Any | None:
-        """The default data graph, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
+        """The default data graph, as an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerDataset``)."""
         return self._bound("data_graph")
 
     @data_graph.setter
@@ -293,7 +293,7 @@ class StarShaclSchema:
 
     @property
     def scoring_graph(self) -> Any | None:
-        """The scoring graph of ``shui:WidgetScore`` entries, as an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``)."""
+        """The scoring graph of ``shui:WidgetScore`` entries, as an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerDataset``)."""
         return self._bound("scoring_graph")
 
     @scoring_graph.setter

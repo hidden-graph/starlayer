@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 from rdflib import Dataset, Graph, Namespace, URIRef, Variable
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql.srl import SRLError, SRLParseError, parse_ruleset
 
@@ -50,7 +50,7 @@ def test_infer_and_query_accept_a_dataset():
 
 def test_infer_accepts_a_starlayer_dataset():
     rules = parse_ruleset(PREFIX + "RULE { ?x :q ?y } WHERE { ?x :p ?y }")
-    ds = OxDataset()
+    ds = StarLayerDataset()
     ds.add((E.a, E.p, E.b))
     assert {tuple(from_engine(x) for x in t) for t in rules.infer(ds)} == {(E.a, E.q, E.b)}
 
@@ -71,13 +71,13 @@ def test_undeclared_prefix_is_an_srl_parse_error():
     assert isinstance(info.value, SRLError)
 
 
-@pytest.mark.parametrize("make", [Graph, OxGraph])
+@pytest.mark.parametrize("make", [Graph, StarLayerGraph])
 def test_triple_function_in_set(make):
     g = make()
     g.add((E.a, E.p, E.b))
     rules = parse_ruleset(PREFIX + "RULE { ?s :t ?n } WHERE { ?s :p ?o SET(?n := TRIPLE(?s, :p, ?o)) }")
     inferred = rules.infer(g)
-    # a plain rdflib Graph cannot hold a triple term, so a result that has one comes back as an OxGraph (pyoxigraph terms); an OxGraph
+    # a plain rdflib Graph cannot hold a triple term, so a result that has one comes back as an StarLayerGraph (pyoxigraph terms); an StarLayerGraph
     # input gives pyoxigraph terms as well
     import pyoxigraph as ox
 

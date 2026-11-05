@@ -5,7 +5,7 @@ import warnings
 import pytest
 from rdflib import BNode, Namespace
 from starlayer.graph.model.triple import TripleTerm
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql.parse12 import prepare_update_12
 
 warnings.simplefilter("ignore")
@@ -14,13 +14,13 @@ P = "PREFIX : <http://e/>\n"
 
 
 def test_str_of_a_blank_node_is_an_error_so_unbound():
-    g = OxGraph()
+    g = StarLayerGraph()
     rows = list(g.query("SELECT (STR(?b) AS ?x) WHERE { BIND(BNODE() AS ?b) }"))
     assert [r[0] for r in rows] == [None]
 
 
 def test_group_concat_of_str_over_a_blank_node_is_unbound_like_oxigraph():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.add((E.a, E.p, BNode("b1")))
     g.add((E.a, E.p, E.o))
     rows = list(g.query(P + "SELECT (GROUP_CONCAT(STR(?o)) AS ?x) WHERE { :a :p ?o }"))
@@ -45,7 +45,7 @@ def test_blank_nodes_are_rejected_in_delete_forms(update):
 
 
 def test_negated_set_and_zero_length_paths_do_not_expose_triple_term_encoding():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(
         data="@prefix : <http://e/> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . "
         ":a :p :b . :r rdf:reifies <<( :a :p :b )>> . :b :q :c .",

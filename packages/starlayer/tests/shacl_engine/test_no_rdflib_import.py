@@ -1,6 +1,6 @@
 """No ``import rdflib`` inside ``shacl_engine``.
 
-The engine's terms are pyoxigraph terms and its graphs are Oxigraph-backed (``OxGraph``). The conversion to and from rdflib /
+The engine's terms are pyoxigraph terms and its graphs are Oxigraph-backed (``StarLayerGraph``). The conversion to and from rdflib /
 StarLayer terms lives in ``starlayer/graph/oxgraph/_rdflib_bridge.py``, which ``terms.to_engine`` / ``from_engine`` reach lazily.
 This test walks the AST of every module under ``shacl_engine/`` (function-level imports included) and fails on any ``import
 rdflib`` or ``from rdflib ... import``.

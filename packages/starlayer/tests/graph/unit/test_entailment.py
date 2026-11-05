@@ -1,12 +1,12 @@
 """
 tests/unit/test_entailment.py
 
-End-to-end coverage for OxGraph.query(..., entailment=...) - a
+End-to-end coverage for StarLayerGraph.query(..., entailment=...) - a
 per-query choice, not a graph-level setting (one graph can be queried with
 different, or no, entailment on different calls). See
 packages/sparql/tests/unit/test_entailment_rdf.py and test_entailment_rdfs.py
 for the pure rewrite functions' own unit coverage; this file exercises all
-three supported values through the real OxGraph.query() path.
+three supported values through the real StarLayerGraph.query() path.
 
 entailment=ENTAILMENT.RDF rewrites the query at query time (starlayer.sparql.entailment_rdf,
 wired in via query_cache.py::prepare_query_cached) - no data copy. Covers
@@ -31,17 +31,16 @@ computing only when nothing is cached yet - see TestEntailmentOwlRlCaching).
 Per this project's own testing discipline (starlayer.sparql/CLAUDE.md: "any new
 query/update shape needs an execution-comparison test, not just a
 structural one"), several tests compare entailment=ENTAILMENT.RDFS results directly
-against entailment=ENTAILMENT["OWL-RDF-Based"] (or OxGraph.infer()'s materialized
+against entailment=ENTAILMENT["OWL-RDF-Based"] (or StarLayerGraph.infer()'s materialized
 closure) - a convenient, already-tested oracle for "what should RDFS
 entailment produce over this data", without needing a live owlrl call in
 every test.
 """
 
 import pytest
-from rdflib import RDFS
-from starlayer.graph import RDF, Namespace
+from rdflib import RDF, RDFS, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 
 EX = Namespace("http://example.org/")
 
@@ -55,8 +54,8 @@ _DATA = """
 _QUERY = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Employee }"
 
 
-def _graph() -> OxGraph:
-    g = OxGraph()
+def _graph() -> StarLayerGraph:
+    g = StarLayerGraph()
     g.bind("ex", EX)
     g.parse(data=_DATA, format="turtle12")
     return g
@@ -114,7 +113,7 @@ class TestQueryTimeRdfsRewrite:
         assert rewritten == materialized == {str(EX.alice)}
 
     def test_domain_entailment(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -132,7 +131,7 @@ class TestQueryTimeRdfsRewrite:
         assert rewritten == materialized == {str(EX.alice)}
 
     def test_range_entailment(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -150,7 +149,7 @@ class TestQueryTimeRdfsRewrite:
         assert rewritten == materialized == {str(EX.Acme)}
 
     def test_subproperty_entailment(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -174,7 +173,7 @@ class TestQueryTimeRdfEntailment:
     entailed rdf:type rdf:Property" - see starlayer.sparql.entailment_rdf's own
     module docstring for the full scope and why. Pure unit coverage of the
     rewrite itself lives in packages/sparql/tests/unit/test_entailment_rdf.py;
-    this class exercises it through the real OxGraph.query() path.
+    this class exercises it through the real StarLayerGraph.query() path.
     """
 
     def test_plain_query_misses_the_fact(self):
@@ -221,7 +220,7 @@ class TestEntailmentOwlRl:
         assert via_rewrite == via_materialization == [str(EX.alice)]
 
     def test_covers_owl_constructs_rdfs_rewrite_cannot(self):
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -279,7 +278,7 @@ class TestEntailmentOwlRlUnionDesign:
         # Graph, same query run normally) so this pins row-for-row parity,
         # not just the result set.
 
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .
@@ -310,7 +309,7 @@ class TestEntailmentOwlRlCorrectness:
         # owlrl.DeductiveClosure run directly on the same data.
         owlrl = pytest.importorskip("owlrl")
 
-        g = OxGraph()
+        g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
             @prefix ex: <http://example.org/> .

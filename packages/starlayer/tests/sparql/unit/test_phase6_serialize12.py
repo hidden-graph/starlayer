@@ -1,19 +1,19 @@
 """Phase 6 (continued): SPARQL 1.2 algebra -> text, verified by *executing*
-the original and round-tripped query against a real `OxGraph` and
+the original and round-tripped query against a real `StarLayerGraph` and
 comparing results — the execution-based verification
 test_phase6_rdf12_native.py explicitly deferred (see that file's docstring).
 
 The loop under test: SPARQL 1.2 text -> our own grammar (parse12.py) ->
 algebra tree (with TripleTermNode nodes) -> encode to RDF (query_to_rdf) ->
 decode (rdf_to_query) -> regenerate SPARQL 1.2 text (serialize12.py) ->
-execute via OxGraph.query(text). Both the *original* text and the
-*regenerated* text are executed the same way, via OxGraph's own
+execute via StarLayerGraph.query(text). Both the *original* text and the
+*regenerated* text are executed the same way, via StarLayerGraph's own
 `query(str)` entry point — never by executing our own algebra tree directly
 (rdflib's evaluator doesn't know how to match a TripleTermNode-shaped
-pattern against real stored data; OxGraph internally represents a
+pattern against real stored data; StarLayerGraph internally represents a
 ground triple term as a content-addressed hash URI, not as something our
 tree's raw Python objects would coincidentally match — confirmed empirically
-while building this). OxGraph's own internal 1.2-to-1.1 lowering is
+while building this). StarLayerGraph's own internal 1.2-to-1.1 lowering is
 treated as a black box throughout, per design: this project's job stops at
 producing correct SPARQL 1.2 text.
 
@@ -26,7 +26,7 @@ ever seeded by the SelectQuery branch - the same gap applies to ASK/
 DESCRIBE, not investigated further since nothing in scope needs them).
 CONSTRUCT support itself is a genuinely new capability this project adds
 (see serialize12.py's own docstring for the two non-obvious things that had
-to be gotten right, both found only by testing against real OxGraph
+to be gotten right, both found only by testing against real StarLayerGraph
 execution, not by reading rdflib's source alone).
 
 Also covers expression-position triple-term usage (isTRIPLE(expr)/
@@ -49,7 +49,7 @@ reaches the argument on its own.
 
 from __future__ import annotations
 
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12
 from starlayer.sparql.serialize12 import _translate_algebra_12
@@ -65,7 +65,7 @@ FIXTURE_TTL12 = """
 
 # (query_text, expect_nonempty) - expect_nonempty is False only for the
 # subject-position case, where asserting matching fixture data would need
-# hand-writing OxGraph's internal content-addressed hash URI (not
+# hand-writing StarLayerGraph's internal content-addressed hash URI (not
 # practical in a Turtle fixture) - still a real, meaningful check: both
 # sides must still agree (here, agree on zero rows) and both must execute
 # without error.
@@ -195,7 +195,7 @@ _PATTERN_FORM = {
 
 
 def test_execution_roundtrip_via_starlayergraph():
-    g = OxGraph()
+    g = StarLayerGraph()
     g.parse(data=FIXTURE_TTL12, format="turtle12")
 
     for query_text, expect_nonempty in QUERIES:
@@ -210,7 +210,7 @@ def test_execution_roundtrip_via_starlayergraph():
 
 
 def test_construct_execution_roundtrip_via_starlayergraph():
-    starlayer_graph = OxGraph()
+    starlayer_graph = StarLayerGraph()
     starlayer_graph.parse(data=FIXTURE_TTL12, format="turtle12")
 
     for query_text in CONSTRUCT_QUERIES:

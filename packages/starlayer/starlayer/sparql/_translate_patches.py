@@ -1,37 +1,13 @@
-"""Targeted compatibility shims for confirmed bugs in plain rdflib's own
-``_AlgebraTranslator``/``translateAlgebra`` (``rdflib.plugins.sparql.algebra``)
-— algebra-tree-back-to-SPARQL-text serialization, not evaluation. See
-``docs/upstream-issues/rdflib-upstream-issues.md`` issues 3, 4, and 6 for the full write-up
-of each, including standalone plain-rdflib reproductions.
+"""Shims for confirmed bugs in rdflib's ``_AlgebraTranslator`` / ``translateAlgebra`` (algebra tree back to SPARQL text; see
+``docs/upstream-issues/rdflib-upstream-issues.md`` issues 3, 4 and 6).
 
-None of these bugs is in a code path *this repo itself* exercises directly
-today — starlayer.graph never calls ``translateAlgebra``/``_AlgebraTranslator``
-anywhere in its own pipeline. They surfaced in the downstream
-``starlayer.sparql`` project, which *does* use ``_AlgebraTranslator``
-directly (subclassing it in its own ``serialize12.py``); issues 3 and 6
-already have independent workarounds there (issue 7's empty-``PV`` fix does
-not — that project's own ``Project`` handling is about a different,
-CONSTRUCT-specific empty-``PV`` case, not this one). Patching here too is
-worthwhile, matching ``operator_patches.py``'s own stated rationale: any
-*other* current or future consumer of this package that calls
-``translateAlgebra``/``_AlgebraTranslator`` directly (not through that
-specific downstream subclass) gets correct behavior for free, rather than
-silently inheriting these bugs — and this ``translateAlgebra``-based
-pipeline (parse SPARQL 1.2 → this project's own RDF algebra representation
-→ regeneration → execution) is intended to become the path *every* SPARQL
-query through starlayer.graph goes through, not just this one downstream
-project's own test suite, which is why these are fixed here rather than
-only in that one consumer's own workaround.
+Moved here from ``graph/query/algebra_translator_patches.py`` when D1 deleted the rdflib query machinery: ``serialize12.py``
+(which subclasses ``_AlgebraTranslator``) still needs them, and applies them when it is imported. They go with ``serialize12``
+when it stops using rdflib (B3 / D4).
 
-Same idempotent apply-once pattern as ``operator_patches.py``: a
-module-level ``_xxx_patch_status: bool | None`` flag plus a marker attribute
-on the patched callable, so repeated calls are safe no-ops. Unlike
-``operator_patches.py``'s ``Comp.setEvalFn`` technique (that file patches
-pyparsing grammar nodes), this patches a plain Python method on
-``_AlgebraTranslator`` directly: the original bound method is captured once,
-and the replacement delegates to it for every node type except the two
-specific ``node.name`` values these two bugs live in - so any future rdflib
-fix, or any other branch's behavior, passes through completely unaffected.
+Each patch is idempotent: a module-level status flag plus a marker attribute on the patched callable. The patch to
+``sparql_query_text`` captures the original method and delegates to it for every node type except the two ``node.name`` values the
+bugs live in.
 """
 
 from __future__ import annotations

@@ -15,7 +15,7 @@ coincidentally both named sh:values but serve entirely different purposes.
 
 import pytest
 from rdflib import Namespace
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 
 from ._rdflib_view import rd
@@ -25,7 +25,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
 def test_values_select_computes_the_checked_value_set() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -44,7 +44,7 @@ def test_values_select_computes_the_checked_value_set() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -59,7 +59,7 @@ def test_values_select_computes_the_checked_value_set() -> None:
 
 
 def test_values_select_violates_when_computed_value_does_not_match() -> None:
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -77,7 +77,7 @@ def test_values_select_violates_when_computed_value_does_not_match() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -99,7 +99,7 @@ def test_values_sparql_expr_computes_a_single_scalar_value() -> None:
     # exactly 24 characters total, and ex:Big (3-char local name) is 22 -
     # chosen precisely so the expected pass/violate split is checkable by
     # inspection, not by running STRLEN by hand.
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -114,7 +114,7 @@ def test_values_sparql_expr_computes_a_single_scalar_value() -> None:
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.Fiver, EX.dummy, EX.dummy))
     data.add((EX.Big, EX.dummy, EX.dummy))
 
@@ -143,7 +143,7 @@ class TestDefaultValueFallback:
     """
 
     def test_default_value_fills_in_when_no_real_value_is_stored(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -153,7 +153,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.add((EX.alice, EX.dummy, EX.dummy))
 
         result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -164,7 +164,7 @@ class TestDefaultValueFallback:
         assert list(data.triples((None, EX.status, None))) == []
 
     def test_default_value_is_ignored_once_a_real_value_exists(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -174,7 +174,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(data='@prefix ex: <http://example.org/> . ex:bob ex:status "suspended" .', format="turtle")
 
         result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -184,7 +184,7 @@ class TestDefaultValueFallback:
         assert result.conforms is False
 
     def test_default_value_is_ignored_once_sh_values_computes_something(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -197,7 +197,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.add((EX.alice, EX.dummy, EX.dummy))
 
         result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -211,7 +211,7 @@ class TestDefaultValueFallback:
         sh:values is also present - a plain property shape carrying only
         sh:defaultValue (the common, simpler case) needs the same fallback.
         """
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -221,7 +221,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.add((EX.alice, EX.dummy, EX.dummy))
 
         result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
@@ -247,7 +247,7 @@ class TestDefaultValueAsNodeExpression:
     """
 
     def test_default_value_as_a_path_expression_falls_back_to_a_sibling_property(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -260,7 +260,7 @@ class TestDefaultValueAsNodeExpression:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:alice ex:firstName "Alexandra" .',
             format="turtle",
@@ -271,7 +271,7 @@ class TestDefaultValueAsNodeExpression:
         assert result.conforms is True
 
     def test_default_value_as_a_path_expression_is_skipped_once_a_real_value_exists(self) -> None:
-        shapes = OxGraph()
+        shapes = StarLayerGraph()
         shapes.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -284,7 +284,7 @@ class TestDefaultValueAsNodeExpression:
             """,
             format="turtle",
         )
-        data = OxGraph()
+        data = StarLayerGraph()
         data.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -305,7 +305,7 @@ def test_property_rule_sh_values_remains_a_separate_unimplemented_mechanism() ->
     own, unrelated sh:values mechanism (still correctly unimplemented - see
     tests/integration/test_rule_condition.py's own dedicated test).
     """
-    shapes = OxGraph()
+    shapes = StarLayerGraph()
     shapes.parse(
         data="""
             @prefix ex: <http://example.org/> .
@@ -315,7 +315,7 @@ def test_property_rule_sh_values_remains_a_separate_unimplemented_mechanism() ->
         """,
         format="turtle",
     )
-    data = OxGraph()
+    data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.dummy))
 
     with pytest.raises(RuleError):

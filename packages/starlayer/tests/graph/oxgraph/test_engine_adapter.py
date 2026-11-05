@@ -1,4 +1,4 @@
-"""``validate(OxDataset, OxDataset)`` over the W3C SHACL 1.2 core Validate entries: the fixtures are parsed straight into the
+"""``validate(StarLayerDataset, StarLayerDataset)`` over the W3C SHACL 1.2 core Validate entries: the fixtures are parsed straight into the
 wrapper (no rdflib graph in between), which the engine accepts as a data and a shapes graph through its ``GraphView``
 protocol plus ``engine_terms`` / ``sparql_query``. Known failures are the Oxigraph literal normalization ones
 (starlayer #190), the same four as ``test_w3c_engine_core_oxigraph.py``; they are strict xfails.
@@ -23,11 +23,11 @@ from shacl.w3c_shacl12.namespaces import MF, SH, SHT  # noqa: E402
 from shacl.w3c_shacl12.test_w3c_engine_core import _ENTRIES  # noqa: E402
 from shacl.w3c_shacl12.test_w3c_engine_core_oxigraph import KNOWN_FAILURES  # noqa: E402
 from shacl.w3c_shacl12.test_w3c_validate import VENDOR_ROOT  # noqa: E402
-from starlayer.graph.oxgraph import OxDataset, OxGraph  # noqa: E402
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph  # noqa: E402
 from starlayer.shacl_engine import validate  # noqa: E402
 
 
-def _load(entry, predicate, cls=OxDataset):
+def _load(entry, predicate, cls=StarLayerDataset):
     action = next(entry.graph.objects(entry.iri, MF.action))
     path = uri_to_path(next(entry.graph.objects(action, predicate))).resolve()
     g = cls()
@@ -63,8 +63,8 @@ def _run(entry, cls):
 
 
 def test_validate_oxdataset(entry) -> None:
-    _run(entry, OxDataset)
+    _run(entry, StarLayerDataset)
 
 
 def test_validate_oxgraph(entry) -> None:
-    _run(entry, OxGraph)
+    _run(entry, StarLayerGraph)

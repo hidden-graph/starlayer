@@ -11,7 +11,7 @@ from __future__ import annotations
 import importlib.util
 
 import pytest
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.rules import apply_rules
 from starlayer.shacl_engine.terms import LegacyTermView, from_engine
 
@@ -47,9 +47,9 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("entry", _ENTRIES, ids=[portable_id(e, VENDOR_ROOT) for e in _ENTRIES])
 
 
-def _graph(entry: ManifestEntry, predicate) -> OxGraph:
+def _graph(entry: ManifestEntry, predicate) -> StarLayerGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
-    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), OxGraph)
+    return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), StarLayerGraph)
 
 
 def test_engine_rules(entry: ManifestEntry) -> None:

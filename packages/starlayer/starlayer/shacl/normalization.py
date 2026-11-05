@@ -4,29 +4,29 @@ from typing import Any
 
 
 def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: bool = False) -> Any:
-    """Normalize an input graph to an Oxigraph-backed graph (``OxGraph`` / ``OxDataset``).
+    """Normalize an input graph to an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerDataset``).
 
-    An ``OxGraph`` or ``OxDataset`` is returned as it is; a bare ``pyoxigraph.Store`` becomes an ``OxDataset`` over it. A plain
-    ``rdflib.Graph`` or an old-style ``StarLayerGraph`` is converted to an ``OxGraph`` copy (``from_rdflib``: a supported input;
+    An ``StarLayerGraph`` or ``StarLayerDataset`` is returned as it is; a bare ``pyoxigraph.Store`` becomes an ``StarLayerDataset`` over it. A plain
+    ``rdflib.Graph`` or an old-style ``StarLayerGraph`` is converted to an ``StarLayerGraph`` copy (``from_rdflib``: a supported input;
     literals Oxigraph normalises on insert, such as ``"04"^^xsd:integer``, come out normalised).
 
     Args:
         value: The graph to normalize.
         name: The parameter name to use in a TypeError message, so callers get an error naming their own argument.
         force_default_union: Whether a dataset's named graphs must all be visible (the ontology graph: its axioms count wherever
-            they sit). An ``OxDataset`` without ``default_union`` is viewed through one that has it (the caller's object is not
+            they sit). An ``StarLayerDataset`` without ``default_union`` is viewed through one that has it (the caller's object is not
             changed); a rdflib dataset has ``default_union`` set on it, as before.
 
     Raises:
         TypeError: If ``value`` is not a graph the library accepts.
     """
-    from starlayer.graph.oxgraph.core import OxDataset, OxGraph
+    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
-    if isinstance(value, OxDataset):
+    if isinstance(value, StarLayerDataset):
         if force_default_union and not value.default_union:
-            return OxDataset(store=value.store, prefixes=value.prefixes)
+            return StarLayerDataset(store=value.store, prefixes=value.prefixes)
         return value
-    if isinstance(value, OxGraph):
+    if isinstance(value, StarLayerGraph):
         return value
     if force_default_union and hasattr(value, "default_union") and hasattr(value, "graphs"):  # an rdflib Dataset
         value.default_union = True
@@ -37,7 +37,7 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
     except TypeError as exc:
         if not hasattr(value, "triples"):
             raise TypeError(
-                f"{name} must be an OxGraph, OxDataset, StarLayerGraph or rdflib.Graph. Got {type(value).__name__}."
+                f"{name} must be an StarLayerGraph, StarLayerDataset, StarLayerGraph or rdflib.Graph. Got {type(value).__name__}."
             ) from exc
         raise
 

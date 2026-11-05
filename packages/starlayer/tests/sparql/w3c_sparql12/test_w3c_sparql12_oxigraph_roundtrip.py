@@ -20,7 +20,7 @@ project's translation).
 
 The methodology here isolates question (a) cleanly:
   1. Load the entry's RDF 1.2 data into a live Oxigraph-backed
-     OxGraph/OxDataset (no query rewriting
+     StarLayerGraph/StarLayerDataset (no query rewriting
      - see starlayer.graph's own native.py module docstring).
   2. Run the *original* W3C query text (Q) against it.
   3. Translate Q -> this project's RDF algebra -> regenerate SPARQL 1.2
@@ -45,7 +45,7 @@ import requests
 from rdflib.compare import to_isomorphic
 from rdflib.graph import DATASET_DEFAULT_GRAPH_ID
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
-from starlayer.graph.oxgraph import OxDataset, OxGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.sparql import query_to_rdf, rdf_to_query
 from starlayer.sparql.parse12 import prepare_query_12
 from starlayer.sparql.serialize12 import _translate_algebra_12
@@ -144,14 +144,14 @@ def _data_format(entry) -> str:
     raise ValueError(f"no known RDF-1.2 format for data file {entry.data_file!r}")
 
 
-def _new_oxigraph_graph(entry, backend: str = "oxigraph") -> OxGraph | OxDataset:
+def _new_oxigraph_graph(entry, backend: str = "oxigraph") -> StarLayerGraph | StarLayerDataset:
     """A fixture's data may define named graphs (TriG/N-Quads) - those need
-    a real multi-graph OxDataset, matching starlayer.graph's own
+    a real multi-graph StarLayerDataset, matching starlayer.graph's own
     test_w3c_sparql12_eval.py::_new_oxigraph_graph(). A plain (non-dataset)
-    OxGraph is given DATASET_DEFAULT_GRAPH_ID as its identifier so
+    StarLayerGraph is given DATASET_DEFAULT_GRAPH_ID as its identifier so
     its triples land in the endpoint's real (unnamed) default graph - what
     an unmodified query with no GRAPH clause looks at by default (see
-    OxGraph._native_scoped()'s own docstring in the sibling package).
+    StarLayerGraph._native_scoped()'s own docstring in the sibling package).
     Name kept as `_new_oxigraph_graph` (not renamed to something backend-
     generic) since Oxigraph remains the default/primary target - `backend`
     lets the parametrized `backend` fixture route the identical fixture data
@@ -167,8 +167,8 @@ def _new_oxigraph_graph(entry, backend: str = "oxigraph") -> OxGraph | OxDataset
         _, query_url, update_url = _ENDPOINTS[backend]
         store = SPARQLUpdateStore(query_endpoint=query_url, update_endpoint=update_url)
     if entry.data_file and _data_format(entry) in _DATASET_FORMATS:
-        return OxDataset(store=store)
-    return OxGraph(store=store, identifier=DATASET_DEFAULT_GRAPH_ID)
+        return StarLayerDataset(store=store)
+    return StarLayerGraph(store=store, identifier=DATASET_DEFAULT_GRAPH_ID)
 
 
 def _regenerate(query_text: str) -> str:

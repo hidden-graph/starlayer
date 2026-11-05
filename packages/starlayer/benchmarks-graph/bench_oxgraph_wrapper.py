@@ -1,7 +1,7 @@
 """
 benchmarks-graph/bench_oxgraph_wrapper.py
 
-100k-triple comparison of the old ``StarLayerGraph`` (rdflib store), the Oxigraph wrapper ``OxGraph`` and a bare
+100k-triple comparison of the old ``StarLayerGraph`` (rdflib store), the Oxigraph wrapper ``StarLayerGraph`` and a bare
 ``pyoxigraph.Store``, on load (N-Triples text and one-by-one ``add``), query (a join, an aggregate, a point lookup) and iteration.
 Median of REPEATS runs, seconds. Run:
 
@@ -81,19 +81,19 @@ class Old:
 
 
 class Wrapper:
-    name = "OxGraph"
+    name = "StarLayerGraph"
 
     def load(self, text):
-        from starlayer.graph.oxgraph import OxGraph
+        from starlayer.graph.oxgraph import StarLayerGraph
 
-        g = OxGraph()
+        g = StarLayerGraph()
         g.parse(data=text, format="nt")
         return g
 
     def add_loop(self, triples):
-        from starlayer.graph.oxgraph import OxGraph
+        from starlayer.graph.oxgraph import StarLayerGraph
 
-        g = OxGraph()
+        g = StarLayerGraph()
         for s, p, o in triples:
             g.add((ox.NamedNode(s), ox.NamedNode(p), ox.NamedNode(o) if o.startswith("http") else ox.Literal(o)))
         return g

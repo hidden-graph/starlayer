@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.rules import (
     InferredView,
     RuleError,
@@ -25,8 +25,8 @@ ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://exampl
 """
 
 
-def g(ttl: str) -> OxGraph:
-    graph = OxGraph()
+def g(ttl: str) -> StarLayerGraph:
+    graph = StarLayerGraph()
     graph.parse(data=PRE + ttl, format="turtle")
     return graph
 

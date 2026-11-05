@@ -16,7 +16,7 @@ import warnings
 
 import pytest
 from starlayer import starontology
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.meta_shapes import meta_validate
 
 _SHAPES_GRAPHS = sorted([name for name in starontology._REGISTRY if name.endswith("_shacl")])
@@ -40,7 +40,7 @@ def test_shipped_shapes_graph_passes_meta_shacl(name: str) -> None:
 
 def test_the_check_does_reject_a_malformed_shapes_graph() -> None:
     """Guards the test above against passing vacuously."""
-    graph = OxGraph()
+    graph = StarLayerGraph()
     graph.parse(
         data='''
             @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> .

@@ -2,7 +2,7 @@
 
 SELECT: iterate rows (``Row``, a tuple that is also readable by variable name), ``.vars`` (list of ``pyoxigraph.Variable``),
 ``.bindings`` (list of ``{name: term}`` dicts, unbound variables absent). ASK: ``.askAnswer`` and ``bool(result)``.
-CONSTRUCT / DESCRIBE: iterate ``(s, p, o)`` tuples, ``.graph`` (an ``OxGraph`` over a fresh store).
+CONSTRUCT / DESCRIBE: iterate ``(s, p, o)`` tuples, ``.graph`` (an ``StarLayerGraph`` over a fresh store).
 
 ``.raw`` is the underlying pyoxigraph object (``QuerySolutions`` / ``QueryBoolean`` / ``QueryTriples``). It is a one-shot
 stream: the wrapper reads it on first use of ``rows`` / ``bindings`` / iteration / ``.graph``, so use ``.raw`` directly (for
@@ -131,9 +131,9 @@ class Result:
     @property
     def graph(self) -> Any:
         if self._graph is None:
-            from starlayer.graph.oxgraph.core import OxGraph
+            from starlayer.graph.oxgraph.core import StarLayerGraph
 
-            g = OxGraph()
+            g = StarLayerGraph()
             g.extend(self.triples)
             self._graph = g
         return self._graph

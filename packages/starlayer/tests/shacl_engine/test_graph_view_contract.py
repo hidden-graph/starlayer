@@ -1,6 +1,6 @@
 """One contract suite for the engine's ``GraphView`` protocol, run over every implementation.
 
-Implementations: ``OxGraph`` and ``OxigraphGraph`` (both over an Oxigraph store; ``preserves_lexical_forms = False``:
+Implementations: ``StarLayerGraph`` and ``OxigraphGraph`` (both over an Oxigraph store; ``preserves_lexical_forms = False``:
 Oxigraph normalizes literals on storage, oxigraph/oxigraph#526). Terms are pyoxigraph terms throughout.
 """
 
@@ -13,7 +13,7 @@ from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.triple import TripleTerm as RdflibTripleTerm
-from starlayer.graph.oxgraph import OxGraph
+from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.interface import GraphView
 from starlayer.shacl_engine.oxigraph_view import (
     DEFAULT,
@@ -53,7 +53,7 @@ TRIPLES = [
 
 
 def _starlayer(triples):
-    g = OxGraph()
+    g = StarLayerGraph()
     for t in triples:
         g.add(t)
     return g
@@ -67,9 +67,9 @@ def _oxigraph(triples):
     return OxigraphGraph.from_graph(_starlayer(triples))
 
 
-@pytest.fixture(params=["OxGraph", "OxigraphGraph"])
+@pytest.fixture(params=["StarLayerGraph", "OxigraphGraph"])
 def view(request):
-    return (_oxgraph if request.param == "OxGraph" else _oxigraph)(TRIPLES)
+    return (_oxgraph if request.param == "StarLayerGraph" else _oxigraph)(TRIPLES)
 
 
 def test_satisfies_protocol(view):

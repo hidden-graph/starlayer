@@ -65,8 +65,15 @@ from rdflib.plugins.sparql.parserutils import CompValue
 from rdflib.plugins.sparql.sparql import Query
 from rdflib.term import Identifier, Literal
 
+from ._translate_patches import (
+    patch_algebra_translator_bugs,
+    patch_group_filter_falsy_literal,
+)
 from .triple_term import TripleTermNode
 from .vocab import decode_dirlang_datatype
+
+patch_algebra_translator_bugs()
+patch_group_filter_falsy_literal()
 
 
 def _dirlang_n3(term) -> str | None:
