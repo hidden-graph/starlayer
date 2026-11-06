@@ -34,5 +34,14 @@ def test_subgraph_negated_closed_keeps_extra_triples():
     )
 
 
+def test_subgraph_qualified_disjoint_keeps_sibling_evidence():
+    _fragment_conforms(
+        """ex:S a sh:NodeShape ; sh:targetNode ex:f ; sh:property ex:A , ex:B .
+        ex:A sh:path ex:p ; sh:qualifiedValueShape [ sh:class ex:C ] ; sh:qualifiedValueShapesDisjoint true ; sh:qualifiedMinCount 1 .
+        ex:B sh:path ex:p ; sh:qualifiedValueShape [ sh:property [ sh:path ex:z ; sh:maxCount 1 ] ] ; sh:qualifiedValueShapesDisjoint true ; sh:qualifiedMinCount 0 .""",
+        "ex:f ex:p ex:v . ex:v a ex:C ; ex:z 1, 2 .",
+    )
+
+
 def test_subgraph_node_shape_equals_keeps_second_path():
     _fragment_conforms("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:equals ex:self .", "ex:a ex:self ex:a .")

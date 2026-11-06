@@ -25,6 +25,7 @@ import warnings
 from typing import Any
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
+from starlayer.shacl_engine.components.core_shape_based import _boolean, _siblings
 from starlayer.shacl_engine.entailment import resolve_data_view
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.paths import parse_path
@@ -247,6 +248,12 @@ class _Extractor:
                     if has_max and not ok and not full_trace:
                         # "at most n values satisfy the shape": a non-qualifying value must keep failing, so its evidence stays
                         triples |= self.extract(qshape, v, visiting, True)
+            if any(_boolean(d, "sh:qualifiedValueShapesDisjoint") for d in shape.params.get(SH.qualifiedValueShapesDisjoint, ())):
+                # a value counts only if it conforms to no sibling qualified shape: keep the evidence either way
+                for q in qshapes:
+                    for sibling in _siblings(self.ctx, shape, q):
+                        for v in value_nodes:
+                            triples |= self.extract(plan.shape(sibling), v, visiting, True)
         else:
             value_nodes = frozenset({focus})
 
