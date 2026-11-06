@@ -558,6 +558,16 @@ class _Base:
         return run.query(self._query_store(), text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,
                          default_graph=self._query_default_graph(), union=self._union and not self._merged(), entailment=regime)
 
+    def entailment_session(self, entailment: Any, *, infer: str = "changed", engine: str = "hermit", timeout: Any = None) -> Any:
+        """Open an ``EntailmentSession``: one copy of this graph's data plus the triples ``entailment`` (``ENTAILMENT['OWL-RDF-Based']``
+        or ``['OWL-Direct']``) entails, queried with ``session.query(...)`` as often as you like and ended with ``session.close()``
+        (or a ``with`` block). Use it when the same graph is queried several times with an OWL regime: ``query(entailment=...)``
+        copies the store on every call, a session once. ``infer``, ``engine`` and ``timeout`` are as for ``query()``. The graph is
+        not modified; the session holds the data as it is now (``session.stale`` and ``session.refresh()`` handle later writes)."""
+        from starlayer.graph.oxgraph.session import EntailmentSession
+
+        return EntailmentSession(self, str(getattr(entailment, "value", entailment)), infer=infer, engine=engine, timeout=timeout)
+
     def _entailed_copy(self, regime: str, infer: str, **kw: Any) -> Any:
         """A throwaway copy of the whole store (every graph) with the ``regime`` entailed triples added to the graph this
         wrapper reads, for query-time OWL entailment. This wrapper's store is not changed."""

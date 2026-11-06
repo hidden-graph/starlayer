@@ -112,6 +112,13 @@ class StarQuery:
             kwargs["timeout"] = self.timeout
         kwargs.update(overrides)
 
+        from starlayer.graph.oxgraph.session import EntailmentSession
+
+        if isinstance(graph, EntailmentSession):
+            if kwargs["entailment"] is not None:
+                raise ValueError("a session already applies its own entailment regime: run a StarQuery with no entailment= on it.")
+            return graph.query(self._text, initNs=kwargs["initNs"], initBindings=kwargs["initBindings"], base=kwargs.get("base", self._base))
+
         from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
         if not _ox.is_oxigraph_input(graph):

@@ -151,26 +151,32 @@ class TestEntailmentDirectInferArgumentWithHermit:
         with pytest.raises(ValueError, match="infer must be one of"):
             g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="sometimes")
 
+    def test_a_session_answers_with_the_real_reasoner_until_it_is_closed(self):
+        g = _disjunctive_graph()
+        with g.entailment_session(ENTAILMENT['OWL-Direct']) as session:
+            for _ in range(2):
+                assert [r.x.value for r in session.query(_Q_WOMAN)] == [str(EX.alice)]
+        assert session.closed
+
 
 _ALICE, _WOMAN = ox.NamedNode(str(EX.alice)), ox.NamedNode(str(EX.Woman))
 _REGIMES = [ENTAILMENT["OWL-Direct"], ENTAILMENT["OWL-RDF-Based"]]
 
 
+@pytest.fixture
+def calls(monkeypatch):
+    """A stub reasoner that entails ``ex:alice a ex:Woman`` (so no Java or owlrl is needed) and records each time it is asked."""
+    asked = []
+
+    def fake(g, regimes, engine, timeout):
+        asked.append((next(iter(regimes)), engine))
+        return {(_ALICE, ox.NamedNode(str(RDF.type)), _WOMAN)}
+
+    monkeypatch.setattr(ent, "_delta_for", fake)
+    return asked
+
+
 class TestEntailedTriplesAreKept:
-    """The reasoner is stubbed (it entails ``ex:alice a ex:Woman``), so this needs neither Java nor owlrl; the stub counts
-    how often it is asked."""
-
-    @pytest.fixture
-    def calls(self, monkeypatch):
-        asked = []
-
-        def fake(g, regimes, engine, timeout):
-            asked.append((next(iter(regimes)), engine))
-            return {(_ALICE, ox.NamedNode(str(RDF.type)), _WOMAN)}
-
-        monkeypatch.setattr(ent, "_delta_for", fake)
-        return asked
-
     @staticmethod
     def _graph():
         g = StarLayerGraph()
@@ -241,3 +247,102 @@ class TestEntailedTriplesAreKept:
         assert self._who(d, entailment=regime) == [str(EX.alice)]
         assert self._who(d, entailment=regime) == [str(EX.alice)]
         assert len(calls) == 1
+
+
+class TestEntailmentSession:
+    DIRECT = ENTAILMENT["OWL-Direct"]
+    RL = ENTAILMENT["OWL-RDF-Based"]
+
+    @staticmethod
+    def _graph():
+        g = StarLayerGraph()
+        g.add((EX.bob, RDF.type, EX.Person))
+        return g
+
+    @staticmethod
+    def _who(source, query=_Q_WOMAN):
+        return sorted(r.x.value for r in source.query(query))
+
+    @pytest.mark.parametrize("regime", [DIRECT, RL])
+    def test_queries_run_on_one_copy_and_ask_the_reasoner_once(self, calls, regime):
+        g = self._graph()
+        with g.entailment_session(regime) as session:
+            assert [self._who(session) for _ in range(3)] == [[str(EX.alice)]] * 3
+        assert len(calls) == 1
+
+    def test_the_session_is_open_and_not_stale_when_made(self, calls):
+        session = self._graph().entailment_session(self.DIRECT)
+        assert not session.closed and not session.stale
+        session.close()
+
+    def test_a_write_makes_it_stale_but_it_keeps_answering_from_the_data_it_has(self, calls):
+        g = self._graph()
+        with g.entailment_session(self.DIRECT) as session:
+            g.add((EX.carol, RDF.type, EX.Woman))
+            assert session.stale
+            assert self._who(session) == [str(EX.alice)]
+            assert self._who(g) == [str(EX.carol)]  # the graph has the new fact, and none of the entailed ones
+
+    def test_refresh_reads_the_current_data_and_reasons_again_only_if_the_graph_changed(self, calls):
+        g = self._graph()
+        with g.entailment_session(self.DIRECT) as session:
+            session.refresh()
+            assert len(calls) == 1 and not session.stale  # nothing was written
+            g.add((EX.carol, RDF.type, EX.Woman))
+            session.refresh()
+            assert len(calls) == 2 and not session.stale
+            assert self._who(session) == [str(EX.alice), str(EX.carol)]
+
+    def test_refresh_cached_keeps_the_entailed_triples_but_reads_new_data(self, calls):
+        g = self._graph()
+        with g.entailment_session(self.DIRECT) as session:
+            g.add((EX.carol, RDF.type, EX.Woman))
+            session.refresh("cached")
+            assert len(calls) == 1
+            assert self._who(session) == [str(EX.alice), str(EX.carol)]
+
+    def test_close_empties_the_copy_and_later_use_raises(self, calls):
+        g = self._graph()
+        session = g.entailment_session(self.DIRECT)
+        copy = session._copy
+        assert len(copy.store) > 0
+        session.close()
+        assert session.closed and len(copy.store) == 0
+        session.close()  # a second close does nothing
+        for use in (lambda: session.query(_Q_WOMAN), lambda: session.refresh(), lambda: session.stale):
+            with pytest.raises(RuntimeError, match="closed"):
+                use()
+        assert set(g.triples()) == {(ox.NamedNode(str(EX.bob)), ox.NamedNode(str(RDF.type)), ox.NamedNode(str(EX.Person)))}
+
+    def test_leaving_the_with_block_closes_it_even_after_an_error(self, calls):
+        g = self._graph()
+        with pytest.raises(KeyError), g.entailment_session(self.DIRECT) as session:
+            raise KeyError("boom")
+        assert session.closed
+
+    @pytest.mark.parametrize("regime", [ENTAILMENT.RDF, ENTAILMENT.RDFS])
+    def test_rdf_and_rdfs_have_nothing_to_hold(self, calls, regime):
+        with pytest.raises(ValueError, match="rewrite the query"):
+            self._graph().entailment_session(regime)
+
+    def test_engine_and_timeout_are_for_owl_direct_only(self, calls):
+        g = self._graph()
+        with pytest.raises(ValueError, match="only meaningful"):
+            g.entailment_session(self.RL, engine="rustdl")
+        with pytest.raises(ValueError, match="infer must be"):
+            g.entailment_session(self.DIRECT, infer="sometimes")
+
+    def test_a_dataset_can_open_one(self, calls):
+        d = StarLayerDataset()
+        d.add((EX.bob, RDF.type, EX.Person))
+        with d.entailment_session(self.DIRECT) as session:
+            assert self._who(session) == [str(EX.alice)]
+
+    def test_a_star_query_runs_on_a_session(self, calls):
+        from starlayer.sparql import StarQuery
+
+        g = self._graph()
+        with g.entailment_session(self.DIRECT) as session:
+            assert [r.x.value for r in StarQuery(_Q_WOMAN).run(session)] == [str(EX.alice)]
+            with pytest.raises(ValueError, match="already applies"):
+                StarQuery(_Q_WOMAN, entailment=self.DIRECT).run(session)
