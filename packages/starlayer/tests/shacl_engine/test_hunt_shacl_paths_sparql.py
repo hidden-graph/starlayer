@@ -95,6 +95,26 @@ def test_sparql_ask_validator_blank_node_parameter():
     assert len(out.results) == 1
 
 
+NX = """@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/" ] .
+"""
+
+
+@pytest.mark.parametrize(
+    "shapes",
+    [
+        "ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:expression _:e . _:e shnex:exists _:e .",
+        """ex:f a sh:ListParameterExpressionFunction ; sh:bodyExpression [ ex:f ( [ shnex:arg 0 ] ) ] .
+        ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:expression [ ex:f ( 1 ) ] .""",
+    ],
+)
+def test_cyclic_expression_is_a_shape_error_not_recursion_error(shapes):
+    from starlayer.shacl_engine.plan import ShapeError
+
+    with pytest.raises(ShapeError):
+        validate(G("ex:n ex:p 1 ."), G(NX + shapes), meta_shacl=False)
+
+
 def test_subgraph_negated_closed_keeps_extra_triples():
     _fragment_conforms(
         "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:not [ sh:closed true ; sh:ignoredProperties ( rdf:type ) ] .",

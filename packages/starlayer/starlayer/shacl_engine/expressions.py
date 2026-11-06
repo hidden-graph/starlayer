@@ -90,7 +90,23 @@ def _predicates(graph: Any, node: Term) -> set:
     return {p for p, _o in graph.predicate_objects(node)}
 
 
+_MAX_EXPRESSION_DEPTH = 100  # nested evaluations; a cyclic expression or a function that calls itself forever hits it
+
+
 def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
+    """Evaluate ``expr``; nesting deeper than ``_MAX_EXPRESSION_DEPTH`` (a blank-node expression that refers to itself, a
+    function that never stops calling itself) is an ill-formed shapes graph, a ``ShapeError``, not a Python RecursionError."""
+    state = ctx.cache.setdefault(("expression-depth",), [0])
+    if state[0] >= _MAX_EXPRESSION_DEPTH:
+        raise ShapeError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (a cyclic expression or a recursive function)")
+    state[0] += 1
+    try:
+        return _eval_once(ctx, expr, focus, scope)
+    finally:
+        state[0] -= 1
+
+
+def _eval_once(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     if not isinstance(expr, BNode):
         return [expr]  # constant: IRI, literal, triple term (rdf:nil included)
     g = ctx.shapes
