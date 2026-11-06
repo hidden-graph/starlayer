@@ -234,7 +234,7 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
         return prefixes
 
     g_name = getattr(shapes_graph, "identifier", None)
-    ng_declares = set(shapes_graph.objects(g_name, SH.declare)) if g_name is not None else set()
+    ng_declares = set(shapes_graph.objects(g_name, SH.declare)) if isinstance(g_name, ox.NamedNode) else set()
     onts = set(shapes_graph.subjects(RDF.type, OWL.Ontology))
     ont_declares: set = set()
     for o in onts:
