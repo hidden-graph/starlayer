@@ -115,6 +115,25 @@ def test_cyclic_expression_is_a_shape_error_not_recursion_error(shapes):
         validate(G("ex:n ex:p 1 ."), G(NX + shapes), meta_shacl=False)
 
 
+@pytest.mark.parametrize(
+    "call",
+    [
+        "[ sparql:if ( true 1 ) ]",
+        "[ sparql:bound ( 1 2 ) ]",
+        "[ sparql:hasLang ( ) ]",
+        "[ sparql:hasLang ( 1 2 3 ) ]",
+        "[ sparql:equals ( 1 2 3 ) ]",
+        "[ sparql:logical-not ( true false ) ]",
+    ],
+)
+def test_wrong_argument_count_is_a_shape_error(call):
+    from starlayer.shacl_engine.plan import ShapeError
+
+    shapes = G(f"@prefix sparql: <http://www.w3.org/ns/sparql#> . ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:expression {call} .")
+    with pytest.raises(ShapeError):
+        validate(G("ex:n ex:p 1 ."), shapes, meta_shacl=False)
+
+
 def test_subgraph_negated_closed_keeps_extra_triples():
     _fragment_conforms(
         "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:not [ sh:closed true ; sh:ignoredProperties ( rdf:type ) ] .",

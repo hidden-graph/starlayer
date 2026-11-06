@@ -596,8 +596,14 @@ def _arg_state(ctx, arg, focus, scope) -> tuple[str, Term | None]:
     return (_VALUE, out[0]) if out else (_UNBOUND, None)
 
 
-def _sparql_args(ctx, expr, pred, focus, scope) -> list[tuple[str, Term | None]]:
-    return [_arg_state(ctx, a, focus, scope) for a in _args(ctx, expr, pred)]
+def _sparql_args(ctx, expr, pred, focus, scope, arity: tuple[int, ...] | None = None) -> list[tuple[str, Term | None]]:
+    """The state of each argument of the call ``expr pred ( ... )``; ``arity`` (the allowed argument counts), if given, is
+    checked first: a call with another count is a malformed expression, a ShapeError."""
+    members = _args(ctx, expr, pred)
+    if arity is not None and len(members) not in arity:
+        want = " or ".join(str(n) for n in arity)  # str-ok: counts
+        raise ShapeError(f"{expr!r}: {text(pred)} needs a list of {want} expression(s), got {len(members)}")
+    return [_arg_state(ctx, a, focus, scope) for a in members]
 
 
 def _bound_values(states: list) -> list | None:
@@ -615,9 +621,9 @@ def _ebv(term: Term | None) -> bool | None:
 
 
 def _register_sparql() -> None:
-    def simple(pred: URIRef, template: Callable[[int], str]) -> None:
+    def simple(pred: URIRef, template: Callable[[int], str], arity: tuple[int, ...] | None = None) -> None:
         def fn(ctx, expr, focus, scope):
-            values = _bound_values(_sparql_args(ctx, expr, pred, focus, scope))
+            values = _bound_values(_sparql_args(ctx, expr, pred, focus, scope, arity))
             return [] if values is None else _run_call(template(len(values)), values)
 
         OPERATORS[pred] = fn
@@ -640,9 +646,9 @@ def _register_sparql() -> None:
     for name, sql in _RENAMED.items():
         simple(URIRef(SPARQL_NS + name), lambda n, sql=sql: f"{sql}({args_of(n)})")  # str-ok: SPARQL function name
     for name, op in _INFIX.items():
-        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"(?a0 {op} ?a1)")
+        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"(?a0 {op} ?a1)", (2,))
     for name, op in _PREFIX.items():
-        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"({op}?a0)")
+        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"({op}?a0)", (1,))
 
 
 _register_sparql()
@@ -654,7 +660,7 @@ def _s(name: str) -> URIRef:
 
 @operator(SPARQL_NS + "bound")
 def _sp_bound(ctx, expr, focus, scope):
-    ((kind, _),) = _sparql_args(ctx, expr, _s("bound"), focus, scope)
+    ((kind, _),) = _sparql_args(ctx, expr, _s("bound"), focus, scope, (1,))
     if kind == _ERROR:
         raise EvaluationFailure("the argument of sparql:bound failed")
     return _bool(kind == _VALUE)
@@ -670,7 +676,10 @@ def _sp_coalesce(ctx, expr, focus, scope):
 
 @operator(SPARQL_NS + "if")
 def _sp_if(ctx, expr, focus, scope):
-    cond, then, other = _args(ctx, expr, _s("if"))
+    members = _args(ctx, expr, _s("if"))
+    if len(members) != 3:
+        raise ShapeError(f"{expr!r}: sparql:if needs a list of 3 expressions, got {len(members)}")
+    cond, then, other = members
     kind, c = _arg_state(ctx, cond, focus, scope)
     truth = _ebv(c) if kind == _VALUE else None
     if truth is None:
@@ -709,7 +718,7 @@ _logical("logical-and", False)
 def _sp_has_lang(ctx, expr, focus, scope):
     """``sparql:hasLang ( literal tag )``: the fixtures give hasLang a language-tag argument (SPARQL's hasLANG has one
     argument); true if the literal's language tag equals ``tag``, case-insensitively."""
-    values = _bound_values(_sparql_args(ctx, expr, _s("hasLang"), focus, scope))
+    values = _bound_values(_sparql_args(ctx, expr, _s("hasLang"), focus, scope, (1, 2)))
     if values is None:
         return []
     if len(values) == 1:
