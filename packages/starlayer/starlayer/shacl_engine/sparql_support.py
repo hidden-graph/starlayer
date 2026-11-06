@@ -18,7 +18,7 @@ from typing import Any
 from starlayer.shacl_engine.components.registry import Violation
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
-from starlayer.shacl_engine.terms import OWL, RDF, Literal
+from starlayer.shacl_engine.terms import OWL, RDF, XSD, Literal
 from starlayer.shacl_engine.terms import NamedNode as URIRef
 from starlayer.shacl_engine.terms import text as text_of
 
@@ -275,7 +275,9 @@ def fill_template(message: Term, values: Mapping[str, Term]) -> Term:
 
 
 def is_true(value: Term) -> bool:
-    return text_of(value).lower() in ("true", "1")
+    """Whether ``value`` is the boolean true: an ``xsd:boolean`` literal with lexical form ``true`` or ``1`` (SHACL SPARQL
+    3.3.2: a failure needs ``true`` as the binding; the integer 1 and the strings "1" / "TRUE" are not it)."""
+    return isinstance(value, Literal) and value.datatype == XSD.boolean and value.value in ("true", "1")
 
 
 def violations_from_solutions(

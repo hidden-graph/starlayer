@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import warnings
 
+import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.subgraph import extract_subgraph
@@ -25,6 +26,13 @@ def _fragment_conforms(shapes: str, data: str) -> None:
     assert validate(d, s).conforms, "premise: the data conforms"
     frag = extract_subgraph(d, s)
     assert validate(frag, s).conforms, "the fragment of conforming data must conform"
+
+
+@pytest.mark.parametrize("literal", ["1", '"1"', '"TRUE"'])
+def test_failure_binding_only_boolean_true_aborts(literal):
+    template = 'ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:sparql [ sh:select "SELECT $this ?failure WHERE { $this <http://example.org/p> ?o BIND(LIT AS ?failure) }" ] .'
+    shapes = G(template.replace("LIT", literal.replace('"', '\\"')))
+    validate(G("ex:n ex:p 1 ."), shapes, meta_shacl=False)
 
 
 def test_subgraph_negated_closed_keeps_extra_triples():
