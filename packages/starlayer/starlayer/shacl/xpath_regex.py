@@ -8,9 +8,13 @@
 * ``\\i``, ``\\I``, ``\\c``, ``\\C`` (XML name start character / name character and their complements);
 * character class subtraction ``[a-z-[aeiou]]``, which Python compiles to a *different* class without an error.
 
-A pattern that uses none of these is returned unchanged (:func:`needs_translation` is false), so the translation can never alter
-a pattern that already works. Anything it cannot translate (an unknown category or block name, a malformed escape) raises
-``ValueError`` with a message naming the feature.
+Four things Python has but reads differently (F&O 7.6.1) are translated too: ``$`` (without the ``m`` flag only the very end of
+the string, not before a final newline), ``.`` (without the ``s`` flag it excludes #xA and #xD, not just ``\\n``), ``\\s``
+(exactly space, tab, newline and carriage return) and ``\\w`` (every character that is not in a punctuation, separator or
+other category, so not ``_``).
+
+A pattern that uses none of these is returned unchanged (:func:`needs_translation` is false). Anything it cannot translate
+(an unknown category or block name, a malformed escape) raises ``ValueError`` with a message naming the feature.
 """
 
 from __future__ import annotations
@@ -24,7 +28,7 @@ __all__ = ["needs_translation", "xpath_regex_to_python"]
 _MAX = sys.maxunicode
 
 # \p / \P / \i / \I / \c / \C, or a subtraction "-[" ... only an unescaped backslash counts (an escaped one is "\\\\").
-_XPATH_ONLY = re.compile(r"(?<!\\)(?:\\\\)*(?:\\[pPiIcC]|-\[)")
+_XPATH_ONLY = re.compile(r"(?<!\\)(?:\\\\)*(?:\\[pPiIcCsSwW]|-\[|[$.])")
 
 _NAME_START = [
     (0x3A, 0x3A), (0x41, 0x5A), (0x5F, 0x5F), (0x61, 0x7A), (0xC0, 0xD6), (0xD8, 0xF6), (0xF8, 0x2FF), (0x370, 0x37D),
@@ -133,6 +137,14 @@ def _read_property_name(pattern: str, index: int) -> tuple[str, int]:
     return pattern[index + 1 : end], end + 1
 
 
+_SPACE = [(0x09, 0x0A), (0x0D, 0x0D), (0x20, 0x20)]
+
+
+def _word_ranges() -> list[tuple[int, int]]:
+    """XPath ``\\w``: everything except the punctuation (P), separator (Z) and other (C) categories."""
+    return _complement(_property_ranges("P") + _property_ranges("Z") + _property_ranges("C"))
+
+
 def _escape_ranges(pattern: str, index: int) -> tuple[list[tuple[int, int]] | None, int]:
     """If ``pattern[index:]`` starts a multi-character escape (``\\p{..}``, ``\\i``, ...), its code point ranges and the next
     index; otherwise ``(None, index)``."""
@@ -141,6 +153,11 @@ def _escape_ranges(pattern: str, index: int) -> tuple[list[tuple[int, int]] | No
         name, after = _read_property_name(pattern, index + 2)
         ranges = _property_ranges(name)
         return (_complement(ranges) if escape == "P" else ranges), after
+    if escape in ("s", "S"):
+        return (_complement(_SPACE) if escape == "S" else list(_SPACE)), index + 2
+    if escape in ("w", "W"):
+        ranges = _word_ranges()
+        return (_complement(ranges) if escape == "W" else ranges), index + 2
     if escape in ("i", "I", "c", "C"):
         ranges = _NAME_START if escape in ("i", "I") else _NAME_CHAR
         return (_complement(ranges) if escape in ("I", "C") else list(ranges)), index + 2
@@ -188,9 +205,10 @@ def _translate_class(pattern: str, index: int) -> tuple[str, int]:
     return positive, index
 
 
-def xpath_regex_to_python(pattern: str) -> str:
+def xpath_regex_to_python(pattern: str, *, multiline: bool = False, dotall: bool = False) -> str:
     """The Python ``re`` pattern equivalent to the XPath regular expression ``pattern``; raises ``ValueError`` for what it cannot
-    translate. A pattern without XPath-only syntax is returned unchanged."""
+    translate. ``multiline`` and ``dotall`` say whether the ``m`` and ``s`` flags are set (they change ``$`` and ``.``). A pattern
+    without XPath-only syntax is returned unchanged."""
     if not needs_translation(pattern):
         return pattern
     out: list[str] = []
@@ -208,6 +226,12 @@ def xpath_regex_to_python(pattern: str) -> str:
         elif char == "[":
             text, index = _translate_class(pattern, index)
             out.append(text)
+        elif char == "$" and not multiline:
+            out.append("\\Z")
+            index += 1
+        elif char == "." and not dotall:
+            out.append("[^\\n\\r]")
+            index += 1
         else:
             out.append(char)
             index += 1

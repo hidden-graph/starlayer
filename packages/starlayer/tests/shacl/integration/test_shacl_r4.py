@@ -176,7 +176,7 @@ def test_sh_pattern_that_cannot_be_translated_raises_a_clear_error(pattern):
 
 
 def test_translation_leaves_patterns_without_xpath_syntax_untouched():
-    for pattern in [r"^[a-z]+\d*$", r"\\p", "a|b", r"[\[\]]"]:
+    for pattern in [r"^[a-z]+\d*", r"\\p", "a|b", r"[\[\]]"]:
         assert not needs_translation(pattern)
         assert xpath_regex_to_python(pattern) == pattern
 
