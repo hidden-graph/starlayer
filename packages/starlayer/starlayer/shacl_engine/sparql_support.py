@@ -120,6 +120,8 @@ def _analyse(text: str) -> tuple[str, tuple[str, ...], tuple]:
     walk(ast.f.get("where"))
     walk(ast.f.get("projection"))
     walk(ast.f.get("group_by"))
+    walk(ast.f.get("having"))  # an EXISTS pattern can hide MINUS / SERVICE in HAVING and ORDER BY
+    walk(ast.f.get("order_by"))
     walk(ast.f.get("values"))  # the trailing VALUES clause
     projection = ast.f.get("projection")
     if ast.kind != "SelectQuery":

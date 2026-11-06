@@ -35,6 +35,23 @@ def test_failure_binding_only_boolean_true_aborts(literal):
     validate(G("ex:n ex:p 1 ."), shapes, meta_shacl=False)
 
 
+@pytest.mark.parametrize(
+    "tail",
+    [
+        "ORDER BY (EXISTS { ?this ?q ?z MINUS { ?z ?a ?b } })",
+        "ORDER BY (EXISTS { SERVICE <http://localhost:1/x> { ?a ?b ?c } })",
+        "GROUP BY $this HAVING (EXISTS { ?this ?q ?z MINUS { ?z ?a ?b } })",
+        "GROUP BY $this HAVING (EXISTS { SERVICE <http://localhost:1/x> { ?a ?b ?c } })",
+    ],
+)
+def test_minus_and_service_rejected_in_order_by_and_having(tail):
+    from starlayer.shacl_engine.plan import ShapeError
+
+    shapes = G(f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:select """SELECT $this WHERE {{ $this ?p ?o }} {tail}""" ; sh:message "m" ] .')
+    with pytest.raises(ShapeError):
+        validate(G("ex:a ex:p ex:b ."), shapes, meta_shacl=False)
+
+
 def test_subgraph_negated_closed_keeps_extra_triples():
     _fragment_conforms(
         "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:not [ sh:closed true ; sh:ignoredProperties ( rdf:type ) ] .",
