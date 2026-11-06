@@ -140,3 +140,31 @@ def test_integer_promoted_to_float_rounds_once():
     up = 2**60 + 2**37
     c = xv.compare(ox.Literal(str(n), datatype=ox.NamedNode(XSD + "integer")), ox.Literal(str(up), datatype=ox.NamedNode(XSD + "float")))
     assert c == 0
+
+
+def test_overlay_literal_safety_check_is_thread_safe():
+    import threading
+
+    from starlayer.shacl_engine import overlay_oxigraph as ov
+
+    def lits(k):
+        return [ox.Literal(("+" if i % 2 else "") + str(k * 100000 + i), datatype=ox.NamedNode(XSD + "integer")) for i in range(1500)]
+
+    errors, wrong = [], []
+
+    def work(ls):
+        for lit in ls:
+            try:
+                ok = ov.literal_survives_store(lit)
+            except BaseException as e:  # noqa: BLE001
+                errors.append(type(e).__name__)
+                return
+            if ok != (not lit.value.startswith("+")):
+                wrong.append(lit.value)
+
+    ts = [threading.Thread(target=work, args=(lits(k),)) for k in range(8)]
+    for t in ts:
+        t.start()
+    for t in ts:
+        t.join()
+    assert not errors and not wrong
