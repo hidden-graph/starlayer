@@ -32,3 +32,7 @@ def test_subgraph_negated_closed_keeps_extra_triples():
         "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:not [ sh:closed true ; sh:ignoredProperties ( rdf:type ) ] .",
         'ex:n a ex:T ; ex:p "extra" .',
     )
+
+
+def test_subgraph_node_shape_equals_keeps_second_path():
+    _fragment_conforms("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:equals ex:self .", "ex:a ex:self ex:a .")

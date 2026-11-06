@@ -237,7 +237,6 @@ class _Extractor:
             else:
                 # a complex path with a qualified shape keeps every hop (safe over-inclusion; the old known boundary)
                 triples |= path_triples
-            triples |= self._second_path_triples(shape, focus)
             has_max = bool(shape.params.get(SH.qualifiedMaxCount))
             for q in qshapes:
                 qshape = plan.shape(q)
@@ -250,6 +249,9 @@ class _Extractor:
                         triples |= self.extract(qshape, v, visiting, True)
         else:
             value_nodes = frozenset({focus})
+
+        # sh:equals / sh:disjoint / sh:lessThan(OrEquals) read their second path from the focus on a node shape too
+        triples |= self._second_path_triples(shape, focus)
 
         for cls in self._class_values(shape):
             for v in value_nodes:
