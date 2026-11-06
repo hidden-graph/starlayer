@@ -21,13 +21,15 @@ import pyoxigraph as ox
 from starlayer.shacl_engine.terms import RDF, SH
 
 _XSD_NS = "http://www.w3.org/2001/XMLSchema#"
-#: The datatypes whose lexical form Oxigraph rewrites (integer family, decimal, float, double, boolean).
+#: The datatypes whose lexical form Oxigraph rewrites (integer family, decimal, float, double, boolean, date/time, g* and duration types;
+#: xsd:dateTimeStamp is even stored as xsd:dateTime).
 AFFECTED_DATATYPES: frozenset[str] = frozenset(
     _XSD_NS + n
     for n in (
         "integer", "int", "long", "short", "byte", "nonNegativeInteger", "positiveInteger", "nonPositiveInteger",
         "negativeInteger", "unsignedLong", "unsignedInt", "unsignedShort", "unsignedByte", "decimal", "float", "double",
-        "boolean",
+        "boolean", "dateTime", "dateTimeStamp", "date", "time", "gYear", "gYearMonth", "gMonth", "gMonthDay", "gDay",
+        "duration", "dayTimeDuration", "yearMonthDuration",
     )
 )
 
@@ -75,11 +77,29 @@ def _plan_shapes(plan: Any) -> list:
     return list(shapes.values())
 
 
+def _sparql_component_predicates(plan: Any) -> set:
+    """The parameter predicates of the SPARQL-based constraint components declared in the shapes graph."""
+    try:
+        from starlayer.shacl_engine.components.registry import static_specs
+        from starlayer.shacl_engine.components.sparql_components import (
+            declared_components,
+        )
+
+        return {p for spec in declared_components(plan) for p in spec.predicates} - {
+            p for spec in static_specs() for p in spec.predicates
+        }
+    except Exception:
+        return set()
+
+
 def sensitive_constraints(plan: Any) -> list[str]:
     """The sorted ``sh:`` names of the constraint kinds in ``plan`` whose result depends on lexical form or datatype."""
     found: set[str] = set()
+    sparql_preds = _sparql_component_predicates(plan)
     for shape in _plan_shapes(plan):
         params = shape.params
+        if SH.sparql in params or any(p in params for p in sparql_preds):
+            found.add("sparql")  # a SPARQL query can read STR(?v) or DATATYPE(?v)
         for name in _ALWAYS + _BOOLEAN_PARAMS:
             if SH[name] in params:
                 found.add(name)
