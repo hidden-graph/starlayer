@@ -102,3 +102,17 @@ def test_huge_integer_violation_report_text_renders():
     )
     assert not o.conforms
     assert big in o.report_text
+
+
+@pytest.mark.parametrize("lex", ["QUJ=", "AB==", "QR=="])
+def test_base64_non_canonical_final_sextet_is_ill_formed(lex):
+    assert not xv.well_formed(ox.Literal(lex, datatype=ox.NamedNode(XSD + "base64Binary")))
+    g = OxigraphGraph.from_text(
+        PRE + f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:datatype xsd:base64Binary ] .\nex:a ex:p "{lex}"^^xsd:base64Binary .'
+    )
+    assert not validate(g, g).conforms
+
+
+@pytest.mark.parametrize("lex", ["QUI=", "QQ==", "QUJD", "", "AA==", "/w=="])
+def test_base64_canonical_forms_stay_well_formed(lex):
+    assert xv.well_formed(ox.Literal(lex, datatype=ox.NamedNode(XSD + "base64Binary")))

@@ -183,6 +183,9 @@ def _parse_base64(lex: str) -> bytes | None:
     s = _collapse(lex).replace(" ", "")
     if len(s) % 4 or not re.fullmatch(r"[A-Za-z0-9+/]*={0,2}", s):
         return None
+    # the lexical space fixes the last character before padding so the unused bits are zero (B04 before "==", B16 before "=")
+    if (s.endswith("==") and s[-3] not in "AQgw") or (s.endswith("=") and not s.endswith("==") and s[-2] not in "AEIMQUYcgkosw048"):
+        return None
     try:
         return binascii.a2b_base64(s)
     except binascii.Error:
