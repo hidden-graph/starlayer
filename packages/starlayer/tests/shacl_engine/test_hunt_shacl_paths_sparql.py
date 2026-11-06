@@ -52,6 +52,30 @@ def test_minus_and_service_rejected_in_order_by_and_having(tail):
         validate(G("ex:a ex:p ex:b ."), shapes, meta_shacl=False)
 
 
+def test_validate_each_shacl_function_uses_each_data_graph():
+    from starlayer.shacl_engine import validate_each
+
+    pfx = (
+        "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .\n"
+        'ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://e/" ] .\n'
+    )
+
+    def g(t):
+        return StarLayerGraph().parse(data=pfx + t, format="turtle")
+
+    shapes = g(
+        """ex:f a sh:ListParameterExpressionFunction ;
+            sh:bodyExpression [ shnex:pathValues ex:p ; shnex:focusNode [ shnex:arg 0 ] ] .
+        ex:S a sh:NodeShape ; sh:targetNode ex:n ;
+            sh:sparql [ sh:select "SELECT $this WHERE { FILTER(ex:f($this) = 5) }" ; sh:message "p is five" ] ."""
+    )
+    d1, d2 = g("ex:n ex:p 5 ."), g("ex:n ex:p 6 .")
+    solo = [validate(d, shapes, meta_shacl=False).conforms for d in (d1, d2)]
+    each = validate_each([d1, d2], shapes, meta_shacl=False)
+    assert solo == [False, True]
+    assert [each[0].conforms, each[1].conforms] == solo
+
+
 def test_subgraph_negated_closed_keeps_extra_triples():
     _fragment_conforms(
         "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:not [ sh:closed true ; sh:ignoredProperties ( rdf:type ) ] .",

@@ -191,12 +191,21 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
     """The shapes graph's ``sh:ListParameterExpressionFunction`` instances as callables by IRI, for the query being run
     (SPARQL Extensions 7.3: "SHOULD register a function"). The call's arguments become the scope ``0, 1, ...`` of the
     body expression, which must have exactly one output node, else the call is a SPARQL error (the function call gives no
-    value). Read once per plan: the shapes graph does not change during a run."""
-    shapes = ctx.shapes
-    cache = ctx.plan.sparql_cache
+    value). The (function, body) pairs are read once per plan (the shapes graph does not change during a run); the callables
+    close over ``ctx`` and so are made once per run, because a plan can be shared by several data graphs."""
+    cache = ctx.cache
     functions = cache.get(("shacl-functions",))
     if functions is not None:
         return functions
+    shapes = ctx.shapes
+    plan_cache = ctx.plan.sparql_cache
+    pairs = plan_cache.get(("shacl-function-bodies",))
+    if pairs is None:
+        pairs = plan_cache[("shacl-function-bodies",)] = [
+            (fn, body)
+            for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
+            if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
+        ]
     from starlayer.shacl_engine.expressions import (
         EvaluationFailure,
         evaluate_expression,
@@ -212,11 +221,7 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
 
         return call
 
-    functions = cache[("shacl-functions",)] = {
-        fn: make(fn, body)
-        for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
-        if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
-    }
+    functions = cache[("shacl-functions",)] = {fn: make(fn, body) for fn, body in pairs}
     return functions
 
 
