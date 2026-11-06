@@ -168,3 +168,30 @@ def test_overlay_literal_safety_check_is_thread_safe():
     for t in ts:
         t.join()
     assert not errors and not wrong
+
+
+# --- pre-binding (inject_everywhere) ---------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", ["has-values", "a1values", "my-construct", "my-where", "has_values"])
+def test_prebinding_reaches_nested_group_after_keyword_like_local_name(name):
+    g = OxigraphGraph.from_text(f"@prefix ex: <http://e/> . ex:n ex:{name} 1 .")
+    q = f"PREFIX ex: <http://e/> SELECT ?x WHERE {{ ?x ex:{name} ?v . {{ FILTER(bound(?this)) }} }}"
+    assert len(g.query(q, {"this": ox.NamedNode("http://e/a")})) == 1
+
+
+def test_prebinding_with_a_sparql_12_annotation_block():
+    g = OxigraphGraph.from_text("<http://e/a> <http://e/p> <http://e/b> {| <http://e/q> 1 |} .", format="turtle")
+    q = "SELECT ?o ?z WHERE { ?this <http://e/p> ?o {| <http://e/q> ?z |} }"
+    base = g.query(q)
+    assert len(base) == 1
+    assert g.query(q, {"this": ox.NamedNode("http://e/a")}) == base
+
+
+def test_prebinding_with_construct_where_short_form():
+    g = OxigraphGraph.from_text("@prefix ex: <http://e/> . ex:a ex:p ex:b . ex:c ex:p ex:d .")
+    a = ox.NamedNode("http://e/a")
+    full = g.query("PREFIX ex:<http://e/> CONSTRUCT { ?this ex:p ?o } WHERE { ?this ex:p ?o }", {"this": a})
+    short = g.query("PREFIX ex:<http://e/> CONSTRUCT WHERE { ?this ex:p ?o }", {"this": a})
+    assert len(full) == 1
+    assert short == full
