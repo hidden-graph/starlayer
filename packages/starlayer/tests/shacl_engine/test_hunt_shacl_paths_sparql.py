@@ -76,6 +76,25 @@ def test_validate_each_shacl_function_uses_each_data_graph():
     assert [each[0].conforms, each[1].conforms] == solo
 
 
+ASK_SHAPES = """
+ex:Comp a sh:ConstraintComponent ; sh:parameter [ sh:path ex:lim ] ;
+  sh:validator [ sh:ask "PREFIX ex: <http://example.org/> ASK { $this ex:p ?v . FILTER(?v <= $lim) }" ] .
+ex:S a sh:NodeShape ; sh:targetClass ex:C ; ex:lim 1 .
+"""
+
+
+@pytest.mark.parametrize("focus", ["[]", "ex:n"])
+def test_sparql_ask_validator_blank_node_focus(focus):
+    out = validate(G(f"{focus} a ex:C ; ex:p 2 ."), G(ASK_SHAPES))
+    assert len(out.results) == 1
+
+
+def test_sparql_ask_validator_blank_node_parameter():
+    shapes = G(ASK_SHAPES.replace("ex:lim 1", "ex:lim _:b").replace("ex:S a", "_:b ex:v 1 . ex:S a"))
+    out = validate(G("ex:n a ex:C ; ex:p 2 ."), shapes)
+    assert len(out.results) == 1
+
+
 def test_subgraph_negated_closed_keeps_extra_triples():
     _fragment_conforms(
         "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:not [ sh:closed true ; sh:ignoredProperties ( rdf:type ) ] .",

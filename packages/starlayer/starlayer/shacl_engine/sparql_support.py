@@ -234,6 +234,14 @@ def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_thi
 
 def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
     check_query(ctx.plan, text, bindings, ask=True)
+    from starlayer.graph.oxgraph.run import _has_blank, _mask
+
+    if any(_has_blank(v) for v in bindings.values()):
+        # A blank node can be pre-bound only in a SELECT query (the graph layer widens its projection): ask the same
+        # pattern as a SELECT and read "any solution" as true.
+        m = re.search(r"(?i)\bASK\b", _mask(text))
+        select = text[: m.start()] + "SELECT (1 AS ?ask__)" + text[m.end() :]
+        return bool(run_query(ctx.data, select, bindings, shacl_functions(ctx)).rows)
     return bool(run_query(ctx.data, text, bindings, shacl_functions(ctx)).boolean)
 
 
