@@ -127,6 +127,21 @@ def test_closed_by_types_class_typed_with_subclass_of_rdfs_class():
     assert not validate(graph("ex:a a ex:C ; ex:p 1 ; ex:r 2 ."), shapes).conforms
 
 
+# ---- base direction of a filled sh:message ------------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("message", ['"bad {$this}"@ar--rtl', '"bad"@ar--rtl', '"bad {$this}"@en--ltr'])
+def test_sparql_message_keeps_its_base_direction(message):
+    shapes = graph(
+        f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:message {message} ; '
+        'sh:select "SELECT $this WHERE { $this <http://example.org/p> ?v }" ] .'
+    )
+    out = validate(graph("ex:a ex:p 1 ."), shapes)
+    messages = [m for r in out.results for m in r.messages]
+    assert messages
+    assert [str(m.direction).lower().rsplit(".", 1)[-1] for m in messages] == [message[-3:]]
+
+
 # ---- sh:uniqueValuesFor when the focus node is not a target of the shape ------------------------------------------------
 
 _UNIQUE_SHAPES = """

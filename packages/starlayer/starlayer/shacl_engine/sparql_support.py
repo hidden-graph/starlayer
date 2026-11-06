@@ -271,7 +271,9 @@ def fill_template(message: Term, values: Mapping[str, Term]) -> Term:
         return m.group(0) if v is None else text_of(v)
 
     filled = _TEMPLATE.sub(one, message.value)
-    return Literal(filled, language=message.language) if message.language else Literal(filled, datatype=message.datatype)
+    if message.language:
+        return Literal(filled, language=message.language, direction=message.direction)
+    return Literal(filled, datatype=message.datatype)
 
 
 def is_true(value: Term) -> bool:
