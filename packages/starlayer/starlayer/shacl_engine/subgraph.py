@@ -32,6 +32,8 @@ from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
 from starlayer.shacl_engine.terms import (
     RDF,
     RDFS,
+    Literal,
+    Triple,
     check_graphs,
     engine_view,
     text,
@@ -292,6 +294,12 @@ class _Extractor:
                         triples |= self.extract(ms, v, visiting, False)
                     else:
                         triples |= self.extract(ms, v, visiting, True)
+
+        if full_trace and shape.params.get(SH.closed):
+            # a negated (or xone-failing) closed shape keeps failing only while the extra properties stay: keep them all
+            for v in value_nodes:
+                if not isinstance(v, Literal | Triple):
+                    triples |= {(v, p, o) for p, o in data.predicate_objects(v)}
 
         for neg in _values(shape, SH["not"]):
             ns = plan.shape(neg)
