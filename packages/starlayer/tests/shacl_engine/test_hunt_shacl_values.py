@@ -8,7 +8,9 @@ import pytest
 
 pytest.importorskip("pyoxigraph")
 
+import pyoxigraph as ox  # noqa: E402
 from starlayer.shacl_engine import api, validate  # noqa: E402
+from starlayer.shacl_engine import xsd_values as xv  # noqa: E402
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph  # noqa: E402
 from starlayer.shacl_engine.terms import StarLayerFidelityWarning  # noqa: E402
 
@@ -16,6 +18,7 @@ PRE = (
     "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> . "
     "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 )
+XSD = "http://www.w3.org/2001/XMLSchema#"
 
 
 def _run(ttl):
@@ -63,3 +66,39 @@ def test_fidelity_warns_for_sh_sparql():
         out = api.validate(data, shapes)
     assert [w for w in caught if issubclass(w.category, StarLayerFidelityWarning)]
     assert out.warnings
+
+
+# --- integers and date/time components over 4300 digits (CPython's int() string limit) -------------------------------
+
+
+def test_huge_integer_validates():
+    big = "1" * 5000
+    o, _w = _run(
+        PRE + f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minInclusive 5 ] .\nex:a ex:p {big} ."
+    )
+    assert o.conforms
+
+
+def test_huge_integer_is_well_formed_and_compares():
+    lit = ox.Literal("1" * 5000, datatype=ox.NamedNode(XSD + "integer"))
+    assert xv.well_formed(lit)
+    assert xv.compare(lit, ox.Literal("5", datatype=ox.NamedNode(XSD + "integer"))) == 1
+
+
+@pytest.mark.parametrize(
+    "lex, dt",
+    [("1" + "0" * 5000 + "-01-01T00:00:00Z", "dateTime"), ("P" + "9" * 5000 + "Y", "duration"), ("P" + "9" * 5000 + "D", "dayTimeDuration")],
+)
+def test_huge_date_time_components_do_not_raise(lex, dt):
+    lit = ox.Literal(lex, datatype=ox.NamedNode(XSD + dt))
+    xv.well_formed(lit)
+    xv.compare(lit, lit)
+
+
+def test_huge_integer_violation_report_text_renders():
+    big = "1" * 5000
+    o, _w = _run(
+        PRE + f"ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:maxInclusive 5 ] .\nex:a ex:p {big} ."
+    )
+    assert not o.conforms
+    assert big in o.report_text

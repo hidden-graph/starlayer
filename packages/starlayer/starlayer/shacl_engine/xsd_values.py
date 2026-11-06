@@ -83,12 +83,18 @@ _INTEGER_RANGES: dict[str, tuple[int | None, int | None]] = {
 }
 
 
+def _int(digits: str) -> int:
+    """``int()`` of an ASCII digit string of any length (CPython's int(str) refuses more than 4300 digits; xsd:integer and
+    the date/time year and duration components are unbounded). Decimal's conversion has no such limit."""
+    return int(digits) if len(digits) <= 4000 else int(Decimal(digits))
+
+
 def _parse_integer(lex: str, name: str) -> int | None:
     """xsd:integer and the 12 derived types: lexical ``[+-]?[0-9]+`` (XSD 1.1 3.4.13) and the range facets (3.4.14-3.4.26)."""
     s = _collapse(lex)
     if not _INT_RE.match(s):
         return None
-    n = int(s)
+    n = _int(s)
     lo, hi = _INTEGER_RANGES[name]
     if (lo is not None and n < lo) or (hi is not None and n > hi):
         return None
@@ -239,7 +245,7 @@ def _parse_timeline(lex: str, kind: str, datatype: str) -> Value | None:
     if not m:
         return None
     g = m.groupdict()
-    year = int(g["y"]) if g.get("y") is not None else 1972
+    year = _int(g["y"]) if g.get("y") is not None else 1972
     month = int(g["mo"]) if g.get("mo") is not None else (12 if kind == GDAY else 1)
     if kind in (TIME, GDAY, GMONTH, GMONTHDAY):
         year = 1972
@@ -284,9 +290,9 @@ def _parse_duration(lex: str, datatype: str, ym: bool, dt: bool) -> Value | None
     if dt and any(g[k] for k in ("Y", "M")):
         return None
     sign = -1 if g["neg"] else 1
-    months = sign * (int(g["Y"] or 0) * 12 + int(g["M"] or 0))
+    months = sign * (_int(g["Y"] or "0") * 12 + _int(g["M"] or "0"))
     secs = sign * (
-        Decimal(int(g["D"] or 0) * 86400 + int(g["H"] or 0) * 3600 + int(g["Mi"] or 0) * 60) + Decimal(g["S"] or "0")
+        Decimal(_int(g["D"] or "0") * 86400 + _int(g["H"] or "0") * 3600 + _int(g["Mi"] or "0") * 60) + Decimal(g["S"] or "0")
     )
     return Value(DURATION, datatype, (months, secs))
 

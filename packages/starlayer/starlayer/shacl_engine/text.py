@@ -66,7 +66,12 @@ def _python_value(node: ox.Literal) -> str | None:
     value = xv.parse(node)
     if value is None or value.kind not in (xv.NUMERIC, xv.BOOLEAN):
         return None
-    return repr(value.value) if isinstance(value.value, bool) else f"{value.value}"
+    if isinstance(value.value, bool):
+        return repr(value.value)
+    try:
+        return f"{value.value}"
+    except ValueError:  # an integer over CPython's 4300-digit str limit: the report shows the lexical form only
+        return None
 
 
 def stringify_node(graph: Any, node: Any, depth: int = 0) -> str:
