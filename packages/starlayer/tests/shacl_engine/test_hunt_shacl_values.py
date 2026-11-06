@@ -195,3 +195,18 @@ def test_prebinding_with_construct_where_short_form():
     short = g.query("PREFIX ex:<http://e/> CONSTRUCT WHERE { ?this ex:p ?o }", {"this": a})
     assert len(full) == 1
     assert short == full
+
+
+def test_union_view_sparql_counts_a_triple_held_in_two_graphs_once():
+    n = ox.NamedNode
+    shapes = OxigraphGraph.from_text(
+        PRE.replace("http://example.org/", "http://e/")
+        + 'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:select "SELECT $this ?value WHERE { $this <http://e/p> ?value }" ; sh:message "has p" ] .'
+    )
+    st = ox.Store()
+    for g in (n("http://e/g1"), n("http://e/g2")):
+        st.add(ox.Quad(n("http://e/a"), n("http://e/p"), n("http://e/b"), g))
+    data = OxigraphGraph(st)
+    assert len(data) == 1
+    assert len(validate(data, shapes).results) == 1
+    assert data.query("SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }")[0]["c"].value == "1"

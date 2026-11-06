@@ -139,6 +139,9 @@ class OxigraphGraph:
 
     def __init__(self, store: ox.Store | None = None, graph_name: Any = UNION) -> None:
         self.store = store if store is not None else ox.Store()
+        from starlayer.graph.oxgraph import union
+
+        self._overlap = union.Overlap()
         self.graph_name = graph_name
         if graph_name is UNION:
             self._graph = None
@@ -260,8 +263,14 @@ class OxigraphGraph:
             kwargs["base_iri"] = base_iri
         if custom_functions:
             kwargs["custom_functions"] = custom_functions
+        store = self.store
         if self._graph is None:
-            kwargs["use_default_graph_as_union"] = True
+            # Oxigraph's union default graph counts a triple once per graph that holds it; the view is a set, so a store
+            # with such a triple is queried through its merged copy, whose default graph is the set (see ``union.py``)
+            if self._overlap.overlapping(store):
+                store = self._overlap.store(store)
+            else:
+                kwargs["use_default_graph_as_union"] = True
         else:
             kwargs["default_graph"] = self._graph
         from starlayer.graph.oxgraph import run as oxrun
@@ -270,9 +279,9 @@ class OxigraphGraph:
             # pre-binding as the draft defines it: the binding is part of every group (see ``inject_everywhere``)
             header = " ".join("?" + v.value for v in subs)
             row = " ".join(oxrun._sparql_term(t) for t in subs.values())
-            return self.store.query(inject_everywhere(text, f"VALUES ({header}) {{ ({row}) }}"), **kwargs)  # str-ok: SPARQL text
+            return store.query(inject_everywhere(text, f"VALUES ({header}) {{ ({row}) }}"), **kwargs)  # str-ok: SPARQL text
         try:
-            return self.store.query(text, **kwargs, **({"substitutions": subs} if subs else {}))
+            return store.query(text, **kwargs, **({"substitutions": subs} if subs else {}))
         except RuntimeError as exc:
             if not subs or "projection" not in f"{exc}":  # str-ok: an exception message
                 raise
@@ -280,9 +289,9 @@ class OxigraphGraph:
             from starlayer.graph.oxgraph.sparql_text import inject_init_bindings
 
             if any(oxrun._has_blank(v) for v in subs.values()):
-                return oxrun._query_widening(self.store, text, kwargs, subs, exc)
+                return oxrun._query_widening(store, text, kwargs, subs, exc)
             injected = inject_init_bindings(text, {k.value: oxrun._sparql_term(v) for k, v in subs.items()})
-            return self.store.query(injected, **kwargs)
+            return store.query(injected, **kwargs)
 
     def sparql_query(self, text: str, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None) -> Any:
         """The ``SparqlCapable`` hook (see ``interface.py``): SELECT/ASK with pre-bound variables, run natively.
