@@ -125,3 +125,35 @@ def test_closed_by_types_class_typed_with_subclass_of_rdfs_class():
     )
     assert validate(graph("ex:a a ex:C ; ex:p 1 ; ex:q 2 ."), shapes).conforms
     assert not validate(graph("ex:a a ex:C ; ex:p 1 ; ex:r 2 ."), shapes).conforms
+
+
+# ---- sh:uniqueValuesFor when the focus node is not a target of the shape ------------------------------------------------
+
+_UNIQUE_SHAPES = """
+ex:S a sh:NodeShape ; sh:targetNode ex:a, ex:b ; sh:uniqueValuesFor ex:id .
+ex:R a sh:NodeShape ; sh:targetNode ex:z ; sh:node ex:S .
+"""
+
+
+def _unique_foci(data: str) -> list[str]:
+    out = validate(graph(data), graph(_UNIQUE_SHAPES))
+
+    def flatten(results):
+        for r in results:
+            yield r
+            yield from flatten(r.details)
+
+    return sorted(
+        str(r.focus.value).rsplit("/", 1)[-1]
+        for r in flatten(out.results)
+        if r.component.value.endswith("UniqueValuesForConstraintComponent")
+    )
+
+
+def test_unique_values_for_reports_a_sh_node_focus_that_duplicates_a_target():
+    assert _unique_foci('ex:a ex:id "1" . ex:b ex:id "2" . ex:z ex:id "1" .') == ["z"]
+
+
+def test_unique_values_for_still_needs_another_node_with_the_same_values():
+    assert _unique_foci('ex:a ex:id "1" . ex:b ex:id "2" . ex:z ex:id "3" .') == []
+    assert _unique_foci('ex:a ex:id "1" . ex:b ex:id "1" . ex:z ex:id "3" .') == ["a", "b"]
