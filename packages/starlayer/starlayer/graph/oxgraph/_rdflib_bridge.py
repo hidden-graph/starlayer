@@ -510,13 +510,19 @@ def foreign_to_engine(term: Any) -> Any:
     if isinstance(term, BNode):
         return T._bnode_or_stand_in(_rdflib_text(term), term)
     if isinstance(term, DirLangString):
+        if T.has_lone_surrogate(term.value):
+            return T._surrogate_literal_stand_in(term.value, term, lang=term.language)
         return T._lang_literal_or_stand_in(term.value, term.language, term, T._DIRECTIONS[term.direction])
     if isinstance(term, RLiteral):
+        lexical = _rdflib_text(term)
         if term.language:
-            return T._lang_literal_or_stand_in(_rdflib_text(term), term.language, term)
-        if term.datatype is not None:
-            return ox.Literal(_rdflib_text(term), datatype=T._iri_or_stand_in(_rdflib_text(term.datatype), term.datatype))
-        return ox.Literal(_rdflib_text(term))
+            if T.has_lone_surrogate(lexical):
+                return T._surrogate_literal_stand_in(lexical, term, lang=term.language)
+            return T._lang_literal_or_stand_in(lexical, term.language, term)
+        datatype = T._iri_or_stand_in(_rdflib_text(term.datatype), term.datatype) if term.datatype is not None else None
+        if T.has_lone_surrogate(lexical):
+            return T._surrogate_literal_stand_in(lexical, term, datatype=datatype)
+        return ox.Literal(lexical, datatype=datatype) if datatype is not None else ox.Literal(lexical)
     if isinstance(term, Variable):  # SPARQL-algebra graphs (salg) store query variables as terms: no oxrdf equivalent
         return ox.NamedNode(T._VARIABLE_PREFIX + _rdflib_text(term))
     if isinstance(term, TripleTerm):
@@ -555,7 +561,7 @@ def _engine_to_foreign(term: Any) -> Any:
 
             return Variable(term.value[len(T._VARIABLE_PREFIX) :])
         if term.value.startswith(T._INVALID_IRI_PREFIX):
-            return URIRef(unquote(term.value[len(T._INVALID_IRI_PREFIX) :]))
+            return URIRef(unquote(term.value[len(T._INVALID_IRI_PREFIX) :], errors="surrogatepass"))
         return URIRef(term.value)
     if isinstance(term, ox.BlankNode):
         if term.value.startswith(T._INVALID_BNODE_PREFIX):
@@ -568,10 +574,18 @@ def _engine_to_foreign(term: Any) -> Any:
             return DirLangString(term.value, term.language, str(term.direction))
         return RLiteral(term.value, lang=term.language)
     dt = term.datatype.value
+    if dt.startswith(T._INVALID_LITERAL_PREFIX):
+        payload, _, spec = dt[len(T._INVALID_LITERAL_PREFIX) :].partition("-")
+        lexical = bytes.fromhex(payload).decode("utf-8", "surrogatepass")
+        if spec.startswith("l"):
+            return RLiteral(lexical, lang=unquote(spec[1:], errors="surrogatepass"))
+        if spec.startswith("d"):
+            return RLiteral(lexical, datatype=URIRef(unquote(spec[1:], errors="surrogatepass")), normalize=False)
+        return RLiteral(lexical)
     if dt.startswith(T._INVALID_LANG_PREFIX):
-        return RLiteral(term.value, lang=unquote(dt[len(T._INVALID_LANG_PREFIX) :]))
+        return RLiteral(term.value, lang=unquote(dt[len(T._INVALID_LANG_PREFIX) :], errors="surrogatepass"))
     if dt.startswith(T._INVALID_IRI_PREFIX):
-        return RLiteral(term.value, datatype=URIRef(unquote(dt[len(T._INVALID_IRI_PREFIX) :])), normalize=False)
+        return RLiteral(term.value, datatype=URIRef(unquote(dt[len(T._INVALID_IRI_PREFIX) :], errors="surrogatepass")), normalize=False)
     return RLiteral(term.value) if dt == T._XSD + "string" else RLiteral(term.value, datatype=URIRef(dt), normalize=False)
 
 

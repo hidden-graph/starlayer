@@ -210,3 +210,61 @@ def test_union_view_sparql_counts_a_triple_held_in_two_graphs_once():
     assert len(data) == 1
     assert len(validate(data, shapes).results) == 1
     assert data.query("SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }")[0]["c"].value == "1"
+
+
+# --- lone surrogates in IRIs and literals (the ill-formed-term policy) -----------------------------------------------
+
+
+def _surrogate_case(obj, mode):
+    from rdflib import Graph, URIRef
+    from starlayer.shacl_engine.terms import TermError
+
+    shapes = Graph().parse(
+        data="@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .",
+        format="turtle",
+    )
+    g = Graph()
+    g.add((URIRef("http://e/a"), URIRef("http://e/p"), obj))
+    try:
+        return api.validate(g, shapes, invalid_terms=mode)
+    except TermError:
+        return "TermError"
+
+
+@pytest.mark.parametrize("which", ["iri", "literal", "lang_literal", "typed_literal"])
+def test_lone_surrogate_strict_is_a_term_error(which):
+    assert _surrogate_case(_surrogate_term(which), "error") == "TermError"
+
+
+@pytest.mark.parametrize("which", ["iri", "literal", "lang_literal", "typed_literal"])
+def test_lone_surrogate_lenient_validates(which):
+    out = _surrogate_case(_surrogate_term(which), "lenient")
+    assert out != "TermError" and out.conforms
+
+
+@pytest.mark.parametrize("which", ["iri", "literal", "lang_literal", "typed_literal"])
+def test_lone_surrogate_stand_in_maps_back(which):
+    from starlayer.graph.oxgraph._rdflib_bridge import (
+        engine_to_foreign,
+        foreign_to_engine,
+    )
+    from starlayer.shacl_engine.terms import term_policy
+
+    term = _surrogate_term(which)
+    with term_policy("lenient"):
+        back = engine_to_foreign(foreign_to_engine(term))
+    assert back == term
+    assert getattr(back, "language", None) == getattr(term, "language", None)
+    assert getattr(back, "datatype", None) == getattr(term, "datatype", None)
+
+
+def _surrogate_term(which):
+    from rdflib import Literal, URIRef
+
+    return {
+        "iri": URIRef("http://e/\ud800"),
+        "literal": Literal("a\ud800b"),
+        "lang_literal": Literal("a\ud800b", lang="en"),
+        "typed_literal": Literal("a\ud800b", datatype=URIRef("http://e/dt")),
+    }[which]
