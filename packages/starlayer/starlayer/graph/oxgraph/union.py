@@ -31,6 +31,11 @@ def touch() -> None:
     _current = next(_writes)
 
 
+def current() -> int:
+    """The number of the latest write made through the wrapper (any store); a stamp taken before a write differs from it after."""
+    return _current
+
+
 def populated_graphs(store: ox.Store) -> int:
     """How many graphs (the default graph and blank-node graphs included) hold a triple, counted up to 2."""
     count = 0

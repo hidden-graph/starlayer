@@ -530,8 +530,12 @@ class _Base:
 
         ``entailment`` is a regime IRI. ``ENTAILMENT.RDF`` / ``ENTAILMENT.RDFS``: the query is rewritten (see
         ``sparql/sqe/entailment.py``), the data is not touched or copied. ``ENTAILMENT["OWL-RDF-Based"]`` / ``["OWL-Direct"]``:
-        the store is copied, the closure is added to the copy by ``infer()`` and the query runs on the copy (this graph is never
-        modified; the closure is computed on every call, so ``infer=`` is checked but has no caching to select). ``engine`` /
+        the store is copied, the entailed triples are added to the copy and the query runs on the copy (this graph is never
+        modified; the copy always holds the current data). The entailed triples are kept on this object, one set per regime
+        (and per engine for ``OWL-Direct``), and ``infer`` says when they are computed again: ``"changed"`` (default) after a
+        write made through this package since they were computed (``as_store()`` counts; a write on a raw store reference kept
+        from before is not seen, call ``oxgraph.union.touch()`` after it), ``"always"`` on every call, ``"cached"`` only when none
+        are kept (they may then be out of date). A write to any store counts, so it can recompute when it need not. ``engine`` /
         ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
         Anything else raises ``NotImplementedError``."""
         regime = None if entailment is None else str(getattr(entailment, "value", entailment))
@@ -550,21 +554,38 @@ class _Base:
             if infer not in ("always", "cached", "changed"):
                 raise ValueError(f"infer must be one of ['always', 'cached', 'changed'], got {infer!r}")
             kw = {"engine": engine, "timeout": ent.DEFAULT_TIMEOUT if timeout is None else timeout}
-            return self._entailed_copy(regime, **kw).query(text, initNs=initNs, initBindings=initBindings, base=base)
+            return self._entailed_copy(regime, infer, **kw).query(text, initNs=initNs, initBindings=initBindings, base=base)
         return run.query(self._query_store(), text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,
                          default_graph=self._query_default_graph(), union=self._union and not self._merged(), entailment=regime)
 
-    def _entailed_copy(self, regime: str, **kw: Any) -> Any:
-        """A throwaway copy of the whole store (every graph) with the ``regime`` closure added to the graph this wrapper
-        reads (``infer`` in place), for query-time OWL entailment. This wrapper's store is not changed."""
+    def _entailed_copy(self, regime: str, infer: str, **kw: Any) -> Any:
+        """A throwaway copy of the whole store (every graph) with the ``regime`` entailed triples added to the graph this
+        wrapper reads, for query-time OWL entailment. This wrapper's store is not changed."""
+        delta = self._entailed_triples(regime, infer, **kw)
         store = ox.Store()
         store.extend(self.store)
         if isinstance(self, StarLayerDataset):
             copy: Any = StarLayerDataset(store=store, default_union=self._union, prefixes=dict(self.prefixes))
         else:
             copy = StarLayerGraph(store=store, identifier=self._g, prefixes=dict(self.prefixes))
-        copy.infer(ox.NamedNode(regime), mode="in-place", **kw)
+        g = copy._add_graph()
+        store.extend(copy._quad(t, g) for t in delta)  # not copy.extend(): that counts as a write and would age the kept triples
         return copy
+
+    def _entailed_triples(self, regime: str, infer: str, *, engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:
+        """The triples ``regime`` entails that this wrapper does not hold, kept per regime (and engine, for ``OWL-Direct``,
+        whose engines can differ) with the write number they were computed at; ``infer`` says when to compute them again."""
+        from starlayer.graph.oxgraph.helpers import entailment as ent
+
+        kept = self.__dict__.setdefault("_entailed", {})
+        key = (regime, engine if regime == ent.OWL_DIRECT_REGIME else None)
+        hit = kept.get(key)
+        if hit is not None and infer != "always" and (infer == "cached" or hit[1] == union.current()):
+            return hit[0]
+        stamp = union.current()  # taken first: a write that lands while the reasoner runs makes the result stale
+        delta = ent._delta_for(self, frozenset({regime}), engine, timeout)
+        kept[key] = (delta, stamp)
+        return delta
 
     def _query_store(self) -> ox.Store:
         return self.store

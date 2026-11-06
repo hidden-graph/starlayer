@@ -3,8 +3,8 @@ tests/unit/test_entailment_direct.py
 
 Coverage for StarLayerGraph.query(..., entailment=ENTAILMENT['OWL-Direct']) - the
 query-time counterpart to StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine=...):
-query() a throwaway copy of the store closed by infer(); the closure is computed on every call, as
-for entailment=ENTAILMENT['OWL-RDF-Based'] (see test_entailment.py).
+query() a throwaway copy of the store plus the entailed triples, which the graph keeps between calls
+(infer= says when they are computed again), as for entailment=ENTAILMENT['OWL-RDF-Based'].
 
 `owlready2`/`rustdl` are both optional extras of this package (`pip install
 starlayer[hermit]`/`[rustdl]`) - the skip markers below are copied
@@ -15,11 +15,13 @@ than sharing markers across files.
 
 import shutil
 
+import pyoxigraph as ox
 import pytest
 from rdflib import RDF, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.owl_dl import InconsistentOntologyError
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph.oxgraph.helpers import entailment as ent
 
 try:
     import owlready2  # noqa: F401
@@ -128,8 +130,8 @@ class TestEntailmentDirectRustdl:
 
 @owl_dl_extra
 @java_required
-class TestEntailmentDirectInferArgument:
-    """The closure is computed on every call, so ``infer=`` has no caching to select; it is only checked."""
+class TestEntailmentDirectInferArgumentWithHermit:
+    """With the real reasoner: every ``infer=`` value gives the right answer, and a write is seen."""
 
     @pytest.mark.parametrize("infer", ["always", "cached", "changed"])
     def test_every_documented_value_gives_the_same_answer(self, infer):
@@ -148,3 +150,94 @@ class TestEntailmentDirectInferArgument:
         g = _disjunctive_graph()
         with pytest.raises(ValueError, match="infer must be one of"):
             g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="sometimes")
+
+
+_ALICE, _WOMAN = ox.NamedNode(str(EX.alice)), ox.NamedNode(str(EX.Woman))
+_REGIMES = [ENTAILMENT["OWL-Direct"], ENTAILMENT["OWL-RDF-Based"]]
+
+
+class TestEntailedTriplesAreKept:
+    """The reasoner is stubbed (it entails ``ex:alice a ex:Woman``), so this needs neither Java nor owlrl; the stub counts
+    how often it is asked."""
+
+    @pytest.fixture
+    def calls(self, monkeypatch):
+        asked = []
+
+        def fake(g, regimes, engine, timeout):
+            asked.append((next(iter(regimes)), engine))
+            return {(_ALICE, ox.NamedNode(str(RDF.type)), _WOMAN)}
+
+        monkeypatch.setattr(ent, "_delta_for", fake)
+        return asked
+
+    @staticmethod
+    def _graph():
+        g = StarLayerGraph()
+        g.add((EX.bob, RDF.type, EX.Person))
+        return g
+
+    @staticmethod
+    def _who(g, **kw):
+        return sorted(r.x.value for r in g.query(_Q_WOMAN, **kw))
+
+    @pytest.mark.parametrize("regime", _REGIMES)
+    def test_an_unchanged_graph_is_reasoned_about_once(self, calls, regime):
+        g = self._graph()
+        assert self._who(g, entailment=regime) == [str(EX.alice)]
+        assert self._who(g, entailment=regime) == [str(EX.alice)]
+        assert len(calls) == 1
+
+    @pytest.mark.parametrize("regime", _REGIMES)
+    def test_changed_reasons_again_after_a_write(self, calls, regime):
+        g = self._graph()
+        self._who(g, entailment=regime, infer="changed")
+        g.add((EX.carol, RDF.type, EX.Person))
+        self._who(g, entailment=regime, infer="changed")
+        assert len(calls) == 2
+
+    @pytest.mark.parametrize("regime", _REGIMES)
+    def test_always_reasons_on_every_call(self, calls, regime):
+        g = self._graph()
+        for _ in range(3):
+            self._who(g, entailment=regime, infer="always")
+        assert len(calls) == 3
+
+    def test_cached_keeps_the_entailed_triples_but_reads_the_current_data(self, calls):
+        g = self._graph()
+        regime = ENTAILMENT["OWL-Direct"]
+        self._who(g, entailment=regime, infer="cached")
+        g.add((EX.carol, RDF.type, EX.Woman))
+        assert self._who(g, entailment=regime, infer="cached") == [str(EX.alice), str(EX.carol)]
+        assert len(calls) == 1
+
+    def test_each_engine_and_regime_has_its_own_kept_triples(self, calls):
+        g = self._graph()
+        direct = ENTAILMENT["OWL-Direct"]
+        self._who(g, entailment=direct, engine="hermit")
+        self._who(g, entailment=direct, engine="rustdl")
+        self._who(g, entailment=direct, engine="hermit")
+        self._who(g, entailment=ENTAILMENT["OWL-RDF-Based"])
+        assert calls == [(direct.value, "hermit"), (direct.value, "rustdl"), (ENTAILMENT["OWL-RDF-Based"].value, "hermit")]
+
+    def test_a_write_on_the_raw_store_counts_once_it_was_handed_out(self, calls):
+        g = self._graph()
+        regime = ENTAILMENT["OWL-Direct"]
+        self._who(g, entailment=regime)
+        g.as_store()
+        self._who(g, entailment=regime)
+        assert len(calls) == 2
+
+    def test_the_graph_itself_never_holds_the_entailed_triples(self, calls):
+        g = self._graph()
+        before = set(g.triples())
+        self._who(g, entailment=ENTAILMENT["OWL-Direct"])
+        assert set(g.triples()) == before
+
+    def test_a_dataset_keeps_them_too(self, calls):
+        d = StarLayerDataset()
+        d.add((EX.bob, RDF.type, EX.Person))
+        regime = ENTAILMENT["OWL-Direct"]
+        assert self._who(d, entailment=regime) == [str(EX.alice)]
+        assert self._who(d, entailment=regime) == [str(EX.alice)]
+        assert len(calls) == 1
