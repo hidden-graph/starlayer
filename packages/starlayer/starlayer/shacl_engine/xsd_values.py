@@ -15,10 +15,12 @@ to 128 bits, but ``xsd:integer`` itself is unbounded: use ``num-bigint``), float
 from __future__ import annotations
 
 import binascii
+import math
 import re
 import struct
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 from functools import lru_cache
 from typing import Any
 
@@ -112,6 +114,34 @@ def _parse_decimal(lex: str) -> Decimal | None:
         return None
 
 
+def _to_single(x: int | Decimal) -> float:
+    """The binary32 nearest to the exact value ``x`` (round half to even), as a Python float; one rounding only. Going
+    through binary64 first can round twice and land on the wrong neighbour near a binary32 midpoint (XSD 1.1 3.3.4)."""
+    if x == 0:
+        return float(x)
+    if isinstance(x, Decimal):
+        if x.adjusted() > 40:
+            return float("inf") if x > 0 else float("-inf")
+        if x.adjusted() < -50:
+            return 0.0 if x > 0 else -0.0
+    q = Fraction(x)
+    neg = q < 0
+    q = abs(q)
+    e = q.numerator.bit_length() - q.denominator.bit_length()  # floor(log2 q) is e or e - 1
+    if q < Fraction(2) ** e:
+        e -= 1
+    quantum = max(e, -126) - 23  # a binary32 has 24 significant bits; below 2**-126 the spacing is fixed (subnormals)
+    scaled = q / Fraction(2) ** quantum
+    m = scaled.numerator // scaled.denominator
+    rest = scaled - m
+    if rest > Fraction(1, 2) or (rest == Fraction(1, 2) and m % 2):
+        m += 1
+    f = math.ldexp(m, quantum)
+    if f >= 2.0**128:  # beyond the largest binary32 after rounding
+        f = float("inf")
+    return -f if neg else f
+
+
 def _parse_float(lex: str, single: bool) -> float | None:
     """xsd:float / xsd:double (XSD 1.1 3.3.4, 3.3.5): decimal with optional exponent, ``INF``, ``-INF``, ``+INF``, ``NaN``.
     Out-of-range magnitudes round to INF (the IEEE round-to-nearest mapping); xsd:float is rounded to binary32."""
@@ -122,13 +152,9 @@ def _parse_float(lex: str, single: bool) -> float | None:
         return float("-inf") if s[0] == "-" else float("inf")
     if s == "NaN":
         return float("nan")
-    x = float(s)
-    if single and x == x and x not in (float("inf"), float("-inf")):
-        try:
-            x = struct.unpack("f", struct.pack("f", x))[0]
-        except OverflowError:
-            x = float("inf") if x > 0 else float("-inf")
-    return x
+    if single:
+        return _to_single(Decimal(s))
+    return float(s)
 
 
 def _parse_boolean(lex: str) -> bool | None:
@@ -452,6 +478,8 @@ def _promote(a: Value, b: Value) -> tuple[Any, Any]:
 
 
 def _to_float(x: Any, single: bool) -> float:
+    if single and isinstance(x, (int, Decimal)) and not isinstance(x, bool):
+        return _to_single(x)  # one rounding, not integer -> binary64 -> binary32
     try:
         f = float(x)
     except OverflowError:

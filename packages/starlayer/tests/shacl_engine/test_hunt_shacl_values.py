@@ -116,3 +116,27 @@ def test_base64_non_canonical_final_sextet_is_ill_formed(lex):
 @pytest.mark.parametrize("lex", ["QUI=", "QQ==", "QUJD", "", "AA==", "/w=="])
 def test_base64_canonical_forms_stay_well_formed(lex):
     assert xv.well_formed(ox.Literal(lex, datatype=ox.NamedNode(XSD + "base64Binary")))
+
+
+def test_float_parsing_rounds_once():
+    # 1 + 2**-24 + 1e-32 is just above the binary32 midpoint, so the nearest float is 1 + 2**-23, not 1.0
+    a = ox.Literal("1.00000005960464477539062500000001", datatype=ox.NamedNode(XSD + "float"))
+    b = ox.Literal("1.00000011920928955078125", datatype=ox.NamedNode(XSD + "float"))
+    assert xv.compare(a, b) == 0
+    assert xv.parse(a).value == 1 + 2**-23
+
+
+@pytest.mark.parametrize(
+    "lex, expected",
+    [("3.4028235e38", 3.4028234663852886e38), ("3.4028236e38", float("inf")), ("3.5e38", float("inf")), ("1e-46", 0.0),
+     ("1.4e-45", 1.401298464324817e-45), ("-0", -0.0), ("0.1", 0.10000000149011612), ("1e999999999", float("inf")), ("1e-999999999", 0.0)],
+)
+def test_float_parsing_edges(lex, expected):
+    assert xv.parse(ox.Literal(lex, datatype=ox.NamedNode(XSD + "float"))).value == expected
+
+
+def test_integer_promoted_to_float_rounds_once():
+    n = 2**60 + 2**36 + 1  # just above the midpoint between the floats 2**60 and 2**60 + 2**37
+    up = 2**60 + 2**37
+    c = xv.compare(ox.Literal(str(n), datatype=ox.NamedNode(XSD + "integer")), ox.Literal(str(up), datatype=ox.NamedNode(XSD + "float")))
+    assert c == 0
