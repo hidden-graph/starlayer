@@ -21,7 +21,15 @@ _CLASS_TYPES = (RDFS.Class, OWL.Class, SH.ShapeClass)
 
 
 def _types(graph: Any, node: Term) -> set:
-    return set(graph.objects(node, RDF.type))
+    """The SHACL types of ``node`` in ``graph``: ``rdf:type`` followed by ``rdfs:subClassOf*`` (Core 3.1.3.3, "SHACL instance")."""
+    seen = set(graph.objects(node, RDF.type))
+    queue = list(seen)
+    while queue:
+        for parent in graph.objects(queue.pop(), RDFS.subClassOf):
+            if parent not in seen:
+                seen.add(parent)
+                queue.append(parent)
+    return seen
 
 
 def _is_implicit_class_target(graph: Any, node: Term) -> bool:
@@ -46,8 +54,9 @@ def shape_targets(graph: Any, node: Term) -> list[tuple[URIRef, Term]]:
 def declared_shape_nodes(graph: Any) -> list[Term]:
     nodes: dict = {}
     for typ in _SHAPE_TYPES:
-        for s in graph.subjects(RDF.type, typ):
-            nodes.setdefault(s, None)
+        for sub in _class_closure(graph, typ):  # a SHACL instance of a shape type includes instances of its subclasses
+            for s in graph.subjects(RDF.type, sub):
+                nodes.setdefault(s, None)
     for pred in _TARGET_PREDICATES:
         for s in graph.subjects(pred, None):
             nodes.setdefault(s, None)

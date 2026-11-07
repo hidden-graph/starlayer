@@ -53,6 +53,13 @@ def test_sparql_constraint_deactivated_node_expression(deact):
     assert validate(G("ex:a ex:p 1 ."), s).conforms
 
 
+def test_implicit_class_target_through_subclass_of_shape_type():
+    shapes = (
+        "ex:K rdfs:subClassOf sh:NodeShape . ex:Person a rdfs:Class, ex:K ; sh:property [ sh:path ex:name ; sh:minCount 1 ] ."
+    )
+    assert not validate(G("ex:bob a ex:Person ."), G(shapes)).conforms
+
+
 _NAMED_FN = """
 ex:G a sh:NamedParameterExpressionFunction; rdfs:subClassOf sh:NamedParameterExpression; sh:parameter ex:Ga;
   sh:bodyExpression [ shnex:flatMap [ shnex:arg ex:a ]; shnex:nodes [ shnex:pathValues ex:items ] ] .
