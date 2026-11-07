@@ -123,3 +123,43 @@ def test_apply_rules_validation_records_used_data_graph_identity():
     assert [o for _, _, o in apply_rules(d, s).validation.report_graph.triples((None, used, None))] == [
         ox.NamedNode("http://e/data")
     ]
+
+
+# --- extract_shapes_graph(include_referenced=True) copies every shape the members name
+
+
+def _focus_nodes(report):
+    focus = ox.NamedNode("http://www.w3.org/ns/shacl#focusNode")
+    return sorted(str(o) for _, _, o in report.report_graph.triples((None, focus, None)))
+
+
+def test_extract_shapes_graph_copies_shape_named_in_node_expression():
+    from starlayer.shacl import StarShaclSchema
+
+    shapes = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S .
+      ex:S a sh:NodeShape ; sh:targetClass ex:P ;
+        sh:deactivated [ shnex:exists [ shnex:filterShape ex:Legacy ; shnex:nodes [ shnex:var "focusNode" ] ] ] ;
+        sh:property [ sh:path ex:age ; sh:minInclusive 18 ] .
+      ex:Legacy a sh:NodeShape ; sh:property [ sh:path ex:legacy ; sh:hasValue true ] .""")
+    data = g("ex:alice a ex:P ; ex:age 12 ; ex:legacy true . ex:dave a ex:P ; ex:age 12 ; ex:legacy false .")
+    ext = StarShaclSchema(shapes).extract_shapes_graph(ox.NamedNode("http://e/M"), include_referenced=True)
+    assert _focus_nodes(validate(data, shapes)) == _focus_nodes(validate(data, ext)) == ["<http://e/dave>"]
+
+
+def test_extract_shapes_graph_copies_target_where_and_rule_condition_shapes():
+    from starlayer.shacl import StarShaclSchema, apply_rules, target_nodes
+
+    m = ox.NamedNode("http://e/M")
+    s = ox.NamedNode("http://e/S")
+    data = g("ex:a ex:p 1 . ex:c ex:r 1 .")
+    shapes = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S . ex:S a sh:NodeShape ; sh:targetWhere ex:W ; sh:nodeKind sh:Literal .
+      ex:W a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .""")
+    ext = StarShaclSchema(shapes).extract_shapes_graph(m, include_referenced=True)
+    assert set(target_nodes(data_graph=data, shacl_graph=ext, shape_node=s)) == set(
+        target_nodes(data_graph=data, shacl_graph=shapes, shape_node=s)
+    )
+    shapes = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S . ex:S a sh:NodeShape ; sh:targetNode ex:a, ex:c ;
+      sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:q ; sh:object 5 ; sh:condition ex:W ] .
+      ex:W a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .""")
+    ext = StarShaclSchema(shapes).extract_shapes_graph(m, include_referenced=True)
+    assert len(apply_rules(data, ext).inferred_graph) == len(apply_rules(data, shapes).inferred_graph) == 1
