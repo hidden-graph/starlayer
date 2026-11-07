@@ -189,6 +189,29 @@ def test_scope_variable_invalid_varname_is_a_failure_not_value_error():
         list(evaluate_expression(ctx, expr, EX.f, {"a b": [ox.Literal("5")]}))
 
 
+def test_default_value_expression_is_evaluated_for_expected_predicate_rules():
+    from starlayer.shacl_engine.rules import apply_rules
+
+    shapes = G(
+        """
+ex:Sh a sh:NodeShape ; sh:targetClass ex:Rect ; sh:property ex:Sh-area ; sh:rule ex:R .
+ex:Sh-area a sh:PropertyShape ; sh:path ex:area ; sh:defaultValue [ sparql:plus ( 1 2 ) ] .
+ex:R a sh:SPARQLRule ; sh:expectedPredicate ex:area ;
+  sh:construct "PREFIX ex: <http://example.com/> CONSTRUCT { $this ex:seen ?a } WHERE { $this ex:area ?a }" .
+"""
+    )
+    res = apply_rules(G("ex:r a ex:Rect ."), shapes)
+    seen = [o for s, p, o in res.inferred if p == ox.NamedNode("http://example.com/seen")]
+    assert seen == [ox.Literal("3", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))]
+
+
+def test_now_is_fixed_during_a_rule_set_execution():
+    from starlayer.shacl_engine.rules import apply_rules
+
+    shapes = G('ex:R1 a sh:SPARQLRule ; sh:construct "PREFIX ex: <http://example.com/> CONSTRUCT { ex:a ex:t ?n } WHERE { BIND(NOW() AS ?n) }" .')
+    apply_rules(G("ex:r a ex:C ."), shapes, max_iterations=50)
+
+
 def _sparql_expr_value(param: str):
     shapes = G(
         f"""

@@ -27,8 +27,10 @@ Performance note: SPARQL runs on a materialised ``StarLayerGraph`` (base copy pl
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
 from starlayer.shacl_engine import xsd_values as xv
@@ -349,8 +351,38 @@ def _well_formed(t: Triple) -> bool:
     return isinstance(s, (URIRef, BNode)) and isinstance(p, URIRef) and o is not None
 
 
+_NOW_TOKEN = re.compile(r"""[#"'<]|(?<![\w:?$])NOW\s*\(\s*\)""", re.IGNORECASE)
+
+
+def _fix_now(text: str, now: str) -> str:
+    """``text`` with every ``NOW()`` call (not inside a comment, string or IRI) replaced by the dateTime literal ``now``."""
+    from starlayer.graph.oxgraph.run import _IRI_AT, _STRING_AT
+
+    out: list[str] = []
+    i = 0
+    while (m := _NOW_TOKEN.search(text, i)) is not None:
+        c = m.group()
+        if c == "#":
+            end = text.find("\n", m.start())
+            end = len(text) if end < 0 else end
+        elif c in "\"'<":
+            token = (_IRI_AT if c == "<" else _STRING_AT).match(text, m.start())
+            end = token.end() if token else m.end()
+        else:
+            out.append(text[i : m.start()])
+            out.append(now)
+            i = m.end()
+            continue
+        out.append(text[i:end])
+        i = end
+    out.append(text[i:])
+    return "".join(out)
+
+
 class _Run:
     def __init__(self, view: InferredView, plan: Plan, max_iterations: int, max_triples: int | None) -> None:
+        # Inference Rules 11.1: NOW() returns the same result in all SPARQL rules during the execution of a rule set
+        self.now = '"' + datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ") + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
         self.view = view
         self.plan = plan
         self.shapes = plan.shapes_graph
@@ -446,7 +478,7 @@ class _Run:
         if len(constructs) != 1 or not isinstance(constructs[0], Literal):
             raise RuleError(f"{rule.node!r}: exactly one string sh:construct is required")
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
-        text = with_prefixes(self.plan, prefix_holder, constructs[0].value)
+        text = _fix_now(with_prefixes(self.plan, prefix_holder, constructs[0].value), self.now)
         try:
             return self.view.construct(text, bindings)
         except RuleError:
@@ -526,7 +558,8 @@ class _Run:
                     else:
                         values.append(expr)
                 if not values and not any(True for _ in self.view.objects(n, pred)):
-                    values = defaults
+                    # Rules 3.8: sh:defaultValue can be a node expression too (Context.value_nodes evaluates it the same way)
+                    values = list(dict.fromkeys(ctx._expression_values(tuple(defaults), n)))
                 for v in values:
                     t = (n, pred, v)
                     if self.view.add(t):
