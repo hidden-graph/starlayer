@@ -163,3 +163,20 @@ def test_extract_shapes_graph_copies_target_where_and_rule_condition_shapes():
       ex:W a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .""")
     ext = StarShaclSchema(shapes).extract_shapes_graph(m, include_referenced=True)
     assert len(apply_rules(data, ext).inferred_graph) == len(apply_rules(data, shapes).inferred_graph) == 1
+
+
+# --- modules keep the reifier annotation of a sh:property link
+
+
+def test_module_keeps_deactivation_annotation_on_property_link():
+    from starlayer.shacl import StarShaclSchema
+
+    sg = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S .
+      ex:S a sh:NodeShape ; sh:targetNode ex:n ;
+        sh:property [ sh:path ex:p ; sh:minCount 1 ] {| sh:deactivated true |} .""")
+    d = g("ex:n a ex:C .")
+    m = ox.NamedNode("http://e/M")
+    assert validate(d, sg).conforms is True
+    assert validate(d, sg, shapes_graph_resource=m).conforms is True
+    ext = StarShaclSchema(sg).extract_shapes_graph(m)
+    assert validate(d, ext).conforms is True
