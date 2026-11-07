@@ -15,10 +15,12 @@ to 128 bits, but ``xsd:integer`` itself is unbounded: use ``num-bigint``), float
 from __future__ import annotations
 
 import binascii
+import math
 import re
 import struct
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+from fractions import Fraction
 from functools import lru_cache
 from typing import Any
 
@@ -83,12 +85,18 @@ _INTEGER_RANGES: dict[str, tuple[int | None, int | None]] = {
 }
 
 
+def _int(digits: str) -> int:
+    """``int()`` of an ASCII digit string of any length (CPython's int(str) refuses more than 4300 digits; xsd:integer and
+    the date/time year and duration components are unbounded). Decimal's conversion has no such limit."""
+    return int(digits) if len(digits) <= 4000 else int(Decimal(digits))
+
+
 def _parse_integer(lex: str, name: str) -> int | None:
     """xsd:integer and the 12 derived types: lexical ``[+-]?[0-9]+`` (XSD 1.1 3.4.13) and the range facets (3.4.14-3.4.26)."""
     s = _collapse(lex)
     if not _INT_RE.match(s):
         return None
-    n = int(s)
+    n = _int(s)
     lo, hi = _INTEGER_RANGES[name]
     if (lo is not None and n < lo) or (hi is not None and n > hi):
         return None
@@ -106,6 +114,34 @@ def _parse_decimal(lex: str) -> Decimal | None:
         return None
 
 
+def _to_single(x: int | Decimal) -> float:
+    """The binary32 nearest to the exact value ``x`` (round half to even), as a Python float; one rounding only. Going
+    through binary64 first can round twice and land on the wrong neighbour near a binary32 midpoint (XSD 1.1 3.3.4)."""
+    if x == 0:
+        return float(x)
+    if isinstance(x, Decimal):
+        if x.adjusted() > 40:
+            return float("inf") if x > 0 else float("-inf")
+        if x.adjusted() < -50:
+            return 0.0 if x > 0 else -0.0
+    q = Fraction(x)
+    neg = q < 0
+    q = abs(q)
+    e = q.numerator.bit_length() - q.denominator.bit_length()  # floor(log2 q) is e or e - 1
+    if q < Fraction(2) ** e:
+        e -= 1
+    quantum = max(e, -126) - 23  # a binary32 has 24 significant bits; below 2**-126 the spacing is fixed (subnormals)
+    scaled = q / Fraction(2) ** quantum
+    m = scaled.numerator // scaled.denominator
+    rest = scaled - m
+    if rest > Fraction(1, 2) or (rest == Fraction(1, 2) and m % 2):
+        m += 1
+    f = math.ldexp(m, quantum)
+    if f >= 2.0**128:  # beyond the largest binary32 after rounding
+        f = float("inf")
+    return -f if neg else f
+
+
 def _parse_float(lex: str, single: bool) -> float | None:
     """xsd:float / xsd:double (XSD 1.1 3.3.4, 3.3.5): decimal with optional exponent, ``INF``, ``-INF``, ``+INF``, ``NaN``.
     Out-of-range magnitudes round to INF (the IEEE round-to-nearest mapping); xsd:float is rounded to binary32."""
@@ -116,13 +152,9 @@ def _parse_float(lex: str, single: bool) -> float | None:
         return float("-inf") if s[0] == "-" else float("inf")
     if s == "NaN":
         return float("nan")
-    x = float(s)
-    if single and x == x and x not in (float("inf"), float("-inf")):
-        try:
-            x = struct.unpack("f", struct.pack("f", x))[0]
-        except OverflowError:
-            x = float("inf") if x > 0 else float("-inf")
-    return x
+    if single:
+        return _to_single(Decimal(s))
+    return float(s)
 
 
 def _parse_boolean(lex: str) -> bool | None:
@@ -176,6 +208,9 @@ def _parse_base64(lex: str) -> bytes | None:
     """xsd:base64Binary (XSD 1.1 3.3.16): base64 with optional inner spaces; length a multiple of 4 after removing them."""
     s = _collapse(lex).replace(" ", "")
     if len(s) % 4 or not re.fullmatch(r"[A-Za-z0-9+/]*={0,2}", s):
+        return None
+    # the lexical space fixes the last character before padding so the unused bits are zero (B04 before "==", B16 before "=")
+    if (s.endswith("==") and s[-3] not in "AQgw") or (s.endswith("=") and not s.endswith("==") and s[-2] not in "AEIMQUYcgkosw048"):
         return None
     try:
         return binascii.a2b_base64(s)
@@ -239,7 +274,7 @@ def _parse_timeline(lex: str, kind: str, datatype: str) -> Value | None:
     if not m:
         return None
     g = m.groupdict()
-    year = int(g["y"]) if g.get("y") is not None else 1972
+    year = _int(g["y"]) if g.get("y") is not None else 1972
     month = int(g["mo"]) if g.get("mo") is not None else (12 if kind == GDAY else 1)
     if kind in (TIME, GDAY, GMONTH, GMONTHDAY):
         year = 1972
@@ -284,9 +319,9 @@ def _parse_duration(lex: str, datatype: str, ym: bool, dt: bool) -> Value | None
     if dt and any(g[k] for k in ("Y", "M")):
         return None
     sign = -1 if g["neg"] else 1
-    months = sign * (int(g["Y"] or 0) * 12 + int(g["M"] or 0))
+    months = sign * (_int(g["Y"] or "0") * 12 + _int(g["M"] or "0"))
     secs = sign * (
-        Decimal(int(g["D"] or 0) * 86400 + int(g["H"] or 0) * 3600 + int(g["Mi"] or 0) * 60) + Decimal(g["S"] or "0")
+        Decimal(_int(g["D"] or "0") * 86400 + _int(g["H"] or "0") * 3600 + _int(g["Mi"] or "0") * 60) + Decimal(g["S"] or "0")
     )
     return Value(DURATION, datatype, (months, secs))
 
@@ -443,6 +478,8 @@ def _promote(a: Value, b: Value) -> tuple[Any, Any]:
 
 
 def _to_float(x: Any, single: bool) -> float:
+    if single and isinstance(x, (int, Decimal)) and not isinstance(x, bool):
+        return _to_single(x)  # one rounding, not integer -> binary64 -> binary32
     try:
         f = float(x)
     except OverflowError:

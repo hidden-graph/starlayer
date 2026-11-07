@@ -110,12 +110,17 @@ def text(term: Any) -> str:
 _STAND_IN_IRI = re.compile(r"urn:starlayer:invalid-iri:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)")  # see ``_INVALID_IRI_PREFIX``
 
 
+_STAND_IN_LANG = re.compile(r", datatype=<urn:starlayer:invalid-lang:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)>")  # see ``_INVALID_LANG_PREFIX``
+
+
 def unmask(message: str) -> str:
-    """``message`` with every lenient-mode stand-in IRI (``urn:starlayer:invalid-iri:...``) replaced by the original term text,
-    so a message or a report text shows the term the user wrote. Text, not terms: the report graph keeps the stand-ins."""
-    if "urn:starlayer:invalid-iri:" not in message:
+    """``message`` with every lenient-mode stand-in replaced by the original term text, so a message or a report text shows the
+    term the user wrote: an IRI stand-in (``urn:starlayer:invalid-iri:...``) by the IRI text, a rendered literal whose datatype is
+    an invalid-lang stand-in by its language tag (``Literal("v", lang=e)``). Text, not terms: the report graph keeps the stand-ins."""
+    if "urn:starlayer:invalid-" not in message:
         return message
-    return _STAND_IN_IRI.sub(lambda m: unquote(m.group(1)), message)
+    message = _STAND_IN_LANG.sub(lambda m: ", lang=" + unquote(m.group(1), errors="surrogatepass"), message)
+    return _STAND_IN_IRI.sub(lambda m: unquote(m.group(1), errors="surrogatepass"), message)
 
 
 def local_name(iri: ox.NamedNode) -> str:
@@ -156,6 +161,10 @@ _VARIABLE_PREFIX = "urn:starlayer:variable:"  # an rdflib ``Variable`` crosses t
 _INVALID_IRI_PREFIX = "urn:starlayer:invalid-iri:"  # + percent-encoded text: an IRI term (also as a literal datatype)
 _INVALID_LANG_PREFIX = "urn:starlayer:invalid-lang:"  # + percent-encoded tag: the datatype of a literal with a bad tag
 _INVALID_BNODE_PREFIX = "starlayer-invalid-bnode-"  # + hex of the UTF-8 id
+# + hex of the lexical form (UTF-8, surrogates kept), "-", then "d" + the percent-encoded datatype IRI, "l" + the language tag or
+# nothing (a plain string): the datatype of a literal whose lexical form holds a lone surrogate (the direction of a tag is not kept)
+_INVALID_LITERAL_PREFIX = "urn:starlayer:invalid-literal:"
+_SURROGATE = re.compile("[\ud800-\udfff]")
 
 TERM_POLICIES = ("error", "lenient")
 _POLICY: contextvars.ContextVar[str] = contextvars.ContextVar("starlayer_shacl_term_policy", default="error")
@@ -168,7 +177,7 @@ class StarLayerFidelityWarning(UserWarning):
 
 class TermError(ValueError):
     """A term that is not an RDF 1.2 term (and so cannot be an engine term): a relative or invalid IRI, a blank node id
-    Oxigraph rejects, a malformed language tag.
+    Oxigraph rejects, a malformed language tag, a literal subject or a predicate that is not an IRI.
 
     Policy (one, for the whole engine): the engine validates RDF graphs, and SHACL 1.2 is defined over RDF graphs, in which an
     IRI is an absolute IRI. A graph holding such a term has no defined validation report (not a ``sh:nodeKind`` question,
@@ -181,9 +190,11 @@ class TermError(ValueError):
     still an IRI (``sh:nodeKind sh:IRI`` holds, ``sh:IRI`` is what rdflib says too) but its text is the stand-in
     ``urn:starlayer:invalid-iri:<percent-encoded original>``, so text-based constraints (``sh:pattern``, ``sh:minLength``,
     ``sh:uniqueLang`` ...) see that text; a literal with a malformed language tag is a literal whose datatype is
-    ``urn:starlayer:invalid-lang:<tag>`` (it is not ``rdf:langString``); a bad blank node id is a blank node.
+    ``urn:starlayer:invalid-lang:<tag>`` (it is not ``rdf:langString``); a bad blank node id is a blank node; a literal whose
+    lexical form holds a lone UTF-16 surrogate (not a Unicode scalar value) is a literal of datatype
+    ``urn:starlayer:invalid-literal:...`` whose lexical form shows U+FFFD in place of the surrogate.
 
-    Attributes: ``term`` (the offending rdflib term), ``kind`` (``"iri"`` / ``"bnode"`` / ``"language"``), ``reason``,
+    Attributes: ``term`` (the offending rdflib term), ``kind`` (``"iri"`` / ``"bnode"`` / ``"language"`` / ``"literal"`` / ``"term"``: a literal subject or a predicate that is not an IRI, which under the lenient policy is left out of the copy), ``reason``,
     ``where`` (graph label such as ``"data graph"``), ``position`` (``"subject"`` / ``"predicate"`` / ``"object"`` /
     ``"datatype"``), ``triple`` (the first triple it was found in), ``errors`` (all offenders found, for an aggregate)."""
 
@@ -246,7 +257,7 @@ def _iri_or_stand_in(text_: str, original: Any) -> ox.NamedNode:
         err = TermError(original, "iri", str(exc))
         if _POLICY.get() != "lenient":
             raise err from None
-        return ox.NamedNode(_INVALID_IRI_PREFIX + quote(text_, safe=""))
+        return ox.NamedNode(_INVALID_IRI_PREFIX + quote(text_, safe="", errors="surrogatepass"))
 
 
 def _bnode_or_stand_in(text_: str, original: Any) -> ox.BlankNode:
@@ -266,7 +277,22 @@ def _lang_literal_or_stand_in(lexical_: str, lang: str, original: Any, direction
         err = TermError(original, "language", str(exc))
         if _POLICY.get() != "lenient":
             raise err from None
-        return ox.Literal(lexical_, datatype=ox.NamedNode(_INVALID_LANG_PREFIX + quote(lang, safe="")))
+        return ox.Literal(lexical_, datatype=ox.NamedNode(_INVALID_LANG_PREFIX + quote(lang, safe="", errors="surrogatepass")))
+
+
+def has_lone_surrogate(text_: str) -> bool:
+    return _SURROGATE.search(text_) is not None
+
+
+def _surrogate_literal_stand_in(lexical_: str, original: Any, datatype: Any = None, lang: str | None = None) -> ox.Literal:
+    """A literal whose lexical form holds a lone surrogate: ``TermError``, or under the lenient policy an opaque stand-in."""
+    err = TermError(original, "literal", "the lexical form holds a lone surrogate, which is not a Unicode scalar value")
+    if _POLICY.get() != "lenient":
+        raise err from None
+    spec = "l" + quote(lang, safe="", errors="surrogatepass") if lang else "d" + quote(datatype.value, safe="") if datatype is not None else ""
+    payload = lexical_.encode("utf-8", "surrogatepass").hex()
+    shown = _SURROGATE.sub("\ufffd", lexical_)
+    return ox.Literal(shown, datatype=ox.NamedNode(_INVALID_LITERAL_PREFIX + payload + "-" + spec))
 
 
 def _bridge() -> Any:

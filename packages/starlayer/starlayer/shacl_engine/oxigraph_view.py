@@ -46,16 +46,42 @@ _WORD = re.compile(r"[A-Za-z_]+")
 _SELECT_NEXT = re.compile(r"(?:\s|#[^\n]*\n)*SELECT\b", re.I)
 
 
+_BLANKS = re.compile(r"(?:\s|#[^\n]*\n)*")
+
+
+def _close_brace(text: str, k: int) -> int:
+    """The index of the ``}`` that closes the ``{`` at ``text[k]`` (strings, IRIs and comments skipped); ``len(text)`` if none."""
+    from starlayer.graph.oxgraph.run import _IRI_AT, _STRING_AT
+
+    depth, i, n = 0, k, len(text)
+    while i < n:
+        c = text[i]
+        if c == "#":
+            j = text.find("\n", i)
+            i = n if j < 0 else j
+            continue
+        m = _STRING_AT.match(text, i) if c in "\"'" else _IRI_AT.match(text, i) if c == "<" else None
+        if m is not None:
+            i = m.end()
+            continue
+        depth += (c == "{") - (c == "}")
+        if depth == 0:
+            return i
+        i += 1
+    return n
+
+
 def inject_everywhere(text: str, values: str) -> str:
     """``text`` with the ``values`` clause (``VALUES (?x) { (t) }``) put at the start of every group graph pattern, so a pre-bound
     variable is bound inside nested groups too, as SHACL 1.2 SPARQL Appendix A defines pre-binding (Oxigraph's ``substitutions``
-    do not reach a group that holds only a ``FILTER``). Not in a sub-select's opening brace, a ``VALUES`` data block or a
-    ``CONSTRUCT`` template. Strings, IRIs and comments are skipped."""
+    do not reach a group that holds only a ``FILTER``). Not in a sub-select's opening brace, a ``VALUES`` data block, a
+    ``CONSTRUCT`` template or a ``{|`` annotation block. ``CONSTRUCT WHERE { P }`` is first written out as
+    ``CONSTRUCT { P } WHERE { VALUES ... P }``. Strings, IRIs and comments are skipped."""
     from starlayer.graph.oxgraph.run import _IRI_AT, _STRING_AT
 
     out: list[str] = []
     i, n = 0, len(text)
-    after_values = construct = construct_where = False
+    after_values = construct = False
     while i < n:
         c = text[i]
         if c == "#":
@@ -74,26 +100,33 @@ def inject_everywhere(text: str, values: str) -> str:
             word = w.group(0) if w else c
             j = i + len(word)
             upper = word.upper()
-            if text[i - 1 : i] not in "?$:" or i == 0:
+            before, after = text[i - 1 : i] if i else "", text[j : j + 1]
+            # a keyword is a whole word: not part of a prefixed name or a variable (``ex:has-values``, ``?values``, ``a1values``)
+            if not (before.isalnum() or before in ("?", "$", ":", "_", "-")) and not (after.isalnum() or after in ("_", "-", ":")):
                 if upper == "VALUES":
                     after_values = True
                 elif upper == "CONSTRUCT":
                     construct = True
                 elif upper == "WHERE" and construct:
-                    construct, construct_where = False, True
+                    construct = False
+                    k = _BLANKS.match(text, j).end()
+                    if text[k : k + 1] == "{":  # the short form: the pattern is also the template
+                        end = _close_brace(text, k)
+                        body = text[k + 1 : end]
+                        out.append("{" + body + "} WHERE { " + values + " " + body + "}")
+                        i = end + 1
+                        continue
             out.append(text[i:j])
             i = j
             continue
         out.append(c)
         i += 1
         if c == "{":
-            skip = after_values or construct or construct_where or _SELECT_NEXT.match(text, i) is not None
+            skip = after_values or construct or text[i : i + 1] == "|" or _SELECT_NEXT.match(text, i) is not None
             if after_values:
                 after_values = False
             elif construct:
                 construct = False
-            elif construct_where:
-                construct_where = False
             if not skip:
                 out.append(" " + values + " ")
     return "".join(out)
@@ -106,6 +139,9 @@ class OxigraphGraph:
 
     def __init__(self, store: ox.Store | None = None, graph_name: Any = UNION) -> None:
         self.store = store if store is not None else ox.Store()
+        from starlayer.graph.oxgraph import union
+
+        self._overlap = union.Overlap()
         self.graph_name = graph_name
         if graph_name is UNION:
             self._graph = None
@@ -227,8 +263,14 @@ class OxigraphGraph:
             kwargs["base_iri"] = base_iri
         if custom_functions:
             kwargs["custom_functions"] = custom_functions
+        store = self.store
         if self._graph is None:
-            kwargs["use_default_graph_as_union"] = True
+            # Oxigraph's union default graph counts a triple once per graph that holds it; the view is a set, so a store
+            # with such a triple is queried through its merged copy, whose default graph is the set (see ``union.py``)
+            if self._overlap.overlapping(store):
+                store = self._overlap.store(store)
+            else:
+                kwargs["use_default_graph_as_union"] = True
         else:
             kwargs["default_graph"] = self._graph
         from starlayer.graph.oxgraph import run as oxrun
@@ -237,9 +279,9 @@ class OxigraphGraph:
             # pre-binding as the draft defines it: the binding is part of every group (see ``inject_everywhere``)
             header = " ".join("?" + v.value for v in subs)
             row = " ".join(oxrun._sparql_term(t) for t in subs.values())
-            return self.store.query(inject_everywhere(text, f"VALUES ({header}) {{ ({row}) }}"), **kwargs)  # str-ok: SPARQL text
+            return store.query(inject_everywhere(text, f"VALUES ({header}) {{ ({row}) }}"), **kwargs)  # str-ok: SPARQL text
         try:
-            return self.store.query(text, **kwargs, **({"substitutions": subs} if subs else {}))
+            return store.query(text, **kwargs, **({"substitutions": subs} if subs else {}))
         except RuntimeError as exc:
             if not subs or "projection" not in f"{exc}":  # str-ok: an exception message
                 raise
@@ -247,9 +289,9 @@ class OxigraphGraph:
             from starlayer.graph.oxgraph.sparql_text import inject_init_bindings
 
             if any(oxrun._has_blank(v) for v in subs.values()):
-                return oxrun._query_widening(self.store, text, kwargs, subs, exc)
+                return oxrun._query_widening(store, text, kwargs, subs, exc)
             injected = inject_init_bindings(text, {k.value: oxrun._sparql_term(v) for k, v in subs.items()})
-            return self.store.query(injected, **kwargs)
+            return store.query(injected, **kwargs)
 
     def sparql_query(self, text: str, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None) -> Any:
         """The ``SparqlCapable`` hook (see ``interface.py``): SELECT/ASK with pre-bound variables, run natively.

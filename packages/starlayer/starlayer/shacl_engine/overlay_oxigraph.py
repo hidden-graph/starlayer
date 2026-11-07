@@ -16,6 +16,7 @@ literal is answered from the Python side only, never from the store. A triple wh
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Iterator
 from typing import Any
 
@@ -24,6 +25,7 @@ import pyoxigraph as ox
 from starlayer.shacl_engine.rules import InferredView, Triple
 
 _SCRATCH = ox.Store()
+_SCRATCH_LOCK = threading.Lock()  # the scratch store is shared: one round trip at a time
 _SAFE: dict[tuple, bool] = {}
 _S, _P = ox.NamedNode("http://example.org/scratch#s"), ox.NamedNode("http://example.org/scratch#p")
 
@@ -40,10 +42,11 @@ def literal_survives_store(term: ox.Literal) -> bool:
 
 def _round_trip_ok(term: ox.Literal) -> bool:
     try:
-        _SCRATCH.clear()
-        _SCRATCH.add(ox.Quad(_S, _P, term, ox.DefaultGraph()))
-        back = next(iter(_SCRATCH)).object
-        _SCRATCH.clear()
+        with _SCRATCH_LOCK:
+            _SCRATCH.clear()
+            _SCRATCH.add(ox.Quad(_S, _P, term, ox.DefaultGraph()))
+            back = next(iter(_SCRATCH)).object
+            _SCRATCH.clear()
     except (TypeError, ValueError, RuntimeError):
         return False
     # exact comparison of the parts: Literal equality alone could hide a rewritten language-tag case
