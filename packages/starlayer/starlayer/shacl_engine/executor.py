@@ -3,6 +3,9 @@
 from __future__ import annotations
 
 import sys
+import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -243,6 +246,33 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
 _FRAMES_PER_SHAPE_LEVEL = 12  # an upper estimate: a plain sh:node chain costs 5
 _UNBOUNDED_RECURSION_LIMIT = 20_000
 
+_limit_lock = threading.Lock()
+_limit_users = 0
+_limit_original = 0
+
+
+@contextmanager
+def _recursion_room(wanted: int) -> Iterator[None]:
+    """Raise the interpreter's recursion limit to ``wanted`` for the duration of a run. The limit is process-wide, so
+    concurrent runs share one raise and the last one out restores the original; only the main thread raises it (a
+    secondary thread's stack is smaller), and there too a too-deep chain ends as a ShapeError."""
+    global _limit_users, _limit_original
+    if threading.current_thread() is not threading.main_thread():
+        yield
+        return
+    with _limit_lock:
+        if _limit_users == 0:
+            _limit_original = sys.getrecursionlimit()
+        _limit_users += 1
+        sys.setrecursionlimit(max(sys.getrecursionlimit(), wanted))
+    try:
+        yield
+    finally:
+        with _limit_lock:
+            _limit_users -= 1
+            if _limit_users == 0:
+                sys.setrecursionlimit(_limit_original)
+
 
 def run(
     plan: Plan,
@@ -254,52 +284,26 @@ def run(
 ) -> list[Result]:
     """Validate every declared shape. ``stats`` (optional) receives ``recursion_revisits`` for the run's diagnostics.
 
-    Each shape nesting level uses several Python frames, so a chain well inside ``max_validation_depth`` can exhaust the
-    default recursion limit. The run is then repeated once with a larger limit (main thread only, where the C stack is
-    large enough); if that is not enough either, the failure is a ShapeError rather than a RecursionError.
+    Each shape nesting level costs several interpreter frames, so the recursion limit is raised to fit the documented
+    ``max_validation_depth`` (``None``: a generous fixed allowance): the bound, not the interpreter's default limit, is
+    what stops a deep chain. A chain that still exhausts the stack is a ShapeError, not a RecursionError.
     """
-    import sys
-    import threading
-
-    try:
-        return _run(plan, data, abort_on_first, max_validation_depth, stats)
-    except RecursionError:
-        if threading.current_thread() is not threading.main_thread():
-            raise ShapeError("Validation path too deep for the Python stack") from None
-    limit = sys.getrecursionlimit()
-    sys.setrecursionlimit(limit * _DEPTH_RETRY_FACTOR)
-    try:
-        return _run(plan, data, abort_on_first, max_validation_depth, stats)
-    except RecursionError:
-        raise ShapeError("Validation path too deep for the Python stack") from None
-    finally:
-        sys.setrecursionlimit(limit)
-
-
-_DEPTH_RETRY_FACTOR = 8
-
-
-def _run(plan, data, abort_on_first, max_validation_depth, stats) -> list[Result]:
     ctx = Context(data=data, plan=plan, abort_on_first=abort_on_first, max_validation_depth=max_validation_depth)
     results: list[Result] = []
-    # each nested shape costs several interpreter frames: make room for the documented bound (``None``: a generous fixed
-    # allowance), so the bound, not the interpreter's default limit, is what stops a deep chain
-    previous_limit = sys.getrecursionlimit()
     wanted = _UNBOUNDED_RECURSION_LIMIT if max_validation_depth is None else max_validation_depth * _FRAMES_PER_SHAPE_LEVEL + 1000
-    sys.setrecursionlimit(max(previous_limit, wanted))
     try:
-        for node in plan.all_shape_nodes():
-            shape = plan.shape(node)
-            if shape.deactivated:
-                continue
-            for focus in ctx.shape_focus(shape):
-                results.extend(validate_shape_at(ctx, shape, focus))
-                if results and abort_on_first:
-                    return results
+        with _recursion_room(wanted):
+            for node in plan.all_shape_nodes():
+                shape = plan.shape(node)
+                if shape.deactivated:
+                    continue
+                for focus in ctx.shape_focus(shape):
+                    results.extend(validate_shape_at(ctx, shape, focus))
+                    if results and abort_on_first:
+                        return results
         return results
     except RecursionError as exc:
         raise ShapeError("Validation path too deep: the shapes nest more deeply than the interpreter's recursion limit allows") from exc
     finally:
-        sys.setrecursionlimit(previous_limit)
         if stats is not None:
             stats["recursion_revisits"] = ctx.recursion_revisits

@@ -508,7 +508,7 @@ def _float32_lexical(x: float) -> str:
     if single != single or single in (float("inf"), float("-inf")):
         return _float_lexical(single)
     for digits in range(1, 10):
-        candidate = float(f"{single:.{digits}g}")
+        candidate = float(f"{single:.{digits}g}")  # str-ok: a float and a digit count, not terms
         if struct.unpack("f", struct.pack("f", candidate))[0] == single:
             return repr(candidate)
     return repr(single)
@@ -636,7 +636,7 @@ def _sparql_args(ctx, expr, pred, focus, scope, arity: tuple[int, ...] | None = 
     members = _args(ctx, expr, pred)
     if arity is not None and len(members) not in arity:
         want = " or ".join(str(n) for n in arity)  # str-ok: counts
-        raise ShapeError(f"{expr!r}: {text(pred)} needs a list of {want} expression(s), got {len(members)}")
+        raise ShapeError(f"{expr!r}: {text(pred)} needs a list of {want} expression(s), got {len(members)}")  # str-ok: want is a count
     return [_arg_state(ctx, a, focus, scope) for a in members]
 
 

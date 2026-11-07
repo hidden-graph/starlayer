@@ -237,3 +237,16 @@ def test_evaluate_runs_a_nested_property_shape_at_the_value_nodes_of_its_host():
         (str(s.value).rsplit("/", 1)[-1], o.value) for s, p, o in out.triples((None, None, None)) if p.value.endswith("echo")
     )
     assert got == [("bob", "Bob")]
+
+
+def test_recursion_limit_is_restored_after_nested_runs():
+    import sys
+
+    from starlayer.shacl_engine.executor import _recursion_room
+
+    before = sys.getrecursionlimit()
+    with _recursion_room(before + 5000):
+        with _recursion_room(before + 9000):
+            assert sys.getrecursionlimit() == before + 9000
+        assert sys.getrecursionlimit() == before + 9000  # the outer run is still active
+    assert sys.getrecursionlimit() == before
