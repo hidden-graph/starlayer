@@ -247,7 +247,34 @@ def run(
     max_validation_depth: int | None = None,
     stats: dict | None = None,
 ) -> list[Result]:
-    """Validate every declared shape. ``stats`` (optional) receives ``recursion_revisits`` for the run's diagnostics."""
+    """Validate every declared shape. ``stats`` (optional) receives ``recursion_revisits`` for the run's diagnostics.
+
+    Each shape nesting level uses several Python frames, so a chain well inside ``max_validation_depth`` can exhaust the
+    default recursion limit. The run is then repeated once with a larger limit (main thread only, where the C stack is
+    large enough); if that is not enough either, the failure is a ShapeError rather than a RecursionError.
+    """
+    import sys
+    import threading
+
+    try:
+        return _run(plan, data, abort_on_first, max_validation_depth, stats)
+    except RecursionError:
+        if threading.current_thread() is not threading.main_thread():
+            raise ShapeError("Validation path too deep for the Python stack") from None
+    limit = sys.getrecursionlimit()
+    sys.setrecursionlimit(limit * _DEPTH_RETRY_FACTOR)
+    try:
+        return _run(plan, data, abort_on_first, max_validation_depth, stats)
+    except RecursionError:
+        raise ShapeError("Validation path too deep for the Python stack") from None
+    finally:
+        sys.setrecursionlimit(limit)
+
+
+_DEPTH_RETRY_FACTOR = 8
+
+
+def _run(plan, data, abort_on_first, max_validation_depth, stats) -> list[Result]:
     ctx = Context(data=data, plan=plan, abort_on_first=abort_on_first, max_validation_depth=max_validation_depth)
     results: list[Result] = []
     try:

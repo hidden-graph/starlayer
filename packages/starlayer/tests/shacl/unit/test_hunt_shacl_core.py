@@ -172,3 +172,26 @@ def test_unique_values_for_reports_a_sh_node_focus_that_duplicates_a_target():
 def test_unique_values_for_still_needs_another_node_with_the_same_values():
     assert _unique_foci('ex:a ex:id "1" . ex:b ex:id "2" . ex:z ex:id "3" .') == []
     assert _unique_foci('ex:a ex:id "1" . ex:b ex:id "1" . ex:z ex:id "3" .') == ["a", "b"]
+
+
+def _chain(n: int):
+    data = "".join(f"ex:n{i} ex:next ex:n{i + 1} .\n" for i in range(n))
+    shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:n0 ; sh:property [ sh:path ex:next ; sh:node ex:S ] ."
+    return graph(data), graph(shapes)
+
+
+def test_recursive_sh_node_chain_below_the_depth_limit_does_not_hit_the_python_stack():
+    d, s = _chain(200)
+    assert validate(d, s).conforms
+
+
+def test_recursive_chain_past_the_depth_limit_is_a_shape_error_not_a_recursion_error():
+    d, s = _chain(60)
+    with pytest.raises(ShapeError):
+        validate(d, s, max_validation_depth=20)
+
+
+def test_chain_deeper_than_the_default_depth_limit_is_a_shape_error():
+    d, s = _chain(300)
+    with pytest.raises(ShapeError):
+        validate(d, s)
