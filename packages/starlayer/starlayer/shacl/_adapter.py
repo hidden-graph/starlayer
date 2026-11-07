@@ -291,6 +291,20 @@ def apply_rules(
     data, shapes, ont = _normalise(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph, options.get("invalid_terms")
     )
+    meta_shacl = engine_kwargs.pop("meta_shacl", None)
+    if meta_shacl:  # the same preflight as validate(), on the shapes graph as given
+        _meta_preflight(
+            shapes, passthrough.get("meta_shapes_extra", ()), engine_kwargs.get("conformance_disallows")
+        )
+    if passthrough.get("data_graph_iri") is None:  # the report names the caller's data graph, not the rule overlay view
+        passthrough["data_graph_iri"] = api._identity_of(data)
+    loader = passthrough.get("shapes_graph_loader")
+    if loader is not None:  # the rules of an imported module run too: imports first, as validate() does
+        from starlayer.shacl_engine.imports import resolve_imports
+
+        if passthrough.get("shapes_graph_iri") is None:
+            passthrough["shapes_graph_iri"] = api._identity_of(shapes)
+        shapes = resolve_imports(shapes, loader, bool(passthrough.get("ignore_imports")))
     # "before rules" entailment pass: the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
     base = resolve_data_view(data, shapes, inference=inference, ont_graph=ont)
     result = rules.apply_rules(

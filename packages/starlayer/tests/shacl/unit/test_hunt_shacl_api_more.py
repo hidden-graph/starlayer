@@ -75,3 +75,51 @@ def test_used_shapes_graph_kept_when_imports_resolved_with_loader():
     used = ox.NamedNode("http://www.w3.org/ns/shacl#usedShapesGraph")
     r = validate(data, shapes, shapes_graph_loader=loader)
     assert [o for _, _, o in r.report_graph.triples((None, used, None))] == [ox.NamedNode("http://e/shapesG")]
+
+
+# --- apply_rules takes validate()'s options
+
+
+def test_apply_rules_meta_shacl_checks_sparql_text_like_validate():
+    from starlayer.shacl import ShapeError, apply_rules
+
+    def shapes():
+        return g(
+            """ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:select "SELECT $this ?y WHERE { $this ex:p ?x }" ;
+              sh:prefixes ex:Pf ; sh:message "m" ] .
+            ex:Pf sh:declare [ sh:prefix "ex" ; sh:namespace "http://e/"^^xsd:anyURI ] .""",
+            ox.NamedNode("http://e/g"),
+        )
+
+    d = g("ex:a ex:p 1 .")
+    with pytest.raises(ShapeError):
+        validate(d, shapes(), meta_shacl=True)
+    with pytest.raises(ShapeError):
+        apply_rules(d, shapes(), meta_shacl=True)
+
+
+_RULE = (
+    "ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:made ; "
+    "sh:object 1 ] ; sh:property [ sh:path ex:made ; sh:minCount 1 ] ."
+)
+
+
+def test_apply_rules_runs_rules_of_imported_shapes():
+    from starlayer.shacl import apply_rules
+
+    main = g("<http://e/main> a owl:Ontology ; owl:imports <http://e/lib> .")
+    d = g("ex:n a ex:C .")
+    r = apply_rules(d, main, shapes_graph_loader=lambda iri: g(_RULE))
+    assert len(r.inferred_graph) == 1
+    assert r.validation.conforms is True
+
+
+def test_apply_rules_validation_records_used_data_graph_identity():
+    from starlayer.shacl import apply_rules
+
+    d = g("ex:a ex:q 1 .", ox.NamedNode("http://e/data"))
+    s = g("ex:S a sh:NodeShape ; sh:targetNode ex:a .", ox.NamedNode("http://e/shapes"))
+    used = ox.NamedNode("http://www.w3.org/ns/shacl#usedDataGraph")
+    assert [o for _, _, o in apply_rules(d, s).validation.report_graph.triples((None, used, None))] == [
+        ox.NamedNode("http://e/data")
+    ]
