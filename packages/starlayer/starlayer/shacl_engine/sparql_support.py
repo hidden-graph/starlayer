@@ -18,7 +18,7 @@ from typing import Any
 from starlayer.shacl_engine.components.registry import Violation
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
-from starlayer.shacl_engine.terms import OWL, RDF, XSD, Literal
+from starlayer.shacl_engine.terms import OWL, RDF, XSD, BlankNode, Literal
 from starlayer.shacl_engine.terms import NamedNode as URIRef
 from starlayer.shacl_engine.terms import text as text_of
 
@@ -213,8 +213,11 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
 
     def make(fn: Term, body: Term) -> Any:
         def call(*args: Term) -> Term | None:
+            if any(isinstance(a, BlankNode) for a in args):
+                return None  # SPARQL-Related Features 7.3: an argument that is a blank node is an evaluation failure, hence an error
             try:
-                out = evaluate_expression(ctx, body, None, {i: [a] for i, a in enumerate(args)})
+                # 7.3: "the focusNode passed into a custom SPARQL function based on a node expression is the IRI of the function"
+                out = evaluate_expression(ctx, body, fn, {i: [a] for i, a in enumerate(args)})
             except (EvaluationFailure, ShapeError):
                 return None
             return out[0] if len(out) == 1 else None

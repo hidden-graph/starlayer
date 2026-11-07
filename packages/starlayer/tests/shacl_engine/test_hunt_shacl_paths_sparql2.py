@@ -155,6 +155,24 @@ def test_sum_of_floats_is_a_float_lexical_form():
 _FN_PRE = 'ex: sh:declare [ sh:prefix "ex"; sh:namespace "http://example.com/" ] .\n'
 
 
+def test_custom_sparql_function_body_sees_function_iri_as_focus_node():
+    shapes = G(
+        _FN_PRE
+        + 'ex:who a sh:ListParameterExpressionFunction; sh:bodyExpression [ shnex:var "focusNode" ] .\n'
+        'ex:S a sh:NodeShape; sh:targetClass ex:C; sh:sparql [ sh:prefixes ex: ; sh:message "m" ; sh:select "SELECT $this WHERE { FILTER(ex:who() = ex:who) }" ] .'
+    )
+    assert not validate(G("ex:a a ex:C ."), shapes).conforms
+
+
+def test_custom_sparql_function_blank_node_argument_is_an_error():
+    shapes = G(
+        _FN_PRE
+        + "ex:isBl a sh:ListParameterExpressionFunction; sh:bodyExpression [ sparql:isBlank ( [ shnex:arg 0 ] ) ] .\n"
+        'ex:S a sh:NodeShape; sh:targetClass ex:C; sh:sparql [ sh:prefixes ex: ; sh:message "m" ; sh:select "SELECT $this WHERE { FILTER(ex:isBl(BNODE()) = true) }" ] .'
+    )
+    assert validate(G("ex:a a ex:C ."), shapes).conforms
+
+
 def test_scope_variable_named_this_fails():
     g = G('ex:root ex:expr [ sh:select "SELECT ?r WHERE { BIND($this AS ?r) }" ] .')
     expr = next(g.objects(EX.root, EX.expr))
