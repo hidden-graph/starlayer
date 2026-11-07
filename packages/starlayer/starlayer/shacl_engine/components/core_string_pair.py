@@ -129,7 +129,7 @@ def _compile(shape: Any, pattern: str, flags: str) -> re.Pattern:
         if "q" in flags:
             text = re.escape(pattern)
         else:
-            text = xpath_regex_to_python(pattern)
+            text = xpath_regex_to_python(pattern, multiline="m" in flags, dotall="s" in flags)
             if "x" in flags:
                 text = _strip_free_space(text)
         return re.compile(text, py_flags)

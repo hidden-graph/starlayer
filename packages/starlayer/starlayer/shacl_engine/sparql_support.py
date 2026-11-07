@@ -190,9 +190,8 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
     (SPARQL Extensions 7.3: "SHOULD register a function"). The call's arguments become the scope ``0, 1, ...`` of the
     body expression, which must have exactly one output node, else the call is a SPARQL error (the function call gives no
     value). Read once per plan: the shapes graph does not change during a run."""
-    shapes = ctx.shapes
-    cache = ctx.plan.sparql_cache
-    functions = cache.get(("shacl-functions",))
+    run_cache = ctx.cache  # per run: the callables close over this run's data graph, so a shared plan must not keep them
+    functions = run_cache.get(("shacl-functions",))
     if functions is not None:
         return functions
     from starlayer.shacl_engine.expressions import (
@@ -200,7 +199,16 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
         evaluate_expression,
     )
 
-    def make(fn: Term, body: Term) -> Any:
+    declared = ctx.plan.sparql_cache.get(("shacl-function-bodies",))  # function IRI -> body node: shapes-graph only
+    if declared is None:
+        shapes = ctx.shapes
+        declared = ctx.plan.sparql_cache[("shacl-function-bodies",)] = {
+            fn: body
+            for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
+            if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
+        }
+
+    def make(body: Term) -> Any:
         def call(*args: Term) -> Term | None:
             try:
                 out = evaluate_expression(ctx, body, None, {i: [a] for i, a in enumerate(args)})
@@ -210,11 +218,7 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
 
         return call
 
-    functions = cache[("shacl-functions",)] = {
-        fn: make(fn, body)
-        for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
-        if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
-    }
+    functions = run_cache[("shacl-functions",)] = {fn: make(body) for fn, body in declared.items()}
     return functions
 
 
@@ -271,7 +275,9 @@ def fill_template(message: Term, values: Mapping[str, Term]) -> Term:
         return m.group(0) if v is None else text_of(v)
 
     filled = _TEMPLATE.sub(one, message.value)
-    return Literal(filled, language=message.language) if message.language else Literal(filled, datatype=message.datatype)
+    if message.language:
+        return Literal(filled, language=message.language, direction=message.direction)
+    return Literal(filled, datatype=message.datatype)
 
 
 def is_true(value: Term) -> bool:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterator
 from typing import Any
 
@@ -51,8 +52,11 @@ def _only_true(term: Any, what: str) -> bool:
     return _boolean(term, what) and term.value == "true"
 
 
+_INTEGER = re.compile(r"[+-]?[0-9]+")  # the xsd:integer lexical form; str.isdigit() also accepts "\u00b2" and "\u0663"
+
+
 def _count(term: Any, what: str) -> int:
-    if isinstance(term, Literal) and term.datatype == XSD.integer and term.value.lstrip("+-").isdigit():
+    if isinstance(term, Literal) and term.datatype == XSD.integer and _INTEGER.fullmatch(term.value):
         return int(term.value)
     raise ShapeError(f"{what} must be an xsd:integer literal, got {term!r}")
 
@@ -155,6 +159,18 @@ def qualified_max(ctx, shape, params, focus, values):
                 yield Violation()
 
 
+def _shacl_types(shapes: Any, node_: Any) -> set:
+    """The SHACL types of a node: its rdf:type values and their rdfs:subClassOf ancestors, in the shapes graph."""
+    found: set = set()
+    stack = list(shapes.objects(node_, RDF.type))
+    while stack:
+        t = stack.pop()
+        if t not in found:
+            found.add(t)
+            stack.extend(shapes.objects(t, RDFS.subClassOf))
+    return found
+
+
 def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
     """collectProperties from the sh:ByTypes definition: own sh:property paths, plus, for a class, its superclasses'
     and the targeting shapes' properties, plus, for a node shape, those of its sh:node shapes."""
@@ -162,7 +178,7 @@ def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
         return set()
     visited.add(node_)
     props = {p for ps in shapes.objects(node_, SH.property) for p in shapes.objects(ps, SH.path) if isinstance(p, NamedNode)}
-    types = set(shapes.objects(node_, RDF.type))
+    types = _shacl_types(shapes, node_)
     if isinstance(node_, NamedNode) and (RDFS.Class in types or SH.ShapeClass in types):
         for sup in shapes.objects(node_, RDFS.subClassOf):
             props |= _collect_properties(shapes, sup, visited)
@@ -177,8 +193,10 @@ def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
 @component(SH.ClosedConstraintComponent, SH.closed, SH.ignoredProperties)
 def closed(ctx, shape, params, focus, values):
     closed_vals = params.get(SH.closed, ())
+    if not closed_vals:
+        return  # sh:closed is the only required parameter: sh:ignoredProperties alone is not an instance of the component
     if len(closed_vals) != 1:
-        raise ShapeError(f"{text(shape.node)}: sh:ignoredProperties without exactly one sh:closed")
+        raise ShapeError(f"{text(shape.node)}: more than one sh:closed")
     mode = closed_vals[0]
     by_types = mode == SH.ByTypes
     if not by_types and not _boolean(mode, "sh:closed"):
@@ -229,10 +247,17 @@ def reifier_shape(ctx, shape, params, focus, values):
 
 @component(SH.RootClassConstraintComponent, SH.rootClass)
 def root_class(ctx, shape, params, focus, values):
-    roots = params[SH.rootClass]
-    for r in roots:
-        if not isinstance(r, NamedNode | BlankNode):
-            raise ShapeError(f"sh:rootClass must be an IRI or blank node, got {r!r}")
+    roots: set = set()
+    for r in params[SH.rootClass]:
+        if isinstance(r, NamedNode):
+            roots.add(r)
+        elif isinstance(r, BlankNode):  # Core 6.10.9.4: a blank node is a SHACL list of IRIs
+            members = shacl_list(ctx.shapes, r)
+            if not all(isinstance(m, NamedNode) for m in members):
+                raise ShapeError(f"sh:rootClass list members must be IRIs, got {text(r)}")
+            roots.update(members)
+        else:
+            raise ShapeError(f"sh:rootClass must be an IRI or a list of IRIs, got {r!r}")
     for v in values:
         seen, stack = set(), [v]
         found = False

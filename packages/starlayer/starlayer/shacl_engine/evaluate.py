@@ -80,11 +80,7 @@ def evaluate(
         predicate = pshape.path.iri
         if wanted_predicates is not None and predicate not in wanted_predicates:
             continue
-        foci: dict[Any, None] = dict.fromkeys(ctx.shape_focus(pshape))
-        for host_node in dict.fromkeys(shapes.subjects(SH.property, node)):
-            host = plan.shape(host_node)
-            if not host.deactivated:
-                foci.update(dict.fromkeys(f for f in ctx.shape_focus(host) if not deactivated_at(ctx, host, f)))
+        foci = _foci(ctx, plan, shapes, node, ())
         for focus in foci:
             if wanted_focus is not None and focus not in wanted_focus:
                 continue
@@ -95,3 +91,23 @@ def evaluate(
     out.extend(found)
     return out
 
+
+
+def _foci(ctx: Context, plan: Plan, shapes: Any, node: Any, active: tuple) -> dict[Any, None]:
+    """The focus nodes a shape applies to: its own targets, plus for each shape that lists it with ``sh:property`` the
+    host's focus nodes, or, when the host is itself a property shape, the host's value nodes (Core, "Value Nodes of
+    Property Shapes")."""
+    shape = plan.shape(node)
+    foci: dict[Any, None] = dict.fromkeys(ctx.shape_focus(shape))
+    for host_node in dict.fromkeys(shapes.subjects(SH.property, node)):
+        host = plan.shape(host_node)
+        if host.deactivated or host_node in active or host_node == node:
+            continue
+        for f in _foci(ctx, plan, shapes, host_node, (*active, node)):
+            if deactivated_at(ctx, host, f):
+                continue
+            if host.path is None:
+                foci[f] = None
+            else:
+                foci.update(dict.fromkeys(ctx.value_nodes(host, f)))
+    return foci

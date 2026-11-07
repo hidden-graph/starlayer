@@ -41,11 +41,14 @@ def unique_values_for(ctx, shape, params, focus, values):
             sets = [frozenset(ctx.data.objects(node, p)) for p in props]
             return None if any(not s for s in sets) else tuple(sets)
 
-        # Group the shape's focus nodes by key once per (shape, parameter value); a node violates when its key is shared.
+        # Group the shape's target nodes by key once per (shape, parameter value). Core 6.10.9.5: the targets are those of the
+        # shape even when the focus node was provided directly (sh:node), so a violation needs *another* target with the key.
         memo = ctx.cache.get(("uniqueValuesFor", shape.node, spec))
         if memo is None:
-            memo = Counter(k for k in map(key, ctx.shape_focus(shape)) if k is not None)
+            targets = set(ctx.shape_focus(shape))
+            memo = (targets, Counter(k for k in map(key, targets) if k is not None))
             ctx.cache[("uniqueValuesFor", shape.node, spec)] = memo
+        targets, counts = memo
         mine = key(focus)
-        if mine is not None and memo[mine] > 1:
+        if mine is not None and counts[mine] - (focus in targets) > 0:
             yield Violation(value=None)
