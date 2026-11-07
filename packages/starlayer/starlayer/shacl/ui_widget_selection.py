@@ -345,7 +345,7 @@ def _ranked_with_declared(shape_node: Any, shapes_graph: Any, scoring_graph: Any
     Highest score first, then by widget IRI."""
     ranked = _ranked_scores(shapes_graph, scoring_graph, role)
     predicate = SHUI.editor if role == "editor" else SHUI.viewer
-    scored = {widget for widget in scoring_graph.objects(None, SHUI.widget)}
+    scored = {widget for node in scoring_graph.subjects(RDF.type, SHUI.WidgetScore) for widget in scoring_graph.objects(node, SHUI.widget)}
     declared = [w for w in shapes_graph.objects(shape_node, predicate) if isinstance(w, ox.NamedNode) and w not in scored]
     if declared:
         d = default_widget_score(shapes_graph)

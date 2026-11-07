@@ -245,3 +245,13 @@ def test_close_shape_returns_a_closed_copy_of_the_whole_shapes_graph():
     assert list(closed.triples((ox.NamedNode("http://e/Other"), None, None)))  # the documented behaviour: a copy, not a reduction
     assert list(closed.triples((ox.NamedNode("http://e/A"), ox.NamedNode("http://www.w3.org/ns/shacl#closed"), None)))
     assert "reduced" not in (StarShaclSchema.close_shape.__doc__ or "")
+
+
+def test_widget_only_a_matcher_mentions_still_gets_the_default_score():
+    from starlayer.shacl import select_widgets
+
+    ui = "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . "
+    shapes = g(ui + "ex:N a sh:NodeShape ; sh:property ex:P . ex:P sh:path ex:p ; shui:editor ex:W .")
+    scoring = g(ui + "ex:M a shui:WidgetAcceptMatcher ; shui:widget ex:W .")
+    result = select_widgets(shape_node=ox.NamedNode("http://e/N"), shapes_graph=shapes, scoring_graph=scoring, role="editor")
+    assert result[ox.NamedNode("http://e/P")] == ox.NamedNode("http://e/W")
