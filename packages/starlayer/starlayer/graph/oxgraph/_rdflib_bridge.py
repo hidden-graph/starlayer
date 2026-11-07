@@ -600,30 +600,40 @@ def _ill_formed(term: Any) -> Any:
     return None
 
 
-_SCANNED: Any = None  # graph -> (len, errors): a graph is scanned once per size (a WeakKeyDictionary, made on first use)
 _MAX_ERRORS = 100
+
+
+def _position_error(position: str, term: Any) -> Any:
+    """The ``TermError`` for a term that is well-formed but cannot sit in ``position`` of an RDF triple (rdflib allows a literal
+    subject and a non-IRI predicate; owlrl's closure makes them), or None."""
+    from rdflib import Literal, URIRef, Variable
+
+    T = _T()
+    if position == "subject" and isinstance(term, Literal):
+        return T.TermError(term, "term", "a literal cannot be the subject of an RDF triple")
+    if position == "predicate" and not isinstance(term, (URIRef, Variable)):  # a Variable crosses as an IRI
+        return T.TermError(term, "term", "the predicate of an RDF triple must be an IRI")
+    return None
+
+
+def is_rdf_triple(triple: tuple[Any, Any, Any]) -> bool:
+    """False for a generalized triple (a literal subject, a predicate that is not an IRI): Oxigraph cannot hold it."""
+    return _position_error("subject", triple[0]) is None and _position_error("predicate", triple[1]) is None
 
 
 def scan_graph(graph: Any, where: str = "graph") -> tuple[Any, ...]:
     """Every ill-formed term of an rdflib / StarLayer graph (first ``_MAX_ERRORS``), each located by ``where``, position and the
-    first triple it occurs in. Distinct terms are checked once. A graph already scanned at the same size is not scanned again."""
-    import contextlib
-    import weakref
-
-    global _SCANNED
-    if _SCANNED is None:
-        _SCANNED = weakref.WeakKeyDictionary()
-    try:
-        size = len(graph)
-        cached = _SCANNED.get(graph)
-        if cached is not None and cached[0] == size:
-            return tuple(e.located(where, e.position, e.triple) for e in cached[1])
-    except TypeError:
-        size = None
+    first triple it occurs in: an IRI, blank node id or language tag Oxigraph rejects, and a term in a position RDF does not allow
+    (a literal subject, a predicate that is not an IRI). Distinct terms are checked once. Not cached: an rdflib graph has no
+    version, and a graph edited between runs (to the same size) must be scanned again."""
     seen: set = set()
     errors: list = []
     for triple in graph.triples((None, None, None)):
         for position, term in zip(("subject", "predicate", "object"), triple, strict=True):
+            bad = _position_error(position, term)
+            if bad is not None:
+                errors.append(bad.located(where, position, triple))
+                continue
             if term in seen:
                 continue
             seen.add(term)
@@ -633,14 +643,9 @@ def scan_graph(graph: Any, where: str = "graph") -> tuple[Any, ...]:
             if err.kind == "iri" and err.term != term and getattr(term, "datatype", None) == err.term:
                 position = "datatype of the object"  # noqa: PLW2901
             errors.append(err.located(where, position, triple))
-            if len(errors) >= _MAX_ERRORS:
-                break
         if len(errors) >= _MAX_ERRORS:
             break
-    if size is not None:
-        with contextlib.suppress(TypeError):
-            _SCANNED[graph] = (size, tuple(errors))
-    return tuple(errors)
+    return tuple(errors[:_MAX_ERRORS])
 
 
 def check_graphs(*labelled: tuple[Any, str]) -> tuple[Any, ...]:
@@ -691,7 +696,8 @@ def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = F
     for prefix, ns in value.namespaces():
         out.bind(prefix, str(ns))
     to_engine = from_rdflib_term if restore_directions else T.to_engine
-    out.extend([(to_engine(s), to_engine(p), to_engine(o)) for s, p, o in value.triples((None, None, None))])
+    # under the lenient policy a generalized triple (a literal subject, a non-IRI predicate) is left out; Outcome.invalid_terms lists it
+    out.extend([(to_engine(s), to_engine(p), to_engine(o)) for s, p, o in value.triples((None, None, None)) if is_rdf_triple((s, p, o))])
     return out
 
 
@@ -727,7 +733,9 @@ def to_oxdataset(value: Any, where: str = "dataset") -> Any:
             name = from_rdflib_term(g.identifier)
             out.store.add_graph(name)
         out.store.extend(
-            ox.Quad(from_rdflib_term(s), from_rdflib_term(p), from_rdflib_term(o), name) for s, p, o in g.triples((None, None, None))
+            ox.Quad(from_rdflib_term(s), from_rdflib_term(p), from_rdflib_term(o), name)
+            for s, p, o in g.triples((None, None, None))
+            if is_rdf_triple((s, p, o))
         )
     return out
 

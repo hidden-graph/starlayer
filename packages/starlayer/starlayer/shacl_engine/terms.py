@@ -172,7 +172,7 @@ class StarLayerFidelityWarning(UserWarning):
 
 class TermError(ValueError):
     """A term that is not an RDF 1.2 term (and so cannot be an engine term): a relative or invalid IRI, a blank node id
-    Oxigraph rejects, a malformed language tag.
+    Oxigraph rejects, a malformed language tag, a literal subject or a predicate that is not an IRI.
 
     Policy (one, for the whole engine): the engine validates RDF graphs, and SHACL 1.2 is defined over RDF graphs, in which an
     IRI is an absolute IRI. A graph holding such a term has no defined validation report (not a ``sh:nodeKind`` question,
@@ -189,7 +189,7 @@ class TermError(ValueError):
     lexical form holds a lone UTF-16 surrogate (not a Unicode scalar value) is a literal of datatype
     ``urn:starlayer:invalid-literal:...`` whose lexical form shows U+FFFD in place of the surrogate.
 
-    Attributes: ``term`` (the offending rdflib term), ``kind`` (``"iri"`` / ``"bnode"`` / ``"language"`` / ``"literal"``), ``reason``,
+    Attributes: ``term`` (the offending rdflib term), ``kind`` (``"iri"`` / ``"bnode"`` / ``"language"`` / ``"literal"`` / ``"term"``: a literal subject or a predicate that is not an IRI, which under the lenient policy is left out of the copy), ``reason``,
     ``where`` (graph label such as ``"data graph"``), ``position`` (``"subject"`` / ``"predicate"`` / ``"object"`` /
     ``"datatype"``), ``triple`` (the first triple it was found in), ``errors`` (all offenders found, for an aggregate)."""
 
