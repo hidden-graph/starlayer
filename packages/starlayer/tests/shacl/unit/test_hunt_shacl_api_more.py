@@ -180,3 +180,16 @@ def test_module_keeps_deactivation_annotation_on_property_link():
     assert validate(d, sg, shapes_graph_resource=m).conforms is True
     ext = StarShaclSchema(sg).extract_shapes_graph(m)
     assert validate(d, ext).conforms is True
+
+
+def test_evaluate_ignores_property_shape_whose_link_is_deactivated():
+    from starlayer.shacl import evaluate
+
+    shapes = g(
+        "ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property ex:PS {| sh:deactivated true |} .\n"
+        "ex:PS sh:path ex:echo ; sh:values [ shnex:pathValues ex:friend ] ."
+    )
+    out = evaluate(g("ex:alice ex:friend ex:bob ."), shapes)
+    assert not list(out.triples((None, ox.NamedNode("http://e/echo"), None)))
+    active = g("ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property ex:PS .\nex:PS sh:path ex:echo ; sh:values [ shnex:pathValues ex:friend ] .")
+    assert list(evaluate(g("ex:alice ex:friend ex:bob ."), active).triples((None, ox.NamedNode("http://e/echo"), None)))
