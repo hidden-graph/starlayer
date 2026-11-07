@@ -25,7 +25,6 @@ import pyoxigraph as ox
 
 from starlayer.shacl_engine.graphs import new_graph
 from starlayer.shacl_engine.terms import (
-    OWL,
     RDF,
     SH,
     XSD,
@@ -215,11 +214,9 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
 def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str]:
     """Resolve the prefix map a ``sh:select``/``sh:ask``/``sh:construct``
     query at ``query_node`` would actually see at real execution time -
-    same algorithm as pySHACL's own
-    ``SPARQLQueryHelper.collect_prefixes()``, reimplemented directly
-    against a plain shapes graph rather than through a full ``Shape``/
-    ``pyshacl.ShapesGraph`` wrapper (unnecessary overhead for a read-only prefix
-    lookup - ``shape.sg.graph`` is just the same graph passed in here).
+    the engine's own
+    ``sparql_support.prefixes_of`` (``sh:prefixes`` with its ``owl:imports`` closure, or the ``sh:ShapesGraph`` / ontology
+    declarations when there is no ``sh:prefixes``) on a plain shapes graph.
 
     Only ``sh:prefixes`` / ``sh:declare`` declare prefixes (SHACL SPARQL Extensions); there is no ambient lookup.
     """
@@ -229,26 +226,13 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
         "owl": "http://www.w3.org/2002/07/owl#",
     }
 
-    prefixes_vals = set(shapes_graph.objects(query_node, SH.prefixes))
-    if not prefixes_vals:
-        return prefixes
+    from starlayer.shacl_engine.plan import ShapeError
+    from starlayer.shacl_engine.sparql_support import prefixes_of
 
-    g_name = getattr(shapes_graph, "identifier", None)
-    ng_declares = set(shapes_graph.objects(g_name, SH.declare)) if isinstance(g_name, ox.NamedNode) else set()
-    onts = set(shapes_graph.subjects(RDF.type, OWL.Ontology))
-    ont_declares: set = set()
-    for o in onts:
-        ont_declares.update(shapes_graph.objects(o, SH.declare))
-    global_declares = ng_declares | ont_declares
-
-    for pv in prefixes_vals:
-        pfx_declares = set(shapes_graph.objects(pv, SH.declare))
-        all_declares = (pfx_declares | ng_declares) if (pfx_declares and pv in onts) else (global_declares | pfx_declares)
-        for dec in all_declares:
-            prefix_vals = list(shapes_graph.objects(dec, SH.prefix))
-            ns_vals = list(shapes_graph.objects(dec, SH.namespace))
-            if len(prefix_vals) == 1 and len(ns_vals) == 1:
-                prefixes[text(prefix_vals[0])] = text(ns_vals[0])
+    try:
+        prefixes.update(prefixes_of(shapes_graph, query_node))
+    except ShapeError:  # a malformed declaration is reported by the meta-shapes, not here
+        pass
     return prefixes
 
 
