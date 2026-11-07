@@ -25,6 +25,7 @@ import warnings
 from typing import Any
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
+from starlayer.shacl_engine.components.core_shape_based import _boolean, _siblings
 from starlayer.shacl_engine.entailment import resolve_data_view
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.paths import parse_path
@@ -32,6 +33,8 @@ from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
 from starlayer.shacl_engine.terms import (
     RDF,
     RDFS,
+    Literal,
+    Triple,
     check_graphs,
     engine_view,
     text,
@@ -41,7 +44,8 @@ from starlayer.shacl_engine.terms import (
 
 _Triple = tuple[Any, Any, Any]
 
-_SECOND_PATH_PREDICATES = (SH.equals, SH.disjoint, SH.lessThan, SH.lessThanOrEquals)
+_SECOND_PATH_PREDICATES = (SH.equals, SH.disjoint, SH.lessThan, SH.lessThanOrEquals, SH.subsetOf)
+_LIST_PREDICATES = (SH.memberShape, SH.minListLength, SH.maxListLength, SH.uniqueMembers)
 _QUALIFIED_FAMILY = frozenset(
     {SH.qualifiedValueShape, SH.qualifiedMinCount, SH.qualifiedMaxCount, SH.qualifiedValueShapesDisjoint}
 )
@@ -62,6 +66,19 @@ def _items(graph: Any, head: Term) -> list[Term]:
             break
         out.append(first)
         head = next(iter(graph.objects(head, RDF.rest)), None)
+    return out
+
+
+def _list_cells(graph: Any, head: Term) -> set[_Triple]:
+    """The rdf:first / rdf:rest triples of the list at ``head`` (cycle-safe, tolerant of a malformed tail)."""
+    out: set[_Triple] = set()
+    seen: set = set()
+    while head is not None and head != RDF.nil and head not in seen:
+        seen.add(head)
+        firsts = list(graph.objects(head, RDF.first))
+        rests = list(graph.objects(head, RDF.rest))
+        out |= {(head, RDF.first, f) for f in firsts} | {(head, RDF.rest, r) for r in rests}
+        head = rests[0] if rests else None
     return out
 
 
@@ -235,7 +252,6 @@ class _Extractor:
             else:
                 # a complex path with a qualified shape keeps every hop (safe over-inclusion; the old known boundary)
                 triples |= path_triples
-            triples |= self._second_path_triples(shape, focus)
             has_max = bool(shape.params.get(SH.qualifiedMaxCount))
             for q in qshapes:
                 qshape = plan.shape(q)
@@ -246,8 +262,17 @@ class _Extractor:
                     if has_max and not ok and not full_trace:
                         # "at most n values satisfy the shape": a non-qualifying value must keep failing, so its evidence stays
                         triples |= self.extract(qshape, v, visiting, True)
+            if any(_boolean(d, "sh:qualifiedValueShapesDisjoint") for d in shape.params.get(SH.qualifiedValueShapesDisjoint, ())):
+                # a value counts only if it conforms to no sibling qualified shape: keep the evidence either way
+                for q in qshapes:
+                    for sibling in _siblings(self.ctx, shape, q):
+                        for v in value_nodes:
+                            triples |= self.extract(plan.shape(sibling), v, visiting, True)
         else:
             value_nodes = frozenset({focus})
+
+        # sh:equals / sh:disjoint / sh:lessThan(OrEquals) read their second path from the focus on a node shape too
+        triples |= self._second_path_triples(shape, focus)
 
         for cls in self._class_values(shape):
             for v in value_nodes:
@@ -258,6 +283,34 @@ class _Extractor:
                 ns = plan.shape(nested)
                 for v in value_nodes:
                     triples |= self.extract(ns, v, visiting, full_trace)
+
+        # sh:someValue: the neighborhood of every value node that conforms (which one satisfies it is not fixed, so keep each)
+        for nested in _values(shape, SH.someValue):
+            ns = plan.shape(nested)
+            for v in value_nodes:
+                if full_trace or self.conforms(nested, v):
+                    triples |= self.extract(ns, v, visiting, full_trace)
+
+        # the rdf:List cells that sh:memberShape / minListLength / maxListLength / uniqueMembers read, and the members' shape
+        if any(_values(shape, p) for p in _LIST_PREDICATES):
+            member_shapes = _values(shape, SH.memberShape)
+            for v in value_nodes:
+                triples |= _list_cells(data, v)
+                for ms_node in member_shapes:
+                    ms = plan.shape(ms_node)
+                    for member in _items(data, v):
+                        if full_trace or self.conforms(ms_node, member):
+                            triples |= self.extract(ms, member, visiting, full_trace)
+
+        # sh:reifierShape / sh:reificationRequired read the reifiers of the asserted triple
+        if shape.path is not None and shape.path.kind == "pred" and (_values(shape, SH.reifierShape) or _values(shape, SH.reificationRequired)):
+            rshapes = _values(shape, SH.reifierShape)
+            for v in value_nodes:
+                term = Triple(focus, shape.path.iri, v)
+                for reifier in data.subjects(RDF["reifies"], term):
+                    triples.add((reifier, RDF["reifies"], term))
+                    for rs in rshapes:
+                        triples |= self.extract(plan.shape(rs), reifier, visiting, full_trace)
         for ps in shape.property_shapes:
             a = shape.annotations.get((SH.property, ps))
             if a and a["deactivated"]:
@@ -292,6 +345,12 @@ class _Extractor:
                         triples |= self.extract(ms, v, visiting, False)
                     else:
                         triples |= self.extract(ms, v, visiting, True)
+
+        if full_trace and shape.params.get(SH.closed):
+            # a negated (or xone-failing) closed shape keeps failing only while the extra properties stay: keep them all
+            for v in value_nodes:
+                if not isinstance(v, Literal | Triple):
+                    triples |= {(v, p, o) for p, o in data.predicate_objects(v)}
 
         for neg in _values(shape, SH["not"]):
             ns = plan.shape(neg)

@@ -18,7 +18,7 @@ from typing import Any
 from starlayer.shacl_engine.components.registry import Violation
 from starlayer.shacl_engine.interface import Solutions
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
-from starlayer.shacl_engine.terms import OWL, RDF, Literal
+from starlayer.shacl_engine.terms import OWL, RDF, XSD, BlankNode, Literal
 from starlayer.shacl_engine.terms import NamedNode as URIRef
 from starlayer.shacl_engine.terms import text as text_of
 
@@ -120,6 +120,8 @@ def _analyse(text: str) -> tuple[str, tuple[str, ...], tuple]:
     walk(ast.f.get("where"))
     walk(ast.f.get("projection"))
     walk(ast.f.get("group_by"))
+    walk(ast.f.get("having"))  # an EXISTS pattern can hide MINUS / SERVICE in HAVING and ORDER BY
+    walk(ast.f.get("order_by"))
     walk(ast.f.get("values"))  # the trailing VALUES clause
     projection = ast.f.get("projection")
     if ast.kind != "SelectQuery":
@@ -189,36 +191,40 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
     """The shapes graph's ``sh:ListParameterExpressionFunction`` instances as callables by IRI, for the query being run
     (SPARQL Extensions 7.3: "SHOULD register a function"). The call's arguments become the scope ``0, 1, ...`` of the
     body expression, which must have exactly one output node, else the call is a SPARQL error (the function call gives no
-    value). Read once per plan: the shapes graph does not change during a run."""
-    run_cache = ctx.cache  # per run: the callables close over this run's data graph, so a shared plan must not keep them
-    functions = run_cache.get(("shacl-functions",))
+    value). The (function, body) pairs are read once per plan (the shapes graph does not change during a run); the callables
+    close over ``ctx`` and so are made once per run, because a plan can be shared by several data graphs."""
+    cache = ctx.cache
+    functions = cache.get(("shacl-functions",))
     if functions is not None:
         return functions
+    shapes = ctx.shapes
+    plan_cache = ctx.plan.sparql_cache
+    pairs = plan_cache.get(("shacl-function-bodies",))
+    if pairs is None:
+        pairs = plan_cache[("shacl-function-bodies",)] = [
+            (fn, body)
+            for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
+            if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
+        ]
     from starlayer.shacl_engine.expressions import (
         EvaluationFailure,
         evaluate_expression,
     )
 
-    declared = ctx.plan.sparql_cache.get(("shacl-function-bodies",))  # function IRI -> body node: shapes-graph only
-    if declared is None:
-        shapes = ctx.shapes
-        declared = ctx.plan.sparql_cache[("shacl-function-bodies",)] = {
-            fn: body
-            for fn in shapes.subjects(RDF.type, SH.ListParameterExpressionFunction)
-            if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
-        }
-
-    def make(body: Term) -> Any:
+    def make(fn: Term, body: Term) -> Any:
         def call(*args: Term) -> Term | None:
+            if any(isinstance(a, BlankNode) for a in args):
+                return None  # SPARQL-Related Features 7.3: an argument that is a blank node is an evaluation failure, hence an error
             try:
-                out = evaluate_expression(ctx, body, None, {i: [a] for i, a in enumerate(args)})
+                # 7.3: "the focusNode passed into a custom SPARQL function based on a node expression is the IRI of the function"
+                out = evaluate_expression(ctx, body, fn, {i: [a] for i, a in enumerate(args)})
             except (EvaluationFailure, ShapeError):
                 return None
             return out[0] if len(out) == 1 else None
 
         return call
 
-    functions = run_cache[("shacl-functions",)] = {fn: make(body) for fn, body in declared.items()}
+    functions = cache[("shacl-functions",)] = {fn: make(fn, body) for fn, body in pairs}
     return functions
 
 
@@ -231,6 +237,14 @@ def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_thi
 
 def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
     check_query(ctx.plan, text, bindings, ask=True)
+    from starlayer.graph.oxgraph.run import _has_blank, _mask
+
+    if any(_has_blank(v) for v in bindings.values()):
+        # A blank node can be pre-bound only in a SELECT query (the graph layer widens its projection): ask the same
+        # pattern as a SELECT and read "any solution" as true.
+        m = re.search(r"(?i)\bASK\b", _mask(text))
+        select = text[: m.start()] + "SELECT (1 AS ?ask__)" + text[m.end() :]
+        return bool(run_query(ctx.data, select, bindings, shacl_functions(ctx)).rows)
     return bool(run_query(ctx.data, text, bindings, shacl_functions(ctx)).boolean)
 
 
@@ -281,7 +295,9 @@ def fill_template(message: Term, values: Mapping[str, Term]) -> Term:
 
 
 def is_true(value: Term) -> bool:
-    return text_of(value).lower() in ("true", "1")
+    """Whether ``value`` is the boolean true: an ``xsd:boolean`` literal with lexical form ``true`` or ``1`` (SHACL SPARQL
+    3.3.2: a failure needs ``true`` as the binding; the integer 1 and the strings "1" / "TRUE" are not it)."""
+    return isinstance(value, Literal) and value.datatype == XSD.boolean and value.value in ("true", "1")
 
 
 def violations_from_solutions(
@@ -361,6 +377,10 @@ def _single_string(graph: Any, node: Term, pred: Term) -> str:
     return values[0].value
 
 
+_VARNAME = re.compile(r"[\w][\w·̀-ͯ‿⁀]*")  # SPARQL VARNAME, close enough: PN_CHARS_U | digit, then more
+_RESULT_ALIAS = "sparqlExpr__result"
+
+
 def _scope_variable(name: Any) -> str:
     """SPARQL variable for a scope entry: a string as is; an integer n is ``arg<n>``; a parameter path IRI its local name."""
     if isinstance(name, int):
@@ -375,9 +395,19 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
     """Output nodes of a ``sh:select`` or ``sh:sparqlExpr`` expression (called by ``expressions.py`` for those two
     operators; every other kind is evaluated there). ``this`` is pre-bound to ``focus`` when there is one, and every
     scope variable with exactly one value is pre-bound under its name (``sh:expression`` binds ``value``)."""
+    from starlayer.shacl_engine.expressions import EvaluationFailure, scope_nodes
+
     plan = ctx.plan
     graph = plan.shapes_graph
-    bindings = {_scope_variable(k): v[0] for k, v in (scope or {}).items() if len(v) == 1}
+    bindings = {}
+    for key, value in (scope or {}).items():
+        name = _scope_variable(key)
+        # SPARQL-Related Features 6.1 / 6.2: a scope variable called "this", or whose name is no SPARQL VARNAME, is a failure
+        if name == "this" or not _VARNAME.fullmatch(name):
+            raise EvaluationFailure(f"the scope variable {name!r} cannot be a SPARQL variable of a sparql expression")
+        nodes = scope_nodes(ctx, value, focus)
+        if len(nodes) == 1:
+            bindings[name] = nodes[0]
     if focus is not None:
         bindings["this"] = focus
     if (expr, SH.select, None) in graph:
@@ -388,9 +418,10 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         var = projected[0]
     elif (expr, SH.sparqlExpr, None) in graph:
         body = _single_string(graph, expr, SH.sparqlExpr)
-        text = with_prefixes(plan, expr, f"SELECT ({body} AS ?result) WHERE {{}}")
+        # a newline before AS: a body may end in a # comment; the alias cannot collide with a scope variable called ``result``
+        text = with_prefixes(plan, expr, f"SELECT ({body}\n AS ?{_RESULT_ALIAS}) WHERE {{}}")
         check_query(plan, text, bindings)
-        var = "result"
+        var = _RESULT_ALIAS
     else:
         raise ShapeError(f"{expr!r}: not a SPARQL node expression")
     rows = run_query(ctx.data, text, bindings, shacl_functions(ctx)).rows

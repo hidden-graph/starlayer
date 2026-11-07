@@ -18,6 +18,8 @@ operator that owns them. The ``sparql:`` functions are built into the same table
 
 from __future__ import annotations
 
+import re
+import struct
 from collections.abc import Callable, Mapping
 from decimal import Decimal
 from functools import cmp_to_key
@@ -90,7 +92,23 @@ def _predicates(graph: Any, node: Term) -> set:
     return {p for p, _o in graph.predicate_objects(node)}
 
 
+_MAX_EXPRESSION_DEPTH = 100  # nested evaluations; a cyclic expression or a function that calls itself forever hits it
+
+
 def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
+    """Evaluate ``expr``; nesting deeper than ``_MAX_EXPRESSION_DEPTH`` (a blank-node expression that refers to itself, a
+    function that never stops calling itself) is an ill-formed shapes graph, a ``ShapeError``, not a Python RecursionError."""
+    state = ctx.cache.setdefault(("expression-depth",), [0])
+    if state[0] >= _MAX_EXPRESSION_DEPTH:
+        raise ShapeError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (a cyclic expression or a recursive function)")
+    state[0] += 1
+    try:
+        return _eval_once(ctx, expr, focus, scope)
+    finally:
+        state[0] -= 1
+
+
+def _eval_once(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     if not isinstance(expr, BNode):
         return [expr]  # constant: IRI, literal, triple term (rdf:nil included)
     g = ctx.shapes
@@ -145,6 +163,22 @@ def _custom_functions(ctx: Any) -> dict[URIRef, Term]:
     return cache[key]
 
 
+class _LazyArgument:
+    """The argument expression of a named-parameter call, kept unevaluated in the scope until ``shnex:arg`` reads it."""
+
+    __slots__ = ("expr",)
+
+    def __init__(self, expr: Term) -> None:
+        self.expr = expr
+
+
+def scope_nodes(ctx: Any, value: Any, focus: Term | None) -> list[Term]:
+    """The nodes of one scope entry: a list as is, a named-parameter argument expression evaluated now (at ``focus``, empty scope)."""
+    if isinstance(value, _LazyArgument):
+        return _eval(ctx, value.expr, focus, {})
+    return list(value)
+
+
 def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | None, scope: Scope) -> list:
     g = ctx.shapes
     body = next(iter(g.objects(fn, SH.bodyExpression)), None)
@@ -172,7 +206,9 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
         for path in g.objects(param, SH.path):
             exprs = list(g.objects(expr, path))
             if exprs:
-                arg_scope[path] = _eval(ctx, exprs[0], focus, scope)
+                # Node Expressions 6.1: the scope maps the parameter to the argument *expression*; shnex:arg evaluates it, at the
+                # focus node current there, with an empty scope (6.3). So an argument the body never reads is never evaluated.
+                arg_scope[path] = _LazyArgument(exprs[0])
     return _eval(ctx, body, focus, arg_scope)
 
 
@@ -184,7 +220,7 @@ def _arg(ctx, expr, focus, scope):
             key = int(key.value)
         except ValueError:
             raise ShapeError(f"{expr!r}: shnex:arg must be an integer or a parameter path IRI") from None
-    return list(scope.get(key, []))
+    return scope_nodes(ctx, scope.get(key, []), focus)
 
 
 def _values(ctx: Any, expr: Term, pred: URIRef) -> list:
@@ -229,7 +265,7 @@ def _integer(term: Term, what: str) -> int:
     if (
         isinstance(term, Literal)
         and term.datatype == XSD.integer
-        and term.value.lstrip("+-").isdigit()
+        and re.fullmatch(r"[+-]?[0-9]+", term.value)  # ASCII digits only: str.isdigit() accepts "²"
     ):
         n = int(term.value)
         if n >= 0:
@@ -419,11 +455,7 @@ def _count(ctx, expr, focus, scope):
 
 def _extremum(name: str, pick: Callable) -> Operator:
     def fn(ctx, expr, focus, scope):
-        nodes = [
-            n
-            for n in _eval(ctx, _one(ctx, expr, _n(name)), focus, scope)
-            if not isinstance(n, BNode)
-        ]
+        nodes = _eval(ctx, _one(ctx, expr, _n(name)), focus, scope)  # blank nodes count: SPARQL MIN / MAX order them first
         return [pick(nodes, key=_order_key)] if nodes else []
 
     return fn
@@ -452,7 +484,10 @@ def _sum(ctx, expr, focus, scope):
     if rank == 1:
         total = sum((Decimal(str(v)) for v in values), Decimal(0))  # str-ok: v is a python int / Decimal
         return [Literal(format(total, "f"), datatype=XSD.decimal)]
-    return [Literal(_float_lexical(float(sum(float(v) for v in values))), datatype=XSD.float if rank == 2 else XSD.double)]
+    total_f = float(sum(float(v) for v in values))
+    if rank == 2:
+        return [Literal(_float32_lexical(total_f), datatype=XSD.float)]
+    return [Literal(_float_lexical(total_f), datatype=XSD.double)]
 
 
 def _float_lexical(x: float) -> str:
@@ -462,6 +497,21 @@ def _float_lexical(x: float) -> str:
     if x in (float("inf"), float("-inf")):
         return "INF" if x > 0 else "-INF"
     return repr(x)
+
+
+def _float32_lexical(x: float) -> str:
+    """The shortest lexical form that reads back as the same single-precision value (what SPARQL SUM gives for xsd:float)."""
+    try:
+        single = struct.unpack("f", struct.pack("f", x))[0]
+    except OverflowError:
+        return _float_lexical(float("inf") if x > 0 else float("-inf"))
+    if single != single or single in (float("inf"), float("-inf")):
+        return _float_lexical(single)
+    for digits in range(1, 10):
+        candidate = float(f"{single:.{digits}g}")
+        if struct.unpack("f", struct.pack("f", candidate))[0] == single:
+            return repr(candidate)
+    return repr(single)
 
 
 # --- graph-wide ---------------------------------------------------------------------------------------------------
@@ -580,8 +630,14 @@ def _arg_state(ctx, arg, focus, scope) -> tuple[str, Term | None]:
     return (_VALUE, out[0]) if out else (_UNBOUND, None)
 
 
-def _sparql_args(ctx, expr, pred, focus, scope) -> list[tuple[str, Term | None]]:
-    return [_arg_state(ctx, a, focus, scope) for a in _args(ctx, expr, pred)]
+def _sparql_args(ctx, expr, pred, focus, scope, arity: tuple[int, ...] | None = None) -> list[tuple[str, Term | None]]:
+    """The state of each argument of the call ``expr pred ( ... )``; ``arity`` (the allowed argument counts), if given, is
+    checked first: a call with another count is a malformed expression, a ShapeError."""
+    members = _args(ctx, expr, pred)
+    if arity is not None and len(members) not in arity:
+        want = " or ".join(str(n) for n in arity)  # str-ok: counts
+        raise ShapeError(f"{expr!r}: {text(pred)} needs a list of {want} expression(s), got {len(members)}")
+    return [_arg_state(ctx, a, focus, scope) for a in members]
 
 
 def _bound_values(states: list) -> list | None:
@@ -599,9 +655,9 @@ def _ebv(term: Term | None) -> bool | None:
 
 
 def _register_sparql() -> None:
-    def simple(pred: URIRef, template: Callable[[int], str]) -> None:
+    def simple(pred: URIRef, template: Callable[[int], str], arity: tuple[int, ...] | None = None) -> None:
         def fn(ctx, expr, focus, scope):
-            values = _bound_values(_sparql_args(ctx, expr, pred, focus, scope))
+            values = _bound_values(_sparql_args(ctx, expr, pred, focus, scope, arity))
             return [] if values is None else _run_call(template(len(values)), values)
 
         OPERATORS[pred] = fn
@@ -624,9 +680,9 @@ def _register_sparql() -> None:
     for name, sql in _RENAMED.items():
         simple(URIRef(SPARQL_NS + name), lambda n, sql=sql: f"{sql}({args_of(n)})")  # str-ok: SPARQL function name
     for name, op in _INFIX.items():
-        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"(?a0 {op} ?a1)")
+        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"(?a0 {op} ?a1)", (2,))
     for name, op in _PREFIX.items():
-        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"({op}?a0)")
+        simple(URIRef(SPARQL_NS + name), lambda _n_, op=op: f"({op}?a0)", (1,))
 
 
 _register_sparql()
@@ -638,7 +694,7 @@ def _s(name: str) -> URIRef:
 
 @operator(SPARQL_NS + "bound")
 def _sp_bound(ctx, expr, focus, scope):
-    ((kind, _),) = _sparql_args(ctx, expr, _s("bound"), focus, scope)
+    ((kind, _),) = _sparql_args(ctx, expr, _s("bound"), focus, scope, (1,))
     if kind == _ERROR:
         raise EvaluationFailure("the argument of sparql:bound failed")
     return _bool(kind == _VALUE)
@@ -654,7 +710,10 @@ def _sp_coalesce(ctx, expr, focus, scope):
 
 @operator(SPARQL_NS + "if")
 def _sp_if(ctx, expr, focus, scope):
-    cond, then, other = _args(ctx, expr, _s("if"))
+    members = _args(ctx, expr, _s("if"))
+    if len(members) != 3:
+        raise ShapeError(f"{expr!r}: sparql:if needs a list of 3 expressions, got {len(members)}")
+    cond, then, other = members
     kind, c = _arg_state(ctx, cond, focus, scope)
     truth = _ebv(c) if kind == _VALUE else None
     if truth is None:
@@ -693,7 +752,7 @@ _logical("logical-and", False)
 def _sp_has_lang(ctx, expr, focus, scope):
     """``sparql:hasLang ( literal tag )``: the fixtures give hasLang a language-tag argument (SPARQL's hasLANG has one
     argument); true if the literal's language tag equals ``tag``, case-insensitively."""
-    values = _bound_values(_sparql_args(ctx, expr, _s("hasLang"), focus, scope))
+    values = _bound_values(_sparql_args(ctx, expr, _s("hasLang"), focus, scope, (1, 2)))
     if values is None:
         return []
     if len(values) == 1:
