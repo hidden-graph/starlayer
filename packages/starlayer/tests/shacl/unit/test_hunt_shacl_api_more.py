@@ -193,3 +193,18 @@ def test_evaluate_ignores_property_shape_whose_link_is_deactivated():
     assert not list(out.triples((None, ox.NamedNode("http://e/echo"), None)))
     active = g("ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property ex:PS .\nex:PS sh:path ex:echo ; sh:values [ shnex:pathValues ex:friend ] .")
     assert list(evaluate(g("ex:alice ex:friend ex:bob ."), active).triples((None, ox.NamedNode("http://e/echo"), None)))
+
+
+def test_close_shape_lets_parent_paths_through_a_shape_reused_as_node_and_or_member():
+    from starlayer.shacl import StarShaclSchema, extract_subgraph
+
+    shapes = g("""ex:Leaf a sh:NodeShape .
+      ex:Root a sh:NodeShape ; sh:targetNode ex:n0 ;
+        sh:property [ sh:path ex:a ; sh:node ex:Leaf ] ;
+        sh:or ( ex:Leaf [ sh:property [ sh:path ex:b ; sh:minCount 1 ] ] ) .""")
+    data = g("ex:n0 ex:a ex:n1 .")
+    root, n0 = ox.NamedNode("http://e/Root"), ox.NamedNode("http://e/n0")
+    assert validate(data, shapes).conforms
+    fragment = extract_subgraph(data, shapes, shape=root, focus_node=n0)
+    closed = StarShaclSchema(shapes).close_shape(root)
+    assert validate(fragment, closed).conforms

@@ -230,15 +230,18 @@ def close_shape(shapes_graph: Any, shape: Any) -> Any:
     visited: set = set()
     # a shape closed together with its and/or/xone members describes ONE node's property set: each such group shares the
     # predicates its closed forms must let through
-    group_of: dict = {}
+    # (a shape reached in several roles, say sh:node and an sh:or member, belongs to every such group)
+    group_of: dict[Any, list[set]] = {}
 
     def walk(node: Any, should_close: bool, group: set, is_property_shape: bool = False) -> None:
+        if should_close:
+            to_close.add(node)
+            groups = group_of.setdefault(node, [])
+            if not any(group is known for known in groups):
+                groups.append(group)
         if node in visited:
             return
         visited.add(node)
-        if should_close:
-            to_close.add(node)
-            group_of[node] = group
         for nested in result.objects(node, SH.node):
             walk(nested, True, set())
         for prop in result.objects(node, SH.property):
@@ -279,7 +282,7 @@ def close_shape(shapes_graph: Any, shape: Any) -> Any:
             for path in result.objects(prop, SH.path)
             if isinstance(path, NamedNode)
         }
-        node_allowed = allowed | (group_of[node] - own)
+        node_allowed = allowed | (set().union(*group_of[node]) - own)
         if node_allowed:
             result.add((node, SH.ignoredProperties, add_list(result, sorted(node_allowed, key=n3))))
     return result
