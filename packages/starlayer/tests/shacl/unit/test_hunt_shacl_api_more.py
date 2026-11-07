@@ -208,3 +208,21 @@ def test_close_shape_lets_parent_paths_through_a_shape_reused_as_node_and_or_mem
     fragment = extract_subgraph(data, shapes, shape=root, focus_node=n0)
     closed = StarShaclSchema(shapes).close_shape(root)
     assert validate(fragment, closed).conforms
+
+
+def _chain(n):
+    return g(
+        "ex:S0 a sh:NodeShape ; sh:targetNode ex:a ; sh:node ex:S1 .\n"
+        + "".join(f"ex:S{i} a sh:NodeShape ; sh:node ex:S{i + 1} .\n" for i in range(1, n))
+        + f"ex:S{n} a sh:NodeShape ; sh:nodeKind sh:IRI ."
+    )
+
+
+def test_deep_shape_chain_is_bounded_by_max_validation_depth_not_the_interpreter():
+    from starlayer.shacl import ShapeError
+
+    data = g("ex:a ex:p 1 .")
+    assert validate(data, _chain(300)).conforms is True  # under the default bound of 500
+    with pytest.raises(ShapeError):
+        validate(data, _chain(600))
+    assert validate(data, _chain(600), max_validation_depth=None).conforms is True  # None removes the bound

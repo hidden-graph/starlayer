@@ -76,9 +76,8 @@ def translate_validate_options(options: dict[str, Any]) -> dict[str, Any]:
     out["conformance_disallows"] = conformance_disallows_for(options.get("allow_warnings"), options.get("allow_infos"))
     out["inplace"] = bool(options.get("inplace"))
     out["abort_on_first"] = bool(options.get("abort_on_first") or options.get("abort_on_error"))
-    depth = options.get("max_validation_depth")
-    if depth is not None:
-        out["max_validation_depth"] = depth
+    if "max_validation_depth" in options:  # ``None`` is meaningful: it removes the bound
+        out["max_validation_depth"] = options["max_validation_depth"]
     meta = options.get("meta_shacl")
     if meta:
         out["meta_shacl"] = meta

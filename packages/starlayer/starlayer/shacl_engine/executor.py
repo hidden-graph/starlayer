@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -239,6 +240,10 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     return out
 
 
+_FRAMES_PER_SHAPE_LEVEL = 12  # an upper estimate: a plain sh:node chain costs 5
+_UNBOUNDED_RECURSION_LIMIT = 20_000
+
+
 def run(
     plan: Plan,
     data: Any,
@@ -250,6 +255,11 @@ def run(
     """Validate every declared shape. ``stats`` (optional) receives ``recursion_revisits`` for the run's diagnostics."""
     ctx = Context(data=data, plan=plan, abort_on_first=abort_on_first, max_validation_depth=max_validation_depth)
     results: list[Result] = []
+    # each nested shape costs several interpreter frames: make room for the documented bound (``None``: a generous fixed
+    # allowance), so the bound, not the interpreter's default limit, is what stops a deep chain
+    previous_limit = sys.getrecursionlimit()
+    wanted = _UNBOUNDED_RECURSION_LIMIT if max_validation_depth is None else max_validation_depth * _FRAMES_PER_SHAPE_LEVEL + 1000
+    sys.setrecursionlimit(max(previous_limit, wanted))
     try:
         for node in plan.all_shape_nodes():
             shape = plan.shape(node)
@@ -260,6 +270,9 @@ def run(
                 if results and abort_on_first:
                     return results
         return results
+    except RecursionError as exc:
+        raise ShapeError("Validation path too deep: the shapes nest more deeply than the interpreter's recursion limit allows") from exc
     finally:
+        sys.setrecursionlimit(previous_limit)
         if stats is not None:
             stats["recursion_revisits"] = ctx.recursion_revisits
