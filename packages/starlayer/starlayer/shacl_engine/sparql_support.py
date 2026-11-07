@@ -372,6 +372,10 @@ def _single_string(graph: Any, node: Term, pred: Term) -> str:
     return values[0].value
 
 
+_VARNAME = re.compile(r"[\w][\w·̀-ͯ‿⁀]*")  # SPARQL VARNAME, close enough: PN_CHARS_U | digit, then more
+_RESULT_ALIAS = "sparqlExpr__result"
+
+
 def _scope_variable(name: Any) -> str:
     """SPARQL variable for a scope entry: a string as is; an integer n is ``arg<n>``; a parameter path IRI its local name."""
     if isinstance(name, int):
@@ -386,9 +390,19 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
     """Output nodes of a ``sh:select`` or ``sh:sparqlExpr`` expression (called by ``expressions.py`` for those two
     operators; every other kind is evaluated there). ``this`` is pre-bound to ``focus`` when there is one, and every
     scope variable with exactly one value is pre-bound under its name (``sh:expression`` binds ``value``)."""
+    from starlayer.shacl_engine.expressions import EvaluationFailure, scope_nodes
+
     plan = ctx.plan
     graph = plan.shapes_graph
-    bindings = {_scope_variable(k): v[0] for k, v in (scope or {}).items() if len(v) == 1}
+    bindings = {}
+    for key, value in (scope or {}).items():
+        name = _scope_variable(key)
+        # SPARQL-Related Features 6.1 / 6.2: a scope variable called "this", or whose name is no SPARQL VARNAME, is a failure
+        if name == "this" or not _VARNAME.fullmatch(name):
+            raise EvaluationFailure(f"the scope variable {name!r} cannot be a SPARQL variable of a sparql expression")
+        nodes = scope_nodes(ctx, value, focus)
+        if len(nodes) == 1:
+            bindings[name] = nodes[0]
     if focus is not None:
         bindings["this"] = focus
     if (expr, SH.select, None) in graph:
@@ -399,9 +413,10 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         var = projected[0]
     elif (expr, SH.sparqlExpr, None) in graph:
         body = _single_string(graph, expr, SH.sparqlExpr)
-        text = with_prefixes(plan, expr, f"SELECT ({body} AS ?result) WHERE {{}}")
+        # a newline before AS: a body may end in a # comment; the alias cannot collide with a scope variable called ``result``
+        text = with_prefixes(plan, expr, f"SELECT ({body}\n AS ?{_RESULT_ALIAS}) WHERE {{}}")
         check_query(plan, text, bindings)
-        var = "result"
+        var = _RESULT_ALIAS
     else:
         raise ShapeError(f"{expr!r}: not a SPARQL node expression")
     rows = run_query(ctx.data, text, bindings, shacl_functions(ctx)).rows

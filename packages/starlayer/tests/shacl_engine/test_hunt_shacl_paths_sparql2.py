@@ -123,6 +123,22 @@ ex:f ex:name "F"; ex:items ex:i1 . ex:i1 ex:name "I1" .
 """
 
 
+def test_named_parameter_argument_evaluated_at_use_site():
+    out = ev("[ ex:a [ shnex:pathValues ex:name ] ]", _NAMED_FN, focus=EX.f)
+    assert [o.value for o in out] == ["I1"]
+
+
+def test_named_parameter_unused_failing_argument_is_not_evaluated():
+    decl = """
+ex:F a sh:NamedParameterExpressionFunction; rdfs:subClassOf sh:NamedParameterExpression; sh:parameter ex:Fa, ex:Fb;
+  sh:bodyExpression [ shnex:arg ex:a ] .
+ex:Fa a sh:Parameter; sh:path ex:a; sh:keyParameter true .
+ex:Fb a sh:Parameter; sh:path ex:b; sh:optional true .
+"""
+    out = ev('[ ex:a 1 ; ex:b [ sparql:abs ("x") ] ]', decl, focus=EX.f)
+    assert [o.value for o in out] == ["1"]
+
+
 def test_min_max_keep_blank_nodes_like_sparql():
     out = ev("[ shnex:min [ shnex:pathValues ex:v ] ]", "ex:f ex:v [], 5 .", focus=EX.f)
     assert len(out) == 1 and isinstance(out[0], ox.BlankNode)
@@ -139,6 +155,22 @@ def test_sum_of_floats_is_a_float_lexical_form():
 _FN_PRE = 'ex: sh:declare [ sh:prefix "ex"; sh:namespace "http://example.com/" ] .\n'
 
 
+def test_scope_variable_named_this_fails():
+    g = G('ex:root ex:expr [ sh:select "SELECT ?r WHERE { BIND($this AS ?r) }" ] .')
+    expr = next(g.objects(EX.root, EX.expr))
+    ctx = Context(data=g, plan=Plan(shapes_graph=g))
+    with pytest.raises((EvaluationFailure, ShapeError)):
+        list(evaluate_expression(ctx, expr, EX.f, {"this": [ox.Literal("5", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))]}))
+
+
+def test_scope_variable_invalid_varname_is_a_failure_not_value_error():
+    g = G('ex:root ex:expr [ sh:select "SELECT ?r WHERE { BIND(1 AS ?r) }" ] .')
+    expr = next(g.objects(EX.root, EX.expr))
+    ctx = Context(data=g, plan=Plan(shapes_graph=g))
+    with pytest.raises((EvaluationFailure, ShapeError)):
+        list(evaluate_expression(ctx, expr, EX.f, {"a b": [ox.Literal("5")]}))
+
+
 def _sparql_expr_value(param: str):
     shapes = G(
         f"""
@@ -150,3 +182,15 @@ ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:out ; sh:val
 
     out = evaluate(G("ex:a ex:q 1 ."), shapes)
     return [t[2].value for t in out.triples((None, ox.NamedNode("http://example.com/out"), None))]
+
+
+def test_sparql_expr_parameter_named_result():
+    assert _sparql_expr_value("result") == ["42"]
+
+
+def test_sparql_expr_body_ending_in_comment():
+    from starlayer.shacl_engine import evaluate
+
+    shapes = G('ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:out ; sh:values [ sh:sparqlExpr "1 + 2 # three" ] ] .')
+    out = evaluate(G("ex:a ex:q 1 ."), shapes)
+    assert [t[2].value for t in out.triples((None, ox.NamedNode("http://example.com/out"), None))] == ["3"]

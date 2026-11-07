@@ -163,6 +163,22 @@ def _custom_functions(ctx: Any) -> dict[URIRef, Term]:
     return cache[key]
 
 
+class _LazyArgument:
+    """The argument expression of a named-parameter call, kept unevaluated in the scope until ``shnex:arg`` reads it."""
+
+    __slots__ = ("expr",)
+
+    def __init__(self, expr: Term) -> None:
+        self.expr = expr
+
+
+def scope_nodes(ctx: Any, value: Any, focus: Term | None) -> list[Term]:
+    """The nodes of one scope entry: a list as is, a named-parameter argument expression evaluated now (at ``focus``, empty scope)."""
+    if isinstance(value, _LazyArgument):
+        return _eval(ctx, value.expr, focus, {})
+    return list(value)
+
+
 def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | None, scope: Scope) -> list:
     g = ctx.shapes
     body = next(iter(g.objects(fn, SH.bodyExpression)), None)
@@ -190,7 +206,9 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
         for path in g.objects(param, SH.path):
             exprs = list(g.objects(expr, path))
             if exprs:
-                arg_scope[path] = _eval(ctx, exprs[0], focus, scope)
+                # Node Expressions 6.1: the scope maps the parameter to the argument *expression*; shnex:arg evaluates it, at the
+                # focus node current there, with an empty scope (6.3). So an argument the body never reads is never evaluated.
+                arg_scope[path] = _LazyArgument(exprs[0])
     return _eval(ctx, body, focus, arg_scope)
 
 
@@ -202,7 +220,7 @@ def _arg(ctx, expr, focus, scope):
             key = int(key.value)
         except ValueError:
             raise ShapeError(f"{expr!r}: shnex:arg must be an integer or a parameter path IRI") from None
-    return list(scope.get(key, []))
+    return scope_nodes(ctx, scope.get(key, []), focus)
 
 
 def _values(ctx: Any, expr: Term, pred: URIRef) -> list:
