@@ -19,6 +19,7 @@ operator that owns them. The ``sparql:`` functions are built into the same table
 from __future__ import annotations
 
 import re
+import struct
 from collections.abc import Callable, Mapping
 from decimal import Decimal
 from functools import cmp_to_key
@@ -436,11 +437,7 @@ def _count(ctx, expr, focus, scope):
 
 def _extremum(name: str, pick: Callable) -> Operator:
     def fn(ctx, expr, focus, scope):
-        nodes = [
-            n
-            for n in _eval(ctx, _one(ctx, expr, _n(name)), focus, scope)
-            if not isinstance(n, BNode)
-        ]
+        nodes = _eval(ctx, _one(ctx, expr, _n(name)), focus, scope)  # blank nodes count: SPARQL MIN / MAX order them first
         return [pick(nodes, key=_order_key)] if nodes else []
 
     return fn
@@ -469,7 +466,10 @@ def _sum(ctx, expr, focus, scope):
     if rank == 1:
         total = sum((Decimal(str(v)) for v in values), Decimal(0))  # str-ok: v is a python int / Decimal
         return [Literal(format(total, "f"), datatype=XSD.decimal)]
-    return [Literal(_float_lexical(float(sum(float(v) for v in values))), datatype=XSD.float if rank == 2 else XSD.double)]
+    total_f = float(sum(float(v) for v in values))
+    if rank == 2:
+        return [Literal(_float32_lexical(total_f), datatype=XSD.float)]
+    return [Literal(_float_lexical(total_f), datatype=XSD.double)]
 
 
 def _float_lexical(x: float) -> str:
@@ -479,6 +479,21 @@ def _float_lexical(x: float) -> str:
     if x in (float("inf"), float("-inf")):
         return "INF" if x > 0 else "-INF"
     return repr(x)
+
+
+def _float32_lexical(x: float) -> str:
+    """The shortest lexical form that reads back as the same single-precision value (what SPARQL SUM gives for xsd:float)."""
+    try:
+        single = struct.unpack("f", struct.pack("f", x))[0]
+    except OverflowError:
+        return _float_lexical(float("inf") if x > 0 else float("-inf"))
+    if single != single or single in (float("inf"), float("-inf")):
+        return _float_lexical(single)
+    for digits in range(1, 10):
+        candidate = float(f"{single:.{digits}g}")
+        if struct.unpack("f", struct.pack("f", candidate))[0] == single:
+            return repr(candidate)
+    return repr(single)
 
 
 # --- graph-wide ---------------------------------------------------------------------------------------------------

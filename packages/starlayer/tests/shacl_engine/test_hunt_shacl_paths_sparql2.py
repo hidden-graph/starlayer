@@ -123,6 +123,19 @@ ex:f ex:name "F"; ex:items ex:i1 . ex:i1 ex:name "I1" .
 """
 
 
+def test_min_max_keep_blank_nodes_like_sparql():
+    out = ev("[ shnex:min [ shnex:pathValues ex:v ] ]", "ex:f ex:v [], 5 .", focus=EX.f)
+    assert len(out) == 1 and isinstance(out[0], ox.BlankNode)
+    out = ev("[ shnex:max [ shnex:pathValues ex:v ] ]", "ex:f ex:v [], 5 .", focus=EX.f)
+    assert [o.value for o in out] == ["5"]
+
+
+def test_sum_of_floats_is_a_float_lexical_form():
+    out = ev('[ shnex:sum [ shnex:pathValues ex:v ] ]', 'ex:f ex:v "0.1"^^xsd:float, "0.2"^^xsd:float .', focus=EX.f)
+    sparql = list(ox.Store().query('SELECT (SUM(?x) AS ?s) { VALUES ?x { "0.1"^^<http://www.w3.org/2001/XMLSchema#float> "0.2"^^<http://www.w3.org/2001/XMLSchema#float> } }'))[0]["s"]
+    assert out[0] == sparql
+
+
 _FN_PRE = 'ex: sh:declare [ sh:prefix "ex"; sh:namespace "http://example.com/" ] .\n'
 
 
