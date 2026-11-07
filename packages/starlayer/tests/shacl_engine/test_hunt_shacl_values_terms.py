@@ -47,3 +47,17 @@ def test_non_iri_predicate_is_a_term_error():
     data.add((S, rdflib.BNode("b"), rdflib.Literal("x")))
     with pytest.raises(TermError):
         validate(data, shapes)
+
+
+def test_report_text_shows_the_original_language_tag_in_lenient_mode():
+    shapes = rdflib.Graph().parse(
+        format="turtle",
+        data="@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> . "
+        "ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:p ; "
+        "sh:property [ sh:path ex:p ; sh:datatype <http://www.w3.org/2001/XMLSchema#integer> ] .",
+    )
+    data = rdflib.Graph()
+    data.add((rdflib.URIRef("http://example.org/s"), rdflib.URIRef("http://example.org/p"), rdflib.Literal("v", lang="e")))
+    out = validate(data, shapes, invalid_terms="lenient")
+    assert "invalid-lang" not in out.report_text
+    assert 'Literal("v", lang=e)' in out.report_text

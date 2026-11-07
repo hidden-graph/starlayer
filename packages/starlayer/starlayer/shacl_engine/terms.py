@@ -110,11 +110,16 @@ def text(term: Any) -> str:
 _STAND_IN_IRI = re.compile(r"urn:starlayer:invalid-iri:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)")  # see ``_INVALID_IRI_PREFIX``
 
 
+_STAND_IN_LANG = re.compile(r", datatype=<urn:starlayer:invalid-lang:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)>")  # see ``_INVALID_LANG_PREFIX``
+
+
 def unmask(message: str) -> str:
-    """``message`` with every lenient-mode stand-in IRI (``urn:starlayer:invalid-iri:...``) replaced by the original term text,
-    so a message or a report text shows the term the user wrote. Text, not terms: the report graph keeps the stand-ins."""
-    if "urn:starlayer:invalid-iri:" not in message:
+    """``message`` with every lenient-mode stand-in replaced by the original term text, so a message or a report text shows the
+    term the user wrote: an IRI stand-in (``urn:starlayer:invalid-iri:...``) by the IRI text, a rendered literal whose datatype is
+    an invalid-lang stand-in by its language tag (``Literal("v", lang=e)``). Text, not terms: the report graph keeps the stand-ins."""
+    if "urn:starlayer:invalid-" not in message:
         return message
+    message = _STAND_IN_LANG.sub(lambda m: ", lang=" + unquote(m.group(1), errors="surrogatepass"), message)
     return _STAND_IN_IRI.sub(lambda m: unquote(m.group(1), errors="surrogatepass"), message)
 
 
