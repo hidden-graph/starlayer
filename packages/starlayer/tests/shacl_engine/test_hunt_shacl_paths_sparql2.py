@@ -67,6 +67,12 @@ def test_ill_formed_limit_offset_is_shape_error(lex, op):
         ev(f'[ shnex:{op} "{lex}"^^xsd:integer ; shnex:nodes ( 1 2 3 ) ]')
 
 
+def test_inference_names_error_names_the_regimes():
+    g = G("ex:a ex:p 1 .")
+    with pytest.raises(ValueError, match="entailment regime"):
+        validate(g, g, inference="rdfs")
+
+
 _NAMED_FN = """
 ex:G a sh:NamedParameterExpressionFunction; rdfs:subClassOf sh:NamedParameterExpression; sh:parameter ex:Ga;
   sh:bodyExpression [ shnex:flatMap [ shnex:arg ex:a ]; shnex:nodes [ shnex:pathValues ex:items ] ] .

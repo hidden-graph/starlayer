@@ -39,10 +39,15 @@ def normalise_regimes(regime: Any) -> frozenset:
     if regime is None:
         return frozenset()
     items: Iterable = [regime] if isinstance(regime, str) or not hasattr(regime, "__iter__") else regime
-    out = {ox.NamedNode(item) if isinstance(item, str) and type(item) is str else to_engine(item) for item in items}
+    supported = sorted(text(r) for r in _NATIVE)
+    out = set()
+    for item in items:
+        try:
+            out.add(ox.NamedNode(item) if isinstance(item, str) and type(item) is str else to_engine(item))
+        except ValueError:
+            raise ValueError(f"Unsupported entailment regime {item!r}, which is not an IRI; use one of {supported!r}") from None
     unsupported = {r for r in out if r not in _NATIVE}
     if unsupported:
-        supported = sorted(text(r) for r in _NATIVE)
         raise ValueError(f"Unsupported entailment regime(s) {sorted(text(r) for r in unsupported)!r}; use one of {supported!r}")
     return frozenset(out)
 
@@ -85,8 +90,8 @@ def declared_regimes(shapes: Any) -> frozenset:
 
 def resolve_data_view(data_graph: Any, shapes_graph: Any = None, *, inference: Any = None, ont_graph: Any = None) -> Any:
     """The data view ``validate`` should run on: ``data_graph`` closed under the regimes the shapes graph declares with
-    ``sh:entailment`` plus those of ``inference`` (a regime IRI, ``'rdfs'`` / ``'owlrl'`` / ``'both'`` / ``'none'``, or an
-    iterable). ``data_graph`` itself when there are none."""
+    ``sh:entailment`` plus those of ``inference`` (a regime IRI or an iterable of them; names such as ``'rdfs'`` are not
+    accepted). ``data_graph`` itself when there are none."""
     data_graph = engine_view(data_graph)
     shapes = engine_view(shapes_graph) if shapes_graph is not None else data_graph
     regimes = declared_regimes(shapes) | normalise_regimes(inference)

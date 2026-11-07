@@ -117,7 +117,7 @@ def validate(
     default rule set; ``False`` never. Rules never modify ``data_graph``; validation then runs on data plus inferred
     triples, and the ``RuleResult`` is on ``Outcome.rule_result``.
 
-    ``inference`` (an entailment regime such as ``"rdfs"`` or ``"owlrl"``) and ``sh:entailment`` declared in the shapes
+    ``inference`` (a W3C entailment regime IRI such as ``ENTAILMENT.RDFS``, or an iterable of them; not a name like ``"rdfs"``) and ``sh:entailment`` declared in the shapes
     graph run the entailment closure first (see ``entailment.py``); ``ont_graph`` supplies axioms visible to entailment
     only. Neither modifies ``data_graph`` unless ``inplace=True``, which then adds the inferred and entailed triples to it
     (returned as ``Outcome.data_graph``).
