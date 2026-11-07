@@ -58,7 +58,9 @@ def add_list(graph: Any, items: Iterable[Any]) -> Any:
 
 
 def copy_cbd(src: Any, dst: Any, node: Any, seen: set) -> None:
-    """The concise bounded description of ``node`` (its triples, recursing into blank-node objects) from ``src`` into ``dst``."""
+    """The concise bounded description of ``node`` (its triples, recursing into blank-node objects) from ``src`` into ``dst``.
+    A reifier of one of those triples comes along, with its own description (``{| sh:deactivated true |}`` on a ``sh:property``
+    link is a property of the link, which the shape builder reads)."""
     pending = [node]
     while pending:
         current = pending.pop()
@@ -70,4 +72,7 @@ def copy_cbd(src: Any, dst: Any, node: Any, seen: set) -> None:
             batch.append((current, p, o))
             if isinstance(o, ox.BlankNode):
                 pending.append(o)
+            quoted = ox.Triple(current, p, o)
+            for reifier in src.subjects(RDF.reifies, quoted):
+                pending.append(reifier)
         dst.extend(batch)

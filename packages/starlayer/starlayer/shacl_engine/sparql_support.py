@@ -55,23 +55,25 @@ def _import_closure(graph: Any, starts: Iterable[Term]) -> list[Term]:
     return list(seen)
 
 
+def prefixes_of(graph: Any, holder: Term) -> dict[str, str]:
+    """The prefix map for a query whose ``sh:prefixes`` lives on ``holder``, read from ``graph`` (no plan, no cache)."""
+    explicit = list(graph.objects(holder, SH.prefixes))
+    if explicit:
+        return _declarations(graph, _import_closure(graph, explicit))
+    # no sh:prefixes: the declarations of the sh:ShapesGraph-like nodes win; an owl:Ontology declare only adds
+    # prefixes they do not already bind (the W3C prefixes-002 case has a distractor with the same prefix).
+    primary = [s for t in _PREFIX_HOLDER_TYPES[1:] for s in graph.subjects(RDF.type, t)]
+    decls = _declarations(graph, primary)
+    for p, ns in _declarations(graph, list(graph.subjects(RDF.type, OWL.Ontology))).items():
+        decls.setdefault(p, ns)
+    return decls
+
+
 def prefixes_for(plan: Plan, holder: Term) -> dict[str, str]:
     """The prefix map for a query whose ``sh:prefixes`` lives on ``holder`` (cached per plan)."""
     key = ("prefixes", holder)
     if key not in plan.sparql_cache:
-        graph = plan.shapes_graph
-        explicit = list(graph.objects(holder, SH.prefixes))
-        if explicit:
-            holders = _import_closure(graph, explicit)
-            decls = _declarations(graph, holders)
-        else:
-            # no sh:prefixes: the declarations of the sh:ShapesGraph-like nodes win; an owl:Ontology declare only adds
-            # prefixes they do not already bind (the W3C prefixes-002 case has a distractor with the same prefix).
-            primary = [s for t in _PREFIX_HOLDER_TYPES[1:] for s in graph.subjects(RDF.type, t)]
-            decls = _declarations(graph, primary)
-            for p, ns in _declarations(graph, list(graph.subjects(RDF.type, OWL.Ontology))).items():
-                decls.setdefault(p, ns)
-        plan.sparql_cache[key] = decls
+        plan.sparql_cache[key] = prefixes_of(plan.shapes_graph, holder)
     return plan.sparql_cache[key]
 
 

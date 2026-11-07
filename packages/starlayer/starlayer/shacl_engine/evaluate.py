@@ -19,7 +19,7 @@ from typing import Any
 
 from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
 from starlayer.shacl_engine.deactivation import deactivated_at
-from starlayer.shacl_engine.executor import Context
+from starlayer.shacl_engine.executor import Context, _deactivated
 from starlayer.shacl_engine.plan import SH, Plan
 from starlayer.shacl_engine.terms import (
     check_graphs,
@@ -101,7 +101,7 @@ def _foci(ctx: Context, plan: Plan, shapes: Any, node: Any, active: tuple) -> di
     foci: dict[Any, None] = dict.fromkeys(ctx.shape_focus(shape))
     for host_node in dict.fromkeys(shapes.subjects(SH.property, node)):
         host = plan.shape(host_node)
-        if host.deactivated or host_node in active or host_node == node:
+        if host.deactivated or host_node in active or host_node == node or _deactivated(host, SH.property, node):  # also {| sh:deactivated true |} on the link
             continue
         for f in _foci(ctx, plan, shapes, host_node, (*active, node)):
             if deactivated_at(ctx, host, f):

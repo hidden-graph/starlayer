@@ -27,6 +27,7 @@ from starlayer.shacl_engine.terms import (
     RDFS,
     SH,
     BlankNode,
+    Literal,
     NamedNode,
     engine_view,
     n3,
@@ -36,8 +37,24 @@ from starlayer.shacl_engine.terms import (
 from starlayer.shacl_engine.terms import boolean as _boolean_literal
 
 _GRAPH_TYPES = (SH.Graph, SH.ShapesGraph, SH.DataGraph, SH.RulesGraph)
-_SHAPE_REFERENCES = ("node", "property", "not", "qualifiedValueShape", "reifierShape", "someValue", "memberShape")
+_SHAPE_REFERENCES = (
+    "node",
+    "property",
+    "not",
+    "qualifiedValueShape",
+    "reifierShape",
+    "someValue",
+    "memberShape",
+    "targetWhere",
+    "condition",
+    "sparql",
+    "rule",
+    "target",
+)
 _SHAPE_LIST_REFERENCES = ("and", "or", "xone")
+_NODE_EXPRESSION_SHAPE_REFERENCES = tuple(
+    NamedNode("http://www.w3.org/ns/shacl-node-expr#" + name) for name in ("filterShape", "findFirst", "matchAll", "nodesMatching")
+)
 
 
 def _items(graph: Any, head: Any) -> list:
@@ -94,21 +111,36 @@ def shapes_graph_members(graph: Any, shapes_graph: Any) -> frozenset | None:
 
 
 def referenced_shapes(graph: Any, starting_points: Any) -> set:
-    """Named shapes the starting points refer to, directly or through further shapes (``sh:node``, ``sh:property``,
-    ``sh:not``, ``sh:qualifiedValueShape``, ``sh:reifierShape``, ``sh:someValue``, ``sh:memberShape``, the lists of
-    ``sh:and`` / ``sh:or`` / ``sh:xone``). Blank nodes are walked but not returned; starting points are not part of the
+    """Named shapes (and named SPARQL, rule and target nodes) the starting points refer to, directly or through further shapes:
+    ``sh:node``, ``sh:property``, ``sh:not``, ``sh:qualifiedValueShape``, ``sh:reifierShape``, ``sh:someValue``,
+    ``sh:memberShape``, ``sh:targetWhere``, a rule's ``sh:condition``, the lists of ``sh:and`` / ``sh:or`` / ``sh:xone``, and
+    the shape-taking node expressions (``shnex:filterShape``, ``findFirst``, ``matchAll``, ``nodesMatching``) anywhere in the
+    blank-node description of a shape. Blank nodes are walked but not returned; starting points are not part of the
     result; cycles are fine."""
+    reference_predicates = {SH[name] for name in _SHAPE_REFERENCES} | set(_NODE_EXPRESSION_SHAPE_REFERENCES)
+    list_predicates = {SH[name] for name in _SHAPE_LIST_REFERENCES}
     seen: set = set(starting_points)
     result: set = set()
     stack = list(starting_points)
     while stack:
         shape = stack.pop()
-        targets = [o for name in _SHAPE_REFERENCES for o in graph.objects(shape, SH[name])]
-        for name in _SHAPE_LIST_REFERENCES:
-            for head in graph.objects(shape, SH[name]):
-                targets.extend(_items(graph, head))
+        targets: list = []
+        described: set = set()
+        queue = [shape]
+        while queue:  # the shape and the blank nodes it is described through (property shapes, node expressions, lists)
+            node = queue.pop()
+            if node in described:
+                continue
+            described.add(node)
+            for predicate, obj in graph.predicate_objects(node):
+                if predicate in reference_predicates:
+                    targets.append(obj)
+                elif predicate in list_predicates:
+                    targets.extend(_items(graph, obj))
+                if isinstance(obj, BlankNode):
+                    queue.append(obj)
         for target in targets:
-            if target in seen:
+            if target in seen or isinstance(target, Literal):
                 continue
             seen.add(target)
             if not isinstance(target, BlankNode):
@@ -198,15 +230,18 @@ def close_shape(shapes_graph: Any, shape: Any) -> Any:
     visited: set = set()
     # a shape closed together with its and/or/xone members describes ONE node's property set: each such group shares the
     # predicates its closed forms must let through
-    group_of: dict = {}
+    # (a shape reached in several roles, say sh:node and an sh:or member, belongs to every such group)
+    group_of: dict[Any, list[set]] = {}
 
     def walk(node: Any, should_close: bool, group: set, is_property_shape: bool = False) -> None:
+        if should_close:
+            to_close.add(node)
+            groups = group_of.setdefault(node, [])
+            if not any(group is known for known in groups):
+                groups.append(group)
         if node in visited:
             return
         visited.add(node)
-        if should_close:
-            to_close.add(node)
-            group_of[node] = group
         for nested in result.objects(node, SH.node):
             walk(nested, True, set())
         for prop in result.objects(node, SH.property):
@@ -247,7 +282,7 @@ def close_shape(shapes_graph: Any, shape: Any) -> Any:
             for path in result.objects(prop, SH.path)
             if isinstance(path, NamedNode)
         }
-        node_allowed = allowed | (group_of[node] - own)
+        node_allowed = allowed | (set().union(*group_of[node]) - own)
         if node_allowed:
             result.add((node, SH.ignoredProperties, add_list(result, sorted(node_allowed, key=n3))))
     return result
