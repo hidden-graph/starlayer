@@ -235,3 +235,13 @@ def test_used_configuration_records_the_inference_regime():
     r = validate(g("ex:a ex:p 1 ."), shapes, inference=ENTAILMENT.RDFS, include_used_configuration=True)
     option = ox.NamedNode("urn:starlayer:shacl-engine:option:inference")
     assert [o for _, _, o in r.report_graph.triples((None, option, None))] == [ENTAILMENT.RDFS]
+
+
+def test_close_shape_returns_a_closed_copy_of_the_whole_shapes_graph():
+    from starlayer.shacl import StarShaclSchema
+
+    s = g("ex:A a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] . ex:Other a sh:NodeShape ; sh:nodeKind sh:IRI .")
+    closed = StarShaclSchema(s).close_shape(ox.NamedNode("http://e/A"))
+    assert list(closed.triples((ox.NamedNode("http://e/Other"), None, None)))  # the documented behaviour: a copy, not a reduction
+    assert list(closed.triples((ox.NamedNode("http://e/A"), ox.NamedNode("http://www.w3.org/ns/shacl#closed"), None)))
+    assert "reduced" not in (StarShaclSchema.close_shape.__doc__ or "")

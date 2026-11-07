@@ -481,8 +481,10 @@ class StarShaclSchema:
         )
 
     def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
-        """The bound shapes graph reduced to ``shape`` and every shape it references (directly or through ``sh:property``,
-        ``sh:node``, ``sh:and``/``sh:or``/``sh:xone``/``sh:not``, ``sh:qualifiedValueShape`` ...): a self-contained shapes graph."""
+        """A copy of the whole bound shapes graph in which ``shape`` and the shapes it reaches as a value node's complete
+        description (``sh:node``, ``sh:qualifiedValueShape``, the members of ``sh:and`` / ``sh:or`` / ``sh:xone``) are
+        ``sh:closed true``: the strict form an ``extract_subgraph`` fragment is checked against. Shapes that are not reached stay as
+        they are; nothing is removed. See ``shacl_engine.shapes_graphs.close_shape`` for the exact rules."""
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
         if shacl_graph_input is None:
             raise ValueError(
