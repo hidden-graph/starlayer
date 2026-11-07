@@ -18,6 +18,7 @@ operator that owns them. The ``sparql:`` functions are built into the same table
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Mapping
 from decimal import Decimal
 from functools import cmp_to_key
@@ -245,7 +246,7 @@ def _integer(term: Term, what: str) -> int:
     if (
         isinstance(term, Literal)
         and term.datatype == XSD.integer
-        and term.value.lstrip("+-").isdigit()
+        and re.fullmatch(r"[+-]?[0-9]+", term.value)  # ASCII digits only: str.isdigit() accepts "²"
     ):
         n = int(term.value)
         if n >= 0:

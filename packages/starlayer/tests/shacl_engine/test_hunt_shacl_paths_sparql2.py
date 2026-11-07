@@ -10,7 +10,7 @@ from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.expressions import evaluate_expression
-from starlayer.shacl_engine.plan import Plan
+from starlayer.shacl_engine.plan import Plan, ShapeError
 from starlayer.shacl_engine.subgraph import extract_subgraph
 from starlayer.shacl_engine.terms import NS
 
@@ -58,6 +58,13 @@ def test_implicit_class_target_through_subclass_of_shape_type():
         "ex:K rdfs:subClassOf sh:NodeShape . ex:Person a rdfs:Class, ex:K ; sh:property [ sh:path ex:name ; sh:minCount 1 ] ."
     )
     assert not validate(G("ex:bob a ex:Person ."), G(shapes)).conforms
+
+
+@pytest.mark.parametrize("lex", ["²", "--1", "1²"])
+@pytest.mark.parametrize("op", ["limit", "offset"])
+def test_ill_formed_limit_offset_is_shape_error(lex, op):
+    with pytest.raises(ShapeError):
+        ev(f'[ shnex:{op} "{lex}"^^xsd:integer ; shnex:nodes ( 1 2 3 ) ]')
 
 
 _NAMED_FN = """
