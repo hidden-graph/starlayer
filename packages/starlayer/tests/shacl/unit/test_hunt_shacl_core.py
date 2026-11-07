@@ -218,3 +218,22 @@ def test_a_shared_plan_runs_a_shacl_function_body_against_each_call_s_own_data_g
     cache: dict = {}
     counts("ex:a a ex:C .", cache)
     assert counts(three, cache) == fresh == [3]
+
+
+def test_evaluate_runs_a_nested_property_shape_at_the_value_nodes_of_its_host():
+    from starlayer.shacl_engine import evaluate
+
+    shapes = graph(
+        """
+        @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+        ex:S a sh:NodeShape ; sh:targetNode ex:alice ;
+          sh:property [ sh:path ex:friend ;
+             sh:property [ sh:path ex:echo ; sh:values [ shnex:pathValues ex:name ] ] ] .
+        """
+    )
+    data = graph('ex:alice ex:name "Alice" ; ex:friend ex:bob . ex:bob ex:name "Bob" .')
+    out = evaluate(data, shapes)
+    got = sorted(
+        (str(s.value).rsplit("/", 1)[-1], o.value) for s, p, o in out.triples((None, None, None)) if p.value.endswith("echo")
+    )
+    assert got == [("bob", "Bob")]
