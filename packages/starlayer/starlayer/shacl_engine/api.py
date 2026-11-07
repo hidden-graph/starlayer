@@ -167,7 +167,10 @@ def validate(
     # guarded by ImportError. Imports are resolved only when a loader is given: calling it with none would make the
     # default raise on any unresolved owl:imports, which the lead decides when wiring the old validator's default
     # (``ignore_imports=False`` raises there). ``meta_shacl`` truthy runs the SHACL-SHACL preflight on the shapes graph.
-    if shapes is not None and shapes_graph_loader is not None:
+    shapes_identity = _identity_of(shapes) if shapes is not None else None  # before imports make it a new anonymous graph
+    if shapes_graph_loader is not None:
+        if shapes is None:  # no shapes graph: the data graph is the shapes graph, its imports resolve like any other's
+            shapes = data_graph
         try:
             from starlayer.shacl_engine.imports import resolve_imports
         except ImportError:
@@ -193,8 +196,8 @@ def validate(
         shapes, resolved = resolve_shapes_resource(shapes, shapes_graph_resource)
         if shapes_graph_iri is None:
             shapes_graph_iri = resolved
-    elif shapes_graph_iri is None and shapes is not None:
-        shapes_graph_iri = _identity_of(shapes)
+    elif shapes_graph_iri is None:
+        shapes_graph_iri = shapes_identity
     if shapes is None:
         shapes = data_graph
     conformance_disallows = to_engine(conformance_disallows)
@@ -275,6 +278,7 @@ def validate_each(
     shapes = engine_view(shapes_graph, "shapes graph")  # converted once for the whole batch
     ont_graph = engine_view(ont_graph, "ontology graph")
     shapes_iri = kwargs.pop("shapes_graph_iri", None)
+    shapes_identity = _identity_of(shapes)
     loader, ignore_imports = kwargs.pop("shapes_graph_loader", None), kwargs.pop("ignore_imports", False)
     meta_shacl, extra = kwargs.pop("meta_shacl", None), kwargs.pop("meta_shapes_extra", ())
     resource = kwargs.pop("shapes_graph_resource", None)
@@ -292,7 +296,7 @@ def validate_each(
         shapes, resolved = resolve_shapes_resource(shapes, resource)
         shapes_iri = shapes_iri if shapes_iri is not None else resolved
     elif shapes_iri is None:
-        shapes_iri = _identity_of(shapes)
+        shapes_iri = shapes_identity
     shared = Plan(shapes_graph=shapes)
     return {
         i: validate(g, shapes, ont_graph=ont_graph, shapes_graph_iri=shapes_iri, plan=shared, **kwargs)

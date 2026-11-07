@@ -46,3 +46,32 @@ def test_meta_shacl_prefix_from_shapes_graph_declare_without_sh_prefixes():
     )
     d = g("<http://ex/n> <http://ex/p> 1 .")
     assert validate(d, sg, meta_shacl=True).conforms is False
+
+
+# --- imports and the shapes graph's identity
+
+
+def test_validate_without_shapes_graph_resolves_imports_with_loader():
+    imported = "ex:T a sh:NodeShape ; sh:targetNode ex:a ; sh:nodeKind sh:Literal ."
+    data = g("ex:a ex:p 1 . <http://e/onto> a owl:Ontology ; owl:imports <http://e/imp> .")
+    loader = lambda iri: g(imported)  # noqa: E731
+    assert validate(data, shapes_graph_loader=loader).conforms is False
+    assert validate(data, data, shapes_graph_loader=loader).conforms is False
+
+
+def test_validate_without_shapes_graph_unresolved_import_raises():
+    data = g("ex:a ex:p 1 . <http://e/onto> a owl:Ontology ; owl:imports <http://e/imp> .")
+    with pytest.raises(ValueError):
+        validate(data)
+
+
+def test_used_shapes_graph_kept_when_imports_resolved_with_loader():
+    shapes = g(
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:class ex:C . <http://e/shapesG> owl:imports <http://e/imp> .",
+        ox.NamedNode("http://e/shapesG"),
+    )
+    loader = lambda iri: g("ex:T a sh:NodeShape ; sh:targetNode ex:a ; sh:minCount 1 .")  # noqa: E731
+    data = g("ex:a ex:p 1 .")
+    used = ox.NamedNode("http://www.w3.org/ns/shacl#usedShapesGraph")
+    r = validate(data, shapes, shapes_graph_loader=loader)
+    assert [o for _, _, o in r.report_graph.triples((None, used, None))] == [ox.NamedNode("http://e/shapesG")]

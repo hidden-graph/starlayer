@@ -201,7 +201,7 @@ def validate(
             "construct with StarShaclSchema(shacl_graph=...). (If you only "
             "want to record where the shapes came from, pass shapes_graph_iri=.)"
         )
-    _check_imports(shapes, shapes_graph_loader, ignore_imports)
+    _check_imports(shapes if shapes is not None else data, shapes_graph_loader, ignore_imports)
     meta_shacl = engine_kwargs.pop("meta_shacl", None)
     if meta_shacl:
         _meta_preflight(
