@@ -45,8 +45,8 @@ def identity_term(value: Any) -> Any:
     return ox.NamedNode(value if isinstance(value, str) else T.text(converted))
 
 
-def _python_literal(value: Any) -> ox.Literal:
-    if isinstance(value, ox.Literal):
+def _python_literal(value: Any) -> Any:
+    if isinstance(value, (ox.Literal, ox.NamedNode)):  # an option that is an IRI (an entailment regime) stays one
         return value
     if isinstance(value, bool):
         return T.boolean(value)
@@ -82,8 +82,9 @@ def annotate_provenance(
         config = ox.BlankNode()
         report.add((config, T.RDF.type, SH.ProcessorConfiguration))
         for name, value in sorted((configuration or {}).items()):
-            if value is not None:
-                report.add((config, ox.NamedNode(_OPTION + name), _python_literal(value)))
+            for item in value if isinstance(value, (list, tuple, set, frozenset)) else (value,):
+                if item is not None:
+                    report.add((config, ox.NamedNode(_OPTION + name), _python_literal(item)))
         report.add((node, SH.usedConfiguration, config))
     if data_graph_iri is not None and shapes_graph_iri is not None:
         # Profiling S5.5: lazy import, a pure function over the report graph (not the old validator)

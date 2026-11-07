@@ -226,3 +226,12 @@ def test_deep_shape_chain_is_bounded_by_max_validation_depth_not_the_interpreter
     with pytest.raises(ShapeError):
         validate(data, _chain(600))
     assert validate(data, _chain(600), max_validation_depth=None).conforms is True  # None removes the bound
+
+
+def test_used_configuration_records_the_inference_regime():
+    from starlayer.graph import ENTAILMENT
+
+    shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:nodeKind sh:IRI .")
+    r = validate(g("ex:a ex:p 1 ."), shapes, inference=ENTAILMENT.RDFS, include_used_configuration=True)
+    option = ox.NamedNode("urn:starlayer:shacl-engine:option:inference")
+    assert [o for _, _, o in r.report_graph.triples((None, option, None))] == [ENTAILMENT.RDFS]

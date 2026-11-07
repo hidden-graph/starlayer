@@ -64,6 +64,16 @@ def _identity_of(graph: Any) -> Any:
     return ident if isinstance(ident, ox.NamedNode) else None
 
 
+def _recorded_regimes(inference: Any) -> Any:
+    """The entailment regime(s) of the run as the configuration records them: an IRI or string as is, an iterable as a list."""
+    if inference is None or isinstance(inference, (str, ox.NamedNode)):
+        return inference
+    try:
+        return [r for r in inference if isinstance(r, (str, ox.NamedNode))]
+    except TypeError:
+        return None
+
+
 def _iri_or_none(value: Any) -> Any:
     """A graph identity the caller passed (a term of either term model, or an IRI as a ``str``) as an engine term."""
     if value is None or isinstance(value, (ox.NamedNode, ox.Literal)):
@@ -239,7 +249,8 @@ def validate(
             "abortOnFirst": abort_on_first,
             "maxValidationDepth": max_validation_depth,
             "rules": rules,
-            "inference": inference if isinstance(inference, str) else None,
+            "inference": _recorded_regimes(inference),
+            "conformanceDisallows": conformance_disallows,
             "inplace": inplace,
         },
         specification_graph=specification_graph,
