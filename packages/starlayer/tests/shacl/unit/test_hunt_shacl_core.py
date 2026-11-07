@@ -195,3 +195,26 @@ def test_chain_deeper_than_the_default_depth_limit_is_a_shape_error():
     d, s = _chain(300)
     with pytest.raises(ShapeError):
         validate(d, s)
+
+
+_FN_SHAPES = """
+@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+ex:count a sh:ListParameterExpressionFunction ;
+  sh:bodyExpression [ shnex:count [ shnex:instancesOf [ shnex:arg 0 ] ] ] ;
+  sh:parameter [ a sh:Parameter ; sh:path shnex:arg0 ] .
+ex:S a sh:NodeShape ; sh:targetNode ex:t ; sh:sparql ex:Q .
+ex:Q sh:select "PREFIX ex: <http://example.org/> SELECT $this ?value WHERE { BIND (ex:count(ex:C) AS ?value) }" .
+"""
+
+
+def test_a_shared_plan_runs_a_shacl_function_body_against_each_call_s_own_data_graph():
+    shapes = graph(_FN_SHAPES)
+
+    def counts(data: str, cache):
+        return sorted(int(r.value.value) for r in validate(graph(data), shapes, plan_cache=cache).results)
+
+    three = "ex:a a ex:C . ex:b a ex:C . ex:c a ex:C ."
+    fresh = counts(three, None)
+    cache: dict = {}
+    counts("ex:a a ex:C .", cache)
+    assert counts(three, cache) == fresh == [3]
