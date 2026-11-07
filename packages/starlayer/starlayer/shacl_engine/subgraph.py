@@ -44,7 +44,8 @@ from starlayer.shacl_engine.terms import (
 
 _Triple = tuple[Any, Any, Any]
 
-_SECOND_PATH_PREDICATES = (SH.equals, SH.disjoint, SH.lessThan, SH.lessThanOrEquals)
+_SECOND_PATH_PREDICATES = (SH.equals, SH.disjoint, SH.lessThan, SH.lessThanOrEquals, SH.subsetOf)
+_LIST_PREDICATES = (SH.memberShape, SH.minListLength, SH.maxListLength, SH.uniqueMembers)
 _QUALIFIED_FAMILY = frozenset(
     {SH.qualifiedValueShape, SH.qualifiedMinCount, SH.qualifiedMaxCount, SH.qualifiedValueShapesDisjoint}
 )
@@ -65,6 +66,19 @@ def _items(graph: Any, head: Term) -> list[Term]:
             break
         out.append(first)
         head = next(iter(graph.objects(head, RDF.rest)), None)
+    return out
+
+
+def _list_cells(graph: Any, head: Term) -> set[_Triple]:
+    """The rdf:first / rdf:rest triples of the list at ``head`` (cycle-safe, tolerant of a malformed tail)."""
+    out: set[_Triple] = set()
+    seen: set = set()
+    while head is not None and head != RDF.nil and head not in seen:
+        seen.add(head)
+        firsts = list(graph.objects(head, RDF.first))
+        rests = list(graph.objects(head, RDF.rest))
+        out |= {(head, RDF.first, f) for f in firsts} | {(head, RDF.rest, r) for r in rests}
+        head = rests[0] if rests else None
     return out
 
 
@@ -269,6 +283,34 @@ class _Extractor:
                 ns = plan.shape(nested)
                 for v in value_nodes:
                     triples |= self.extract(ns, v, visiting, full_trace)
+
+        # sh:someValue: the neighborhood of every value node that conforms (which one satisfies it is not fixed, so keep each)
+        for nested in _values(shape, SH.someValue):
+            ns = plan.shape(nested)
+            for v in value_nodes:
+                if full_trace or self.conforms(nested, v):
+                    triples |= self.extract(ns, v, visiting, full_trace)
+
+        # the rdf:List cells that sh:memberShape / minListLength / maxListLength / uniqueMembers read, and the members' shape
+        if any(_values(shape, p) for p in _LIST_PREDICATES):
+            member_shapes = _values(shape, SH.memberShape)
+            for v in value_nodes:
+                triples |= _list_cells(data, v)
+                for ms_node in member_shapes:
+                    ms = plan.shape(ms_node)
+                    for member in _items(data, v):
+                        if full_trace or self.conforms(ms_node, member):
+                            triples |= self.extract(ms, member, visiting, full_trace)
+
+        # sh:reifierShape / sh:reificationRequired read the reifiers of the asserted triple
+        if shape.path is not None and shape.path.kind == "pred" and (_values(shape, SH.reifierShape) or _values(shape, SH.reificationRequired)):
+            rshapes = _values(shape, SH.reifierShape)
+            for v in value_nodes:
+                term = Triple(focus, shape.path.iri, v)
+                for reifier in data.subjects(RDF["reifies"], term):
+                    triples.add((reifier, RDF["reifies"], term))
+                    for rs in rshapes:
+                        triples |= self.extract(plan.shape(rs), reifier, visiting, full_trace)
         for ps in shape.property_shapes:
             a = shape.annotations.get((SH.property, ps))
             if a and a["deactivated"]:

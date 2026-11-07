@@ -1,18 +1,38 @@
 """Regression tests from the bug hunt (second batch): SHACL engine paths, targets, SPARQL constraints, rules, expressions."""
 
+
 from __future__ import annotations
+
 
 import warnings
 
+
 import pyoxigraph as ox
+
+
 import pytest
+
+
 from starlayer.graph.oxgraph import StarLayerGraph
+
+
 from starlayer.shacl_engine import validate
+
+
 from starlayer.shacl_engine.executor import Context
-from starlayer.shacl_engine.expressions import evaluate_expression
+
+
+from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
+
+
 from starlayer.shacl_engine.plan import Plan, ShapeError
+
+
 from starlayer.shacl_engine.subgraph import extract_subgraph
+
+
 from starlayer.shacl_engine.terms import NS
+
 
 warnings.simplefilter("ignore")
 
@@ -47,16 +67,12 @@ def _fragment_conforms(shapes: str, data: str) -> None:
 
 @pytest.mark.parametrize("deact", ["true", "[ shnex:exists ( 1 ) ]"])
 def test_sparql_constraint_deactivated_node_expression(deact):
-    s = G(
-        f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:deactivated {deact} ; sh:select "SELECT $this WHERE {{ $this ?p ?o }}" ] .'
-    )
+    s = G(f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:deactivated {deact} ; sh:select "SELECT $this WHERE {{ $this ?p ?o }}" ] .')
     assert validate(G("ex:a ex:p 1 ."), s).conforms
 
 
 def test_implicit_class_target_through_subclass_of_shape_type():
-    shapes = (
-        "ex:K rdfs:subClassOf sh:NodeShape . ex:Person a rdfs:Class, ex:K ; sh:property [ sh:path ex:name ; sh:minCount 1 ] ."
-    )
+    shapes = "ex:K rdfs:subClassOf sh:NodeShape . ex:Person a rdfs:Class, ex:K ; sh:property [ sh:path ex:name ; sh:minCount 1 ] ."
     assert not validate(G("ex:bob a ex:Person ."), G(shapes)).conforms
 
 
@@ -71,6 +87,32 @@ def test_inference_names_error_names_the_regimes():
     g = G("ex:a ex:p 1 .")
     with pytest.raises(ValueError, match="entailment regime"):
         validate(g, g, inference="rdfs")
+
+
+def test_subgraph_reifier_shape_triples_kept():
+    _fragment_conforms(
+        "ex:S a sh:NodeShape; sh:targetNode ex:a; sh:property [sh:path ex:p; sh:reificationRequired true; sh:reifierShape [sh:property [sh:path ex:src; sh:minCount 1]]] .",
+        "ex:a ex:p ex:b . _:r rdf:reifies <<( ex:a ex:p ex:b )>> ; ex:src ex:s1 .",
+    )
+
+
+def test_subgraph_subset_of_keeps_second_path():
+    _fragment_conforms("ex:S a sh:NodeShape; sh:targetNode ex:a; sh:property [sh:path ex:p; sh:subsetOf ex:q] .", "ex:a ex:p 1 ; ex:q 1, 2 .")
+
+
+def test_subgraph_some_value_keeps_evidence():
+    _fragment_conforms(
+        "ex:S a sh:NodeShape; sh:targetNode ex:a; sh:property [sh:path ex:p; sh:someValue [sh:property [sh:path ex:q; sh:minCount 1]]] .",
+        "ex:a ex:p ex:b, ex:c . ex:b ex:q 1 . ex:c ex:r 2 .",
+    )
+
+
+@pytest.mark.parametrize(
+    "constraint",
+    ["sh:memberShape [sh:datatype xsd:integer]", "sh:minListLength 2", "sh:uniqueMembers true"],
+)
+def test_subgraph_list_constraints_keep_list_cells(constraint):
+    _fragment_conforms(f"ex:S a sh:NodeShape; sh:targetNode ex:a; sh:property [sh:path ex:l; {constraint}] .", "ex:a ex:l (1 2 3) .")
 
 
 _NAMED_FN = """
