@@ -132,6 +132,23 @@ def test_describe_type_with_hash_in_prefix_iri():
     assert g.query("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } # DESCRIBE").type == "CONSTRUCT"
 
 
+# ---- VERSION "1.1" conformance check ignores strings, IRIs and comments -------------------------------------------------
+def test_version_warning_ignores_dashes_and_tilde_in_strings():
+    import warnings
+
+    g = StarLayerGraph()
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        g.query('VERSION "1.1" SELECT * { ?s ?p "a--b" }')
+        g.query('VERSION "1.1" SELECT * { ?s ?p ?o FILTER(CONTAINS(?o, "x~y")) }')
+        g.query('VERSION "1.1" SELECT * { ?s <http://x/a~b--c> ?o } # ~ --')
+    assert [x for x in w if "onformance" in x.category.__name__] == []
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        g.query('VERSION "1.1" SELECT * { ?s ?p "a"@en--ltr }')
+    assert [x for x in w if "onformance" in x.category.__name__]
+
+
 # ---- has_triple_term: an impossible pattern is False --------------------------------------------------------------------
 def test_has_triple_term_impossible_pattern_is_false():
     g = StarLayerGraph()

@@ -91,6 +91,13 @@ def check_native_version_conformance(text: str) -> None:
     _, declared_version = strip_version_directive(text)
     if declared_version is None:
         return
+    # a ``--`` or ``~`` inside a string, IRI or comment is not RDF 1.2 syntax
+    text = re.sub(
+        r"(?s)<[^<>\s\"{}|^`\\]*>|\"\"\"(?:[^\"\\]|\\.|\"(?!\"\"))*\"\"\"|'''(?:[^'\\]|\\.|'(?!''))*'''"
+        r"|\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'|#[^\n]*",
+        " ",
+        text,
+    )
     check_version_conformance(
         declared_version,
         uses_triple_term=bool(
