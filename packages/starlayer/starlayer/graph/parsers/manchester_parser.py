@@ -193,6 +193,13 @@ _DECIMAL_RE = re.compile(r'^[+-]?[0-9]+\.[0-9]+$')
 _FLOAT_RE = re.compile(r'^([+-]?(?:[0-9]+(?:\.[0-9]+)?(?:[eE][+-]?[0-9]+)?|\.[0-9]+(?:[eE][+-]?[0-9]+)?))[fF]$')
 
 
+def _integer_lexical(word):
+    """The canonical xsd:integer lexical form of an integer token, by string operations (``str(int(word))``
+    raises ValueError past Python's 4300-digit conversion limit): no ``+``, no leading zeros, no ``-0``."""
+    digits = word.lstrip('+-').lstrip('0') or '0'
+    return '-' + digits if word.startswith('-') and digits != '0' else digits
+
+
 def _numeric_literal(word):
     """The Literal for a bare numeric token, or None if ``word`` is not one.
 
@@ -201,7 +208,7 @@ def _numeric_literal(word):
     ``+`` is accepted and not kept in the lexical form, matching the OWL API.
     """
     if _INTEGER_RE.match(word):
-        return Literal(str(int(word)), datatype=XSD.integer)
+        return Literal(_integer_lexical(word), datatype=XSD.integer)
     if _DECIMAL_RE.match(word):
         return Literal(word.lstrip('+'), datatype=XSD.decimal)
     m = _FLOAT_RE.match(word)
@@ -359,6 +366,7 @@ def _tokenize(text):
                     tok['datatype'] = ('WORD', text[j:k])
                     j = k
             tokens.append(tok)
+            line += text.count('\n', i, j)  # a string literal may span lines; the token keeps its first line
             i = j
             continue
         if c in '(),{}[]':
@@ -516,32 +524,34 @@ class _Cursor:
             self.error(f'expected {ch!r}, got {got!r}')
         return self.advance()
 
-    def error(self, why, pos=0):
-        tok = self.peek()
+    def error(self, why, pos=0, tok=None):
+        """Raise a ManchesterSyntaxError at ``tok`` (the offending token), or at the next token to be read."""
+        tok = tok if tok is not None else self.peek()
         line = tok['line'] if tok else None
         text = tok['text'] if tok else ''
         raise ManchesterSyntaxError(why, text, pos=pos or 0, line=line)
 
     # -- name resolution ---------------------------------------------------
 
-    def resolve_prefixed(self, prefix, local):
+    def resolve_prefixed(self, prefix, local, tok=None):
         if prefix not in self.prefixes:
             self.error(
                 f'unknown prefix {prefix!r} - no matching Prefix: directive '
                 f'(the default ":" prefix must be declared explicitly too; '
-                f"it isn't guessed from the ontology IRI)"
+                f"it isn't guessed from the ontology IRI)",
+                tok=tok,
             )
-        return self.iri(self.prefixes[prefix] + local)
+        return self.iri(self.prefixes[prefix] + local, tok)
 
-    def iri(self, text):
+    def iri(self, text, tok=None):
         """A ``NamedNode``; an IRI pyoxigraph rejects (a relative one with no base, a space) is a syntax error."""
         try:
             return URIRef(text)
         except ValueError as exc:
-            self.error(f'{text!r} is not a valid IRI ({exc})')
+            self.error(f'{text!r} is not a valid IRI ({exc})', tok=tok)
 
-    def resolve_iri(self, raw):
-        return self.iri(urljoin(self.base, raw) if self.base else raw)
+    def resolve_iri(self, raw, tok=None):
+        return self.iri(urljoin(self.base, raw) if self.base else raw, tok)
 
     def blank_node(self, label):
         """The blank node for a ``_:label`` nodeID. The label is the node's identity within the
@@ -572,15 +582,15 @@ class _Cursor:
         """
         tok = self.advance()
         if tok['kind'] == 'IRI':
-            return self.resolve_iri(tok['text'])
+            return self.resolve_iri(tok['text'], tok)
         if tok['kind'] != 'WORD':
-            self.error(f'expected a name, got {tok["text"]!r}')
+            self.error(f'expected a name, got {tok["text"]!r}', tok=tok)
         text = tok['text']
         if ':' in text:
             prefix, local = text.split(':', 1)
         else:
             prefix, local = '', text
-        return self.resolve_prefixed(prefix, local)
+        return self.resolve_prefixed(prefix, local, tok)
 
     def read_literal_or_name(self, prop=None, data=False):
         """Read a `value`-restriction/Facts: filler.
@@ -865,9 +875,14 @@ def _parse_restriction_tail(cur, prop_expr):
         return ('SelfR', prop_expr)
     # min / max / exactly
     n_tok = cur.advance()
-    if n_tok['kind'] != 'WORD' or not n_tok['text'].isdigit():
+    # nonNegativeInteger ::= digits (ASCII): str.isdigit() also accepts '\u00b2' and other scripts' digits.
+    if n_tok['kind'] != 'WORD' or not re.fullmatch('[0-9]+', n_tok['text']):
         cur.error(f'expected a non-negative integer after {kw!r}, got {n_tok["text"]!r}')
-    n = int(n_tok['text'])
+    try:
+        n = int(n_tok['text'])
+        str(n)
+    except ValueError:  # beyond Python's 4300-digit integer conversion limit
+        cur.error(f'the cardinality after {kw!r} has too many digits')
     tag = {'min': 'Min', 'max': 'Max', 'exactly': 'Exact'}[kw]
     if not _starts_a_primary(cur.peek()):
         return (tag, n, prop_expr, None)
@@ -1487,9 +1502,7 @@ def _parse_individual_frame(cur):
                 cur.triples.append((node, OWL.assertionProperty, prop))
                 target_pred = OWL.targetValue if isinstance(value, Literal) else OWL.targetIndividual
                 cur.triples.append((node, target_pred, value))
-                if anns is not None:
-                    for ann_prop, ann_value in anns:
-                        cur.triples.append((node, ann_prop, ann_value))
+                _annotation_triples(cur, node, anns or ())
             cur.record_clause('Individual', clause, items)
         else:
             pred = OWL.sameAs if clause == 'SameAs:' else OWL.differentFrom
