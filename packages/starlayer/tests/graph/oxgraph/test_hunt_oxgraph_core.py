@@ -64,3 +64,17 @@ def test_union_update_malformed_delete_where_is_syntax_error(text):
         ds.graph(ex("g1")).add((ex("a"), ex("b"), ex("c")))
         with pytest.raises(SyntaxError):
             ds.update(text)
+
+
+# ---- a query own FROM clause is honoured on a default_union dataset ----
+@pytest.mark.parametrize("overlap", [False, True])
+def test_query_from_clause_on_union_dataset(overlap):
+    ds = StarLayerDataset()
+    ds.graph("urn:g1").add((N("urn:a"), N("urn:p"), N("urn:b")))
+    ds.add((N("urn:a"), N("urn:p"), N("urn:c")))
+    if overlap:
+        ds.graph("urn:g2").add((N("urn:a"), N("urn:p"), N("urn:b")))
+    got = sorted(r[0].value for r in ds.query("SELECT ?o FROM <urn:g1> WHERE { ?s <urn:p> ?o }"))
+    assert got == ["urn:b"]
+    got = sorted(r[0].value for r in ds.query("PREFIX from: <urn:> SELECT ?o WHERE { ?s <urn:p> ?o }"))
+    assert got == ["urn:b", "urn:c"]

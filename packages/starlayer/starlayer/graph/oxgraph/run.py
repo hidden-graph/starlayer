@@ -69,6 +69,11 @@ def _widen_projection(text: str, names: list[str]) -> str:
     return text[: m.end()] + "".join(f" ?{n}" for n in names) + text[m.end() :]
 
 
+def _has_from(text: str) -> bool:
+    """True when the query has a dataset clause (``FROM`` / ``FROM NAMED``) of its own."""
+    return re.search(r"(?i)(?<![\w:])FROM\b(?!:)", _mask(text)) is not None
+
+
 def merge_prefixes(*maps: Mapping[str, str] | None) -> dict[str, str] | None:
     out: dict[str, str] = {}
     for m in maps:
@@ -95,7 +100,7 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
         kwargs["prefixes"] = pfx
     if base:
         kwargs["base_iri"] = base
-    if union:
+    if union and not _has_from(text):  # the flag would override the query's own FROM / FROM NAMED, which define the dataset
         kwargs["use_default_graph_as_union"] = True
     elif default_graph is not None:
         kwargs["default_graph"] = default_graph
