@@ -8,6 +8,7 @@ reused as they are, lazily, with their optional-dependency errors and their subp
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -45,6 +46,8 @@ OWL_DIRECT_REGIME = ENTAILMENT["OWL-Direct"].value
 KNOWN_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, D_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
 SUPPORTED_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
 
+#: rdf:_n for a positive decimal integer without leading zeros (RDF Semantics, container membership properties); ASCII digits only
+_CONTAINER_MEMBERSHIP = re.compile(re.escape(terms.RDF) + r"_[1-9][0-9]*")
 _OWLRL_ERROR_NS = "http://www.daml.org/2002/03/agents/agent-ont#"
 _RDF = terms.RDF
 _RDF_AXIOMATIC = tuple(ox.NamedNode(_RDF + n) for n in ("type", "subject", "predicate", "object", "reifies", "first", "rest", "value"))
@@ -149,7 +152,7 @@ def _rdf_delta(g: Any) -> set[tuple[Any, Any, Any]]:
                 add((t, rdf_type, rdf_property))
             elif t == terms.RDF_NIL:
                 add((t, rdf_type, ox.NamedNode(_RDF + "List")))
-            elif isinstance(t, ox.NamedNode) and t.value.startswith(_RDF + "_") and t.value[len(_RDF) + 1 :].isdigit():
+            elif isinstance(t, ox.NamedNode) and _CONTAINER_MEMBERSHIP.fullmatch(t.value):
                 add((t, rdf_type, rdf_property))
 
     consider(list(existing))
