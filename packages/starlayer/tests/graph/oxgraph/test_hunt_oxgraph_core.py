@@ -78,3 +78,18 @@ def test_query_from_clause_on_union_dataset(overlap):
     assert got == ["urn:b"]
     got = sorted(r[0].value for r in ds.query("PREFIX from: <urn:> SELECT ?o WHERE { ?s <urn:p> ?o }"))
     assert got == ["urn:b", "urn:c"]
+
+
+# ---- objects / subjects / predicates agree between a graph and a union dataset ----
+def test_term_readers_graph_vs_union_dataset():
+    triples = [(ex("a"), ex("p"), ex("b")), (ex("a"), ex("p"), ex("c")), (ex("d"), ex("p"), ex("b"))]
+    g = StarLayerGraph()
+    g.extend(triples)
+    d = StarLayerDataset()
+    d.extend(triples)
+    for name, args in [("subjects", (ex("p"),)), ("objects", (None, ex("p"))), ("predicates", (ex("a"),))]:
+        assert sorted(map(str, getattr(g, name)(*args))) == sorted(map(str, getattr(d, name)(*args)))
+    assert len(list(d.subjects(ex("p")))) == 3
+    assert len(list(d.subjects(ex("p"), unique=True))) == 2
+    d.graph(ex("g2")).add(triples[0])
+    assert len(list(d.subjects(ex("p")))) == 3

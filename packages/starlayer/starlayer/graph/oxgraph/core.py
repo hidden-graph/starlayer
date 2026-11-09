@@ -248,32 +248,32 @@ class _Base:
             return next(self._quads_in(*item[:3], terms.graph_name(item[3])), None) is not None
         return next(self._quads(*item), None) is not None
 
-    def objects(self, subject: Any = None, predicate: Any = None, unique: bool = False) -> Iterator[Any]:
-        seen: set | None = set() if (unique or self._union) else None
-        for q in self._quads(subject, predicate, None):
-            if seen is not None:
-                if q.object in seen:
+    def _terms(self, s: Any, p: Any, o: Any, pick: Any, unique: bool) -> Iterator[Any]:
+        """The ``pick`` term of each matching triple. On a union view a triple held by several graphs counts once (as ``triples()``
+        does); ``unique`` also drops a repeated term."""
+        seen_terms: set | None = set() if unique else None
+        seen_triples: set | None = set() if self._union else None
+        for q in self._quads(s, p, o):
+            if seen_triples is not None:
+                key = (q.subject, q.predicate, q.object)
+                if key in seen_triples:
                     continue
-                seen.add(q.object)
-            yield q.object
+                seen_triples.add(key)
+            t = pick(q)
+            if seen_terms is not None:
+                if t in seen_terms:
+                    continue
+                seen_terms.add(t)
+            yield t
+
+    def objects(self, subject: Any = None, predicate: Any = None, unique: bool = False) -> Iterator[Any]:
+        return self._terms(subject, predicate, None, lambda q: q.object, unique)
 
     def subjects(self, predicate: Any = None, object: Any = None, unique: bool = False) -> Iterator[Any]:
-        seen: set | None = set() if (unique or self._union) else None
-        for q in self._quads(None, predicate, object):
-            if seen is not None:
-                if q.subject in seen:
-                    continue
-                seen.add(q.subject)
-            yield q.subject
+        return self._terms(None, predicate, object, lambda q: q.subject, unique)
 
     def predicates(self, subject: Any = None, object: Any = None, unique: bool = False) -> Iterator[Any]:
-        seen: set | None = set() if (unique or self._union) else None
-        for q in self._quads(subject, None, object):
-            if seen is not None:
-                if q.predicate in seen:
-                    continue
-                seen.add(q.predicate)
-            yield q.predicate
+        return self._terms(subject, None, object, lambda q: q.predicate, unique)
 
     def predicate_objects(self, subject: Any = None) -> Iterator[tuple[Any, Any]]:
         for _s, p, o in self.triples((subject, None, None)):
