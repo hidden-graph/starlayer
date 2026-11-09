@@ -77,7 +77,12 @@ def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None
         g.extend(delta)
         return g
     if mode == "delta":
-        result = g.empty_like()
+        if target_graph is None:
+            result = g.empty_like()
+        elif hasattr(target_graph, "extend") and hasattr(target_graph, "store"):
+            result = target_graph
+        else:
+            raise TypeError(f"resolve_imports() target_graph must be an StarLayerGraph or StarLayerDataset, not {type(target_graph).__name__}.")
         result.extend(delta)
         return result
     if target_graph is None:

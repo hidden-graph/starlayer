@@ -82,9 +82,11 @@ def _query_type(text: str, raw: Any) -> str:
         return "SELECT"
     # blank comments, then IRIs and strings (so a keyword inside one does not count), then skip the prologue: the query form is
     # the first keyword after it
-    stripped = re.sub(r"(?m)#[^\n]*$", " ", text)
-    stripped = re.sub(r"<[^<>\s]*>", "<>", stripped)
-    stripped = re.sub(r"\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*'", '""', stripped)
+    # one left-to-right pass, so a ``#`` inside an IRI or string is not a comment and a quote inside a comment is not a string
+    def blank(m: re.Match[str]) -> str:
+        return "<>" if m.group(1) else '""' if m.group(2) else " "
+
+    stripped = re.sub(r"(<[^<>\s]*>)|(\"(?:[^\"\\\n]|\\.)*\"|'(?:[^'\\\n]|\\.)*')|(#[^\n]*)", blank, text)
     pos = 0
     while (m := _PROLOGUE.match(stripped, pos)) is not None:
         pos = m.end()

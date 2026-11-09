@@ -121,3 +121,33 @@ def test_blank_binding_select_star_unmentioned_variable():
     g.add((ex("a"), ex("p"), ex("b")))
     q = "SELECT * WHERE { ?s ?p ?o }"
     assert len(list(g.query(q, initBindings={"unused": ox.BlankNode("x")}))) == 1
+
+
+# ---- Result.type of DESCRIBE with a '#' in a PREFIX IRI ----------------------------------------------------------------
+def test_describe_type_with_hash_in_prefix_iri():
+    g = StarLayerGraph()
+    g.add((ex("a"), ex("p"), ex("b")))
+    assert g.query("PREFIX e: <http://ex.org/#> DESCRIBE <http://ex/a>").type == "DESCRIBE"
+    assert g.query("# \"quote\n DESCRIBE <http://ex/a>").type == "DESCRIBE"
+    assert g.query("CONSTRUCT { ?s ?p ?o } WHERE { ?s ?p ?o } # DESCRIBE").type == "CONSTRUCT"
+
+
+# ---- has_triple_term: an impossible pattern is False --------------------------------------------------------------------
+def test_has_triple_term_impossible_pattern_is_false():
+    g = StarLayerGraph()
+    g.add((ex("a"), ex("b"), ex("c")))
+    assert g.has_triple_term(ox.Literal("x"), ex("b"), ex("c")) is False
+    assert g.has_triple_term(ex("a"), ox.BlankNode("p"), ex("c")) is False
+
+
+# ---- resolve_imports(mode="delta", target_graph=...) --------------------------------------------------------------------
+def test_resolve_imports_delta_fills_target_graph():
+    owl_imports = N("http://www.w3.org/2002/07/owl#imports")
+    main = StarLayerGraph()
+    main.add((N("http://x/onto"), owl_imports, N("http://x/other")))
+    other = StarLayerGraph()
+    other.add((N("http://x/other"), N("http://x/p"), N("http://x/o")))
+    target = StarLayerGraph()
+    res = main.resolve_imports(loader=lambda iri: other, mode="delta", target_graph=target)
+    assert res is target
+    assert (N("http://x/other"), N("http://x/p"), N("http://x/o")) in target
