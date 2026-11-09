@@ -1,7 +1,7 @@
 # Snapshots of the Manchester tree ontology and shapes
 
 Frozen copies of `starlayer/starontology/manchester-ast-ontology.ttl` and
-`starlayer/starontology/manchester_shapes.ttl`. Refreshed 2026-10-18 when the tree-layer working copy
+`starlayer/starontology/manchester_shapes.ttl`. Refreshed 2026-11-09 (manchester_shapes.ttl only: bug-hunt fixes for facet IRIs, property characteristics and list cells); refreshed 2026-10-18 when the tree-layer working copy
 (`wip/`, now removed) was folded back into `starontology/`; before that they were the files as of commit
 `773d5d0a48e059f94d9fec4698d756dc717d50ff`.
 

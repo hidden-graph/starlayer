@@ -37,7 +37,7 @@ known limit. Nothing here is posted to any outside forum. Add items as they are 
 | 29 | (resolved) `starontology.get_resource_iri()` always returns a pyoxigraph `NamedNode`, whether or not rdflib is installed; rdflib users convert with `to_rdflib` | none |
 | 30 | Manchester parse keeps datatyped literals as written (rdflib normalised them); the store then normalises them like every other format. A plain literal and `"x"^^xsd:string` are one term in RDF 1.1 and 1.2, so the writer does not write `^^xsd:string` (checked: plain and `^^xsd:string` both come back as a plain string) | document (by design) |
 | 31 | Manchester: a relative IRI with no base or an IRI with a space raises `ManchesterSyntaxError` (rdflib's `URIRef` accepted any string); the writer declares `owl:`, `rdf:`, `rdfs:`, `xsd:` when the graph binds neither prefix nor namespace | decide at the end |
-| 32 | `manchester_validate` needs rdflib (its RDFS closure runs owlrl on an rdflib copy); `--manchester-conformance` `test_lenient_where_owlapi_is_lenient` lists two inputs (`one-member-disjointclasses`, `empty-language-tag`) the parser rejects, a stale leniency list that predates this work | decide at the end |
+| 32 | `manchester_validate` needs rdflib (its RDFS closure runs owlrl on an rdflib copy); the two inputs `--manchester-conformance` listed as lenient (`one-member-disjointclasses`, `empty-language-tag`) are rejected because the OWL 2 grammar rejects them, and are now pinned as rejections (2026-11-09, picked while the owner was away: confirm) | rdflib part: accepted; leniency: resolved |
 
 ## Process
 

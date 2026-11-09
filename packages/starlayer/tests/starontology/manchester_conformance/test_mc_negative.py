@@ -73,11 +73,24 @@ def test_malformed_input_raises(case_id, text, request):
 # rejects (its description2List / objectPropertyExpression-chain / languageTag need more) but which OWL
 # API 5.1.20 accepts, checked against the oracle. Pinned here so the choice is deliberate, not drift.
 LENIENT_LIKE_OWLAPI: list[tuple[str, str]] = [
-    ("one-member-disjointclasses", "Class: A\nDisjointClasses: A\n"),
     ("one-member-disjointunionof", "Class: A\nClass: B\nClass: A\n  DisjointUnionOf: B\n"),
     ("one-property-subpropertychain", "ObjectProperty: p\nObjectProperty: q\nObjectProperty: p\n  SubPropertyChain: q\n"),
+]
+
+
+# The OWL 2 grammar needs two or more classes in DisjointClasses and a non-empty language tag; the parser follows it (these two
+# were listed as lenient before the parser was written to the grammar).
+STRICT_BY_GRAMMAR: list[tuple[str, str]] = [
+    ("one-member-disjointclasses", "Class: A\nDisjointClasses: A\n"),
     ("empty-language-tag", 'DataProperty: d\nIndividual: i\n  Facts: d "x"@\n'),
 ]
+
+
+@pytest.mark.manchester_conformance
+@pytest.mark.parametrize(("case_id", "text"), STRICT_BY_GRAMMAR, ids=[c[0] for c in STRICT_BY_GRAMMAR])
+def test_rejected_where_the_grammar_rejects(case_id, text):
+    with pytest.raises(ManchesterSyntaxError):
+        parse_manchester(_PREFIXES + text)
 
 
 @pytest.mark.manchester_conformance

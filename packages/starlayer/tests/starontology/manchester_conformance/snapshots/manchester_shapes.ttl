@@ -1,4 +1,6 @@
 @prefix manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -239,9 +241,28 @@ manch:DRestrictionShape a sh:NodeShape ;
     ] ;
     sh:targetClass manch:DRestriction .
 
+manch:DataPropCharacteristicItemListShape a sh:NodeShape ;
+    sh:node manch:NameItemListShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a property characteristic: Functional (the only characteristic of a data property)" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER ( isIRI(?v) )
+                FILTER ( ?v NOT IN ( owl:FunctionalProperty ) )
+            }
+        """
+    ] .
+
 manch:DataPropCharacteristicsClause a sh:NodeShape ;
     sh:property [
-        sh:node manch:NameItemListShape ;
+        sh:node manch:DataPropCharacteristicItemListShape ;
         sh:path manch:items
     ] ;
     sh:targetClass manch:DataPropCharacteristicsClause .
@@ -380,6 +401,7 @@ manch:ExactShape a sh:NodeShape ;
 
 manch:FacetRestrictionShape a sh:NodeShape ;
     sh:property [
+        sh:in ( xsd:minInclusive xsd:maxInclusive xsd:minExclusive xsd:maxExclusive xsd:length xsd:minLength xsd:maxLength xsd:pattern rdf:langRange ) ;
         sh:maxCount 1 ;
         sh:minCount 1 ;
         sh:nodeKind sh:IRI ;
@@ -641,9 +663,28 @@ manch:NotShape a sh:NodeShape ;
     ] ;
     sh:targetClass manch:Not .
 
+manch:ObjPropCharacteristicItemListShape a sh:NodeShape ;
+    sh:node manch:NameItemListShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a property characteristic: Functional, InverseFunctional, Transitive, Symmetric, Asymmetric, Reflexive or Irreflexive" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER ( isIRI(?v) )
+                FILTER ( ?v NOT IN ( owl:FunctionalProperty, owl:InverseFunctionalProperty, owl:TransitiveProperty, owl:SymmetricProperty, owl:AsymmetricProperty, owl:ReflexiveProperty, owl:IrreflexiveProperty ) )
+            }
+        """
+    ] .
+
 manch:ObjPropCharacteristicsClause a sh:NodeShape ;
     sh:property [
-        sh:node manch:NameItemListShape ;
+        sh:node manch:ObjPropCharacteristicItemListShape ;
         sh:path manch:items
     ] ;
     sh:targetClass manch:ObjPropCharacteristicsClause .
@@ -813,8 +854,29 @@ manch:SelfRShape a sh:NodeShape ;
     ] ;
     sh:targetClass manch:SelfR .
 
+manch:ClassDisjointUnionOfClause a sh:NodeShape ;
+    sh:property [
+        sh:node manch:ClassExpressionListShape ;
+        sh:path ( manch:items [ sh:zeroOrMorePath rdf:rest ] rdf:first manch:value )
+    ] ;
+    sh:targetClass manch:ClassDisjointUnionOfClause .
+
+manch:ClassHasKeyClause a sh:NodeShape ;
+    sh:property [
+        sh:node manch:PropertyExpressionListShape ;
+        sh:path ( manch:items [ sh:zeroOrMorePath rdf:rest ] rdf:first manch:value )
+    ] ;
+    sh:targetClass manch:ClassHasKeyClause .
+
+manch:ObjPropSubPropertyChainClause a sh:NodeShape ;
+    sh:property [
+        sh:node manch:PropertyExpressionListShape ;
+        sh:path ( manch:items [ sh:zeroOrMorePath rdf:rest ] rdf:first manch:value )
+    ] ;
+    sh:targetClass manch:ObjPropSubPropertyChainClause .
+
 manch:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member manch:AnnotationAssertionShape, manch:FrameShapeDetail, manch:PropertyExpressionItemListShape, manch:DOneOfShape, manch:IndividualSameAsClause, manch:OneOfShape, manch:MiscAxiomShape, manch:AndShape, manch:PrefixDeclShape, manch:DRestrictionShape, manch:DataPropEquivalentToClause, manch:AnnPropRangeClause, manch:IndividualDifferentFromClause, manch:FrameListShape, manch:ClassSubClassOfClause, manch:ObjPropSubPropertyOfClause, manch:ObjPropRangeClause, manch:PropertyExpressionListShape, manch:ExactShape, manch:ClassExpressionItemListShape, manch:DataPropSubPropertyOfClause, manch:ObjPropCharacteristicsClause, manch:DataPropCharacteristicsClause, manch:ClassDisjointWithClause, manch:MiscDifferentIndividualsAxiom, manch:MiscDisjointPropertiesAxiom, manch:ValueShape, manch:PropertyExpressionOrNameShape, manch:DataRangeListShape, manch:OnlyShape, manch:MiscEquivalentClassesAxiom, manch:MaxShape, manch:SomeShape, manch:DataRangeOrNameShape, manch:DocumentShape, manch:ClassExpressionListShape, manch:DataPropDomainClause, manch:DataRangeShape, manch:ClassExpressionShape, manch:MiscAxiomListShape, manch:FactItemShape, manch:ClauseItemShape, manch:MinShape, manch:WellFormedListShape, manch:ClauseItemsShape, manch:InverseShape, manch:DataPropDisjointWithClause, manch:FacetRestrictionShape, manch:ClassExpressionOrNameShape, manch:IndividualTypesClause, manch:AnnPropSubPropertyOfClause, manch:ClauseListShape, manch:MiscAxiomItemsShape, manch:OrShape, manch:DataRangeItemListShape, manch:MiscSameIndividualAxiom, manch:ObjPropDomainClause, manch:NotShape, manch:DOrShape, manch:ClauseShape, manch:AnnPropDomainClause, manch:ObjPropInverseOfClause, manch:ObjPropEquivalentToClause, manch:MiscDisjointClassesAxiom, manch:ValueClauseShape, manch:NameListShape, manch:PropertyExpressionShape, manch:MiscEquivalentPropertiesAxiom, manch:ClassEquivalentToClause, manch:DatatypeEquivalentToClause, manch:DataPropRangeClause, manch:NameItemListShape, manch:FrameShape, manch:OntologyHeaderShape, manch:LiteralListShape, manch:IriListShape, manch:PrefixDeclListShape, manch:FacetRestrictionListShape, manch:DSomeShape, manch:DOnlyShape, manch:DMinShape, manch:DMaxShape, manch:DExactShape, manch:DNotShape, manch:ObjPropDisjointWithClause, manch:AnnotationAssertionListShape, manch:DAndShape, manch:SelfRShape .
+    rdfs:member manch:ClassDisjointUnionOfClause, manch:ClassHasKeyClause, manch:ObjPropSubPropertyChainClause, manch:ObjPropCharacteristicItemListShape, manch:DataPropCharacteristicItemListShape, manch:AnnotationAssertionShape, manch:FrameShapeDetail, manch:PropertyExpressionItemListShape, manch:DOneOfShape, manch:IndividualSameAsClause, manch:OneOfShape, manch:MiscAxiomShape, manch:AndShape, manch:PrefixDeclShape, manch:DRestrictionShape, manch:DataPropEquivalentToClause, manch:AnnPropRangeClause, manch:IndividualDifferentFromClause, manch:FrameListShape, manch:ClassSubClassOfClause, manch:ObjPropSubPropertyOfClause, manch:ObjPropRangeClause, manch:PropertyExpressionListShape, manch:ExactShape, manch:ClassExpressionItemListShape, manch:DataPropSubPropertyOfClause, manch:ObjPropCharacteristicsClause, manch:DataPropCharacteristicsClause, manch:ClassDisjointWithClause, manch:MiscDifferentIndividualsAxiom, manch:MiscDisjointPropertiesAxiom, manch:ValueShape, manch:PropertyExpressionOrNameShape, manch:DataRangeListShape, manch:OnlyShape, manch:MiscEquivalentClassesAxiom, manch:MaxShape, manch:SomeShape, manch:DataRangeOrNameShape, manch:DocumentShape, manch:ClassExpressionListShape, manch:DataPropDomainClause, manch:DataRangeShape, manch:ClassExpressionShape, manch:MiscAxiomListShape, manch:FactItemShape, manch:ClauseItemShape, manch:MinShape, manch:WellFormedListShape, manch:ClauseItemsShape, manch:InverseShape, manch:DataPropDisjointWithClause, manch:FacetRestrictionShape, manch:ClassExpressionOrNameShape, manch:IndividualTypesClause, manch:AnnPropSubPropertyOfClause, manch:ClauseListShape, manch:MiscAxiomItemsShape, manch:OrShape, manch:DataRangeItemListShape, manch:MiscSameIndividualAxiom, manch:ObjPropDomainClause, manch:NotShape, manch:DOrShape, manch:ClauseShape, manch:AnnPropDomainClause, manch:ObjPropInverseOfClause, manch:ObjPropEquivalentToClause, manch:MiscDisjointClassesAxiom, manch:ValueClauseShape, manch:NameListShape, manch:PropertyExpressionShape, manch:MiscEquivalentPropertiesAxiom, manch:ClassEquivalentToClause, manch:DatatypeEquivalentToClause, manch:DataPropRangeClause, manch:NameItemListShape, manch:FrameShape, manch:OntologyHeaderShape, manch:LiteralListShape, manch:IriListShape, manch:PrefixDeclListShape, manch:FacetRestrictionListShape, manch:DSomeShape, manch:DOnlyShape, manch:DMinShape, manch:DMaxShape, manch:DExactShape, manch:DNotShape, manch:ObjPropDisjointWithClause, manch:AnnotationAssertionListShape, manch:DAndShape, manch:SelfRShape .
 
 manch:SomeShape a sh:NodeShape ;
     sh:property [
