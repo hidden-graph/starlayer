@@ -103,6 +103,7 @@ _DATA_FACET_KEYWORDS = {
     XSD.minExclusive: '>', XSD.maxExclusive: '<',
     XSD.length: 'length', XSD.minLength: 'minLength', XSD.maxLength: 'maxLength',
     XSD.pattern: 'pattern',
+    RDF.langRange: 'langRange',
 }
 
 _WELL_KNOWN_ANNOTATION_PROPS = {
@@ -230,6 +231,8 @@ def _render_name(ctx, node):
             f'matched no recognizable class-expression/data-range/property '
             f'pattern (see this module\'s docstring for what is recognized)'
         )
+    if not isinstance(node, URIRef):
+        raise ValueError(f'cannot render {node!r} as a Manchester name - Manchester syntax has no form for a {type(node).__name__} term')
     iri = node.value
     for ns_iri, prefix in ctx._ns_by_length:
         if iri.startswith(ns_iri) and ns_iri:
@@ -254,6 +257,10 @@ def _is_safe_local_name(local):
 
 def _render_literal(ctx, lit):
     text = lit.value.replace('\\', '\\\\').replace('"', '\\"')
+    if getattr(lit, 'direction', None) is not None:
+        raise ValueError(
+            f'cannot render {lit!r}: Manchester syntax has no base direction for a language-tagged literal'
+        )
     if lit.language:
         return f'"{text}"@{lit.language}'
     if lit.datatype and lit.datatype != XSD.string:  # a plain literal is xsd:string in RDF 1.1 / 1.2
@@ -429,12 +436,22 @@ def _render_prop_expr(ctx, expr):
     return f'inverse {_render_name(ctx, expr[1])}'
 
 
+def _needs_parens(context, tag, and_tag, or_tag):
+    """Whether an operand needs parentheses: an ``or`` inside an ``and``, either operator in a primary
+    position, and an operator inside the same operator - ``A and (B and C)`` parses to a nested
+    intersection, so the written form must keep the parentheses to read back to the same structure."""
+    return (
+        (context == 'and' and tag in (and_tag, or_tag))
+        or (context == 'or_operand' and tag == or_tag)
+        or (context == 'primary' and tag in (and_tag, or_tag))
+    )
+
+
 def _render_class_expr(ctx, expr, context='or'):
     if not isinstance(expr, URIRef) and expr[0].startswith('D'):
         return _render_data_range(ctx, expr, context)  # a data-range filler of a data restriction
     text, tag = _render_class_expr_bare(ctx, expr)
-    needs_parens = (context == 'and' and tag == 'Or') or (context == 'primary' and tag in ('And', 'Or'))
-    return f'({text})' if needs_parens else text
+    return f'({text})' if _needs_parens(context, tag, 'And', 'Or') else text
 
 
 def _render_class_expr_bare(ctx, expr):
@@ -444,7 +461,7 @@ def _render_class_expr_bare(ctx, expr):
     if tag == 'And':
         return ' and '.join(_render_class_expr(ctx, e, 'and') for e in expr[1]), 'And'
     if tag == 'Or':
-        return ' or '.join(_render_class_expr(ctx, e, 'or') for e in expr[1]), 'Or'
+        return ' or '.join(_render_class_expr(ctx, e, 'or_operand') for e in expr[1]), 'Or'
     if tag == 'Not':
         return f'not {_render_class_expr(ctx, expr[1], "primary")}', 'Not'
     if tag == 'OneOf':
@@ -470,8 +487,7 @@ def _render_class_expr_bare(ctx, expr):
 
 def _render_data_range(ctx, dr, context='or'):
     text, tag = _render_data_range_bare(ctx, dr)
-    needs_parens = (context == 'and' and tag == 'DOr') or (context == 'primary' and tag in ('DAnd', 'DOr'))
-    return f'({text})' if needs_parens else text
+    return f'({text})' if _needs_parens(context, tag, 'DAnd', 'DOr') else text
 
 
 def _render_data_range_bare(ctx, dr):
@@ -481,7 +497,7 @@ def _render_data_range_bare(ctx, dr):
     if tag == 'DAnd':
         return ' and '.join(_render_data_range(ctx, e, 'and') for e in dr[1]), tag
     if tag == 'DOr':
-        return ' or '.join(_render_data_range(ctx, e, 'or') for e in dr[1]), tag
+        return ' or '.join(_render_data_range(ctx, e, 'or_operand') for e in dr[1]), tag
     if tag == 'DNot':
         return f'not {_render_data_range(ctx, dr[1], "primary")}', tag
     if tag == 'DOneOf':
@@ -684,6 +700,8 @@ def _render_misc(ctx):
     ):
         for node in g.subjects(RDF.type, rdf_type):
             members_list = g.value(node, OWL.members)
+            if members_list is None and rdf_type == OWL.AllDifferent:
+                members_list = g.value(node, OWL.distinctMembers)  # the OWL 1 spelling the RDF mapping still reads
             if members_list is None:
                 continue
             members = [member_render(m) for m in _read_list(g, members_list)]
