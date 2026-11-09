@@ -395,12 +395,14 @@ starontology:manchester_shapes.ttl {
             manch:AnnPropSubPropertyOfClause,
             manch:AnnotationAssertionListShape,
             manch:AnnotationAssertionShape,
+            manch:ClassDisjointUnionOfClause,
             manch:ClassDisjointWithClause,
             manch:ClassEquivalentToClause,
             manch:ClassExpressionItemListShape,
             manch:ClassExpressionListShape,
             manch:ClassExpressionOrNameShape,
             manch:ClassExpressionShape,
+            manch:ClassHasKeyClause,
             manch:ClassSubClassOfClause,
             manch:ClauseItemShape,
             manch:ClauseItemsShape,
@@ -416,6 +418,7 @@ starontology:manchester_shapes.ttl {
             manch:DOrShape,
             manch:DRestrictionShape,
             manch:DSomeShape,
+            manch:DataPropCharacteristicItemListShape,
             manch:DataPropCharacteristicsClause,
             manch:DataPropDisjointWithClause,
             manch:DataPropDomainClause,
@@ -455,12 +458,14 @@ starontology:manchester_shapes.ttl {
             manch:NameItemListShape,
             manch:NameListShape,
             manch:NotShape,
+            manch:ObjPropCharacteristicItemListShape,
             manch:ObjPropCharacteristicsClause,
             manch:ObjPropDisjointWithClause,
             manch:ObjPropDomainClause,
             manch:ObjPropEquivalentToClause,
             manch:ObjPropInverseOfClause,
             manch:ObjPropRangeClause,
+            manch:ObjPropSubPropertyChainClause,
             manch:ObjPropSubPropertyOfClause,
             manch:OneOfShape,
             manch:OnlyShape,
@@ -665,7 +670,8 @@ starontology:manchester_shapes.ttl {
         sh:targetClass manch:Exact .
 
     manch:FacetRestrictionShape a sh:NodeShape ;
-        sh:property [ sh:maxCount 1 ;
+        sh:property [ sh:in ( xsd:minInclusive xsd:maxInclusive xsd:minExclusive xsd:maxExclusive xsd:length xsd:minLength xsd:maxLength xsd:pattern rdf:langRange ) ;
+                sh:maxCount 1 ;
                 sh:minCount 1 ;
                 sh:nodeKind sh:IRI ;
                 sh:path manch:facetPredicate ],
@@ -786,9 +792,6 @@ starontology:manchester_shapes.ttl {
 
     manch:OntologyHeaderShape a sh:NodeShape ;
         sh:property [ sh:maxCount 1 ;
-                sh:node manch:IriListShape ;
-                sh:path manch:imports ],
-            [ sh:maxCount 1 ;
                 sh:nodeKind sh:IRI ;
                 sh:path manch:ontologyIri ],
             [ sh:maxCount 1 ;
@@ -796,7 +799,10 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:versionIri ],
             [ sh:maxCount 1 ;
                 sh:node manch:AnnotationAssertionListShape ;
-                sh:path manch:annotations ] ;
+                sh:path manch:annotations ],
+            [ sh:maxCount 1 ;
+                sh:node manch:IriListShape ;
+                sh:path manch:imports ] ;
         sh:targetClass manch:OntologyHeader .
 
     manch:OrShape a sh:NodeShape ;
@@ -861,6 +867,11 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:AnnPropSubPropertyOfClause .
 
+    manch:ClassDisjointUnionOfClause a sh:NodeShape ;
+        sh:property [ sh:node manch:ClassExpressionListShape ;
+                sh:path ( manch:items [ sh:zeroOrMorePath rdf:rest ] rdf:first manch:value ) ] ;
+        sh:targetClass manch:ClassDisjointUnionOfClause .
+
     manch:ClassDisjointWithClause a sh:NodeShape ;
         sh:property [ sh:node manch:ClassExpressionItemListShape ;
                 sh:path manch:items ] ;
@@ -874,6 +885,11 @@ starontology:manchester_shapes.ttl {
     manch:ClassExpressionShape a sh:NodeShape ;
         sh:class manch:ClassExpression ;
         sh:message "expected a recognized class-expression tag (see manch:ClassExpression in manchester-ast-ontology.ttl)" .
+
+    manch:ClassHasKeyClause a sh:NodeShape ;
+        sh:property [ sh:node manch:PropertyExpressionListShape ;
+                sh:path ( manch:items [ sh:zeroOrMorePath rdf:rest ] rdf:first manch:value ) ] ;
+        sh:targetClass manch:ClassHasKeyClause .
 
     manch:ClassSubClassOfClause a sh:NodeShape ;
         sh:property [ sh:node manch:ClassExpressionItemListShape ;
@@ -898,8 +914,25 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
+    manch:DataPropCharacteristicItemListShape a sh:NodeShape ;
+        sh:node manch:NameItemListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a property characteristic: Functional (the only characteristic of a data property)" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER ( isIRI(?v) )
+                FILTER ( ?v NOT IN ( owl:FunctionalProperty ) )
+            }
+        """ ] .
+
     manch:DataPropCharacteristicsClause a sh:NodeShape ;
-        sh:property [ sh:node manch:NameItemListShape ;
+        sh:property [ sh:node manch:DataPropCharacteristicItemListShape ;
                 sh:path manch:items ] ;
         sh:targetClass manch:DataPropCharacteristicsClause .
 
@@ -1046,8 +1079,25 @@ starontology:manchester_shapes.ttl {
                 sh:path manch:items ] ;
         sh:targetClass manch:MiscSameIndividualAxiom .
 
+    manch:ObjPropCharacteristicItemListShape a sh:NodeShape ;
+        sh:node manch:NameItemListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a property characteristic: Functional, InverseFunctional, Transitive, Symmetric, Asymmetric, Reflexive or Irreflexive" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX owl: <http://www.w3.org/2002/07/owl#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                $this rdf:rest*/rdf:first ?item .
+                ?item manch:value ?v .
+                FILTER ( isIRI(?v) )
+                FILTER ( ?v NOT IN ( owl:FunctionalProperty, owl:InverseFunctionalProperty, owl:TransitiveProperty, owl:SymmetricProperty, owl:AsymmetricProperty, owl:ReflexiveProperty, owl:IrreflexiveProperty ) )
+            }
+        """ ] .
+
     manch:ObjPropCharacteristicsClause a sh:NodeShape ;
-        sh:property [ sh:node manch:NameItemListShape ;
+        sh:property [ sh:node manch:ObjPropCharacteristicItemListShape ;
                 sh:path manch:items ] ;
         sh:targetClass manch:ObjPropCharacteristicsClause .
 
@@ -1075,6 +1125,11 @@ starontology:manchester_shapes.ttl {
         sh:property [ sh:node manch:ClassExpressionItemListShape ;
                 sh:path manch:items ] ;
         sh:targetClass manch:ObjPropRangeClause .
+
+    manch:ObjPropSubPropertyChainClause a sh:NodeShape ;
+        sh:property [ sh:node manch:PropertyExpressionListShape ;
+                sh:path ( manch:items [ sh:zeroOrMorePath rdf:rest ] rdf:first manch:value ) ] ;
+        sh:targetClass manch:ObjPropSubPropertyChainClause .
 
     manch:ObjPropSubPropertyOfClause a sh:NodeShape ;
         sh:property [ sh:node manch:PropertyExpressionItemListShape ;
@@ -1161,6 +1216,10 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
+    manch:ValueShape a sh:NodeShape ;
+        sh:message "a bare individual/data value must be an IRI or Literal" ;
+        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:Literal ] ) .
+
     manch:PropertyExpressionListShape a sh:NodeShape ;
         sh:node manch:WellFormedListShape ;
         sh:sparql [ a sh:SPARQLConstraint ;
@@ -1180,9 +1239,23 @@ starontology:manchester_shapes.ttl {
             }
         """ ] .
 
-    manch:ValueShape a sh:NodeShape ;
-        sh:message "a bare individual/data value must be an IRI or Literal" ;
-        sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:Literal ] ) .
+    manch:AnnotationAssertionListShape a sh:NodeShape ;
+        sh:node manch:WellFormedListShape ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
+                sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
+            SELECT $this
+            WHERE {
+                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
+                UNION
+                {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a manch:AnnotationAssertion }
+                }
+            }
+        """ ] .
 
     manch:ClassExpressionListShape a sh:NodeShape ;
         sh:node manch:WellFormedListShape ;
@@ -1199,24 +1272,6 @@ starontology:manchester_shapes.ttl {
                     $this rdf:rest*/rdf:first ?item .
                     FILTER NOT EXISTS { ?item a manch:ClassExpression }
                     FILTER ( !isIRI(?item) )
-                }
-            }
-        """ ] .
-
-    manch:AnnotationAssertionListShape a sh:NodeShape ;
-        sh:node manch:WellFormedListShape ;
-        sh:sparql [ a sh:SPARQLConstraint ;
-                sh:message "expected a well-formed rdf:List of AnnotationAssertion" ;
-                sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX manch: <https://github.com/hidden-graph/starlayer/ns/graph/manchester-ast#>
-            SELECT $this
-            WHERE {
-                { FILTER ( $this != rdf:nil ) FILTER NOT EXISTS { $this rdf:first ?head } }
-                UNION
-                {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a manch:AnnotationAssertion }
                 }
             }
         """ ] .
@@ -3113,7 +3168,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 ;
+        sh:in _:n6dfb55ea60de43c78acdd4fafe86deb8b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3322,7 +3377,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 ;
+        sh:in _:n6dfb55ea60de43c78acdd4fafe86deb8b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3704,7 +3759,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 ;
+        sh:in _:n6dfb55ea60de43c78acdd4fafe86deb8b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5274,11 +5329,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb226 rdf:first sh:IRI ;
+    _:n6dfb55ea60de43c78acdd4fafe86deb8b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb225 rdf:first sh:BlankNode ;
-        rdf:rest _:nae0fa108c7aa4b9a9cb6c6ef9d86579eb226 .
+    _:n6dfb55ea60de43c78acdd4fafe86deb8b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n6dfb55ea60de43c78acdd4fafe86deb8b226 .
 }
 
 starontology:shacl12-shacl.ttl {

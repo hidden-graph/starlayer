@@ -45,15 +45,20 @@ construct coverage in reverse):
     `DisjointClasses:`/`DisjointProperties:`/`DifferentIndividuals:` Misc
     axioms are RDF-indistinguishable from the same triples split across
     each entity's own frame (owl:equivalentClass and friends look
-    identical either way) - this module always renders via the
-    per-subject frame clause, never reconstructs an n-ary Misc axiom for
-    these. The >2-member `AllDisjointClasses`/`AllDisjointProperties`/
+    identical either way) - this module renders via the per-subject
+    frame clause when the subject has a frame, and as a two-member Misc
+    axiom (a `SuperClassOf:` clause for a subclass axiom whose subject
+    is a class expression) when it has none, e.g. a name the parser never
+    declared. The >2-member `AllDisjointClasses`/`AllDisjointProperties`/
     `AllDifferent` shape *is* unambiguous (only a Misc axiom produces it)
-    and *is* reconstructed, as the one Misc-axiom case that's actually
-    recoverable.
-  - Inline per-axiom `Annotations:` on the six top-level Misc axioms was
-    never supported by the parser either (see its own docstring), so
-    there is nothing to round-trip there.
+    and is reconstructed, with its `Annotations:`.
+  - A blank node that is the subject of a triple and part of no class
+    expression, data range, list or reification block is an anonymous
+    individual (`Individual: _:b`).
+  - Not representable, so a ValueError rather than a rewritten term: a
+    literal with a base direction, a triple term, a version IRI on an
+    anonymous ontology, a subclass axiom with a class expression on both
+    sides.
 
 A note on validating this against the oracle (the same OWL API jar used
 throughout this parser/serializer effort - see manchester_parser.py's own
@@ -103,6 +108,7 @@ _DATA_FACET_KEYWORDS = {
     XSD.minExclusive: '>', XSD.maxExclusive: '<',
     XSD.length: 'length', XSD.minLength: 'minLength', XSD.maxLength: 'maxLength',
     XSD.pattern: 'pattern',
+    RDF.langRange: 'langRange',
 }
 
 _WELL_KNOWN_ANNOTATION_PROPS = {
@@ -126,6 +132,31 @@ _STRUCTURAL_PROPERTY_PREDS = {
 _STRUCTURAL_ANNPROP_PREDS = {RDF.type, RDFS.domain, RDFS.range, RDFS.subPropertyOf}
 _STRUCTURAL_INDIVIDUAL_PREDS = {RDF.type, OWL.sameAs, OWL.differentFrom}
 _STRUCTURAL_DATATYPE_PREDS = {RDF.type, OWL.equivalentClass}
+
+_STRUCTURAL_BY_FRAME = {
+    'Class:': _STRUCTURAL_CLASS_PREDS,
+    'ObjectProperty:': _STRUCTURAL_PROPERTY_PREDS,
+    'DataProperty:': _STRUCTURAL_PROPERTY_PREDS,
+    'AnnotationProperty:': _STRUCTURAL_ANNPROP_PREDS,
+    'Individual:': _STRUCTURAL_INDIVIDUAL_PREDS,
+    'Datatype:': _STRUCTURAL_DATATYPE_PREDS,
+}
+
+# A blank node carrying one of these predicates or types is part of a larger structure (a class expression,
+# a data range, a list cell, a reification block, a Misc axiom node), never an anonymous individual.
+_STRUCTURAL_BNODE_PREDS = {
+    OWL.intersectionOf, OWL.unionOf, OWL.complementOf, OWL.oneOf, OWL.onProperty, OWL.onDatatype,
+    OWL.datatypeComplementOf, OWL.withRestrictions, OWL.inverseOf, OWL.members, OWL.distinctMembers,
+    RDF.first, RDF.rest, OWL.annotatedSource, OWL.annotatedProperty, OWL.annotatedTarget,
+    OWL.sourceIndividual, OWL.assertionProperty, OWL.someValuesFrom, OWL.allValuesFrom, OWL.hasValue,
+    OWL.onClass, OWL.onDataRange,
+}
+_STRUCTURAL_BNODE_TYPES = {
+    OWL.Restriction, OWL.Class, OWL.Axiom, OWL.Annotation, OWL.AllDisjointClasses, OWL.AllDisjointProperties,
+    OWL.AllDifferent, OWL.NegativePropertyAssertion, OWL.Ontology, RDFS.Datatype,
+    OWL.ObjectProperty, OWL.DatatypeProperty, OWL.AnnotationProperty,
+}
+_REIFICATION_PREDS = {OWL.annotatedSource, OWL.annotatedProperty, OWL.annotatedTarget}
 
 _ENTITY_TYPES = {
     OWL.Class: 'Class:', OWL.ObjectProperty: 'ObjectProperty:',
@@ -169,10 +200,11 @@ class _Ctx:
         self.entities = defaultdict(set)  # frame keyword -> {subject, ...}
         self.ontology = None
         for s, _p, o in graph.triples((None, RDF.type, None)):
-            if not isinstance(s, URIRef):
-                continue
             if o == OWL.Ontology:
-                self.ontology = s
+                if self.ontology is None or isinstance(s, URIRef):
+                    self.ontology = s  # an anonymous ontology is a blank node
+            elif not isinstance(s, URIRef):
+                continue
             elif o in _ENTITY_TYPES:
                 self.entities[_ENTITY_TYPES[o]].add(s)
                 if o == OWL.ObjectProperty:
@@ -182,18 +214,30 @@ class _Ctx:
                 elif o == OWL.AnnotationProperty:
                     self.ann_props.add(s)
 
-        # owl:Axiom reification blocks, indexed by the (s, p, o) they
-        # annotate - the reverse of _maybe_reify() in manchester_parser.py.
-        self.axiom_annotations = {}
+        # owl:Annotation blocks (annotations of an annotation, the ontology, a Misc axiom node or a negative
+        # fact), indexed by the (source, property, target) they annotate - the reverse of
+        # _annotation_triples() in manchester_parser.py.
+        self._annotation_nodes = defaultdict(list)
+        for an in graph.subjects(RDF.type, OWL.Annotation):
+            src = graph.value(an, OWL.annotatedSource)
+            prop = graph.value(an, OWL.annotatedProperty)
+            tgt = graph.value(an, OWL.annotatedTarget)
+            if src is not None and prop is not None and tgt is not None:
+                self._annotation_nodes[(src, prop, tgt)].append(an)
+
+        # owl:Axiom reification blocks, indexed by the (s, p, o) they annotate - the reverse of
+        # _maybe_reify() in manchester_parser.py. One axiom can have several blocks (the parser writes one
+        # per annotated item), each with its own annotations.
+        self.axiom_annotations = defaultdict(list)
         for ax in graph.subjects(RDF.type, OWL.Axiom):
             src = graph.value(ax, OWL.annotatedSource)
             prop = graph.value(ax, OWL.annotatedProperty)
             tgt = graph.value(ax, OWL.annotatedTarget)
             if src is None or prop is None or tgt is None:
                 continue
-            skip = {RDF.type, OWL.annotatedSource, OWL.annotatedProperty, OWL.annotatedTarget}
-            anns = [(p2, o2) for p2, o2 in graph.predicate_objects(ax) if p2 not in skip]
-            self.axiom_annotations.setdefault((src, prop, tgt), anns)
+            anns = self.annotations_of(ax, _REIFICATION_PREDS | {RDF.type})
+            if anns:
+                self.axiom_annotations[(src, prop, tgt)].append(anns)
 
         # owl:NegativePropertyAssertion bnodes, indexed by the asserting
         # individual - the reverse of the negative-Facts: branch in
@@ -209,14 +253,55 @@ class _Ctx:
                 continue
             skip = {RDF.type, OWL.sourceIndividual, OWL.assertionProperty,
                     OWL.targetIndividual, OWL.targetValue}
-            anns = [(p2, o2) for p2, o2 in graph.predicate_objects(na) if p2 not in skip]
-            self.negative_facts[src].append((prop, tgt, anns))
+            self.negative_facts[src].append((prop, tgt, self.annotations_of(na, skip)))
+
+        # Anonymous individuals (`Individual: _:b`): a blank node that is the subject of a triple and not
+        # part of a class expression, a data range, a list, a reification block or a Misc axiom node.
+        structural = set()
+        subjects = set()
+        for s, p, o in graph.triples((None, None, None)):
+            if not isinstance(s, BNode):
+                continue
+            subjects.add(s)
+            if p in _STRUCTURAL_BNODE_PREDS or p in _DATA_FACET_KEYWORDS or (
+                p == RDF.type and o in _STRUCTURAL_BNODE_TYPES
+            ):
+                structural.add(s)
+        for src in self.negative_facts:
+            if isinstance(src, BNode):
+                subjects.add(src)
+        self.entities['Individual:'] |= subjects - structural
+
+    def annotations_of(self, node, skip, _seen=frozenset()):
+        """The annotations hanging off ``node`` (every predicate not in ``skip``) as ``(property, value,
+        nested)`` triples; ``nested`` is the annotations of that annotation, from the owl:Annotation blocks
+        that point at it (empty when there are none)."""
+        result = []
+        seen = _seen | {node}
+        for p, o in self.graph.predicate_objects(node):
+            if p in skip:
+                continue
+            nested = []
+            for inner in self._annotation_nodes.get((node, p, o), ()):
+                if inner not in seen:
+                    nested += self.annotations_of(inner, _REIFICATION_PREDS | {RDF.type}, seen)
+            result.append((p, o, nested))
+        return result
+
+    def frame_kinds(self, subject):
+        """The frame keywords ``subject`` has a frame under (more than one when an IRI is punned)."""
+        return {kind for kind, subjects in self.entities.items() if subject in subjects}
+
+    def annotated_items(self, s, p, o, text):
+        """``text`` once per owl:Axiom block annotating ``(s, p, o)`` (each with its own ``Annotations:``
+        prefix), or alone when the axiom is not annotated."""
+        blocks = self.axiom_annotations.get((s, p, o))
+        if not blocks:
+            return [text]
+        return [_annotations_prefix(self, block) + text for block in blocks]
 
     def is_annotation_prop(self, pred):
         return pred in self.ann_props or pred in _WELL_KNOWN_ANNOTATION_PROPS
-
-    def annotations_for(self, s, p, o):
-        return self.axiom_annotations.get((s, p, o))
 
 
 # ---------------------------------------------------------------------------
@@ -230,6 +315,8 @@ def _render_name(ctx, node):
             f'matched no recognizable class-expression/data-range/property '
             f'pattern (see this module\'s docstring for what is recognized)'
         )
+    if not isinstance(node, URIRef):
+        raise ValueError(f'cannot render {node!r} as a Manchester name - Manchester syntax has no form for a {type(node).__name__} term')
     iri = node.value
     for ns_iri, prefix in ctx._ns_by_length:
         if iri.startswith(ns_iri) and ns_iri:
@@ -254,6 +341,10 @@ def _is_safe_local_name(local):
 
 def _render_literal(ctx, lit):
     text = lit.value.replace('\\', '\\\\').replace('"', '\\"')
+    if getattr(lit, 'direction', None) is not None:
+        raise ValueError(
+            f'cannot render {lit!r}: Manchester syntax has no base direction for a language-tagged literal'
+        )
     if lit.language:
         return f'"{text}"@{lit.language}'
     if lit.datatype and lit.datatype != XSD.string:  # a plain literal is xsd:string in RDF 1.1 / 1.2
@@ -261,10 +352,18 @@ def _render_literal(ctx, lit):
     return f'"{text}"'
 
 
+def _render_individual(ctx, node):
+    """An individual: a name, or a ``_:label`` nodeID for an anonymous one (the note's ``individual ::=
+    individualIRI | nodeID``)."""
+    if isinstance(node, BNode):
+        return f'_:{node.value}'
+    return _render_name(ctx, node)
+
+
 def _render_value(ctx, value):
     if isinstance(value, Literal):
         return _render_literal(ctx, value)
-    return _render_name(ctx, value)
+    return _render_individual(ctx, value)
 
 
 # ---------------------------------------------------------------------------
@@ -429,12 +528,22 @@ def _render_prop_expr(ctx, expr):
     return f'inverse {_render_name(ctx, expr[1])}'
 
 
+def _needs_parens(context, tag, and_tag, or_tag):
+    """Whether an operand needs parentheses: an ``or`` inside an ``and``, either operator in a primary
+    position, and an operator inside the same operator - ``A and (B and C)`` parses to a nested
+    intersection, so the written form must keep the parentheses to read back to the same structure."""
+    return (
+        (context == 'and' and tag in (and_tag, or_tag))
+        or (context == 'or_operand' and tag == or_tag)
+        or (context == 'primary' and tag in (and_tag, or_tag))
+    )
+
+
 def _render_class_expr(ctx, expr, context='or'):
     if not isinstance(expr, URIRef) and expr[0].startswith('D'):
         return _render_data_range(ctx, expr, context)  # a data-range filler of a data restriction
     text, tag = _render_class_expr_bare(ctx, expr)
-    needs_parens = (context == 'and' and tag == 'Or') or (context == 'primary' and tag in ('And', 'Or'))
-    return f'({text})' if needs_parens else text
+    return f'({text})' if _needs_parens(context, tag, 'And', 'Or') else text
 
 
 def _render_class_expr_bare(ctx, expr):
@@ -444,11 +553,11 @@ def _render_class_expr_bare(ctx, expr):
     if tag == 'And':
         return ' and '.join(_render_class_expr(ctx, e, 'and') for e in expr[1]), 'And'
     if tag == 'Or':
-        return ' or '.join(_render_class_expr(ctx, e, 'or') for e in expr[1]), 'Or'
+        return ' or '.join(_render_class_expr(ctx, e, 'or_operand') for e in expr[1]), 'Or'
     if tag == 'Not':
         return f'not {_render_class_expr(ctx, expr[1], "primary")}', 'Not'
     if tag == 'OneOf':
-        return '{' + ', '.join(_render_name(ctx, i) for i in expr[1]) + '}', 'OneOf'
+        return '{' + ', '.join(_render_individual(ctx, i) for i in expr[1]) + '}', 'OneOf'
     if tag in ('Some', 'Only'):
         _, prop, filler = expr
         kw = 'some' if tag == 'Some' else 'only'
@@ -470,8 +579,7 @@ def _render_class_expr_bare(ctx, expr):
 
 def _render_data_range(ctx, dr, context='or'):
     text, tag = _render_data_range_bare(ctx, dr)
-    needs_parens = (context == 'and' and tag == 'DOr') or (context == 'primary' and tag in ('DAnd', 'DOr'))
-    return f'({text})' if needs_parens else text
+    return f'({text})' if _needs_parens(context, tag, 'DAnd', 'DOr') else text
 
 
 def _render_data_range_bare(ctx, dr):
@@ -481,7 +589,7 @@ def _render_data_range_bare(ctx, dr):
     if tag == 'DAnd':
         return ' and '.join(_render_data_range(ctx, e, 'and') for e in dr[1]), tag
     if tag == 'DOr':
-        return ' or '.join(_render_data_range(ctx, e, 'or') for e in dr[1]), tag
+        return ' or '.join(_render_data_range(ctx, e, 'or_operand') for e in dr[1]), tag
     if tag == 'DNot':
         return f'not {_render_data_range(ctx, dr[1], "primary")}', tag
     if tag == 'DOneOf':
@@ -498,10 +606,18 @@ def _render_data_range_bare(ctx, dr):
 # ---------------------------------------------------------------------------
 
 def _annotations_prefix(ctx, anns):
-    if anns is None:
+    """``Annotations: p v, ...`` for ``(property, value, nested)`` annotations, where an annotation that is
+    itself annotated carries its own ``Annotations:`` prefix, to any depth; ``''`` for none."""
+    if not anns:
         return ''
-    rendered = ', '.join(f'{_render_name(ctx, p)} {_render_value(ctx, v)}' for p, v in anns)
-    return f'Annotations: {rendered} '
+    return f'Annotations: {_annotation_list(ctx, anns)} '
+
+
+def _annotation_list(ctx, anns):
+    return ', '.join(
+        _annotations_prefix(ctx, nested) + f'{_render_name(ctx, p)} {_render_value(ctx, v)}'
+        for p, v, nested in anns
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -514,31 +630,33 @@ def _clause_lines(items, keyword, indent='    '):
     return [f'{indent}{keyword}: ' + ', '.join(items)]
 
 
+def _item_clause(ctx, subject, pred, render_object):
+    """The items of one clause: every ``(subject, pred, o)`` triple rendered by ``render_object``, once per
+    annotated copy of the axiom."""
+    items = []
+    for o in ctx.graph.objects(subject, pred):
+        items += ctx.annotated_items(subject, pred, o, render_object(o))
+    return items
+
+
 def _render_class_frame(ctx, subject):
     g = ctx.graph
     lines = [f'Class: {_render_name(ctx, subject)}']
 
     for pred, keyword in ((RDFS.subClassOf, 'SubClassOf'), (OWL.equivalentClass, 'EquivalentTo'),
                            (OWL.disjointWith, 'DisjointWith')):
-        items = []
-        for o in g.objects(subject, pred):
-            expr = _node_to_class_expr(ctx, o)
-            rendered = _render_class_expr(ctx, expr)
-            anns = ctx.annotations_for(subject, pred, o)
-            items.append(_annotations_prefix(ctx, anns) + rendered)
-        lines += _clause_lines(items, keyword)
+        lines += _clause_lines(_item_clause(
+            ctx, subject, pred, lambda o: _render_class_expr(ctx, _node_to_class_expr(ctx, o))), keyword)
 
     for o in g.objects(subject, OWL.disjointUnionOf):
-        members = [_render_class_expr(ctx, _node_to_class_expr(ctx, m)) for m in _read_list(g, o)]
-        anns = ctx.annotations_for(subject, OWL.disjointUnionOf, o)
-        lines += _clause_lines([_annotations_prefix(ctx, anns) + ', '.join(members)], 'DisjointUnionOf')
+        members = ', '.join(_render_class_expr(ctx, _node_to_class_expr(ctx, m)) for m in _read_list(g, o))
+        lines += _clause_lines(ctx.annotated_items(subject, OWL.disjointUnionOf, o, members), 'DisjointUnionOf')
 
     for o in g.objects(subject, OWL.hasKey):
-        members = [_render_prop_expr(ctx, _node_to_prop_expr(ctx, m)) for m in _read_list(g, o)]
-        anns = ctx.annotations_for(subject, OWL.hasKey, o)
-        lines += _clause_lines([_annotations_prefix(ctx, anns) + ', '.join(members)], 'HasKey')
+        members = ', '.join(_render_prop_expr(ctx, _node_to_prop_expr(ctx, m)) for m in _read_list(g, o))
+        lines += _clause_lines(ctx.annotated_items(subject, OWL.hasKey, o, members), 'HasKey')
 
-    lines += _render_frame_annotations(ctx, subject, _STRUCTURAL_CLASS_PREDS)
+    lines += _render_frame_annotations(ctx, subject)
     return lines
 
 
@@ -546,132 +664,114 @@ def _render_property_frame(ctx, subject, frame_keyword, range_is_class_expr):
     g = ctx.graph
     lines = [f'{frame_keyword} {_render_name(ctx, subject)}']
 
-    for pred, keyword in ((RDFS.domain, 'Domain'),):
-        items = []
-        for o in g.objects(subject, pred):
-            expr = _node_to_class_expr(ctx, o)
-            anns = ctx.annotations_for(subject, pred, o)
-            items.append(_annotations_prefix(ctx, anns) + _render_class_expr(ctx, expr))
-        lines += _clause_lines(items, keyword)
+    lines += _clause_lines(_item_clause(
+        ctx, subject, RDFS.domain, lambda o: _render_class_expr(ctx, _node_to_class_expr(ctx, o))), 'Domain')
 
-    items = []
-    for o in g.objects(subject, RDFS.range):
-        anns = ctx.annotations_for(subject, RDFS.range, o)
-        if range_is_class_expr:
-            rendered = _render_class_expr(ctx, _node_to_class_expr(ctx, o))
-        else:
-            rendered = _render_data_range(ctx, _node_to_data_range(ctx, o))
-        items.append(_annotations_prefix(ctx, anns) + rendered)
-    lines += _clause_lines(items, 'Range')
+    if range_is_class_expr:
+        def render_range(o):
+            return _render_class_expr(ctx, _node_to_class_expr(ctx, o))
+    else:
+        def render_range(o):
+            return _render_data_range(ctx, _node_to_data_range(ctx, o))
+    lines += _clause_lines(_item_clause(ctx, subject, RDFS.range, render_range), 'Range')
 
     for pred, keyword in ((RDFS.subPropertyOf, 'SubPropertyOf'), (OWL.equivalentProperty, 'EquivalentTo'),
                            (OWL.propertyDisjointWith, 'DisjointWith'), (OWL.inverseOf, 'InverseOf')):
-        items = []
-        for o in g.objects(subject, pred):
-            expr = _node_to_prop_expr(ctx, o)
-            anns = ctx.annotations_for(subject, pred, o)
-            items.append(_annotations_prefix(ctx, anns) + _render_prop_expr(ctx, expr))
-        lines += _clause_lines(items, keyword)
+        lines += _clause_lines(_item_clause(
+            ctx, subject, pred, lambda o: _render_prop_expr(ctx, _node_to_prop_expr(ctx, o))), keyword)
 
     for o in g.objects(subject, OWL.propertyChainAxiom):
-        chain = [_render_prop_expr(ctx, _node_to_prop_expr(ctx, m)) for m in _read_list(g, o)]
-        anns = ctx.annotations_for(subject, OWL.propertyChainAxiom, o)
-        lines += _clause_lines([_annotations_prefix(ctx, anns) + ' o '.join(chain)], 'SubPropertyChain')
+        chain = ' o '.join(_render_prop_expr(ctx, _node_to_prop_expr(ctx, m)) for m in _read_list(g, o))
+        lines += _clause_lines(ctx.annotated_items(subject, OWL.propertyChainAxiom, o, chain), 'SubPropertyChain')
 
     chars = []
     for o in g.objects(subject, RDF.type):
         if o in _CHARACTERISTIC_KEYWORDS:
-            anns = ctx.annotations_for(subject, RDF.type, o)
-            chars.append(_annotations_prefix(ctx, anns) + _CHARACTERISTIC_KEYWORDS[o])
+            chars += ctx.annotated_items(subject, RDF.type, o, _CHARACTERISTIC_KEYWORDS[o])
     lines += _clause_lines(chars, 'Characteristics')
 
-    lines += _render_frame_annotations(ctx, subject, _STRUCTURAL_PROPERTY_PREDS)
+    lines += _render_frame_annotations(ctx, subject)
     return lines
 
 
 def _render_annotation_property_frame(ctx, subject):
-    g = ctx.graph
     lines = [f'AnnotationProperty: {_render_name(ctx, subject)}']
     for pred, keyword in ((RDFS.domain, 'Domain'), (RDFS.range, 'Range'), (RDFS.subPropertyOf, 'SubPropertyOf')):
-        items = []
-        for o in g.objects(subject, pred):
-            anns = ctx.annotations_for(subject, pred, o)
-            items.append(_annotations_prefix(ctx, anns) + _render_name(ctx, o))
-        lines += _clause_lines(items, keyword)
-    lines += _render_frame_annotations(ctx, subject, _STRUCTURAL_ANNPROP_PREDS)
+        lines += _clause_lines(_item_clause(ctx, subject, pred, lambda o: _render_name(ctx, o)), keyword)
+    lines += _render_frame_annotations(ctx, subject)
     return lines
 
 
 def _render_individual_frame(ctx, subject):
     g = ctx.graph
-    lines = [f'Individual: {_render_name(ctx, subject)}']
+    lines = [f'Individual: {_render_individual(ctx, subject)}']
+    skip = _frame_structural_preds(ctx, subject)
 
     types = []
     for o in g.objects(subject, RDF.type):
-        if o == OWL.NamedIndividual:
-            continue
-        expr = _node_to_class_expr(ctx, o)
-        anns = ctx.annotations_for(subject, RDF.type, o)
-        types.append(_annotations_prefix(ctx, anns) + _render_class_expr(ctx, expr))
+        if o == OWL.NamedIndividual or o in _ENTITY_TYPES or o in _CHARACTERISTIC_KEYWORDS:
+            continue  # a punned IRI also has a Class:/property frame, which owns these
+        types += ctx.annotated_items(
+            subject, RDF.type, o, _render_class_expr(ctx, _node_to_class_expr(ctx, o)))
     lines += _clause_lines(types, 'Types')
 
     facts = []
     for p, o in g.predicate_objects(subject):
-        if p in _STRUCTURAL_INDIVIDUAL_PREDS or ctx.is_annotation_prop(p):
+        if p in skip or ctx.is_annotation_prop(p):
             continue
-        anns = ctx.annotations_for(subject, p, o)
-        facts.append(_annotations_prefix(ctx, anns) + f'{_render_name(ctx, p)} {_render_value(ctx, o)}')
+        facts += ctx.annotated_items(subject, p, o, f'{_render_name(ctx, p)} {_render_value(ctx, o)}')
     for prop, value, anns in ctx.negative_facts.get(subject, []):
-        prefix = _annotations_prefix(ctx, anns if anns else None)
+        prefix = _annotations_prefix(ctx, anns)
         facts.append(f'{prefix}not {_render_name(ctx, prop)} {_render_value(ctx, value)}')
     lines += _clause_lines(facts, 'Facts')
 
     for pred, keyword in ((OWL.sameAs, 'SameAs'), (OWL.differentFrom, 'DifferentFrom')):
-        items = []
-        for o in g.objects(subject, pred):
-            anns = ctx.annotations_for(subject, pred, o)
-            items.append(_annotations_prefix(ctx, anns) + _render_name(ctx, o))
-        lines += _clause_lines(items, keyword)
+        lines += _clause_lines(_item_clause(ctx, subject, pred, lambda o: _render_individual(ctx, o)), keyword)
 
-    lines += _render_frame_annotations(ctx, subject, _STRUCTURAL_INDIVIDUAL_PREDS, extra_skip=ctx.is_annotation_prop)
+    lines += _render_frame_annotations(ctx, subject)
     return lines
 
 
 def _render_datatype_frame(ctx, subject):
-    g = ctx.graph
     lines = [f'Datatype: {_render_name(ctx, subject)}']
-    items = []
-    for o in g.objects(subject, OWL.equivalentClass):
-        dr = _node_to_data_range(ctx, o)
-        anns = ctx.annotations_for(subject, OWL.equivalentClass, o)
-        items.append(_annotations_prefix(ctx, anns) + _render_data_range(ctx, dr))
-    lines += _clause_lines(items, 'EquivalentTo')
-    lines += _render_frame_annotations(ctx, subject, _STRUCTURAL_DATATYPE_PREDS)
+    lines += _clause_lines(_item_clause(
+        ctx, subject, OWL.equivalentClass,
+        lambda o: _render_data_range(ctx, _node_to_data_range(ctx, o))), 'EquivalentTo')
+    lines += _render_frame_annotations(ctx, subject)
     return lines
 
 
-def _render_frame_annotations(ctx, subject, structural_preds, extra_skip=None):
+def _frame_structural_preds(ctx, subject):
+    """Every predicate some frame the subject has already renders (an IRI can be punned: a class and an
+    individual at once)."""
+    preds = set()
+    for kind in ctx.frame_kinds(subject):
+        preds |= _STRUCTURAL_BY_FRAME[kind]
+    return preds
+
+
+def _render_frame_annotations(ctx, subject):
     """Any remaining (subject, pred, value) pair not already consumed by a
     known clause is a frame-level Annotations: pair - the same "whatever's
     left is an annotation" rule _handle_frame_annotations()'s forward
     direction implies, generalized here since there's no explicit
-    Annotations: keyword left in the RDF to key off of."""
+    Annotations: keyword left in the RDF to key off of. An annotation that is itself annotated
+    is an owl:Axiom block on the pair."""
+    structural = _frame_structural_preds(ctx, subject)
+    only_annotation_props = 'Individual:' in ctx.frame_kinds(subject)  # Facts: claimed every other predicate
     items = []
     for p, o in ctx.graph.predicate_objects(subject):
-        if p in structural_preds:
+        if p in structural:
             continue
-        if extra_skip is not None and not extra_skip(p):
-            # Individual frame: Facts: already claimed every non-annotation,
-            # non-structural predicate above - only genuine annotation
-            # properties are left to collect here.
+        if only_annotation_props and not ctx.is_annotation_prop(p):
             continue
-        items.append(f'{_render_name(ctx, p)} {_render_value(ctx, o)}')
+        items += ctx.annotated_items(subject, p, o, f'{_render_name(ctx, p)} {_render_value(ctx, o)}')
     return _clause_lines(items, 'Annotations')
 
 
 # ---------------------------------------------------------------------------
-# Misc axioms (only the unambiguous >2-member AllDisjoint*/AllDifferent
-# shape - see module docstring for why the rest aren't reconstructed)
+# Misc axioms: the >2-member AllDisjoint*/AllDifferent nodes, and every pairwise axiom
+# (equivalence, binary disjointness, sameAs, differentFrom) whose subject has no frame to carry it
 # ---------------------------------------------------------------------------
 
 def _render_misc(ctx):
@@ -680,20 +780,106 @@ def _render_misc(ctx):
     for rdf_type, keyword, member_render in (
         (OWL.AllDisjointClasses, 'DisjointClasses', lambda m: _render_class_expr(ctx, _node_to_class_expr(ctx, m))),
         (OWL.AllDisjointProperties, 'DisjointProperties', lambda m: _render_prop_expr(ctx, _node_to_prop_expr(ctx, m))),
-        (OWL.AllDifferent, 'DifferentIndividuals', lambda m: _render_name(ctx, m)),
+        (OWL.AllDifferent, 'DifferentIndividuals', lambda m: _render_individual(ctx, m)),
     ):
         for node in g.subjects(RDF.type, rdf_type):
             members_list = g.value(node, OWL.members)
+            if members_list is None and rdf_type == OWL.AllDifferent:
+                members_list = g.value(node, OWL.distinctMembers)  # the OWL 1 spelling the RDF mapping still reads
             if members_list is None:
                 continue
             members = [member_render(m) for m in _read_list(g, members_list)]
-            lines.append(f'{keyword}: ' + ', '.join(members))
+            anns = ctx.annotations_of(node, {RDF.type, OWL.members, OWL.distinctMembers})
+            lines.append(f'{keyword}: {_annotations_prefix(ctx, anns)}' + ', '.join(members))
+    lines += _render_frameless_axioms(ctx)
+    return lines
+
+
+def _term_key(term):
+    return (type(term).__name__, getattr(term, 'value', str(term)))
+
+
+def _sorted_pairs(graph, pred):
+    return sorted(((s, o) for s, _p, o in graph.triples((None, pred, None))),
+                  key=lambda pair: (_term_key(pair[0]), _term_key(pair[1])))
+
+
+def _render_frameless_axioms(ctx):
+    """A pairwise axiom is written in its subject's frame when the subject has one. The parser declares no
+    entity for a name used only in a top-level ``EquivalentClasses:`` and the like, and an axiom whose
+    subject is a class expression (``Class: A SuperClassOf: p some B``) has no frame at all, so each of
+    those is written as a Misc axiom (or ``SuperClassOf:``) instead of being dropped."""
+    g = ctx.graph
+    lines = []
+
+    def class_expr(n):
+        return _render_class_expr(ctx, _node_to_class_expr(ctx, n))
+
+    def prop_expr(n):
+        return _render_prop_expr(ctx, _node_to_prop_expr(ctx, n))
+
+    def individual(n):
+        return _render_individual(ctx, n)
+
+    props = ('ObjectProperty:', 'DataProperty:')
+    for pred, keyword, render, frames in (
+        (OWL.equivalentClass, 'EquivalentClasses', class_expr, ('Class:', 'Datatype:')),
+        (OWL.disjointWith, 'DisjointClasses', class_expr, ('Class:',)),
+        (OWL.equivalentProperty, 'EquivalentProperties', prop_expr, props),
+        (OWL.propertyDisjointWith, 'DisjointProperties', prop_expr, props),
+        (OWL.sameAs, 'SameIndividual', individual, ('Individual:',)),
+        (OWL.differentFrom, 'DifferentIndividuals', individual, ('Individual:',)),
+    ):
+        for s, o in _sorted_pairs(g, pred):
+            if any(s in ctx.entities[kind] for kind in frames):
+                continue
+            for item in ctx.annotated_items(s, pred, o, f'{render(s)}, {render(o)}'):
+                lines.append(f'{keyword}: {item}')
+
+    # A subclass axiom whose subject has no Class: frame: a class expression (a GCI), or an undeclared name.
+    for s, o in _sorted_pairs(g, RDFS.subClassOf):
+        if s in ctx.entities['Class:'] or (isinstance(s, URIRef) and ctx.frame_kinds(s)):
+            continue
+        if isinstance(o, URIRef):
+            head, clause, text = o, 'SuperClassOf', class_expr(s)
+        elif isinstance(s, URIRef):
+            head, clause, text = s, 'SubClassOf', class_expr(o)
+        else:
+            raise ValueError(
+                f'cannot write the subclass axiom between {s!r} and {o!r}: Manchester syntax needs a named class '
+                f'on one side'
+            )
+        for item in ctx.annotated_items(s, RDFS.subClassOf, o, text):
+            lines += [f'Class: {_render_name(ctx, head)}', f'    {clause}: {item}']
     return lines
 
 
 # ---------------------------------------------------------------------------
 # Top level
 # ---------------------------------------------------------------------------
+
+def _render_ontology_header(ctx):
+    """``Ontology: [<iri> [<versionIRI>]]``, its imports and its annotations. An ontology without an IRI is a
+    blank node and gets the bare ``Ontology:`` header."""
+    g = ctx.graph
+    node = ctx.ontology
+    version = g.value(node, OWL.versionIRI)
+    if isinstance(node, URIRef):
+        head = f'Ontology: <{node.value}>'
+        if version is not None:
+            head += f' <{_iri_text(version)}>'
+    elif version is not None:
+        raise ValueError(f'cannot write a version IRI for the anonymous ontology {node!r}: Manchester syntax needs an ontology IRI')
+    else:
+        head = 'Ontology:'
+    lines = [head]
+    for imported in g.objects(node, OWL.imports):
+        lines.append(f'    Import: <{_iri_text(imported)}>')
+    anns = ctx.annotations_of(node, {RDF.type, OWL.imports, OWL.versionIRI})
+    if anns:
+        lines.append(f'    Annotations: {_annotation_list(ctx, anns)}')
+    return lines
+
 
 def serialize_manchester(graph) -> str:
     """Serialize a StarLayerGraph to OWL 2 Manchester Syntax.
@@ -714,9 +900,7 @@ def serialize_manchester(graph) -> str:
 
     body_lines = []
     if ctx.ontology is not None:
-        body_lines.append(f'Ontology: <{ctx.ontology.value}>')
-        for imported in graph.objects(ctx.ontology, OWL.imports):
-            body_lines.append(f'    Import: <{_iri_text(imported)}>')
+        body_lines += _render_ontology_header(ctx)
         body_lines.append('')
 
     for subject in sorted(ctx.entities['Class:'], key=_iri_key):
