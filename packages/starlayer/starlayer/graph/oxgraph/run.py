@@ -205,7 +205,8 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
     """
     named = [g for g in store.named_graphs() if isinstance(g, ox.NamedNode) and next(store.quads_for_pattern(None, None, None, g), None) is not None]
     others = next((q for q in store if not isinstance(q.graph_name, ox.NamedNode)), None) is not None
-    if not named and not dedupe:
+    blank_graphs = next((q for q in store if isinstance(q.graph_name, ox.BlankNode)), None) is not None
+    if not named and not dedupe and not blank_graphs:
         return text, False  # only the default graph (or nothing) has data: union == default graph
     masked = _mask(text)
     bounds = [0, *[m.start() + 1 for m in re.finditer(";", masked)], len(text)]
@@ -215,7 +216,7 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
     for a, b in zip(bounds, bounds[1:], strict=False):
         seg, mseg = text[a:b], masked[a:b]
         # `masked` already blanked the IRIs, so the prologue is just the PREFIX/BASE words and whitespace
-        head = re.sub(r"(?is)\b(?:PREFIX\s+[^\s:]*:|BASE)\b", " ", mseg).lstrip()
+        head = re.sub(r"(?is)\A(?:\s*(?:PREFIX\s+[^\s:]*:|BASE\b|VERSION\b))*", "", mseg).lstrip()
         if not re.match(r"(?i)(?:DELETE|INSERT)\b", head) or re.search(r"(?i)\bUSING\b", mseg):
             pieces.append(seg)  # LOAD, CLEAR, ..., or its own dataset clause
             continue
@@ -227,7 +228,10 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
         clause = using + (f" USING <{scratch.value}>" if others or dedupe else "")
         used = used or others or dedupe
         if dw is not None:  # DELETE WHERE { P } has no USING in its grammar: write it as DELETE { P } USING .. WHERE { P }
-            lo = mseg.index("{", dw.end())
+            lo = mseg.find("{", dw.end())
+            if lo < 0:
+                pieces.append(seg)  # malformed: Oxigraph reports the SyntaxError
+                continue
             depth, hi = 0, lo
             for k in range(lo, len(mseg)):
                 depth += mseg[k] == "{"
