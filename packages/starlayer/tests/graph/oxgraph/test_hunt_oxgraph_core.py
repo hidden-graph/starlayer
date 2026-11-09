@@ -191,6 +191,49 @@ def test_pretty_trig_of_named_graph_view_keeps_graph_name():
     assert graphs(ds.serialize(format="trig", pretty=True)) == ["<http://g/1>", "DEFAULT"]
 
 
+# ---- derive_shape -----------------------------------------------------------------------------------------------------------
+_TTL = "@prefix : <http://ex.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
+
+
+def _ttl(text):
+    g = StarLayerGraph()
+    g.parse(data=_TTL + text, format="turtle")
+    return g
+
+
+def test_derive_shape_ill_formed_typed_literal():
+    g = StarLayerGraph()
+    g.add((ex("a"), ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), ex("C")))
+    g.add((ex("a"), ex("p"), ox.Literal("abc", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))))
+    assert len(g.derive_shape()) > 0
+
+
+def test_derive_shape_template_plain_beside_language_tagged():
+    old = _ttl(':n1 a :C ; :p "a"@en .')
+    new = _ttl(':n1 a :C ; :p "a"@en, "plain" .')
+    assert len(new.derive_shape(old.derive_shape())) > 0
+
+
+@pytest.mark.parametrize("pred,val", [("maxExclusive", 2), ("minExclusive", 9)])
+def test_derive_shape_template_exclusive_bound_violated(pred, val):
+    data = _ttl(":a a :C ; :n 5 .")
+    tpl = _ttl(f":S a sh:NodeShape ; sh:targetClass :C ; sh:property [ sh:path :n ; sh:{pred} {val} ] .")
+    assert len(data.derive_shape(tpl)) > 0
+
+
+def test_derive_shape_template_target_node_and_nested_node():
+    data = _ttl(':a a :C ; :p "x" .')
+    tpl = _ttl(":S a sh:NodeShape ; sh:targetNode :a ; sh:property [ sh:path :p ; sh:minCount 3 ] .")
+    assert len(data.derive_shape(tpl)) > 0
+    nested = _ttl(":S a sh:NodeShape ; sh:targetClass :C ; sh:node :T . :T a sh:NodeShape ; sh:property [ sh:path :p ; sh:minCount 3 ] .")
+    assert len(data.derive_shape(nested)) > 0
+
+
+def test_derive_shape_subclass_hierarchy():
+    g = _ttl(':Dog rdfs:subClassOf :Animal . :rex a :Dog ; :barks "yes" . :cat1 a :Animal ; :name "Tom" .')
+    assert len(g.derive_shape()) > 0
+
+
 # ---- has_triple_term: an impossible pattern is False --------------------------------------------------------------------
 def test_has_triple_term_impossible_pattern_is_false():
     g = StarLayerGraph()
