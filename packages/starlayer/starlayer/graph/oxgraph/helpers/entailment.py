@@ -174,7 +174,7 @@ def _owl_direct_delta(g: Any, engine: str, timeout: Any) -> set[tuple[Any, Any, 
 
         classify = owl_dl_rustdl.classify_owl_dl_rustdl
     _before, delta = classify(bridge.rdflib_graph(g.triples(), decompose=True), timeout=timeout)
-    return set(bridge.legal_rdf_triples(delta))
+    return set(bridge.legal_rdf_triples(delta)) - set(g.triples())
 
 
 def _delta_for(g: Any, regimes: frozenset[str], engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:
