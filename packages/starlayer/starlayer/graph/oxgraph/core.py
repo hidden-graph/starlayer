@@ -113,6 +113,11 @@ def _read_input(data: Any, source: Any, file: Any) -> tuple[dict[str, Any], str 
             req = urllib.request.Request(text, headers={"Accept": "text/turtle, application/rdf+xml;q=0.9, */*;q=0.1"})
             with urllib.request.urlopen(req) as resp:  # noqa: S310
                 return {"input": resp.read()}, text
+        if text[:5].lower() == "file:":  # a file: URL names a local path
+            import urllib.parse
+            import urllib.request
+
+            text = urllib.request.url2pathname(urllib.parse.urlparse(text).path)
         return {"path": text}, text
     raise TypeError(f"cannot read RDF from {type(obj).__name__}")
 
@@ -472,14 +477,16 @@ class _Base:
     def _write(raw: bytes, destination: Any, encoding: str) -> str | None:
         if destination is None:
             return raw.decode("utf-8")
+        # ``raw`` is UTF-8. A path or a binary stream gets the bytes in ``encoding``; a text stream encodes for itself.
+        data = raw if encoding.lower().replace("_", "-") in ("utf-8", "utf8") else raw.decode("utf-8").encode(encoding)
         if isinstance(destination, (str, os.PathLike)):
             with open(destination, "wb") as fh:
-                fh.write(raw)
+                fh.write(data)
         else:
             try:
-                destination.write(raw)
+                destination.write(data)
             except TypeError:
-                destination.write(raw.decode(encoding))
+                destination.write(raw.decode("utf-8"))
         return None
 
     def _pretty_source(self, fmt: ox.RdfFormat) -> Any:

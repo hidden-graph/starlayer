@@ -149,6 +149,31 @@ def test_version_warning_ignores_dashes_and_tilde_in_strings():
     assert [x for x in w if "onformance" in x.category.__name__]
 
 
+# ---- parse(source="file:///...") ------------------------------------------------------------------------------------------
+def test_parse_file_url(tmp_path):
+    p = tmp_path / "a b.ttl"
+    p.write_text("<http://x/a> <http://x/b> <http://x/c> .\n")
+    assert len(StarLayerGraph().parse(str(p))) == 1
+    assert len(StarLayerGraph().parse(p.as_uri())) == 1
+
+
+# ---- serialize(destination, encoding=...) --------------------------------------------------------------------------------
+def test_serialize_encoding(tmp_path):
+    import io
+
+    g = StarLayerGraph()
+    g.add((ex("a"), ex("p"), ox.Literal("café")))
+    s = io.StringIO()
+    g.serialize(s, format="nt", encoding="latin-1")
+    assert "café" in s.getvalue()
+    p = tmp_path / "o.nt"
+    g.serialize(p, format="nt", encoding="latin-1")
+    assert "café".encode("latin-1") in p.read_bytes()
+    b = io.BytesIO()
+    g.serialize(b, format="nt")
+    assert "café".encode() in b.getvalue()
+
+
 # ---- has_triple_term: an impossible pattern is False --------------------------------------------------------------------
 def test_has_triple_term_impossible_pattern_is_false():
     g = StarLayerGraph()
