@@ -254,6 +254,10 @@ class TestInferDelta:
         # fresh-BNode-per-call reason.
         from starlayer.graph.compare import isomorphic
         from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
+        from starlayer.graph.oxgraph._rdflib_bridge import (
+            decomposition_nodes,
+            drop_decomposition,
+        )
 
         g = _rdfs_graph()
         g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
@@ -267,9 +271,9 @@ class TestInferDelta:
         _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
-        for t in oracle_after:
-            if t not in oracle_before_set:
-                oracle_delta.add(t)
+        # entailments about the synthetic triple-term placeholders are not entailments about the user's graph
+        for t in drop_decomposition((t for t in oracle_after if t not in oracle_before_set), decomposition_nodes(oracle_before)):
+            oracle_delta.add(t)
 
         assert isomorphic(delta, oracle_delta)
         assert len(delta) == len(oracle_delta)
@@ -322,6 +326,10 @@ class TestInferWithTripleTerms:
         # genuinely still goes through decomposition.
         from starlayer.graph.compare import isomorphic
         from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
+        from starlayer.graph.oxgraph._rdflib_bridge import (
+            decomposition_nodes,
+            drop_decomposition,
+        )
 
         g = _rdfs_graph()
         g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
@@ -335,9 +343,9 @@ class TestInferWithTripleTerms:
         _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle_after)
         oracle_before_set = set(oracle_before)
         oracle_delta = StarLayerGraph()
-        for t in oracle_after:
-            if t not in oracle_before_set:
-                oracle_delta.add(t)
+        # entailments about the synthetic triple-term placeholders are not entailments about the user's graph
+        for t in drop_decomposition((t for t in oracle_after if t not in oracle_before_set), decomposition_nodes(oracle_before)):
+            oracle_delta.add(t)
 
         assert isomorphic(delta, oracle_delta)
         assert len(delta) == len(oracle_delta)

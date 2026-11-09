@@ -119,7 +119,7 @@ def _owlrl_delta(g: Any, regimes: frozenset[str]) -> set[tuple[Any, Any, Any]]:
         if len(expanded) == size:
             break
     before_set = set(before)
-    return set(bridge.legal_rdf_triples(t for t in expanded if t not in before_set))
+    return set(bridge.legal_rdf_triples(bridge.drop_decomposition((t for t in expanded if t not in before_set), bridge.decomposition_nodes(before))))
 
 
 def _rdf_delta(g: Any) -> set[tuple[Any, Any, Any]]:
