@@ -124,27 +124,30 @@ def run_with_timeout(target: Callable[..., None], args: tuple, timeout_seconds: 
     process.start()
 
     try:
-        if timeout_seconds is None:
-            result = queue.get()
-        else:
-            deadline = time.monotonic() + timeout_seconds
-            result = None
-            while True:
+        deadline = None if timeout_seconds is None else time.monotonic() + timeout_seconds
+        result = None
+        while True:
+            slice_seconds = 0.5
+            if deadline is not None:
                 remaining = deadline - time.monotonic()
                 if remaining <= 0:
                     break
-                try:
-                    result = queue.get(timeout=min(remaining, 0.5))
+                slice_seconds = min(remaining, 0.5)
+            try:
+                result = queue.get(timeout=slice_seconds)
+                break
+            except Exception:
+                # queue.Empty on this poll slice - keep waiting until the
+                # deadline (never, with no timeout), or until the child dies
+                # without ever producing a result (a crash, not a hang - stop
+                # waiting the moment that's true, whatever the timeout).
+                if not process.is_alive():
+                    try:  # a result put just before the child exited may still be in the pipe
+                        result = queue.get(timeout=0.5)
+                    except Exception:
+                        pass
                     break
-                except Exception:
-                    # queue.Empty on this poll slice - keep waiting until
-                    # the deadline, or until the child dies without ever
-                    # producing a result (a crash, not a hang - stop
-                    # waiting the moment that's true rather than idling
-                    # out the full budget for no reason).
-                    if not process.is_alive():
-                        break
-                    continue
+                continue
 
         if result is not None:
             return result
@@ -170,6 +173,8 @@ def run_with_timeout(target: Callable[..., None], args: tuple, timeout_seconds: 
     finally:
         if process.is_alive():
             _kill_process_group(process.pid)
+            # the child only leads a process group once it has run _trampoline, so a kill that comes earlier needs this one
+            process.kill()
             process.join(timeout=5)
         else:
             process.join(timeout=5)

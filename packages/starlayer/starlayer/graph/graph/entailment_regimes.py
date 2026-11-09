@@ -26,10 +26,8 @@ implementation here and are not planned - see
 ``query()`` dispatch to for OWL 2 Direct Semantics (tableau) reasoning -
 a single name and IRI for a single regime, used uniformly by both methods.
 
-Two values deliberately have no IRI and are not regimes at all: ``None``
-(simple entailment / no entailment) and the string ``"native"``
-(``query()`` only - delegates entailment to the connected backend/endpoint
-rather than naming a regime).
+``None`` (simple entailment / no entailment) deliberately has no IRI and is not a regime. ``query()`` accepts no other
+value than ``None`` and the four regime IRIs; anything else raises ``NotImplementedError``.
 
 ``KNOWN_REGIMES`` and ``SUPPORTED_REGIMES`` are sets of IRI text (``str``). The definitions live in
 ``starlayer.graph.oxgraph.helpers.entailment``; this module keeps the import path.

@@ -8,6 +8,7 @@ reused as they are, lazily, with their optional-dependency errors and their subp
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable
 from typing import Any
 
@@ -45,6 +46,8 @@ OWL_DIRECT_REGIME = ENTAILMENT["OWL-Direct"].value
 KNOWN_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, D_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
 SUPPORTED_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
 
+#: rdf:_n for a positive decimal integer without leading zeros (RDF Semantics, container membership properties); ASCII digits only
+_CONTAINER_MEMBERSHIP = re.compile(re.escape(terms.RDF) + r"_[1-9][0-9]*")
 _OWLRL_ERROR_NS = "http://www.daml.org/2002/03/agents/agent-ont#"
 _RDF = terms.RDF
 _RDF_AXIOMATIC = tuple(ox.NamedNode(_RDF + n) for n in ("type", "subject", "predicate", "object", "reifies", "first", "rest", "value"))
@@ -116,7 +119,7 @@ def _owlrl_delta(g: Any, regimes: frozenset[str]) -> set[tuple[Any, Any, Any]]:
         if len(expanded) == size:
             break
     before_set = set(before)
-    return set(bridge.legal_rdf_triples(t for t in expanded if t not in before_set))
+    return set(bridge.legal_rdf_triples(bridge.drop_decomposition((t for t in expanded if t not in before_set), bridge.decomposition_nodes(before))))
 
 
 def _rdf_delta(g: Any) -> set[tuple[Any, Any, Any]]:
@@ -149,7 +152,7 @@ def _rdf_delta(g: Any) -> set[tuple[Any, Any, Any]]:
                 add((t, rdf_type, rdf_property))
             elif t == terms.RDF_NIL:
                 add((t, rdf_type, ox.NamedNode(_RDF + "List")))
-            elif isinstance(t, ox.NamedNode) and t.value.startswith(_RDF + "_") and t.value[len(_RDF) + 1 :].isdigit():
+            elif isinstance(t, ox.NamedNode) and _CONTAINER_MEMBERSHIP.fullmatch(t.value):
                 add((t, rdf_type, rdf_property))
 
     consider(list(existing))
@@ -171,7 +174,7 @@ def _owl_direct_delta(g: Any, engine: str, timeout: Any) -> set[tuple[Any, Any, 
 
         classify = owl_dl_rustdl.classify_owl_dl_rustdl
     _before, delta = classify(bridge.rdflib_graph(g.triples(), decompose=True), timeout=timeout)
-    return set(bridge.legal_rdf_triples(delta))
+    return set(bridge.legal_rdf_triples(delta)) - set(g.triples())
 
 
 def _delta_for(g: Any, regimes: frozenset[str], engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:

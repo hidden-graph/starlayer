@@ -110,6 +110,24 @@ def _decompose_quads(quads: Any) -> list:
     return list(out)
 
 
+def decomposition_nodes(graph: Any) -> set:
+    """The synthetic blank nodes ``_decompose_quads`` made for triple terms in ``graph`` (a decomposed rdflib graph)."""
+    from rdflib import URIRef
+
+    return {s for s, _p, _o in graph.triples((None, URIRef(_TT_PREFIX + "subject"), None))}
+
+
+def drop_decomposition(triples: Iterable[tuple[Any, Any, Any]], nodes: set) -> Iterator[tuple[Any, Any, Any]]:
+    """``triples`` without those that mention the decomposition: a node of ``nodes`` or a term of the internal namespace. A
+    reasoner's entailments about these placeholders are not entailments about the user's graph."""
+    from rdflib import URIRef
+
+    for t in triples:
+        if any(x in nodes or (isinstance(x, URIRef) and str(x).startswith(_TT_PREFIX)) for x in t):
+            continue
+        yield t
+
+
 def decompose(graph: Any) -> Any:
     """Return a plain ``rdflib.Graph`` with every triple term replaced by a
     synthetic reification fragment (a fresh blank node per triple-term occurrence, three edges in an internal namespace, recursing

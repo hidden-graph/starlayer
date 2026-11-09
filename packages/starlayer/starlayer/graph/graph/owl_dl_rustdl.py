@@ -101,8 +101,8 @@ from rdflib.namespace import OWL
 from starlayer.graph.graph import _timeout
 from starlayer.graph.graph.owl_dl import (
     InconsistentOntologyError,
-    _complete_type_closure,
-    _drop_temp_ontology,
+    _delta_from_result,
+    _skolemize_individuals,
 )
 
 # See this module's own docstring, point 4, for the full account of what
@@ -289,9 +289,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         owl_path = Path(tmp_dir) / "graph.owl"
-        to_serialize = Graph()
-        for t in before:
-            to_serialize.add(t)
+        to_serialize = _skolemize_individuals(before)
         _infer_missing_owl_types(to_serialize)
         to_serialize.serialize(destination=str(owl_path), format='xml')
         path = str(owl_path)
@@ -326,15 +324,4 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
                 lit = Literal(lexical)
             expanded.add((URIRef(s), URIRef(p), lit))
 
-    # Same closure-completion pass engine="hermit" needs - reused rather
-    # than duplicated, and harmless if RustDL's own class-assertion output
-    # already includes every ancestor (purely additive, idempotent).
-    _drop_temp_ontology(expanded)
-    _complete_type_closure(expanded)
-
-    before_set = set(before)
-    delta = Graph()
-    for t in expanded:
-        if t not in before_set:
-            delta.add(t)
-    return before, delta
+    return before, _delta_from_result(expanded, before)
