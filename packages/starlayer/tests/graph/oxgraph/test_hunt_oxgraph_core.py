@@ -93,3 +93,31 @@ def test_term_readers_graph_vs_union_dataset():
     assert len(list(d.subjects(ex("p"), unique=True))) == 2
     d.graph(ex("g2")).add(triples[0])
     assert len(list(d.subjects(ex("p")))) == 3
+
+
+# ---- blank-node initBinding on a variable that is not projected ----
+B = ox.BlankNode("b1")
+
+
+def _bgraph():
+    g = StarLayerGraph()
+    g.add((B, ex("p"), ox.Literal("5")))
+    return g
+
+
+@pytest.mark.parametrize("var", ["count", "min", "max", "sum", "sample"])
+def test_blank_binding_variable_named_like_aggregate(var):
+    rows = list(_bgraph().query(f"SELECT ?{var} WHERE {{ ?x <http://ex/p> ?{var} }}", initBindings={"x": B}))
+    assert len(rows) == 1
+
+
+def test_blank_binding_prefix_named_select():
+    q = "PREFIX select: <http://ex/> SELECT ?v WHERE { ?x select:p ?v }"
+    assert len(list(_bgraph().query(q, initBindings={"x": B}))) == 1
+
+
+def test_blank_binding_select_star_unmentioned_variable():
+    g = StarLayerGraph()
+    g.add((ex("a"), ex("p"), ex("b")))
+    q = "SELECT * WHERE { ?s ?p ?o }"
+    assert len(list(g.query(q, initBindings={"unused": ox.BlankNode("x")}))) == 1

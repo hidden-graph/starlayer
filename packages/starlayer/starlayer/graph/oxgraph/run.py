@@ -35,7 +35,8 @@ def _has_blank(t: Any) -> bool:
     return isinstance(t, ox.Triple) and any(_has_blank(x) for x in (t.subject, t.predicate, t.object))
 
 
-_AGGREGATE = re.compile(r"(?i)\b(?:COUNT|SUM|MIN|MAX|AVG|SAMPLE|GROUP_CONCAT|GROUP\s+BY)\b")
+_AGGREGATE = re.compile(r"(?i)(?<![?$\w])(?:(?:COUNT|SUM|MIN|MAX|AVG|SAMPLE|GROUP_CONCAT)\s*\(|GROUP\s+BY\b)")
+_PROLOGUE = re.compile(r"(?is)\A(?:\s*(?:PREFIX\s+[^\s:]*:|BASE\b|VERSION\b))*")
 
 
 def _query_widening(store: ox.Store, text: str, kwargs: dict[str, Any], subs: dict[Any, Any], error: RuntimeError) -> Any:
@@ -46,7 +47,11 @@ def _query_widening(store: ox.Store, text: str, kwargs: dict[str, Any], subs: di
             raise error
         names.append(m.group(1))
         try:
-            raw = store.query(_widen_projection(text, names), **kwargs, substitutions=subs)
+            widened = _widen_projection(text, names)
+            if widened is None:  # SELECT *: the variable is not in the query at all, so its binding changes nothing
+                raw = store.query(text, **kwargs, substitutions={k: v for k, v in subs.items() if k.value not in names} or None)
+                return raw
+            raw = store.query(widened, **kwargs, substitutions=subs)
         except RuntimeError as e:
             if "projection" not in str(e):
                 raise
@@ -55,12 +60,16 @@ def _query_widening(store: ox.Store, text: str, kwargs: dict[str, Any], subs: di
         return HiddenColumns(raw, set(names))
 
 
-def _widen_projection(text: str, names: list[str]) -> str:
-    """``text`` (a SELECT query) with ``names`` added to its projection, so that Oxigraph's ``substitutions`` accepts them."""
+def _widen_projection(text: str, names: list[str]) -> str | None:
+    """``text`` (a SELECT query) with ``names`` added to its projection, so that Oxigraph's ``substitutions`` accepts them;
+    None for ``SELECT *``, which projects every variable of the query already."""
     masked = _mask(text)
-    m = re.search(r"(?i)\bSELECT\b(?:\s+(?:DISTINCT|REDUCED)\b)?", masked)
+    start = _PROLOGUE.match(masked).end()  # type: ignore[union-attr]  # the pattern matches the empty string
+    m = re.compile(r"(?i)\bSELECT\b(?:\s+(?:DISTINCT|REDUCED)\b)?").search(masked, start)
     if m is None:
         raise NotImplementedError("initBindings with a blank node or a triple term holding one needs a SELECT query here")
+    if re.match(r"\s*\*", masked[m.end() :]):
+        return None
     if _AGGREGATE.search(masked):
         raise NotImplementedError(
             "initBindings with a blank node for a variable that is not projected, in a query with aggregates: write the variable "
