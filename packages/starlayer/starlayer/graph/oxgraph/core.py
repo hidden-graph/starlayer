@@ -569,31 +569,41 @@ class _Base:
         return EntailmentSession(self, str(getattr(entailment, "value", entailment)), infer=infer, engine=engine, timeout=timeout)
 
     def _entailed_copy(self, regime: str, infer: str, **kw: Any) -> Any:
-        """A throwaway copy of the whole store (every graph) with the ``regime`` entailed triples added to the graph this
-        wrapper reads, for query-time OWL entailment. This wrapper's store is not changed."""
+        """A throwaway copy of the whole store (every graph, empty named ones too) with the ``regime`` entailed triples added to
+        the graph this wrapper reads, for query-time OWL entailment. On a dataset each non-empty named graph also gets what the
+        regime entails from that graph alone (one reasoner run per graph), so ``GRAPH <g> { }`` patterns see it, as under the
+        RDFS regime. This wrapper's store is not changed."""
         delta = self._entailed_triples(regime, infer, **kw)
         store = ox.Store()
         store.extend(self.store)
+        for name in self.store.named_graphs():
+            store.add_graph(name)
         if isinstance(self, StarLayerDataset):
             copy: Any = StarLayerDataset(store=store, default_union=self._union, prefixes=dict(self.prefixes))
+            for name in self.store.named_graphs():
+                view = StarLayerGraph(self.store, identifier=name, prefixes=self.prefixes)
+                if len(view):
+                    per_graph = self._entailed_triples(regime, infer, of=view, scope=name, **kw)
+                    store.extend(copy._quad(t, name) for t in per_graph)
         else:
             copy = StarLayerGraph(store=store, identifier=self._g, prefixes=dict(self.prefixes))
         g = copy._add_graph()
         store.extend(copy._quad(t, g) for t in delta)  # not copy.extend(): that counts as a write and would age the kept triples
         return copy
 
-    def _entailed_triples(self, regime: str, infer: str, *, engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:
-        """The triples ``regime`` entails that this wrapper does not hold, kept per regime (and engine, for ``OWL-Direct``,
-        whose engines can differ) with the write number they were computed at; ``infer`` says when to compute them again."""
+    def _entailed_triples(self, regime: str, infer: str, *, engine: str, timeout: Any, of: Any = None, scope: Any = None) -> set[tuple[Any, Any, Any]]:
+        """The triples ``regime`` entails that this wrapper (or, with ``of``, that graph view, kept under ``scope``) does not
+        hold, kept per regime (and engine, for ``OWL-Direct``, whose engines can differ) with the write number they were
+        computed at; ``infer`` says when to compute them again."""
         from starlayer.graph.oxgraph.helpers import entailment as ent
 
         kept = self.__dict__.setdefault("_entailed", {})
-        key = (regime, engine if regime == ent.OWL_DIRECT_REGIME else None)
+        key = (regime, engine if regime == ent.OWL_DIRECT_REGIME else None, scope)
         hit = kept.get(key)
         if hit is not None and infer != "always" and (infer == "cached" or hit[1] == union.current()):
             return hit[0]
         stamp = union.current()  # taken first: a write that lands while the reasoner runs makes the result stale
-        delta = ent._delta_for(self, frozenset({regime}), engine, timeout)
+        delta = ent._delta_for(self if of is None else of, frozenset({regime}), engine, timeout)
         kept[key] = (delta, stamp)
         return delta
 
