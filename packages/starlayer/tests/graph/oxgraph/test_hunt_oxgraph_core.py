@@ -174,6 +174,23 @@ def test_serialize_encoding(tmp_path):
     assert "café".encode() in b.getvalue()
 
 
+# ---- pretty TriG of a named-graph view keeps the graph name ----------------------------------------------------------------
+def test_pretty_trig_of_named_graph_view_keeps_graph_name():
+    ds = StarLayerDataset()
+    view = ds.graph(N("http://g/1"))
+    view.add((ex("a"), ex("b"), ex("c")))
+
+    def graphs(text):
+        h = StarLayerDataset()
+        h.parse(data=text, format="trig")
+        return sorted(str(q.graph_name) for q in h.store)
+
+    assert graphs(view.serialize(format="trig", pretty=True)) == graphs(view.serialize(format="trig")) == ["<http://g/1>"]
+    assert "a b c" not in view.serialize(format="turtle", pretty=True)  # a triple format still works
+    ds.add((ex("x"), ex("y"), ex("z")))
+    assert graphs(ds.serialize(format="trig", pretty=True)) == ["<http://g/1>", "DEFAULT"]
+
+
 # ---- has_triple_term: an impossible pattern is False --------------------------------------------------------------------
 def test_has_triple_term_impossible_pattern_is_false():
     g = StarLayerGraph()

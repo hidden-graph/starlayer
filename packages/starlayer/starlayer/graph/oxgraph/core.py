@@ -815,6 +815,10 @@ class StarLayerGraph(_Base):
             return self._quads(None, None, None)
         return (ox.Triple(q.subject, q.predicate, q.object) for q in self._quads(None, None, None))
 
+    def _pretty_source(self, fmt: ox.RdfFormat) -> Any:
+        # a quad format keeps the graph name of a view (the pretty writer flattens a view passed as such)
+        return list(self._quads(None, None, None)) if fmt in formats.QUAD_FORMATS else self
+
     def _query_default_graph(self) -> Any:
         return self._g
 
