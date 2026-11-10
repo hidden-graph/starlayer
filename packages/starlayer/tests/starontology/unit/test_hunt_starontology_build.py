@@ -1,6 +1,10 @@
 """Regression tests for the starontology / build-script hunt findings (SKOS shapes, registry, Manchester, build scripts)."""
 
+import importlib.util
+import os
 import pathlib
+import subprocess
+import sys
 
 import pytest
 from starlayer.graph.oxgraph.core import StarLayerGraph
@@ -77,3 +81,29 @@ def test_manchester_second_document_into_one_graph_is_rejected():
         M.manchester_parse_to_tree(pre + "Class: :B\n", graph=g)
     text = M.manchester_tree_to_text(g)
     assert "ex/A" in text and "ex/B" not in text
+
+
+def _script(name):
+    spec = importlib.util.spec_from_file_location(name, _SCRIPTS / f"{name}.py")
+    module = importlib.util.module_from_spec(spec)
+    sys.path.insert(0, str(_SCRIPTS))
+    try:
+        spec.loader.exec_module(module)
+    finally:
+        sys.path.remove(str(_SCRIPTS))
+    return module
+
+
+def test_field_name_fallback_is_stable_across_processes():
+    code = (
+        f"import sys; sys.path.insert(0, {str(_SCRIPTS)!r}); sys.path.insert(0, {str(_ROOT / 'packages' / 'starlayer')!r})\n"
+        "import build_shacl_ui as b\n"
+        "from rdflib import URIRef\n"
+        "print(b._field_name('NodeShapeForm', URIRef('http://example.org/ns#unknownPredicate'), {'sh': 'http://www.w3.org/ns/shacl#'}))\n"
+    )
+    outs = set()
+    for seed in ("1", "2", "3"):
+        r = subprocess.run([sys.executable, "-c", code], env=dict(os.environ, PYTHONHASHSEED=seed), capture_output=True, text=True)
+        assert r.returncode == 0, r.stderr
+        outs.add(r.stdout.strip())
+    assert len(outs) == 1, outs

@@ -30,6 +30,7 @@ The build fails when one is missing, so the forms cannot fall behind the validat
 
 from __future__ import annotations
 
+import hashlib
 import sys
 from pathlib import Path
 
@@ -76,7 +77,7 @@ def _field_name(form: str, predicate: URIRef, prefixes: dict[str, str]) -> URIRe
     for prefix, namespace in sorted(prefixes.items(), key=lambda item: -len(item[1])):
         if str(predicate).startswith(namespace):
             return STSH[f"{form}_{prefix}_{str(predicate)[len(namespace):]}"]
-    return STSH[f"{form}_{abs(hash(str(predicate)))}"]
+    return STSH[f"{form}_{hashlib.sha1(str(predicate).encode()).hexdigest()[:12]}"]  # hash() is salted per process
 
 
 def _copy(graph: Graph, node, out: Graph) -> None:
