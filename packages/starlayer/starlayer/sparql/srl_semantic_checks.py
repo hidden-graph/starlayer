@@ -173,12 +173,39 @@ def _check_triple_term_positions(
         _inside(t.object, "triple term")
 
 
+def _check_variable_names(rule: srl_ast._Rule, issues: list[_SRLWellFormednessIssue]) -> None:
+    """The grammar allows U+10000 to U+EFFFF in a variable name (PN_CHARS_BASE), but the engine the rules run on does not
+    accept such a name in its SPARQL text, so a rule using one is refused here rather than failing at ``infer()``."""
+    names: set[Variable] = set()
+
+    def _element(e) -> None:
+        if isinstance(e, srl_ast.TriplePattern):
+            names.update(_triple_vars(e))
+        elif isinstance(e, srl_ast._FilterElement):
+            names.update(_expr_vars(e.expr))
+        elif isinstance(e, srl_ast._AssignmentElement):
+            names.add(e.var)
+            names.update(_expr_vars(e.expr))
+        elif isinstance(e, srl_ast._NegationElement):
+            for inner in e.inner:
+                _element(inner)
+
+    for template in rule.head:
+        names.update(_triple_vars(template))
+    for e in rule.body:
+        _element(e)
+    for v in sorted(names, key=lambda x: x.value):
+        if any(ord(c) > 0xFFFF for c in v.value):
+            issues.append(_SRLWellFormednessIssue(rule, "unsupported_variable_name", v, "variable name above U+FFFF"))
+
+
 def _check_rule(rule: srl_ast._Rule) -> list[_SRLWellFormednessIssue]:
     """§4.2: is ``rule`` a well-formed rule? Its body must be a well-formed
     sequence given V0 = the empty set, and every variable in a head triple
     template must be in the body's own ``Vall``."""
     issues: list[_SRLWellFormednessIssue] = []
     _check_triple_term_positions(rule, _triples_of(rule), issues)
+    _check_variable_names(rule, issues)
     v_all = _check_sequence(rule.body, set(), rule, issues)
     for template in rule.head:
         for v in _triple_vars(template):

@@ -181,3 +181,30 @@ def test_a_data_triple_with_a_literal_subject_is_an_srl_error():
     rs = srl.parse_ruleset(PRE + "DATA { \"a\" :p :b }")
     with pytest.raises(srl.SRLError):
         rs.infer(StarLayerGraph())
+
+
+# ---- evaluation robustness ------------------------------------------------------
+
+
+def test_a_literal_in_a_triple_term_subject_matches_nothing():
+    g = _g(("z", "p", ox.Literal("lit")))
+    rs = srl.parse_ruleset(PRE + "RULE { ?z :hit 1 } WHERE { ?z :p ?x . ?w :p <<( ?x :p :n )>> }")
+    assert list(rs.infer(g)) == []
+
+
+def test_a_literal_in_a_triple_term_subject_keeps_the_other_solutions():
+    t = ox.Triple(ox.NamedNode("http://e/a"), ox.NamedNode("http://e/p"), ox.NamedNode("http://e/n"))
+    g = _g(("z", "p", ox.Literal("lit")), ("z", "p", ox.NamedNode("http://e/a")), ("w", "p", t))
+    rs = srl.parse_ruleset(PRE + "RULE { ?z :hit ?x } WHERE { ?z :p ?x . ?w :p <<( ?x :p :n )>> }")
+    assert [str(x[2]) for x in rs.infer(g)] == ["<http://e/a>"]
+
+
+def test_a_variable_named_like_the_internal_target_evaluates():
+    g = _g(("a", "p", INT1))
+    rs = srl.parse_ruleset(PRE + "RULE { ?s :r ?w } WHERE { ?s :p ?__srl_value SET(?w := ?__srl_value + 1) }")
+    assert len(list(rs.infer(g))) == 1
+
+
+def test_a_variable_name_above_the_bmp_is_refused_at_parse_time():
+    with pytest.raises(srl.SRLParseError, match="variable name"):
+        srl.parse_ruleset(PRE + "RULE { ?s :r ?\U00010000 } WHERE { ?s :p ?\U00010000 }")

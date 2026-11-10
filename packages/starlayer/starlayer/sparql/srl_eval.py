@@ -338,12 +338,26 @@ def _pattern_term_text(term) -> str:
 def _match(run: list[srl_ast.TriplePattern], g) -> list[dict]:
     """Every solution of the basic graph pattern ``run`` against ``g`` (an ``StarLayerGraph``), found by running the pattern as a
     SPARQL 1.2 query. Keys are ``pyoxigraph.Variable`` s, values pyoxigraph terms."""
-    body = " . ".join(
-        f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}"
-        for t in run
-    )
-    result = g.query(f"SELECT * WHERE {{ {body} }}")
-    return [{Variable(str(name).lstrip("?")): term for name, term in binding.items()} for binding in result.bindings]
+    patterns = [
+        f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}" for t in run
+    ]
+
+    def _solutions(body: str) -> list[dict]:
+        result = g.query(f"SELECT * WHERE {{ {body} }}")
+        return [{Variable(str(name).lstrip("?")): term for name, term in binding.items()} for binding in result.bindings]
+
+    try:
+        return _solutions(" . ".join(patterns))
+    except RuntimeError as exc:
+        # The engine builds <<( "lit" p o )>> while joining a variable bound to a literal into a triple term's subject, and
+        # raises. Such a term matches nothing, so join the patterns here instead: each alone never builds one.
+        if len(patterns) < 2 or "triple term that is not a valid" not in str(exc):
+            raise
+    joined: list[dict] = [{}]
+    for pattern in patterns:
+        matches = _solutions(pattern)
+        joined = [{**mu, **m} for mu in joined for m in matches if _compatible(mu, m)]
+    return joined
 
 
 def _compatible(mu1: dict, mu2: dict) -> bool:
@@ -534,9 +548,13 @@ def _eval_expr(expr, mu: dict):
         return mu.get(expr)
     text = _expression_text(expr)
     projection, values, substitutions = _bound(expr, mu)
-    query = f"SELECT {projection}?__srl_value WHERE {{ {values}BIND({text} AS ?__srl_value) }}"
+    target = "__srl_value"
+    taken = {var.value for var in _RENDERED.get()[id(expr)][2]}
+    while target in taken:  # the rule's own variable may be called that
+        target += "_"
+    query = f"SELECT {projection}?{target} WHERE {{ {values}BIND({text} AS ?{target}) }}"
     for solution in _EVAL_STORE.query(query, substitutions=substitutions or None):
-        value = solution["__srl_value"]
+        value = solution[target]
         if isinstance(value, ox.BlankNode) and value not in mu.values():
             # BNODE(str) names its node by the label, and each evaluation here is its own query, so every solution would get
             # the same node (or one of the data's); the SRL draft wants a different blank node on each call
