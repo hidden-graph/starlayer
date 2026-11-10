@@ -147,3 +147,16 @@ def test_a_split_assignment_operator_is_rejected(assign):
 
 def test_the_assignment_operator_parses():
     srl.parse_ruleset(PRE + "RULE { ?x :r ?y } WHERE { ?x :q ?z SET(?y := ?z + 1) }")
+
+
+@pytest.mark.parametrize("number", ["+5", "+5.0", "+5e0", "-5"])
+def test_a_signed_number_after_a_predicate_is_the_object(number):
+    rs = srl.parse_ruleset(PRE + "RULE { :a :p :b } WHERE { :a :q " + number + " }")
+    assert rs.rules[0].body[0].object.value == number
+
+
+def test_a_path_modifier_before_a_number_still_parses_in_sparql():
+    from starlayer.sparql.check import check_query
+
+    assert check_query(PRE + "SELECT * WHERE { ?s :q+ 5 }") is None
+    assert check_query(PRE + "SELECT * WHERE { ?s :q +5 }") is None
