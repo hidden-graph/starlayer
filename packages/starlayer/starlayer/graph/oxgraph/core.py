@@ -387,6 +387,11 @@ class _Base:
         fmt = formats.to_format(format, default=guessed or ox.RdfFormat.TURTLE)
         direct = isinstance(self._add_graph(), ox.DefaultGraph)  # quads can go to the store untouched (the fast path)
         extra = {"without_named_graphs": True} if (direct and not isinstance(self, StarLayerDataset)) else {}
+        if base is None and publicID is None:  # the retrieval location is the base IRI (RFC 3986 5.1.3)
+            if "path" in kw:
+                base = Path(kw["path"]).resolve().as_uri()
+            elif hint and str(hint).lower().startswith(("http://", "https://")):
+                base = str(hint)
         parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra,
                           **ntversion.accept_version_directive(kw, fmt))
         try:
