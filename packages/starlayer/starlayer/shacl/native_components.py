@@ -112,9 +112,13 @@ def register_native_components() -> None:
 
     install_list_function_patch()  # list parameter functions callable from SPARQL (GitHub issue #176)
     from starlayer.shacl.component_cache import install_component_cache_patch
+    from starlayer.shacl.constraint_annotations import (
+        install_constraint_annotation_patch,
+    )
 
     if _registered:
         install_component_cache_patch()  # a component registered since the last call is wrapped too
+        install_constraint_annotation_patch()
         return
 
     from pyshacl.constraints import (
@@ -143,6 +147,7 @@ def register_native_components() -> None:
 
     _registered = True
     install_component_cache_patch()  # one construction per shape, not per focus node
+    install_constraint_annotation_patch()  # per-constraint sh:severity / sh:message / sh:deactivated (GitHub issue #201)
 
 
 def _build_some_value_component() -> Any:
@@ -1935,15 +1940,6 @@ def _build_datatype_component() -> Any:
                     f"found {len(values)} on '{shape.node}'."
                 )
             value = values[0]
-            # Per-constraint sh:severity/sh:deactivated via RDF-1.2 inline
-            # reification annotation (SHACL 1.2 Core) - distinct from, and
-            # finer-grained than, this shape's own sh:severity/sh:deactivated
-            # (already handled generically by pySHACL itself for every
-            # constraint). See _annotation_value's own docstring.
-            self.annotation_deactivated = (
-                _annotation_value(shape.sg.graph, shape.node, SH.datatype, value, SH.deactivated) == Literal(True)
-            )
-            self.annotation_severity = _annotation_value(shape.sg.graph, shape.node, SH.datatype, value, SH.severity)
             self.is_list_valued = _is_shacl_list(shape.sg.graph, value)
             self.delegate = None
             if self.is_list_valued:
@@ -1980,9 +1976,6 @@ def _build_datatype_component() -> Any:
             whether every focus node satisfied this constraint, and a
             ``sh:ValidationResult`` node per violation found.
             """
-            if self.annotation_deactivated:
-                return True, []
-
             if self.delegate is not None:
                 non_conformant_result, reports = self.delegate.evaluate(
                     executor, target_graph, focus_value_nodes, _evaluation_path
@@ -1997,18 +1990,6 @@ def _build_datatype_component() -> Any:
                             reports.append(self.make_v_result(target_graph, focus_node, value_node=value))
                 non_conformant_result = not non_conformant
 
-            if self.annotation_severity is not None:
-                reports = [
-                    (
-                        desc,
-                        r_node,
-                        [
-                            (s, p, self.annotation_severity) if (s == r_node and p == SH.resultSeverity) else (s, p, o)
-                            for s, p, o in r_triples
-                        ],
-                    )
-                    for desc, r_node, r_triples in reports
-                ]
             return non_conformant_result, reports
 
     return DatatypeConstraintComponent

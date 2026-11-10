@@ -16,8 +16,10 @@ Process-global and idempotent, like the other pySHACL patches.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 
+_bypass = 0  # >0 while a caller needs a fresh construction (the constraint-annotation split builds from a masked shapes graph)
 _SENTINEL = "_starlayer_shacl_component_cache_patch"
 _CACHE_ATTR = "_starlayer_component_cache"
 _DEPTH_ATTR = "_starlayer_component_init_depth"
@@ -28,7 +30,7 @@ def _cached(original):
     def __init__(self, shape, *args, **kwargs):
         sg = getattr(shape, "sg", None)
         store = getattr(sg, "__dict__", None)
-        if args or kwargs or store is None or not hasattr(self, "__dict__"):
+        if _bypass or args or kwargs or store is None or not hasattr(self, "__dict__"):
             return original(self, shape, *args, **kwargs)
         cache = store.setdefault(_CACHE_ATTR, {})
         key = (id(shape), type(self))
@@ -50,6 +52,17 @@ def _cached(original):
 
     setattr(__init__, _SENTINEL, True)
     return __init__
+
+
+@contextlib.contextmanager
+def uncached():
+    """Construct components for real (no record read or written) inside the block."""
+    global _bypass
+    _bypass += 1
+    try:
+        yield
+    finally:
+        _bypass -= 1
 
 
 def install_component_cache_patch() -> bool:
