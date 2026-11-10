@@ -105,8 +105,12 @@ def _turtle_parts(graph: Graph) -> tuple[str, str]:
     for triple in graph:
         out.add(triple)
     lines = out.serialize(format="turtle").splitlines()
-    extra = "".join(f"{line}\n" for line in lines if line.startswith("@prefix") and line.split()[1][:-1] not in starontology._PREFIXES)
-    return extra, "\n".join(line for line in lines if not line.startswith("@prefix")).strip()
+    # Only the header: a later line that starts with '@prefix' is inside a multi-line literal and must stay.
+    header = 0
+    while header < len(lines) and (lines[header].startswith("@prefix") or not lines[header].strip()):
+        header += 1
+    extra = "".join(f"{line}\n" for line in lines[:header] if line.startswith("@prefix") and line.split()[1][:-1] not in starontology._PREFIXES)
+    return extra, "\n".join(lines[header:]).strip()
 
 
 def _turtle_body(graph: Graph) -> str:

@@ -167,3 +167,17 @@ def test_registry_descriptions_carry_no_stale_counts():
     preds = {o for _, _, o in scores.triples((None, ox.NamedNode(rdf + "first"), None))}
     m = re.search(r"of (\d+) SHACL predicates", descr["shacl_shacl_ui_scores"])
     assert m is None or int(m.group(1)) == len(preds)
+
+
+def test_turtle_parts_keeps_a_literal_line_starting_with_at_prefix():
+    from rdflib import Graph, Literal, URIRef
+    from rdflib.compare import isomorphic
+
+    b = _script("build_starontology")
+    g = Graph()
+    g.add((URIRef("http://example.org/a"), URIRef("http://www.w3.org/2000/01/rdf-schema#comment"),
+           Literal("Example:\n@prefix ex: <http://example.org/> .\nex:a a ex:B .")))
+    extra, body = b._turtle_parts(g)
+    h = Graph()
+    h.parse(data=b._prefix_lines() + extra + "\n" + body + "\n", format="turtle")
+    assert isomorphic(g, h)
