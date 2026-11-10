@@ -25,6 +25,8 @@ from typing import Any
 # with) that default's actual numeric value.
 _TIMEOUT_NOT_BOUND = object()
 
+_OVERRIDABLE = frozenset({"initNs", "initBindings", "entailment", "infer", "engine", "timeout", "base"})
+
 
 class StarQuery:
     """A SPARQL query, prepared once, bound with the options
@@ -93,10 +95,9 @@ class StarQuery:
                 else ``StarLayerGraph.query()``'s own ``query_object``
                 parameter already accepts a prepared ``Query`` against).
             **overrides: Any of ``initNs``/``initBindings``/``entailment``/
-                ``infer``/``engine``/``timeout``/``processor``/``result``/
-                ``use_store_provided``, overriding the bound value (or
-                ``StarLayerGraph.query()``'s own default) for this call
-                only.
+                ``infer``/``engine``/``timeout``/``base``, overriding the bound
+                value (or ``StarLayerGraph.query()``'s own default) for this
+                call only. Any other name raises ``TypeError``.
 
         Returns:
             Whatever ``graph.query()`` itself returns for this query.
@@ -110,6 +111,9 @@ class StarQuery:
         )
         if self.timeout is not _TIMEOUT_NOT_BOUND:
             kwargs["timeout"] = self.timeout
+        unknown = sorted(set(overrides) - _OVERRIDABLE)
+        if unknown:
+            raise TypeError(f"StarQuery.run() got unexpected option(s): {', '.join(unknown)}")
         kwargs.update(overrides)
 
         from starlayer.graph.oxgraph.session import EntailmentSession

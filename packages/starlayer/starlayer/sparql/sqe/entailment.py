@@ -110,9 +110,12 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
     if tree.kind not in _QUERY_KINDS:
         raise EntailmentRewriteError(f"query-time entailment needs a query, not a {tree.kind}")
     rw = _Rewriter(iri == RDFS_REGIME, tree)
-    if rw.rewritten or not rw.widens(tree):
-        return text
-    rw.query(tree)
+    try:
+        if rw.rewritten or not rw.widens(tree):
+            return text
+        rw.query(tree)
+    except RecursionError as e:
+        raise EntailmentRewriteError("the query is nested too deeply for the entailment rewrite") from e
     try:
         from .to_text import sqe_tree_to_text
 

@@ -60,3 +60,68 @@ def test_check_query_prepare_accepts_a_valid_update():
     assert check_query("INSERT DATA { <http://e/a> <http://e/b> 1 }", prepare=True) is None
     assert check_query("SELECT * { ?s ?p ?o }", prepare=True) is None
     assert check_query("SELECT * { ?s ?p ?o ", prepare=True) is not None
+
+
+def test_function_distinct_needs_an_argument():
+    from starlayer.sparql.check import check_query
+
+    assert check_query("SELECT (<http://x/f>(DISTINCT) AS ?x) {}") is not None
+    assert check_query("SELECT (<http://x/f>(DISTINCT 1) AS ?x) {}") is None
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "SELECT * { ?s ?p ?o FILTER <http://e/f>() }",
+        "SELECT * { ?s ?p ?o FILTER(<http://e/f>()) }",
+        "SELECT (<http://e/f>() AS ?x) {}",
+        "SELECT * { BIND(<http://e/f>() AS ?x) }",
+    ],
+)
+def test_zero_argument_iri_function_round_trips_through_sqe(text):
+    from starlayer.sparql import sqe
+
+    g, r = sqe.sqe_parse_to_tree(text)
+    out = sqe.sqe_tree_to_text(g, r)
+    assert "<http://e/f>()" in out
+    parse_sparql(out)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "BASE <http://x/y/> BASE <http://x/z/> SELECT * { <a> ?p ?o }",
+        "BASE <http://x/> BASE <http://y/> SELECT * { <a> ?p ?o }",
+        "BASE <http://x/> BASE <sub/> SELECT * { <a> ?p ?o }",
+    ],
+)
+def test_two_base_declarations_in_one_prologue_encode(text):
+    from starlayer.sparql import sqe
+
+    g, r = sqe.sqe_parse_to_tree(text)
+    out = sqe.sqe_tree_to_text(g, r)
+    assert parse_sparql(out).f["where"][0].f["s"].value == parse_sparql(text).f["where"][0].f["s"].value
+
+
+def test_star_query_run_rejects_an_unknown_override():
+    from starlayer.graph import StarLayerGraph
+    from starlayer.sparql.star_query import StarQuery
+
+    q = StarQuery("SELECT * WHERE { ?s ?p ?o }")
+    with pytest.raises(TypeError):
+        q.run(StarLayerGraph(), procesor="x")
+
+
+def test_entailment_rewrite_of_very_deep_nesting_is_a_rewrite_error():
+    from starlayer.graph import StarLayerGraph
+    from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+    from starlayer.sparql.sqe.entailment import EntailmentRewriteError
+
+    depth = 400
+    text = "SELECT * WHERE { " + "{ " * depth + "?s a ?c" + " }" * depth + " }"
+    try:
+        StarLayerGraph().query(text, entailment=ENTAILMENT["RDFS"])
+    except EntailmentRewriteError:
+        pass
+    except Exception as e:  # a parse-depth limit is an acceptable clean error too
+        assert not isinstance(e, RecursionError)

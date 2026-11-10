@@ -524,7 +524,7 @@ class _Parser:
                     self.err("expected an IRI after BASE")
                 self.i += 1
                 self.base = self._iri_string(t.text)
-                self.prologue.append(("base", t.text[1:-1]))
+                self.prologue.append(("base", t.text[1:-1], self.base))
             elif self.accept_kw("PREFIX"):
                 t = self.peek()
                 if t.kind != "PNAME" or t.text.count(":") != 1 or not t.text.endswith(":"):
@@ -1419,16 +1419,12 @@ class _Parser:
         self.expect_p("(")
         distinct = self.accept_kw("DISTINCT")
         args = []
-        if not self.at_p(")"):
+        if distinct or not self.at_p(")"):  # ArgList: NIL | '(' 'DISTINCT'? Expression ( ',' Expression )* ')'
             args.append(self.expression())
             while self.accept_p(","):
                 args.append(self.expression())
         self.expect_p(")")
-        f = {"iri": iri}
-        if args:
-            f["distinct"] = "DISTINCT" if distinct else []
-            f["expr"] = args
-        return Node("Function", **f)
+        return Node("Function", iri=iri, distinct="DISTINCT" if distinct else [], expr=args)
 
     def builtin(self) -> Node:
         t = self.peek()
@@ -2042,9 +2038,14 @@ class _Encoder:
 
     def prologue(self, root, decls: list):
         v, g = self.v, self.g
+        bases = [d for d in decls if d[0] == "base"]
+        if bases:
+            # sqe:base is one IRI. Every IRI in the tree is already resolved, so with several BASE declarations the
+            # last (the base in force at the end of the prologue) stands for them, as the IRI it resolved to.
+            g.add((root, v.PROLOGUE_BASE, T.iri(bases[0][1] if len(bases) == 1 else bases[-1][2])))
         for decl in decls:
             if decl[0] == "base":
-                g.add((root, v.PROLOGUE_BASE, T.iri(decl[1])))
+                continue
             elif decl[0] == "prefix":
                 b = ox.BlankNode()
                 g.add((b, RDF.type, v.PREFIX_BINDING))
