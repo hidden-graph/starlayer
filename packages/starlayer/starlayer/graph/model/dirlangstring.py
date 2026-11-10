@@ -40,6 +40,9 @@ class DirLangString:
     def __setattr__(self, name, value):
         raise AttributeError("DirLangString is immutable")
 
+    def __reduce__(self):  # pickle / copy would restore the slots with setattr, which is refused
+        return (DirLangString, (self.value, self.language, self.direction))
+
     def _key(self):
         return (self.value, self.language, self.direction)
 
@@ -81,7 +84,7 @@ def decode_dirlang_datatype(datatype) -> tuple[str, str] | None:
     if not s.startswith(DIRLANG_NS):
         return None
     language, sep, direction = s[len(DIRLANG_NS):].rpartition('--')
-    if not sep:
+    if not sep or not language or direction not in _VALID_DIRECTIONS:
         return None
     return language, direction
 
@@ -102,4 +105,8 @@ def decode_dirlangstring(literal) -> DirLangString | None:
     if decoded is None:
         return None
     language, direction = decoded
-    return DirLangString(str(literal), language, direction)
+    import pyoxigraph as ox
+
+    # an ``ox.Literal`` prints as N-Triples, so its lexical form is ``.value``; an rdflib Literal prints as its lexical form
+    text = literal.value if isinstance(literal, ox.Literal) else str(literal)
+    return DirLangString(text, language, direction)
