@@ -7,6 +7,8 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[3]
 PACKAGE = ROOT / "packages" / "starlayer"
 WORKFLOWS = ROOT / ".github" / "workflows"
@@ -77,8 +79,6 @@ def test_to_rdflib_dataset_works_without_dataset_default_graph(monkeypatch) -> N
     """rdflib 7.0 to 7.2 (allowed by the rdflib extra) have no Dataset.default_graph (new in 7.3)."""
     import warnings
 
-    import pytest
-
     rdflib = pytest.importorskip("rdflib")
     from starlayer.graph import StarLayerDataset
 
@@ -119,3 +119,19 @@ def test_env_switches_in_the_docs_are_read_somewhere() -> None:
     for doc in ("AGENTS.md", "CONTRIBUTING.md"):
         for name in set(re.findall(r"\bSTARLAYER_[A-Z_]+\b", (ROOT / doc).read_text())):
             assert name in sources, f"{doc} documents {name}, which nothing reads"
+
+
+def test_benchmark_scripts_import() -> None:
+    """The benchmark scripts a README presents as runnable still import (bench_scaling.py: see the xfail below)."""
+    for d in ("benchmarks-graph", "benchmarks-shacl"):
+        for f in sorted((PACKAGE / d).glob("*.py")):
+            if f.name != "bench_scaling.py":
+                _import_file(f)
+
+
+@pytest.mark.xfail(strict=True, reason="bench_scaling.py targets removed backends; owner decision pending (delete or rewrite)")
+def test_bench_scaling_imports() -> None:
+    """Needs a decision, not a patch: bench_scaling.py measures the removed rdflib-era backends (rdf-1.1 / rdf-1.2 Fuseki,
+    starlayer.graph.model.encoding, StarLayerGraph(store=, backend=)), so porting it is a rewrite. Recommended: delete it and
+    its rows in benchmarks-graph/README.md and docs/graph/performance.md."""
+    _import_file(PACKAGE / "benchmarks-graph" / "bench_scaling.py")
