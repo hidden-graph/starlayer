@@ -160,3 +160,24 @@ def test_a_path_modifier_before_a_number_still_parses_in_sparql():
 
     assert check_query(PRE + "SELECT * WHERE { ?s :q+ 5 }") is None
     assert check_query(PRE + "SELECT * WHERE { ?s :q +5 }") is None
+
+
+# ---- well-formedness of triple terms and DATA ----------------------------------
+
+
+def test_a_triple_term_with_a_triple_term_subject_is_rejected():
+    nested = "<<( <<( :a :b :c )>> :a ?y )>>"
+    with pytest.raises(srl.SRLParseError):
+        srl.parse_ruleset(PRE + "RULE { ?x :q " + nested + " } WHERE { ?x :p ?y }")
+    with pytest.raises(srl.SRLError):
+        srl.parse_ruleset(PRE + "DATA { :a :p <<( <<( :a :b :c )>> :p :b )>> }")
+
+
+def test_a_nested_triple_term_in_object_position_is_fine():
+    srl.parse_ruleset(PRE + "RULE { ?x :q <<( :a :a <<( :a :b ?y )>> )>> } WHERE { ?x :p ?y }")
+
+
+def test_a_data_triple_with_a_literal_subject_is_an_srl_error():
+    rs = srl.parse_ruleset(PRE + "DATA { \"a\" :p :b }")
+    with pytest.raises(srl.SRLError):
+        rs.infer(StarLayerGraph())

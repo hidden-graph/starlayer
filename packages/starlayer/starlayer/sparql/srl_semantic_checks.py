@@ -156,12 +156,21 @@ def _check_triple_term_positions(
 ) -> None:
     """RDF 1.2: a triple term is only ever legal as the object of a triple, never
     as its subject or predicate."""
+    def _inside(term, context: str) -> None:
+        # a triple term nested in an object is itself a triple: the same two positions apply to it
+        if isinstance(term, TripleTermNode):
+            for position in ("subject", "predicate"):
+                if isinstance(term.get(position), TripleTermNode):
+                    issues.append(_SRLWellFormednessIssue(rule, "triple_term_in_" + position, None, context))
+            _inside(term.get("object"), context)
+
     for t in triples:
         for position, term in (("subject", t.subject), ("predicate", t.predicate)):
             if isinstance(term, TripleTermNode):
                 issues.append(
                     _SRLWellFormednessIssue(rule, "triple_term_in_" + position, None, "triple pattern")
                 )
+        _inside(t.object, "triple term")
 
 
 def _check_rule(rule: srl_ast._Rule) -> list[_SRLWellFormednessIssue]:

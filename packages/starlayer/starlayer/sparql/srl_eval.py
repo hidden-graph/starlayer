@@ -762,9 +762,12 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
     for block in ruleset.data:
         for t in block.triples:
             try:
-                d.add(tuple(_graph_term(part) for part in (t.subject, t.predicate, t.object)))
+                triple = tuple(_graph_term(part) for part in (t.subject, t.predicate, t.object))
             except _InvalidInstance as exc:
                 raise SRLEvalError(f"SRL: a DATA block has an invalid triple term: {exc}") from exc
+            if isinstance(triple[0], (ox.Literal, ox.Triple)) or not isinstance(triple[1], ox.NamedNode):
+                raise SRLEvalError(f"SRL: a DATA block has a triple that is not an RDF triple (literal subject or non-IRI predicate): {t}")
+            d.add(triple)
 
     from starlayer.graph.oxgraph.core import StarLayerGraph
 
