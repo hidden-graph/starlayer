@@ -105,3 +105,11 @@ def test_a_blank_node_value_passes_through_an_expression():
     rs = srl.parse_ruleset(PRE + "RULE { ?s :b ?x } WHERE { ?s :p ?o SET(?x := ?o) }", validate=False)
     assert {t[2] for t in rs.infer(g)} == {ox.BlankNode("n")}
     assert _hits(g, "FILTER(isBlank(?o))") == 1
+
+
+# ---- bare-term expressions -----------------------------------------------------
+
+
+@pytest.mark.parametrize("body", ["SET(?z := ?y)", "SET(?z := 7)", "SET(?z := :iri)", "FILTER(true)", "FILTER(?y)"])
+def test_a_bare_term_is_a_valid_expression(body):
+    srl.parse_ruleset(PRE + "RULE { :r :out ?y } WHERE { :s :q ?y " + body + " }")

@@ -7,7 +7,7 @@
 
 srl:AssignmentElementShape a sh:NodeShape ;
     sh:property [
-        sh:class spexpr:Expression ;
+        sh:or ( [ sh:class spexpr:Expression ] [ sh:nodeKind sh:Literal ] [ sh:nodeKind sh:IRI ] ) ;
         sh:maxCount 1 ;
         sh:message "srl:AssignmentElement must have exactly one srl:expr, a spexpr: expression" ;
         sh:minCount 1 ;
@@ -73,7 +73,7 @@ srl:DataShape a sh:NodeShape ;
 
 srl:FilterElementShape a sh:NodeShape ;
     sh:property [
-        sh:class spexpr:Expression ;
+        sh:or ( [ sh:class spexpr:Expression ] [ sh:nodeKind sh:Literal ] [ sh:nodeKind sh:IRI ] ) ;
         sh:maxCount 1 ;
         sh:message "srl:FilterElement must have exactly one srl:expr, a spexpr: expression" ;
         sh:minCount 1 ;

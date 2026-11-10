@@ -3168,7 +3168,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6dfb55ea60de43c78acdd4fafe86deb8b225 ;
+        sh:in _:n117e7a8d2745481581e2105dede37c0eb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3377,7 +3377,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6dfb55ea60de43c78acdd4fafe86deb8b225 ;
+        sh:in _:n117e7a8d2745481581e2105dede37c0eb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3759,7 +3759,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6dfb55ea60de43c78acdd4fafe86deb8b225 ;
+        sh:in _:n117e7a8d2745481581e2105dede37c0eb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5329,11 +5329,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n6dfb55ea60de43c78acdd4fafe86deb8b226 rdf:first sh:IRI ;
+    _:n117e7a8d2745481581e2105dede37c0eb226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n6dfb55ea60de43c78acdd4fafe86deb8b225 rdf:first sh:BlankNode ;
-        rdf:rest _:n6dfb55ea60de43c78acdd4fafe86deb8b226 .
+    _:n117e7a8d2745481581e2105dede37c0eb225 rdf:first sh:BlankNode ;
+        rdf:rest _:n117e7a8d2745481581e2105dede37c0eb226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -11879,10 +11879,10 @@ starontology:srl_shapes.ttl {
         owl:imports spexpr:ShapesGraph .
 
     srl:AssignmentElementShape a sh:NodeShape ;
-        sh:property [ sh:class spexpr:Expression ;
-                sh:maxCount 1 ;
+        sh:property [ sh:maxCount 1 ;
                 sh:message "srl:AssignmentElement must have exactly one srl:expr, a spexpr: expression" ;
                 sh:minCount 1 ;
+                sh:or ( [ sh:class spexpr:Expression ] [ sh:nodeKind sh:Literal ] [ sh:nodeKind sh:IRI ] ) ;
                 sh:path srl:expr ],
             [ sh:datatype spexpr:Variable ;
                 sh:maxCount 1 ;
@@ -11900,10 +11900,10 @@ starontology:srl_shapes.ttl {
         sh:targetClass srl:Data .
 
     srl:FilterElementShape a sh:NodeShape ;
-        sh:property [ sh:class spexpr:Expression ;
-                sh:maxCount 1 ;
+        sh:property [ sh:maxCount 1 ;
                 sh:message "srl:FilterElement must have exactly one srl:expr, a spexpr: expression" ;
                 sh:minCount 1 ;
+                sh:or ( [ sh:class spexpr:Expression ] [ sh:nodeKind sh:Literal ] [ sh:nodeKind sh:IRI ] ) ;
                 sh:path srl:expr ] ;
         sh:targetClass srl:FilterElement .
 
