@@ -159,7 +159,8 @@ class _SrlParser(_Parser):
         self.expect_p("(")
         var = self.var()
         t = self.peek()
-        if not (t.kind == "PNAME" and t.text == ":" and self.at_p("=", k=1)):
+        # ':=' is one token in the grammar: nothing (whitespace, a comment) between the ':' and the '='
+        if not (t.kind == "PNAME" and t.text == ":" and self.at_p("=", k=1) and self.peek(1).pos == t.pos + 1):
             self.err("expected ':='")
         self.i += 2
         expr = self.expression()

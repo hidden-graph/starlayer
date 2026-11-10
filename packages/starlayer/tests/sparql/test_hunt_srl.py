@@ -136,3 +136,14 @@ def test_deep_nesting_is_a_parse_error(filler):
     expr = filler * 300 + "?y" + close * 300
     with pytest.raises(srl.SRLParseError, match="nested too deeply"):
         srl.parse_ruleset(PRE + "RULE { :a :p :b } WHERE { :a :q ?y FILTER(" + expr + ") }")
+
+
+@pytest.mark.parametrize("assign", ["?y : = ?z + 1", "?y :\n= ?z + 1", "?y :# comment\n= ?z + 1"])
+def test_a_split_assignment_operator_is_rejected(assign):
+    text = PRE + "RULE { ?x :r ?y } WHERE { ?x :q ?z SET(" + assign + ") }"
+    with pytest.raises(srl.SRLParseError):
+        srl.parse_ruleset(text)
+
+
+def test_the_assignment_operator_parses():
+    srl.parse_ruleset(PRE + "RULE { ?x :r ?y } WHERE { ?x :q ?z SET(?y := ?z + 1) }")
