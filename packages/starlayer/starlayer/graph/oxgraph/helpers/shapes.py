@@ -19,6 +19,7 @@ at the opaque violations deliberately left alone.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from decimal import Decimal
 from typing import Any
@@ -73,6 +74,16 @@ _COMPONENT_TO_PREDICATES = {
     SH.LessThanOrEqualsConstraintComponent: (SH.lessThanOrEquals,),
 }
 
+_RECOMPUTE_PREDICATES = {
+    SH.MinCountConstraintComponent: (SH.minCount,), SH.MaxCountConstraintComponent: (SH.maxCount,),
+    SH.DatatypeConstraintComponent: (SH.datatype,), SH.ClassConstraintComponent: (SH["class"],),
+    SH.NodeKindConstraintComponent: (SH.nodeKind,),
+    SH.MinInclusiveConstraintComponent: (SH.minInclusive,), SH.MaxInclusiveConstraintComponent: (SH.maxInclusive,),
+    SH.MinExclusiveConstraintComponent: (SH.minExclusive,), SH.MaxExclusiveConstraintComponent: (SH.maxExclusive,),
+    SH.MinLengthConstraintComponent: (SH.minLength,), SH.MaxLengthConstraintComponent: (SH.maxLength,),
+    SH.LanguageInConstraintComponent: (SH.languageIn,), SH.InConstraintComponent: (SH["in"],),
+}
+
 _INCLUSIVE_EXCLUSIVE_PREDICATE = {
     SH.MinInclusiveConstraintComponent: SH.minInclusive,
     SH.MaxInclusiveConstraintComponent: SH.maxInclusive,
@@ -109,8 +120,13 @@ def _term_kind(v: Any) -> str:
 
 
 def _literal_datatype_bucket(lit: ox.Literal) -> ox.NamedNode | None:
-    """None for a language-tagged literal (no fixed datatype), else its datatype (xsd:string for a plain one)."""
-    return None if lit.language else lit.datatype
+    """None for a language-tagged literal (no fixed datatype) and for an ill-formed one (SHACL's ``sh:datatype`` rejects it, so
+    the datatype cannot be claimed), else its datatype (xsd:string for a plain one)."""
+    if lit.language:
+        return None
+    from starlayer.shacl_engine import xsd_values
+
+    return lit.datatype if xsd_values.well_formed(lit) else None
 
 
 def _build_rdf_list(g: Any, items: Iterable[Any]) -> Any:
@@ -243,8 +259,23 @@ def _class_predicates(data: Any, instances: Iterable[Any], ignored: set[Any]) ->
     return predicates
 
 
+_RDFS_SUBCLASS = ox.NamedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf")
+
+
+def _class_instances(data: Any, cls: Any) -> set[Any]:
+    """The nodes ``sh:targetClass cls`` selects: instances of ``cls`` and of its (transitive) ``rdfs:subClassOf`` subclasses in
+    the data graph."""
+    classes, todo = {cls}, [cls]
+    while todo:
+        for sub in data.subjects(_RDFS_SUBCLASS, todo.pop()):
+            if sub not in classes:
+                classes.add(sub)
+                todo.append(sub)
+    return {s for c in classes for s in data.subjects(RDF_TYPE, c)}
+
+
 def _derive_class_shape(result: Any, data: Any, cls: Any, ignored: set[Any]) -> ox.BlankNode:
-    instances = set(data.subjects(RDF_TYPE, cls))
+    instances = _class_instances(data, cls)
     shape_node = ox.BlankNode()
     result.add((shape_node, RDF_TYPE, SH.NodeShape))
     result.add((shape_node, SH.targetClass, cls))
@@ -297,18 +328,22 @@ def _iter_violations(report_graph: Any) -> Iterable[dict[str, Any]]:
         }
 
 
-def _owning_target_class(working: Any, shape_node: Any) -> Any:
-    for ns in working.subjects(SH.property, shape_node):
-        cls = working.value(ns, SH.targetClass)
-        if cls is not None:
-            return cls
-    return working.value(shape_node, SH.targetClass)
+def _owning_focus_nodes(working: Any, data: Any, shape_node: Any) -> set[Any] | None:
+    """The nodes the node shape that owns ``shape_node`` (or ``shape_node`` itself) targets by ``sh:targetClass`` (subclasses
+    included) or ``sh:targetNode``; None when it has neither (a nested ``sh:node`` shape, say), so there is no data to recompute from."""
+    found: set[Any] | None = None
+    for ns in [*working.subjects(SH.property, shape_node), shape_node]:
+        for cls in working.objects(ns, SH.targetClass):
+            found = (found or set()) | _class_instances(data, cls)
+        for node in working.objects(ns, SH.targetNode):
+            found = (found or set()) | {node}
+    return found
 
 
-def _recompute_component(working: Any, data: Any, shape_node: Any, cls: Any, path: Any, component: Any) -> bool:
-    """Recompute ``component`` on ``shape_node`` from the true current data for ``cls`` / ``path``. False when there is nothing
-    to recompute from (no numeric values for a range component), so the caller drops and annotates instead."""
-    counts, values = _counts_and_values(data, set(data.subjects(RDF_TYPE, cls)), path)
+def _recompute_component(working: Any, data: Any, shape_node: Any, instances: set[Any], path: Any, component: Any) -> bool:
+    """Recompute ``component`` on ``shape_node`` from the true current data of the ``instances`` / ``path``. False when there is
+    nothing to recompute from (no numeric values for a range component), so the caller drops and annotates instead."""
+    counts, values = _counts_and_values(data, instances, path)
 
     if component == SH.MinCountConstraintComponent:
         working.remove((shape_node, SH.minCount, None))
@@ -348,7 +383,11 @@ def _recompute_component(working: Any, data: Any, shape_node: Any, cls: Any, pat
         pred = _INCLUSIVE_EXCLUSIVE_PREDICATE[component]
         working.remove((shape_node, pred, None))
         is_min = component in (SH.MinInclusiveConstraintComponent, SH.MinExclusiveConstraintComponent)
-        working.add((shape_node, pred, _number(min(nums) if is_min else max(nums))))
+        bound = min(nums) if is_min else max(nums)
+        if component in (SH.MinExclusiveConstraintComponent, SH.MaxExclusiveConstraintComponent):
+            # an exclusive bound equal to the extreme value would reject it: step one past it
+            bound = bound + (-1 if is_min else 1) if isinstance(bound, int) else math.nextafter(bound, -math.inf if is_min else math.inf)
+        working.add((shape_node, pred, _number(bound)))
         return True
 
     if component in (SH.MinLengthConstraintComponent, SH.MaxLengthConstraintComponent):
@@ -364,7 +403,8 @@ def _recompute_component(working: Any, data: Any, shape_node: Any, cls: Any, pat
     if component == SH.LanguageInConstraintComponent:
         _clear_list_valued(working, shape_node, SH.languageIn)
         langs = sorted({v.language for v in values if isinstance(v, ox.Literal) and v.language})
-        if langs:
+        # a value without a language tag fails sh:languageIn, so the constraint can only stay when every value is tagged
+        if langs and all(isinstance(v, ox.Literal) and v.language for v in values):
             working.add((shape_node, SH.languageIn, _build_rdf_list(working, [ox.Literal(lang) for lang in langs])))
         return True
 
@@ -386,6 +426,8 @@ def _component_name(component: Any) -> str:
 def _drop_and_annotate(working: Any, shape_node: Any, component: Any) -> None:
     for pred in _COMPONENT_TO_PREDICATES.get(component, ()):
         working.remove((shape_node, pred, None))
+    for pred in _RECOMPUTE_PREDICATES.get(component, ()):  # nothing to recompute from: drop the violated constraint
+        _clear_list_valued(working, shape_node, pred)
     working.add((shape_node, RDFS.comment, ox.Literal(
         f"derive_shape(): {_component_name(component)} no longer holds for the current data and has no principled "
         "auto-fix - dropped."
@@ -406,7 +448,7 @@ def _extend_new_properties_and_classes(working: Any, data: Any, ignored: set[Any
             class_to_shape[cls] = ns
 
     for cls in set(data.objects(None, RDF_TYPE)):
-        instances = set(data.subjects(RDF_TYPE, cls))
+        instances = _class_instances(data, cls)
         if cls in class_to_shape:
             ns_node = class_to_shape[cls]
             existing = {p for prop in working.objects(ns_node, SH.property) for p in working.objects(prop, SH.path)}
@@ -446,8 +488,8 @@ def _derive_with_template(data: Any, template_shape: Any, ignored: set[Any], wor
             # violation this situation also produces needs no reaction of its own.
             continue
         if component in _RECOMPUTE_COMPONENTS:
-            cls, path = _owning_target_class(working, shape_node), violation["path"]
-            handled = cls is not None and path is not None and _recompute_component(working, data, shape_node, cls, path, component)
+            focus, path = _owning_focus_nodes(working, data, shape_node), violation["path"]
+            handled = focus is not None and path is not None and _recompute_component(working, data, shape_node, focus, path, component)
             if not handled:
                 _drop_and_annotate(working, shape_node, component)
         elif component in _DROP_COMPONENTS:

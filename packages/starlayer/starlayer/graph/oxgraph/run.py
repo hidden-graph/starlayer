@@ -35,7 +35,8 @@ def _has_blank(t: Any) -> bool:
     return isinstance(t, ox.Triple) and any(_has_blank(x) for x in (t.subject, t.predicate, t.object))
 
 
-_AGGREGATE = re.compile(r"(?i)\b(?:COUNT|SUM|MIN|MAX|AVG|SAMPLE|GROUP_CONCAT|GROUP\s+BY)\b")
+_AGGREGATE = re.compile(r"(?i)(?<![?$\w])(?:(?:COUNT|SUM|MIN|MAX|AVG|SAMPLE|GROUP_CONCAT)\s*\(|GROUP\s+BY\b)")
+_PROLOGUE = re.compile(r"(?is)\A(?:\s*(?:PREFIX\s+[^\s:]*:|BASE\b|VERSION\b))*")
 
 
 def _query_widening(store: ox.Store, text: str, kwargs: dict[str, Any], subs: dict[Any, Any], error: RuntimeError) -> Any:
@@ -46,7 +47,11 @@ def _query_widening(store: ox.Store, text: str, kwargs: dict[str, Any], subs: di
             raise error
         names.append(m.group(1))
         try:
-            raw = store.query(_widen_projection(text, names), **kwargs, substitutions=subs)
+            widened = _widen_projection(text, names)
+            if widened is None:  # SELECT *: the variable is not in the query at all, so its binding changes nothing
+                raw = store.query(text, **kwargs, substitutions={k: v for k, v in subs.items() if k.value not in names} or None)
+                return raw
+            raw = store.query(widened, **kwargs, substitutions=subs)
         except RuntimeError as e:
             if "projection" not in str(e):
                 raise
@@ -55,18 +60,27 @@ def _query_widening(store: ox.Store, text: str, kwargs: dict[str, Any], subs: di
         return HiddenColumns(raw, set(names))
 
 
-def _widen_projection(text: str, names: list[str]) -> str:
-    """``text`` (a SELECT query) with ``names`` added to its projection, so that Oxigraph's ``substitutions`` accepts them."""
+def _widen_projection(text: str, names: list[str]) -> str | None:
+    """``text`` (a SELECT query) with ``names`` added to its projection, so that Oxigraph's ``substitutions`` accepts them;
+    None for ``SELECT *``, which projects every variable of the query already."""
     masked = _mask(text)
-    m = re.search(r"(?i)\bSELECT\b(?:\s+(?:DISTINCT|REDUCED)\b)?", masked)
+    start = _PROLOGUE.match(masked).end()  # type: ignore[union-attr]  # the pattern matches the empty string
+    m = re.compile(r"(?i)\bSELECT\b(?:\s+(?:DISTINCT|REDUCED)\b)?").search(masked, start)
     if m is None:
         raise NotImplementedError("initBindings with a blank node or a triple term holding one needs a SELECT query here")
+    if re.match(r"\s*\*", masked[m.end() :]):
+        return None
     if _AGGREGATE.search(masked):
         raise NotImplementedError(
             "initBindings with a blank node for a variable that is not projected, in a query with aggregates: write the variable "
             "into the SELECT list, or use a named node"
         )
     return text[: m.end()] + "".join(f" ?{n}" for n in names) + text[m.end() :]
+
+
+def _has_from(text: str) -> bool:
+    """True when the query has a dataset clause (``FROM`` / ``FROM NAMED``) of its own."""
+    return re.search(r"(?i)(?<![\w:])FROM\b(?!:)", _mask(text)) is not None
 
 
 def merge_prefixes(*maps: Mapping[str, str] | None) -> dict[str, str] | None:
@@ -95,7 +109,7 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
         kwargs["prefixes"] = pfx
     if base:
         kwargs["base_iri"] = base
-    if union:
+    if union and not _has_from(text):  # the flag would override the query's own FROM / FROM NAMED, which define the dataset
         kwargs["use_default_graph_as_union"] = True
     elif default_graph is not None:
         kwargs["default_graph"] = default_graph
@@ -205,7 +219,8 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
     """
     named = [g for g in store.named_graphs() if isinstance(g, ox.NamedNode) and next(store.quads_for_pattern(None, None, None, g), None) is not None]
     others = next((q for q in store if not isinstance(q.graph_name, ox.NamedNode)), None) is not None
-    if not named and not dedupe:
+    blank_graphs = next((q for q in store if isinstance(q.graph_name, ox.BlankNode)), None) is not None
+    if not named and not dedupe and not blank_graphs:
         return text, False  # only the default graph (or nothing) has data: union == default graph
     masked = _mask(text)
     bounds = [0, *[m.start() + 1 for m in re.finditer(";", masked)], len(text)]
@@ -215,7 +230,7 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
     for a, b in zip(bounds, bounds[1:], strict=False):
         seg, mseg = text[a:b], masked[a:b]
         # `masked` already blanked the IRIs, so the prologue is just the PREFIX/BASE words and whitespace
-        head = re.sub(r"(?is)\b(?:PREFIX\s+[^\s:]*:|BASE)\b", " ", mseg).lstrip()
+        head = re.sub(r"(?is)\A(?:\s*(?:PREFIX\s+[^\s:]*:|BASE\b|VERSION\b))*", "", mseg).lstrip()
         if not re.match(r"(?i)(?:DELETE|INSERT)\b", head) or re.search(r"(?i)\bUSING\b", mseg):
             pieces.append(seg)  # LOAD, CLEAR, ..., or its own dataset clause
             continue
@@ -227,7 +242,10 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
         clause = using + (f" USING <{scratch.value}>" if others or dedupe else "")
         used = used or others or dedupe
         if dw is not None:  # DELETE WHERE { P } has no USING in its grammar: write it as DELETE { P } USING .. WHERE { P }
-            lo = mseg.index("{", dw.end())
+            lo = mseg.find("{", dw.end())
+            if lo < 0:
+                pieces.append(seg)  # malformed: Oxigraph reports the SyntaxError
+                continue
             depth, hi = 0, lo
             for k in range(lo, len(mseg)):
                 depth += mseg[k] == "{"

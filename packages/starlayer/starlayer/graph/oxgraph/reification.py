@@ -101,5 +101,8 @@ def triple_terms(graph: Any, subject: Any = None, predicate: Any = None, object:
 
 def has_triple_term(graph: Any, subject: Any, predicate: Any, object: Any) -> bool:  # noqa: A002
     """True if ``<<( subject predicate object )>>`` is the object of some triple in ``graph``."""
-    tt = ox.Triple(terms.term(subject), terms.term(predicate), terms.term(object))
+    pat = terms.in_pattern(subject, predicate, object)
+    if pat is None or None in pat:  # no RDF statement can match (literal subject, non-IRI predicate)
+        return False
+    tt = ox.Triple(*pat)
     return next(_view(graph).triples((None, None, tt)), None) is not None
