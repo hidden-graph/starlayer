@@ -317,22 +317,29 @@ The differences in error policy and in the merge (graph union with `owl:versionI
 Snippet that produced the 04d appendix tables (run from `packages/starlayer`):
 
 ```python
+import pyoxigraph as ox
 from starlayer import starontology
-from starlayer.graph import Namespace
 
-SH = Namespace("http://www.w3.org/ns/shacl#")
-SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
+SH_NS = "http://www.w3.org/ns/shacl#"
+SHUI = "http://www.w3.org/ns/shacl-ui#"
+SH_DESCRIPTION = ox.NamedNode(SH_NS + "description")
+SH_NAME = ox.NamedNode(SH_NS + "name")
 meta = starontology.get_ontology_graph("shacl_shacl")
+
+
+def first_value(subject, predicate):
+    """The lexical form of the first object of (subject, predicate), or an empty string."""
+    return next((o.value for o in meta.objects(subject, predicate)), "")
 
 
 def widget_table(kind):
     """A markdown table of the built-in shui: widgets whose name ends with `kind`."""
     widgets = sorted(
-        w for w in set(meta.subjects(SH.description, None))
-        if str(w).startswith(str(SHUI)) and str(w).endswith(kind)
+        w for w in set(meta.subjects(SH_DESCRIPTION, None))
+        if isinstance(w, ox.NamedNode) and w.value.startswith(SHUI) and w.value.endswith(kind)
     )
     rows = [
-        f"| `shui:{str(w).removeprefix(str(SHUI))}` | {next(meta.objects(w, SH.name), '')} | {next(meta.objects(w, SH.description), '')} |"
+        f"| `shui:{w.value.removeprefix(SHUI)}` | {first_value(w, SH_NAME)} | {first_value(w, SH_DESCRIPTION)} |"
         for w in widgets
     ]
     return "| Widget | Name | What it is |\n|---|---|---|\n" + "\n".join(rows), len(widgets)
