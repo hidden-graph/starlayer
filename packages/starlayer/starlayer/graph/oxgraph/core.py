@@ -490,7 +490,7 @@ class _Base:
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")
         pfx = {**self.prefixes, **{str(k): str(v) for k, v in (prefixes or {}).items()}}
-        if not pretty:  # the pretty writer renames such a prefix; Oxigraph's would write Turtle that does not parse
+        if not pretty and fmt in _TURTLE_LIKE:  # the pretty writer renames such a prefix; Oxigraph's would write Turtle that does not parse (N-Triples, N-Quads and JSON-LD write no prefixes)
             from starlayer.graph.oxgraph.pretty import _PN_PREFIX
 
             for name in pfx:

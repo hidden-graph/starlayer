@@ -198,3 +198,14 @@ def test_dirlangstring_pickle_and_copy():
     assert pickle.loads(pickle.dumps(d)) == d
     assert copy.copy(d) == d
     assert copy.deepcopy(d) == d
+
+
+def test_an_odd_prefix_name_is_ignored_by_formats_that_write_no_prefixes():
+    from starlayer.graph.oxgraph import StarLayerGraph
+
+    g = StarLayerGraph()
+    g.update("INSERT DATA { <urn:a> <urn:p> <urn:b> }")
+    for fmt in ("nt", "json-ld"):
+        assert g.serialize(format=fmt, prefixes={"1a": "urn:"})
+    with pytest.raises(ValueError):
+        g.serialize(format="turtle", prefixes={"1a": "urn:"})
