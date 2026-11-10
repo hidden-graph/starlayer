@@ -149,3 +149,21 @@ def test_broken_links_with_wrapped_or_bracketed_text_are_reported(tmp_path, md):
     problems = []
     cd._check_links(f, md, problems)
     assert problems and "missing.md" in problems[0]
+
+
+def test_registry_descriptions_carry_no_stale_counts():
+    import re
+
+    import pyoxigraph as ox
+    from starlayer import starontology as so
+
+    sh, rdf = "http://www.w3.org/ns/shacl#", "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    descr = {i.name: i.description for i in so.get_ontology_list()}
+    ui = so.get_ontology_graph("shacl_shacl_ui")
+    groups = {s for s, _, _ in ui.triples((None, ox.NamedNode(rdf + "type"), ox.NamedNode(sh + "PropertyGroup")))}
+    m = re.search(r"(\d+) sh:PropertyGroup", descr["shacl_shacl_ui"])
+    assert m is None or int(m.group(1)) == len(groups)
+    scores = so.get_ontology_graph("shacl_shacl_ui_scores")
+    preds = {o for _, _, o in scores.triples((None, ox.NamedNode(rdf + "first"), None))}
+    m = re.search(r"of (\d+) SHACL predicates", descr["shacl_shacl_ui_scores"])
+    assert m is None or int(m.group(1)) == len(preds)

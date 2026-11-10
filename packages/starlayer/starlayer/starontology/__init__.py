@@ -423,7 +423,7 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], Any]]] = {
         OntologyInfo(
             name="shacl_shacl_ui",
             description=(
-                "Presentation for shacl_shacl, to build a form for editing a shapes graph: 18 sh:PropertyGroup "
+                "Presentation for shacl_shacl, to build a form for editing a shapes graph: sh:PropertyGroup "
                 "sections, sh:group and sh:order on each SHACL predicate, and form flags. It contains no widget: "
                 "widget choice is in shacl_shacl_ui_scores. Adds no constraints, so loading it with shacl_shacl "
                 "never changes what validates."
@@ -450,8 +450,8 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], Any]]] = {
         OntologyInfo(
             name="shacl_shacl_ui_scores",
             description=(
-                "The scoring layer for editing SHACL, built on shacl_ui_baseline: 9 widget scores at 40 that pick "
-                "the editor for each of 66 SHACL predicates (a number field for sh:minCount, an enum select for "
+                "The scoring layer for editing SHACL, built on shacl_ui_baseline: widget scores at 40 that pick "
+                "the editor for each SHACL predicate (a number field for sh:minCount, an enum select for "
                 "sh:nodeKind, ...). An application layer that ships with starlayer; pass it with the generic "
                 "catalog as scoring_graph=. Editors only."
             ),
