@@ -137,7 +137,8 @@ def check_rule_paths() -> list[str]:
         if "## Rules that bite" not in text:
             continue
         block = text[text.index("## Rules that bite") :]
-        block = block[: block.index("\n## ", 5)]
+        end = block.find("\n## ", 5)
+        block = block if end == -1 else block[:end]
         for token in re.findall(r"`([^`\n]+)`", block):
             token = token.strip().rstrip(",.;:")
             if " " in token or any(c in token for c in "*{}<>=()$:\"'"):

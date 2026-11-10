@@ -127,3 +127,13 @@ def test_anchor_keeps_underscores_in_identifiers(tmp_path):
     anchors = cd._anchors(tmp_path / "a.md")
     assert "my_function" in anchors and "myfunction" not in anchors
     assert "emphasis-here" in anchors
+
+
+def test_check_rule_paths_when_rules_that_bite_is_last_section(tmp_path):
+    cd = _script("check_docs")
+    pkg = tmp_path / "pkg"
+    (pkg / "a").mkdir(parents=True)
+    (pkg / "a" / "CLAUDE.md").write_text("# A\n\n## Rules that bite\n\n- see `missing/file.py`\n")
+    cd.ROOT, cd.PACKAGE = tmp_path, pkg
+    problems = cd.check_rule_paths()
+    assert any("missing/file.py" in p for p in problems)
