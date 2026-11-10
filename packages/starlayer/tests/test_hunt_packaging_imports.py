@@ -97,3 +97,12 @@ def test_pyproject_does_not_claim_rdflib_is_needed_for_what_runs_without_it() ->
     text = (ROOT / "pyproject.toml").read_text()
     for stale in ("the Manchester syntax, the SRL / salg / sqe tree machinery", "Manchester syntax, SRL / salg / sqe trees, SHACL UI widget selection"):
         assert stale not in text
+
+
+def test_every_workflow_path_filter_entry_matches_a_file() -> None:
+    import glob
+
+    for wf in WORKFLOWS.glob("*.yml"):
+        for p in re.findall(r'^\s+- "([^"]+)"', wf.read_text(), re.M):
+            if "/" in p or "*" in p:
+                assert glob.glob(str(ROOT / p), recursive=True), f"{wf.name}: path filter {p!r} matches no file"
