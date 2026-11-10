@@ -133,7 +133,7 @@ def _compile(shape: Any, pattern: str, flags: str) -> re.Pattern:
             if "x" in flags:
                 text = _strip_free_space(text)
         return re.compile(text, py_flags)
-    except (re.error, ValueError) as exc:
+    except (re.error, ValueError, OverflowError) as exc:  # OverflowError: a repetition count such as a{99999999999}
         raise ShapeError(f"{term_text(shape.node)}: invalid sh:pattern {pattern!r}: {exc}") from exc
 
 
