@@ -46,7 +46,6 @@ from __future__ import annotations
 
 import re
 from typing import TYPE_CHECKING, NamedTuple
-from urllib.parse import urljoin
 
 # Terms are pyoxigraph terms (``_oxterms`` makes the stand-ins for text an RDF term cannot be: a relative IRI, a bad label).
 import pyoxigraph as ox
@@ -65,13 +64,59 @@ def _vn(v) -> str:
     return "?" + v.value
 
 
+_URI_RE = re.compile(r"^(?:([A-Za-z][A-Za-z0-9+.\-]*):)?(?://([^/?#]*))?([^?#]*)(?:\?([^#]*))?(?:#(.*))?$", re.S)
+
+
+def _remove_dot_segments(path: str) -> str:
+    """RFC 3986 5.2.4."""
+    out: list[str] = []
+    segs = path.split("/")
+    for i, seg in enumerate(segs):
+        last = i == len(segs) - 1
+        if seg == ".":
+            if last:
+                out.append("")
+        elif seg == "..":
+            if len(out) > 1 or (out and out[0] != ""):
+                out.pop()
+            if last:
+                out.append("")
+        else:
+            out.append(seg)
+    return "/".join(out)
+
+
 def _join(base_uri, ref):
-    """RFC 3986 reference resolution. ``urllib.parse.urljoin`` drops an empty fragment (``urljoin("http://b/x", "#")`` is
-    ``http://b/x``), which turns a relative ``<#>`` into the wrong IRI (GitHub issue #132); it is put back."""
-    joined = urljoin(base_uri, ref)
-    if ref.endswith('#') and not joined.endswith('#'):
-        joined += '#'
-    return joined
+    """RFC 3986 5.2 reference resolution (not ``urllib.parse.urljoin``, which collapses empty path segments, keeps the
+    base fragment for an empty reference and does not resolve against ``urn:``)."""
+    rs, ra, rp, rq, rf = _URI_RE.match(ref).groups()
+    bs, ba, bp, bq, _bf = _URI_RE.match(base_uri).groups()
+    if rs is not None:
+        scheme, auth, path, query = rs, ra, _remove_dot_segments(rp), rq
+    elif ra is not None:
+        scheme, auth, path, query = bs, ra, _remove_dot_segments(rp), rq
+    else:
+        scheme, auth = bs, ba
+        if rp == "":
+            path, query = bp, (rq if rq is not None else bq)
+        else:
+            if rp.startswith("/"):
+                path = _remove_dot_segments(rp)
+            else:
+                merged = "/" + rp if ba is not None and bp == "" else bp[: bp.rfind("/") + 1] + rp
+                path = _remove_dot_segments(merged)
+            query = rq
+    out = ""
+    if scheme is not None:
+        out += scheme + ":"
+    if auth is not None:
+        out += "//" + auth
+    out += path
+    if query is not None:
+        out += "?" + query
+    if rf is not None:
+        out += "#" + rf
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -985,7 +1030,7 @@ class _Parser:
         if self.at_p("<<"):
             s = self.reified_triple(out)
             self.property_list(s, out, path, required=False)
-        elif self.at_p("[", "(") and not self.at_bnode():
+        elif self.at_p("[", "(") and not self.at_bnode() and not (self.at_p("(") and self.at_p(")", k=1)):
             s = self.triples_node(out, path)
             self.property_list(s, out, path, required=False)
         else:
