@@ -231,3 +231,6 @@ def parse_srl(text: str, base: str | None = None) -> srl_ast.RuleSet:
         return _SrlParser(text, base).parse_ruleset()
     except _Err as exc:
         raise _srl_error(str(exc), exc) from exc
+    except RecursionError:  # the grammar nests without limit, Python's stack does not (as in parse_sparql)
+        exc = _Err("expression or pattern nested too deeply to parse", text, 0)
+        raise _srl_error(str(exc), exc) from None

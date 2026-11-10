@@ -125,3 +125,14 @@ def test_infer_on_a_store_uses_the_union_of_its_graphs():
     st.add(ox.Quad(e("a"), e("q"), e("b"), e("g2")))
     rs = srl.parse_ruleset(PRE + "RULE { ?x :p ?y } WHERE { ?x :q ?y }")
     assert [tuple(map(str, t)) for t in rs.infer(st)] == [("<http://e/a>", "<http://e/p>", "<http://e/b>")]
+
+
+# ---- parser ---------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("filler", ["(", "STR("])
+def test_deep_nesting_is_a_parse_error(filler):
+    close = {"(": ")", "STR(": ")"}[filler]
+    expr = filler * 300 + "?y" + close * 300
+    with pytest.raises(srl.SRLParseError, match="nested too deeply"):
+        srl.parse_ruleset(PRE + "RULE { :a :p :b } WHERE { :a :q ?y FILTER(" + expr + ") }")
