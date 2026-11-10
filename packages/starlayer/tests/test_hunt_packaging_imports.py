@@ -106,3 +106,9 @@ def test_every_workflow_path_filter_entry_matches_a_file() -> None:
         for p in re.findall(r'^\s+- "([^"]+)"', wf.read_text(), re.M):
             if "/" in p or "*" in p:
                 assert glob.glob(str(ROOT / p), recursive=True), f"{wf.name}: path filter {p!r} matches no file"
+
+
+def test_contributing_ci_python_versions_match_test_yml() -> None:
+    versions = re.findall(r"\d+\.\d+", re.search(r"python-version:\s*\[([^\]]*)\]", (WORKFLOWS / "test.yml").read_text()).group(1))
+    doc = (ROOT / "CONTRIBUTING.md").read_text()
+    assert "3.10 to 3.13" not in doc or versions == ["3.10", "3.11", "3.12", "3.13"]
