@@ -338,8 +338,8 @@ skshp:RelatedDisjointWithHierarchicalShape a sh:NodeShape ;
 skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;
     sh:class skos:Concept ;
     sh:message "S19/S20: the domain and range of every SKOS semantic relation is skos:Concept." ;
-    sh:targetObjectsOf skos:broader, skos:related, skos:narrowerTransitive, skos:semanticRelation, skos:narrower, skos:broaderTransitive ;
-    sh:targetSubjectsOf skos:broader, skos:related, skos:narrowerTransitive, skos:semanticRelation, skos:narrower, skos:broaderTransitive .
+    sh:targetObjectsOf skos:broader, skos:related, skos:narrowerTransitive, skos:semanticRelation, skos:narrower, skos:broaderTransitive, skos:broadMatch, skos:narrowMatch, skos:relatedMatch, skos:closeMatch, skos:exactMatch, skos:mappingRelation ;
+    sh:targetSubjectsOf skos:broader, skos:related, skos:narrowerTransitive, skos:semanticRelation, skos:narrower, skos:broaderTransitive, skos:broadMatch, skos:narrowMatch, skos:relatedMatch, skos:closeMatch, skos:exactMatch, skos:mappingRelation .
 
 skshp:ShapesGraph a sh:ShapesGraph ;
     rdfs:member skshp:ConceptFormShape, skshp:LexicalLabelShape, skshp:CollectionDisjointnessShape, skshp:ConceptPrefLabelRecommendedShape, skshp:CollectionFormShape, skshp:MappingRelationDisjointnessShape, skshp:ConceptSchemeFormShape, skshp:ConceptSchemeDisjointnessShape, skshp:RelatedDisjointWithHierarchicalShape, skshp:SemanticRelationDomainRangeShape, skshp:ConceptDisjointnessShape, skshp:OrderedCollectionMemberListConsistencyShape .

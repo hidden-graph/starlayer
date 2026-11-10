@@ -29,3 +29,9 @@ def _conforms(body, fmt="turtle"):
 ])
 def test_s27_covers_mapping_subproperties(body):
     assert not _conforms(P + C + body)
+
+
+@pytest.mark.parametrize("prop", ["broader", "narrower", "related", "broaderTransitive", "narrowerTransitive", "semanticRelation",
+                                  "broadMatch", "narrowMatch", "relatedMatch", "closeMatch", "exactMatch", "mappingRelation"])
+def test_collection_as_subject_of_semantic_relation_is_rejected(prop):
+    assert not _conforms(P + f"ex:c a skos:Collection . ex:c skos:{prop} ex:d . ex:d a skos:Concept .")

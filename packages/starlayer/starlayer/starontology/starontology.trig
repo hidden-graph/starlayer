@@ -3168,7 +3168,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nc258b91b47d34dc2a01297700e3ce0b9b225 ;
+        sh:in _:nc3f0d450fade4f4e920bcc0084176952b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3377,7 +3377,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nc258b91b47d34dc2a01297700e3ce0b9b225 ;
+        sh:in _:nc3f0d450fade4f4e920bcc0084176952b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3759,7 +3759,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nc258b91b47d34dc2a01297700e3ce0b9b225 ;
+        sh:in _:nc3f0d450fade4f4e920bcc0084176952b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5329,11 +5329,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:nc258b91b47d34dc2a01297700e3ce0b9b226 rdf:first sh:IRI ;
+    _:nc3f0d450fade4f4e920bcc0084176952b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nc258b91b47d34dc2a01297700e3ce0b9b225 rdf:first sh:BlankNode ;
-        rdf:rest _:nc258b91b47d34dc2a01297700e3ce0b9b226 .
+    _:nc3f0d450fade4f4e920bcc0084176952b225 rdf:first sh:BlankNode ;
+        rdf:rest _:nc3f0d450fade4f4e920bcc0084176952b226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -9698,17 +9698,29 @@ starontology:skos_shapes.ttl {
     skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;
         sh:class skos:Concept ;
         sh:message "S19/S20: the domain and range of every SKOS semantic relation is skos:Concept." ;
-        sh:targetObjectsOf skos:broader,
+        sh:targetObjectsOf skos:broadMatch,
+            skos:broader,
             skos:broaderTransitive,
+            skos:closeMatch,
+            skos:exactMatch,
+            skos:mappingRelation,
+            skos:narrowMatch,
             skos:narrower,
             skos:narrowerTransitive,
             skos:related,
+            skos:relatedMatch,
             skos:semanticRelation ;
-        sh:targetSubjectsOf skos:broader,
+        sh:targetSubjectsOf skos:broadMatch,
+            skos:broader,
             skos:broaderTransitive,
+            skos:closeMatch,
+            skos:exactMatch,
+            skos:mappingRelation,
+            skos:narrowMatch,
             skos:narrower,
             skos:narrowerTransitive,
             skos:related,
+            skos:relatedMatch,
             skos:semanticRelation .
 }
 
