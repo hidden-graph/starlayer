@@ -261,7 +261,7 @@ skshp:LexicalLabelShape a sh:NodeShape ;
         sh:uniqueLang true
     ], [
         sh:message "The value of skos:prefLabel is a plain literal, with or without a language tag." ;
-        sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ;
+        sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
         sh:path skos:prefLabel
     ], [
         sh:disjoint skos:hiddenLabel, skos:prefLabel ;

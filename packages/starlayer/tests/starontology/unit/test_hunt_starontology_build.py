@@ -43,3 +43,8 @@ def test_two_untagged_preflabels_rejected():
 
 def test_one_untagged_and_one_tagged_preflabel_conform():
     assert _conforms(P + "ex:a a skos:Concept; skos:prefLabel 'x', 'y'@en .")
+
+
+def test_dirlang_preflabel_conforms():
+    h = "@prefix skos: <http://www.w3.org/2004/02/skos/core#> . @prefix : <http://e/> .\nVERSION '1.2'\n"
+    assert _conforms(h + ":a a skos:Concept ; skos:prefLabel 'x'@ar--rtl .", "turtle12")

@@ -3168,7 +3168,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n282c64cb02a94641af07134f4322620bb225 ;
+        sh:in _:na6a71f402d474777894ad407d86a6ef9b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3377,7 +3377,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n282c64cb02a94641af07134f4322620bb225 ;
+        sh:in _:na6a71f402d474777894ad407d86a6ef9b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3759,7 +3759,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n282c64cb02a94641af07134f4322620bb225 ;
+        sh:in _:na6a71f402d474777894ad407d86a6ef9b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5329,11 +5329,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n282c64cb02a94641af07134f4322620bb226 rdf:first sh:IRI ;
+    _:na6a71f402d474777894ad407d86a6ef9b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n282c64cb02a94641af07134f4322620bb225 rdf:first sh:BlankNode ;
-        rdf:rest _:n282c64cb02a94641af07134f4322620bb226 .
+    _:na6a71f402d474777894ad407d86a6ef9b225 rdf:first sh:BlankNode ;
+        rdf:rest _:na6a71f402d474777894ad407d86a6ef9b226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -9624,7 +9624,7 @@ starontology:skos_shapes.ttl {
                 sh:path skos:prefLabel ;
                 sh:uniqueLang true ],
             [ sh:message "The value of skos:prefLabel is a plain literal, with or without a language tag." ;
-                sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ;
+                sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
                 sh:path skos:prefLabel ],
             [ sh:disjoint skos:hiddenLabel,
                     skos:prefLabel ;
