@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.sparql.parse_sparql import parse_sparql
+from starlayer.sparql.parse_sparql import SparqlSyntaxError, parse_sparql
 
 
 def _resolved(base, ref):
@@ -38,3 +38,25 @@ def test_relative_iri_resolution_is_rfc3986(base, ref):
 def test_base_dot_segments_resolve_per_rfc3986():
     # 5.2.3 merge, then 5.2.4: /b/../g is /g (Oxigraph keeps /b/../g, which is not the RFC result)
     assert _resolved("http://a/b/../c", "g") == "http://a/g"
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["SELECT * WHERE { ( ) }", "SELECT * { () }", "CONSTRUCT { ( ) } WHERE { }"],
+)
+def test_bare_nil_is_not_a_triples_block(text):
+    with pytest.raises(SparqlSyntaxError):
+        parse_sparql(text)
+
+
+@pytest.mark.parametrize("text", ["SELECT * { () <http://a> 1 }", "SELECT * { ?s <http://a> () }"])
+def test_nil_as_subject_or_object_still_parses(text):
+    parse_sparql(text)
+
+
+def test_check_query_prepare_accepts_a_valid_update():
+    from starlayer.sparql.check import check_query
+
+    assert check_query("INSERT DATA { <http://e/a> <http://e/b> 1 }", prepare=True) is None
+    assert check_query("SELECT * { ?s ?p ?o }", prepare=True) is None
+    assert check_query("SELECT * { ?s ?p ?o ", prepare=True) is not None

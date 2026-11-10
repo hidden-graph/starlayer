@@ -1030,7 +1030,7 @@ class _Parser:
         if self.at_p("<<"):
             s = self.reified_triple(out)
             self.property_list(s, out, path, required=False)
-        elif self.at_p("[", "(") and not self.at_bnode():
+        elif self.at_p("[", "(") and not self.at_bnode() and not (self.at_p("(") and self.at_p(")", k=1)):
             s = self.triples_node(out, path)
             self.property_list(s, out, path, required=False)
         else:
