@@ -197,9 +197,13 @@ def to_rdflib_rdf11(value: Any, *, bnode_prefix: str | None = None, direction_po
         out = Dataset(default_union=value.default_union)
         for g in value.store.named_graphs():
             out.graph(name(g))
+        # `Dataset.default_graph` is new in rdflib 7.3; `default_context` is the name before it (deprecated since).
+        default = getattr(out, "default_graph", None)
+        if default is None:
+            default = out.default_context
         for q in quads:
             n = name(q.graph_name)
-            target = out.default_graph if n is None else out.graph(n)
+            target = default if n is None else out.graph(n)
             target.add((to_rdflib_term(q.subject), to_rdflib_term(q.predicate), to_rdflib_term(q.object)))
     for prefix, ns in dict(value.prefixes).items():
         out.bind(prefix, ns)

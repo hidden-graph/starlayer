@@ -31,7 +31,7 @@ pytest tests --codekg-queries            # the code-KG query library against the
 pytest tests --sqe-coverage              # sqe: W3C fixtures, per-feature, Hypothesis, rdflib and Oxigraph comparisons, shape audit (opt-in, ~25 min)
 ```
 
-`STARLAYER_RUN_ENGINE_ABORT_TESTS=1` also runs the tests that really crash Oxigraph's engine (opt-in, because they file a crash report). CI runs the fast and integration tiers on Python 3.10 to 3.13; see [.github/workflows/test.yml](.github/workflows/test.yml).
+CI runs the fast tier on Python 3.12 only (ruff runs on 3.10), although the package declares Python 3.10 or later; see [.github/workflows/test.yml](.github/workflows/test.yml).
 
 ## Lint
 

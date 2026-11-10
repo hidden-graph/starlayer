@@ -14,7 +14,7 @@ on:
     paths:
       - "tools/kg/codekg/**"
       - "packages/starlayer/starlayer/starontology/**"
-      - "packages/starlayer/starlayer/graph/query/**"    # the upstream-issue guard reads the patch functions
+      - "packages/starlayer/starlayer/graph/oxgraph/**"    # the upstream-issue guard looks for the workarounds in the code graph
       - "packages/starlayer/tests/kg/**"
       - "packages/starlayer/tests/starontology/**"
       - "packages/starlayer/tests/shacl/integration/test_meta_shapes_extensions.py"

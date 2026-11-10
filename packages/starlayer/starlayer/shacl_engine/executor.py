@@ -66,7 +66,7 @@ class Context:
 
         SHACL 1.2 Core 6.7.3: "The validation with recursive shapes is not defined in SHACL and is left to SHACL
         processor implementations." Choice made here: a re-entry on the same (shape, node) pair is assumed to conform
-        (the greatest-fixpoint reading, as ``starlayer.shacl.recursion``), except when the cycle passes through ``sh:not``
+        (the greatest-fixpoint reading, as the removed pySHACL-era validator did), except when the cycle passes through ``sh:not``
         (``negated=True`` callers). Such a cycle is not stratified: it has no fixpoint (odd number of negations) or
         several (even number: ``ex:N sh:not [ sh:not [ ... sh:node ex:N ] ]`` is consistent both as conforming and as
         violating), so the answer would depend on evaluation order. It raises ``ShapeError`` (a validation failure).

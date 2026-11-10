@@ -13,8 +13,9 @@ requires-python = ">=3.10"
 dependencies = [
     "requests>=2.28",
     # rdflib is NOT a core dependency: graphs, parsing, SPARQL query and update, SHACL validation and rules run on pyoxigraph.
-    # It is the `rdflib` extra (from_rdflib / to_rdflib, the Manchester syntax, the SRL / salg / sqe tree machinery, SHACL UI
-    # widget selection, and owlrl, which computes the RDFS / OWL 2 RL closures behind inference on an rdflib copy).
+    # It is the `rdflib` extra (from_rdflib / to_rdflib, passing an rdflib graph where a function takes a graph). The Manchester
+    # parser, the SRL / salg / sqe trees and SHACL UI widget selection run on pyoxigraph alone. Manchester validation and
+    # inference need `reasoning`: owlrl computes the RDFS / OWL 2 RL closures on an rdflib copy.
     # pyoxigraph is core: starlayer.shacl_engine and starlayer.graph.oxgraph import it at
     # module level. 0.5.13 is the minimum supported Oxigraph: older versions abort the
     # process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
@@ -38,8 +39,8 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Optional rdflib: from_rdflib / to_rdflib, Manchester syntax, SRL / salg / sqe trees, SHACL UI widget selection. Without it these
-# raise an ImportError that names this extra. `pip install starlayer[rdflib]`.
+# Optional rdflib: from_rdflib / to_rdflib and graph arguments that are rdflib graphs. Without it these raise an ImportError that
+# names this extra. `pip install starlayer[rdflib]`.
 rdflib = ["rdflib>=7.0"]
 # owlrl computes the RDFS and OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph, so
 # the extra includes rdflib.
@@ -55,8 +56,8 @@ rustdl = ["rdflib>=7.0", "rustdl>=0.4"]
 test = ["pytest>=8.0", "hypothesis>=6", "rdflib>=7.0", "owlrl>=6"]
 # Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
 notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "rdflib>=7.0", "owlrl>=6"]
-# pytest-benchmark for benchmarks-graph/benchmarks-shacl's own test_bench_*.py
-# regression guards (outside `testpaths`, so a bare `pytest` never collects
+# pytest-benchmark for benchmarks-graph's own test_bench_graph.py
+# regression guard (outside `testpaths`, so a bare `pytest` never collects
 # them - see .github/workflows/benchmark.yml and each dir's own README).
 benchmark = ["pytest-benchmark>=5.0"]
 

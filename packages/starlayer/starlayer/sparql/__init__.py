@@ -25,7 +25,7 @@ def __dir__() -> list[str]:
 # (tried 2026-10-03, reverted same day) - that would mean every one of
 # `srl.py`/`srl_eval.py`'s own names is reachable by two different paths
 # (`starlayer.sparql.X` and `starlayer.sparql.srl.X`), the exact anti-
-# pattern already removed elsewhere in this codebase (`starlayer.registry`,
+# pattern already removed elsewhere in this codebase (a registry module,
 # `ontology_graph()`/`shapes_graph()` wrappers, `get_ontology_turtle12()`).
 # The one real path is the submodule itself - `from starlayer.sparql
 # import srl` (ordinary Python package traversal, nothing to maintain
