@@ -81,50 +81,76 @@ class _DependencyEdge:
     label: str  # "open" | "closed"
 
 
-def _terms_compatible(pattern_term, template_term) -> bool:
-    """Could ``template_term`` (from a rule head's triple template) and
-    ``pattern_term`` (from a rule body's triple pattern) refer to the same
-    RDF term? A variable on either side is compatible with anything;
-    otherwise the two ground terms must be equal.
+class _Unifier:
+    """Unifies a body pattern with a head template (§4.3: the template can
+    generate a triple matching the pattern, a variable repeated in either one
+    replaced by the same term everywhere). Variables and blank nodes of the
+    pattern, and variables of the template, are unification variables, kept
+    apart by side; a blank node of a template is a fresh term that equals
+    nothing else."""
 
-    Deliberately conservative (a documented, safe simplification, not a
-    bug): this checks each subject/predicate/object *position*
-    independently, without also requiring that a variable repeated across
-    two positions of the *same* pattern/template be replaced by the same
-    term on both sides. That refinement would only ever narrow whether a
-    match is reported - never widen it - so omitting it can produce a
-    dependency edge the spec's own stricter reading wouldn't, but never
-    misses a real one. The spec's own §4.3.2 is explicit that "conformance
-    depends on producing a dependency graph that meets the definitions...
-    not on the use of this procedure" - an extra, spurious edge only costs
-    a coarser (still correct) stratification, never a wrong inferred
-    graph, since every genuine dependency is still found.
+    def __init__(self) -> None:
+        self._parent: dict = {}
+        self._const: dict = {}
 
-    Args:
-        pattern_term: A term from a rule body's triple pattern.
-        template_term: A term from a rule head's triple template.
+    def _find(self, key):
+        while self._parent.get(key, key) != key:
+            key = self._parent[key]
+        return key
 
-    Returns:
-        True if the two terms could refer to the same RDF term.
-    """
-    # A blank node in a body pattern behaves like a variable (§4.3.1, §6.4).
-    if isinstance(pattern_term, (Variable, BNode)) or isinstance(template_term, Variable):
+    def unify(self, pattern_term, template_term) -> bool:
+        left = self._key(pattern_term, "p")
+        right = self._key(template_term, "t")
+        if isinstance(pattern_term, TripleTermNode) and isinstance(template_term, TripleTermNode):
+            return all(
+                self.unify(pattern_term.get(position), template_term.get(position))
+                for position in ("subject", "predicate", "object")
+            )
+        if isinstance(pattern_term, TripleTermNode) or isinstance(template_term, TripleTermNode):
+            # a triple term only equals another triple term, or a variable
+            # (not recorded: it may hold variables, and a missed edge is worse than an extra one)
+            return left[0] == "v" or right[0] == "v"
+        return self._join(left, right)
+
+    @staticmethod
+    def _key(term, side):
+        if isinstance(term, Variable) or (side == "p" and isinstance(term, BNode)):
+            return ("v", side, str(term))
+        if isinstance(term, BNode):
+            return ("c", ("fresh-bnode", str(term)))
+        return ("c", term)
+
+    def _bind(self, var, value) -> bool:
+        root = self._find(var)
+        if root in self._const:
+            return self._const[root] == value
+        self._const[root] = value
         return True
-    if isinstance(pattern_term, TripleTermNode) or isinstance(template_term, TripleTermNode):
-        if not (isinstance(pattern_term, TripleTermNode) and isinstance(template_term, TripleTermNode)):
+
+    def _join(self, left, right) -> bool:
+        if left[0] == "c" and right[0] == "c":
+            return left[1] == right[1]
+        if left[0] == "c":
+            return self._bind(right, left[1])
+        if right[0] == "c":
+            return self._bind(left, right[1])
+        a, b = self._find(left), self._find(right)
+        if a == b:
+            return True
+        if a in self._const and b in self._const and self._const[a] != self._const[b]:
             return False
-        return all(
-            _terms_compatible(pattern_term.get(position), template_term.get(position))
-            for position in ("subject", "predicate", "object")
-        )
-    return pattern_term == template_term
+        self._parent[a] = b
+        if a in self._const:
+            self._const.setdefault(b, self._const[a])
+        return True
 
 
 def _pattern_matches_template(pattern: srl_ast.TriplePattern, template: srl_ast.TriplePattern) -> bool:
+    unifier = _Unifier()
     return (
-        _terms_compatible(pattern.subject, template.subject)
-        and _terms_compatible(pattern.predicate, template.predicate)
-        and _terms_compatible(pattern.object, template.object)
+        unifier.unify(pattern.subject, template.subject)
+        and unifier.unify(pattern.predicate, template.predicate)
+        and unifier.unify(pattern.object, template.object)
     )
 
 
