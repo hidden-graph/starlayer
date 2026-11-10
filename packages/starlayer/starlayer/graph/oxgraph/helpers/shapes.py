@@ -153,22 +153,28 @@ def _list_items(g: Any, head: Any) -> list[Any]:
 
 
 def _remove_rdf_list(g: Any, node: Any) -> None:
+    """Remove the cells of the list at ``node``, stopping at a cell that something other than the previous cell still points to
+    (the triple that pointed at the head is already removed): a list can be shared by two property shapes."""
     seen = set()
+    referrer: tuple[Any, Any] | None = None
     while node is not None and node != RDF_NIL and node not in seen:
         seen.add(node)
+        if any((s, p) != referrer for s, p, _ in g.triples((None, None, node))):
+            return
         nxt = g.value(node, RDF_REST)
         g.remove((node, None, None))
+        referrer = (node, RDF_REST)
         node = nxt
 
 
 def _clear_list_valued(g: Any, node: Any, pred: Any) -> None:
-    """Remove ``pred``'s value from ``node``, freeing its list cells too when it is list-valued."""
+    """Remove ``pred``'s value from ``node``, freeing its list cells too when it is list-valued and nothing else uses them."""
     old = g.value(node, pred)
     if old is None:
         return
+    g.remove((node, pred, old))
     if isinstance(old, ox.BlankNode) and (old, RDF_FIRST, None) in g:
         _remove_rdf_list(g, old)
-    g.remove((node, pred, old))
 
 
 def _shared_rdf_type(data: Any, values: Iterable[Any]) -> Any:
