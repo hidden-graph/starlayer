@@ -119,3 +119,11 @@ def test_build_reports_missing_registered_file(capsys):
     finally:
         del so._FILENAME_BY_NAME["ghost"]
     assert "registered files missing" in capsys.readouterr().err
+
+
+def test_anchor_keeps_underscores_in_identifiers(tmp_path):
+    cd = _script("check_docs")
+    (tmp_path / "a.md").write_text("# Title\n\n## my_function\n\n## _emphasis_ here\n\nSee [x](#my_function).\n")
+    anchors = cd._anchors(tmp_path / "a.md")
+    assert "my_function" in anchors and "myfunction" not in anchors
+    assert "emphasis-here" in anchors

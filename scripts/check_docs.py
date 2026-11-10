@@ -40,7 +40,8 @@ def _notebooks() -> list[Path]:
 
 def _slug(heading: str) -> str:
     """GitHub's heading anchor: lowercase, punctuation dropped, spaces to hyphens."""
-    text = re.sub(r"[`*_~]", "", heading.strip().lower())
+    # An underscore inside an identifier (my_function) stays, as on GitHub; one that delimits emphasis (_x_) goes.
+    text = re.sub(r"[`*~]|(?<!\w)_+|_+(?!\w)", "", heading.strip().lower())
     text = re.sub(r"[^\w\- ]", "", text)
     return text.replace(" ", "-")
 
