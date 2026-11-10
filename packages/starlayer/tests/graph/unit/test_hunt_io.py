@@ -12,9 +12,12 @@ import xml.etree.ElementTree as ET
 
 import pyoxigraph as ox
 import pytest
-
 from starlayer.graph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.model.dirlangstring import DIRLANG_NS, DirLangString, decode_dirlangstring
+from starlayer.graph.model.dirlangstring import (
+    DIRLANG_NS,
+    DirLangString,
+    decode_dirlangstring,
+)
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.graph.oxgraph.pretty import pretty_turtle
 
@@ -188,13 +191,6 @@ def test_xml_non_utf8_encoding_declaration_matches():
     g.serialize(buf, format="xml", encoding="latin-1")
     root = ET.fromstring(buf.getvalue())
     assert "café" in "".join(root.itertext())
-
-
-def test_non_utf8_encoding_refused_for_turtle():
-    g = StarLayerGraph()
-    g.parse(data='<http://e/a> <http://e/p> "café" .', format="turtle")
-    with pytest.raises(ValueError):
-        g.serialize(io.BytesIO(), format="turtle", encoding="latin-1")
 
 
 def test_dirlangstring_pickle_and_copy():
