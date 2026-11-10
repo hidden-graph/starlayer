@@ -325,13 +325,15 @@ skshp:RelatedDisjointWithHierarchicalShape a sh:NodeShape ;
             WHERE {
                 # related is symmetric (S23); broaderTransitive is transitive and contains broader, and
                 # narrower(Transitive) are its inverses (S25, S26): a forward path from $this to ?value.
-                $this (skos:related|^skos:related) ?value .
-                $this (skos:broader|^skos:narrower|skos:broaderTransitive|^skos:narrowerTransitive)+ ?value .
+                # The mapping properties are sub-properties: broadMatch of broader, narrowMatch of
+                # narrower, relatedMatch of related; this shape runs without inference, so they are named here.
+                $this (skos:related|^skos:related|skos:relatedMatch|^skos:relatedMatch) ?value .
+                $this (skos:broader|^skos:narrower|skos:broaderTransitive|^skos:narrowerTransitive|skos:broadMatch|^skos:narrowMatch)+ ?value .
             }
         """
     ] ;
-    sh:targetObjectsOf skos:related ;
-    sh:targetSubjectsOf skos:related .
+    sh:targetObjectsOf skos:related, skos:relatedMatch ;
+    sh:targetSubjectsOf skos:related, skos:relatedMatch .
 
 skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;
     sh:class skos:Concept ;

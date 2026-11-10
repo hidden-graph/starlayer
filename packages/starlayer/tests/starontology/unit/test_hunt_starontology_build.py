@@ -1,0 +1,31 @@
+"""Regression tests for the starontology / build-script hunt findings (SKOS shapes, registry, Manchester, build scripts)."""
+
+import pathlib
+
+import pytest
+from starlayer.graph.oxgraph.core import StarLayerGraph
+from starlayer.starontology.skos import skos_validate
+
+_ROOT = pathlib.Path(__file__).resolve().parents[5]
+_SCRIPTS = _ROOT / "scripts"
+
+P = "@prefix skos: <http://www.w3.org/2004/02/skos/core#> . @prefix ex: <http://e/> .\n"
+C = "ex:a a skos:Concept . ex:b a skos:Concept . "
+
+
+def _conforms(body, fmt="turtle"):
+    g = StarLayerGraph()
+    g.parse(data=body, format=fmt)
+    return skos_validate(g)[0]
+
+
+@pytest.mark.parametrize("body", [
+    "ex:a skos:related ex:b ; skos:broader ex:b .",
+    "ex:a skos:related ex:b ; skos:broadMatch ex:b .",
+    "ex:a skos:related ex:b ; skos:narrowMatch ex:b .",
+    "ex:a skos:relatedMatch ex:b ; skos:broader ex:b .",
+    "ex:a skos:relatedMatch ex:b ; skos:narrower ex:b .",
+    "ex:a skos:relatedMatch ex:b ; skos:broadMatch ex:b .",
+])
+def test_s27_covers_mapping_subproperties(body):
+    assert not _conforms(P + C + body)
