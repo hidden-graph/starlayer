@@ -275,8 +275,11 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None) -> tuple[Any, A
     if _ox.is_oxigraph_input(graph):
         graph.extend(list(sink))
         return graph, root
-    for s, p, o in _ox.to_rdflib_triples(sink):
-        graph.add((s, p, o))
+    from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
+
+    for row in _ox.to_rdflib_triples(sink):
+        # a plain rdflib graph holds a direction-tagged literal in its datatype-IRI form
+        graph.add(tuple(encode_dirlangstring(t) if isinstance(t, DirLangString) else t for t in row))
     return graph, _ox.to_rdflib_term(root)
 
 

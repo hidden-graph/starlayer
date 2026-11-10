@@ -208,3 +208,17 @@ def test_a_variable_named_like_the_internal_target_evaluates():
 def test_a_variable_name_above_the_bmp_is_refused_at_parse_time():
     with pytest.raises(srl.SRLParseError, match="variable name"):
         srl.parse_ruleset(PRE + "RULE { ?s :r ?\U00010000 } WHERE { ?s :p ?\U00010000 }")
+
+
+# ---- rdflib graphs and direction-tagged literals ----------------------------------
+
+
+def test_dirlang_literals_work_on_plain_rdflib_graphs():
+    rdflib = pytest.importorskip("rdflib")
+    g = rdflib.Graph()
+    g.add((rdflib.URIRef("http://e/a"), rdflib.URIRef("http://e/p"), rdflib.Literal("x")))
+    rs = srl.parse_ruleset(PRE + "RULE { ?s :h ?l } WHERE { ?s :p ?o SET(?l := STRLANGDIR(?o, \"en\", \"rtl\")) }")
+    assert len(rs.infer(g)) == 1
+    data = srl.parse_ruleset(PRE + "DATA { :a :p \"x\"@en--ltr }")
+    tree, _root = srl.ruleset_to_tree(data, rdflib.Graph())
+    assert len(tree) > 0

@@ -717,6 +717,7 @@ def to_foreign(inferred, original):
     require_rdflib("Returning the inferred triples as an rdflib graph")
     from rdflib import ConjunctiveGraph, Dataset, Graph
 
+    from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
     from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term
 
     triples = list(inferred)
@@ -728,7 +729,10 @@ def to_foreign(inferred, original):
         return inferred
     out = cls() if holds_triple_terms else Graph()
     for s, p, o in triples:
-        out.add((to_rdflib_term(s), to_rdflib_term(p), to_rdflib_term(o)))
+        row = (to_rdflib_term(s), to_rdflib_term(p), to_rdflib_term(o))
+        if not holds_triple_terms:  # a plain rdflib graph holds a direction-tagged literal in its datatype-IRI form
+            row = tuple(encode_dirlangstring(t) if isinstance(t, DirLangString) else t for t in row)
+        out.add(row)
     return out
 
 
