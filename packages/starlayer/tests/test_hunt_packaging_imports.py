@@ -91,3 +91,9 @@ def test_to_rdflib_dataset_works_without_dataset_default_graph(monkeypatch) -> N
         out = d.to_rdflib()
         assert (rdflib.URIRef("http://e/s"), rdflib.URIRef("http://e/p"), rdflib.URIRef("http://e/o")) in out.default_context
         assert len(out.graph(rdflib.URIRef("http://e/g"))) == 1
+
+
+def test_pyproject_does_not_claim_rdflib_is_needed_for_what_runs_without_it() -> None:
+    text = (ROOT / "pyproject.toml").read_text()
+    for stale in ("the Manchester syntax, the SRL / salg / sqe tree machinery", "Manchester syntax, SRL / salg / sqe trees, SHACL UI widget selection"):
+        assert stale not in text
