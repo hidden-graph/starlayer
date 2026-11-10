@@ -23,7 +23,7 @@ from starlayer.shacl_engine.terms import (
 )
 from starlayer.shacl_engine.text import result_messages
 
-DEFAULT_MAX_VALIDATION_DEPTH = 500  # the old validator's default (starlayer.shacl.recursion.MAX_VALIDATION_DEPTH)
+DEFAULT_MAX_VALIDATION_DEPTH = 500  # the removed pySHACL-era validator's default
 
 
 @dataclass

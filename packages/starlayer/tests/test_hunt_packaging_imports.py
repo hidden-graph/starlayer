@@ -34,6 +34,13 @@ def _import_file(path: Path):
     return module
 
 
+def test_no_source_cites_removed_modules() -> None:
+    for f in (PACKAGE / "starlayer").rglob("*.py"):
+        text = f.read_text()
+        for gone in ("starlayer.shacl.recursion", "starlayer.registry"):
+            assert gone not in text, f"{f.relative_to(ROOT)} cites {gone}, which no longer exists"
+
+
 def _test_marker_names() -> set[str]:
     names: set[str] = set()
     for f in (PACKAGE / "tests").rglob("*.py"):
