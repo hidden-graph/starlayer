@@ -1467,7 +1467,8 @@ starontology:shacl-ui-baseline.ttl {
                 sh:path sh:class ] .
 
     <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasLangStringDatatype> a sh:NodeShape ;
-        sh:property [ sh:hasValue rdf:langString ;
+        sh:property [ sh:in ( rdf:langString rdf:dirLangString ) ;
+                sh:minCount 1 ;
                 sh:path sh:datatype ] .
 }
 
@@ -3168,7 +3169,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na6a71f402d474777894ad407d86a6ef9b225 ;
+        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3377,7 +3378,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na6a71f402d474777894ad407d86a6ef9b225 ;
+        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3759,7 +3760,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:na6a71f402d474777894ad407d86a6ef9b225 ;
+        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5329,11 +5330,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:na6a71f402d474777894ad407d86a6ef9b226 rdf:first sh:IRI ;
+    _:n5e2b22d8a71945ea818a43c35af46ab2b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:na6a71f402d474777894ad407d86a6ef9b225 rdf:first sh:BlankNode ;
-        rdf:rest _:na6a71f402d474777894ad407d86a6ef9b226 .
+    _:n5e2b22d8a71945ea818a43c35af46ab2b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n5e2b22d8a71945ea818a43c35af46ab2b226 .
 }
 
 starontology:shacl12-shacl.ttl {

@@ -48,3 +48,21 @@ def test_one_untagged_and_one_tagged_preflabel_conform():
 def test_dirlang_preflabel_conforms():
     h = "@prefix skos: <http://www.w3.org/2004/02/skos/core#> . @prefix : <http://e/> .\nVERSION '1.2'\n"
     assert _conforms(h + ":a a skos:Concept ; skos:prefLabel 'x'@ar--rtl .", "turtle12")
+
+
+def test_ui_baseline_treats_dirlangstring_like_langstring():
+    import pyoxigraph as ox
+    from starlayer import starontology as so
+    from starlayer.shacl.ui_widget_selection import select_widgets
+
+    t = ("@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . "
+         "@prefix : <http://e/> .\n")
+    sg = StarLayerGraph()
+    sg.parse(data=t + ":S a sh:NodeShape ; sh:property [ sh:path :a ; sh:datatype rdf:langString ], "
+             "[ sh:path :b ; sh:datatype rdf:dirLangString ] .", format="turtle")
+    sh_path = ox.NamedNode("http://www.w3.org/ns/shacl#path")
+    for role, expected in (("viewer", "LangStringViewer"), ("editor", "TextFieldWithLangEditor")):
+        r = select_widgets(shape_node=ox.NamedNode("http://e/S"), shapes_graph=sg,
+                           scoring_graph=so.get_ontology_graph("shacl_ui_baseline"), role=role)
+        out = {next(sg.objects(k, sh_path)).value[-1]: str(v).rstrip(">").rsplit("#", 1)[-1] for k, v in r.items()}
+        assert out == {"a": expected, "b": expected}
