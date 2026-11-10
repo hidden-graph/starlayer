@@ -268,6 +268,20 @@ skshp:LexicalLabelShape a sh:NodeShape ;
         sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
         sh:path skos:altLabel
     ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "S14: no more than one skos:prefLabel without a language tag." ;
+        sh:select """
+            PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                # sh:uniqueLang ignores values without a language tag, so the tag-less case is checked here.
+                $this skos:prefLabel ?value, ?other .
+                FILTER (?value != ?other && datatype(?value) = xsd:string && datatype(?other) = xsd:string)
+            }
+        """
+    ] ;
     sh:targetSubjectsOf skos:prefLabel, skos:hiddenLabel, skos:altLabel .
 
 skshp:MappingRelationDisjointnessShape a sh:NodeShape ;

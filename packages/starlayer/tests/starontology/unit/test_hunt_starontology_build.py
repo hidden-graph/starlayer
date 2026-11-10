@@ -35,3 +35,11 @@ def test_s27_covers_mapping_subproperties(body):
                                   "broadMatch", "narrowMatch", "relatedMatch", "closeMatch", "exactMatch", "mappingRelation"])
 def test_collection_as_subject_of_semantic_relation_is_rejected(prop):
     assert not _conforms(P + f"ex:c a skos:Collection . ex:c skos:{prop} ex:d . ex:d a skos:Concept .")
+
+
+def test_two_untagged_preflabels_rejected():
+    assert not _conforms(P + "ex:a a skos:Concept; skos:prefLabel 'x', 'y' .")
+
+
+def test_one_untagged_and_one_tagged_preflabel_conform():
+    assert _conforms(P + "ex:a a skos:Concept; skos:prefLabel 'x', 'y'@en .")

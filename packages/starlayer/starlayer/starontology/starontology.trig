@@ -3168,7 +3168,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nc3f0d450fade4f4e920bcc0084176952b225 ;
+        sh:in _:n282c64cb02a94641af07134f4322620bb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3377,7 +3377,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nc3f0d450fade4f4e920bcc0084176952b225 ;
+        sh:in _:n282c64cb02a94641af07134f4322620bb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3759,7 +3759,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nc3f0d450fade4f4e920bcc0084176952b225 ;
+        sh:in _:n282c64cb02a94641af07134f4322620bb225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5329,11 +5329,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:nc3f0d450fade4f4e920bcc0084176952b226 rdf:first sh:IRI ;
+    _:n282c64cb02a94641af07134f4322620bb226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nc3f0d450fade4f4e920bcc0084176952b225 rdf:first sh:BlankNode ;
-        rdf:rest _:nc3f0d450fade4f4e920bcc0084176952b226 .
+    _:n282c64cb02a94641af07134f4322620bb225 rdf:first sh:BlankNode ;
+        rdf:rest _:n282c64cb02a94641af07134f4322620bb226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -9630,6 +9630,18 @@ starontology:skos_shapes.ttl {
                     skos:prefLabel ;
                 sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
                 sh:path skos:altLabel ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "S14: no more than one skos:prefLabel without a language tag." ;
+                sh:select """
+            PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                # sh:uniqueLang ignores values without a language tag, so the tag-less case is checked here.
+                $this skos:prefLabel ?value, ?other .
+                FILTER (?value != ?other && datatype(?value) = xsd:string && datatype(?other) = xsd:string)
+            }
+        """ ] ;
         sh:targetSubjectsOf skos:altLabel,
             skos:hiddenLabel,
             skos:prefLabel .
