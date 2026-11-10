@@ -676,7 +676,8 @@ def flatten_dataset(graph):
         return graph
     flat = new_graph()
     if _ox.is_oxigraph_input(graph):
-        flat.extend(list(iter(graph)))
+        # a Store yields quads; the union of its graphs keeps each triple once, whatever graph it is in
+        flat.extend({(item[0], item[1], item[2]) for item in graph})
         return flat
     from starlayer._optional import require_rdflib
 

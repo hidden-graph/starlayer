@@ -113,3 +113,15 @@ def test_a_blank_node_value_passes_through_an_expression():
 @pytest.mark.parametrize("body", ["SET(?z := ?y)", "SET(?z := 7)", "SET(?z := :iri)", "FILTER(true)", "FILTER(?y)"])
 def test_a_bare_term_is_a_valid_expression(body):
     srl.parse_ruleset(PRE + "RULE { :r :out ?y } WHERE { :s :q ?y " + body + " }")
+
+
+# ---- a pyoxigraph Store with named graphs ---------------------------------------
+
+
+def test_infer_on_a_store_uses_the_union_of_its_graphs():
+    st = ox.Store()
+    e = lambda n: ox.NamedNode("http://e/" + n)  # noqa: E731
+    st.add(ox.Quad(e("a"), e("q"), e("b"), e("g1")))
+    st.add(ox.Quad(e("a"), e("q"), e("b"), e("g2")))
+    rs = srl.parse_ruleset(PRE + "RULE { ?x :p ?y } WHERE { ?x :q ?y }")
+    assert [tuple(map(str, t)) for t in rs.infer(st)] == [("<http://e/a>", "<http://e/p>", "<http://e/b>")]
