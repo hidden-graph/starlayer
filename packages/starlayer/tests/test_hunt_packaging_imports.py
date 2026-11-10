@@ -39,3 +39,23 @@ def _test_marker_names() -> set[str]:
     for f in (PACKAGE / "tests").rglob("*.py"):
         names.update(re.findall(r"pytest\.mark\.(\w+)", f.read_text()))
     return names
+
+
+def test_to_rdflib_dataset_works_without_dataset_default_graph(monkeypatch) -> None:
+    """rdflib 7.0 to 7.2 (allowed by the rdflib extra) have no Dataset.default_graph (new in 7.3)."""
+    import warnings
+
+    import pytest
+
+    rdflib = pytest.importorskip("rdflib")
+    from starlayer.graph import StarLayerDataset
+
+    d = StarLayerDataset()
+    d.update("INSERT DATA { <http://e/s> <http://e/p> <http://e/o> . GRAPH <http://e/g> { <http://e/a> <http://e/p> <http://e/b> } }")
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        if hasattr(rdflib.Dataset, "default_graph"):
+            monkeypatch.delattr(rdflib.Dataset, "default_graph")
+        out = d.to_rdflib()
+        assert (rdflib.URIRef("http://e/s"), rdflib.URIRef("http://e/p"), rdflib.URIRef("http://e/o")) in out.default_context
+        assert len(out.graph(rdflib.URIRef("http://e/g"))) == 1
