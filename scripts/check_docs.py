@@ -26,7 +26,8 @@ PACKAGE = ROOT / "packages" / "starlayer" / "starlayer"
 
 # Directories whose Markdown is vendored or archived, not ours to check.
 _SKIP_PARTS = {".git", ".venv", "venv", "node_modules", "build", "dist", "vendor", "__pycache__", "archive"}
-_LINK = re.compile(r"(?<!!)\[(?:[^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+# Link text may hold one level of brackets and line breaks (CommonMark); `_links` scans the whole text, not line by line.
+_LINK = re.compile(r"(?<!!)\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 _FENCE = re.compile(r"^(```|~~~)")
 
 
@@ -40,7 +41,8 @@ def _notebooks() -> list[Path]:
 
 def _slug(heading: str) -> str:
     """GitHub's heading anchor: lowercase, punctuation dropped, spaces to hyphens."""
-    text = re.sub(r"[`*_~]", "", heading.strip().lower())
+    # An underscore inside an identifier (my_function) stays, as on GitHub; one that delimits emphasis (_x_) goes.
+    text = re.sub(r"[`*~]|(?<!\w)_+|_+(?!\w)", "", heading.strip().lower())
     text = re.sub(r"[^\w\- ]", "", text)
     return text.replace(" ", "-")
 
@@ -66,14 +68,15 @@ def _anchors(path: Path) -> set[str]:
 
 def _links(text: str):
     in_fence = False
+    kept = []
     for line in text.splitlines():
         if _FENCE.match(line.strip()):
             in_fence = not in_fence
             continue
         if in_fence:
             continue
-        line = re.sub(r"`[^`]*`", "", line)  # code spans are not links
-        yield from _LINK.findall(line)
+        kept.append(re.sub(r"`[^`]*`", "", line))  # code spans are not links
+    yield from _LINK.findall("\n".join(kept))
 
 
 def _check_links(source: Path, text: str, problems: list[str]) -> None:
@@ -136,7 +139,8 @@ def check_rule_paths() -> list[str]:
         if "## Rules that bite" not in text:
             continue
         block = text[text.index("## Rules that bite") :]
-        block = block[: block.index("\n## ", 5)]
+        end = block.find("\n## ", 5)
+        block = block if end == -1 else block[:end]
         for token in re.findall(r"`([^`\n]+)`", block):
             token = token.strip().rstrip(",.;:")
             if " " in token or any(c in token for c in "*{}<>=()$:\"'"):

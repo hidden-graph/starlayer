@@ -1467,7 +1467,8 @@ starontology:shacl-ui-baseline.ttl {
                 sh:path sh:class ] .
 
     <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasLangStringDatatype> a sh:NodeShape ;
-        sh:property [ sh:hasValue rdf:langString ;
+        sh:property [ sh:in ( rdf:langString rdf:dirLangString ) ;
+                sh:minCount 1 ;
                 sh:path sh:datatype ] .
 }
 
@@ -3168,7 +3169,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n117e7a8d2745481581e2105dede37c0eb225 ;
+        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3377,7 +3378,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n117e7a8d2745481581e2105dede37c0eb225 ;
+        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3759,7 +3760,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n117e7a8d2745481581e2105dede37c0eb225 ;
+        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5329,11 +5330,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n117e7a8d2745481581e2105dede37c0eb226 rdf:first sh:IRI ;
+    _:n5e2b22d8a71945ea818a43c35af46ab2b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n117e7a8d2745481581e2105dede37c0eb225 rdf:first sh:BlankNode ;
-        rdf:rest _:n117e7a8d2745481581e2105dede37c0eb226 .
+    _:n5e2b22d8a71945ea818a43c35af46ab2b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n5e2b22d8a71945ea818a43c35af46ab2b226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -9624,12 +9625,24 @@ starontology:skos_shapes.ttl {
                 sh:path skos:prefLabel ;
                 sh:uniqueLang true ],
             [ sh:message "The value of skos:prefLabel is a plain literal, with or without a language tag." ;
-                sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] ) ;
+                sh:or ( [ sh:datatype xsd:string ] [ sh:datatype rdf:langString ] [ sh:datatype rdf:dirLangString ] ) ;
                 sh:path skos:prefLabel ],
             [ sh:disjoint skos:hiddenLabel,
                     skos:prefLabel ;
                 sh:message "S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint." ;
                 sh:path skos:altLabel ] ;
+        sh:sparql [ a sh:SPARQLConstraint ;
+                sh:message "S14: no more than one skos:prefLabel without a language tag." ;
+                sh:select """
+            PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+            PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                # sh:uniqueLang ignores values without a language tag, so the tag-less case is checked here.
+                $this skos:prefLabel ?value, ?other .
+                FILTER (?value != ?other && datatype(?value) = xsd:string && datatype(?other) = xsd:string)
+            }
+        """ ] ;
         sh:targetSubjectsOf skos:altLabel,
             skos:hiddenLabel,
             skos:prefLabel .
@@ -9684,27 +9697,43 @@ starontology:skos_shapes.ttl {
             WHERE {
                 # related is symmetric (S23); broaderTransitive is transitive and contains broader, and
                 # narrower(Transitive) are its inverses (S25, S26): a forward path from $this to ?value.
-                $this (skos:related|^skos:related) ?value .
-                $this (skos:broader|^skos:narrower|skos:broaderTransitive|^skos:narrowerTransitive)+ ?value .
+                # The mapping properties are sub-properties: broadMatch of broader, narrowMatch of
+                # narrower, relatedMatch of related; this shape runs without inference, so they are named here.
+                $this (skos:related|^skos:related|skos:relatedMatch|^skos:relatedMatch) ?value .
+                $this (skos:broader|^skos:narrower|skos:broaderTransitive|^skos:narrowerTransitive|skos:broadMatch|^skos:narrowMatch)+ ?value .
             }
         """ ] ;
-        sh:targetObjectsOf skos:related ;
-        sh:targetSubjectsOf skos:related .
+        sh:targetObjectsOf skos:related,
+            skos:relatedMatch ;
+        sh:targetSubjectsOf skos:related,
+            skos:relatedMatch .
 
     skshp:SemanticRelationDomainRangeShape a sh:NodeShape ;
         sh:class skos:Concept ;
         sh:message "S19/S20: the domain and range of every SKOS semantic relation is skos:Concept." ;
-        sh:targetObjectsOf skos:broader,
+        sh:targetObjectsOf skos:broadMatch,
+            skos:broader,
             skos:broaderTransitive,
+            skos:closeMatch,
+            skos:exactMatch,
+            skos:mappingRelation,
+            skos:narrowMatch,
             skos:narrower,
             skos:narrowerTransitive,
             skos:related,
+            skos:relatedMatch,
             skos:semanticRelation ;
-        sh:targetSubjectsOf skos:broader,
+        sh:targetSubjectsOf skos:broadMatch,
+            skos:broader,
             skos:broaderTransitive,
+            skos:closeMatch,
+            skos:exactMatch,
+            skos:mappingRelation,
+            skos:narrowMatch,
             skos:narrower,
             skos:narrowerTransitive,
             skos:related,
+            skos:relatedMatch,
             skos:semanticRelation .
 }
 

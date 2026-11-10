@@ -58,7 +58,7 @@ uib:HasDateDatatype a sh:NodeShape ;
 uib:HasDateTimeDatatype a sh:NodeShape ;
     sh:property [ sh:path sh:datatype ; sh:hasValue xsd:dateTime ] .
 uib:HasLangStringDatatype a sh:NodeShape ;
-    sh:property [ sh:path sh:datatype ; sh:hasValue rdf:langString ] .
+    sh:property [ sh:path sh:datatype ; sh:minCount 1 ; sh:in ( rdf:langString rdf:dirLangString ) ] .
 uib:HasInList a sh:NodeShape ;
     sh:property [ sh:path sh:in ; sh:minCount 1 ] .
 uib:HasClass a sh:NodeShape ;
