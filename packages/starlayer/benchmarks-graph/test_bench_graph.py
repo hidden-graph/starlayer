@@ -9,7 +9,7 @@ run never collects them - invoke explicitly:
 
 One fixed, CI-fast scale (N=2000) - these catch regressions, they don't
 characterize scaling. For the full scaling sweep used to update
-docs/graph/performance.md, see bench_inmemory.py/bench_scaling.py in this
+docs/graph/performance.md, see bench_inmemory.py/bench_inmemory_oxigraph.py in this
 same directory (unaffected by this file - they stay the deep-dive tool).
 
 Requires the `benchmark` extra: pip install -e ".[benchmark]"

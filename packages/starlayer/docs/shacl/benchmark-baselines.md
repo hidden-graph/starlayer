@@ -2,13 +2,7 @@
 
 *Last reviewed: 2026-07-18*
 
-Use this document to track adapter encode/decode benchmark output before each release.
-
-## Command
-
-```bash
-python benchmarks/bench_adapter.py --triples 1000 --nested-depth 1
-```
+Historical log of the adapter encode/decode benchmark. `TripleTermAdapter` and `bench_adapter.py` were removed, so nothing records new rows; the nightly shacl benchmark guard was dropped until a new baseline is recorded on the CI runners.
 
 ## Baseline Log
 

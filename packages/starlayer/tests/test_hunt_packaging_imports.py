@@ -122,16 +122,8 @@ def test_env_switches_in_the_docs_are_read_somewhere() -> None:
 
 
 def test_benchmark_scripts_import() -> None:
-    """The benchmark scripts a README presents as runnable still import (bench_scaling.py: see the xfail below)."""
+    """The benchmark scripts a README presents as runnable still import."""
     for d in ("benchmarks-graph", "benchmarks-shacl"):
         for f in sorted((PACKAGE / d).glob("*.py")):
-            if f.name != "bench_scaling.py":
-                _import_file(f)
+            _import_file(f)
 
-
-@pytest.mark.xfail(strict=True, reason="bench_scaling.py targets removed backends; owner decision pending (delete or rewrite)")
-def test_bench_scaling_imports() -> None:
-    """Needs a decision, not a patch: bench_scaling.py measures the removed rdflib-era backends (rdf-1.1 / rdf-1.2 Fuseki,
-    starlayer.graph.model.encoding, StarLayerGraph(store=, backend=)), so porting it is a rewrite. Recommended: delete it and
-    its rows in benchmarks-graph/README.md and docs/graph/performance.md."""
-    _import_file(PACKAGE / "benchmarks-graph" / "bench_scaling.py")

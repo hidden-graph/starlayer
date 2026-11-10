@@ -10,10 +10,7 @@ Merges what used to be two overlapping documents (`release-checklist.md` and
 ```bash
 pytest -q
 pytest -q tests/integration
-python benchmarks/bench_adapter.py --triples 1000 --nested-depth 1
 ```
-
-Record the benchmark output in `packages/starlayer/docs/shacl/benchmark-baselines.md`.
 
 ## 2. Verify the contract
 
