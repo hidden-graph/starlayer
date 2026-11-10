@@ -8,7 +8,7 @@ the baseline should be the *median ratio* over several runs on the runners, not 
     gh run download <run-id> -n benchmark-results -D out/<run-id>        # for each run
     python scripts/record_benchmark_baseline.py packages/starlayer/benchmarks-graph/baseline.json \\
         out/*/bench-graph-result.json
-    (same for benchmarks-shacl/baseline.json and out/*/bench-shacl-result.json), then commit.
+    then commit.
 
 Every run must contain the calibration benchmark and the same set of benchmarks; otherwise the script stops with an error
 naming what is missing (it does not build a baseline from the common subset).

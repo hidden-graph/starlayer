@@ -7,8 +7,7 @@ data up to ``--repeat-max`` triples, one run above that. Sizes stop growing once
     PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_engine_vs_old.py --sizes 1000,10000,50000,200000
     PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_engine_vs_old.py --profile 10000
 
-The adapter benchmark data (bench_adapter.py) is triple-term encode/decode only and has no shapes, so the data and shapes
-here are generated: a people/org/address graph (~14 triples per person, ~3% planted violations) and a shapes graph with
+The data and shapes here are generated: a people/org/address graph (~14 triples per person, ~3% planted violations) and a shapes graph with
 cardinality+datatype+pattern, sh:class over a subclass hierarchy, sh:node/sh:and, sh:sparql, sh:uniqueValuesFor and
 sh:qualifiedValueShape.
 """

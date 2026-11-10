@@ -55,8 +55,8 @@ rustdl = ["rdflib>=7.0", "rustdl>=0.4"]
 test = ["pytest>=8.0", "hypothesis>=6", "rdflib>=7.0", "owlrl>=6"]
 # Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
 notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "rdflib>=7.0", "owlrl>=6"]
-# pytest-benchmark for benchmarks-graph/benchmarks-shacl's own test_bench_*.py
-# regression guards (outside `testpaths`, so a bare `pytest` never collects
+# pytest-benchmark for benchmarks-graph's own test_bench_graph.py
+# regression guard (outside `testpaths`, so a bare `pytest` never collects
 # them - see .github/workflows/benchmark.yml and each dir's own README).
 benchmark = ["pytest-benchmark>=5.0"]
 

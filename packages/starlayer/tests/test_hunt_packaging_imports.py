@@ -34,6 +34,17 @@ def _import_file(path: Path):
     return module
 
 
+def test_every_benchmark_module_benchmark_yml_runs_imports() -> None:
+    """benchmark.yml runs pytest on benchmarks-*/test_bench_*.py; each must import, and each baseline it checks must exist."""
+    text = (WORKFLOWS / "benchmark.yml").read_text()
+    files = re.findall(r"pytest (benchmarks-[\w-]+/\S+\.py)", text)
+    assert files
+    for f in files:
+        _import_file(PACKAGE / f)
+    for baseline in re.findall(r"check_benchmark_regression\.py (\S+) ", text):
+        assert (PACKAGE / baseline).is_file(), baseline
+
+
 def test_no_source_cites_removed_modules() -> None:
     for f in (PACKAGE / "starlayer").rglob("*.py"):
         text = f.read_text()
