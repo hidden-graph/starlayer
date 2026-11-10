@@ -107,3 +107,15 @@ def test_field_name_fallback_is_stable_across_processes():
         assert r.returncode == 0, r.stderr
         outs.add(r.stdout.strip())
     assert len(outs) == 1, outs
+
+
+def test_build_reports_missing_registered_file(capsys):
+    from starlayer import starontology as so
+
+    b = _script("build_starontology")
+    so._FILENAME_BY_NAME["ghost"] = "ghost-missing.ttl"
+    try:
+        assert b.build(check=True) == 1
+    finally:
+        del so._FILENAME_BY_NAME["ghost"]
+    assert "registered files missing" in capsys.readouterr().err

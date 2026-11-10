@@ -175,6 +175,11 @@ def _trig_graphs(text: str) -> dict[str, Graph]:
 
 
 def build(check: bool) -> int:
+    generated = {_SKOS_TTL.name, _SHACL_TTL.name, _VOCABULARY_TTL.name, _UI_TTL.name}  # written by this build, so absent is fine
+    missing = [f for f in _filenames() if f not in generated and not (_DIR / f).exists()]
+    if missing:
+        print(f"ABORT: registered files missing: {missing}", file=sys.stderr)
+        return 1
     stale: list[str] = []
 
     original = Graph().parse(str(_SKOS_ORIGINAL), format="xml")
@@ -218,10 +223,6 @@ def build(check: bool) -> int:
                 return 1
             _TRIG.write_text(text, encoding="utf-8")
 
-    missing = [f for f in _filenames() if not (_DIR / f).exists()]
-    if missing:
-        print(f"ABORT: registered files missing: {missing}", file=sys.stderr)
-        return 1
     if check:
         print("stale: " + ", ".join(stale) if stale else "up to date")
         return 1 if stale else 0
