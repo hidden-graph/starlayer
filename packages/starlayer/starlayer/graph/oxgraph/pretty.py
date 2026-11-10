@@ -86,6 +86,7 @@ _BNODE_LABEL = re.compile(rf"[{_PN_CHARS_U}0-9](?:[{_PN_CHARS}.]*[{_PN_CHARS}])?
 
 # characters a string must not carry raw: C0 controls (but TAB, LF, CR have their own handling), DEL, NEL, LS, PS
 _CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x85\u2028\u2029]")
+_ABSOLUTE_IRI = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:")
 _IRI_BAD = re.compile("[\x00-\x20<>\"{}|^`\\\\\x7f]")
 # A relative reference is written only if it re-resolves to the IRI. Not one whose first segment holds a colon (RFC 3986 section
 # 4.2: ``a_b:c`` or ``:a`` would be read as having a scheme or as absolute; any colon before the first ``/ ? #`` counts, not only
@@ -104,6 +105,11 @@ class _Names:
 
     def __init__(self, prefixes: Mapping[str, Any] | None, base: str | None, auto: bool = True) -> None:
         given = {str(k): str(getattr(v, "value", v)) for k, v in (prefixes or {}).items()}
+        for p, ns in given.items():  # the plain writer (Oxigraph) refuses these; the output would not parse
+            if not _ABSOLUTE_IRI.match(ns) or _IRI_BAD.search(ns):
+                raise ValueError(f"{ns!r} (prefix {p!r}) is not an absolute IRI, so it cannot be a namespace")
+        if base and (not _ABSOLUTE_IRI.match(base) or _IRI_BAD.search(base)):
+            raise ValueError(f"{base!r} is not a valid absolute base IRI")
         bound: list[tuple[str, str]] = []
         invalid = []
         for p, ns in sorted(given.items()):
@@ -268,8 +274,11 @@ class _Writer:
         structures or chains longer than the cap could still tie, and then the order falls back to the input order)."""
         out: dict[Any, list[tuple[Any, Any]]] = defaultdict(list)
         inc: dict[Any, list[tuple[str, Any, Any]]] = defaultdict(list)
+        gcontent: dict[Any, list[tuple[Any, Any, Any]]] = defaultdict(list)  # a blank graph name: what its graph holds
         nodes: set = set()
         for g, s, p, o in self.quads:
+            if isinstance(g, _BN):
+                gcontent[g].append((s, p, o))
             if isinstance(s, _BN):
                 out[s].append((p, o))
                 nodes.add(s)
@@ -301,6 +310,7 @@ class _Writer:
             for b in nodes:
                 parts = [f"o {rep(p, b)} {rep(o, b)}" for p, o in out.get(b, ())]
                 parts += [f"{k} {rep(p, b)} {rep(s, b)}" for k, p, s in inc.get(b, ())]
+                parts += [f"c {rep(s, b)} {rep(p, b)} {rep(o, b)}" for s, p, o in gcontent.get(b, ())]
                 parts.sort()
                 new[b] = hashlib.sha1((color[b] + "\n" + "\n".join(parts)).encode("utf-8", "surrogatepass")).hexdigest()[:16]
             n_classes = len(set(new.values()))
@@ -445,13 +455,37 @@ class _Writer:
         return hit
 
     # ---- terms ---------------------------------------------------------------------------------------------------------
+    def _blank_nodes(self) -> set:
+        if getattr(self, "_bn_cache", None) is None:
+            found: set = set()
+            for g, s, p, o in self.quads:
+                for t in (g, s, p, o):
+                    if isinstance(t, _BN):
+                        found.add(t)
+                    elif isinstance(t, _TRIPLE):
+                        found.update(x for x in _walk_tt(t) if isinstance(x, _BN))
+            self._bn_cache = found
+        return self._bn_cache
+
+    def _kept_labels(self) -> set:
+        if getattr(self, "_kept_cache", None) is None:
+            self._kept_cache = {"_:" + x.value for x in self._blank_nodes() if _BNODE_LABEL.fullmatch(x.value)}
+        return self._kept_cache
+
     def label(self, b: Any) -> str:
         lab = self.labels.get(b)
         if lab is None:
             if self.keep_labels and _BNODE_LABEL.fullmatch(b.value):
                 lab = "_:" + b.value
             else:
-                lab = f"_:b{len(self.labels)}"
+                n = len(self.labels)
+                if self.keep_labels:  # a generated label must not be the kept label of another blank node
+                    kept = self._kept_labels()
+                    n = max(n, self._gen)
+                    while f"_:b{n}" in kept:
+                        n += 1
+                    self._gen = n + 1
+                lab = f"_:b{n}"
             self.labels[b] = lab
         return lab
 
@@ -647,6 +681,7 @@ class _Writer:
             self._plan()
             self.names.reset()
             self.labels: dict[Any, str] = {}
+            self._gen = 0
             self.printed: set = set()
             body: list[str] = []
             for g in graphs:

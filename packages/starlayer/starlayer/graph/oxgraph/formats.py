@@ -24,7 +24,7 @@ for _names, _fmt in (
         _NAMES[_n] = _fmt
 
 #: formats whose documents carry named graphs
-QUAD_FORMATS = (_F.TRIG, _F.N_QUADS)
+QUAD_FORMATS = (_F.TRIG, _F.N_QUADS, _F.JSON_LD)
 #: how a format is reached when given a file extension
 _EXT = {"ttl": _F.TURTLE, "n3": _F.TURTLE, "trig": _F.TRIG, "nt": _F.N_TRIPLES, "nq": _F.N_QUADS, "rdf": _F.RDF_XML,
         "xml": _F.RDF_XML, "owl": _F.RDF_XML, "jsonld": _F.JSON_LD, "json": _F.JSON_LD}

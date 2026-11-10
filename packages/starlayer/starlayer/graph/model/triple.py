@@ -93,7 +93,10 @@ class TripleTerm:
         if isinstance(other, TripleTerm):
             return self._key() == other._key()
         if isinstance(other, tuple) and len(other) == 3:
-            return self._key() == TripleTerm(*other)._key()
+            try:
+                return self._key() == TripleTerm(*other)._key()
+            except ValueError:  # a 3-tuple that cannot be a triple is simply not equal
+                return False
         return NotImplemented
 
     def __hash__(self):

@@ -51,7 +51,8 @@ def as_store(x: Any) -> ox.Store:
 
 
 _IRI_OR_STRING = re.compile(
-    r'"""(?:[^"\\]|\\.|"(?!""))*"""'  # long strings first
+    r"\\."  # an escaped character of a prefixed name's local part (``b:it\'s``): its quote does not open a string
+    r'|"""(?:[^"\\]|\\.|"(?!""))*"""'  # long strings first
     r"|'''(?:[^'\\]|\\.|'(?!''))*'''"
     r'|"(?:[^"\\\n]|\\.)*"'
     r"|'(?:[^'\\\n]|\\.)*'"
@@ -82,6 +83,47 @@ def _strip_unused_prefixes(text: str) -> str:
         if used:
             keep.append(line)
     return "\n".join([*keep, body])
+
+
+_NCNAME = re.compile(r"[^\W\d][\w.\-]*")
+
+
+def _xml_safe_blank_nodes(items: Iterable[Any]) -> Iterable[Any]:
+    """The triples or quads with every blank node whose label is not an XML NCName (``1``, ``0a:b``) relabelled: RDF/XML
+    writes the label as ``rdf:nodeID``, which must be an NCName. A graph with only valid labels is returned as it was."""
+    items = list(items)
+    labels: set[str] = set()
+
+    def scan(t: Any) -> None:
+        if isinstance(t, ox.BlankNode):
+            labels.add(t.value)
+        elif isinstance(t, ox.Triple):
+            for x in (t.subject, t.predicate, t.object):
+                scan(x)
+
+    for i in items:
+        for x in (i.subject, i.predicate, i.object, *([i.graph_name] if isinstance(i, ox.Quad) else [])):
+            scan(x)
+    bad = sorted(x for x in labels if not _NCNAME.fullmatch(x))
+    if not bad:
+        return items
+    taken, new, n = set(labels), {}, 0
+    for old in bad:
+        while f"b{n}" in taken:
+            n += 1
+        new[old] = f"b{n}"
+        taken.add(f"b{n}")
+
+    def fix(t: Any) -> Any:
+        if isinstance(t, ox.BlankNode):
+            return ox.BlankNode(new[t.value]) if t.value in new else t
+        if isinstance(t, ox.Triple):
+            return ox.Triple(fix(t.subject), t.predicate, fix(t.object))
+        return t
+
+    if items and isinstance(items[0], ox.Quad):
+        return [ox.Quad(fix(q.subject), q.predicate, fix(q.object), fix(q.graph_name)) for q in items]
+    return [ox.Triple(fix(t.subject), t.predicate, fix(t.object)) for t in items]
 
 
 def _no_backend(backend: Any) -> None:
@@ -387,6 +429,11 @@ class _Base:
         fmt = formats.to_format(format, default=guessed or ox.RdfFormat.TURTLE)
         direct = isinstance(self._add_graph(), ox.DefaultGraph)  # quads can go to the store untouched (the fast path)
         extra = {"without_named_graphs": True} if (direct and not isinstance(self, StarLayerDataset)) else {}
+        if base is None and publicID is None:  # the retrieval location is the base IRI (RFC 3986 5.1.3)
+            if "path" in kw:
+                base = Path(kw["path"]).resolve().as_uri()
+            elif hint and str(hint).lower().startswith(("http://", "https://")):
+                base = str(hint)
         parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra,
                           **ntversion.accept_version_directive(kw, fmt))
         try:
@@ -443,7 +490,15 @@ class _Base:
         if rdf_version not in (None, "1.1", "rdf-1.1", "1.2", "rdf-1.2"):
             raise ValueError(f"unknown rdf_version {rdf_version!r}")
         pfx = {**self.prefixes, **{str(k): str(v) for k, v in (prefixes or {}).items()}}
+        if not pretty:  # the pretty writer renames such a prefix; Oxigraph's would write Turtle that does not parse
+            from starlayer.graph.oxgraph.pretty import _PN_PREFIX
+
+            for name in pfx:
+                if not _PN_PREFIX.fullmatch(name):
+                    raise ValueError(f"{name!r} is not a valid prefix name")
         items = self._serial_items(fmt)
+        if fmt == ox.RdfFormat.RDF_XML:
+            items = _xml_safe_blank_nodes(items)
         if pretty:  # pretty Turtle / TriG (RDF 1.2): oxgraph/pretty.py
             from starlayer.graph.oxgraph.pretty import serialize_pretty
 
@@ -471,14 +526,24 @@ class _Base:
             )
             if marked:
                 raw = line + raw
-        return self._write(raw, destination, encoding)
+        return self._write(raw, destination, encoding, fmt)
 
     @staticmethod
-    def _write(raw: bytes, destination: Any, encoding: str) -> str | None:
+    def _write(raw: bytes, destination: Any, encoding: str, fmt: ox.RdfFormat | None = None) -> str | None:
         if destination is None:
             return raw.decode("utf-8")
         # ``raw`` is UTF-8. A path or a binary stream gets the bytes in ``encoding``; a text stream encodes for itself.
-        data = raw if encoding.lower().replace("_", "-") in ("utf-8", "utf8") else raw.decode("utf-8").encode(encoding)
+        if encoding.lower().replace("_", "-") in ("utf-8", "utf8"):
+            data = raw
+        elif fmt == ox.RdfFormat.RDF_XML:  # the XML declaration must name the encoding the bytes are in
+            import codecs
+
+            name = codecs.lookup(encoding).name
+            name = "ISO-8859-" + name[len("iso8859-"):] if name.startswith("iso8859-") else name
+            text = raw.decode("utf-8").replace('encoding="UTF-8"', f'encoding="{name}"', 1)
+            data = text.encode(encoding, errors="xmlcharrefreplace")
+        else:
+            data = raw.decode("utf-8").encode(encoding)
         if isinstance(destination, (str, os.PathLike)):
             with open(destination, "wb") as fh:
                 fh.write(data)
