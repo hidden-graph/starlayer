@@ -48,6 +48,20 @@ def _test_marker_names() -> set[str]:
     return names
 
 
+def test_ci_does_not_select_a_marker_no_test_carries() -> None:
+    """`pytest -m integration` with no integration test exits 5 (nothing collected) and fails the CI job."""
+    # the area markers conftest.py applies from the directory name
+    applied = {"graph", "shacl", "shacl_engine", "sparql", "starontology", "codekg", "kg"}
+    available = _test_marker_names() | applied
+    for wf in WORKFLOWS.glob("*.yml"):
+        for expr in re.findall(r'pytest [^\n]*? -m "([^"]+)"', wf.read_text()):
+            if expr.startswith("not "):
+                continue
+            for word in re.findall(r"\w+", expr):
+                if word not in ("and", "or", "not"):
+                    assert word in available, f"{wf.name}: pytest -m {expr!r} selects {word!r}, which no test carries"
+
+
 def test_to_rdflib_dataset_works_without_dataset_default_graph(monkeypatch) -> None:
     """rdflib 7.0 to 7.2 (allowed by the rdflib extra) have no Dataset.default_graph (new in 7.3)."""
     import warnings
