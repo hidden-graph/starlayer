@@ -3,36 +3,17 @@
 
 from __future__ import annotations
 
-
 import warnings
 
-
 import pyoxigraph as ox
-
-
 import pytest
-
-
 from starlayer.graph.oxgraph import StarLayerGraph
-
-
 from starlayer.shacl_engine import validate
-
-
 from starlayer.shacl_engine.executor import Context
-
-
 from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
-
-
 from starlayer.shacl_engine.plan import Plan, ShapeError
-
-
 from starlayer.shacl_engine.subgraph import extract_subgraph
-
-
 from starlayer.shacl_engine.terms import NS
-
 
 warnings.simplefilter("ignore")
 
