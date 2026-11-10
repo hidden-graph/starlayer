@@ -8,8 +8,8 @@ __all__ = ["check_query"]
 def check_query(text: str, prepare: bool = False) -> str | None:
     """``None`` when ``text`` is a SPARQL 1.2 query (or update) by StarLayer's grammar; else the parser's first line about what is wrong.
 
-    ``prepare``: also prepare it as a query, which finds a prefix nothing declares (the grammar accepts it); for a query whose text
-    carries all its ``PREFIX`` lines."""
+    ``prepare``: also prepare a query with Oxigraph, for a query whose text carries all its ``PREFIX`` lines; an update is
+    only parsed."""
     from starlayer.graph.oxgraph import StarLayerGraph
     from starlayer.sparql.parse_sparql import (
         SparqlSyntaxError,
@@ -18,6 +18,7 @@ def check_query(text: str, prepare: bool = False) -> str | None:
     )
 
     try:
+        is_query = True
         try:
             parse_sparql(text)
         except SparqlSyntaxError as query_error:
@@ -25,7 +26,8 @@ def check_query(text: str, prepare: bool = False) -> str | None:
                 parse_sparql_update(text)  # not a query: an update is fine too
             except SparqlSyntaxError:
                 raise query_error from None
-        if prepare:
+            is_query = False
+        if prepare and is_query:
             StarLayerGraph().query(text)  # an empty graph: preparing the query is cheap, and finds a prefix nothing declares
     except Exception as error:  # noqa: BLE001  (the parser reports its own kinds of exception)
         return " ".join(str(error).split())[:160]
