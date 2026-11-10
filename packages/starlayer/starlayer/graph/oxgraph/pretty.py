@@ -86,6 +86,7 @@ _BNODE_LABEL = re.compile(rf"[{_PN_CHARS_U}0-9](?:[{_PN_CHARS}.]*[{_PN_CHARS}])?
 
 # characters a string must not carry raw: C0 controls (but TAB, LF, CR have their own handling), DEL, NEL, LS, PS
 _CONTROL = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f\x85\u2028\u2029]")
+_ABSOLUTE_IRI = re.compile(r"[A-Za-z][A-Za-z0-9+.\-]*:")
 _IRI_BAD = re.compile("[\x00-\x20<>\"{}|^`\\\\\x7f]")
 # A relative reference is written only if it re-resolves to the IRI. Not one whose first segment holds a colon (RFC 3986 section
 # 4.2: ``a_b:c`` or ``:a`` would be read as having a scheme or as absolute; any colon before the first ``/ ? #`` counts, not only
@@ -104,6 +105,11 @@ class _Names:
 
     def __init__(self, prefixes: Mapping[str, Any] | None, base: str | None, auto: bool = True) -> None:
         given = {str(k): str(getattr(v, "value", v)) for k, v in (prefixes or {}).items()}
+        for p, ns in given.items():  # the plain writer (Oxigraph) refuses these; the output would not parse
+            if not _ABSOLUTE_IRI.match(ns) or _IRI_BAD.search(ns):
+                raise ValueError(f"{ns!r} (prefix {p!r}) is not an absolute IRI, so it cannot be a namespace")
+        if base and (not _ABSOLUTE_IRI.match(base) or _IRI_BAD.search(base)):
+            raise ValueError(f"{base!r} is not a valid absolute base IRI")
         bound: list[tuple[str, str]] = []
         invalid = []
         for p, ns in sorted(given.items()):
