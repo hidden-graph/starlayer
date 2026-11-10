@@ -268,8 +268,11 @@ class _Writer:
         structures or chains longer than the cap could still tie, and then the order falls back to the input order)."""
         out: dict[Any, list[tuple[Any, Any]]] = defaultdict(list)
         inc: dict[Any, list[tuple[str, Any, Any]]] = defaultdict(list)
+        gcontent: dict[Any, list[tuple[Any, Any, Any]]] = defaultdict(list)  # a blank graph name: what its graph holds
         nodes: set = set()
         for g, s, p, o in self.quads:
+            if isinstance(g, _BN):
+                gcontent[g].append((s, p, o))
             if isinstance(s, _BN):
                 out[s].append((p, o))
                 nodes.add(s)
@@ -301,6 +304,7 @@ class _Writer:
             for b in nodes:
                 parts = [f"o {rep(p, b)} {rep(o, b)}" for p, o in out.get(b, ())]
                 parts += [f"{k} {rep(p, b)} {rep(s, b)}" for k, p, s in inc.get(b, ())]
+                parts += [f"c {rep(s, b)} {rep(p, b)} {rep(o, b)}" for s, p, o in gcontent.get(b, ())]
                 parts.sort()
                 new[b] = hashlib.sha1((color[b] + "\n" + "\n".join(parts)).encode("utf-8", "surrogatepass")).hexdigest()[:16]
             n_classes = len(set(new.values()))
