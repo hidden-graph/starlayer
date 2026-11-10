@@ -112,3 +112,10 @@ def test_contributing_ci_python_versions_match_test_yml() -> None:
     versions = re.findall(r"\d+\.\d+", re.search(r"python-version:\s*\[([^\]]*)\]", (WORKFLOWS / "test.yml").read_text()).group(1))
     doc = (ROOT / "CONTRIBUTING.md").read_text()
     assert "3.10 to 3.13" not in doc or versions == ["3.10", "3.11", "3.12", "3.13"]
+
+
+def test_env_switches_in_the_docs_are_read_somewhere() -> None:
+    sources = "".join(f.read_text(errors="ignore") for p in ("tests", "starlayer") for f in (PACKAGE / p).rglob("*.py")) + (ROOT / "pyproject.toml").read_text()
+    for doc in ("AGENTS.md", "CONTRIBUTING.md"):
+        for name in set(re.findall(r"\bSTARLAYER_[A-Z_]+\b", (ROOT / doc).read_text())):
+            assert name in sources, f"{doc} documents {name}, which nothing reads"

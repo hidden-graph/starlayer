@@ -273,7 +273,7 @@ Files that touch rdflib internals (`rdflib.plugins`, `rdflib.store`, `rdflib.que
 | E: engine-specific | 9 | 182 | `test_oxigraph_backend.py` (70), `test_fuseki_backend.py` (39), `test_oxigraph_store_rdf12.py` (31), `test_dirlang_equality.py`, `test_remote_decompose.py` |
 | Other | 4 | 75 | includes `test_sqlalchemy_backend.py` |
 
-Opt-in or environment-gated: engine-abort tests (`STARLAYER_RUN_ENGINE_ABORT_TESTS=1`), store-matrix (`--store-matrix`), Fuseki integration (local server). `graph/CLAUDE.md` says the parser fixes were found with rdflib as the oracle (parsers compared against rdflib's own parsers on the same input).
+Opt-in or environment-gated: store-matrix (`--store-matrix`), Fuseki integration (local server). `graph/CLAUDE.md` says the parser fixes were found with rdflib as the oracle (parsers compared against rdflib's own parsers on the same input).
 
 ---
 
