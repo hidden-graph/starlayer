@@ -449,13 +449,37 @@ class _Writer:
         return hit
 
     # ---- terms ---------------------------------------------------------------------------------------------------------
+    def _blank_nodes(self) -> set:
+        if getattr(self, "_bn_cache", None) is None:
+            found: set = set()
+            for g, s, p, o in self.quads:
+                for t in (g, s, p, o):
+                    if isinstance(t, _BN):
+                        found.add(t)
+                    elif isinstance(t, _TRIPLE):
+                        found.update(x for x in _walk_tt(t) if isinstance(x, _BN))
+            self._bn_cache = found
+        return self._bn_cache
+
+    def _kept_labels(self) -> set:
+        if getattr(self, "_kept_cache", None) is None:
+            self._kept_cache = {"_:" + x.value for x in self._blank_nodes() if _BNODE_LABEL.fullmatch(x.value)}
+        return self._kept_cache
+
     def label(self, b: Any) -> str:
         lab = self.labels.get(b)
         if lab is None:
             if self.keep_labels and _BNODE_LABEL.fullmatch(b.value):
                 lab = "_:" + b.value
             else:
-                lab = f"_:b{len(self.labels)}"
+                n = len(self.labels)
+                if self.keep_labels:  # a generated label must not be the kept label of another blank node
+                    kept = self._kept_labels()
+                    n = max(n, self._gen)
+                    while f"_:b{n}" in kept:
+                        n += 1
+                    self._gen = n + 1
+                lab = f"_:b{n}"
             self.labels[b] = lab
         return lab
 
@@ -651,6 +675,7 @@ class _Writer:
             self._plan()
             self.names.reset()
             self.labels: dict[Any, str] = {}
+            self._gen = 0
             self.printed: set = set()
             body: list[str] = []
             for g in graphs:
