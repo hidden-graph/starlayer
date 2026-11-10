@@ -480,22 +480,44 @@ def _expression_text(expr) -> str:
     return text
 
 
-def _bound(expr, mu: dict) -> tuple[str, dict]:
-    """``(projection, substitutions)`` for ``expr`` under ``mu``: the engine pre-binds a variable only if the query projects it,
-    and rejects one the query does not mention, so only the variables ``expr`` uses that ``mu`` binds go in."""
+def _has_blank(term) -> bool:
+    """A blank node cannot be written in ``VALUES`` (in SPARQL a blank node in a query is a variable, not a stored node)."""
+    if isinstance(term, ox.BlankNode):
+        return True
+    return isinstance(term, ox.Triple) and any(_has_blank(x) for x in (term.subject, term.predicate, term.object))
+
+
+def _bound(expr, mu: dict) -> tuple[str, str, dict]:
+    """``(projection, values, substitutions)`` for ``expr`` under ``mu``. The variables ``expr`` uses that ``mu`` binds go in a
+    ``VALUES`` row, so they join like any bound variable: pyoxigraph's ``substitutions=`` turns ``=``, ``!=`` and ``IN`` into
+    term identity and loses a variable passed through unchanged. A blank node cannot be written there, so a variable bound to
+    one is substituted instead (the engine pre-binds a variable only if the query projects it)."""
+    from starlayer.graph.oxgraph.run import _sparql_term
+
     used = _RENDERED.get()[id(expr)][2]
     names = sorted(var.value for var in used if var in mu)
-    return "".join(f"?{name} " for name in names), {ox.Variable(name): mu[ox.Variable(name)] for name in names}
+    written = [n for n in names if not _has_blank(mu[ox.Variable(n)])]
+    substituted = [n for n in names if n not in written]
+    values = ""
+    if written:
+        row = " ".join(_sparql_term(mu[ox.Variable(n)]) for n in written)
+        values = f"VALUES ({' '.join('?' + n for n in written)}) {{ ({row}) }} "
+    return (
+        "".join(f"?{name} " for name in substituted),
+        values,
+        {ox.Variable(name): mu[ox.Variable(name)] for name in substituted},
+    )
 
 
 def _eval_ebv(expr, mu: dict) -> bool:
     """The effective boolean value of ``expr`` under ``mu``; an error (an unbound variable, a type error) is false, as for a
     SPARQL ``FILTER``."""
     text = _expression_text(expr)
-    projection, substitutions = _bound(expr, mu)
-    if not projection:
+    projection, values, substitutions = _bound(expr, mu)
+    if not projection and not values:
         return bool(_EVAL_STORE.query(f"ASK {{ FILTER({text}) }}"))
-    return any(True for _ in _EVAL_STORE.query(f"SELECT {projection}WHERE {{ FILTER({text}) }}", substitutions=substitutions))
+    query = f"SELECT {projection or '*'} WHERE {{ {values}FILTER({text}) }}"
+    return any(True for _ in _EVAL_STORE.query(query, substitutions=substitutions or None))
 
 
 def _eval_expr(expr, mu: dict):
@@ -508,11 +530,18 @@ def _eval_expr(expr, mu: dict):
     Returns:
         The evaluated value (a pyoxigraph term), or ``None`` if evaluation errored.
     """
+    if isinstance(expr, ox.Variable):  # a bound blank node is substituted, and the engine loses a variable passed through
+        return mu.get(expr)
     text = _expression_text(expr)
-    projection, substitutions = _bound(expr, mu)
-    query = f"SELECT {projection}?__srl_value WHERE {{ BIND({text} AS ?__srl_value) }}"
-    for solution in _EVAL_STORE.query(query, substitutions=substitutions):
-        return solution["__srl_value"]
+    projection, values, substitutions = _bound(expr, mu)
+    query = f"SELECT {projection}?__srl_value WHERE {{ {values}BIND({text} AS ?__srl_value) }}"
+    for solution in _EVAL_STORE.query(query, substitutions=substitutions or None):
+        value = solution["__srl_value"]
+        if isinstance(value, ox.BlankNode) and value not in mu.values():
+            # BNODE(str) names its node by the label, and each evaluation here is its own query, so every solution would get
+            # the same node (or one of the data's); the SRL draft wants a different blank node on each call
+            return ox.BlankNode()
+        return value
     return None
 
 
