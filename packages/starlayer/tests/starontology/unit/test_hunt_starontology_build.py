@@ -66,3 +66,14 @@ def test_ui_baseline_treats_dirlangstring_like_langstring():
                            scoring_graph=so.get_ontology_graph("shacl_ui_baseline"), role=role)
         out = {next(sg.objects(k, sh_path)).value[-1]: str(v).rstrip(">").rsplit("#", 1)[-1] for k, v in r.items()}
         assert out == {"a": expected, "b": expected}
+
+
+def test_manchester_second_document_into_one_graph_is_rejected():
+    from starlayer.starontology import manchester as M
+
+    pre = "Prefix: : <http://ex/>\n"
+    g = M.manchester_parse_to_tree(pre + "Class: :A\n")
+    with pytest.raises(ValueError, match="manch:Document"):
+        M.manchester_parse_to_tree(pre + "Class: :B\n", graph=g)
+    text = M.manchester_tree_to_text(g)
+    assert "ex/A" in text and "ex/B" not in text

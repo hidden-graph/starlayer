@@ -571,9 +571,26 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
 
         graph = StarLayerGraph()
     tree = _manchester_parse_to_tree_graph(text, base)
+    if _holds_document(graph):
+        raise ValueError("the graph already holds a manch:Document: a graph holds one Manchester syntax tree, parse into a fresh graph")
     graph.bind("manch", str(MANCH))
     _ox.merge_into(graph, tree)
     return graph
+
+
+def _holds_document(graph: Any) -> bool:
+    """True if ``graph`` (an rdflib graph, ``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``) has a ``manch:Document``."""
+    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph.core import as_store
+
+    if _ox.is_oxigraph_dataset(graph):
+        return any(True for _ in as_store(graph).quads_for_pattern(
+            None, RDF.type, MANCH.Document, None))
+    if _ox.is_oxigraph_input(graph):
+        return next(iter(graph.subjects(RDF.type, MANCH.Document)), None) is not None
+    import rdflib
+
+    return (None, rdflib.RDF.type, rdflib.URIRef(MANCH.Document.value)) in graph
 
 
 def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
