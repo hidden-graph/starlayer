@@ -7,7 +7,9 @@ Per RDF 1.2 Concepts sec 2.1 ("Version Labels") and SPARQL 1.2 Query sec 4.3,
 three version labels are defined:
 
     "1.2"        full RDF 1.2 conformance - triple terms and dirLangString allowed
-    "1.2-basic"  RDF 1.2 syntax, but excludes triple terms and dirLangString
+    "1.2-basic"  RDF 1.2 syntax, but excludes triple terms (SPARQL 1.2 Query 4.3.1: "without triple terms and without
+                 triple patterns that have a triple pattern in their subject or object position"); directional
+                 language-tagged literals are allowed
     "1.1"        legacy RDF 1.1 compatibility mode (discouraged in a VERSION
                  directive, since it would needlessly break RDF 1.1 parsers)
 
@@ -72,9 +74,10 @@ def check_version_conformance(declared_version, *, uses_triple_term: bool,
         return
 
     if declared_version in ('1.2-basic', '1.1'):
+        # "1.2-basic" excludes only triple terms; "1.1" also excludes directional language-tagged literals
         used = [name for name, present in (
             ('a triple term', uses_triple_term),
-            ('a directional language-tagged literal (dirLangString)', uses_dirlangstring),
+            ('a directional language-tagged literal (dirLangString)', uses_dirlangstring and declared_version == '1.1'),
         ) if present]
         if used:
             citation = 'SPARQL 1.2 Query sec 4.3'

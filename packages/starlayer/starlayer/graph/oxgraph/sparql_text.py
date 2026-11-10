@@ -74,6 +74,10 @@ def strip_version_directive(query: str) -> tuple[str, str | None]:
     return ' '.join(out_parts), label
 
 
+# a directional language tag: ``@en--ltr`` (a bare ``--`` is also valid arithmetic, ``5--3``)
+_DIRLANG_TAG = re.compile(r'@[A-Za-z]+(?:-[A-Za-z0-9]+)*--(?:ltr|rtl)(?![A-Za-z0-9])')
+
+
 def check_native_version_conformance(text: str) -> None:
     """Warn (``SPARQL12ConformanceWarning``) when a ``VERSION`` directive in raw SPARQL text does not match what the text uses.
 
@@ -103,7 +107,7 @@ def check_native_version_conformance(text: str) -> None:
         uses_triple_term=bool(
             "<<(" in text or re.search(r'<<[^(]|\{\|', text) or '~' in text
         ),
-        uses_dirlangstring='--' in text,
+        uses_dirlangstring=bool(_DIRLANG_TAG.search(text)),
         context='SPARQL query',
         warning_class=SPARQL12ConformanceWarning,
     )
