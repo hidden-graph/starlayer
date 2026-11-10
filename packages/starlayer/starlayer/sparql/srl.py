@@ -461,9 +461,16 @@ def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
     from .sqe._memtree import as_engine_graph
 
     graph, root = as_engine_graph(graph, root)
-    rules = [_decode_rule(n, graph) for n in _read_list(graph.value(root, _RULES), graph)]
-    data = [_decode_data(n, graph) for n in _read_list(graph.value(root, _DATA), graph)]
-    imports = _read_list(graph.value(root, _IMPORTS), graph)
+    try:
+        rules = [_decode_rule(n, graph) for n in _read_list(graph.value(root, _RULES), graph)]
+        data = [_decode_data(n, graph) for n in _read_list(graph.value(root, _DATA), graph)]
+        imports = _read_list(graph.value(root, _IMPORTS), graph)
+    except SRLError:
+        raise
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        # a damaged tree (a list cell without rdf:rest, a missing part, a triple term that is not one) is the one error
+        # a caller reading hand-edited trees catches
+        raise SRLDecodeError(f"srl: the tree cannot be read as a rule set: {exc}") from exc
     return srl_ast.RuleSet(rules=rules, data=data, imports=imports)
 
 

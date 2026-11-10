@@ -222,3 +222,19 @@ def test_dirlang_literals_work_on_plain_rdflib_graphs():
     data = srl.parse_ruleset(PRE + "DATA { :a :p \"x\"@en--ltr }")
     tree, _root = srl.ruleset_to_tree(data, rdflib.Graph())
     assert len(tree) > 0
+
+
+# ---- decoding a damaged tree -----------------------------------------------------
+
+
+def test_every_single_triple_deletion_decodes_or_raises_srl_decode_error():
+    rs = srl.parse_ruleset(PRE + "RULE { :a :p <<( :a :b ?y )>> } WHERE { :a :q ?y FILTER(?y > 1) NOT { :a :z ?y } }")
+    g, root = srl.ruleset_to_tree(rs)
+    triples = list(g)
+    for dropped in triples:
+        g2 = StarLayerGraph()
+        g2.extend([t for t in triples if t != dropped])
+        try:
+            srl.tree_to_ruleset(g2, root)
+        except srl.SRLError:
+            pass
