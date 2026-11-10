@@ -80,7 +80,7 @@ def _widen_projection(text: str, names: list[str]) -> str | None:
 
 def _has_from(text: str) -> bool:
     """True when the query has a dataset clause (``FROM`` / ``FROM NAMED``) of its own."""
-    return re.search(r"(?i)(?<![\w:])FROM\b(?!:)", _mask(text)) is not None
+    return re.search(r"(?i)(?<![\w:?$])FROM\b(?!:)", _mask(text)) is not None
 
 
 def merge_prefixes(*maps: Mapping[str, str] | None) -> dict[str, str] | None:

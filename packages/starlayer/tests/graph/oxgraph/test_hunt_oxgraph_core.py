@@ -253,3 +253,12 @@ def test_resolve_imports_delta_fills_target_graph():
     res = main.resolve_imports(loader=lambda iri: other, mode="delta", target_graph=target)
     assert res is target
     assert (N("http://x/other"), N("http://x/p"), N("http://x/o")) in target
+
+
+def test_a_variable_named_from_does_not_switch_the_union_off():
+    from starlayer.graph.oxgraph import StarLayerDataset
+
+    ds = StarLayerDataset()
+    ds.update("INSERT DATA { GRAPH <urn:g> { <urn:b> <urn:from> <urn:x> } <urn:c> <urn:from> <urn:y> }")
+    rows = {str(r["s"].value) for r in ds.query("SELECT ?s ?from WHERE { ?s <urn:from> ?from }")}
+    assert rows == {"urn:b", "urn:c"}
