@@ -135,7 +135,7 @@ def _analyse(text: str) -> tuple[str, tuple[str, ...], tuple]:
     return ast.kind, projected, tuple(found)
 
 
-def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False) -> tuple[str, ...]:
+def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False, construct: bool = False) -> tuple[str, ...]:
     """Parse ``text`` with StarLayer's own SPARQL parser and reject what the spec forbids; return the projected variable names.
 
     Rejected: unparseable text; a SELECT where an ASK is required and vice versa; MINUS; SERVICE; a VALUES block that
@@ -143,17 +143,21 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
     is a DELIBERATE DEVIATION from the vendored W3C fixture ``unsupported-sparql-002`` and from pySHACL, both of which
     follow the older rule that forbids every VALUES); ``AS`` (BIND, or a SELECT expression) of a pre-bound variable.
 
+    ``construct=True`` is for an ``sh:construct`` text (a rule): a CONSTRUCT query instead of a SELECT.
+
     The checks read the parser's AST; no rdflib parse is involved (running the query is a separate step)."""
     prebound = frozenset(prebound)
-    key = ("checked", text, prebound, ask)
+    key = ("checked", text, prebound, ask, construct)
     if key in plan.sparql_cache:
         return plan.sparql_cache[key]
     try:
         form, projected, constructs = _analyse(text)
     except Exception as exc:  # noqa: BLE001  (any parser failure means the shapes graph is ill-formed)
         raise ShapeError(f"SPARQL query does not parse: {exc}") from exc
-    want = "AskQuery" if ask else "SelectQuery"
+    want = "ConstructQuery" if construct else "AskQuery" if ask else "SelectQuery"
     if form != want:
+        if construct:
+            raise ShapeError("sh:construct must be a CONSTRUCT query")
         raise ShapeError(f"expected a {want}, got {form}")  # str-ok: want is the query form name
     for construct in constructs:
         if construct[0] == "minus":

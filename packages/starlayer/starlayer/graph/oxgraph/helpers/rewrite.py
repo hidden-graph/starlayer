@@ -126,7 +126,12 @@ def cbd(g: Any, resource: Any, *, target_graph: Any = None, include_reifications
     collected: set[tuple[Any, Any, Any]] = set()
     described: set[Any] = set()  # subjects whose statements are already in `collected` (rdflib's `(o, None, None) not in subgraph`)
 
-    def add_to_cbd(uri: Any) -> None:
+    # An RDF list is a chain of blank nodes, so the walk is an explicit stack, not recursion.
+    stack: list[Any] = [terms.term(resource)]
+    while stack:
+        uri = stack.pop()
+        if uri in described:
+            continue
         reif_index: dict[tuple, set] = {}
         if include_reifications:
             for stmt in g.subjects(_SUBJECT, uri):
@@ -137,11 +142,10 @@ def cbd(g: Any, resource: Any, *, target_graph: Any = None, include_reifications
         for s, p, o in g.triples((uri, None, None)):
             collected.add((s, p, o))
             if isinstance(o, ox.BlankNode) and o not in described:
-                add_to_cbd(o)
+                stack.append(o)
             for stmt in sorted(reif_index.get((s, p, o), ()), key=str):
                 if stmt not in described:
-                    add_to_cbd(stmt)
+                    stack.append(stmt)
 
-    add_to_cbd(terms.term(resource))
     target_graph.extend(collected)
     return target_graph

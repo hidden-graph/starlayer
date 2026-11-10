@@ -200,7 +200,11 @@ def _mask(text: str) -> str:
         elif depth > 0 and c != "\n":
             out[i] = " "
         i += 1
-    return "".join(out)
+    # a prefixed name outside a group (``PREFIX using: <..>``, ``WITH ex:where``) is not a keyword: blank its letters, keep the colon
+    return _PNAME.sub(lambda m: re.sub(r"[^:]", "_", m.group()), "".join(out))
+
+
+_PNAME = re.compile(r"(?<![\w:.-])[\w.-]*:[\w.:%-]*")
 
 
 def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe: bool = False) -> tuple[str, bool]:

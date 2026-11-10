@@ -16,19 +16,20 @@ about 70 ms on the code-KG data). SPARQL Update reads a copy of the union kept i
 
 from __future__ import annotations
 
-import itertools
+import threading
 
 import pyoxigraph as ox
 
 #: counts the writes made through the wrapper (any store); a copy built before the latest one is stale
-_writes = itertools.count(1)
 _current = 0
+_lock = threading.Lock()  # guards the counter: an unlocked read-increment-write from two threads can move it backwards
 
 
 def touch() -> None:
     """Record a write made through the wrapper: copies built before it are stale."""
     global _current
-    _current = next(_writes)
+    with _lock:
+        _current += 1
 
 
 def current() -> int:
@@ -81,18 +82,22 @@ class Overlap:
         self._stamp: int | None = None
         self._overlapping = False
         self._copy: ox.Store | None = None
+        self._lock = threading.RLock()  # one scan and one copy at a time; a thread never records a stamp older than its data
 
     def overlapping(self, store: ox.Store) -> bool:
-        if self._stamp != _current:
-            self._overlapping = has_overlap(store)
-            self._copy = None
-            self._stamp = _current
-        return self._overlapping
+        with self._lock:
+            stamp = current()  # taken before the scan: a write that lands during it leaves the stamp behind, so the next call rescans
+            if self._stamp != stamp:
+                self._overlapping = has_overlap(store)
+                self._copy = None
+                self._stamp = stamp
+            return self._overlapping
 
     def store(self, store: ox.Store) -> ox.Store:
         """The store to run a union-default-graph query on: ``store`` itself, or its merged copy when a triple is in two graphs."""
-        if not self.overlapping(store):
-            return store
-        if self._copy is None:
-            self._copy = merged_copy(store)
-        return self._copy
+        with self._lock:
+            if not self.overlapping(store):
+                return store
+            if self._copy is None:
+                self._copy = merged_copy(store)
+            return self._copy

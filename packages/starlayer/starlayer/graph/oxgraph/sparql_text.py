@@ -135,6 +135,7 @@ def inject_init_bindings(sparql: str, init_bindings: dict[str, str]) -> str:
             sparql[pos:pos + len(word)].upper() == word
             and not (pos > 0 and (sparql[pos - 1].isalnum() or sparql[pos - 1] in '_?$:'))
             and not sparql[pos + len(word):pos + len(word) + 1].isalnum()
+            and sparql[pos + len(word):pos + len(word) + 1] not in '_:-.'  # a prefix name such as ``construct:``
         )
 
     while i < n:
@@ -164,7 +165,9 @@ def inject_init_bindings(sparql: str, init_bindings: dict[str, str]) -> str:
             if depth == 0 and not template_pending:
                 return sparql[:i + 1] + values + sparql[i + 1:]
             depth += 1
-        elif c == '}':
+        elif c == '(':
+            depth += 1  # a group inside parentheses, such as (EXISTS { ... } AS ?e) in the SELECT list, is not the WHERE group
+        elif c in '})':
             depth -= 1
             if depth == 0:
                 template_pending = False

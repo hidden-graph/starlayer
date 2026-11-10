@@ -38,6 +38,7 @@ from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.interface import Solutions, Term
 from starlayer.shacl_engine.plan import SH, Plan, ShapeError
 from starlayer.shacl_engine.sparql_support import (
+    check_query,
     is_true,
     with_prefixes,
 )
@@ -479,7 +480,10 @@ class _Run:
             raise RuleError(f"{rule.node!r}: exactly one string sh:construct is required")
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
         text = _fix_now(with_prefixes(self.plan, prefix_holder, constructs[0].value), self.now)
+        # the same forbidden constructs as for sh:select and sh:ask (SHACL 1.2 SPARQL Extensions, "Pre-binding of Variables"):
+        # MINUS, SERVICE (which would send a request from the shapes graph), VALUES / assignment of a pre-bound variable
         try:
+            check_query(self.plan, text, bindings, construct=True)
             return self.view.construct(text, bindings)
         except RuleError:
             raise
