@@ -65,3 +65,19 @@ def test_sparql_rule_construct_rejects_service_and_minus(clause):
         assert not hits
     finally:
         srv.shutdown()
+
+
+def test_global_sparql_rule_may_use_minus_but_not_service():
+    """A global rule has no pre-binding, so the draft lifts the MINUS limit for it; SERVICE stays rejected."""
+    data = _graph("<urn:ex:a> <urn:ex:p> 1 . <urn:ex:b> <urn:ex:p> 2 . <urn:ex:b> <urn:ex:q> 2 .")
+
+    def rule(body):
+        return _graph(PRE + f'ex:G a sh:SPARQLRule ; sh:construct """CONSTRUCT {{ ?x <urn:ex:r> 1 }} WHERE {{ ?x <urn:ex:p> ?v . {body} }}""" .')
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        out = apply_rules(data, rule("MINUS { ?x <urn:ex:q> ?v }"))
+        assert len(out.inferred_graph) == 1  # only ex:a: ex:b is removed by the MINUS
+        with pytest.raises(Exception) as ei:
+            apply_rules(data, rule("SERVICE <http://127.0.0.1:9/sparql> { ?x ?y ?z }"))
+    assert type(ei.value).__name__ in ("ShapeError", "RuleError")

@@ -481,9 +481,10 @@ class _Run:
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
         text = _fix_now(with_prefixes(self.plan, prefix_holder, constructs[0].value), self.now)
         # the same forbidden constructs as for sh:select and sh:ask (SHACL 1.2 SPARQL Extensions, "Pre-binding of Variables"):
-        # MINUS, SERVICE (which would send a request from the shapes graph), VALUES / assignment of a pre-bound variable
+        # MINUS, SERVICE (which would send a request from the shapes graph), VALUES / assignment of a pre-bound variable;
+        # a global rule has no pre-binding, so only SERVICE applies to it
         try:
-            check_query(self.plan, text, bindings, construct=True)
+            check_query(self.plan, text, bindings, construct=True, pre_binding=focus is not None)
             return self.view.construct(text, bindings)
         except RuleError:
             raise

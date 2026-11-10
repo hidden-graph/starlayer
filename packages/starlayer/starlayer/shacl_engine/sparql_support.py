@@ -135,7 +135,7 @@ def _analyse(text: str) -> tuple[str, tuple[str, ...], tuple]:
     return ast.kind, projected, tuple(found)
 
 
-def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False, construct: bool = False) -> tuple[str, ...]:
+def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False, construct: bool = False, pre_binding: bool = True) -> tuple[str, ...]:
     """Parse ``text`` with StarLayer's own SPARQL parser and reject what the spec forbids; return the projected variable names.
 
     Rejected: unparseable text; a SELECT where an ASK is required and vice versa; MINUS; SERVICE; a VALUES block that
@@ -143,11 +143,13 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
     is a DELIBERATE DEVIATION from the vendored W3C fixture ``unsupported-sparql-002`` and from pySHACL, both of which
     follow the older rule that forbids every VALUES); ``AS`` (BIND, or a SELECT expression) of a pre-bound variable.
 
-    ``construct=True`` is for an ``sh:construct`` text (a rule): a CONSTRUCT query instead of a SELECT.
+    ``construct=True`` is for an ``sh:construct`` text (a rule): a CONSTRUCT query instead of a SELECT. ``pre_binding=False``
+    is for a global rule, which has no pre-binding: the draft lifts the pre-binding limits for it (MINUS, VALUES, assignment),
+    but SERVICE stays rejected because it would send a request from the shapes graph.
 
     The checks read the parser's AST; no rdflib parse is involved (running the query is a separate step)."""
     prebound = frozenset(prebound)
-    key = ("checked", text, prebound, ask, construct)
+    key = ("checked", text, prebound, ask, construct, pre_binding)
     if key in plan.sparql_cache:
         return plan.sparql_cache[key]
     try:
@@ -159,19 +161,21 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
         if construct:
             raise ShapeError("sh:construct must be a CONSTRUCT query")
         raise ShapeError(f"expected a {want}, got {form}")  # str-ok: want is the query form name
-    for construct in constructs:
-        if construct[0] == "minus":
-            raise ShapeError("MINUS is not allowed in a SHACL SPARQL query")
-        if construct[0] == "service":
+    for item in constructs:
+        if item[0] == "service":
             raise ShapeError("SERVICE is not allowed in a SHACL SPARQL query")
-        if construct[0] == "values":
+        if not pre_binding:
+            continue
+        if item[0] == "minus":
+            raise ShapeError("MINUS is not allowed in a SHACL SPARQL query")
+        if item[0] == "values":
             # SHACL 1.2 SPARQL Appendix A: "SPARQL queries MUST not contain a VALUES clause that mentions any potentially
             # pre-bound variable". A VALUES that mentions only other variables is allowed.
-            clash = sorted(construct[1] & prebound)
+            clash = sorted(item[1] & prebound)
             if clash:
                 raise ShapeError(f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query")  # str-ok: a variable name
-        if construct[0] == "assign" and construct[1] in prebound:
-            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{construct[1]}")  # str-ok: a variable name
+        if item[0] == "assign" and item[1] in prebound:
+            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{item[1]}")  # str-ok: a variable name
     plan.sparql_cache[key] = projected
     return projected
 
