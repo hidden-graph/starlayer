@@ -81,50 +81,76 @@ class _DependencyEdge:
     label: str  # "open" | "closed"
 
 
-def _terms_compatible(pattern_term, template_term) -> bool:
-    """Could ``template_term`` (from a rule head's triple template) and
-    ``pattern_term`` (from a rule body's triple pattern) refer to the same
-    RDF term? A variable on either side is compatible with anything;
-    otherwise the two ground terms must be equal.
+class _Unifier:
+    """Unifies a body pattern with a head template (§4.3: the template can
+    generate a triple matching the pattern, a variable repeated in either one
+    replaced by the same term everywhere). Variables and blank nodes of the
+    pattern, and variables of the template, are unification variables, kept
+    apart by side; a blank node of a template is a fresh term that equals
+    nothing else."""
 
-    Deliberately conservative (a documented, safe simplification, not a
-    bug): this checks each subject/predicate/object *position*
-    independently, without also requiring that a variable repeated across
-    two positions of the *same* pattern/template be replaced by the same
-    term on both sides. That refinement would only ever narrow whether a
-    match is reported - never widen it - so omitting it can produce a
-    dependency edge the spec's own stricter reading wouldn't, but never
-    misses a real one. The spec's own §4.3.2 is explicit that "conformance
-    depends on producing a dependency graph that meets the definitions...
-    not on the use of this procedure" - an extra, spurious edge only costs
-    a coarser (still correct) stratification, never a wrong inferred
-    graph, since every genuine dependency is still found.
+    def __init__(self) -> None:
+        self._parent: dict = {}
+        self._const: dict = {}
 
-    Args:
-        pattern_term: A term from a rule body's triple pattern.
-        template_term: A term from a rule head's triple template.
+    def _find(self, key):
+        while self._parent.get(key, key) != key:
+            key = self._parent[key]
+        return key
 
-    Returns:
-        True if the two terms could refer to the same RDF term.
-    """
-    # A blank node in a body pattern behaves like a variable (§4.3.1, §6.4).
-    if isinstance(pattern_term, (Variable, BNode)) or isinstance(template_term, Variable):
+    def unify(self, pattern_term, template_term) -> bool:
+        left = self._key(pattern_term, "p")
+        right = self._key(template_term, "t")
+        if isinstance(pattern_term, TripleTermNode) and isinstance(template_term, TripleTermNode):
+            return all(
+                self.unify(pattern_term.get(position), template_term.get(position))
+                for position in ("subject", "predicate", "object")
+            )
+        if isinstance(pattern_term, TripleTermNode) or isinstance(template_term, TripleTermNode):
+            # a triple term only equals another triple term, or a variable
+            # (not recorded: it may hold variables, and a missed edge is worse than an extra one)
+            return left[0] == "v" or right[0] == "v"
+        return self._join(left, right)
+
+    @staticmethod
+    def _key(term, side):
+        if isinstance(term, Variable) or (side == "p" and isinstance(term, BNode)):
+            return ("v", side, str(term))
+        if isinstance(term, BNode):
+            return ("c", ("fresh-bnode", str(term)))
+        return ("c", term)
+
+    def _bind(self, var, value) -> bool:
+        root = self._find(var)
+        if root in self._const:
+            return self._const[root] == value
+        self._const[root] = value
         return True
-    if isinstance(pattern_term, TripleTermNode) or isinstance(template_term, TripleTermNode):
-        if not (isinstance(pattern_term, TripleTermNode) and isinstance(template_term, TripleTermNode)):
+
+    def _join(self, left, right) -> bool:
+        if left[0] == "c" and right[0] == "c":
+            return left[1] == right[1]
+        if left[0] == "c":
+            return self._bind(right, left[1])
+        if right[0] == "c":
+            return self._bind(left, right[1])
+        a, b = self._find(left), self._find(right)
+        if a == b:
+            return True
+        if a in self._const and b in self._const and self._const[a] != self._const[b]:
             return False
-        return all(
-            _terms_compatible(pattern_term.get(position), template_term.get(position))
-            for position in ("subject", "predicate", "object")
-        )
-    return pattern_term == template_term
+        self._parent[a] = b
+        if a in self._const:
+            self._const.setdefault(b, self._const[a])
+        return True
 
 
 def _pattern_matches_template(pattern: srl_ast.TriplePattern, template: srl_ast.TriplePattern) -> bool:
+    unifier = _Unifier()
     return (
-        _terms_compatible(pattern.subject, template.subject)
-        and _terms_compatible(pattern.predicate, template.predicate)
-        and _terms_compatible(pattern.object, template.object)
+        unifier.unify(pattern.subject, template.subject)
+        and unifier.unify(pattern.predicate, template.predicate)
+        and unifier.unify(pattern.object, template.object)
     )
 
 
@@ -312,12 +338,26 @@ def _pattern_term_text(term) -> str:
 def _match(run: list[srl_ast.TriplePattern], g) -> list[dict]:
     """Every solution of the basic graph pattern ``run`` against ``g`` (an ``StarLayerGraph``), found by running the pattern as a
     SPARQL 1.2 query. Keys are ``pyoxigraph.Variable`` s, values pyoxigraph terms."""
-    body = " . ".join(
-        f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}"
-        for t in run
-    )
-    result = g.query(f"SELECT * WHERE {{ {body} }}")
-    return [{Variable(str(name).lstrip("?")): term for name, term in binding.items()} for binding in result.bindings]
+    patterns = [
+        f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}" for t in run
+    ]
+
+    def _solutions(body: str) -> list[dict]:
+        result = g.query(f"SELECT * WHERE {{ {body} }}")
+        return [{Variable(str(name).lstrip("?")): term for name, term in binding.items()} for binding in result.bindings]
+
+    try:
+        return _solutions(" . ".join(patterns))
+    except RuntimeError as exc:
+        # The engine builds <<( "lit" p o )>> while joining a variable bound to a literal into a triple term's subject, and
+        # raises. Such a term matches nothing, so join the patterns here instead: each alone never builds one.
+        if len(patterns) < 2 or "triple term that is not a valid" not in str(exc):
+            raise
+    joined: list[dict] = [{}]
+    for pattern in patterns:
+        matches = _solutions(pattern)
+        joined = [{**mu, **m} for mu in joined for m in matches if _compatible(mu, m)]
+    return joined
 
 
 def _compatible(mu1: dict, mu2: dict) -> bool:
@@ -454,22 +494,44 @@ def _expression_text(expr) -> str:
     return text
 
 
-def _bound(expr, mu: dict) -> tuple[str, dict]:
-    """``(projection, substitutions)`` for ``expr`` under ``mu``: the engine pre-binds a variable only if the query projects it,
-    and rejects one the query does not mention, so only the variables ``expr`` uses that ``mu`` binds go in."""
+def _has_blank(term) -> bool:
+    """A blank node cannot be written in ``VALUES`` (in SPARQL a blank node in a query is a variable, not a stored node)."""
+    if isinstance(term, ox.BlankNode):
+        return True
+    return isinstance(term, ox.Triple) and any(_has_blank(x) for x in (term.subject, term.predicate, term.object))
+
+
+def _bound(expr, mu: dict) -> tuple[str, str, dict]:
+    """``(projection, values, substitutions)`` for ``expr`` under ``mu``. The variables ``expr`` uses that ``mu`` binds go in a
+    ``VALUES`` row, so they join like any bound variable: pyoxigraph's ``substitutions=`` turns ``=``, ``!=`` and ``IN`` into
+    term identity and loses a variable passed through unchanged. A blank node cannot be written there, so a variable bound to
+    one is substituted instead (the engine pre-binds a variable only if the query projects it)."""
+    from starlayer.graph.oxgraph.run import _sparql_term
+
     used = _RENDERED.get()[id(expr)][2]
     names = sorted(var.value for var in used if var in mu)
-    return "".join(f"?{name} " for name in names), {ox.Variable(name): mu[ox.Variable(name)] for name in names}
+    written = [n for n in names if not _has_blank(mu[ox.Variable(n)])]
+    substituted = [n for n in names if n not in written]
+    values = ""
+    if written:
+        row = " ".join(_sparql_term(mu[ox.Variable(n)]) for n in written)
+        values = f"VALUES ({' '.join('?' + n for n in written)}) {{ ({row}) }} "
+    return (
+        "".join(f"?{name} " for name in substituted),
+        values,
+        {ox.Variable(name): mu[ox.Variable(name)] for name in substituted},
+    )
 
 
 def _eval_ebv(expr, mu: dict) -> bool:
     """The effective boolean value of ``expr`` under ``mu``; an error (an unbound variable, a type error) is false, as for a
     SPARQL ``FILTER``."""
     text = _expression_text(expr)
-    projection, substitutions = _bound(expr, mu)
-    if not projection:
+    projection, values, substitutions = _bound(expr, mu)
+    if not projection and not values:
         return bool(_EVAL_STORE.query(f"ASK {{ FILTER({text}) }}"))
-    return any(True for _ in _EVAL_STORE.query(f"SELECT {projection}WHERE {{ FILTER({text}) }}", substitutions=substitutions))
+    query = f"SELECT {projection or '*'} WHERE {{ {values}FILTER({text}) }}"
+    return any(True for _ in _EVAL_STORE.query(query, substitutions=substitutions or None))
 
 
 def _eval_expr(expr, mu: dict):
@@ -482,11 +544,22 @@ def _eval_expr(expr, mu: dict):
     Returns:
         The evaluated value (a pyoxigraph term), or ``None`` if evaluation errored.
     """
+    if isinstance(expr, ox.Variable):  # a bound blank node is substituted, and the engine loses a variable passed through
+        return mu.get(expr)
     text = _expression_text(expr)
-    projection, substitutions = _bound(expr, mu)
-    query = f"SELECT {projection}?__srl_value WHERE {{ BIND({text} AS ?__srl_value) }}"
-    for solution in _EVAL_STORE.query(query, substitutions=substitutions):
-        return solution["__srl_value"]
+    projection, values, substitutions = _bound(expr, mu)
+    target = "__srl_value"
+    taken = {var.value for var in _RENDERED.get()[id(expr)][2]}
+    while target in taken:  # the rule's own variable may be called that
+        target += "_"
+    query = f"SELECT {projection}?{target} WHERE {{ {values}BIND({text} AS ?{target}) }}"
+    for solution in _EVAL_STORE.query(query, substitutions=substitutions or None):
+        value = solution[target]
+        if isinstance(value, ox.BlankNode) and value not in mu.values():
+            # BNODE(str) names its node by the label, and each evaluation here is its own query, so every solution would get
+            # the same node (or one of the data's); the SRL draft wants a different blank node on each call
+            return ox.BlankNode()
+        return value
     return None
 
 
@@ -621,7 +694,8 @@ def flatten_dataset(graph):
         return graph
     flat = new_graph()
     if _ox.is_oxigraph_input(graph):
-        flat.extend(list(iter(graph)))
+        # a Store yields quads; the union of its graphs keeps each triple once, whatever graph it is in
+        flat.extend({(item[0], item[1], item[2]) for item in graph})
         return flat
     from starlayer._optional import require_rdflib
 
@@ -643,6 +717,7 @@ def to_foreign(inferred, original):
     require_rdflib("Returning the inferred triples as an rdflib graph")
     from rdflib import ConjunctiveGraph, Dataset, Graph
 
+    from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
     from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term
 
     triples = list(inferred)
@@ -654,7 +729,10 @@ def to_foreign(inferred, original):
         return inferred
     out = cls() if holds_triple_terms else Graph()
     for s, p, o in triples:
-        out.add((to_rdflib_term(s), to_rdflib_term(p), to_rdflib_term(o)))
+        row = (to_rdflib_term(s), to_rdflib_term(p), to_rdflib_term(o))
+        if not holds_triple_terms:  # a plain rdflib graph holds a direction-tagged literal in its datatype-IRI form
+            row = tuple(encode_dirlangstring(t) if isinstance(t, DirLangString) else t for t in row)
+        out.add(row)
     return out
 
 
@@ -706,9 +784,12 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
     for block in ruleset.data:
         for t in block.triples:
             try:
-                d.add(tuple(_graph_term(part) for part in (t.subject, t.predicate, t.object)))
+                triple = tuple(_graph_term(part) for part in (t.subject, t.predicate, t.object))
             except _InvalidInstance as exc:
                 raise SRLEvalError(f"SRL: a DATA block has an invalid triple term: {exc}") from exc
+            if isinstance(triple[0], (ox.Literal, ox.Triple)) or not isinstance(triple[1], ox.NamedNode):
+                raise SRLEvalError(f"SRL: a DATA block has a triple that is not an RDF triple (literal subject or non-IRI predicate): {t}")
+            d.add(triple)
 
     from starlayer.graph.oxgraph.core import StarLayerGraph
 

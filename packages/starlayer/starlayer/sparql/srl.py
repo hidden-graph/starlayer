@@ -275,8 +275,11 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None) -> tuple[Any, A
     if _ox.is_oxigraph_input(graph):
         graph.extend(list(sink))
         return graph, root
-    for s, p, o in _ox.to_rdflib_triples(sink):
-        graph.add((s, p, o))
+    from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
+
+    for row in _ox.to_rdflib_triples(sink):
+        # a plain rdflib graph holds a direction-tagged literal in its datatype-IRI form
+        graph.add(tuple(encode_dirlangstring(t) if isinstance(t, DirLangString) else t for t in row))
     return graph, _ox.to_rdflib_term(root)
 
 
@@ -458,9 +461,16 @@ def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
     from .sqe._memtree import as_engine_graph
 
     graph, root = as_engine_graph(graph, root)
-    rules = [_decode_rule(n, graph) for n in _read_list(graph.value(root, _RULES), graph)]
-    data = [_decode_data(n, graph) for n in _read_list(graph.value(root, _DATA), graph)]
-    imports = _read_list(graph.value(root, _IMPORTS), graph)
+    try:
+        rules = [_decode_rule(n, graph) for n in _read_list(graph.value(root, _RULES), graph)]
+        data = [_decode_data(n, graph) for n in _read_list(graph.value(root, _DATA), graph)]
+        imports = _read_list(graph.value(root, _IMPORTS), graph)
+    except SRLError:
+        raise
+    except (ValueError, KeyError, TypeError, AttributeError) as exc:
+        # a damaged tree (a list cell without rdf:rest, a missing part, a triple term that is not one) is the one error
+        # a caller reading hand-edited trees catches
+        raise SRLDecodeError(f"srl: the tree cannot be read as a rule set: {exc}") from exc
     return srl_ast.RuleSet(rules=rules, data=data, imports=imports)
 
 

@@ -1247,7 +1247,8 @@ class _Parser:
 
     def path_elt(self):
         prim = self.path_primary()
-        if self.at_p("?", "*", "+"):
+        # a '+' touching a number is the signed number (INTEGER_POSITIVE is one token), not a path modifier: `:q +5`
+        if self.at_p("?", "*", "+") and not (self.at_p("+") and self.signed_number_ahead()):
             return Node("MulPath", path=prim, mod=self.next().text)
         return prim
 

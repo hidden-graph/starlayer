@@ -156,12 +156,47 @@ def _check_triple_term_positions(
 ) -> None:
     """RDF 1.2: a triple term is only ever legal as the object of a triple, never
     as its subject or predicate."""
+    def _inside(term, context: str) -> None:
+        # a triple term nested in an object is itself a triple: the same two positions apply to it
+        if isinstance(term, TripleTermNode):
+            for position in ("subject", "predicate"):
+                if isinstance(term.get(position), TripleTermNode):
+                    issues.append(_SRLWellFormednessIssue(rule, "triple_term_in_" + position, None, context))
+            _inside(term.get("object"), context)
+
     for t in triples:
         for position, term in (("subject", t.subject), ("predicate", t.predicate)):
             if isinstance(term, TripleTermNode):
                 issues.append(
                     _SRLWellFormednessIssue(rule, "triple_term_in_" + position, None, "triple pattern")
                 )
+        _inside(t.object, "triple term")
+
+
+def _check_variable_names(rule: srl_ast._Rule, issues: list[_SRLWellFormednessIssue]) -> None:
+    """The grammar allows U+10000 to U+EFFFF in a variable name (PN_CHARS_BASE), but the engine the rules run on does not
+    accept such a name in its SPARQL text, so a rule using one is refused here rather than failing at ``infer()``."""
+    names: set[Variable] = set()
+
+    def _element(e) -> None:
+        if isinstance(e, srl_ast.TriplePattern):
+            names.update(_triple_vars(e))
+        elif isinstance(e, srl_ast._FilterElement):
+            names.update(_expr_vars(e.expr))
+        elif isinstance(e, srl_ast._AssignmentElement):
+            names.add(e.var)
+            names.update(_expr_vars(e.expr))
+        elif isinstance(e, srl_ast._NegationElement):
+            for inner in e.inner:
+                _element(inner)
+
+    for template in rule.head:
+        names.update(_triple_vars(template))
+    for e in rule.body:
+        _element(e)
+    for v in sorted(names, key=lambda x: x.value):
+        if any(ord(c) > 0xFFFF for c in v.value):
+            issues.append(_SRLWellFormednessIssue(rule, "unsupported_variable_name", v, "variable name above U+FFFF"))
 
 
 def _check_rule(rule: srl_ast._Rule) -> list[_SRLWellFormednessIssue]:
@@ -170,6 +205,7 @@ def _check_rule(rule: srl_ast._Rule) -> list[_SRLWellFormednessIssue]:
     template must be in the body's own ``Vall``."""
     issues: list[_SRLWellFormednessIssue] = []
     _check_triple_term_positions(rule, _triples_of(rule), issues)
+    _check_variable_names(rule, issues)
     v_all = _check_sequence(rule.body, set(), rule, issues)
     for template in rule.head:
         for v in _triple_vars(template):

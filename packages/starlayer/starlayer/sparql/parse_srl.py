@@ -159,7 +159,8 @@ class _SrlParser(_Parser):
         self.expect_p("(")
         var = self.var()
         t = self.peek()
-        if not (t.kind == "PNAME" and t.text == ":" and self.at_p("=", k=1)):
+        # ':=' is one token in the grammar: nothing (whitespace, a comment) between the ':' and the '='
+        if not (t.kind == "PNAME" and t.text == ":" and self.at_p("=", k=1) and self.peek(1).pos == t.pos + 1):
             self.err("expected ':='")
         self.i += 2
         expr = self.expression()
@@ -231,3 +232,6 @@ def parse_srl(text: str, base: str | None = None) -> srl_ast.RuleSet:
         return _SrlParser(text, base).parse_ruleset()
     except _Err as exc:
         raise _srl_error(str(exc), exc) from exc
+    except RecursionError:  # the grammar nests without limit, Python's stack does not (as in parse_sparql)
+        exc = _Err("expression or pattern nested too deeply to parse", text, 0)
+        raise _srl_error(str(exc), exc) from None
