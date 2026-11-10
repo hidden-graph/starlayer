@@ -137,3 +137,15 @@ def test_check_rule_paths_when_rules_that_bite_is_last_section(tmp_path):
     cd.ROOT, cd.PACKAGE = tmp_path, pkg
     problems = cd.check_rule_paths()
     assert any("missing/file.py" in p for p in problems)
+
+
+@pytest.mark.parametrize("md", ["[a\nb](missing.md)", "[a [x] b](missing.md)", "[a](missing.md)"])
+def test_broken_links_with_wrapped_or_bracketed_text_are_reported(tmp_path, md):
+    cd = _script("check_docs")
+    cd.ROOT = tmp_path
+    (tmp_path / "sub").mkdir()
+    f = tmp_path / "sub" / "doc.md"
+    f.write_text(md)
+    problems = []
+    cd._check_links(f, md, problems)
+    assert problems and "missing.md" in problems[0]

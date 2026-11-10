@@ -26,7 +26,8 @@ PACKAGE = ROOT / "packages" / "starlayer" / "starlayer"
 
 # Directories whose Markdown is vendored or archived, not ours to check.
 _SKIP_PARTS = {".git", ".venv", "venv", "node_modules", "build", "dist", "vendor", "__pycache__", "archive"}
-_LINK = re.compile(r"(?<!!)\[(?:[^\]]*)\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
+# Link text may hold one level of brackets and line breaks (CommonMark); `_links` scans the whole text, not line by line.
+_LINK = re.compile(r"(?<!!)\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 _FENCE = re.compile(r"^(```|~~~)")
 
 
@@ -67,14 +68,15 @@ def _anchors(path: Path) -> set[str]:
 
 def _links(text: str):
     in_fence = False
+    kept = []
     for line in text.splitlines():
         if _FENCE.match(line.strip()):
             in_fence = not in_fence
             continue
         if in_fence:
             continue
-        line = re.sub(r"`[^`]*`", "", line)  # code spans are not links
-        yield from _LINK.findall(line)
+        kept.append(re.sub(r"`[^`]*`", "", line))  # code spans are not links
+    yield from _LINK.findall("\n".join(kept))
 
 
 def _check_links(source: Path, text: str, problems: list[str]) -> None:
