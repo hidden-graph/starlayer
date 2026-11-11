@@ -1887,7 +1887,7 @@ see its own docstring, and the subgraph-extraction guide, for why.
 Adds RDF 1.2/triple-term adaptation around pySHACL, which understands
 neither triple terms nor SHACL 1.2's own predicates natively.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L90-L2232)
+**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L90-L2240)
 
 ---
 
@@ -1975,7 +1975,7 @@ bound ``shacl_graph`` itself.
 
 **Returns:** `Any` - A closed copy of the relevant ``shacl_graph`` (or module).
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2064-L2104)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2072-L2112)
 
 ---
 
@@ -1998,7 +1998,7 @@ The bound default data graph (see :attr:`shacl_graph`).
 ### `StarShaclSchema.evaluate`  _(method)_
 
 ```python
-def evaluate(self, data_graph: Any | None=None, *, shapes_graph_resource: Any | None=None, focus_nodes: Any | None=None, properties: Any | None=None, rules_entailment: bool=False) -> Any
+def evaluate(self, data_graph: Any | None=None, *, shapes_graph_resource: Any | None=None, focus_nodes: Any | None=None, properties: Any | None=None, rules_entailment: bool=False, validate: bool=False) -> Any
 ```
 
 Computes every ``sh:values``-declared virtual property across
@@ -2066,10 +2066,11 @@ own "data graph doubles as shapes graph" allowance.
 - `focus_nodes: Any | None = None` - Restrict evaluation to these focus nodes (an iterable of nodes). ``None`` (the default) evaluates every node the shapes target; a node that is not one of a shape's targets is not evaluated for it. Only the per-node work (reading stored values and computing ``sh:values``/``sh:defaultValue``) is limited; the shapes' own targets are still resolved over ``data_graph``.
 - `properties: Any | None = None` - Restrict evaluation to property shapes whose ``sh:path`` is one of these predicates (an iterable of IRIs). ``None`` evaluates every property shape.
 - `rules_entailment: bool = False` - Also run the rules the shapes graph names in ``sh:entailment`` (``sh:RulesEntailment`` or a rule set, Inference Rules section 6) before evaluating, as ``validate()`` does, so targets and values that depend on an inferred triple see it. Off by default: evaluating is not validating, and running the rules costs a full ``apply_rules`` pass. The inferred triples are used for the evaluation only and are not in the result unless a property shape reads them.
+- `validate: bool = False` - Make the evaluation conformance-gated, like ``extract_subgraph()``: the values for a (shape, focus node) pair are computed only when the focus node conforms to the shape that targets it, checked as ``validate()`` does (computed ``sh:values`` values included; a deactivated shape is skipped). A node that does not conform contributes nothing; a node several shapes target contributes the values of the shapes it conforms to, a value computed twice once. Off by default: evaluation is then a lens that needs no conformance and costs no validation. To see why a node was left out, run ``validate()``; its report is the explanation.
 
 **Returns:** `Any` - A plain graph: the real, stored values of every property shape with a simple ``sh:path``, for its own target focus nodes, with any ``sh:values``/``sh:defaultValue``-computed values unioned in.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1795-L1990)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1795-L1998)
 
 ---
 
@@ -2188,7 +2189,7 @@ for the default is injecting your own definition of a referenced shape, and a co
 
 **Returns:** `Any | None` - A standalone graph containing just that resource's module, or ``None`` if ``shapes_graph_iri`` isn't actually typed ``a sh:ShapesGraph`` in ``shacl_graph`` at all - not every graph bothers with this optional packaging metadata, and a typo'd IRI shouldn't silently return an empty-but-valid-looking graph.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2106-L2232)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2114-L2240)
 
 ---
 
@@ -2252,7 +2253,7 @@ none of them is repeated per call. Each can be overridden per call.
 
 **Returns:** `dict[Any, Any]` - ``{property_shape: widget}``, with ``None`` for a property that has no widget (or ``{property_shape: WidgetChoice}`` for ``per="shape"``).
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L1992-L2062)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L2000-L2070)
 
 ---
 
@@ -4005,7 +4006,7 @@ run), whose conformance result is what's actually returned.
 
 **Returns:** `RulesResult` - A ``RulesResult`` with two fields: ``inferred_graph`` - strictly the triples rule execution itself produced (shape-attached and global rules, plus any ``sh:sourceRule`` provenance reifiers); neither the original base triples nor anything any entailment regime added are included, since entailment is purely a computational device here, never persisted. ``validation`` - the full ``ValidationResult`` from the final re-validation pass, whose ``conforms``/ ``report_graph``/``report_text`` reflect the complete evaluation graph (base ∪ rules ∪ entailment); its own ``data_graph`` field is always ``None`` in this context (the internal call uses the ``"validation"`` mode's own ``inplace=False`` default).
 
-**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L4031-L4119)
+**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L4086-L4174)
 
 ---
 
@@ -4098,7 +4099,7 @@ different resource than ``shapes_graph``) - pass a graph relating
 ### `evaluate`  _(function)_
 
 ```python
-def evaluate(data_graph: Any, shacl_graph: Any | None=None, ont_graph: Any | None=None, *, inference: Any | None=None, focus_nodes: Any | None=None, properties: Any | None=None, rules_entailment: bool=False) -> Any
+def evaluate(data_graph: Any, shacl_graph: Any | None=None, ont_graph: Any | None=None, *, inference: Any | None=None, focus_nodes: Any | None=None, properties: Any | None=None, rules_entailment: bool=False, validate: bool=False) -> Any
 ```
 
 Computes every ``sh:values``/``sh:defaultValue``-declared virtual
@@ -4138,10 +4139,11 @@ shapes graph.
 - `focus_nodes: Any | None = None` - Restrict evaluation to these focus nodes (an iterable of nodes). ``None`` (the default) evaluates every node the shapes target; a node that is not one of a shape's targets is not evaluated for it. Only the per-node work (reading stored values and computing ``sh:values``/``sh:defaultValue``) is limited; the shapes' own targets are still resolved over ``data_graph``.
 - `properties: Any | None = None` - Restrict evaluation to property shapes whose ``sh:path`` is one of these predicates (an iterable of IRIs). ``None`` evaluates every property shape.
 - `rules_entailment: bool = False` - Also run the rules ``shacl_graph`` names in ``sh:entailment`` (``sh:RulesEntailment`` or a rule set, Inference Rules section 6) before evaluating, as ``validate()`` does. Off by default: evaluating is not validating, and the rules cost a full ``apply_rules`` pass.
+- `validate: bool = False` - Make the evaluation conformance-gated, like ``extract_subgraph()``: the values for a (shape, focus node) pair are computed only when the focus node conforms to the shape that targets it, checked as ``validate()`` does (computed ``sh:values`` values included; a deactivated shape is skipped). A node that does not conform contributes nothing; a node several shapes target contributes the values of the shapes it conforms to, a value computed twice once. Off by default: evaluation is then a lens that needs no conformance and costs no validation. To see why a node was left out, run ``validate()``; its report is the explanation.
 
 **Returns:** `Any` - A plain graph object (the same type as ``data_graph``) containing the shape-driven subgraph described above.
 
-**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3832-L3988)
+**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3840-L4004)
 
 ---
 
@@ -4339,7 +4341,7 @@ own, separate copy of this body for now rather than delegating here
 
 **Returns:** `ValidationResult` - A ``ValidationResult``: ``conforms`` (bool), ``report_graph``/ ``report_text`` (the validation report, decoded unless ``decode_report=False``), ``data_graph`` (the mutated original when the resolved options include ``inplace=True``, otherwise ``None``), and ``diagnostics`` (an ``ExecutionDiagnostics`` snapshot of adapter encode/decode activity for this call).
 
-**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3386-L3800)
+**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3394-L3808)
 
 ---
 
@@ -4365,6 +4367,6 @@ this body for now (see ``validate()``'s own docstring).
 
 **Returns:** `dict[int, ValidationResult]` - A ``dict`` mapping each item's index in ``data_graphs`` (via ``enumerate``) to its own ``ValidationResult``.
 
-**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3803-L3829)
+**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/validator.py#L3811-L3837)
 
 ---
