@@ -13,18 +13,10 @@ from __future__ import annotations
 # production name -> why no corpus case exercises it
 UNCOVERED_PRODUCTIONS: dict[str, str] = {}
 
-_CAUSES = {
-    'V2': 'A function call with NO arguments (`FILTER :f()`, spec [18] ArgList NIL) does not validate: spexpr:_FunctionExprBodyShape requires every function node to carry an argument list and a `distinct` marker, which the encoder omits for a zero-argument call. This is a defect in the SHARED spexpr: shape/encoder, not in SRL: sqe: rejects `FILTER(<f>())` with an SQEValidationError too. (Parsing and rendering are fine; only validation fails.)',
-}
+_CAUSES: dict[str, str] = {}
 
 # "case-id::check" -> reason (check is parses | fixpoint | meaning | tree | encoding)
-CORPUS_FAILURES: dict[str, str] = {
-    'body-filter-function-nil::encoding': _CAUSES['V2'],
-    'body-filter-function-nil::tree': _CAUSES['V2'],
-    'body-filter-function-nil::meaning': _CAUSES['V2'],
-    'body-filter-function-nil::fixpoint': _CAUSES['V2'],
-    'body-filter-function-nil::parses': _CAUSES['V2'],
-}
+CORPUS_FAILURES: dict[str, str] = {}
 
 # SPARQL functions that SRL's BuiltInCall does NOT include but the parser accepted: none since L2 was fixed.
 BUILTIN_LEAKS: dict[str, str] = {}

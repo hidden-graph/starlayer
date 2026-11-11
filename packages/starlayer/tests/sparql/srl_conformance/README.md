@@ -144,7 +144,7 @@ New findings from the wiring:
 
 | Code | Finding |
 |---|---|
-| V2 | A zero-argument function call (`FILTER :f()`) fails `spexpr:_FunctionExprBodyShape` (requires an argument list and `distinct`). Shared spexpr defect: sqe rejects it too. |
+| V2 | A zero-argument function call (`FILTER :f()`) failed `spexpr:_FunctionExprBodyShape` (requires an argument list and `distinct`). Closed 2026-11-11: the parser now always sets `distinct` and an empty argument list on function nodes. |
 | V3 | An aggregate inside `SET` is no longer rejected by the shapes (the shared spexpr shapes accept aggregates); `parse_ruleset` still rejects it in Python. Needs a constraint in `srl_shapes.ttl` (strict xfail in `tests/sparql/unit/test_srl_shapes.py`). |
 
 Later the same day: L1 (a `.` is now required between triple groups), L2 (the ten non-SRL functions are rejected),
@@ -153,7 +153,7 @@ V1 (`SRLParseError` for an undeclared prefix), P2b (unicode escapes: `parse_rule
 `~`, in `_grammar12.py`). P2 (`\'`), P3 (negative decimals) and P4 (`PN_LOCAL_ESC`) are **rdflib defects** that fail
 in plain `prepareQuery` too; they are patched in `_grammar12._fix_rdflib_lexical_gaps`, which changes parsing for all
 of starlayer's SPARQL, and are items 19 to 21 in `docs/upstream-issues/rdflib-upstream-issues.md`. Regressions:
-`tests/sparql/unit/test_lexical_gaps.py`. Only V2 and V3 remain.
+`tests/sparql/unit/test_lexical_gaps.py`. Only V3 remains.
 
 The shape mutation scan predates the wiring and should be re-run against the new validation configuration.
 
