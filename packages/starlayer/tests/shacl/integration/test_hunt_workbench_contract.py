@@ -30,3 +30,22 @@ def test_evaluate_expression_gives_pyoxigraph_terms_without_rdflib():
         """
     )
     assert r.returncode == 0, r.stderr
+
+
+def test_ruleset_parse_and_infer_on_a_graph_without_literals_do_not_warn():
+    r = _run(
+        """
+        import warnings
+        from starlayer import StarLayerGraph
+        from starlayer.sparql.srl import parse_ruleset
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+            rs = parse_ruleset("PREFIX ex: <http://e/> RULE { ?x ex:anc ?y } WHERE { ?x ex:parent ?y }")
+            g = StarLayerGraph()
+            g.parse(data="@prefix ex: <http://e/> . ex:a ex:parent ex:b .", format="turtle")
+            rs.infer(g)
+        fid = [x for x in w if "Fidelity" in x.category.__name__]
+        assert not fid, str(fid[0].message)[:200]
+        """
+    )
+    assert r.returncode == 0, r.stderr

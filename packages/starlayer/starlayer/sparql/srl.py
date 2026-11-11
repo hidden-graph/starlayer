@@ -102,6 +102,7 @@ sibling files:
 
 from __future__ import annotations
 
+import warnings
 from typing import Any
 
 import pyoxigraph as ox
@@ -738,8 +739,13 @@ def _validation_graphs() -> tuple[Any, Any, Any]:
 def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
     """Raise ``SRLParseError`` if ``ruleset``'s RDF encoding does not conform to
     the ``srl:`` shapes."""
+    from starlayer.shacl_engine.terms import StarLayerFidelityWarning
+
     graph, _root = ruleset_to_tree(ruleset)
-    conforms, report_graph, report_text = srl_validate(graph)
+    with warnings.catch_warnings():
+        # the library's own tree and shapes are checked here, not the caller's data: a lexical-form warning is not theirs to act on
+        warnings.simplefilter("ignore", StarLayerFidelityWarning)
+        conforms, report_graph, report_text = srl_validate(graph)
     if conforms:
         return
     shacl_message = ox.NamedNode("http://www.w3.org/ns/shacl#resultMessage")
