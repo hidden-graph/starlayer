@@ -54,9 +54,22 @@ summarized here so the code and its rationale stay together):
    values" is well-defined regardless of iteration order and this feature
    feeds a hash.
 5. Only real, stored triples are ever included - never a synthesized triple
-   for an ``sh:values``-computed or otherwise virtual value. A constraint
-   satisfied via a node expression is resolved back to whichever real
-   triples it actually read.
+   for an ``sh:values``-computed or otherwise virtual value. The *inputs* of
+   a computed value are included, the value itself is not: for every
+   ``sh:values`` / ``sh:defaultValue`` of a property shape the shape reaches,
+   the fragment holds the stored triples that were read while the expression
+   was evaluated for the focus node, whether or not a constraint mentions the
+   computed property (``sh:defaultValue`` only when it was used, that is when
+   no stored or ``sh:values`` value existed). The reads are recorded during
+   evaluation (``_recording_reads``) rather than found by walking the
+   expression, so a path of any length, nested expressions, custom functions
+   and ``sh:select`` queries are all covered. Evaluating the fragment then
+   recomputes the same values (GitHub issue #203). Computed values that are
+   nodes are followed like stored ones by nested shapes and ``sh:class``.
+
+**Conformance** is checked with the evaluation ``validate()`` uses, computed ``sh:values`` / ``sh:defaultValue``
+values included (``_shape_conforms`` installs the same process-global validation patches, GitHub issue #202): a node
+``validate()`` accepts is extractable, whether or not ``validate()`` ran earlier in the process.
 
 **Entailment**: ``shacl_graph``'s own declared ``sh:entailment`` regime(s),
 plus an optional ``inference=`` keyword (a real ``ENTAILMENT.*`` IRI, or an
@@ -113,6 +126,8 @@ returning both the value nodes and every triple traversed to reach them.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 from rdflib import BNode, Literal, URIRef
@@ -165,8 +180,17 @@ def _qualified_value_shape_is_sole_constraint(sg: Any, shape_node: Any) -> bool:
 def _shape_conforms(sg: Any, shape_node: Any, data_graph: Any, node: Any) -> bool:
     """Mirrors ``node_expressions._shape_conforms`` - kept as a separate,
     private copy rather than a shared import to avoid coupling this module's
-    (already large) surface to node_expressions.py's own evolution."""
+    (already large) surface to node_expressions.py's own evolution.
+
+    The validation patches are installed first (``install_validation_patches``): they are process-global and
+    ``validate()`` installs them, so without this a process that only extracts would check conformance without the
+    computed ``sh:values``/``sh:defaultValue`` values and without the native constraint components, and disagree with
+    ``validate()`` (GitHub issue #202)."""
     from pyshacl.pytypes import SHACLExecutor
+
+    from starlayer.shacl.validator import install_validation_patches
+
+    install_validation_patches()
 
     shape = sg.lookup_shape_from_node(shape_node)
     conforms, _reports = shape.validate(SHACLExecutor(), data_graph, focus=node)
@@ -375,6 +399,80 @@ def _target_triples(graph: Any, sg: Any, shape: Any, node: Any) -> set[_Triple]:
     return triples
 
 
+@contextmanager
+def _recording_reads(graph: Any) -> Iterator[set[_Triple]]:
+    """Yields a set that fills with every triple read from ``graph`` inside the block.
+
+    A node expression, a custom function and a ``sh:select`` query all read the data graph through
+    ``triples()`` (``objects()``, ``subjects()``, ``value()`` and the rest are built on it) or, for a SPARQL query,
+    through the store, so hooking those two on the instance sees every read without walking the expression tree.
+    The hooks are removed on exit. What a hook records from the store is the store's own (encoded) form, which the
+    caller drops by intersecting with the real data graph."""
+    seen: set[_Triple] = set()
+
+    def graph_hook(original: Any) -> Any:
+        def triples(*args: Any, **kwargs: Any) -> Iterator[Any]:
+            for t in original(*args, **kwargs):
+                seen.add((t[0], t[1], t[2]))
+                yield t
+
+        return triples
+
+    def store_hook(original: Any) -> Any:
+        def triples(*args: Any, **kwargs: Any) -> Iterator[Any]:
+            for t, contexts in original(*args, **kwargs):
+                seen.add((t[0], t[1], t[2]))
+                yield t, contexts
+
+        return triples
+
+    installed: list[tuple[Any, str]] = []
+    try:
+        for owner, names, hook in (
+            (graph, ("triples", "triples_choices"), graph_hook),
+            (getattr(graph, "store", None), ("triples", "triples_choices"), store_hook),
+        ):
+            if owner is None:
+                continue
+            for name in names:
+                original = getattr(owner, name, None)
+                if original is None or name in getattr(owner, "__dict__", {}):
+                    continue
+                try:
+                    setattr(owner, name, hook(original))
+                except AttributeError:  # an object without an instance dict: its reads are not recorded
+                    continue
+                installed.append((owner, name))
+        yield seen
+    finally:
+        for owner, name in installed:
+            owner.__dict__.pop(name, None)
+
+
+def _computed_values(sg: Any, shape: Any, data_graph: Any, focus_node: Any, stored: Any) -> tuple[frozenset[Any], set[_Triple]]:
+    """The values a property shape's ``sh:values`` / ``sh:defaultValue`` compute for ``focus_node``, and the triples
+    read to compute them.
+
+    Computed exactly as ``validate()`` does (``validator._compute_sh_values`` / ``_compute_sh_default_value``,
+    ``sh:defaultValue`` only when the stored and ``sh:values`` values together are empty), with every triple read
+    recorded, whatever the expression form (design decision 5)."""
+    values_node = next(iter(sg.graph.objects(shape.node, SH.values)), None)
+    default_nodes = list(sg.graph.objects(shape.node, SH.defaultValue))
+    if (values_node is None and not default_nodes) or shape.deactivated:
+        return frozenset(), set()
+
+    from starlayer.shacl.validator import _compute_sh_default_value, _compute_sh_values
+
+    computed: set[Any] = set()
+    with _recording_reads(data_graph) as reads:
+        if values_node is not None:
+            computed |= set(_compute_sh_values(shape, values_node, data_graph, focus_node))
+        if not stored and not computed:
+            for default_node in default_nodes:
+                computed |= set(_compute_sh_default_value(default_node, data_graph, sg, focus_node))
+    return frozenset(computed), reads
+
+
 def _extract(
     data_graph: Any,
     sg: Any,
@@ -400,6 +498,11 @@ def _extract(
     if shape.is_property_shape:
         path_val = shape.path()
         value_nodes, path_triples = _walk_path(data_graph, focus_node, path_val, sg)
+        # sh:values / sh:defaultValue add computed values to the value nodes, as in validate(). The computed values
+        # are never output; the stored triples read to compute them are (design decision 5).
+        computed_values, computed_reads = _computed_values(sg, shape, data_graph, focus_node, value_nodes)
+        triples |= computed_reads
+        value_nodes = value_nodes | computed_values
 
         qshape_nodes = list(sg.graph.objects(shape.node, SH.qualifiedValueShape))
         predicates = set(sg.graph.predicates(shape.node))

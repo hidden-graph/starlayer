@@ -581,11 +581,7 @@ class StarShaclSchema:
 
         self.adapter.reset_diagnostics()
 
-        register_native_components()
-        _patch_rdflib_data_graph_clone_preserves_tt_adapter()
-        _patch_shape_value_nodes_for_sh_values()
-        _patch_rules_for_native_engine()
-        _patch_stringify_for_native_backend_bnodes()
+        install_validation_patches()
 
         options = resolve_mode_options(mode, overrides=kwargs)
 
@@ -3511,11 +3507,7 @@ def validate(
     _reject_unknown_validate_options(kwargs, validate_fn)
     adapter.reset_diagnostics()
 
-    register_native_components()
-    _patch_rdflib_data_graph_clone_preserves_tt_adapter()
-    _patch_shape_value_nodes_for_sh_values()
-    _patch_rules_for_native_engine()
-    _patch_stringify_for_native_backend_bnodes()
+    install_validation_patches()
 
     options = resolve_mode_options(mode, overrides=kwargs)
 
@@ -5267,6 +5259,18 @@ def _patch_rdflib_data_graph_clone_preserves_tt_adapter() -> bool:
         _rdflib_data_graph_clone_patch_status = False
 
     return _rdflib_data_graph_clone_patch_status
+
+
+def install_validation_patches() -> None:
+    """Installs the process-global pySHACL patches and native components ``validate()`` runs with (idempotent).
+
+    ``extract_subgraph()`` calls it too, so its conformance check evaluates exactly what ``validate()`` does,
+    computed ``sh:values``/``sh:defaultValue`` values included (GitHub issue #202)."""
+    register_native_components()
+    _patch_rdflib_data_graph_clone_preserves_tt_adapter()
+    _patch_shape_value_nodes_for_sh_values()
+    _patch_rules_for_native_engine()
+    _patch_stringify_for_native_backend_bnodes()
 
 
 def _compute_sh_values(shape: Any, values_node: Any, target_graph: Any, focus_node: Any) -> list:
