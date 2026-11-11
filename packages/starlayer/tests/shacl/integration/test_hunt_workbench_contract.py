@@ -68,3 +68,22 @@ def test_schema_validate_takes_the_keywords_validate_takes():
     schema = StarShaclSchema(shapes)
     schema.validate(data, specification_graph=spec)
     schema.validate(data, shapes_graph_iri="http://e/sg")
+
+
+def test_a_none_data_graph_is_a_type_error_naming_data_graph():
+    import warnings
+
+    import pytest
+    from starlayer import StarLayerGraph
+    from starlayer.shacl import apply_rules, validate
+
+    warnings.simplefilter("ignore")
+    shapes = StarLayerGraph()
+    shapes.parse(
+        data="@prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . :S a sh:NodeShape ; sh:targetNode :a ; sh:property [ sh:path :p ; sh:minCount 1 ] .",
+        format="turtle",
+    )
+    with pytest.raises(TypeError, match="data_graph"):
+        validate(None, shapes)
+    with pytest.raises(TypeError, match="data_graph"):
+        apply_rules(None, shapes)

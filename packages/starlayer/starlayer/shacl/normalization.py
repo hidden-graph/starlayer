@@ -22,6 +22,8 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
     """
     from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
+    if value is None:
+        raise TypeError(f"{name} must be a graph (StarLayerGraph, StarLayerDataset or rdflib.Graph). Got None.")
     if isinstance(value, StarLayerDataset):
         if force_default_union and not value.default_union:
             return StarLayerDataset(store=value.store, prefixes=value.prefixes)
