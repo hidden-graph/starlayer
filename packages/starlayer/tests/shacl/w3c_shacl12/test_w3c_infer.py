@@ -36,9 +36,10 @@ from pathlib import Path
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema  # noqa: E402
+from starlayer.shacl_engine.rules import RuleError  # noqa: E402
 
 from .ids import portable_id  # noqa: E402
-from .known_failures import KNOWN_FAILURES  # noqa: E402
+from .known_failures import ENGINE_GAPS, KNOWN_FAILURES  # noqa: E402
 from .manifest import (  # noqa: E402
     ManifestEntry,
     clone_graph,
@@ -65,7 +66,12 @@ def pytest_generate_tests(metafunc):
     if "entry" not in metafunc.fixturenames:
         return
     if _ENTRIES:
-        metafunc.parametrize("entry", _ENTRIES, ids=[portable_id(e, VENDOR_ROOT) for e in _ENTRIES])
+        params = []
+        for e in _ENTRIES:
+            pid = portable_id(e, VENDOR_ROOT)
+            marks = [pytest.mark.xfail(strict=True, reason=ENGINE_GAPS[pid])] if pid in ENGINE_GAPS else []
+            params.append(pytest.param(e, id=pid, marks=marks))
+        metafunc.parametrize("entry", params)
     else:
         metafunc.parametrize(
             "entry",
@@ -129,6 +135,10 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
 
     data_graph = _resolve_action_graph(entry, SHT.dataGraph, new_graph)
     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph, new_graph)
+    if next(entry.graph.objects(entry.iri, MF.result), None) == SHT.Failure:  # rule processing must fail (an unknown rule type, a bad rule)
+        with pytest.raises(RuleError):
+            StarShaclSchema(shacl_graph=shapes_graph).apply_rules(data_graph=data_graph, meta_shacl=False)
+        return
     expected = _expected_triples(entry)
 
     before = set(data_graph.triples((None, None, None)))

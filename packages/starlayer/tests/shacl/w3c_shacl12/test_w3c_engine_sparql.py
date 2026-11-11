@@ -47,19 +47,6 @@ def pytest_generate_tests(metafunc):
         metafunc.parametrize("entry", _ENTRIES, ids=[portable_id(e, VENDOR_ROOT) for e in _ENTRIES])
 
 
-# Deliberate deviations from the vendored fixtures: the engine follows the SHACL 1.2 SPARQL draft where the fixture follows
-# the older rule (which pySHACL also implements). The entry is NOT skipped or xfailed: the test asserts the engine's own
-# outcome, so a change in either direction shows up.
-DEVIATIONS: dict[str, str] = {
-    "tests/sparql/pre-binding/unsupported-sparql-002::unsupported-sparql-002": (
-        "The fixture expects a failure for `VALUES ?any { true }`. SHACL 1.2 SPARQL Appendix A: \"SPARQL queries MUST not "
-        "contain a VALUES clause that mentions any potentially pre-bound variable\"; ?any is not pre-bound, so the query "
-        "is allowed and the engine runs it (Appendix F item 8, Issue 159, records the relaxation). pySHACL and the fixture "
-        "keep the older rule that forbids every VALUES."
-    ),
-}
-
-
 def _graph(entry: ManifestEntry, predicate) -> StarLayerGraph:
     action = next(entry.graph.objects(entry.iri, MF.action))
     return clone_graph(load_document(uri_to_path(next(entry.graph.objects(action, predicate)))), StarLayerGraph)
@@ -69,11 +56,6 @@ def test_engine_sparql(entry: ManifestEntry) -> None:
     data = _graph(entry, SHT.dataGraph)
     shapes = _graph(entry, SHT.shapesGraph)
     expected = next(entry.graph.objects(entry.iri, MF.result))
-    if portable_id(entry, VENDOR_ROOT) in DEVIATIONS:
-        outcome = validate(data, shapes)  # runs instead of failing; the query yields a row, so a violation is reported
-        assert not outcome.conforms
-        assert len(outcome.results) == 1
-        return
     if expected == SHT.Failure:
         with pytest.raises(Exception):  # noqa: B017
             validate(data, shapes)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Vendor a pinned snapshot of the W3C SHACL 1.2 test suite into tests/vendor/.
+"""Vendor a pinned snapshot of the W3C SHACL 1.2 test suite into tests/shacl/vendor/.
 
 Source: https://github.com/w3c/data-shapes/tree/gh-pages/shacl12-test-suite
 
@@ -7,7 +7,7 @@ Downloads the ``shacl12-test-suite/`` subtree at a pinned commit SHA (below)
 by fetching the repository's tarball snapshot (one HTTP request - the suite
 has ~400 files, and GitHub's unauthenticated REST API rate limit of 60
 requests/hour makes a per-file "git blobs" API approach infeasible) and
-writes it verbatim into ``tests/vendor/shacl12-test-suite/``, replacing
+writes it verbatim into ``tests/shacl/vendor/shacl12-test-suite/``, replacing
 whatever was there. Writes a ``VENDORED_FROM.md`` stamp recording the
 source, pinned SHA, sync date, and file counts, so a reviewer can see
 exactly what changed by diffing one file.
@@ -32,11 +32,11 @@ REPO = "w3c/data-shapes"
 # Bump deliberately - see docs/w3c-shacl12-test-suite-plan.md's "Ongoing
 # maintenance" section for the review/bump procedure. Do not auto-follow
 # gh-pages's tip.
-PINNED_SHA = "59b38cd7061ff3e6e3dc9e216836ef848f7d8baf"
+PINNED_SHA = "47c6e078bcf946ece9487d731f0b1ca2e31d0c80"
 SUBTREE_PREFIX = "shacl12-test-suite/"
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-DEST = REPO_ROOT / "tests" / "vendor" / "shacl12-test-suite"
+DEST = REPO_ROOT / "tests" / "shacl" / "vendor" / "shacl12-test-suite"
 
 TARBALL_URL = f"https://codeload.github.com/{REPO}/tar.gz/{PINNED_SHA}"
 

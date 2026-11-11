@@ -11,14 +11,14 @@ import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context
-from starlayer.shacl_engine.expressions import evaluate_expression
+from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 from starlayer.shacl_engine.plan import Plan
 from starlayer.shacl_engine.terms import from_engine, to_engine
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
 from .ids import portable_id
-from .known_failures import STORE_NORMALIZATION
+from .known_failures import ENGINE_GAPS, STORE_NORMALIZATION
 from .manifest import (
     ManifestEntry,
     clone_graph,
@@ -49,7 +49,8 @@ def pytest_generate_tests(metafunc):
         params = []
         for e in _ENTRIES:
             pid = portable_id(e, VENDOR_ROOT)
-            marks = [pytest.mark.xfail(strict=True, reason=STORE_NORMALIZATION[pid])] if pid in STORE_NORMALIZATION else []
+            reason = STORE_NORMALIZATION.get(pid) or ENGINE_GAPS.get(pid)
+            marks = [pytest.mark.xfail(strict=True, reason=reason)] if reason else []
             params.append(pytest.param(e, id=pid, marks=marks))
         metafunc.parametrize("entry", params)
 
@@ -66,15 +67,21 @@ def _eval(entry: ManifestEntry) -> None:
         for p, o in entry.graph.predicate_objects(action)
         if str(p).startswith(prefix)
     }
-    expected = list(entry.graph.items(next(entry.graph.objects(entry.iri, MF.result))))
+    result = next(entry.graph.objects(entry.iri, MF.result))
+    args = (
+        Context(data=graph, plan=Plan(shapes_graph=graph)),
+        to_engine(expr),
+        to_engine(focus),
+        {k: [to_engine(o) for o in v] for k, v in scope.items()},
+    )
+    if result == SHT.Failure:  # the expression must fail to evaluate (SHACL 1.2 Node Expressions: evaluation failure)
+        with pytest.raises(EvaluationFailure):
+            evaluate_expression(*args)
+        return
+    expected = list(entry.graph.items(result))
     actual = [  # the engine speaks pyoxigraph terms: convert in and out
         from_engine(t)
-        for t in evaluate_expression(
-            Context(data=graph, plan=Plan(shapes_graph=graph)),
-            to_engine(expr),
-            to_engine(focus),
-            {k: [to_engine(o) for o in v] for k, v in scope.items()},
-        )
+        for t in evaluate_expression(*args)
     ]
     assert _same_terms(actual, expected, ordered=not (ignore is not None and ignore.toPython())), f"{actual} != {expected}"
 

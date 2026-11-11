@@ -66,11 +66,9 @@ OXIGRAPH_QUERY_BUGS: dict[str, str] = {
 }
 
 KNOWN_FAILURES: dict[str, str] = {
-    "tests/sparql/pre-binding/unsupported-sparql-002::unsupported-sparql-002": (
-        "The fixture expects a failure for `VALUES ?any { true }`. SHACL 1.2 SPARQL Appendix A: \"SPARQL queries MUST not contain a "
-        "VALUES clause that mentions any potentially pre-bound variable\"; ?any is not pre-bound, so the query is allowed and the "
-        "engine runs it (Appendix F item 8, Issue 159, records the relaxation). The fixture keeps the older rule that forbids every "
-        "VALUES. test_w3c_engine_sparql.py asserts the engine's own outcome for this entry (DEVIATIONS)."
+    "tests/sparql/scope-interactions/quoted-focus-optional/manifest::quoted-focus-optional": (
+        "closure.py::node_closure copies the expected report into an rdflib Graph, which cannot hold a triple term (the focus node "
+        "is `<<( ex:s ex:r ex:bad )>>`). A harness limit, not an engine one: test_w3c_engine_sparql passes this entry."
     ),
     "tests/node-expr/shnex-sparql/seconds::seconds-example": (
         "confirmed to be a fixture-formatting expectation with no basis in "
@@ -106,6 +104,8 @@ KNOWN_FAILURES: dict[str, str] = {
 # on insert (starlayer #190; upstream oxigraph#526, #1989, PR #2010). STRICT xfails where they are used: they XPASS, and fail, once a
 # pyoxigraph with the fix is installed, which is the signal to delete them.
 STORE_NORMALIZATION: dict[str, str] = {
+    "tests/core/node/in-004::in-004": '"4"^^xsd:byte (the focus node) is stored as "4"^^xsd:integer, the same term as the sh:in member 4: it conforms, and the fixture expects a violation',
+    "tests/node-expr/shnex/intersection::intersection-termEquality": '"01"^^xsd:integer is stored as "1", the same term as 1: the intersection keeps it',
     "tests/node-expr/shnex/remove::remove-list-from-list": '"01"^^xsd:integer is stored as "1", so the list no longer holds a term to remove',
     "tests/node-expr/shnex/distinct::distinct-termEquality": '"04"^^xsd:integer is stored as "4", the same term as "4": distinct merges them',
     "tests/core/node/maxExclusive-001::maxExclusive-001": '"4.0"^^xsd:decimal is stored as "4"; the report echoes the value',
@@ -115,3 +115,15 @@ STORE_NORMALIZATION: dict[str, str] = {
 }
 
 
+
+
+# Engine gaps the 2026-11-11 suite re-sync found (docs/working/spec-delta-2026-11-11.md, phase 1). Each is applied as a strict xfail,
+# so fixing one fails loudly until its entry is removed.
+ENGINE_GAPS: dict[str, str] = {
+    "tests/node-expr/shnex-sparql/abs::abs-single-argument-shorthand": "a list-parameter function takes a single argument without a list (`sparql:abs -42`): Node Expressions, ListParameterFunctions; shacl_engine/expressions.py demands an RDF list",
+    "tests/node-expr/shnex-sparql/abs::abs-single-argument-expression": "the same shorthand with a node expression as the argument",
+    "tests/node-expr/custom/listParameter::listParameter-single-argument-shorthand": "the same shorthand for a custom list-parameter function (`ex:twice 21`)",
+    "tests/inference-rules/condition-shape-class-superclass::condition-shape-class-superclass": "a sh:condition that is a node shape and a class must also conform to the shapes of its superclasses; the engine checks only the shape itself",
+    "tests/inference-rules/ruleProcessor-unknown-at-ruleset::ruleProcessor-unknown-at-ruleset": "an unknown sh:ruleProcessor named on a rule set must fail; only one on a rule does (rules.py)",
+    "tests/inference-rules/SPARQLRuleTemplate-optional-param::SPARQLRuleTemplate-optional-param": "a rule template whose parameters are all optional is valid; the check that a component needs one non-optional parameter is for constraint components (components/sparql_components.py)",
+}
