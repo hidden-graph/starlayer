@@ -47,7 +47,7 @@ import urllib.request
 REPO = "w3c/rdf-tests"
 # Bump deliberately - see this module's own docstring. Do not auto-follow
 # main's tip.
-PINNED_SHA = "d5d930b03ee6b63b388d0bb28fdb29ee78a59ec0"
+PINNED_SHA = "4158bca195a29fe1fd90f92698170bc7cc385273"
 SUBTREE_PREFIXES = {
     "eval": "rdf/rdf12/rdf-turtle/eval/",
     "syntax": "rdf/rdf12/rdf-turtle/syntax/",

@@ -177,6 +177,9 @@ syntax-triple-terms-negative	NegativeSyntaxTest	Triple term in the subject posit
 syntax-triple-terms-negative	NegativeSyntaxTest	Literal in the subject position of a triple term (VALUES, simple)	tripleterm-subject-04.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-negative/manifest#tripleterm-subject-04
 syntax-triple-terms-negative	NegativeSyntaxTest	Literal in the subject position of a triple term (VALUES, general)	tripleterm-subject-05.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-negative/manifest#tripleterm-subject-05
 syntax-triple-terms-negative	NegativeSyntaxTest	Literal in the subject position of a triple term (expression)	tripleterm-subject-06.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax-triple-terms-negative/manifest#tripleterm-subject-06
+eval-triple-terms	UpdateEvaluationTest	Reified triples - Update		update-1.ru		update-result-1.trig	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#update-1
+eval-triple-terms	UpdateEvaluationTest	Reified triples - Update - annotation		update-2.ru		update-result-2.trig	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#update-2
+eval-triple-terms	UpdateEvaluationTest	Reified triples - Update - data		update-3.ru		update-result-3.trig	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#update-3
 eval-triple-terms	QueryEvaluationTest	Triple terms - all graph triples (JSON results)	results-1.rq		data-0-tripleterms.ttl	results-tripleterms-1.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#results-tripleterms-1j
 eval-triple-terms	QueryEvaluationTest	Triple terms - all graph triples (XML results)	results-1.rq		data-0-tripleterms.ttl	results-tripleterms-1.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#results-tripleterms-1x
 eval-triple-terms	QueryEvaluationTest	Reified triples - all graph triples (JSON results)	results-1.rq		data-0-reifiedtriples.ttl	results-reifiedtriples-1.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#results-reifiedtriples-1j
@@ -215,9 +218,6 @@ eval-triple-terms	QueryEvaluationTest	Reified triples - Embedded triple - sameTe
 eval-triple-terms	QueryEvaluationTest	Reified triples - Embedded triple - value-equality	op-2.rq		data-7.ttl	op-2.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#op-2
 eval-triple-terms	QueryEvaluationTest	Reified triples - Embedded triple - ORDER BY	order-by.rq		data-order-kind.ttl	order-1.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#order-1
 eval-triple-terms	QueryEvaluationTest	Reified triples - Embedded triple - ordering	order-by.rq		data-order.ttl	order-2.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#order-2
-eval-triple-terms	UpdateEvaluationTest	Reified triples - Update		update-1.ru		update-result-1.trig	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#update-1
-eval-triple-terms	UpdateEvaluationTest	Reified triples - Update - annotation		update-2.ru		update-result-2.trig	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#update-2
-eval-triple-terms	UpdateEvaluationTest	Reified triples - Update - data		update-3.ru		update-result-3.trig	https://w3c.github.io/rdf-tests/sparql/sparql12/eval-triple-terms/manifest#update-3
 expression	QueryEvaluationTest	not-not	not-not.rq			not-not.srx	https://w3c.github.io/rdf-tests/sparql/sparql12/expression/manifest#not-not
 expression	QueryEvaluationTest	triple on literals	triple-on-literals.rq			triple-on-literals.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/expression/manifest#triple-on-literals
 expression	QueryEvaluationTest	triple on string literals	triple-on-str-literals.rq			triple-on-str-literals.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/expression/manifest#triple-on-str-literals
@@ -255,18 +255,18 @@ grouping	QueryEvaluationTest	Reuse of SELECT variable in an aggregating query	se
 rdf11	QueryEvaluationTest	DATATYPE on rdf:langString	langstring-datatype.rq			langstring-datatype.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/rdf11/manifest#langstring-datatype
 rdf11	QueryEvaluationTest	DATATYPE on plain string literal	plain-string-datatype.rq			plain-string-datatype.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/rdf11/manifest#plain-string-datatype
 rdf11	QueryEvaluationTest	xsd:string and plain literals are the same	plain-string-same.rq			plain-string-same.srj	https://w3c.github.io/rdf-tests/sparql/sparql12/rdf11/manifest#plain-string-same
-syntax	PositiveSyntaxTest	GROUP BY in-scope	group-by-scope-1.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-1
 syntax	NegativeSyntaxTest	Nested aggregate functions	nested-aggregate-functions.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#nested-aggregate-functions
 syntax	NegativeSyntaxTest	Duplicated variable in a VALUES clause	duplicated-values-variable.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#duplicated-values-variable
 syntax	NegativeSyntaxTest	GROUP BY variable in-scope (1)	group-by-scope-bad-1.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-bad-1
 syntax	NegativeSyntaxTest	GROUP BY variable in-scope (2)	group-by-scope-bad-2.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-bad-2
 syntax	NegativeSyntaxTest	GROUP BY expression in-scope	group-by-scope-bad-3.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-bad-3
+syntax	PositiveSyntaxTest	GROUP BY in-scope	group-by-scope-1.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/syntax/manifest#group-by-scope-1
+version	NegativeSyntaxTest	version-bad-01.rq	version-bad-01.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-01
+version	NegativeSyntaxTest	version-bad-02.rq	version-bad-02.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-02
+version	NegativeSyntaxTest	version-bad-03.rq	version-bad-03.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-03
 version	PositiveSyntaxTest	version-01.rq	version-01.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-01
 version	PositiveSyntaxTest	version-02.rq	version-02.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-02
 version	PositiveSyntaxTest	version-03.rq	version-03.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-03
 version	PositiveSyntaxTest	version-04.rq	version-04.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-04
 version	PositiveSyntaxTest	version-05.rq	version-05.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-05
 version	PositiveSyntaxTest	version-06.rq	version-06.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-06
-version	NegativeSyntaxTest	version-bad-01.rq	version-bad-01.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-01
-version	NegativeSyntaxTest	version-bad-02.rq	version-bad-02.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-02
-version	NegativeSyntaxTest	version-bad-03.rq	version-bad-03.rq				https://w3c.github.io/rdf-tests/sparql/sparql12/version/manifest#version-bad-03

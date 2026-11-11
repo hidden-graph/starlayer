@@ -104,7 +104,7 @@ def test_the_suites_are_there() -> None:
     kinds = {t["kind"] for rel in MANIFESTS for t in _manifest(rel)}
     assert {"TestTurtleEval", "TestTrigEval", "TestXMLEval", "TestNTriplesPositiveSyntax", "TestNQuadsNegativeSyntax",
             "TestNTriplesPositiveC14N", "TestNQuadsPositiveC14N"} <= kinds
-    assert sum(len(_manifest(rel)) for rel in MANIFESTS) == 341  # 259 syntax and evaluation tests, 82 canonical-form tests
+    assert sum(len(_manifest(rel)) for rel in MANIFESTS) == 351  # 269 syntax and evaluation tests, 82 canonical-form tests
 
 
 @pytest.mark.parametrize("t", _all("PositiveSyntax", exclude_known=True))

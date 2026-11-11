@@ -34,7 +34,7 @@ UT = Namespace("http://www.w3.org/2009/sparql/tests/test-update#")
 
 REPO = "w3c/rdf-tests"
 # The same commit as the SPARQL 1.2 suite, so both vendored suites describe one snapshot of the repository.
-PINNED_SHA = "d5d930b03ee6b63b388d0bb28fdb29ee78a59ec0"
+PINNED_SHA = "4158bca195a29fe1fd90f92698170bc7cc385273"
 SUBTREE_PREFIX = "sparql/sparql11/"
 MANIFEST_PUBLIC_BASE = "http://www.w3.org/2009/sparql/docs/tests/data-sparql11"
 

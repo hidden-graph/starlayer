@@ -1,12 +1,10 @@
 # Vendored snapshot provenance
 
-Do not hand-edit files in this directory.
+Do not hand-edit files in this directory: regenerate with `python ../download_w3c_rdf12_tests.py` after bumping `PINNED_SHA` there.
 
-- Source: https://github.com/w3c/rdf-tests/tree/d5d930b03ee6b63b388d0bb28fdb29ee78a59ec0/rdf/rdf12/
-- Pinned commit SHA: `d5d930b03ee6b63b388d0bb28fdb29ee78a59ec0` (the commit `../../w3c_turtle12/data` is pinned to)
-- Copied: 2026-11-04, whole directories `rdf-turtle`, `rdf-trig`, `rdf-n-triples`, `rdf-n-quads` and `rdf-xml`, byte for byte. To
-  refresh, bump the SHA, replace these five directories from a tarball of that commit (`codeload.github.com/w3c/rdf-tests/tar.gz/<sha>`,
-  subtree `rdf/rdf12/`) and update the expected count and `KNOWN_GAPS` in `../test_w3c_rdf12_oxigraph.py`.
+- Source: https://github.com/w3c/rdf-tests/tree/4158bca195a29fe1fd90f92698170bc7cc385273/rdf/rdf12/
+- Pinned commit SHA: `4158bca195a29fe1fd90f92698170bc7cc385273` (the commit `../../w3c_turtle12/data` is pinned to)
+- Copied: 2026-11-11, whole directories `rdf-turtle`, `rdf-trig`, `rdf-n-triples`, `rdf-n-quads`, `rdf-xml`, byte for byte, except the `reports` directories (EARL implementation reports, which nothing reads). 539 files.
 - Not vendored: `rdf-semantics` (entailment, not syntax) and the RDF 1.1 suites (`rdf/rdf11`, 24 MB, mostly Turtle).
 
 ## License
