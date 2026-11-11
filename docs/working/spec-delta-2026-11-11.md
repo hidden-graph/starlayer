@@ -108,7 +108,16 @@ section 2.
 4. Rule templates may have only optional parameters (`components/sparql_components.py` line 75: keep the rule for constraint
    components).
 
-**Phase 2. Vocabulary and data (small to medium).** Re-vendor `w3c-shacl.ttl` and `w3c-shacl-shacl.ttl` (and the hash record);
+**Phase 2. Vocabulary and data (small to medium). Done 2026-11-11.** Re-vendored `w3c-shacl.ttl` (`9d7caf1`) and `w3c-shacl-shacl.ttl`
+(`a6ed26f`): `sh:dataGraph`, `shsh:DataGraphShape` and the role-class wording are in the generated data. The upstream `shacl-ui.ttl`
+(`40231df`) is now vendored as `w3c-shacl-ui.ttl` and is a third base of the `shacl_vocabulary` graph, so all 32 `shui:` terms are
+defined (our overlay had defined six subclass relations and nothing else); `shui:suggestedValues` has a field in the property
+shape form. **Found on the way: the SHACL UI namespace is `http://www.w3.org/ns/shacl-ui/` (slash), not `…#`.** Our 2026-10-21 note
+that the draft used the hash form rested on an older source; the published WD 2026-11-11 and the editor's draft since at least
+2026-10-21 use the slash form. Decided with the owner: a clean break. Code, data, tests and guide 04d moved; the workbench (24 files)
+is logged in `graph-workbench/docs/deferred.md`. Not done: `sh:ShapeAssignment`, `sh:assignment` and `sh:nodeAssignmentCount` are
+not in the WG vocabulary files, only in the draft text as an optional report extension, so there is nothing to vendor; the engine
+does not produce them. (Original scope:) Re-vendor `w3c-shacl.ttl` and `w3c-shacl-shacl.ttl` (and the hash record);
 add `sh:dataGraph` with `shsh:DataGraphShape`; decide whether to support the optional `sh:ShapeAssignment`,
 `sh:assignment` and `sh:nodeAssignmentCount` report terms (they are optional in the spec); add the 7 UI terms; regenerate with
 `scripts/build.py`. Check the role-class comments are in the regenerated data. (shared)

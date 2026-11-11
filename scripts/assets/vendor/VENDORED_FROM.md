@@ -33,3 +33,15 @@ from it). Never edit it; additions go in their own file. It replaces the SHACL 1
 - SHA-256 of the file: `63e0f9d813350bd9a15c1d153984fe34dfdbc657adceba3a49e56790f43978ce`
 - Since the 2026-10-14 copy: `sh:dataGraph` (domain `sh:ShapesGraph`, range `sh:DataGraph`) and the role-class wording ("graphs acting in the role of").
 - Headed "THIS VERSION IS UNDER DEVELOPMENT"; it is moving.
+
+
+# Vendored snapshot: the W3C Data Shapes WG's SHACL UI vocabulary
+
+`w3c-shacl-ui.ttl` is a verbatim copy of the Working Group's SHACL UI vocabulary (the `shui:` classes and properties: widgets, widget
+matchers and scores, property roles, `shui:suggestedValues`). It is a base of the `shacl_vocabulary` graph (`scripts/build_starontology.py`),
+next to `w3c-shacl.ttl`. Never edit it. The namespace is `http://www.w3.org/ns/shacl-ui/` (slash), as in the published SHACL UI draft.
+
+- Source: https://github.com/w3c/data-shapes/blob/gh-pages/shacl12-vocabularies/shacl-ui.ttl
+- Upstream commit this copy matches: `40231df` (2026-11-06, "[UI] initial text for shui:suggestedValues (#1338)", the latest commit that touches the file)
+- Fetched: 2026-11-11
+- SHA-256 of the file: `986903f9332547569cc1ebb09fbefef55e92c7f89909f46faf31e8649517fa29`

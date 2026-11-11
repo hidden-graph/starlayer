@@ -465,6 +465,7 @@ stsh:PropertyShapeForm a sh:NodeShape ;
         stsh:PropertyShapeForm_sh_xone,
         stsh:PropertyShapeForm_shui_editor,
         stsh:PropertyShapeForm_shui_propertyRole,
+        stsh:PropertyShapeForm_shui_suggestedValues,
         stsh:PropertyShapeForm_shui_viewer ;
     stsh:formFor sh:PropertyShape .
 
@@ -797,6 +798,12 @@ sh:uniqueLang sh:group stsh:StringGroup ;
 
 sh:values sh:group stsh:MetadataGroup ;
     sh:order 4 ;
+    stsh:formMaxCount 1 ;
+    stsh:propertyFormField true .
+
+shui:suggestedValues sh:group stsh:WidgetGroup ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 31 ;
     stsh:formMaxCount 1 ;
     stsh:propertyFormField true .
 
@@ -1394,7 +1401,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n5b91425148d6401fbaf1f984ab746fb7b75 ;
+    sh:in _:nb9dc1c6f35924967bc81b2f26f1ca7efb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1603,7 +1610,7 @@ stsh:ParameterForm_sh_name a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n5b91425148d6401fbaf1f984ab746fb7b75 ;
+    sh:in _:nb9dc1c6f35924967bc81b2f26f1ca7efb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1985,7 +1992,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n5b91425148d6401fbaf1f984ab746fb7b75 ;
+    sh:in _:nb9dc1c6f35924967bc81b2f26f1ca7efb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2205,6 +2212,13 @@ stsh:PropertyShapeForm_shui_propertyRole a sh:PropertyShape ;
     sh:nodeKind sh:IRI ;
     sh:order 3 ;
     sh:path shui:propertyRole .
+
+stsh:PropertyShapeForm_shui_suggestedValues a sh:PropertyShape ;
+    sh:group stsh:WidgetGroup ;
+    sh:maxCount 1 ;
+    sh:nodeKind sh:BlankNodeOrIRI ;
+    sh:order 31 ;
+    sh:path shui:suggestedValues .
 
 stsh:PropertyShapeForm_shui_viewer a sh:PropertyShape ;
     sh:group stsh:WidgetGroup ;
@@ -3555,8 +3569,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n5b91425148d6401fbaf1f984ab746fb7b76 rdf:first sh:IRI ;
+_:nb9dc1c6f35924967bc81b2f26f1ca7efb76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n5b91425148d6401fbaf1f984ab746fb7b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n5b91425148d6401fbaf1f984ab746fb7b76 .
+_:nb9dc1c6f35924967bc81b2f26f1ca7efb75 rdf:first sh:BlankNode ;
+    rdf:rest _:nb9dc1c6f35924967bc81b2f26f1ca7efb76 .

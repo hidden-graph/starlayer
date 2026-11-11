@@ -313,6 +313,7 @@ shui:BlankNodeViewer sh:group stsh:WidgetGroup ; sh:order 27 .
 shui:DetailsViewer sh:group stsh:WidgetGroup ; sh:order 28 .
 shui:ValueTableViewer sh:group stsh:WidgetGroup ; sh:order 29 .
 shui:LabelRole sh:group stsh:WidgetGroup ; sh:order 30 .
+shui:suggestedValues sh:group stsh:WidgetGroup ; sh:order 31 .
 
 
 #############################################################################
@@ -673,6 +674,7 @@ rdf:type stsh:nodeFormField true ; stsh:propertyFormField true ; sh:group stsh:T
 shui:editor stsh:propertyFormField true ; sh:nodeKind sh:IRI .
 shui:viewer stsh:propertyFormField true ; sh:nodeKind sh:IRI .
 shui:propertyRole stsh:propertyFormField true ; sh:nodeKind sh:IRI .
+shui:suggestedValues stsh:propertyFormField true ; stsh:formMaxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI .  # one SHACL list (its head is a blank node, or rdf:nil) of IRIs or literals
 
 # stsh:secondary is the mark on a FIELD of a generated form: allowed but not commonly expected there, so a tool may show it
 # in a collapsed section. The generator sets it on a field of the node shape form for each predicate flagged

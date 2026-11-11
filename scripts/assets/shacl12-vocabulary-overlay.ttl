@@ -223,9 +223,3 @@ stsh:ShapesGraphUses a sh:PropertyShape ;
     sh:path rdfs:member ;
     sh:order 100 .
 
-shui:Editor rdfs:subClassOf shui:Widget .
-shui:Viewer rdfs:subClassOf shui:Widget .
-shui:SingleEditor rdfs:subClassOf shui:Editor .
-shui:MultiEditor rdfs:subClassOf shui:Editor .
-shui:SingleViewer rdfs:subClassOf shui:Viewer .
-shui:MultiViewer rdfs:subClassOf shui:Viewer .
