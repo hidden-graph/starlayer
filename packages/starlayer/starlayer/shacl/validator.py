@@ -1800,6 +1800,7 @@ class StarShaclSchema:
         focus_nodes: Any | None = None,
         properties: Any | None = None,
         rules_entailment: bool = False,
+        validate: bool = False,
     ) -> Any:
         """Computes every ``sh:values``-declared virtual property across
         ``shacl_graph`` and returns the result as a shape-driven subgraph.
@@ -1887,6 +1888,16 @@ class StarShaclSchema:
                 costs a full ``apply_rules`` pass. The inferred triples are used
                 for the evaluation only and are not in the result unless a
                 property shape reads them.
+            validate: Make the evaluation conformance-gated, like ``extract_subgraph()``:
+                the values for a (shape, focus node) pair are computed only when the
+                focus node conforms to the shape that targets it, checked as
+                ``validate()`` does (computed ``sh:values`` values included; a
+                deactivated shape is skipped). A node that does not conform
+                contributes nothing; a node several shapes target contributes the
+                values of the shapes it conforms to, a value computed twice once.
+                Off by default: evaluation is then a lens that needs no conformance
+                and costs no validation. To see why a node was left out, run
+                ``validate()``; its report is the explanation.
 
         Returns:
             A plain graph: the real, stored values of every property shape
@@ -1930,6 +1941,7 @@ class StarShaclSchema:
         all_prop_shapes = {s for s, _, _ in shacl_graph.triples((None, SH.path, None))}
         wanted_focus_nodes = None if focus_nodes is None else frozenset(focus_nodes)
         wanted_predicates = None if properties is None else frozenset(properties)
+        conformance_cache: dict[tuple[Any, Any], bool] = {}
 
         for prop_shape in all_prop_shapes:
             path_vals = list(shacl_graph.objects(prop_shape, SH.path))
@@ -1943,13 +1955,9 @@ class StarShaclSchema:
 
             if _shape_is_deactivated(shacl_graph, prop_shape):
                 continue
-            focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
-            for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
-                if _shape_is_deactivated(shacl_graph, node_shape):
-                    continue
-                focus_nodes |= _shape_target_nodes(data_graph, shacl_graph, node_shape)
-            if wanted_focus_nodes is not None:
-                focus_nodes &= wanted_focus_nodes
+            focus_nodes = _evaluation_focus_nodes(
+                data_graph, shacl_graph, prop_shape, wanted_focus_nodes, harvested_sg if validate else None, conformance_cache
+            )
             if not focus_nodes:
                 continue
 
@@ -3838,6 +3846,7 @@ def evaluate(
     focus_nodes: Any | None = None,
     properties: Any | None = None,
     rules_entailment: bool = False,
+    validate: bool = False,
 ) -> Any:
     """Computes every ``sh:values``/``sh:defaultValue``-declared virtual
     property across ``shacl_graph`` and returns the result as a
@@ -3902,6 +3911,16 @@ def evaluate(
             Rules section 6) before evaluating, as ``validate()`` does. Off by
             default: evaluating is not validating, and the rules cost a full
             ``apply_rules`` pass.
+        validate: Make the evaluation conformance-gated, like ``extract_subgraph()``:
+            the values for a (shape, focus node) pair are computed only when the
+            focus node conforms to the shape that targets it, checked as
+            ``validate()`` does (computed ``sh:values`` values included; a
+            deactivated shape is skipped). A node that does not conform
+            contributes nothing; a node several shapes target contributes the
+            values of the shapes it conforms to, a value computed twice once.
+            Off by default: evaluation is then a lens that needs no conformance
+            and costs no validation. To see why a node was left out, run
+            ``validate()``; its report is the explanation.
 
     Returns:
         A plain graph object (the same type as ``data_graph``)
@@ -3938,6 +3957,7 @@ def evaluate(
     all_prop_shapes = {s for s, _, _ in shacl_graph.triples((None, SH.path, None))}
     wanted_focus_nodes = None if focus_nodes is None else frozenset(focus_nodes)
     wanted_predicates = None if properties is None else frozenset(properties)
+    conformance_cache: dict[tuple[Any, Any], bool] = {}
 
     for prop_shape in all_prop_shapes:
         path_vals = list(shacl_graph.objects(prop_shape, SH.path))
@@ -3953,13 +3973,9 @@ def evaluate(
         # contributes nothing (Core "Deactivating shapes"; GitHub issue #94).
         if _shape_is_deactivated(shacl_graph, prop_shape):
             continue
-        focus_nodes = set(_shape_target_nodes(data_graph, shacl_graph, prop_shape))
-        for node_shape, _, _ in shacl_graph.triples((None, SH.property, prop_shape)):
-            if _shape_is_deactivated(shacl_graph, node_shape):
-                continue
-            focus_nodes |= _shape_target_nodes(data_graph, shacl_graph, node_shape)
-        if wanted_focus_nodes is not None:
-            focus_nodes &= wanted_focus_nodes
+        focus_nodes = _evaluation_focus_nodes(
+            data_graph, shacl_graph, prop_shape, wanted_focus_nodes, harvested_sg if validate else None, conformance_cache
+        )
         if not focus_nodes:
             continue
 
@@ -3986,6 +4002,45 @@ def evaluate(
                         merged.add((focus_node, predicate, value))
 
     return merged
+
+
+def _evaluation_focus_nodes(
+    data_graph: Any,
+    shacl_graph: Any,
+    prop_shape: Any,
+    wanted_focus_nodes: Any | None,
+    conformance_sg: Any | None,
+    cache: dict[tuple[Any, Any], bool],
+) -> set:
+    """The focus nodes ``evaluate()`` computes ``prop_shape``'s values for: the nodes targeted by the property shape itself
+    or by an active node shape that hosts it, limited to ``wanted_focus_nodes``. A deactivated shape targets nothing.
+
+    With ``conformance_sg`` (``validate=True``) a node stays only when it conforms to a shape that targets it, the shape
+    being the one that holds the target (the host node shape, not the property shape alone), checked by
+    ``subgraph_extraction._shape_conforms`` as ``extract_subgraph()`` does; ``cache`` keeps each (shape, node) answer."""
+    targeters: dict[Any, set] = {}
+    sources = [prop_shape] + [n for n, _, _ in shacl_graph.triples((None, SH.property, prop_shape))]
+    for shape in sources:
+        if _shape_is_deactivated(shacl_graph, shape):
+            continue
+        for node in _shape_target_nodes(data_graph, shacl_graph, shape):
+            if wanted_focus_nodes is None or node in wanted_focus_nodes:
+                targeters.setdefault(node, set()).add(shape)
+    if conformance_sg is None:
+        return set(targeters)
+
+    from starlayer.shacl.subgraph_extraction import _shape_conforms
+
+    def conforms(shape: Any, node: Any) -> bool:
+        key = (shape, node)
+        if key not in cache:
+            try:
+                cache[key] = _shape_conforms(conformance_sg, shape, data_graph, node)
+            except KeyError:
+                cache[key] = False
+        return cache[key]
+
+    return {node for node, shapes in targeters.items() if any(conforms(shape, node) for shape in shapes)}
 
 
 def _shape_is_deactivated(shapes_graph: Any, shape_node: Any) -> bool:
