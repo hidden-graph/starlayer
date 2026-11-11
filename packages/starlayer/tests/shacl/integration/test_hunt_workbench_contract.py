@@ -1,0 +1,32 @@
+"""Regression tests for the workbench-contract hunt: the public API applications use."""
+
+from __future__ import annotations
+
+import subprocess
+import sys
+import textwrap
+
+
+def _run(code: str) -> subprocess.CompletedProcess:
+    return subprocess.run([sys.executable, "-W", "ignore", "-c", textwrap.dedent(code)], capture_output=True, text=True, timeout=120)
+
+
+def test_evaluate_expression_gives_pyoxigraph_terms_without_rdflib():
+    r = _run(
+        """
+        import sys
+        class Block:
+            def find_spec(self, name, path=None, target=None):
+                if name == "rdflib" or name.startswith("rdflib."):
+                    raise ImportError("rdflib blocked")
+        sys.meta_path.insert(0, Block())
+        import pyoxigraph as ox
+        from starlayer import StarLayerGraph
+        from starlayer.shacl import evaluate_expression
+        sg = StarLayerGraph(); sg.parse(data="@prefix : <http://e/> . @prefix sparql: <http://www.w3.org/ns/sparql#> . :s :x [ sparql:concat ( 'a' 'b' ) ] .", format="turtle")
+        e = next(sg.objects(ox.NamedNode("http://e/s"), ox.NamedNode("http://e/x")))
+        out = evaluate_expression(sg, StarLayerGraph(), e, ox.NamedNode("http://e/f"))
+        assert out == [ox.Literal("ab")], out
+        """
+    )
+    assert r.returncode == 0, r.stderr
