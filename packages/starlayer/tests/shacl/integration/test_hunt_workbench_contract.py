@@ -87,3 +87,12 @@ def test_a_none_data_graph_is_a_type_error_naming_data_graph():
         validate(None, shapes)
     with pytest.raises(TypeError, match="data_graph"):
         apply_rules(None, shapes)
+
+
+def test_star_query_runs_on_a_bare_pyoxigraph_store():
+    import pyoxigraph as ox
+    from starlayer import StarQuery
+
+    store = ox.Store()
+    store.add(ox.Quad(ox.NamedNode("http://e/a"), ox.NamedNode("http://e/p"), ox.NamedNode("http://e/b"), ox.DefaultGraph()))
+    assert len(list(StarQuery("SELECT ?s { ?s ?p ?o }").run(store))) == 1

@@ -125,7 +125,7 @@ class StarQuery:
 
         from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
-        if not _ox.is_oxigraph_input(graph):
+        if not _ox.is_oxigraph_input(graph) or isinstance(graph, _ox.ox.Store):  # a bare Store has no StarLayer query() keywords
             graph = _ox.to_oxgraph(graph)  # an rdflib graph is copied in by the rdflib bridge (rdflib is then needed)
         # The wrapper runs the query text on Oxigraph. RDF / RDFS entailment rewrites the text; the OWL regimes run on a temporary
         # closure copy (see StarLayerGraph.query). timeout is only meaningful for OWL-Direct, as on StarLayerGraph.query(), which is
