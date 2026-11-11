@@ -122,7 +122,14 @@ add `sh:dataGraph` with `shsh:DataGraphShape`; decide whether to support the opt
 `sh:assignment` and `sh:nodeAssignmentCount` report terms (they are optional in the spec); add the 7 UI terms; regenerate with
 `scripts/build.py`. Check the role-class comments are in the regenerated data. (shared)
 
-**Phase 3. SHACL UI behaviour (small to medium).** Widget selection must not offer an unimplemented widget and must report
+**Phase 3. SHACL UI behaviour (small to medium). Done 2026-11-11.** `select_widget` and `select_widgets` take `implemented=` (the widget IRIs
+the application can draw: an unimplemented widget is never returned, the walk goes on) and `on_report=` (a callable that gets a
+`WidgetReport` for each unimplemented widget that matched and when nothing matches; both default to off). `shui:searchQuery`
+and `shui:suggestedValues` are renderer features: the library does not evaluate them. What it does now: the generic catalog scores
+`AutoCompleteEditor` 4 for a property shape with `shui:searchQuery` ("the presence of shui:searchQuery raises the AutoCompleteEditor's
+score"; the draft's number is 20, ours are tiers 1 to 4); `sparql_query_problems` checks a `shui:searchQuery` (a SELECT that parses, with
+`$searchTerm` and `$language` free); `stsh:SearchQueryShape` and `stsh:SuggestedValuesShape` check the shape of the values. Ordering and
+tie-breaking went from MUST to SHOULD in the draft: no change. Guide 04d has a new subsection. (Original scope:) Widget selection must not offer an unimplemented widget and must report
 the case to the application (`shacl/ui_widget_selection.py`: decide how the report is surfaced, which is an API choice); read the
 reworked search-query text (`shui:searchQuery` substitution, `$language` for `$uiLanguage`) and `shui:suggestedValues`. Keep our
 deterministic ordering: the spec now says SHOULD, so this is no change.

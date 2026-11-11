@@ -190,21 +190,21 @@ def test_the_baseline_scores_are_well_formed_widget_scores(baseline, shacl_shacl
 
 def test_every_widget_in_the_baseline_has_a_known_role(baseline) -> None:
     widgets = {w for score in baseline.subjects(RDF.type, SHUI.WidgetScore) for w in baseline.objects(score, SHUI.widget)}
-    assert len(widgets) == 12
+    assert len(widgets) == 13
     assert all(uws._widget_roles(_ox(w)) for w in widgets), [w for w in widgets if not uws._widget_roles(_ox(w))]
     assert {w for w in widgets if "editor" in uws._widget_roles(_ox(w))} and {w for w in widgets if "viewer" in uws._widget_roles(_ox(w))}
 
 
-def test_the_baseline_has_three_tiers_and_no_per_widget_matchers(baseline) -> None:
-    """Tier 1 matches everything (no condition), tier 2 is by datatype, tier 3 by a constraint; the conditions sit on
-    the scores, and there is no shui:WidgetAcceptMatcher (a shared gate a layer on top could not undo)."""
+def test_the_baseline_has_four_tiers_and_no_per_widget_matchers(baseline) -> None:
+    """Tier 1 matches everything (no condition), tier 2 is by datatype, tier 3 by a constraint, tier 4 by a declared live search
+    (shui:searchQuery); the conditions sit on the scores, and there is no shui:WidgetAcceptMatcher (a shared gate a layer on top could not undo)."""
     assert not list(baseline.subjects(RDF.type, SHUI.WidgetAcceptMatcher))
-    by_tier = {1: [], 2: [], 3: []}
+    by_tier = {1: [], 2: [], 3: [], 4: []}
     for score in baseline.subjects(RDF.type, SHUI.WidgetScore):
         by_tier[int(next(baseline.objects(score, SHUI.score)))].append(score)
-    assert {tier: len(scores) for tier, scores in by_tier.items()} == {1: 2, 2: 6, 3: 4}
+    assert {tier: len(scores) for tier, scores in by_tier.items()} == {1: 2, 2: 6, 3: 4, 4: 1}
     assert all(not list(baseline.objects(score, SHUI.shapesGraphShape)) for score in by_tier[1])
-    assert all(len(list(baseline.objects(score, SHUI.shapesGraphShape))) == 1 for score in by_tier[2] + by_tier[3])
+    assert all(len(list(baseline.objects(score, SHUI.shapesGraphShape))) == 1 for score in by_tier[2] + by_tier[3] + by_tier[4])
 
 
 SHAPES = """

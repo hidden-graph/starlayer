@@ -7,7 +7,10 @@
 #   2  defaults by datatype                  number, boolean, date, dateTime, language-tagged string
 #   3  defaults by a constraint that lists   sh:in, sh:class, sh:nodeKind sh:IRI
 #      the answers
-# A constraint is a stronger signal than a datatype (an xsd:string with sh:in is an enumeration), so tier 3 beats 2. A
+#   4  a live search is declared             shui:searchQuery (SHACL UI, AutoCompleteEditor's score rules: "the presence of
+#                                            shui:searchQuery raises the AutoCompleteEditor's score"; the draft's own number is 20)
+# A constraint is a stronger signal than a datatype (an xsd:string with sh:in is an enumeration), so tier 3 beats 2, and a search
+# query that the shape author wrote for the property is the strongest of the defaults. A
 # layer on top (an editor for SHACL, an application, a user) adds scores that beat these (the Working Group's own
 # files use 40 for a preference).
 #
@@ -48,6 +51,9 @@ uib:instancesSelectEditorScore3 a shui:WidgetScore ; shui:widget shui:InstancesS
 uib:iriEditorScore3             a shui:WidgetScore ; shui:widget shui:IRIEditor             ; shui:score 3 ; shui:shapesGraphShape uib:IsIRIWithoutClass .
 uib:labelViewerScore3           a shui:WidgetScore ; shui:widget shui:LabelViewer           ; shui:score 3 ; shui:shapesGraphShape uib:IsResource .
 
+# ---- tier 4 (score 4): a live search is declared on the property shape
+uib:autoCompleteEditorScore4 a shui:WidgetScore ; shui:widget shui:AutoCompleteEditor ; shui:score 4 ; shui:shapesGraphShape uib:HasSearchQuery .
+
 # ---- the conditions: shapes about the property shape being rendered
 uib:HasNumericDatatype a sh:NodeShape ;
     sh:property [ sh:path sh:datatype ; sh:minCount 1 ; sh:in ( xsd:integer xsd:decimal xsd:double xsd:float ) ] .
@@ -63,6 +69,8 @@ uib:HasInList a sh:NodeShape ;
     sh:property [ sh:path sh:in ; sh:minCount 1 ] .
 uib:HasClass a sh:NodeShape ;
     sh:property [ sh:path sh:class ; sh:minCount 1 ] .
+uib:HasSearchQuery a sh:NodeShape ;
+    sh:property [ sh:path shui:searchQuery ; sh:minCount 1 ] .
 # an IRI-valued property that names no class: with a class, InstancesSelectEditor is the better fit, and the two would
 # otherwise tie at 3 (ties go to the widget IRI, which would pick IRIEditor)
 uib:IsIRIWithoutClass a sh:NodeShape ;

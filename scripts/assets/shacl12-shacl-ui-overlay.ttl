@@ -985,6 +985,37 @@ stsh:ShuiPredicateShapes
 		sh:nodeKind sh:IRI ;                     # propertyRole-nodeKind: references a shui:PropertyRole instance (e.g. shui:LabelRole), always an IRI
 	] .
 
+# SHACL UI, Search Query: "A well-formed value of shui:searchQuery is a literal of datatype xsd:string, appearing directly on a property
+# shape, and containing a SPARQL SELECT query ... A property shape has at most one value for shui:searchQuery." That the text is a SELECT
+# that parses is checked by starlayer.shacl.meta_shapes.sparql_query_problems, which reads the text.
+stsh:SearchQueryShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for shui:searchQuery"@en ;
+	sh:targetSubjectsOf shui:searchQuery ;
+	sh:property [
+		sh:path sh:path ;
+		sh:minCount 1 ;                          # searchQuery-on-property-shape: appears directly on a property shape
+	] ;
+	sh:property [
+		sh:path shui:searchQuery ;
+		sh:datatype xsd:string ;                 # searchQuery-datatype
+		sh:maxCount 1 ;                          # searchQuery-maxCount
+	] .
+
+# SHACL UI, shui:suggestedValues: a property shape links to a SHACL list of IRIs or literals (one list).
+stsh:SuggestedValuesShape
+	a sh:NodeShape ;
+	rdfs:label "Well-formedness rules for shui:suggestedValues"@en ;
+	sh:targetSubjectsOf shui:suggestedValues ;
+	sh:property [
+		sh:path shui:suggestedValues ;
+		sh:maxCount 1 ;                          # suggestedValues-maxCount
+	] ;
+	sh:property [
+		sh:path ( shui:suggestedValues [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ;
+		sh:nodeKind sh:IRIOrLiteral ;            # suggestedValues-member-nodeKind: each member is an IRI or a literal
+	] .
+
 stsh:WidgetScoreShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;

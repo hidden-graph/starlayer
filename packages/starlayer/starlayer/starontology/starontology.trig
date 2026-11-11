@@ -1356,7 +1356,10 @@ starontology:shacl-ui-baseline.ttl {
     #   2  defaults by datatype                  number, boolean, date, dateTime, language-tagged string
     #   3  defaults by a constraint that lists   sh:in, sh:class, sh:nodeKind sh:IRI
     #      the answers
-    # A constraint is a stronger signal than a datatype (an xsd:string with sh:in is an enumeration), so tier 3 beats 2. A
+    #   4  a live search is declared             shui:searchQuery (SHACL UI, AutoCompleteEditor's score rules: "the presence of
+    #                                            shui:searchQuery raises the AutoCompleteEditor's score"; the draft's own number is 20)
+    # A constraint is a stronger signal than a datatype (an xsd:string with sh:in is an enumeration), so tier 3 beats 2, and a search
+    # query that the shape author wrote for the property is the strongest of the defaults. A
     # layer on top (an editor for SHACL, an application, a user) adds scores that beat these (the Working Group's own
     # files use 40 for a preference).
     #
@@ -1372,6 +1375,11 @@ starontology:shacl-ui-baseline.ttl {
     # publishes its built-in scores only as prose (SHACL UI section 9), so these scores are ours, not the Working Group's.
     #
     # baseURI: https://github.com/hidden-graph/starlayer/ns/ui-baseline#
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#autoCompleteEditorScore4> a shui:WidgetScore ;
+        shui:score 4 ;
+        shui:shapesGraphShape <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasSearchQuery> ;
+        shui:widget shui:AutoCompleteEditor .
 
     <https://github.com/hidden-graph/starlayer/ns/ui-baseline#booleanEditorScore2> a shui:WidgetScore ;
         shui:score 2 ;
@@ -1451,6 +1459,10 @@ starontology:shacl-ui-baseline.ttl {
         sh:property [ sh:in ( xsd:integer xsd:decimal xsd:double xsd:float ) ;
                 sh:minCount 1 ;
                 sh:path sh:datatype ] .
+
+    <https://github.com/hidden-graph/starlayer/ns/ui-baseline#HasSearchQuery> a sh:NodeShape ;
+        sh:property [ sh:minCount 1 ;
+                sh:path shui:searchQuery ] .
 
     <https://github.com/hidden-graph/starlayer/ns/ui-baseline#IsIRIWithoutClass> a sh:NodeShape ;
         sh:property [ sh:hasValue sh:IRI ;
@@ -2337,6 +2349,15 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:formFor sh:SPARQLTarget ;
         stsh:formRequired ( sh:select ) .
 
+    stsh:SearchQueryShape a sh:NodeShape ;
+        rdfs:label "Well-formedness rules for shui:searchQuery"@en ;
+        sh:property [ sh:minCount 1 ;
+                sh:path sh:path ],
+            [ sh:datatype xsd:string ;
+                sh:maxCount 1 ;
+                sh:path shui:searchQuery ] ;
+        sh:targetSubjectsOf shui:searchQuery .
+
     stsh:SelectValidatorForm a sh:NodeShape ;
         rdfs:label "Form for a SPARQLSelectValidator"@en ;
         sh:property stsh:SelectValidatorForm_rdf_type,
@@ -2373,6 +2394,14 @@ starontology:shacl12-shacl-ui.ttl {
         sh:targetSubjectsOf shui:editor,
             shui:propertyRole,
             shui:viewer .
+
+    stsh:SuggestedValuesShape a sh:NodeShape ;
+        rdfs:label "Well-formedness rules for shui:suggestedValues"@en ;
+        sh:property [ sh:maxCount 1 ;
+                sh:path shui:suggestedValues ],
+            [ sh:nodeKind sh:IRIOrLiteral ;
+                sh:path ( shui:suggestedValues [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ] ;
+        sh:targetSubjectsOf shui:suggestedValues .
 
     stsh:TripleRuleForm a sh:NodeShape ;
         rdfs:label "Form for a TripleRule"@en ;
@@ -2573,12 +2602,6 @@ starontology:shacl12-shacl-ui.ttl {
 
     sh:values sh:group stsh:MetadataGroup ;
         sh:order 4 ;
-        stsh:formMaxCount 1 ;
-        stsh:propertyFormField true .
-
-    shui:suggestedValues sh:group stsh:WidgetGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 31 ;
         stsh:formMaxCount 1 ;
         stsh:propertyFormField true .
 
@@ -3176,7 +3199,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n35121f2866e04493a9b4782489d11f6db225 ;
+        sh:in _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3385,7 +3408,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n35121f2866e04493a9b4782489d11f6db225 ;
+        sh:in _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3767,7 +3790,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n35121f2866e04493a9b4782489d11f6db225 ;
+        sh:in _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5067,12 +5090,6 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:nodeFormField true ;
         stsh:propertyFormField true .
 
-    sh:path sh:group stsh:PathGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 1 ;
-        stsh:formMaxCount 1 ;
-        stsh:propertyFormField true .
-
     sh:returnType sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:IRI ;
         sh:order 7 ;
@@ -5105,6 +5122,12 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 12 ;
         stsh:formMaxCount 1 .
 
+    shui:suggestedValues sh:group stsh:WidgetGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 31 ;
+        stsh:formMaxCount 1 ;
+        stsh:propertyFormField true .
+
     stsh:ClosedGroup a sh:PropertyGroup ;
         sh:description "Restricting a focus node to only the explicitly listed properties."@en ;
         sh:name "Closed Shapes"@en ;
@@ -5120,6 +5143,12 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 2 ;
         stsh:formMaxCount 1 ;
         stsh:multiline true .
+
+    sh:path sh:group stsh:PathGroup ;
+        sh:nodeKind sh:BlankNodeOrIRI ;
+        sh:order 1 ;
+        stsh:formMaxCount 1 ;
+        stsh:propertyFormField true .
 
     shui:dataGraphShape sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:BlankNodeOrIRI ;
@@ -5344,11 +5373,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n35121f2866e04493a9b4782489d11f6db226 rdf:first sh:IRI ;
+    _:n6d181ae1a61b4bf5b0318e6cf25a9d30b234 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n35121f2866e04493a9b4782489d11f6db225 rdf:first sh:BlankNode ;
-        rdf:rest _:n35121f2866e04493a9b4782489d11f6db226 .
+    _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 rdf:first sh:BlankNode ;
+        rdf:rest _:n6d181ae1a61b4bf5b0318e6cf25a9d30b234 .
 }
 
 starontology:shacl12-shacl.ttl {

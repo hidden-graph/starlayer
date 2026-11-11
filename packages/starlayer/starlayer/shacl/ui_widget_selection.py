@@ -27,7 +27,7 @@ reading without needing to change if/when that PR lands.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal
 
 import pyoxigraph as ox
@@ -150,13 +150,15 @@ class _Boundary:
             return choice
         candidates = tuple(
             WidgetCandidate(
-                widget=self.out(c.widget), score=c.score, data_checks=tuple((self.out(node), flag) for node, flag in c.data_checks)
+                widget=self.out(c.widget), score=c.score, data_checks=tuple((self.out(node), flag) for node, flag in c.data_checks),
+                implemented=c.implemented,
             )
             for c in choice.candidates
         )
         return WidgetChoice(
             property_shape=self.out(choice.property_shape), candidates=candidates,
             _shapes_graph=choice._shapes_graph, _scoring_graph=choice._scoring_graph,
+            _role=choice._role, _report=choice._report,
         )
 
 
@@ -353,6 +355,46 @@ def _ranked_with_declared(shape_node: Any, shapes_graph: Any, scoring_graph: Any
     return ranked
 
 
+@dataclass(frozen=True)
+class WidgetReport:
+    """What the SHACL UI draft makes an implementation tell its application (Section 3, "Scoring System"): "When a widget that the
+    implementation does not implement matches, or when no widget matches, the implementation MUST report this to the application."
+
+    ``kind`` is ``"unimplemented"`` (``widget`` matched but is not in ``implemented``, so it was not selected) or ``"none"`` (no widget
+    the application implements matched). ``shape_node`` is the property shape, ``role`` ``"editor"`` or ``"viewer"``, ``score`` the
+    unimplemented widget's score, ``focus_node`` the node when the choice was for one. How the report is handled or presented is left
+    to the application."""
+
+    kind: Literal["unimplemented", "none"]
+    shape_node: Any
+    role: str
+    widget: Any | None = None
+    score: float | None = None
+    focus_node: Any | None = None
+
+
+def _implemented_in(implemented: Any) -> frozenset | None:
+    """``None`` (every widget is implemented) or the set of widget IRIs as pyoxigraph terms; a ``str`` is an IRI."""
+    if implemented is None:
+        return None
+    return frozenset(ox.NamedNode(w) if isinstance(w, str) else _term_in(w) for w in implemented)
+
+
+def _reporter(on_report: Any, boundary: Any) -> Any:
+    """A function that sends a report to ``on_report`` with its terms in the caller's term family, or ``None`` without a callback."""
+    if on_report is None:
+        return None
+
+    def report(r: WidgetReport) -> None:
+        on_report(WidgetReport(
+            kind=r.kind, shape_node=boundary.out(r.shape_node), role=r.role,
+            widget=None if r.widget is None else boundary.out(r.widget), score=r.score,
+            focus_node=None if r.focus_node is None else boundary.out(r.focus_node),
+        ))
+
+    return report
+
+
 def select_widget(
     *,
     shape_node: Any,
@@ -361,6 +403,8 @@ def select_widget(
     shapes_graph: Any,
     scoring_graph: Any | None = None,
     role: Role,
+    implemented: Any | None = None,
+    on_report: Any | None = None,
 ) -> Any | None:
     """Select the ``shui:editor``/``shui:viewer`` widget ``shape_node``
     should use for ``focus_node``, per the spec's own Section 3.2 "Select
@@ -402,17 +446,24 @@ def select_widget(
     are fixed in the shapes graph and there is no scoring catalog - an
     explicit ``shui:editor``/``shui:viewer`` is then accepted outright, and a
     property with none gets ``None``.
+
+    **``implemented``** is the widgets the application can render (an iterable of widget IRIs). "An implementation MUST NOT select or offer
+    a widget that it does not implement" (SHACL UI, Scoring System): a widget outside it is never returned, and the walk goes on to the
+    next-ranked widget. ``None`` (the default) means every widget is implemented. **``on_report``** is a callable that receives a
+    :class:`WidgetReport` for each unimplemented widget that matched and, when nothing is returned, one of kind ``"none"``: "the
+    implementation MUST report this to the application". Without it nothing is reported.
     """
     if role not in ("editor", "viewer"):
         raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
     if focus_node is not None and data_graph is None:
         raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
     b = _Boundary(shape_node, focus_node, shapes_graph, scoring_graph)
-    return b.out(_select(b.shape_node, b.focus_node, data_graph, b.shapes_graph, b.scoring_graph, role, None))
+    return b.out(_select(b.shape_node, b.focus_node, data_graph, b.shapes_graph, b.scoring_graph, role, None,
+                         _implemented_in(implemented), _reporter(on_report, b)))
 
 
 def _select(shape_node: Any, focus_node: Any, data_graph: Any, shapes_graph: Any, scoring_graph: Any, role: str,
-            batch: _ConformanceBatch | None) -> Any | None:
+            batch: _ConformanceBatch | None, implemented: frozenset | None = None, report: Any = None) -> Any | None:
     ranked = _ranked_with_declared(shape_node, shapes_graph, scoring_graph, role)
 
     common = {
@@ -430,8 +481,14 @@ def _select(shape_node: Any, focus_node: Any, data_graph: Any, shapes_graph: Any
             continue
         matcher = _find_matcher(widget, scoring_graph)
         if matcher is None or _matcher_accepts(matcher, **common):
+            if implemented is not None and widget not in implemented:
+                if report is not None:
+                    report(WidgetReport("unimplemented", shape_node, role, widget, _score, focus_node))
+                continue  # never select a widget the application does not implement; the next-ranked one may do
             return widget
 
+    if report is not None:
+        report(WidgetReport("none", shape_node, role, None, None, focus_node))
     return None
 
 
@@ -446,6 +503,7 @@ class WidgetCandidate:
     widget: ox.NamedNode
     score: float
     data_checks: tuple[tuple[Any, bool], ...] = ()
+    implemented: bool = True  # False: the application does not implement the widget, so it is reported and never chosen
 
     @property
     def needs_data(self) -> bool:
@@ -467,6 +525,8 @@ class WidgetChoice:
     candidates: tuple[WidgetCandidate, ...]
     _shapes_graph: Any = field(default=None, repr=False, compare=False)
     _scoring_graph: Any = field(default=None, repr=False, compare=False)
+    _role: str = field(default="", repr=False, compare=False)
+    _report: Any = field(default=None, repr=False, compare=False)
 
     @property
     def needs_data(self) -> bool:
@@ -477,7 +537,7 @@ class WidgetChoice:
         """What :func:`select_widget` gives with no focus node (Section 3.4 steps 1 and 3): a candidate whose data
         conditions all sit beside a shape condition is accepted, one with a data condition alone is rejected."""
         for candidate in self.candidates:
-            if all(has_shape_condition for _node, has_shape_condition in candidate.data_checks):
+            if candidate.implemented and all(has_shape_condition for _node, has_shape_condition in candidate.data_checks):
                 return candidate.widget
         return None
 
@@ -491,6 +551,7 @@ def check_data_matchers(choice: WidgetChoice, *, focus_node: Any, data_graph: An
     ``data_graph``. Gives the same widget as ``select_widget`` with that focus node, but validates only the few
     conditions that read data (GitHub issue #14)."""
     focus_node = _term_in(focus_node)
+    report = choice._report
     for candidate in choice.candidates:
         if all(
             _data_condition_holds(
@@ -502,7 +563,13 @@ def check_data_matchers(choice: WidgetChoice, *, focus_node: Any, data_graph: An
             )
             for node, _has_shape_condition in candidate.data_checks
         ):
+            if not candidate.implemented:
+                if report is not None:
+                    report(WidgetReport("unimplemented", choice.property_shape, choice._role, candidate.widget, candidate.score, focus_node))
+                continue
             return candidate.widget
+    if report is not None:
+        report(WidgetReport("none", choice.property_shape, choice._role, None, None, focus_node))
     return None
 
 
@@ -522,7 +589,8 @@ def _candidate(widget: Any, score: float | None, nodes: list[Any], *, shape_node
 
 
 def _choice_for_property(
-    property_shape: Any, *, shapes_graph: Any, scoring_graph: Any, role: str, batch: _ConformanceBatch | None
+    property_shape: Any, *, shapes_graph: Any, scoring_graph: Any, role: str, batch: _ConformanceBatch | None,
+    implemented: frozenset | None = None, report: Any = None,
 ) -> WidgetChoice:
     common = {"shape_node": property_shape, "shapes_graph": shapes_graph, "scoring_graph": scoring_graph, "batch": batch}
     candidates: list[WidgetCandidate] = []
@@ -531,14 +599,24 @@ def _choice_for_property(
         candidate = _candidate(widget, score, ([score_node] if score_node is not None else []) + ([matcher] if matcher is not None else []), **common)
         if candidate is None:
             continue
+        if implemented is not None and widget not in implemented:
+            if not candidate.needs_data:  # it matches every node: report it now, once for the shape
+                if report is not None:
+                    report(WidgetReport("unimplemented", property_shape, role, widget, score))
+                continue
+            candidate = replace(candidate, implemented=False)  # whether it matches depends on the node: decided in resolve()
         candidates.append(candidate)
         if not candidate.needs_data:
             break
+    if not candidates and report is not None:  # nothing can match any node
+        report(WidgetReport("none", property_shape, role))
     return WidgetChoice(
         property_shape=property_shape,
         candidates=tuple(candidates),
         _shapes_graph=shapes_graph,
         _scoring_graph=scoring_graph,
+        _role=role,
+        _report=report,
     )
 
 
@@ -551,6 +629,8 @@ def select_widgets(
     scoring_graph: Any | None = None,
     role: Role,
     per: Literal["node", "shape"] = "node",
+    implemented: Any | None = None,
+    on_report: Any | None = None,
 ) -> dict[Any, Any]:
     """Batch sibling of :func:`select_widget` - walks ``shape_node``'s own
     ``sh:property`` list and runs :func:`select_widget` once per property,
@@ -574,6 +654,11 @@ def select_widgets(
     choice for one node by validating only the conditions that read its data. ``choice.needs_data`` False means one
     answer (``choice.widget_without_data``) serves every node. The result of ``resolve`` is the same as
     ``select_widget`` with that node. ``focus_node`` and ``data_graph`` are not accepted with ``per="shape"``.
+
+    **``implemented``** and **``on_report``** are as for :func:`select_widget`: a widget the application does not implement is never
+    chosen, and the application is told (a :class:`WidgetReport`) when such a widget matched and when no widget matches. With
+    ``per="shape"`` a widget whose matching depends on the node is reported by ``choice.resolve(focus_node, data_graph)``, the others
+    when the choice is made.
     """
     if per not in ("node", "shape"):
         raise ValueError("per must be 'node' or 'shape'")
@@ -589,14 +674,18 @@ def select_widgets(
     if properties and focus_node is not None and data_graph is None:
         raise ValueError("focus_node needs a data_graph to check its shui:dataGraphShape against")
     batch = _ConformanceBatch(properties, base_graph=shapes, shapes_graph=scoring)
+    implemented_set, report = _implemented_in(implemented), _reporter(on_report, b)
     if per == "shape":
         return {
             b.out(prop): b.choice_out(
-                _choice_for_property(prop, shapes_graph=shapes, scoring_graph=scoring, role=role, batch=batch)
+                _choice_for_property(
+                    prop, shapes_graph=shapes, scoring_graph=scoring, role=role, batch=batch,
+                    implemented=implemented_set, report=report,
+                )
             )
             for prop in properties
         }
     return {
-        b.out(prop): b.out(_select(prop, b.focus_node, data_graph, shapes, scoring, role, batch))
+        b.out(prop): b.out(_select(prop, b.focus_node, data_graph, shapes, scoring, role, batch, implemented_set, report))
         for prop in properties
     }

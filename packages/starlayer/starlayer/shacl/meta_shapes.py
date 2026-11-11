@@ -286,10 +286,12 @@ _SHACL_PREBOUND_VARIABLE_NAMES = frozenset({"this", "value", "PATH"})
 _UNBOUND_VARIABLE_MESSAGE = re.compile(r"^(?:Projected variable|Template variable|Variable) (\S+) (?:is never bound|is used inside an expression)")
 
 
-def _is_prebound_variable_only_report(report_graph: Any) -> bool:
+def _is_prebound_variable_only_report(report_graph: Any, extra: frozenset[str] = frozenset()) -> bool:
     """True iff every violation in an ``sqe_validate()`` report is an unbound-variable hit naming only a SHACL pre-bound
     pseudo-variable (``$this``/``$value``/``$PATH``) - a false positive this check should suppress, not a real defect. The
     variable is read from the result message the ``sqe:`` shapes write ("Projected variable this is never bound ...").
+    ``extra`` adds names that are bound some other way (for ``shui:searchQuery``: ``$searchTerm`` and ``$language``, which the renderer
+    substitutes before it runs the query).
     ``False`` (never suppressed) for an empty result set too - that would mean ``conforms`` was already ``True`` and there was
     nothing to call this for in the first place.
     """
@@ -300,7 +302,7 @@ def _is_prebound_variable_only_report(report_graph: Any) -> bool:
     for result in results:
         message = report_graph.value(result, SH.resultMessage)
         match = _UNBOUND_VARIABLE_MESSAGE.match(text(message)) if message is not None else None
-        if match is None or match.group(1) not in _SHACL_PREBOUND_VARIABLE_NAMES:
+        if match is None or match.group(1) not in _SHACL_PREBOUND_VARIABLE_NAMES | extra:
             return False
     return True
 
@@ -371,18 +373,28 @@ def check_sparql_query_text(shapes_graph: Any) -> None:
         raise ShapeError(message)
 
 
-_QUERY_FORMS = {SH.select: ("SelectQuery", "SELECT"), SH.ask: ("AskQuery", "ASK"), SH.construct: ("ConstructQuery", "CONSTRUCT")}
+# shui:searchQuery (SHACL UI, Search Query): a SELECT with at least one projected variable (the parser requires a projection or *), on a
+# property shape, with the prefixes of sh:declare / sh:prefixes like any embedded query. The $searchTerm and $language it uses are
+# ordinary variables of the text; the renderer substitutes them before it runs the query.
+SHUI_SEARCH_QUERY = ox.NamedNode("http://www.w3.org/ns/shacl-ui/searchQuery")
+_SEARCH_QUERY_PLACEHOLDERS = frozenset({"searchTerm", "language"})
+_QUERY_FORMS = {
+    SH.select: ("SelectQuery", "SELECT"),
+    SH.ask: ("AskQuery", "ASK"),
+    SH.construct: ("ConstructQuery", "CONSTRUCT"),
+    SHUI_SEARCH_QUERY: ("SelectQuery", "SELECT"),
+}
 
 
 def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
-    """Each defect of an embedded query as ``(the node that holds it, sh:select/sh:ask/sh:construct, what is wrong)``: text that is not SPARQL,
+    """Each defect of an embedded query as ``(the node that holds it, sh:select/sh:ask/sh:construct/shui:searchQuery, what is wrong)``: text that is not SPARQL,
     a query of another form than the predicate says (a SELECT in ``sh:construct``), or one that fails the SPARQL structure check (see
     ``check_sparql_query_text``, which raises the first). A tool shows these next to the other problems of a shapes graph."""
     from starlayer.sparql.parse_sparql import SparqlSyntaxError, ast_to_triples
     from starlayer.sparql.sqe.shapes import sqe_validate
 
     shapes_graph = engine_view(shapes_graph, "shapes graph")
-    for predicate in (SH.select, SH.ask, SH.construct):
+    for predicate in (SH.select, SH.ask, SH.construct, SHUI_SEARCH_QUERY):
         name = shapes_graph.qname_term(predicate)
         for query_node, text_literal in shapes_graph.subject_objects(predicate):
             if not isinstance(text_literal, ox.Literal) or not (text_literal.language or text_literal.datatype == XSD.string):
@@ -415,7 +427,8 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
                 encoded_graph = StarLayerGraph(prefixes={})
                 encoded_graph.extend(ast_to_triples(query)[0])
                 conforms, report_graph, report_text = sqe_validate(encoded_graph)
-                if not conforms and not is_target and _is_prebound_variable_only_report(report_graph):
+                substituted = _SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset()
+                if not conforms and not is_target and _is_prebound_variable_only_report(report_graph, substituted):
                     conforms = True
                 _SPARQL_STRUCTURE_CACHE[cache_key] = (conforms, report_text)
                 _SPARQL_STRUCTURE_CACHE.move_to_end(cache_key)
