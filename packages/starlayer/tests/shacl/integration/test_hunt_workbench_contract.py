@@ -128,3 +128,18 @@ def test_star_query_runs_on_a_bare_pyoxigraph_store():
     store = ox.Store()
     store.add(ox.Quad(ox.NamedNode("http://e/a"), ox.NamedNode("http://e/p"), ox.NamedNode("http://e/b"), ox.DefaultGraph()))
     assert len(list(StarQuery("SELECT ?s { ?s ?p ?o }").run(store))) == 1
+
+
+def test_sparql_query_problems_agrees_with_validate_on_a_file_bound_prefix():
+    import pytest
+    from starlayer import StarLayerGraph
+    from starlayer.shacl import ShapeError, sparql_query_problems, validate
+
+    text = """@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
+    ex:S a sh:NodeShape ; sh:targetNode ex:x ; sh:sparql [ sh:message "bad" ; sh:select "SELECT $this WHERE { $this ex:p ?v }" ] .
+    ex:x ex:p 1 ."""
+    g = StarLayerGraph()
+    g.parse(data=text, format="turtle")
+    with pytest.raises(ShapeError):
+        validate(g, g)
+    assert list(sparql_query_problems(g))
