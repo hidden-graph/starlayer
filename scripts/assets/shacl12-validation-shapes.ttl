@@ -1742,6 +1742,32 @@ stsh:ValuesShape
 		sh:message "sh:values must be a well-formed node expression"@en ;
 	] .
 
+# sh:values and sh:defaultValue derive a property OF THE FOCUS NODE (the derived triple is focus node, sh:path, value), so the
+# sh:path of such a property shape must be a single property. A sequence, alternative, repeating or inverse path (an inverse
+# triple would have the value as its subject) has no property to carry the value, and validation and evaluate() silently derive
+# nothing (GitHub issue #204). The shapes are separate so each message names its own predicate.
+stsh:ValuesPathShape
+	a sh:NodeShape ;
+	rdfs:label "sh:values needs a single property as sh:path"@en ;
+	sh:targetSubjectsOf sh:values ;
+	sh:property [
+		sh:path sh:path ;
+		sh:nodeKind sh:IRI ;
+		sh:severity sh:Violation ;
+		sh:message "sh:values derives a property of the focus node, so sh:path must be a single property"@en ;
+	] .
+
+stsh:DefaultValuePathShape
+	a sh:NodeShape ;
+	rdfs:label "sh:defaultValue needs a single property as sh:path"@en ;
+	sh:targetSubjectsOf sh:defaultValue ;
+	sh:property [
+		sh:path sh:path ;
+		sh:nodeKind sh:IRI ;
+		sh:severity sh:Violation ;
+		sh:message "sh:defaultValue derives a property of the focus node, so sh:path must be a single property"@en ;
+	] .
+
 stsh:PathOfShapeShape
 	a sh:NodeShape ;
 	rdfs:label "A property shape's sh:path, as a plain property shape"@en ;
