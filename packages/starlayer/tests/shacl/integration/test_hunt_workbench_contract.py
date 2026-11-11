@@ -89,6 +89,38 @@ def test_a_none_data_graph_is_a_type_error_naming_data_graph():
         apply_rules(None, shapes)
 
 
+def test_check_query_prepare_sends_no_service_request():
+    import http.server
+    import threading
+
+    hits = []
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self):
+            hits.append(self.path)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/sparql-results+json")
+            self.end_headers()
+            self.wfile.write(b'{"head":{"vars":["s"]},"results":{"bindings":[]}}')
+
+        do_POST = do_GET
+
+        def log_message(self, *args):
+            pass
+
+    server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    try:
+        from starlayer.sparql import check_query
+
+        port = server.server_address[1]
+        assert check_query(f"SELECT * WHERE {{ SERVICE <http://127.0.0.1:{port}/sparql> {{ ?s ?p ?o }} }}", prepare=True) is None
+        assert hits == []
+        assert check_query("SELECT * WHERE { ?s nope:p ?o }", prepare=True) is not None  # a plain query is still prepared
+    finally:
+        server.shutdown()
+
+
 def test_star_query_runs_on_a_bare_pyoxigraph_store():
     import pyoxigraph as ox
     from starlayer import StarQuery
