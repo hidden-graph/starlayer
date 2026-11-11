@@ -42,7 +42,7 @@ sh:ConstraintComponent a rdfs:Class ;
 
 sh:DataGraph a rdfs:Class ;
     rdfs:label "Data graph"@en ;
-    rdfs:comment "The class of graphs that typically act in the role of a SHACL data graph."@en ;
+    rdfs:comment "The class of graphs acting in the role of a SHACL data graph."@en ;
     rdfs:isDefinedBy sh: ;
     rdfs:subClassOf sh:Graph .
 
@@ -163,7 +163,7 @@ sh:RuleSet a rdfs:Class ;
 
 sh:RulesGraph a rdfs:Class ;
     rdfs:label "Rules graph"@en ;
-    rdfs:comment "The class of graphs that typically act in the role of a SHACL rules graph."@en ;
+    rdfs:comment "The class of graphs acting in the role of a SHACL rules graph."@en ;
     rdfs:isDefinedBy sh: ;
     rdfs:subClassOf sh:ShapesGraph .
 
@@ -283,7 +283,7 @@ sh:ShapeClass a rdfs:Class ;
 
 sh:ShapesGraph a rdfs:Class ;
     rdfs:label "Shapes graph"@en ;
-    rdfs:comment "The class of graphs that typically act in the role of a SHACL shapes graph."@en ;
+    rdfs:comment "The class of graphs acting in the role of a SHACL shapes graph."@en ;
     rdfs:isDefinedBy sh: ;
     rdfs:subClassOf sh:Graph .
 
@@ -737,6 +737,13 @@ sh:construct a rdf:Property ;
     rdfs:domain sh:SPARQLConstructExecutable ;
     rdfs:isDefinedBy sh: ;
     rdfs:range xsd:string .
+
+sh:dataGraph a rdf:Property ;
+    rdfs:label "data graph"@en ;
+    rdfs:comment "Data graphs that this shapes graph is intended to validate."@en ;
+    rdfs:domain sh:ShapesGraph ;
+    rdfs:isDefinedBy sh: ;
+    rdfs:range sh:DataGraph .
 
 sh:deactivated a rdf:Property ;
     rdfs:label "deactivated"@en ;

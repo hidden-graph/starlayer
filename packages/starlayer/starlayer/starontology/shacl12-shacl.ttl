@@ -48,6 +48,10 @@ shsh:DataGraphImportsShape a sh:NodeShape ;
     sh:severity sh:Info ;
     sh:targetClass sh:DataGraph .
 
+shsh:DataGraphShape a sh:NodeShape ;
+    sh:nodeKind sh:IRI ;
+    sh:targetObjectsOf sh:dataGraph .
+
 shsh:EntailmentShape a sh:NodeShape ;
     sh:nodeKind sh:IRI ;
     sh:targetObjectsOf sh:entailment .

@@ -3169,7 +3169,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
+        sh:in _:nf90ff6de709747f985f94bb5b74e5465b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3378,7 +3378,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
+        sh:in _:nf90ff6de709747f985f94bb5b74e5465b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3760,7 +3760,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n5e2b22d8a71945ea818a43c35af46ab2b225 ;
+        sh:in _:nf90ff6de709747f985f94bb5b74e5465b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5330,11 +5330,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n5e2b22d8a71945ea818a43c35af46ab2b226 rdf:first sh:IRI ;
+    _:nf90ff6de709747f985f94bb5b74e5465b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n5e2b22d8a71945ea818a43c35af46ab2b225 rdf:first sh:BlankNode ;
-        rdf:rest _:n5e2b22d8a71945ea818a43c35af46ab2b226 .
+    _:nf90ff6de709747f985f94bb5b74e5465b225 rdf:first sh:BlankNode ;
+        rdf:rest _:nf90ff6de709747f985f94bb5b74e5465b226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -5362,6 +5362,10 @@ starontology:shacl12-shacl.ttl {
                             sh:path rdf:type ] ] ) ;
         sh:severity sh:Info ;
         sh:targetClass sh:DataGraph .
+
+    shsh:DataGraphShape a sh:NodeShape ;
+        sh:nodeKind sh:IRI ;
+        sh:targetObjectsOf sh:dataGraph .
 
     shsh:EntailmentShape a sh:NodeShape ;
         sh:nodeKind sh:IRI ;
@@ -7147,7 +7151,7 @@ starontology:shacl12-vocabulary.ttl {
 
     sh:DataGraph a rdfs:Class ;
         rdfs:label "Data graph"@en ;
-        rdfs:comment "The class of graphs that typically act in the role of a SHACL data graph."@en ;
+        rdfs:comment "The class of graphs acting in the role of a SHACL data graph."@en ;
         rdfs:isDefinedBy sh: ;
         rdfs:subClassOf sh:Graph .
 
@@ -7268,7 +7272,7 @@ starontology:shacl12-vocabulary.ttl {
 
     sh:RulesGraph a rdfs:Class ;
         rdfs:label "Rules graph"@en ;
-        rdfs:comment "The class of graphs that typically act in the role of a SHACL rules graph."@en ;
+        rdfs:comment "The class of graphs acting in the role of a SHACL rules graph."@en ;
         rdfs:isDefinedBy sh: ;
         rdfs:subClassOf sh:ShapesGraph .
 
@@ -7388,7 +7392,7 @@ starontology:shacl12-vocabulary.ttl {
 
     sh:ShapesGraph a rdfs:Class ;
         rdfs:label "Shapes graph"@en ;
-        rdfs:comment "The class of graphs that typically act in the role of a SHACL shapes graph."@en ;
+        rdfs:comment "The class of graphs acting in the role of a SHACL shapes graph."@en ;
         rdfs:isDefinedBy sh: ;
         rdfs:subClassOf sh:Graph .
 
@@ -7842,6 +7846,13 @@ starontology:shacl12-vocabulary.ttl {
         rdfs:domain sh:SPARQLConstructExecutable ;
         rdfs:isDefinedBy sh: ;
         rdfs:range xsd:string .
+
+    sh:dataGraph a rdf:Property ;
+        rdfs:label "data graph"@en ;
+        rdfs:comment "Data graphs that this shapes graph is intended to validate."@en ;
+        rdfs:domain sh:ShapesGraph ;
+        rdfs:isDefinedBy sh: ;
+        rdfs:range sh:DataGraph .
 
     sh:deactivated a rdf:Property ;
         rdfs:label "deactivated"@en ;

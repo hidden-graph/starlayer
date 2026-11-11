@@ -5,11 +5,12 @@
 test fails if the file changes without this record changing too.
 
 - Source: https://github.com/w3c/data-shapes/blob/gh-pages/shacl12-vocabularies/shacl-shacl.ttl
-- Upstream commit this copy matches: `8c9d0f6a2` (2026-10-12, "#1298: Used Claude to apply Claude's suggestions (#1305)")
-- Fetched: 2026-10-21
-- SHA-256 of the file: `05a35fff992003bb92c8940540b2cc2e52a372158857fbb4080c8867b69906fa`
+- Upstream commit this copy matches: `a6ed26f` (2026-10-26, "Adding text for sh:dataGraph (#1366)", the latest commit that touches the file)
+- Fetched: 2026-11-11
+- SHA-256 of the file: `914051f59cec3d989fcd3f1f3f656357980f23b38dfb5c45df043d78877b2220`
 - The file is headed "THIS VERSION IS UNDER DEVELOPMENT" and says it checks "a subset of the syntax rules". It is moving: from the
-  2026-08-01 snapshot to this one it fixed `sh:closed sh:ByTypes` and gained `shsh:ValidationReportShape`.
+  2026-08-01 snapshot to the 2026-10-12 one it fixed `sh:closed sh:ByTypes` and gained `shsh:ValidationReportShape`; to this one it gained
+  `shsh:DataGraphShape` (the object of `sh:dataGraph` is an IRI).
 
 ## Keeping it current
 
@@ -27,7 +28,8 @@ from it). Never edit it; additions go in their own file. It replaces the SHACL 1
 `sh:ShapesGraph`, `sh:RulesGraph`, the node-expression classes and others.
 
 - Source: https://github.com/w3c/data-shapes/blob/gh-pages/shacl12-vocabularies/shacl.ttl
-- Upstream commit this copy matches: `e77709e45` (2026-10-14, the latest commit that touches the file)
-- Fetched: 2026-10-23
-- SHA-256 of the file: `9fee4fcd40d7f39d878cfcd244e2a428e9231821755504543fc52ac3f58fdeaf`
+- Upstream commit this copy matches: `9d7caf1` (2026-11-11, "Role class defs (#1414)", the latest commit that touches the file)
+- Fetched: 2026-11-11
+- SHA-256 of the file: `63e0f9d813350bd9a15c1d153984fe34dfdbc657adceba3a49e56790f43978ce`
+- Since the 2026-10-14 copy: `sh:dataGraph` (domain `sh:ShapesGraph`, range `sh:DataGraph`) and the role-class wording ("graphs acting in the role of").
 - Headed "THIS VERSION IS UNDER DEVELOPMENT"; it is moving.
