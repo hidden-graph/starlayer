@@ -170,7 +170,7 @@ package's own top level, not nested under one subpackage's docs.
   expressions, aggregates with `GROUP BY`/`HAVING`, sub-selects, `VALUES`,
   `MINUS`, `GRAPH`, `EXISTS`, every expression builtin, and the SPARQL 1.2
   additions (triple terms, reifiers, annotations, base-direction strings).
-  Still not covered: `DESCRIBE` and SPARQL Update. The coverage is measured,
+  `DESCRIBE` and SPARQL Update are covered too (2026-11). The coverage is measured,
   not assumed: the opt-in test set (`pytest --sqe-coverage`) runs every W3C
   SPARQL 1.2 query fixture and a per-feature suite through sqe against a
   StarLayerGraph/Dataset (see `starlayer/sparql/CLAUDE.md`'s 2026-10-18
