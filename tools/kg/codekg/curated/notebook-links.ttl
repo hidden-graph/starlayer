@@ -158,8 +158,8 @@ nl:04d-n45-schema-select a slkg:NotebookExample ;
 nl:04e-96560f37 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04e-shacl-profiling.ipynb" ;
     slkg:cellId "96560f37" ;
-    slkg:cellHash "9fcac28428a6f83b" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "79707a32cf88203b" ;
+    slkg:reviewedOn "2026-11-10"^^xsd:date ;
     rdfs:comment "Validates against a profile and then calls shacl_profiling.derive_conforms_to() explicitly to add the conformsTo statements from the report." ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.profiling.derive_conforms_to",
