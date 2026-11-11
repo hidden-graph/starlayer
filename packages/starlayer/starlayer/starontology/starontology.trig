@@ -3438,7 +3438,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nae4ed704fa6b41f3b371ba2d2708cbafb225 ;
+        sh:in _:n0de5d6d05568441080d1d6ff92bb7ec2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3647,7 +3647,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nae4ed704fa6b41f3b371ba2d2708cbafb225 ;
+        sh:in _:n0de5d6d05568441080d1d6ff92bb7ec2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -4029,7 +4029,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nae4ed704fa6b41f3b371ba2d2708cbafb225 ;
+        sh:in _:n0de5d6d05568441080d1d6ff92bb7ec2b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5599,11 +5599,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:nae4ed704fa6b41f3b371ba2d2708cbafb226 rdf:first sh:IRI ;
+    _:n0de5d6d05568441080d1d6ff92bb7ec2b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nae4ed704fa6b41f3b371ba2d2708cbafb225 rdf:first sh:BlankNode ;
-        rdf:rest _:nae4ed704fa6b41f3b371ba2d2708cbafb226 .
+    _:n0de5d6d05568441080d1d6ff92bb7ec2b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n0de5d6d05568441080d1d6ff92bb7ec2b226 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -5925,6 +5925,14 @@ starontology:shacl12-shacl.ttl {
                 sh:nodeKind sh:BlankNodeOrIRI ;
                 sh:path sh:declare ] ;
         sh:targetSubjectsOf sh:declare .
+
+    stsh:DefaultValuePathShape a sh:NodeShape ;
+        rdfs:label "sh:defaultValue needs a single property as sh:path"@en ;
+        sh:property [ sh:message "sh:defaultValue derives a property of the focus node, so sh:path must be a single property"@en ;
+                sh:nodeKind sh:IRI ;
+                sh:path sh:path ;
+                sh:severity sh:Violation ] ;
+        sh:targetSubjectsOf sh:defaultValue .
 
     stsh:DefaultValueShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:defaultValue"@en ;
@@ -6451,6 +6459,14 @@ starontology:shacl12-shacl.ttl {
                 sh:severity sh:Warning ] ;
         sh:targetClass sh:TripleRule .
 
+    stsh:ValuesPathShape a sh:NodeShape ;
+        rdfs:label "sh:values needs a single property as sh:path"@en ;
+        sh:property [ sh:message "sh:values derives a property of the focus node, so sh:path must be a single property"@en ;
+                sh:nodeKind sh:IRI ;
+                sh:path sh:path ;
+                sh:severity sh:Violation ] ;
+        sh:targetSubjectsOf sh:values .
+
     stsh:ValuesShape a sh:NodeShape ;
         rdfs:label "Well-formed sh:values"@en ;
         rdfs:comment "SHACL 1.2 Node Expressions: sh:values on a property shape holds the node expression that computes its values."@en ;
@@ -6624,13 +6640,6 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:deactivated true"@en ;
         sh:description "When true, this shape is skipped entirely during validation — as if it weren't there. Useful for temporarily disabling a rule without deleting it, e.g. while a training exercise focuses on a different constraint."@en ;
         sh:name "deactivated"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
-    sh:defaultValue rdfs:comment "The value is checked when a shapes graph is validated: at most one, and a well-formed node expression (stsh:DefaultValueShape)."@en ;
-        rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
-        sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
-        sh:name "default value"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:description rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
@@ -6867,6 +6876,13 @@ starontology:shacl12-shacl.ttl {
         skos:example "sh:path ex:age ; sh:datatype xsd:integer"@en ;
         sh:description "Every value node must be a literal with this exact XSD (or other) datatype IRI. SHACL 1.2 widens this to also accept a list of datatypes (a union, same as sh:class)."@en ;
         sh:name "datatype"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:defaultValue rdfs:comment "The value is checked when a shapes graph is validated: at most one, and a well-formed node expression (stsh:DefaultValueShape)."@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
+        sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
+        sh:name "default value"@en ;
         stsh:requiredEngine stsh:PySHACL .
 
     sh:flags rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -7485,14 +7501,6 @@ starontology:shacl12-shacl.ttl {
         sh:targetClass sh:NodeExpression ;
         sh:targetObjectsOf sh:values .
 
-    sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-        rdfs:seeAlso sh:alternativePath,
-            sh:inversePath ;
-        skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
-        sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
-        sh:name "path"@en ;
-        stsh:requiredEngine stsh:PySHACL .
-
     sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-sparql/> ;
         rdfs:seeAlso sh:ask,
@@ -7511,6 +7519,14 @@ starontology:shacl12-shacl.ttl {
         skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
         sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
         sh:name "triple rule"@en ;
+        stsh:requiredEngine stsh:PySHACL .
+
+    sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+        rdfs:seeAlso sh:alternativePath,
+            sh:inversePath ;
+        skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
+        sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
+        sh:name "path"@en ;
         stsh:requiredEngine stsh:PySHACL .
 }
 
