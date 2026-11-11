@@ -30,7 +30,10 @@ def evaluate_expression(
     (``shnex:var "name"``) by name to a term or a list of terms, and the arguments of a function call by position (``0``, ``1``,
     ...); ``focusNode`` is the focus node unless given. An expression that has an evaluation failure raises
     ``EvaluationFailure`` (SHACL 1.2 Node Expressions 3.2). A ``sh:targetNode`` expression is evaluated with the shape as the focus node
-    (Core 3.1.3.1): pass the shape."""
+    (Core 3.1.3.1): pass the shape. The nodes come back as pyoxigraph terms when ``expression``, ``focus`` and the ``scope`` values
+    are all pyoxigraph terms (no rdflib needed), and as rdflib / StarLayer terms as soon as one of them is one."""
+    import pyoxigraph as ox
+
     from starlayer.shacl_engine import expressions
     from starlayer.shacl_engine.executor import Context
     from starlayer.shacl_engine.plan import Plan
@@ -52,6 +55,11 @@ def evaluate_expression(
     nodes = expressions.evaluate_expression(
         ctx, to_engine(expression), None if focus is None else to_engine(focus), bindings
     )
+    given = [expression, focus]
+    for value in (scope or {}).values():
+        given.extend(value if isinstance(value, (list, tuple)) else [value])
+    if all(v is None or isinstance(v, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)) for v in given):
+        return list(nodes)  # a pyoxigraph caller gets pyoxigraph terms, and needs no rdflib
     return [from_engine(n) for n in nodes]
 
 

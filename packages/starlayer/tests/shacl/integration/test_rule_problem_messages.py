@@ -67,10 +67,14 @@ def test_a_query_of_another_form_than_its_property_says_is_a_problem():
     assert problems('ex:C sh:select "ASK { ?s ?p ?o }" .') and "must hold a SELECT query" in problems('ex:C sh:select "ASK { ?s ?p ?o }" .')[0][2]
 
 
-def test_a_prefix_the_file_binds_is_known_to_its_queries_but_an_unknown_one_is_not():
-    assert problems('ex:R a sh:SPARQLRule ; sh:construct "CONSTRUCT { $this ex:q 1 } WHERE { }" .') == []
+def test_a_prefix_the_file_binds_is_not_known_to_its_queries_unless_declared():
+    # the engine resolves only sh:declare / sh:prefixes (CLAUDE.md: no ambient lookup), so this check must not accept a bare @prefix
+    found = problems('ex:R a sh:SPARQLRule ; sh:construct "CONSTRUCT { $this ex:q 1 } WHERE { }" .')
+    assert found and "ex" in found[0][2]
     found = problems('ex:R a sh:SPARQLRule ; sh:construct "CONSTRUCT { $this foo:q 1 } WHERE { }" .')
     assert found and "foo" in found[0][2]
+    declared = 'ex:R a sh:SPARQLRule ; sh:prefixes ex:P ; sh:construct "CONSTRUCT { $this ex:q 1 } WHERE { }" .\nex:P sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/" ] .'
+    assert problems(declared) == []
 
 
 def test_check_sparql_query_text_still_raises_the_first_problem():

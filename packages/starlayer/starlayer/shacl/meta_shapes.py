@@ -387,8 +387,8 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
         for query_node, text_literal in shapes_graph.subject_objects(predicate):
             if not isinstance(text_literal, ox.Literal) or not (text_literal.language or text_literal.datatype == XSD.string):
                 continue  # not xsd:string - already caught by the meta-shapes structural check
-            # The engine also resolves a prefix the graph itself binds (a file's @prefix, with no sh:declare), so this does too.
-            prefixes = {**{p: ns for p, ns in shapes_graph.namespaces() if p}, **_collect_query_prefixes(shapes_graph, query_node)}
+            # Only sh:declare / sh:prefixes, as the engine does: a prefix the file merely binds (@prefix) is not resolved at run time.
+            prefixes = _collect_query_prefixes(shapes_graph, query_node)
             try:
                 query = _parse_embedded_query(text_literal.value, prefixes)
             except (SparqlSyntaxError, ValueError) as exc:
