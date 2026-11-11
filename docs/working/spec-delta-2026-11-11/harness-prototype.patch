@@ -1,0 +1,58 @@
+diff --git a/packages/starlayer/scripts/sync_w3c_shacl12_suite.py b/packages/starlayer/scripts/sync_w3c_shacl12_suite.py
+index 8ee277c7..426169a3 100644
+--- a/packages/starlayer/scripts/sync_w3c_shacl12_suite.py
++++ b/packages/starlayer/scripts/sync_w3c_shacl12_suite.py
+@@ -32,11 +32,11 @@ REPO = "w3c/data-shapes"
+ # Bump deliberately - see docs/w3c-shacl12-test-suite-plan.md's "Ongoing
+ # maintenance" section for the review/bump procedure. Do not auto-follow
+ # gh-pages's tip.
+-PINNED_SHA = "59b38cd7061ff3e6e3dc9e216836ef848f7d8baf"
++PINNED_SHA = "47c6e078bcf946ece9487d731f0b1ca2e31d0c80"
+ SUBTREE_PREFIX = "shacl12-test-suite/"
+ 
+ REPO_ROOT = Path(__file__).resolve().parents[1]
+-DEST = REPO_ROOT / "tests" / "vendor" / "shacl12-test-suite"
++DEST = REPO_ROOT / "tests" / "shacl" / "vendor" / "shacl12-test-suite"
+ 
+ TARBALL_URL = f"https://codeload.github.com/{REPO}/tar.gz/{PINNED_SHA}"
+ 
+diff --git a/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_engine_node_expr.py b/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_engine_node_expr.py
+index a2a204f0..8d7b8d5c 100644
+--- a/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_engine_node_expr.py
++++ b/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_engine_node_expr.py
+@@ -66,7 +66,18 @@ def _eval(entry: ManifestEntry) -> None:
+         for p, o in entry.graph.predicate_objects(action)
+         if str(p).startswith(prefix)
+     }
+-    expected = list(entry.graph.items(next(entry.graph.objects(entry.iri, MF.result))))
++    result = next(entry.graph.objects(entry.iri, MF.result))
++    if result == SHT.Failure:  # PROTOTYPE: the expression must fail to evaluate
++        from starlayer.shacl_engine.expressions import EvaluationFailure
++        with pytest.raises(EvaluationFailure):
++            evaluate_expression(
++                Context(data=graph, plan=Plan(shapes_graph=graph)),
++                to_engine(expr),
++                to_engine(focus),
++                {k: [to_engine(o) for o in v] for k, v in scope.items()},
++            )
++        return
++    expected = list(entry.graph.items(result))
+     actual = [  # the engine speaks pyoxigraph terms: convert in and out
+         from_engine(t)
+         for t in evaluate_expression(
+diff --git a/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_infer.py b/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_infer.py
+index 6f8f1c47..86771065 100644
+--- a/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_infer.py
++++ b/packages/starlayer/tests/shacl/w3c_shacl12/test_w3c_infer.py
+@@ -129,6 +129,11 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
+ 
+     data_graph = _resolve_action_graph(entry, SHT.dataGraph, new_graph)
+     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph, new_graph)
++    if next(entry.graph.objects(entry.iri, MF.result), None) == SHT.Failure:  # PROTOTYPE: rule processing must fail
++        with pytest.raises(Exception) as ei:  # noqa: B017
++            StarShaclSchema(shacl_graph=shapes_graph).apply_rules(data_graph=data_graph, meta_shacl=False)
++        print("RAISED", entry_key, type(ei.value).__name__)
++        return
+     expected = _expected_triples(entry)
+ 
+     before = set(data_graph.triples((None, None, None)))
