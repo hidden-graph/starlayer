@@ -100,7 +100,7 @@ Everything below is on `shacl-engine`. Items marked (shared) are data or scripts
 Acceptance: `tests/shacl`, `tests/graph`, `tests/sparql` green; the opt-in suites unchanged; the failure list equals the table in
 section 2.
 
-**Phase 1. The four engine gaps (small each, independent).**
+**Phase 1. The four engine gaps (small each, independent). Done 2026-11-11** (`ENGINE_GAPS` is empty). Notes: the shorthand replaces GitHub issue #8's error for a bare node, and three tests that asserted that error now assert the list form's value; a rule set naming `sh:ruleProcessor` is a failure when a rule of it runs, which reverses our earlier test "a rule set that is not selected is not asked" (the W3C fixture is the same situation); `sh:ShapeClass` counts as a SHACL instance of `sh:NodeShape` and `rdfs:Class` for `sh:condition`. Guide 04a still says every `sparql:` call needs a list (a notebook edit, waiting for a go-ahead).
 1. List-parameter single-argument shorthand (`shacl_engine/expressions.py`, around line 260). Read the "ListParameterFunctions"
    text first; check it also covers `shnex:` functions with a list parameter, not only `sparql:` ones.
 2. `sh:condition` as node shape and class: also require the superclass shapes (`shacl_engine/rules.py`, condition handling).

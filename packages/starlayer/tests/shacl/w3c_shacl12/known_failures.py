@@ -119,8 +119,4 @@ STORE_NORMALIZATION: dict[str, str] = {
 
 # Engine gaps the 2026-11-11 suite re-sync found (docs/working/spec-delta-2026-11-11.md, phase 1). Each is applied as a strict xfail,
 # so fixing one fails loudly until its entry is removed.
-ENGINE_GAPS: dict[str, str] = {
-    "tests/inference-rules/condition-shape-class-superclass::condition-shape-class-superclass": "a sh:condition that is a node shape and a class must also conform to the shapes of its superclasses; the engine checks only the shape itself",
-    "tests/inference-rules/ruleProcessor-unknown-at-ruleset::ruleProcessor-unknown-at-ruleset": "an unknown sh:ruleProcessor named on a rule set must fail; only one on a rule does (rules.py)",
-    "tests/inference-rules/SPARQLRuleTemplate-optional-param::SPARQLRuleTemplate-optional-param": "a rule template whose parameters are all optional is valid; the check that a component needs one non-optional parameter is for constraint components (components/sparql_components.py)",
-}
+ENGINE_GAPS: dict[str, str] = {}

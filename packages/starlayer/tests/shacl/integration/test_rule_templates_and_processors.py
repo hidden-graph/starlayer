@@ -184,12 +184,27 @@ class TestRuleProcessor:
         with pytest.raises(RuleError, match="sh:ruleProcessor"):
             _apply(shapes, "ex:n ex:m true .", rule_set=EX.Outer)
 
-    def test_a_rule_set_that_is_not_selected_is_not_asked(self) -> None:
+    def test_a_rule_set_naming_a_processor_is_a_failure_when_a_rule_of_it_runs(self) -> None:
+        """W3C ``inference-rules/ruleProcessor-unknown-at-ruleset``: the rule set need not be selected; its rule runs."""
         shapes = self.RULE + " ex:Set a sh:RuleSet ; sh:hasRule ex:R ; sh:ruleProcessor ex:Engine ."
+
+        with pytest.raises(RuleError, match="sh:ruleProcessor"):
+            _apply(shapes, "ex:n ex:m true .")
+
+    def test_a_rule_set_none_of_whose_rules_runs_is_not_asked(self) -> None:
+        shapes = self.RULE + " ex:Set a sh:RuleSet ; sh:hasRule ex:Gone ; sh:ruleProcessor ex:Engine . ex:Gone a sh:TripleRule ; sh:deactivated true ."
 
         result = _apply(shapes, "ex:n ex:m true .")
 
         assert (EX.a, EX.p, EX.b) in result.inferred_graph
+
+    def test_a_rule_set_that_includes_one_naming_a_processor_is_a_failure_when_its_rule_runs(self) -> None:
+        shapes = self.RULE + """
+            ex:Inner a sh:RuleSet ; sh:ruleProcessor ex:Engine .
+            ex:Outer a sh:RuleSet ; sh:includesRuleSet ex:Inner ; sh:hasRule ex:R .
+        """
+        with pytest.raises(RuleError, match="sh:ruleProcessor"):
+            _apply(shapes, "ex:n ex:m true .")
 
     def test_entailment_naming_such_a_rule_set_is_a_failure(self) -> None:
         shapes = self.RULE + " ex:Set a sh:RuleSet ; sh:hasRule ex:R ; sh:ruleProcessor ex:Engine . ex:G a sh:ShapesGraph ; sh:entailment ex:Set ."

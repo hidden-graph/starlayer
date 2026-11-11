@@ -328,7 +328,13 @@ def read_rule(graph: Any, node: Term) -> Rule:
     types = tuple(t for t in graph.objects(node, RDF.type) if t in classes)
     if not types:
         raise RuleError(f"{node!r}: a rule needs an rdf:type that is a subclass of sh:Rule")
-    for holder in (node, *types):
+    # "A rules engine that encounters rules or rule sets with a value for sh:ruleProcessor that they are unable to handle MUST report
+    # a failure" (SHACL 1.2 Inference Rules): a rule that runs is asked about itself and its types, and about every rule set that
+    # contains it and every rule set those include ("the values of sh:ruleProcessor from an included rule set also apply to the
+    # including rule set"). A rule that does not run (deactivated, or not selected) is not asked, and nor is a rule set none
+    # of whose rules runs.
+    containing = _closure(graph, graph.subjects(SH.hasRule, node), lambda rs: graph.objects(rs, SH.includesRuleSet))
+    for holder in (node, *types, *containing):
         if (holder, SH.ruleProcessor, None) in graph:
             raise RuleError(f"{holder!r}: sh:ruleProcessor is declared and no custom rule processor is available")
     return Rule(
@@ -423,8 +429,13 @@ class _Run:
         return _boolean(self.shapes, node, SH.deactivated)
 
     def _is_node_shape_class(self, node: Term) -> bool:
-        types = set(self.shapes.objects(node, RDF.type))
-        return SH.NodeShape in types and bool(types & {RDFS.Class, SH.ShapeClass})
+        """A SHACL instance of both ``sh:NodeShape`` and ``rdfs:Class``: by its types and their ``rdfs:subClassOf`` closure, and
+        ``sh:ShapeClass`` is a subclass of both (SHACL vocabulary), whether or not the shapes graph says so."""
+        g = self.shapes
+        types = set(_closure(g, g.objects(node, RDF.type), lambda c: g.objects(c, RDFS.subClassOf)))
+        if SH.ShapeClass in types:
+            types |= {SH.NodeShape, RDFS.Class}
+        return SH.NodeShape in types and RDFS.Class in types
 
     def focus_nodes(self, ctx: Context, rule: Rule) -> list[Term]:
         if not rule.shapes:
@@ -506,7 +517,7 @@ class _Run:
         from starlayer.shacl_engine.components.sparql_components import _parameters
 
         out: dict[str, Term] = {}
-        for pred, name, optional in _parameters(self.shapes, template):
+        for pred, name, optional in _parameters(self.shapes, template, allow_all_optional=True):
             values = list(self.shapes.objects(rule.node, pred))
             if len(values) > 1:
                 raise RuleError(f"{rule.node!r}: more than one value for template parameter {text(pred)}")

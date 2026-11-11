@@ -55,8 +55,9 @@ def _local_name(iri: Term) -> str:
     return re.split(r"[#/]", iri.value)[-1]
 
 
-def _parameters(graph: Any, comp: Term) -> list[tuple[URIRef, str, bool]]:
-    """(path predicate, variable name, optional) per ``sh:parameter`` of the component."""
+def _parameters(graph: Any, comp: Term, *, allow_all_optional: bool = False) -> list[tuple[URIRef, str, bool]]:
+    """(path predicate, variable name, optional) per ``sh:parameter`` of the component, or of a SPARQL rule template, whose
+    parameters may all be optional (``allow_all_optional``; a constraint component needs one that is not)."""
     out: list[tuple[URIRef, str, bool]] = []
     for param in graph.objects(comp, SH.parameter):
         paths = list(graph.objects(param, SH.path))
@@ -71,7 +72,7 @@ def _parameters(graph: Any, comp: Term) -> list[tuple[URIRef, str, bool]]:
         out.append((paths[0], name, bool(optionals) and is_true(optionals[0])))
     if len({n for _p, n, _o in out}) != len(out):
         raise ShapeError(f"{comp!r}: two parameters have the same name")
-    if out and all(opt for _p, _n, opt in out):
+    if out and all(opt for _p, _n, opt in out) and not allow_all_optional:
         raise ShapeError(f"{comp!r}: a constraint component needs at least one non-optional parameter")
     return out
 
