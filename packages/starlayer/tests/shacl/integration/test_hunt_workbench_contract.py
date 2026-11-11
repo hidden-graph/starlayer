@@ -49,3 +49,22 @@ def test_ruleset_parse_and_infer_on_a_graph_without_literals_do_not_warn():
         """
     )
     assert r.returncode == 0, r.stderr
+
+
+def test_schema_validate_takes_the_keywords_validate_takes():
+    import warnings
+
+    from starlayer import StarLayerGraph, StarShaclSchema
+    from starlayer.shacl import validate
+
+    warnings.simplefilter("ignore")
+    shapes = StarLayerGraph()
+    shapes.parse(
+        data="@prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . :S a sh:NodeShape ; sh:targetNode :a .",
+        format="turtle",
+    )
+    data, spec = StarLayerGraph(), StarLayerGraph()
+    validate(data, shapes, specification_graph=spec, shapes_graph_iri="http://e/sg")
+    schema = StarShaclSchema(shapes)
+    schema.validate(data, specification_graph=spec)
+    schema.validate(data, shapes_graph_iri="http://e/sg")

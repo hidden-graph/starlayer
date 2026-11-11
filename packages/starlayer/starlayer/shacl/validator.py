@@ -348,6 +348,8 @@ class StarShaclSchema:
         meta_shapes_extra: Iterable[Any] = (),
         data_graph_iri: Any | None = None,
         shapes_graph_resource: Any | None = None,
+        shapes_graph_iri: Any | None = None,
+        specification_graph: Any | None = None,
         include_used_configuration: bool = False,
         **kwargs: Any,
     ) -> ValidationResult:
@@ -373,7 +375,9 @@ class StarShaclSchema:
             ignore_imports=ignore_imports,
             meta_shapes_extra=meta_shapes_extra,
             data_graph_iri=data_graph_iri,
+            shapes_graph_iri=shapes_graph_iri,
             shapes_graph_resource=shapes_graph_resource,
+            specification_graph=specification_graph,
             include_used_configuration=include_used_configuration,
         )
 
