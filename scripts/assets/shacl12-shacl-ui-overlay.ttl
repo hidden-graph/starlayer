@@ -980,9 +980,17 @@ stsh:ShuiPredicateShapes
 		sh:path shui:viewer ;
 		sh:nodeKind sh:IRI ;                     # viewer-nodeKind: references a shui:Viewer instance, always an IRI
 	] ;
+	# SHACL UI, Property Roles: a direct annotation links to the role (an IRI); a qualified annotation links to a blank node that names the
+	# role with its own shui:propertyRole and may carry the sh:order that ranks it among the shapes with the same role. (The RDF 1.2
+	# triple-annotation form is the direct form with sh:order on the reifier, so it needs no rule here.)
 	sh:property [
 		sh:path shui:propertyRole ;
-		sh:nodeKind sh:IRI ;                     # propertyRole-nodeKind: references a shui:PropertyRole instance (e.g. shui:LabelRole), always an IRI
+		sh:or (
+			[ sh:nodeKind sh:IRI ]               # propertyRole-nodeKind: a direct annotation references a shui:PropertyRole instance (e.g. shui:LabelRole)
+			[ sh:nodeKind sh:BlankNode ;         # propertyRole-qualified: a qualified annotation is a blank node with exactly one role and at most one order
+			  sh:property [ sh:path shui:propertyRole ; sh:minCount 1 ; sh:maxCount 1 ; sh:nodeKind sh:IRI ] ;
+			  sh:property [ sh:path sh:order ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:integer ] [ sh:datatype xsd:decimal ] ) ] ]
+		) ;
 	] .
 
 # SHACL UI, Search Query: "A well-formed value of shui:searchQuery is a literal of datatype xsd:string, appearing directly on a property

@@ -48,3 +48,10 @@ because that option fell back to the old code).
 API differences the workbench integration must expect: `ValidationResult` / `RulesResult` have no `engine` fields; `evaluate_component`,
 `TripleTermAdapter` and the keywords `validate_fn`, `adapter`, `decode_report`, `iterate_rules`, `engine=` are gone; `inference=` takes
 entailment regime IRIs; a graph with a term that is not an RDF term (a relative IRI) raises `TermError` unless `invalid_terms="lenient"`.
+
+## Added 2026-11-11 (SHACL UI, from the spec-delta plan; `docs/working/spec-delta-2026-11-11.md`)
+
+Public, in `starlayer.shacl`: `select_widget(s)(implemented=, on_report=)` and `WidgetReport` (the draft: an implementation must not
+offer a widget it does not implement and must report that one matched or none did), and `property_shapes_for_role(shape_node=, role=,
+shapes_graph=)` (the property shapes of a node shape that play a `shui:propertyRole`, in the draft's order). The label and language
+resolution of the draft stay with the application. The SHACL UI namespace is now `http://www.w3.org/ns/shacl-ui/` (slash).

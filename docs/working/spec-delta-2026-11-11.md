@@ -129,7 +129,12 @@ and `shui:suggestedValues` are renderer features: the library does not evaluate 
 `AutoCompleteEditor` 4 for a property shape with `shui:searchQuery` ("the presence of shui:searchQuery raises the AutoCompleteEditor's
 score"; the draft's number is 20, ours are tiers 1 to 4); `sparql_query_problems` checks a `shui:searchQuery` (a SELECT that parses, with
 `$searchTerm` and `$language` free); `stsh:SearchQueryShape` and `stsh:SuggestedValuesShape` check the shape of the values. Ordering and
-tie-breaking went from MUST to SHOULD in the draft: no change. Guide 04d has a new subsection. (Original scope:) Widget selection must not offer an unimplemented widget and must report
+tie-breaking went from MUST to SHOULD in the draft: no change. **Property roles** (the 7 terms beyond `suggestedValues`):
+the qualified annotation `shui:propertyRole [ shui:propertyRole shui:LabelRole ; sh:order 0 ]` was rejected by our shape (it required an
+IRI); it is accepted now, with rules for its own parts. `property_shapes_for_role(shape_node=, role=, shapes_graph=)` gives the
+property shapes that play a role in the draft's order (qualified before direct, ascending `sh:order`; the triple annotation counts as
+qualified); it and `WidgetReport` are exported from `starlayer.shacl`. The term documentation lists all five roles. Label and language
+resolution (normative for renderers, they read the data graph and the language preferences) are not implemented: a proposal, not done. Guide 04d has a new subsection. (Original scope:) Widget selection must not offer an unimplemented widget and must report
 the case to the application (`shacl/ui_widget_selection.py`: decide how the report is surfaced, which is an API choice); read the
 reworked search-query text (`shui:searchQuery` substitution, `$language` for `$uiLanguage`) and `shui:suggestedValues`. Keep our
 deterministic ordering: the spec now says SHOULD, so this is no change.

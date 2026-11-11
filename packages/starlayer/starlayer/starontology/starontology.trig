@@ -2389,7 +2389,14 @@ starontology:shacl12-shacl-ui.ttl {
                 sh:path shui:editor ],
             [ sh:nodeKind sh:IRI ;
                 sh:path shui:viewer ],
-            [ sh:nodeKind sh:IRI ;
+            [ sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ;
+                            sh:property [ sh:maxCount 1 ;
+                                    sh:minCount 1 ;
+                                    sh:nodeKind sh:IRI ;
+                                    sh:path shui:propertyRole ],
+                                [ sh:maxCount 1 ;
+                                    sh:or ( [ sh:datatype xsd:integer ] [ sh:datatype xsd:decimal ] ) ;
+                                    sh:path sh:order ] ] ) ;
                 sh:path shui:propertyRole ] ;
         sh:targetSubjectsOf shui:editor,
             shui:propertyRole,
@@ -3199,7 +3206,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 ;
+        sh:in _:n546cc72a94d142a79e1894920d118dfcb243 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3408,7 +3415,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 ;
+        sh:in _:n546cc72a94d142a79e1894920d118dfcb243 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3790,7 +3797,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 ;
+        sh:in _:n546cc72a94d142a79e1894920d118dfcb243 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5009,11 +5016,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 1 ;
         stsh:propertyFormField true .
 
-    shui:propertyRole sh:group stsh:WidgetGroup ;
-        sh:nodeKind sh:IRI ;
-        sh:order 3 ;
-        stsh:propertyFormField true .
-
     shui:viewer sh:group stsh:WidgetGroup ;
         sh:nodeKind sh:IRI ;
         sh:order 2 ;
@@ -5116,6 +5118,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:IRI ;
         sh:order 28 ;
         stsh:formOnlyFor sh:DataGraph .
+
+    shui:propertyRole sh:group stsh:WidgetGroup ;
+        sh:nodeKind sh:IRI ;
+        sh:order 3 ;
+        stsh:propertyFormField true .
 
     shui:score sh:group stsh:DefinitionGroup ;
         sh:nodeKind sh:Literal ;
@@ -5373,11 +5380,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n6d181ae1a61b4bf5b0318e6cf25a9d30b234 rdf:first sh:IRI ;
+    _:n546cc72a94d142a79e1894920d118dfcb244 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n6d181ae1a61b4bf5b0318e6cf25a9d30b233 rdf:first sh:BlankNode ;
-        rdf:rest _:n6d181ae1a61b4bf5b0318e6cf25a9d30b234 .
+    _:n546cc72a94d142a79e1894920d118dfcb243 rdf:first sh:BlankNode ;
+        rdf:rest _:n546cc72a94d142a79e1894920d118dfcb244 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -5463,6 +5470,12 @@ starontology:shacl12-shacl.ttl {
         sh:description "A checkbox or toggle, for xsd:boolean-typed values."@en ;
         sh:name "boolean editor"@en .
 
+    shui:ClassificationRole rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+        rdfs:seeAlso shui:propertyRole ;
+        sh:description "The role of property shapes whose value nodes indicate the kind, type or category that a resource belongs to. All the values are shown."@en ;
+        sh:name "classification role"@en .
+
     shui:DatePickerEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A calendar-style date picker, for xsd:date-typed values."@en ;
@@ -5472,6 +5485,18 @@ starontology:shacl12-shacl.ttl {
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "A calendar-and-time picker, for xsd:dateTime-typed values."@en ;
         sh:name "date-time picker"@en .
+
+    shui:DepictionRole rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+        rdfs:seeAlso shui:propertyRole ;
+        sh:description "The role of property shapes whose value nodes are images that depict the individual resource, such as a photo of a person. A renderer shows one depiction."@en ;
+        sh:name "depiction role"@en .
+
+    shui:DescriptionRole rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+        rdfs:seeAlso shui:propertyRole ;
+        sh:description "The role of property shapes whose value nodes are textual descriptions that summarize or introduce a resource."@en ;
+        sh:name "description role"@en .
 
     shui:DetailsViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
@@ -5504,6 +5529,12 @@ starontology:shacl12-shacl.ttl {
         sh:description "Read-only display of an IRI value, typically abbreviated with a known prefix."@en ;
         sh:name "IRI viewer"@en .
 
+    shui:IconRole rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+        rdfs:seeAlso shui:propertyRole ;
+        sh:description "The role of property shapes whose value nodes are small images displayed next to the label of a resource, often shared across instances of the same class."@en ;
+        sh:name "icon role"@en .
+
     shui:ImageViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         sh:description "Renders an IRI value inline as an image, for properties known to point at image resources."@en ;
@@ -5514,10 +5545,10 @@ starontology:shacl12-shacl.ttl {
         sh:description "A dropdown/select list populated dynamically from existing instances of a class, rather than a fixed sh:in list."@en ;
         sh:name "instances select"@en .
 
-    shui:LabelRole rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
+    shui:LabelRole rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en ;
         rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
         rdfs:seeAlso shui:propertyRole ;
-        sh:description "The one built-in shui:propertyRole value — marks a property shape's values as the resource's own display label."@en ;
+        sh:description "The role of property shapes whose value nodes serve as human-readable display labels for a resource. A renderer applies Label Resolution to them and shows one label."@en ;
         sh:name "label role"@en .
 
     shui:LabelViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui_widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
@@ -6505,12 +6536,6 @@ starontology:shacl12-shacl.ttl {
                 sh:path sh:uniqueLang ] ;
         sh:targetObjectsOf sh:node .
 
-    shui:propertyRole rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en ;
-        rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-        skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
-        sh:description "Marks a property shape as playing a special semantic role for UI purposes — currently just shui:LabelRole, marking \"this is the property whose value should be used as the resource's own display label.\""@en ;
-        sh:name "property role"@en .
-
     stsh:IRIOrListOfIRIsShape a sh:NodeShape ;
         rdfs:label "IRI or list of IRIs"@en ;
         rdfs:comment "SHACL 1.2 widened several single-IRI-valued parameters (sh:class, sh:datatype, sh:rootClass, sh:uniqueValuesFor) to also accept a well-formed SHACL list of IRIs, meaning a union of the listed values."@en ;
@@ -7089,6 +7114,12 @@ starontology:shacl12-shacl.ttl {
             sh:uniqueMembers,
             sh:xone ;
         sh:xone ( shsh:NodeShapeShape shsh:PropertyShapeShape ) .
+
+    shui:propertyRole rdfs:comment "ignored by validation, apart from the shape of the value; the order of the shapes that share a role is read by starlayer.shacl.ui_property_roles (the label and language resolution of the draft are the application's)"@en ;
+        rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+        skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
+        sh:description "Marks a property shape as playing a role for UI purposes: its values are the resource's label, depiction, icon, description or classification (shui:LabelRole and the other shui:PropertyRole instances, or a role from another namespace). Written directly (shui:propertyRole shui:LabelRole) or qualified (shui:propertyRole [ shui:propertyRole shui:LabelRole ; sh:order 0 ]), where sh:order ranks the property shapes that share a role."@en ;
+        sh:name "property role"@en .
 
     sh:SPARQLRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
             <https://www.w3.org/TR/shacl12-rules/> ;

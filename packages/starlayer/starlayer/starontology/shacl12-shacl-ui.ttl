@@ -602,7 +602,14 @@ stsh:ShuiPredicateShapes a sh:NodeShape ;
             sh:path shui:editor ],
         [ sh:nodeKind sh:IRI ;
             sh:path shui:viewer ],
-        [ sh:nodeKind sh:IRI ;
+        [ sh:or ( [ sh:nodeKind sh:IRI ] [ sh:nodeKind sh:BlankNode ;
+                        sh:property [ sh:maxCount 1 ;
+                                sh:minCount 1 ;
+                                sh:nodeKind sh:IRI ;
+                                sh:path shui:propertyRole ],
+                            [ sh:maxCount 1 ;
+                                sh:or ( [ sh:datatype xsd:integer ] [ sh:datatype xsd:decimal ] ) ;
+                                sh:path sh:order ] ] ) ;
             sh:path shui:propertyRole ] ;
     sh:targetSubjectsOf shui:editor,
         shui:propertyRole,
@@ -1412,7 +1419,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n40c88669be1345ce880d8b42f9486d85b75 ;
+    sh:in _:n62aef6b610eb4bbeaa9809d17757298bb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1621,7 +1628,7 @@ stsh:ParameterForm_sh_name a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n40c88669be1345ce880d8b42f9486d85b75 ;
+    sh:in _:n62aef6b610eb4bbeaa9809d17757298bb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2003,7 +2010,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n40c88669be1345ce880d8b42f9486d85b75 ;
+    sh:in _:n62aef6b610eb4bbeaa9809d17757298bb75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -3222,11 +3229,6 @@ shui:editor sh:group stsh:WidgetGroup ;
     sh:order 1 ;
     stsh:propertyFormField true .
 
-shui:propertyRole sh:group stsh:WidgetGroup ;
-    sh:nodeKind sh:IRI ;
-    sh:order 3 ;
-    stsh:propertyFormField true .
-
 shui:viewer sh:group stsh:WidgetGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 2 ;
@@ -3329,6 +3331,11 @@ sh:suggestedShapesGraph sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:IRI ;
     sh:order 28 ;
     stsh:formOnlyFor sh:DataGraph .
+
+shui:propertyRole sh:group stsh:WidgetGroup ;
+    sh:nodeKind sh:IRI ;
+    sh:order 3 ;
+    stsh:propertyFormField true .
 
 shui:score sh:group stsh:DefinitionGroup ;
     sh:nodeKind sh:Literal ;
@@ -3586,8 +3593,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n40c88669be1345ce880d8b42f9486d85b76 rdf:first sh:IRI ;
+_:n62aef6b610eb4bbeaa9809d17757298bb76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n40c88669be1345ce880d8b42f9486d85b75 rdf:first sh:BlankNode ;
-    rdf:rest _:n40c88669be1345ce880d8b42f9486d85b76 .
+_:n62aef6b610eb4bbeaa9809d17757298bb75 rdf:first sh:BlankNode ;
+    rdf:rest _:n62aef6b610eb4bbeaa9809d17757298bb76 .

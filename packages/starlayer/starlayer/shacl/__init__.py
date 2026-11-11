@@ -24,7 +24,12 @@ from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.shapes_graphs import shapes_graph_members
 from starlayer.shacl.subgraph_extraction import extract_subgraph
 from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
-from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
+from starlayer.shacl.ui_property_roles import property_shapes_for_role
+from starlayer.shacl.ui_widget_selection import (
+    WidgetReport,
+    select_widget,
+    select_widgets,
+)
 from starlayer.shacl.validator import (
     StarShaclSchema,
     apply_rules,
@@ -59,8 +64,10 @@ __all__ = [
     "ValidationResult",
     "RulesResult",
     "target_nodes",
+    "property_shapes_for_role",
     "select_widget",
     "select_widgets",
+    "WidgetReport",
     "StarLayerGraphProtocol",
     "MutableStarLayerGraphProtocol",
     "evaluate_expression",

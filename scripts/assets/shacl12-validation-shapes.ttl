@@ -1827,10 +1827,10 @@ shui:viewer
 
 shui:propertyRole
 	sh:name "property role"@en ;
-	sh:description "Marks a property shape as playing a special semantic role for UI purposes — currently just shui:LabelRole, marking \"this is the property whose value should be used as the resource's own display label.\""@en ;
+	sh:description "Marks a property shape as playing a role for UI purposes: its values are the resource's label, depiction, icon, description or classification (shui:LabelRole and the other shui:PropertyRole instances, or a role from another namespace). Written directly (shui:propertyRole shui:LabelRole) or qualified (shui:propertyRole [ shui:propertyRole shui:LabelRole ; sh:order 0 ]), where sh:order ranks the property shapes that share a role."@en ;
 	skos:example "sh:property [ sh:path ex:name ; shui:propertyRole shui:LabelRole ]"@en ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en .
+	rdfs:comment "ignored by validation, apart from the shape of the value; the order of the shapes that share a role is read by starlayer.shacl.ui_property_roles (the label and language resolution of the draft are the application's)"@en .
 
 shui:TextFieldEditor
 	sh:name "text field"@en ;
@@ -1993,7 +1993,35 @@ shui:ValueTableViewer
 
 shui:LabelRole
 	sh:name "label role"@en ;
-	sh:description "The one built-in shui:propertyRole value — marks a property shape's values as the resource's own display label."@en ;
+	sh:description "The role of property shapes whose value nodes serve as human-readable display labels for a resource. A renderer applies Label Resolution to them and shows one label."@en ;
 	rdfs:seeAlso shui:propertyRole ;
 	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
-	rdfs:comment "ignored by validation; not interpreted by starlayer.shacl (property roles are documented here but not implemented)"@en .
+	rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en .
+
+shui:DepictionRole
+	sh:name "depiction role"@en ;
+	sh:description "The role of property shapes whose value nodes are images that depict the individual resource, such as a photo of a person. A renderer shows one depiction."@en ;
+	rdfs:seeAlso shui:propertyRole ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+	rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en .
+
+shui:ClassificationRole
+	sh:name "classification role"@en ;
+	sh:description "The role of property shapes whose value nodes indicate the kind, type or category that a resource belongs to. All the values are shown."@en ;
+	rdfs:seeAlso shui:propertyRole ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+	rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en .
+
+shui:DescriptionRole
+	sh:name "description role"@en ;
+	sh:description "The role of property shapes whose value nodes are textual descriptions that summarize or introduce a resource."@en ;
+	rdfs:seeAlso shui:propertyRole ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+	rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en .
+
+shui:IconRole
+	sh:name "icon role"@en ;
+	sh:description "The role of property shapes whose value nodes are small images displayed next to the label of a resource, often shared across instances of the same class."@en ;
+	rdfs:seeAlso shui:propertyRole ;
+	rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
+	rdfs:comment "ignored by validation; a property role: see shui:propertyRole"@en .
