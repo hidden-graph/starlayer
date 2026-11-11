@@ -4,7 +4,7 @@ from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
 from starlayer.shacl_engine.terms import NS
 
 EX = NS("http://example.org/")
-SHUI = NS("http://www.w3.org/ns/shacl-ui#")
+SHUI = NS("http://www.w3.org/ns/shacl-ui/")
 
 # SHACL 1.2 User Interfaces (https://www.w3.org/TR/shacl12-ui/) Section 3
 # "Scoring System" - the widget *selection* algorithm, built entirely on
@@ -23,7 +23,7 @@ _DATA = """
 _SHAPES_EXPLICIT_WIDGET = """
     @prefix ex: <http://example.org/> .
     @prefix sh: <http://www.w3.org/ns/shacl#> .
-    @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+    @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
     ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ; sh:property ex:BirthDateProp .
     ex:BirthDateProp a sh:PropertyShape ; sh:path ex:birthDate ; shui:editor shui:DatePickerEditor .
 """
@@ -57,7 +57,7 @@ def test_explicit_widget_rejected_by_matcher_falls_back_to_scoring() -> None:
     data = _graph(_DATA)
     shapes = _graph(_SHAPES_EXPLICIT_WIDGET)
     scoring = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
         @prefix ex: <http://example.org/> .
 
@@ -81,7 +81,7 @@ def test_score_ranking_with_multiple_candidates_picks_the_highest() -> None:
     data = _graph(_DATA)
     shapes = _graph(_SHAPES_NO_EXPLICIT_WIDGET)
     scoring = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 3.0 .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
         [] a shui:WidgetScore ; shui:widget shui:NumberFieldEditor ; shui:score 1 .
@@ -98,7 +98,7 @@ def test_lower_ranked_candidate_wins_when_higher_ranked_is_rejected() -> None:
     data = _graph(_DATA)
     shapes = _graph(_SHAPES_NO_EXPLICIT_WIDGET)
     scoring = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
         @prefix ex: <http://example.org/> .
 
@@ -128,7 +128,7 @@ def test_matcher_with_more_than_one_shui_widget_value_still_resolves() -> None:
     shapes = _graph(_SHAPES_NO_EXPLICIT_WIDGET)
     scoring = _graph("""
         @prefix ex: <http://example.org/> .
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         ex:SharedMatcher a shui:WidgetAcceptMatcher ;
             shui:widget shui:DatePickerEditor, shui:TextFieldEditor .
         [] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 1.0 .
@@ -166,7 +166,7 @@ _PERSON_DATA = """
 _PERSON_SHAPES_TWO_PROPS = """
     @prefix ex: <http://example.org/> .
     @prefix sh: <http://www.w3.org/ns/shacl#> .
-    @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+    @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
     ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ;
         sh:property ex:NameProp, ex:BirthDateProp .
     ex:NameProp a sh:PropertyShape ; sh:path ex:name ; shui:editor shui:TextFieldEditor .
@@ -178,7 +178,7 @@ def test_select_widgets_returns_dict_of_property_to_widget() -> None:
     data = _graph(_PERSON_DATA)
     shapes = _graph(_PERSON_SHAPES_TWO_PROPS)
     scoring = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
     """)
 
@@ -211,7 +211,7 @@ def test_select_widgets_respects_role() -> None:
     shapes = _graph("""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         ex:PersonShape a sh:NodeShape ; sh:targetClass ex:Person ; sh:property ex:NameProp .
         ex:NameProp a sh:PropertyShape ; sh:path ex:name ;
             shui:editor shui:TextFieldEditor ; shui:viewer shui:LabelViewer .
@@ -295,7 +295,7 @@ def test_without_a_focus_node_a_data_only_matcher_rejects_its_widget() -> None:
     """Section 3.4 step 1: no focus node, a dataGraphShape and no shapesGraphShape -> false."""
     shapes = _graph(_SHAPES_NO_EXPLICIT_WIDGET)
     scoring = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
         @prefix ex: <http://example.org/> .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
@@ -324,7 +324,7 @@ def test_shapes_graph_shape_checks_the_property_shape_in_the_shapes_graph() -> N
     """)
     scoring = _graph("""
         @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 1.0 .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
         [] a shui:WidgetAcceptMatcher ; shui:widget shui:DatePickerEditor ; shui:shapesGraphShape ex:DateProperty .
@@ -339,7 +339,7 @@ def test_shapes_graph_shape_checks_the_property_shape_in_the_shapes_graph() -> N
 def test_equal_scores_are_ordered_by_widget_iri() -> None:
     shapes = _graph(_SHAPES_NO_EXPLICIT_WIDGET)
     scoring = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 5.0 .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 5.0 .
     """)
@@ -353,7 +353,7 @@ def test_schema_method_uses_the_bound_shapes_graph() -> None:
 
     shapes = _graph(_PERSON_SHAPES_TWO_PROPS)
     scoring = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
     """)
     schema = StarShaclSchema(shapes)
@@ -385,11 +385,11 @@ def test_schema_scoring_graph_can_be_bound_and_overridden_per_call() -> None:
 
     shapes = _graph(_PERSON_SHAPES_TWO_PROPS)
     bound = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
     """)
     other = _graph("""
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:TextAreaEditor ; shui:score 9.0 .
     """)
     schema = StarShaclSchema(shapes, scoring_graph=bound)
@@ -410,13 +410,13 @@ def test_schema_data_graph_can_be_overridden_per_call() -> None:
 
     shapes = _graph("""
         @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         ex:PersonShape a sh:NodeShape ; sh:property ex:NameProp .
         ex:NameProp a sh:PropertyShape ; sh:path ex:name .
         ex:LongName a sh:NodeShape ; sh:property [ sh:path ex:name ; sh:minLength 10 ] .
     """)
     catalog = _graph("""
-        @prefix ex: <http://example.org/> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix ex: <http://example.org/> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 1.0 .
         [] a shui:WidgetScore ; shui:widget shui:TextAreaEditor ; shui:score 9.0 .
         [] a shui:WidgetAcceptMatcher ; shui:widget shui:TextAreaEditor ; shui:dataGraphShape ex:LongName .

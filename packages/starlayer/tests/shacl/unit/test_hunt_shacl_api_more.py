@@ -250,7 +250,7 @@ def test_close_shape_returns_a_closed_copy_of_the_whole_shapes_graph():
 def test_widget_only_a_matcher_mentions_still_gets_the_default_score():
     from starlayer.shacl import select_widgets
 
-    ui = "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . "
+    ui = "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . "
     shapes = g(ui + "ex:N a sh:NodeShape ; sh:property ex:P . ex:P sh:path ex:p ; shui:editor ex:W .")
     scoring = g(ui + "ex:M a shui:WidgetAcceptMatcher ; shui:widget ex:W .")
     result = select_widgets(shape_node=ox.NamedNode("http://e/N"), shapes_graph=shapes, scoring_graph=scoring, role="editor")

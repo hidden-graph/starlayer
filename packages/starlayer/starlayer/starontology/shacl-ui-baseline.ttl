@@ -25,7 +25,7 @@
 # baseURI: https://github.com/hidden-graph/starlayer/ns/ui-baseline#
 
 @prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix uib: <https://github.com/hidden-graph/starlayer/ns/ui-baseline#> .

@@ -1173,7 +1173,7 @@ class TestShuiWellFormedness:
     """
 
     # the well-formedness shapes live in the UI companion since 2026-10-23 (GitHub issue #23)
-    _SHUI_PREFIX = _RULES_PREFIX + "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . "
+    _SHUI_PREFIX = _RULES_PREFIX + "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . "
 
     def test_valid_shui_editor_passes(self) -> None:
         shapes = Graph()
@@ -1775,7 +1775,7 @@ def test_malformed_custom_functions_and_label_templates_are_caught(shapes) -> No
 # The settings of a shui:Configuration and the links from a data graph (SHACL UI 3.4; the vocabulary's sh:DataGraph)
 # ---------------------------------------------------------------------------
 
-_UI = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
+_UI = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
 
 
 def _ui_check(ttl: str):

@@ -29,7 +29,7 @@
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
-@prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 
 # No root-level rdfs:label/rdfs:comment here by design - see

@@ -183,7 +183,7 @@ def test_select_widgets_with_oxigraph_graphs():
     from starlayer.shacl.ui_widget_selection import select_widgets
 
     shapes = """
-    @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+    @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
     ex:PersonShape a sh:NodeShape ; sh:property ex:NameProp .
     ex:NameProp sh:path ex:name ; shui:editor shui:TextFieldEditor .
     """

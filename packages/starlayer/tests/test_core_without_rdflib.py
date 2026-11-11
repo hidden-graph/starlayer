@@ -135,7 +135,7 @@ def test_widget_selection_runs_without_rdflib():
 
         shapes = StarLayerGraph()
         shapes.parse(format="turtle12", data='''
-            @prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+            @prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
             :S a sh:NodeShape ; sh:property :P , :Q .
             :P sh:path :p ; shui:editor shui:TextFieldEditor .
             :Q sh:path :q .
@@ -146,7 +146,7 @@ def test_widget_selection_runs_without_rdflib():
         print(sorted((k.value, v.value if v else None) for k, v in got.items()))
         print(select_widget(shape_node=ox.NamedNode("http://e/P"), shapes_graph=shapes, role="editor").value)
     """)
-    assert "http://www.w3.org/ns/shacl-ui#TextAreaEditor" in out and "TextFieldEditor" in out
+    assert "http://www.w3.org/ns/shacl-ui/TextAreaEditor" in out and "TextFieldEditor" in out
 
 
 def test_canonical_hashing_and_isomorphism_run_without_rdflib():
@@ -380,7 +380,7 @@ def test_srl_and_the_embedded_query_check_load_no_rdflib_module():
     tree, root = srl.ruleset_to_tree(rules); srl.srl_validate(tree); srl.tree_to_ruleset(tree, root)
     from starlayer.shacl.meta_shapes import sparql_query_problems
     shapes = StarLayerGraph()
-    shapes.parse(data='@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://e/> . ex:S a sh:NodeShape ; sh:sparql [ sh:select "SELECT $this WHERE { $this ex:p ?o }" ] .', format="turtle")
+    shapes.parse(data='@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://e/> . ex:S a sh:NodeShape ; sh:sparql [ sh:prefixes ex: ; sh:select "SELECT $this WHERE { $this ex:p ?o }" ] . ex: sh:declare [ sh:prefix "ex" ; sh:namespace "http://e/"^^<http://www.w3.org/2001/XMLSchema#anyURI> ] .', format="turtle")
     assert list(sparql_query_problems(shapes)) == []
     from starlayer.sparql import StarQuery
     StarQuery("SELECT * WHERE { ?s ?p ?o }").run(g)

@@ -29,7 +29,7 @@ def _onto(name):
 
 
 _SH = "http://www.w3.org/ns/shacl#"
-SHUI = "http://www.w3.org/ns/shacl-ui#"
+SHUI = "http://www.w3.org/ns/shacl-ui/"
 
 
 def sh(local: str) -> URIRef:
@@ -124,7 +124,7 @@ def test_select_widgets_gives_a_property_shape_form_its_widgets(ui) -> None:
         for triple in _onto(name):
             scoring.add(triple)
     widgets = select_widgets(shape_node=STSH.PropertyShapeForm, shapes_graph=ui, scoring_graph=scoring, role="editor")
-    by_path = {next(ui.objects(prop, sh("path"))): str(widget).rsplit("#", 1)[-1] for prop, widget in widgets.items()}
+    by_path = {next(ui.objects(prop, sh("path"))): str(widget).rsplit("/", 1)[-1] for prop, widget in widgets.items()}
     assert by_path[sh("minCount")] == "NumberFieldEditor"
     assert by_path[sh("nodeKind")] == "EnumSelectEditor"
     assert by_path[sh("deactivated")] == "BooleanEditor"
@@ -143,7 +143,7 @@ def test_sh_expression_is_a_field_of_both_shape_forms_with_the_details_editor(ui
         assert (field, sh("maxCount"), None) not in ui
         assert (field, sh("group"), STSH.CompositionGroup) in ui
         widgets = select_widgets(shape_node=form, shapes_graph=ui, scoring_graph=scoring, role="editor")
-        assert str(widgets[field]).rsplit("#", 1)[-1] == "DetailsEditor"
+        assert str(widgets[field]).rsplit("/", 1)[-1] == "DetailsEditor"
 
 
 def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:

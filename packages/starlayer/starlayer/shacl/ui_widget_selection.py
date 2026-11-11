@@ -39,7 +39,7 @@ from starlayer.shacl_engine.terms import NS, RDF, SH
 # The terms are pyoxigraph terms. The graphs are read as they are (``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store``), with
 # no copy. An rdflib graph or term (an optional extra; a caller holding one has rdflib) is converted at the public functions only
 # (``_Boundary``), and the answer is converted back.
-SHUI = NS("http://www.w3.org/ns/shacl-ui#")
+SHUI = NS("http://www.w3.org/ns/shacl-ui/")
 
 Role = Literal["editor", "viewer"]
 

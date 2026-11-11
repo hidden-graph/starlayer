@@ -44,7 +44,7 @@ from rdflib.namespace import RDF, RDFS  # noqa: E402
 OVERLAY_PATH = Path(__file__).resolve().parent / "assets" / "shacl12-shacl-ui-overlay.ttl"
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
-SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
+SHUI = Namespace("http://www.w3.org/ns/shacl-ui/")
 SHNEX = Namespace("http://www.w3.org/ns/shacl-node-expr#")
 STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
 

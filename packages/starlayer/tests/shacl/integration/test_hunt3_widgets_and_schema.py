@@ -11,10 +11,10 @@ from ._rdflib_view import rd
 
 EX = Namespace("http://ex/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")  # rdflib terms: these tests pass rdflib graphs and nodes, and get rdflib terms back
+SHUI = Namespace("http://www.w3.org/ns/shacl-ui/")  # rdflib terms: these tests pass rdflib graphs and nodes, and get rdflib terms back
 PRE = (
     "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . "
-    "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
+    "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
     "@prefix owl: <http://www.w3.org/2002/07/owl#> .\n"
 )
 

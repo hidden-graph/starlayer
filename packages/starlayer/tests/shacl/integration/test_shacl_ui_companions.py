@@ -23,7 +23,7 @@ def _onto(name):
 
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
-SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")  # rdflib terms: these tests pass rdflib graphs and nodes, and get rdflib terms back
+SHUI = Namespace("http://www.w3.org/ns/shacl-ui/")  # rdflib terms: these tests pass rdflib graphs and nodes, and get rdflib terms back
 STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
 EX = Namespace("http://example.org/")
 
@@ -209,7 +209,7 @@ def test_the_baseline_has_three_tiers_and_no_per_widget_matchers(baseline) -> No
 
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
 ex:S a sh:NodeShape ; sh:property ex:age, ex:active, ex:born, ex:stamp, ex:kind, ex:boss, ex:home, ex:note, ex:title, ex:pinned, ex:both .
 ex:age sh:path ex:age ; sh:datatype xsd:integer . ex:active sh:path ex:active ; sh:datatype xsd:boolean .
 ex:born sh:path ex:born ; sh:datatype xsd:date . ex:stamp sh:path ex:stamp ; sh:datatype xsd:dateTime .

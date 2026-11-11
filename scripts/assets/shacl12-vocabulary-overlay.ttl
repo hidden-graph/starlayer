@@ -14,7 +14,7 @@
 
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
-@prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 
 # The kinds a shapes graph defines are in groups, in the order a tool lists them (sh:group of each, sh:order of the group and of the kind).

@@ -68,7 +68,7 @@ def test_ui_baseline_treats_dirlangstring_like_langstring():
     for role, expected in (("viewer", "LangStringViewer"), ("editor", "TextFieldWithLangEditor")):
         r = select_widgets(shape_node=ox.NamedNode("http://e/S"), shapes_graph=sg,
                            scoring_graph=so.get_ontology_graph("shacl_ui_baseline"), role=role)
-        out = {next(sg.objects(k, sh_path)).value[-1]: str(v).rstrip(">").rsplit("#", 1)[-1] for k, v in r.items()}
+        out = {next(sg.objects(k, sh_path)).value[-1]: str(v).rstrip(">").rsplit("/", 1)[-1] for k, v in r.items()}
         assert out == {"a": expected, "b": expected}
 
 

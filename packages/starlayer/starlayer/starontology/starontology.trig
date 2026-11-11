@@ -11,7 +11,7 @@
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 @prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
-@prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix skshp: <https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#> .
 @prefix slp: <https://github.com/hidden-graph/starlayer/ns/profile#> .
@@ -3169,7 +3169,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nf90ff6de709747f985f94bb5b74e5465b225 ;
+        sh:in _:n7f0064cf53ee4dd3b031e3b29771c960b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3378,7 +3378,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nf90ff6de709747f985f94bb5b74e5465b225 ;
+        sh:in _:n7f0064cf53ee4dd3b031e3b29771c960b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3760,7 +3760,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:nf90ff6de709747f985f94bb5b74e5465b225 ;
+        sh:in _:n7f0064cf53ee4dd3b031e3b29771c960b225 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -5330,11 +5330,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:nf90ff6de709747f985f94bb5b74e5465b226 rdf:first sh:IRI ;
+    _:n7f0064cf53ee4dd3b031e3b29771c960b226 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:nf90ff6de709747f985f94bb5b74e5465b225 rdf:first sh:BlankNode ;
-        rdf:rest _:nf90ff6de709747f985f94bb5b74e5465b226 .
+    _:n7f0064cf53ee4dd3b031e3b29771c960b225 rdf:first sh:BlankNode ;
+        rdf:rest _:n7f0064cf53ee4dd3b031e3b29771c960b226 .
 }
 
 starontology:shacl12-shacl.ttl {

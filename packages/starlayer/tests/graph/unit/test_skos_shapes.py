@@ -259,7 +259,7 @@ def test_shapes_graph_is_valid_shacl_and_reusable():
 
 # the form tests read graphs from the starontology getters, which are OxGraphs: pyoxigraph terms
 _SH = NS("http://www.w3.org/ns/shacl#")
-_SHUI = NS("http://www.w3.org/ns/shacl-ui#")
+_SHUI = NS("http://www.w3.org/ns/shacl-ui/")
 _SKSHP = NS("https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#")
 _RDF = NS("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
 _RDFS = NS("http://www.w3.org/2000/01/rdf-schema#")

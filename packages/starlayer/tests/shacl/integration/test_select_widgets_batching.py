@@ -25,7 +25,7 @@ ex:note a sh:PropertyShape ; sh:path ex:note .
 
 # An editors-only catalog (the role does not filter the catalog, issue #9), reduced from the issue #10 baseline.
 CATALOG = """
-@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . @prefix uib: <http://example.org/ui-baseline#> .
 [] a shui:WidgetScore ; shui:widget shui:TextFieldEditor ; shui:score 1.0 .
 [] a shui:WidgetScore ; shui:widget shui:NumberFieldEditor ; shui:score 5.0 .

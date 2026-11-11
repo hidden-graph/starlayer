@@ -214,7 +214,7 @@ _PREFIXES: dict[str, str] = {
     "sh": "http://www.w3.org/ns/shacl#",
     "shnex": "http://www.w3.org/ns/shacl-node-expr#",
     "shsh": "http://www.w3.org/ns/shacl-shacl#",
-    "shui": "http://www.w3.org/ns/shacl-ui#",
+    "shui": "http://www.w3.org/ns/shacl-ui/",
     "skos": "http://www.w3.org/2004/02/skos/core#",
     "skshp": "https://github.com/hidden-graph/starlayer/ns/graph/skos-shapes#",
     "slp": "https://github.com/hidden-graph/starlayer/ns/profile#",

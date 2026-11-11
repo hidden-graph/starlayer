@@ -16,7 +16,7 @@ EX = NS("http://example.org/")
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
 ex:S a sh:NodeShape ; sh:property ex:P . ex:P a sh:PropertyShape ; sh:path ex:nick ."""
-PREFIX = "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix ex: <http://example.org/> .\n"
+PREFIX = "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . @prefix ex: <http://example.org/> .\n"
 
 
 def _graph(ttl: str) -> StarLayerGraph:

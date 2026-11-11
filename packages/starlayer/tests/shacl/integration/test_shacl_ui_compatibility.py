@@ -8,7 +8,7 @@ EX = Namespace("http://example.org/")
 
 
 # SHACL 1.2 User Interfaces (https://www.w3.org/TR/shacl12-ui/, shui: =
-# http://www.w3.org/ns/shacl-ui#) defines a widget/editor/viewer vocabulary
+# http://www.w3.org/ns/shacl-ui/) defines a widget/editor/viewer vocabulary
 # for form generation - confirmed (via the spec's own scope statement) to be
 # entirely orthogonal to SHACL validation: no new constraint types, no new
 # validation semantics, nothing a validation/rules engine needs to
@@ -29,7 +29,7 @@ def _shapes_with_shui_annotations() -> str:
     return """
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         ex:PersonShape a sh:NodeShape ;
           sh:targetClass ex:Person ;
           sh:property [
@@ -87,7 +87,7 @@ def test_shui_annotations_do_not_interfere_with_rule_application() -> None:
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
         ex:R a sh:NodeShape ;
           sh:targetSubjectsOf ex:parent ;
@@ -115,7 +115,7 @@ def test_shui_annotations_do_not_interfere_with_rdf12_triple_term_data() -> None
     shapes.parse(data="""
         @prefix ex: <http://example.org/> .
         @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix shui: <http://www.w3.org/ns/shacl-ui#> .
+        @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         ex:S a sh:NodeShape ; sh:targetSubjectsOf ex:claims ;
           sh:property [ sh:path ex:claims ; sh:minCount 1 ; shui:viewer shui:DetailsViewer ] .
     """, format="turtle")

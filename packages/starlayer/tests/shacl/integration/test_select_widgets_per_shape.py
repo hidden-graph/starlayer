@@ -20,7 +20,7 @@ from starlayer.shacl_engine.terms import NS
 EX = NS("http://example.org/")
 PREFIXES = (
     "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
-    "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
+    "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 )
 SHAPES = PREFIXES + """
 ex:S a sh:NodeShape ; sh:property ex:Note, ex:Age, ex:Title, ex:Pinned .

@@ -19,12 +19,12 @@ def _onto(name):
 
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
-SHUI = Namespace("http://www.w3.org/ns/shacl-ui#")
+SHUI = Namespace("http://www.w3.org/ns/shacl-ui/")
 OWL = Namespace("http://www.w3.org/2002/07/owl#")
 PREFIXES = (
     "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
     "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . "
-    "@prefix shui: <http://www.w3.org/ns/shacl-ui#> . "
+    "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . "
 )
 
 # The kind of element each form is for (stsh:formFor), per GitHub issue #105
@@ -329,7 +329,7 @@ def scoring() -> Graph:
 def test_select_widgets_gives_every_form_an_editor_for_each_field(ui, scoring, name) -> None:
     widgets = select_widgets(shape_node=STSH[name], shapes_graph=ui, scoring_graph=scoring, role="editor")
     assert len(widgets) == len(fields(ui, name)), "a widget for every field"
-    by_path = {next(ui.objects(prop, SH.path)): str(widget).rsplit("#", 1)[-1] for prop, widget in widgets.items()}
+    by_path = {next(ui.objects(prop, SH.path)): str(widget).rsplit("/", 1)[-1] for prop, widget in widgets.items()}
     assert by_path[RDF.type] == "IRIEditor"
     if SH.order in by_path and name != "WidgetScoreForm":
         assert by_path[SH.order] == "NumberFieldEditor"

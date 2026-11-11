@@ -321,7 +321,7 @@ import pyoxigraph as ox
 from starlayer import starontology
 
 SH_NS = "http://www.w3.org/ns/shacl#"
-SHUI = "http://www.w3.org/ns/shacl-ui#"
+SHUI = "http://www.w3.org/ns/shacl-ui/"
 SH_DESCRIPTION = ox.NamedNode(SH_NS + "description")
 SH_NAME = ox.NamedNode(SH_NS + "name")
 meta = starontology.get_ontology_graph("shacl_shacl")
