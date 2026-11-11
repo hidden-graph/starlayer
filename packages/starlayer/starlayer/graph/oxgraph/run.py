@@ -217,9 +217,12 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
     when it was filled). With ``dedupe`` (a triple is in more than one graph) ``scratch`` holds the set of the triples of every
     graph, the default graph included, and is the only ``USING <g>``, so that a triple held twice is read once. Templates (``INSERT {..}``, ``DELETE {..}``) are unchanged: they write where they always wrote.
 
-    Limits: an operation with its own ``WITH`` or ``USING`` is left as the author wrote it; the graph list and the copy are taken
-    when the update starts, so an operation of the request does not see what an earlier operation of the same request wrote
-    to a graph that did not exist yet, or to the default graph.
+    Limits: an operation with its own ``USING`` is left as the author wrote it, and so is a ``WITH`` operation unless the scratch
+    graph exists. Then a ``WITH <g>`` operation gets ``USING <g>`` and a ``USING NAMED`` for every IRI-named graph, which is its own
+    dataset (the default graph ``g``, the named graphs) without the scratch graph, so that ``GRAPH ?x`` cannot bind it; the graphs
+    named by a blank node are not listed, as ``USING NAMED`` takes only IRIs. The graph list and the copy are taken when the update
+    starts, so an operation of the request does not see what an earlier operation of the same request wrote to a graph that did not
+    exist yet, or to the default graph. The request stays one ``Store.update`` call, which Oxigraph applies atomically.
     """
     named = [g for g in store.named_graphs() if isinstance(g, ox.NamedNode) and next(store.quads_for_pattern(None, None, None, g), None) is not None]
     others = next((q for q in store if not isinstance(q.graph_name, ox.NamedNode)), None) is not None
@@ -229,12 +232,17 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
     masked = _mask(text)
     bounds = [0, *[m.start() + 1 for m in re.finditer(";", masked)], len(text)]
     pieces: list[str] = []
+    with_only: list[int] = []  # indexes in ``pieces`` of operations with a WITH and no USING, which are not rewritten
     used = False
     using = " ".join(([] if dedupe else [f"USING <{g.value}>" for g in named]) + [f"USING NAMED <{g.value}>" for g in named])
     for a, b in zip(bounds, bounds[1:], strict=False):
         seg, mseg = text[a:b], masked[a:b]
         # `masked` already blanked the IRIs, so the prologue is just the PREFIX/BASE words and whitespace
         head = re.sub(r"(?is)\A(?:\s*(?:PREFIX\s+[^\s:]*:|BASE\b|VERSION\b))*", "", mseg).lstrip()
+        if re.match(r"(?i)WITH\b", head) and not re.search(r"(?i)\bUSING\b", mseg) and re.search(r"(?i)\bWHERE\b", mseg):
+            with_only.append(len(pieces))  # reads its WITH graph and every named graph: the scratch graph must not be one of them
+            pieces.append(seg)
+            continue
         if not re.match(r"(?i)(?:DELETE|INSERT)\b", head) or re.search(r"(?i)\bUSING\b", mseg):
             pieces.append(seg)  # LOAD, CLEAR, ..., or its own dataset clause
             continue
@@ -261,4 +269,14 @@ def union_update_text(store: ox.Store, text: str, scratch: ox.NamedNode, dedupe:
             pieces.append(seg[: dw.start()] + f"DELETE {pattern} {clause} WHERE {pattern}" + seg[hi + 1 :])
         else:
             pieces.append(seg[: w.start()] + clause + " " + seg[w.start() :])
+    if used:
+        named_clause = " ".join(f"USING NAMED <{g.value}>" for g in named)
+        for i in with_only:
+            seg = pieces[i]
+            mseg = _mask(seg)
+            kw = re.search(r"(?i)\bWITH\b\s*", mseg)  # found in the masked text, so not inside a string or comment
+            w = re.search(r"(?i)\bWHERE\b", mseg)
+            if kw is not None and w is not None:
+                graph = seg[kw.end() :].split(None, 1)[0]  # the IRI or prefixed name, as written
+                pieces[i] = seg[: w.start()] + f"USING {graph} {named_clause} " + seg[w.start() :]
     return "".join(pieces), used

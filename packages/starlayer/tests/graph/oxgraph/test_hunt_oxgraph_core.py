@@ -262,3 +262,45 @@ def test_a_variable_named_from_does_not_switch_the_union_off():
     ds.update("INSERT DATA { GRAPH <urn:g> { <urn:b> <urn:from> <urn:x> } <urn:c> <urn:from> <urn:y> }")
     rows = {str(r["s"].value) for r in ds.query("SELECT ?s ?from WHERE { ?s <urn:from> ?from }")}
     assert rows == {"urn:b", "urn:c"}
+
+
+# ---- the scratch graph of a union update is not visible to a WITH operation ----------------------------------------------
+_SCRATCH = "urn:x-starlayer:union-default:"
+
+
+def _union_dataset_with_default_graph_data():
+    ds = StarLayerDataset(default_union=True)
+    store = ds.as_store()
+    store.update(
+        "INSERT DATA { <http://x/d> <http://x/p> 0 . GRAPH <http://x/g1> { <http://x/a> <http://x/p> 1 } "
+        "GRAPH <http://x/g2> { <http://x/b> <http://x/p> 2 } }"
+    )
+    return ds, store
+
+
+def test_a_with_operation_cannot_bind_the_scratch_graph():
+    ds, store = _union_dataset_with_default_graph_data()
+    ds.update(
+        "PREFIX x: <http://x/> INSERT { x:r x:says 1 } WHERE { x:d x:p ?o } ; "  # reads the union: the scratch graph exists
+        "WITH x:g1 INSERT { x:r x:seenIn ?g } WHERE { GRAPH ?g { ?s x:p ?o } }"
+    )
+    seen = {str(q.object.value) for q in store.quads_for_pattern(None, ox.NamedNode("http://x/seenIn"), None, None)}
+    assert seen == {"http://x/g1", "http://x/g2"}, seen
+    assert not any(str(g.value).startswith(_SCRATCH) for g in store.named_graphs() if isinstance(g, ox.NamedNode))
+
+
+def test_a_with_operation_still_reads_its_with_graph_as_the_default_graph():
+    ds, store = _union_dataset_with_default_graph_data()
+    ds.update(
+        "PREFIX x: <http://x/> INSERT { x:r x:says 1 } WHERE { x:d x:p ?o } ; "
+        "WITH x:g1 INSERT { ?s x:seen true } WHERE { ?s x:p ?o }"
+    )
+    assert {str(q.subject.value) for q in store.quads_for_pattern(None, ox.NamedNode("http://x/seen"), None, None)} == {"http://x/a"}
+
+
+def test_a_union_update_request_stays_atomic():
+    ds, store = _union_dataset_with_default_graph_data()
+    before = len(store)
+    with pytest.raises(Exception):  # noqa: B017 - any failure of the second operation
+        ds.update("PREFIX x: <http://x/> INSERT { x:r x:says 1 } WHERE { x:d x:p ?o } ; LOAD <http://127.0.0.1:9/nothing.ttl>")
+    assert len(store) == before
