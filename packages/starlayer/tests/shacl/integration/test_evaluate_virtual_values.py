@@ -22,7 +22,7 @@ result is documented as not meant to be persisted.
 import pytest
 from rdflib import Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclSchema
+from starlayer.shacl import StarShaclSchema
 
 from ._rdflib_view import rd
 
@@ -572,9 +572,11 @@ class TestShapesGraphIsNotModified:
         assert set(data) == before
 
 
-class TestFunctionArgumentMustBeAList:
+class TestFunctionArgumentWithoutAList:
     """GitHub issue #8: a function whose argument was a bare node (``sparql:year [ ... ]``) instead of a list
-    (``sparql:year ( [ ... ] )``) silently produced no value. It is now reported as a malformed expression."""
+    (``sparql:year ( [ ... ] )``) silently produced no value. It was then reported as a malformed expression. The Node Expressions
+    draft (List Parameter Functions, 2026-10) defines it: a single argument can be given without the list and means the list
+    of one, so the bare form must give the list form's value."""
 
     _PREFIXES = """
         @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -602,23 +604,24 @@ class TestFunctionArgumentMustBeAList:
         assert self._evaluate("[ sparql:year () ]") == []
 
     @pytest.mark.parametrize(
-        "values",
+        ("bare", "listed"),
         [
-            "[ sparql:year [ shnex:pathValues ex:birthDate ] ]",
-            "[ sparql:str [ shnex:pathValues ex:name ] ]",
-            "[ sparql:concat [ shnex:pathValues ex:name ] ]",
-            "[ shnex:concat [ shnex:pathValues ex:name ] ]",
-            "[ shnex:intersection [ shnex:pathValues ex:name ] ]",
+            ("[ sparql:year [ shnex:pathValues ex:birthDate ] ]", "[ sparql:year ( [ shnex:pathValues ex:birthDate ] ) ]"),
+            ("[ sparql:str [ shnex:pathValues ex:name ] ]", "[ sparql:str ( [ shnex:pathValues ex:name ] ) ]"),
+            ("[ sparql:concat [ shnex:pathValues ex:name ] ]", "[ sparql:concat ( [ shnex:pathValues ex:name ] ) ]"),
+            ("[ shnex:concat [ shnex:pathValues ex:name ] ]", "[ shnex:concat ( [ shnex:pathValues ex:name ] ) ]"),
+            ("[ shnex:intersection [ shnex:pathValues ex:name ] ]", "[ shnex:intersection ( [ shnex:pathValues ex:name ] ) ]"),
         ],
     )
-    def test_bare_node_is_reported_not_silently_empty(self, values):
-        with pytest.raises(ShapeError, match="must be an RDF list"):
-            self._evaluate(values)
+    def test_a_bare_node_is_a_call_with_that_one_argument(self, bare, listed):
+        assert self._evaluate(bare) == self._evaluate(listed) != []
 
-    def test_a_bare_node_nested_in_coalesce_no_longer_falls_back_quietly(self):
+    def test_the_bare_year_is_the_year(self):
+        assert self._evaluate("[ sparql:year [ shnex:pathValues ex:birthDate ] ]") == ["1990"]
+
+    def test_a_bare_node_nested_in_coalesce_works_too(self):
         nested = "[ sparql:coalesce ( [ sparql:year [ shnex:pathValues ex:birthDate ] ] [ shnex:pathValues ex:name ] ) ]"
-        with pytest.raises(ShapeError):
-            self._evaluate(nested)
+        assert self._evaluate(nested) == ["1990"]
 
     def test_shnex_count_still_takes_a_single_expression(self):
         assert self._evaluate("[ shnex:count [ shnex:pathValues ex:name ] ]") == ["1"]

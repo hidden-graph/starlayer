@@ -188,7 +188,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
     if (fn, RDF.type, SH.ListParameterExpressionFunction) in g:
         head = _one(ctx, expr, pred)
         any_empty = False
-        for i, arg in enumerate(shacl_list(g, head)):
+        for i, arg in enumerate(_arg_terms(ctx, head)):
             nodes = _eval(ctx, arg, focus, scope)  # arguments are evaluated in the caller's scope
             if len(nodes) > 1:
                 raise EvaluationFailure(f"argument {i} of a call of {text(fn)} has more than one output node")
@@ -250,15 +250,19 @@ def _sub(
     return _eval(ctx, x, focus, scope)
 
 
+def _arg_terms(ctx: Any, head: Term) -> list[Term]:
+    """The argument expressions of a list parameter function whose argument object is ``head`` (Node Expressions, "List
+    Parameter Functions", rules in order): ``rdf:nil`` is no arguments; a SHACL list is its members; anything else is the one
+    argument given without a list, so ``[ sparql:abs -42 ]`` is ``[ sparql:abs ( -42 ) ]``. To pass one argument that is itself
+    a list expression, wrap it: ``[ ex:f ( ( 1 2 ) ) ]``."""
+    if head == RDF.nil or next(iter(ctx.shapes.objects(head, RDF.first)), None) is not None:
+        return shacl_list(ctx.shapes, head)
+    return [head]
+
+
 def _args(ctx: Any, expr: Term, pred: URIRef) -> list[Term]:
-    """The expressions of the list at ``expr pred (...)``."""
-    head = _one(ctx, expr, pred)
-    if (
-        head != RDF.nil
-        and next(iter(ctx.shapes.objects(head, RDF.first)), None) is None
-    ):
-        raise ShapeError(f"{expr!r}: the argument of {text(pred)} must be an RDF list")
-    return shacl_list(ctx.shapes, head)
+    """The argument expressions of the list parameter function ``expr pred ...`` (see ``_arg_terms``)."""
+    return _arg_terms(ctx, _one(ctx, expr, pred))
 
 
 def _integer(term: Term, what: str) -> int:

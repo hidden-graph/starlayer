@@ -131,8 +131,7 @@ def test_malformed_expressions_are_shape_errors():
         ev("[ shnex:count 1 ; shnex:sum 2 ]")  # two operators
     with pytest.raises(ShapeError):
         ev("[ shnex:limit -1 ; shnex:nodes ( 1 ) ]")
-    with pytest.raises(ShapeError):
-        ev("[ sparql:strlen 1 ]")  # a sparql: function takes a list
+    assert ev('[ sparql:strlen "abc" ]') == ev('[ sparql:strlen ( "abc" ) ]')  # one argument may be given without the list
 
 
 def test_legacy_sh_forms_are_not_expressions():
