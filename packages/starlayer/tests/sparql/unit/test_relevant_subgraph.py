@@ -171,6 +171,16 @@ def test_init_ns_declares_prefixes_and_the_public_name_is_exported() -> None:
     assert len(fragment) == 2
 
 
+def test_service_is_refused_because_the_answer_depends_on_a_remote_graph() -> None:
+    for query in (
+        "SELECT ?s WHERE { SERVICE <http://example.org/sparql> { ?s :p ?o } }",
+        "SELECT ?s WHERE { ?s :p ?o OPTIONAL { SERVICE SILENT <http://example.org/sparql> { ?s :q ?x } } }",
+        "SELECT ?s WHERE { { SELECT ?s WHERE { SERVICE <http://example.org/sparql> { ?s :p ?o } } } }",
+    ):
+        with pytest.raises(ValueError, match="SERVICE"):
+            relevant_subgraph(DATA, PROLOGUE + query)
+
+
 def test_an_update_is_refused() -> None:
     with pytest.raises(ValueError):
         relevant_subgraph(DATA, PROLOGUE + "DESCRIBE :a")

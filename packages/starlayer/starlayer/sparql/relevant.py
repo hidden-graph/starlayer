@@ -27,7 +27,7 @@ subgraph holds the support of every solution of the group, so they give the same
 Handled: property paths (the edges a walk of the path from the pattern's subject to its object takes, by ``CONSTRUCT`` over the
 relaxed group joined with a guard that spells the walk out), sub-selects (the relevant triples of the sub-select as a query
 of its own, for all its rows), ``EXISTS`` and ``MINUS`` inside ``OPTIONAL`` and ``UNION`` branches, blank nodes (labelled ones, ``[ ... ]`` and collections ``( ... )`` become variables
-and triples). Not computable this way: ``GRAPH``, ``SERVICE``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
+and triples). Not computable this way: ``GRAPH``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
 triple that matches some triple pattern of the query (constants and pre-bound variables fixed, other variables free): larger,
 never smaller. ``relevant_triples`` returns which was used.
 """
@@ -63,7 +63,8 @@ def relevant_subgraph(
     """The relevant subgraph of ``query`` in ``graph`` (see the module docstring), as a ``StarLayerGraph``. ``init_ns`` (prefix to
     namespace) declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
 
-    Raises ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update or a ``DESCRIBE``."""
+    Raises ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
+    depends on a remote graph, so it cannot be reproduced from a subgraph of this one)."""
     from starlayer.graph.oxgraph import StarLayerGraph
 
     bindings = dict(init_bindings or {})
@@ -87,6 +88,8 @@ def relevant_triples(
     ast = parse_sparql(query)
     if ast.kind not in ("SelectQuery", "AskQuery", "ConstructQuery"):
         raise ValueError(f"relevant_subgraph needs a SELECT, ASK or CONSTRUCT query, not {ast.kind}")
+    if any(_word(t) == "SERVICE" for t in tokenize(query)):
+        raise ValueError("relevant_subgraph does not support SERVICE: the answer depends on a remote graph that no subgraph of this one holds")
     if run is None:
         return _pattern_triples(graph, ast, init_bindings), False
     try:
