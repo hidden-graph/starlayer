@@ -12,8 +12,13 @@ characterize scaling. For the full scaling sweep used to update
 docs/graph/performance.md, see bench_inmemory.py/bench_inmemory_oxigraph.py in this
 same directory (unaffected by this file - they stay the deep-dive tool).
 
-Requires the `benchmark` extra: pip install -e ".[benchmark]"
+Requires the `benchmark` extra: pip install -e ".[benchmark]"; without it the whole module is skipped (a `pytest` started
+inside packages/starlayer collects this directory, and every test here would error on the missing `benchmark` fixture).
 """
+
+import pytest
+
+pytest.importorskip("pytest_benchmark", reason='needs the benchmark extra: pip install -e ".[benchmark]"')
 
 from bench_inmemory import plain_triples, tt_triples
 from starlayer.graph.graph import StarLayerGraph
