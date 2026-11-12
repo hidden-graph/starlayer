@@ -16,10 +16,10 @@ The RDF, SPARQL and SHACL 1.2 specifications are still drafts. StarLayer follows
 ## Install
 
 ```bash
-pip install "git+https://github.com/hidden-graph/starlayer.git"
+pip install "git+https://github.com/hidden-graph/starlayer.git@shacl-engine"
 ```
 
-Python 3.10 or later. Optional extras, added like `"starlayer[reasoning] @ git+https://github.com/hidden-graph/starlayer.git"`: `rdflib`, `reasoning` (OWL-RL), `hermit` and `rustdl` (the two OWL-DL engines).
+Python 3.10 or later. Optional extras, added like `"starlayer[reasoning] @ git+https://github.com/hidden-graph/starlayer.git@shacl-engine"`: `rdflib`, `reasoning` (OWL-RL), `hermit` and `rustdl` (the two OWL-DL engines).
 
 **Supported Oxigraph versions.** StarLayer needs Oxigraph 0.5.13 or later. Older versions abort the whole process on SPARQL `=` over `rdf:dirLangString` ([oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982)), and StarLayer does not work around it. `pyoxigraph>=0.5.13` is a core dependency, and importing StarLayer's Oxigraph-based modules raises `ImportError` on an older pyoxigraph. A remote `oxigraph serve` cannot be version-checked from the client; run 0.5.13 or newer there.
 
