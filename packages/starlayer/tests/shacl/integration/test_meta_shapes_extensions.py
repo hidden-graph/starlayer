@@ -1475,41 +1475,6 @@ class TestSparqlQueryStructureValidation:
         with pytest.raises(ShapeError, match="sh:select"):
             check_sparql_query_text(shapes)
 
-    def _shapes_with_sparql_target(self, query_text: str) -> Graph:
-        shapes = Graph()
-        shapes.parse(
-            data=_RULES_PREFIX
-            + f"""
-            ex:MyShape a sh:NodeShape ;
-              sh:target [ a sh:SPARQLTarget ; sh:select "{query_text}" ] ;
-              sh:property [ sh:path ex:name ; sh:minCount 1 ] .
-            """,
-            format="turtle",
-        )
-        return shapes
-
-    def test_unbound_this_in_a_sparql_target_is_a_real_defect_not_exempted(self) -> None:
-        # The $this/$value/$PATH pre-bound exemption is for CONSTRAINT/RULE
-        # queries only ($this supplied externally by pySHACL) - a
-        # sh:target's own SPARQLTarget query has the opposite semantics:
-        # $this is NOT pre-bound, it's exactly what the query's own
-        # pattern is supposed to compute. An unbound $this there is a real
-        # bug (the target would never select any candidate) and must
-        # still raise, not be silently exempted the way it would be for
-        # an ordinary sh:sparql constraint.
-        shapes = self._shapes_with_sparql_target(
-            "PREFIX ex: <http://example.org/> SELECT $this WHERE { ?x a ex:SomeClass }"
-        )
-        with pytest.raises(ShapeError, match="sh:select"):
-            check_sparql_query_text(shapes)
-
-    def test_well_formed_sparql_target_passes(self) -> None:
-        # $this genuinely bound by the target's own pattern - no defect.
-        shapes = self._shapes_with_sparql_target(
-            "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this a ex:SomeClass }"
-        )
-        check_sparql_query_text(shapes)  # must not raise
-
     def test_bundled_validation_shapes_conform(self) -> None:
         shapes = Graph()
         shapes.parse(VALIDATION_SHAPES_PATH, format="turtle")

@@ -651,6 +651,22 @@ stsh:PropertyGroupShape a sh:NodeShape ;
             sh:path sh:order ] ;
     sh:targetClass sh:PropertyGroup .
 
+stsh:RemovedSparqlFunctionShape a sh:NodeShape ;
+    rdfs:label "sh:SPARQLFunction is not defined in SHACL 1.2"@en ;
+    sh:message "SHACL 1.2 does not define sh:SPARQLFunction; declare the function with sh:ListParameterExpressionFunction and a sh:bodyExpression"@en ;
+    sh:not [ ] ;
+    sh:severity sh:Violation ;
+    sh:targetClass sh:SPARQLFunction .
+
+stsh:RemovedSparqlTargetShape a sh:NodeShape ;
+    rdfs:label "SPARQL-based targets are not defined in SHACL 1.2"@en ;
+    sh:message "SHACL 1.2 does not define SPARQL-based targets (sh:target, sh:SPARQLTarget, sh:SPARQLTargetType); use sh:targetNode with a node expression, for example sh:targetNode [ sh:select \"...\" ]"@en ;
+    sh:not [ ] ;
+    sh:severity sh:Violation ;
+    sh:targetClass sh:SPARQLTarget,
+        sh:SPARQLTargetType ;
+    sh:targetSubjectsOf sh:target .
+
 stsh:ResultAnnotationHolderShapes a sh:NodeShape ;
     rdfs:label "Well-formedness rules for the holder of sh:resultAnnotation"@en ;
     sh:or ( [ sh:minCount 1 ;

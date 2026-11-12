@@ -64,6 +64,7 @@ EXCLUDED: dict[URIRef, str] = {
     **{p: "a field of a node expression (the value of sh:values and the like), not of a shape; no form for node expressions yet (GitHub issue #67)" for p in (SH.nodes, SH.union, SH.intersection, SH.filterShape)},
     **{p: "RDF list structure, never a field of a form" for p in (RDF.first, RDF.rest)},
     SH.sourceRule: "a field of the reifier of an inferred triple (Inference Rules 9), not of a shape or a rule",
+    SH.target: "SPARQL-based targets (sh:target with sh:SPARQLTarget / sh:SPARQLTargetType) are no longer defined in SHACL 1.2 (SPARQL-Related Features, Appendix F); the meta-shapes refuse them",
 }
 # Every term of the node expression vocabulary is a field of a node expression, not of a shape.
 EXCLUDED_NAMESPACES: dict[str, str] = {str(SHNEX): "a field of a node expression, not of a shape"}

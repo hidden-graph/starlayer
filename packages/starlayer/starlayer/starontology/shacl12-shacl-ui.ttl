@@ -54,6 +54,8 @@ sh:nodes sh:group stsh:NodeExpressionGroup ;
 sh:oneOrMorePath sh:group stsh:PathGroup ;
     sh:order 5 .
 
+sh:target sh:nodeKind sh:BlankNodeOrIRI .
+
 sh:union sh:group stsh:NodeExpressionGroup ;
     sh:order 10 .
 
@@ -329,7 +331,6 @@ stsh:NodeShapeForm a sh:NodeShape ;
         stsh:NodeShapeForm_sh_someValue,
         stsh:NodeShapeForm_sh_sparql,
         stsh:NodeShapeForm_sh_subsetOf,
-        stsh:NodeShapeForm_sh_target,
         stsh:NodeShapeForm_sh_targetClass,
         stsh:NodeShapeForm_sh_targetNode,
         stsh:NodeShapeForm_sh_targetObjectsOf,
@@ -451,7 +452,6 @@ stsh:PropertyShapeForm a sh:NodeShape ;
         stsh:PropertyShapeForm_sh_someValue,
         stsh:PropertyShapeForm_sh_sparql,
         stsh:PropertyShapeForm_sh_subsetOf,
-        stsh:PropertyShapeForm_sh_target,
         stsh:PropertyShapeForm_sh_targetClass,
         stsh:PropertyShapeForm_sh_targetNode,
         stsh:PropertyShapeForm_sh_targetObjectsOf,
@@ -1419,7 +1419,7 @@ stsh:NodeShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n62aef6b610eb4bbeaa9809d17757298bb75 ;
+    sh:in _:neeb286ca8dc24d5ba1fa8bda2dfbe4a0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -1507,12 +1507,6 @@ stsh:NodeShapeForm_sh_subsetOf a sh:PropertyShape ;
     sh:order 5 ;
     sh:path sh:subsetOf ;
     stsh:secondary true .
-
-stsh:NodeShapeForm_sh_target a sh:PropertyShape ;
-    sh:group stsh:TargetGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 5 ;
-    sh:path sh:target .
 
 stsh:NodeShapeForm_sh_targetClass a sh:PropertyShape ;
     sh:group stsh:TargetGroup ;
@@ -1628,7 +1622,7 @@ stsh:ParameterForm_sh_name a sh:PropertyShape ;
 
 stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n62aef6b610eb4bbeaa9809d17757298bb75 ;
+    sh:in _:neeb286ca8dc24d5ba1fa8bda2dfbe4a0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2010,7 +2004,7 @@ stsh:PropertyShapeForm_sh_nodeByExpression a sh:PropertyShape ;
 
 stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
     sh:group stsh:ValueTypeGroup ;
-    sh:in _:n62aef6b610eb4bbeaa9809d17757298bb75 ;
+    sh:in _:neeb286ca8dc24d5ba1fa8bda2dfbe4a0b75 ;
     sh:maxCount 1 ;
     sh:nodeKind sh:IRI ;
     sh:order 4 ;
@@ -2143,12 +2137,6 @@ stsh:PropertyShapeForm_sh_subsetOf a sh:PropertyShape ;
     sh:nodeKind sh:IRI ;
     sh:order 5 ;
     sh:path sh:subsetOf .
-
-stsh:PropertyShapeForm_sh_target a sh:PropertyShape ;
-    sh:group stsh:TargetGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 5 ;
-    sh:path sh:target .
 
 stsh:PropertyShapeForm_sh_targetClass a sh:PropertyShape ;
     sh:group stsh:TargetGroup ;
@@ -3131,12 +3119,6 @@ sh:subsetOf sh:group stsh:ComparisonGroup ;
     stsh:nodePrimary false ;
     stsh:propertyFormField true .
 
-sh:target sh:group stsh:TargetGroup ;
-    sh:nodeKind sh:BlankNodeOrIRI ;
-    sh:order 5 ;
-    stsh:nodeFormField true ;
-    stsh:propertyFormField true .
-
 sh:targetClass sh:group stsh:TargetGroup ;
     sh:order 1 ;
     stsh:nodeFormField true ;
@@ -3524,15 +3506,15 @@ sh:prefixes sh:group stsh:RulesGroup ;
     sh:nodeKind sh:BlankNodeOrIRI ;
     sh:order 17 .
 
-stsh:ValueTypeGroup a sh:PropertyGroup ;
-    sh:description "What kind of RDF term or class a value node must be — sh:class/sh:datatype/sh:nodeKind."@en ;
-    sh:name "Value Type"@en ;
-    sh:order 4 .
-
 stsh:TargetGroup a sh:PropertyGroup ;
     sh:description "How a shape selects its focus nodes — sh:targetClass, sh:targetNode, and the rest of the targeting predicates."@en ;
     sh:name "Targeting"@en ;
     sh:order 1 .
+
+stsh:ValueTypeGroup a sh:PropertyGroup ;
+    sh:description "What kind of RDF term or class a value node must be — sh:class/sh:datatype/sh:nodeKind."@en ;
+    sh:name "Value Type"@en ;
+    sh:order 4 .
 
 stsh:StringGroup a sh:PropertyGroup ;
     sh:description "Constraints on a value's string form — length, pattern, language."@en ;
@@ -3593,8 +3575,8 @@ stsh:DefinitionGroup a sh:PropertyGroup ;
     sh:name "Definition"@en ;
     sh:order 0.5 .
 
-_:n62aef6b610eb4bbeaa9809d17757298bb76 rdf:first sh:IRI ;
+_:neeb286ca8dc24d5ba1fa8bda2dfbe4a0b76 rdf:first sh:IRI ;
     rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-_:n62aef6b610eb4bbeaa9809d17757298bb75 rdf:first sh:BlankNode ;
-    rdf:rest _:n62aef6b610eb4bbeaa9809d17757298bb76 .
+_:neeb286ca8dc24d5ba1fa8bda2dfbe4a0b75 rdf:first sh:BlankNode ;
+    rdf:rest _:neeb286ca8dc24d5ba1fa8bda2dfbe4a0b76 .

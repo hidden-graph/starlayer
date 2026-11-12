@@ -192,7 +192,7 @@ sh:targetClass sh:group stsh:TargetGroup ; sh:order 1 .
 sh:targetNode sh:group stsh:TargetGroup ; sh:order 2 .
 sh:targetObjectsOf sh:group stsh:TargetGroup ; sh:order 4 .
 sh:targetSubjectsOf sh:group stsh:TargetGroup ; sh:order 3 .
-sh:target sh:group stsh:TargetGroup ; sh:order 5 .        # a SPARQL target (sh:SPARQLTarget) or another target type (GitHub issue #91)
+# sh:target is not a form field: SPARQL-based targets are not defined in SHACL 1.2 (SPARQL-Related Features, Appendix F) and the meta-shapes refuse them
 sh:targetWhere sh:group stsh:TargetGroup ; sh:order 6 .   # SHACL 1.2: the nodes that conform to a shape (GitHub issue #91)
 sh:nodeByExpression sh:group stsh:CompositionGroup ; sh:order 9 .
 sh:uniqueLang sh:group stsh:StringGroup ; sh:order 6 .
@@ -513,7 +513,6 @@ rdfs:subClassOf   stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:unit           stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:codeIdentifier stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:formMaxCount 1 .
 sh:codeType       stsh:nodeFormField true ; stsh:propertyFormField true ; stsh:formMaxCount 1 .
-sh:target         stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:targetWhere    stsh:nodeFormField true ; stsh:propertyFormField true .
 sh:nodeByExpression stsh:nodeFormField true ; stsh:propertyFormField true .
 

@@ -1841,6 +1841,8 @@ starontology:shacl12-shacl-ui.ttl {
     sh:oneOrMorePath sh:group stsh:PathGroup ;
         sh:order 5 .
 
+    sh:target sh:nodeKind sh:BlankNodeOrIRI .
+
     sh:union sh:group stsh:NodeExpressionGroup ;
         sh:order 10 .
 
@@ -2116,7 +2118,6 @@ starontology:shacl12-shacl-ui.ttl {
             stsh:NodeShapeForm_sh_someValue,
             stsh:NodeShapeForm_sh_sparql,
             stsh:NodeShapeForm_sh_subsetOf,
-            stsh:NodeShapeForm_sh_target,
             stsh:NodeShapeForm_sh_targetClass,
             stsh:NodeShapeForm_sh_targetNode,
             stsh:NodeShapeForm_sh_targetObjectsOf,
@@ -2238,7 +2239,6 @@ starontology:shacl12-shacl-ui.ttl {
             stsh:PropertyShapeForm_sh_someValue,
             stsh:PropertyShapeForm_sh_sparql,
             stsh:PropertyShapeForm_sh_subsetOf,
-            stsh:PropertyShapeForm_sh_target,
             stsh:PropertyShapeForm_sh_targetClass,
             stsh:PropertyShapeForm_sh_targetNode,
             stsh:PropertyShapeForm_sh_targetObjectsOf,
@@ -3206,7 +3206,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n04dc4b7952f640c2b8fa90737048f7bdb243 ;
+        sh:in _:n2bd103a515154262a8d2ee63933f21d2b243 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3294,12 +3294,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:order 5 ;
         sh:path sh:subsetOf ;
         stsh:secondary true .
-
-    stsh:NodeShapeForm_sh_target a sh:PropertyShape ;
-        sh:group stsh:TargetGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 5 ;
-        sh:path sh:target .
 
     stsh:NodeShapeForm_sh_targetClass a sh:PropertyShape ;
         sh:group stsh:TargetGroup ;
@@ -3415,7 +3409,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n04dc4b7952f640c2b8fa90737048f7bdb243 ;
+        sh:in _:n2bd103a515154262a8d2ee63933f21d2b243 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3797,7 +3791,7 @@ starontology:shacl12-shacl-ui.ttl {
 
     stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
         sh:group stsh:ValueTypeGroup ;
-        sh:in _:n04dc4b7952f640c2b8fa90737048f7bdb243 ;
+        sh:in _:n2bd103a515154262a8d2ee63933f21d2b243 ;
         sh:maxCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:order 4 ;
@@ -3930,12 +3924,6 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:IRI ;
         sh:order 5 ;
         sh:path sh:subsetOf .
-
-    stsh:PropertyShapeForm_sh_target a sh:PropertyShape ;
-        sh:group stsh:TargetGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 5 ;
-        sh:path sh:target .
 
     stsh:PropertyShapeForm_sh_targetClass a sh:PropertyShape ;
         sh:group stsh:TargetGroup ;
@@ -4918,12 +4906,6 @@ starontology:shacl12-shacl-ui.ttl {
         stsh:nodePrimary false ;
         stsh:propertyFormField true .
 
-    sh:target sh:group stsh:TargetGroup ;
-        sh:nodeKind sh:BlankNodeOrIRI ;
-        sh:order 5 ;
-        stsh:nodeFormField true ;
-        stsh:propertyFormField true .
-
     sh:targetClass sh:group stsh:TargetGroup ;
         sh:order 1 ;
         stsh:nodeFormField true ;
@@ -5311,15 +5293,15 @@ starontology:shacl12-shacl-ui.ttl {
         sh:nodeKind sh:BlankNodeOrIRI ;
         sh:order 17 .
 
-    stsh:ValueTypeGroup a sh:PropertyGroup ;
-        sh:description "What kind of RDF term or class a value node must be — sh:class/sh:datatype/sh:nodeKind."@en ;
-        sh:name "Value Type"@en ;
-        sh:order 4 .
-
     stsh:TargetGroup a sh:PropertyGroup ;
         sh:description "How a shape selects its focus nodes — sh:targetClass, sh:targetNode, and the rest of the targeting predicates."@en ;
         sh:name "Targeting"@en ;
         sh:order 1 .
+
+    stsh:ValueTypeGroup a sh:PropertyGroup ;
+        sh:description "What kind of RDF term or class a value node must be — sh:class/sh:datatype/sh:nodeKind."@en ;
+        sh:name "Value Type"@en ;
+        sh:order 4 .
 
     stsh:StringGroup a sh:PropertyGroup ;
         sh:description "Constraints on a value's string form — length, pattern, language."@en ;
@@ -5380,11 +5362,11 @@ starontology:shacl12-shacl-ui.ttl {
         sh:name "Definition"@en ;
         sh:order 0.5 .
 
-    _:n04dc4b7952f640c2b8fa90737048f7bdb244 rdf:first sh:IRI ;
+    _:n2bd103a515154262a8d2ee63933f21d2b244 rdf:first sh:IRI ;
         rdf:rest ( sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral ) .
 
-    _:n04dc4b7952f640c2b8fa90737048f7bdb243 rdf:first sh:BlankNode ;
-        rdf:rest _:n04dc4b7952f640c2b8fa90737048f7bdb244 .
+    _:n2bd103a515154262a8d2ee63933f21d2b243 rdf:first sh:BlankNode ;
+        rdf:rest _:n2bd103a515154262a8d2ee63933f21d2b244 .
 }
 
 starontology:shacl12-shacl.ttl {
@@ -6015,6 +5997,22 @@ starontology:shacl12-shacl.ttl {
                 sh:order 2 ;
                 sh:path sh:order ] ;
         sh:targetClass sh:PropertyGroup .
+
+    stsh:RemovedSparqlFunctionShape a sh:NodeShape ;
+        rdfs:label "sh:SPARQLFunction is not defined in SHACL 1.2"@en ;
+        sh:message "SHACL 1.2 does not define sh:SPARQLFunction; declare the function with sh:ListParameterExpressionFunction and a sh:bodyExpression"@en ;
+        sh:not [ ] ;
+        sh:severity sh:Violation ;
+        sh:targetClass sh:SPARQLFunction .
+
+    stsh:RemovedSparqlTargetShape a sh:NodeShape ;
+        rdfs:label "SPARQL-based targets are not defined in SHACL 1.2"@en ;
+        sh:message "SHACL 1.2 does not define SPARQL-based targets (sh:target, sh:SPARQLTarget, sh:SPARQLTargetType); use sh:targetNode with a node expression, for example sh:targetNode [ sh:select \"...\" ]"@en ;
+        sh:not [ ] ;
+        sh:severity sh:Violation ;
+        sh:targetClass sh:SPARQLTarget,
+            sh:SPARQLTargetType ;
+        sh:targetSubjectsOf sh:target .
 
     stsh:ResultAnnotationHolderShapes a sh:NodeShape ;
         rdfs:label "Well-formedness rules for the holder of sh:resultAnnotation"@en ;

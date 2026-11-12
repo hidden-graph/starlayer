@@ -50,3 +50,16 @@ def test_the_vocabulary_that_still_lists_the_terms_is_not_refused() -> None:
 
     vocabulary = get_ontology_graph("shacl_vocabulary")
     assert validate(_g(DATA), vocabulary, meta_shacl=False).conforms  # the terms are declared there, not used
+
+
+@pytest.mark.parametrize("case", CASES)
+def test_the_meta_shapes_reject_a_removed_construct(case: str) -> None:
+    from starlayer.shacl import MetaShaclError
+
+    with pytest.raises(MetaShaclError, match="SHACL 1.2 does not define"):
+        validate(_g(DATA), _g(CASES[case]), meta_shacl=True)
+
+
+def test_the_meta_shapes_still_accept_a_valid_shape() -> None:
+    shapes = _g('ex:S a sh:NodeShape ; sh:targetClass ex:P ; sh:property [ sh:path ex:v ; sh:minCount 1 ] .')
+    assert validate(_g(DATA), shapes, meta_shacl=True).conforms

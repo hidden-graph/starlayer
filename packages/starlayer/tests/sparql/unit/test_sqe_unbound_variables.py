@@ -64,11 +64,11 @@ class TestGenuinelyBound:
 class TestEmbeddedShaclQueries:
     """``sparql_query_problems`` exempts exactly ``$this`` / ``$value`` / ``$PATH`` (bound by the SHACL engine), and only there."""
 
-    def _problems(self, select: str, *, target: bool = False) -> list[str]:
+    def _problems(self, select: str) -> list[str]:
         from starlayer.graph.oxgraph.core import StarLayerGraph
         from starlayer.shacl.meta_shapes import sparql_query_problems
 
-        wrapper = "sh:target [ a sh:SPARQLTarget ; sh:select" if target else "sh:sparql [ a sh:SPARQLConstraint ; sh:select"
+        wrapper = "sh:sparql [ a sh:SPARQLConstraint ; sh:select"
         g = StarLayerGraph()
         g.parse(
             data=f'@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <{EX}> . ex:S a sh:NodeShape ; {wrapper} """{select}""" ] .',
@@ -78,9 +78,6 @@ class TestEmbeddedShaclQueries:
 
     def test_this_only_validator_is_not_flagged(self):
         assert self._problems("SELECT $this WHERE { FILTER(isIRI($value)) }") == []
-
-    def test_a_target_query_must_bind_this(self):
-        assert self._problems("SELECT $this WHERE { FILTER(true) }", target=True)
 
     @pytest.mark.parametrize("variable", ["x", "other"])
     def test_any_other_unbound_variable_is_still_a_defect(self, variable):
@@ -124,16 +121,7 @@ class TestDeclaredParametersArePreBound:
     def test_an_undeclared_variable_in_a_validator_is_still_a_defect(self):
         assert self._problems(self._component('sh:ask "ASK { FILTER ($value = $nobody) }"'))
 
-    def test_sparql_function_parameters(self):
-        turtle = 'ex:greeting a sh:SPARQLFunction ; sh:parameter [ sh:path ex:who ] ; sh:select "SELECT (CONCAT(\\"Hello, \\", $who) AS ?greeting) WHERE { }" .'
-        assert self._problems(turtle) == []
-        assert self._problems(turtle.replace("$who", "$whom"))
-
     def test_constraint_query_current_shape_and_shapes_graph(self):
         turtle = 'ex:S a sh:NodeShape ; sh:sparql [ a sh:SPARQLConstraint ; sh:select "SELECT $this WHERE { FILTER (isIRI($currentShape) && isIRI($shapesGraph)) }" ] .'
         assert self._problems(turtle) == []
 
-    def test_parameterised_target(self):
-        turtle = 'ex:T a sh:SPARQLTargetType ; sh:parameter [ sh:path ex:kind ] ; sh:select "SELECT ?this WHERE { ?this ?p ?o FILTER (?p = $kind) }" .'
-        assert self._problems(turtle) == []
-        assert self._problems(turtle.replace("$kind", "$other"))

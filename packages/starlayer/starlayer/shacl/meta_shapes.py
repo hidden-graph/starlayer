@@ -236,25 +236,13 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
     return prefixes
 
 
-def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dict, is_target: bool, declared: frozenset[str] = frozenset()) -> tuple:
-    """Cache key for one query's structural-validation outcome - the exact
-    inputs the *effective* (exemption-applied) result depends on for this
-    one embedded query: which predicate carried it (part of the error
-    message, not the semantics, but cheap to include and keeps the key
-    unambiguous), the literal text itself, its resolved prefix map (two
-    otherwise-identical query strings can mean different things under
-    different prefix bindings), and ``is_target`` - whether ``$this`` is
-    genuinely required to be bound by this query's own pattern (a
-    ``sh:target``-declared SPARQL target) or externally pre-bound (every
-    other case) changes whether a given unbound-``$this`` violation is a
-    real defect, even for byte-identical query text (see
-    ``_is_prebound_variable_only_report``'s own docstring).
-    """
+def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dict, declared: frozenset[str] = frozenset()) -> tuple:
+    """Cache key for one query's structural-validation outcome: the predicate that carried it, the literal text, its resolved prefix
+    map (the same text can mean different things under different prefix bindings) and the parameter names its owner declares."""
     return (
         predicate,
         text(text_literal),
         tuple(sorted(prefixes.items())),
-        is_target,
         tuple(sorted(declared)),
     )
 
@@ -272,15 +260,7 @@ def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dic
 # on these three names (the parse check already didn't need to
 # special-case them; the structural check does).
 #
-# This does NOT hold for a SPARQL-based TARGET (`sh:target [ a
-# sh:SPARQLTarget ; sh:select ... ]`) - there, $this is not pre-bound at
-# all; it's the query's own job to *compute* which nodes are $this, so an
-# unbound $this in a target query is a real defect (the target would never
-# select any candidate), not a false positive. Confirmed live: without
-# excluding target queries from this exemption, a target query that never
-# binds $this silently passed this check. check_sparql_query_text() below
-# detects this via `is_target` (whether query_node is itself the object of
-# a sh:target triple) and only applies this exemption when it's False.
+# (SPARQL-based targets, where $this is computed by the query, are not defined in SHACL 1.2 and are refused by the meta-shapes.)
 _SHACL_PREBOUND_VARIABLE_NAMES = frozenset({"this", "value", "PATH", "currentShape", "shapesGraph"})
 
 _VALIDATOR_PREDICATES = (SH.validator, SH.nodeValidator, SH.propertyValidator)
@@ -289,7 +269,7 @@ _VALIDATOR_PREDICATES = (SH.validator, SH.nodeValidator, SH.propertyValidator)
 def _declared_parameter_names(shapes_graph: Any, query_node: Any) -> frozenset[str]:
     """The variables the engine pre-binds for ``query_node`` because its owner declares ``sh:parameter``s (SHACL-SPARQL, constraint
     components: each parameter's path local name): the parameters of a component that has the node as a validator, and the node's own
-    (a SPARQL function, a rule template, a parameterised target type). Only the owner's: another component's parameters are not bound."""
+    (a rule template). Only the owner's: another component's parameters are not bound."""
     owners = [query_node]
     for predicate in _VALIDATOR_PREDICATES:
         owners.extend(shapes_graph.subjects(predicate, query_node))
@@ -431,13 +411,8 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
                 yield query_node, predicate, f"{name} must hold a {form} query, but this is a {actual} query"
                 continue
 
-            # A sh:target-declared SPARQL target's own $this is NOT
-            # pre-bound - it's the query's own job to compute it - so the
-            # pre-bound-variable exemption below must not apply to it. See
-            # _SHACL_PREBOUND_VARIABLE_NAMES's own comment.
-            is_target = any(True for _ in shapes_graph.subjects(SH.target, query_node))
             declared = _declared_parameter_names(shapes_graph, query_node)
-            cache_key = _sparql_structure_cache_key(predicate, text_literal, prefixes, is_target, declared)
+            cache_key = _sparql_structure_cache_key(predicate, text_literal, prefixes, declared)
             cached = _SPARQL_STRUCTURE_CACHE.get(cache_key)
             if cached is not None:
                 conforms, report_text = cached
@@ -448,8 +423,7 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
                 encoded_graph.extend(ast_to_triples(query)[0])
                 conforms, report_graph, report_text = sqe_validate(encoded_graph)
                 bound = declared | (_SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset())
-                # (a target's own $this is computed by the query, but its declared parameters are pre-bound)
-                if not conforms and _is_prebound_variable_only_report(report_graph, bound, frozenset() if is_target else _SHACL_PREBOUND_VARIABLE_NAMES):
+                if not conforms and _is_prebound_variable_only_report(report_graph, bound, _SHACL_PREBOUND_VARIABLE_NAMES):
                     conforms = True
                 _SPARQL_STRUCTURE_CACHE[cache_key] = (conforms, report_text)
                 _SPARQL_STRUCTURE_CACHE.move_to_end(cache_key)

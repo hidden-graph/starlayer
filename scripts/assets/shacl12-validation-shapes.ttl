@@ -1674,6 +1674,27 @@ stsh:ValuesShape
 # sh:path of such a property shape must be a single property. A sequence, alternative, repeating or inverse path (an inverse
 # triple would have the value as its subject) has no property to carry the value, and validation and evaluate() silently derive
 # nothing (GitHub issue #204, found on main). The shapes are separate so each message names its own predicate.
+# SHACL 1.2 SPARQL-Related Features, Appendix F: SPARQL-based targets (sh:target with sh:SPARQLTarget / sh:SPARQLTargetType) are
+# no longer defined, and sh:SPARQLFunction (SHACL Advanced Features) is replaced by functions declared on node expressions. The W3C
+# vocabulary file still lists the terms, so these shapes name them. A shapes graph that uses one is refused by the engine too
+# (ShapeError, plan.reject_removed_constructs); here the editor gets it as a violation on the node that uses it.
+stsh:RemovedSparqlTargetShape
+	a sh:NodeShape ;
+	rdfs:label "SPARQL-based targets are not defined in SHACL 1.2"@en ;
+	sh:targetSubjectsOf sh:target ;
+	sh:targetClass sh:SPARQLTarget , sh:SPARQLTargetType ;
+	sh:not [ ] ;
+	sh:severity sh:Violation ;
+	sh:message "SHACL 1.2 does not define SPARQL-based targets (sh:target, sh:SPARQLTarget, sh:SPARQLTargetType); use sh:targetNode with a node expression, for example sh:targetNode [ sh:select \"...\" ]"@en .
+
+stsh:RemovedSparqlFunctionShape
+	a sh:NodeShape ;
+	rdfs:label "sh:SPARQLFunction is not defined in SHACL 1.2"@en ;
+	sh:targetClass sh:SPARQLFunction ;
+	sh:not [ ] ;
+	sh:severity sh:Violation ;
+	sh:message "SHACL 1.2 does not define sh:SPARQLFunction; declare the function with sh:ListParameterExpressionFunction and a sh:bodyExpression"@en .
+
 stsh:ValuesPathShape
 	a sh:NodeShape ;
 	rdfs:label "sh:values needs a single property as sh:path"@en ;

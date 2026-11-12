@@ -159,15 +159,16 @@ def test_the_group_and_shapes_graph_forms_state_what_a_field_takes(ui) -> None:
 
 
 def test_both_shape_forms_have_a_field_for_each_property_a_shape_can_have(ui) -> None:
-    wanted = {SH.target, SH.targetWhere, SH.nodeByExpression, RDFS.label, RDFS.comment, RDFS.subClassOf, SH.equals, SH.disjoint}
+    wanted = {SH.targetWhere, SH.nodeByExpression, RDFS.label, RDFS.comment, RDFS.subClassOf, SH.equals, SH.disjoint}
     for name in ("NodeShapeForm", "PropertyShapeForm"):
         assert wanted <= set(fields(ui, name)), (name, wanted - set(fields(ui, name)))
         assert RDFS.seeAlso not in fields(ui, name), "no SHACL specification names rdfs:seeAlso: it shows as an other property when a node has it"
+        assert SH.target not in fields(ui, name), "SPARQL-based targets are not defined in SHACL 1.2 (Appendix F): the meta-shapes refuse sh:target, so no form offers it"
 
 
-def test_target_and_target_where_are_in_the_targeting_group_and_are_branches_of_the_tree(ui) -> None:
+def test_target_where_is_in_the_targeting_group_and_is_a_branch_of_the_tree(ui) -> None:
     for name in ("NodeShapeForm", "PropertyShapeForm"):
-        for predicate in (SH.target, SH.targetWhere):
+        for predicate in (SH.targetWhere,):
             field = fields(ui, name)[predicate]
             assert one(ui, field, SH.group) == STSH.TargetGroup
             assert one(ui, field, SH.nodeKind) == SH.BlankNodeOrIRI, "a node with fields of its own: a tool shows a branch"
@@ -338,7 +339,7 @@ def test_select_widgets_gives_every_form_an_editor_for_each_field(ui, scoring, n
     if name == "TripleRuleForm":
         assert by_path[SH.runOnce] == "BooleanEditor"
     if name == "NodeShapeForm":
-        assert by_path[SH.target] == "DetailsEditor" and by_path[SH.targetWhere] == "DetailsEditor"
+        assert by_path[SH.targetWhere] == "DetailsEditor" and SH.target not in by_path
         assert by_path[RDFS.comment] == "TextAreaEditor" and by_path[RDFS.label] == "TextFieldWithLangEditor"
     if name == "ShapesGraphForm":
         assert by_path[SH.declare] == "DetailsEditor"
