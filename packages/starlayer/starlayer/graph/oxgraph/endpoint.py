@@ -3,36 +3,33 @@
 ``Endpoint`` is the client: ``query`` (SELECT / ASK / CONSTRUCT, parsed by pyoxigraph into the types ``Store.query`` gives) and
 ``update``, over plain HTTP. ``BackedStore`` stands in for the ``pyoxigraph.Store`` of a ``StarLayerGraph(endpoint=...)`` (one graph of
 the endpoint: the default graph, or the named graph the ``StarLayerGraph`` is a view of) or of a ``StarLayerDataset(endpoint=...)`` (all
-of its graphs), and keeps a local copy:
+of its graphs), and keeps a **full local copy**:
 
-* ``cache="full"``: the copy is pulled once and stays. A write goes to the endpoint first, then to the copy, so a failed request
-  leaves the copy as it was; the two agree for the writes made through this object. A SPARQL ``update()`` text runs on the endpoint
-  only (``NOW()``, ``UUID()``, ``LOAD`` would not give the same result twice) and the copy is pulled again. Another writer's changes
-  are seen by ``sync()``, or by itself after ``max_age`` seconds.
-* ``cache="temporary"``: a write goes to the endpoint only. See below for what makes a copy.
-
-**What needs the copy (``cache="temporary"``).** The copy is the whole graph, pulled once, and is kept while a ``with graph.local():``
-block is open (``validate``, ``evaluate``, ``apply_rules``, ``extract_subgraph`` and ``target_nodes`` open one for the call), until the
-next write, or until ``release()``. Without a copy:
-
-* a **point read**, a ``triples`` / ``objects`` / ``subjects`` / ``value`` / ``in`` pattern with at least one bound term and no blank
-  node, is one query to the endpoint, and makes no copy;
-* everything else is a **whole-graph read** and pulls the copy: ``len``, iteration, ``triples()`` with no bound term, ``query()``
-  (it runs locally, with the library's own entailment and pre-binding), ``serialize``, ``copy``, the set operations and every helper
-  that walks the graph.
+* The copy is pulled when the object is made, as a stream (the response is parsed as it arrives, never held whole).
+* Reads are local. A write goes to the endpoint first, then to the copy, so a failed request leaves the copy as it was; the two
+  agree for the writes made through this object.
+* A SPARQL ``update()`` text runs on the endpoint only (``NOW()``, ``UUID()``, ``LOAD`` would not give the same result twice) and the
+  copy is pulled again. Another writer's changes are seen by ``sync()``, or by itself after ``max_age`` seconds.
+* The copy is in memory, or on disk with ``path=``: an Oxigraph store of its own, so the size of the graph is not bound by memory (an
+  in-memory store takes about 500 to 650 bytes a triple, an on-disk one about 70 bytes on disk and a small, fixed amount of memory). A
+  graph that does not fit even on disk is not served by this: validating it would need the work done on the server.
+  ``pull=False`` opens an existing on-disk copy without asking the endpoint (it is then as old as its last pull).
 
 **Blank nodes.** The endpoint gives a blank node it receives a new identifier, so the copy and the endpoint could not agree on which
 is which. A blank node in a write is therefore skolemized (``starlayer.graph.oxgraph.helpers.rewrite.skolem_iri``, the IRI
 ``graph.skolemize()`` makes) before it is sent, and the copy gets the same IRI. A blank node that came *from* the endpoint (it is in
-the copy) cannot be addressed there: writing it is a ``ValueError``. The local copy is a ``pyoxigraph.Store``, which normalises
-literal lexical forms (starlayer #190); an endpoint that keeps them as written (Fuseki) can differ in spelling. A dataset is pulled
-with a SELECT over ``GRAPH ?g``, so a named graph with no triples is not seen.
+the copy) cannot be addressed there: writing it is a ``ValueError``. The copy is a ``pyoxigraph.Store``, which normalises literal
+lexical forms (starlayer #190); an endpoint that keeps them as written (Fuseki) can differ in spelling. A dataset is pulled with a
+SELECT over ``GRAPH ?g``, so a named graph with no triples is not seen. A pull that fails part way leaves an on-disk copy incomplete;
+it is marked stale and the next read pulls again.
 """
 
 from __future__ import annotations
 
 import base64
+import contextlib
 import io
+import os
 import time
 import urllib.error
 import urllib.request
@@ -74,21 +71,41 @@ class Endpoint:
         if auth is not None:
             self.headers["Authorization"] = "Basic " + base64.b64encode(f"{auth[0]}:{auth[1]}".encode()).decode()
 
-    def _post(self, url: str, content_type: str, accept: str, text: str) -> tuple[str, bytes]:
+    @contextlib.contextmanager
+    def _open(self, url: str, content_type: str, accept: str, text: str) -> Iterator[tuple[str, Any]]:
+        """The response of a POST as ``(content type, readable stream)``; the connection closes when the block ends."""
         request = urllib.request.Request(
             url, data=text.encode(), method="POST", headers={"Content-Type": content_type, "Accept": accept, **self.headers}
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                return response.headers.get("Content-Type", "").split(";")[0].strip(), response.read()
+            response = urllib.request.urlopen(request, timeout=self.timeout)
         except urllib.error.HTTPError as exc:
             detail = exc.read()[:200].decode(errors="replace").strip()
             raise EndpointError(f"{url} answered HTTP {exc.code}: {detail}", exc.code) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             raise EndpointError(f"cannot reach {url}: {getattr(exc, 'reason', exc)}") from exc
+        with response:
+            yield response.headers.get("Content-Type", "").split(";")[0].strip(), response
+
+    def _post(self, url: str, content_type: str, accept: str, text: str) -> tuple[str, bytes]:
+        with self._open(url, content_type, accept, text) as (mime, stream):
+            return mime, stream.read()
+
+    @contextlib.contextmanager
+    def stream(self, text: str) -> Iterator[Any]:
+        """Run a query and yield its result as it arrives: ``QuerySolutions`` or ``QueryBoolean``, or an iterator of ``Triple``. The
+        result must be consumed inside the block."""
+        with self._open(self.query_url, "application/sparql-query", _ACCEPT, text) as (mime, stream):
+            if mime == _RESULTS:
+                yield ox.parse_query_results(stream, ox.QueryResultsFormat.JSON)
+            elif mime in _RDF_FORMATS:
+                yield (ox.Triple(q.subject, q.predicate, q.object) for q in ox.parse(stream, _RDF_FORMATS[mime]))
+            else:
+                raise EndpointError(f"{self.query_url} answered with the unsupported content type {mime!r}")
 
     def query(self, text: str) -> Any:
-        """Run a query: ``QuerySolutions`` for SELECT, ``QueryBoolean`` for ASK, a list of ``Triple`` for CONSTRUCT / DESCRIBE."""
+        """Run a query: ``QuerySolutions`` for SELECT, ``QueryBoolean`` for ASK, a list of ``Triple`` for CONSTRUCT / DESCRIBE (the
+        whole answer is read; ``stream()`` is for a large one)."""
         mime, body = self._post(self.query_url, "application/sparql-query", _ACCEPT, text)
         if mime == _RESULTS:
             return ox.parse_query_results(io.BytesIO(body), ox.QueryResultsFormat.JSON)
@@ -105,15 +122,21 @@ class Endpoint:
         self._post(self.update_url, "application/sparql-update", "*/*", text)
 
     def pull(self, graph: Any = None) -> list[ox.Triple]:
-        """Every triple of one graph of the endpoint (``None`` / ``DefaultGraph``: the default graph)."""
+        """Every triple of one graph of the endpoint (``None`` / ``DefaultGraph``: the default graph), read whole."""
         where = "?s ?p ?o" if _is_default(graph) else f"GRAPH {_term(graph)} {{ ?s ?p ?o }}"
         return self.query(f"CONSTRUCT {{ ?s ?p ?o }} WHERE {{ {where} }}")
 
-
-    def pull_dataset(self) -> list[ox.Quad]:
-        """Every quad of the endpoint's dataset: its default graph and each named graph."""
-        rows = self.query("SELECT ?g ?s ?p ?o WHERE { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }")
-        return [ox.Quad(r["s"], r["p"], r["o"], ox.DefaultGraph() if r["g"] is None else r["g"]) for r in rows]
+    @contextlib.contextmanager
+    def pull_quads(self, graph: Any = None, *, dataset: bool = False) -> Iterator[Iterator[ox.Quad]]:
+        """The quads of one graph (or of the whole dataset) as a stream, to be consumed inside the block."""
+        if dataset:
+            with self.stream("SELECT ?g ?s ?p ?o WHERE { { ?s ?p ?o } UNION { GRAPH ?g { ?s ?p ?o } } }") as rows:
+                yield (ox.Quad(r["s"], r["p"], r["o"], ox.DefaultGraph() if r["g"] is None else r["g"]) for r in rows)
+            return
+        name = ox.DefaultGraph() if _is_default(graph) else graph
+        where = "?s ?p ?o" if _is_default(graph) else f"GRAPH {_term(graph)} {{ ?s ?p ?o }}"
+        with self.stream(f"CONSTRUCT {{ ?s ?p ?o }} WHERE {{ {where} }}") as triples:
+            yield (ox.Quad(t.subject, t.predicate, t.object, name) for t in triples)
 
 
 def _is_default(graph: Any) -> bool:
@@ -141,57 +164,50 @@ def _chunks(items: list[Any], size: int) -> Iterator[list[Any]]:
 
 class BackedStore:
     """The ``pyoxigraph.Store`` of an endpoint-backed ``StarLayerGraph`` (``dataset=False``: one graph) or ``StarLayerDataset``
-    (``dataset=True``): reads go to a local copy, writes to the endpoint first (see the module docstring)."""
+    (``dataset=True``): reads go to the local copy, writes to the endpoint first (see the module docstring)."""
 
     def __init__(
-        self, endpoint: Endpoint, graph: Any = None, *, dataset: bool = False, cache: str = "full", max_age: float | None = None
+        self,
+        endpoint: Endpoint,
+        graph: Any = None,
+        *,
+        dataset: bool = False,
+        max_age: float | None = None,
+        path: Any = None,
+        pull: bool = True,
     ) -> None:
-        if cache not in ("full", "temporary"):
-            raise ValueError(f"cache must be 'full' or 'temporary', not {cache!r}")
-        self.endpoint, self.dataset = endpoint, dataset
+        self.endpoint, self.dataset, self.max_age = endpoint, dataset, max_age
         self.graph = ox.DefaultGraph() if _is_default(graph) else graph
-        self.cache, self.max_age = cache, max_age
-        self._copy: ox.Store | None = None
+        self.path = None if path is None else os.fspath(path)
+        self._copy: ox.Store = ox.Store(self.path)
         self._pulled_at = 0.0
-        self._holds = 0  # open ``with graph.local()`` blocks
+        self._stale = False
         self._skolem: dict[ox.BlankNode, ox.NamedNode] = {}
-        if cache == "full":
+        if pull:
             self.sync()
 
     # ---- the local copy ----------------------------------------------------------------------------------------------
     def sync(self) -> None:
-        """Pull again and replace the local copy."""
-        fresh = ox.Store()
-        if self.dataset:
-            fresh.extend(self.endpoint.pull_dataset())
-        else:
-            fresh.extend(ox.Quad(t.subject, t.predicate, t.object, self.graph) for t in self.endpoint.pull(self.graph))
-        self._copy, self._pulled_at = fresh, time.monotonic()
-
-    def release(self) -> None:
-        """Drop a temporary copy, unless a ``local()`` block holds it (a full copy is the cache and stays)."""
-        if self.cache == "temporary" and not self._holds:
-            self._copy = None
-
-    def hold(self) -> None:
-        self._holds += 1
-
-    def unhold(self) -> None:
-        self._holds -= 1
-        self.release()
+        """Pull again and replace the local copy. In memory the new copy is built beside the old one and swapped in; on disk the
+        copy is emptied and filled, so a pull that fails leaves it incomplete and marked stale (the next read pulls again)."""
+        in_memory = self.path is None
+        target = ox.Store() if in_memory else self._copy
+        self._stale = True
+        if not in_memory:
+            target.clear()
+        with self.endpoint.pull_quads(self.graph, dataset=self.dataset) as quads:
+            target.bulk_extend(quads)
+        if not in_memory:
+            target.flush()
+        self._copy, self._pulled_at, self._stale = target, time.monotonic(), False
 
     def _local(self) -> ox.Store:
-        if self._copy is None or (self.max_age is not None and time.monotonic() - self._pulled_at > self.max_age):
+        if self._stale or (self.max_age is not None and time.monotonic() - self._pulled_at > self.max_age):
             self.sync()
-        assert self._copy is not None
         return self._copy
 
     def _wrote(self, quads: list[ox.Quad]) -> None:
-        """A write reached the endpoint: bring a full copy along, drop a temporary one."""
-        if self.cache == "full" and self._copy is not None:
-            self._copy.extend(quads)
-        elif self.cache == "temporary":
-            self._copy = None
+        self._copy.extend(quads)
 
     # ---- blank nodes and scope of a write ---------------------------------------------------------------------------
     def _skolemize(self, term: Any) -> Any:
@@ -202,7 +218,7 @@ class BackedStore:
         if not isinstance(term, ox.BlankNode):
             return term
         if term not in self._skolem:
-            if self._copy is not None and (
+            if (
                 next(self._copy.quads_for_pattern(term, None, None, None), None) is not None
                 or next(self._copy.quads_for_pattern(None, None, term, None), None) is not None
             ):
@@ -229,46 +245,7 @@ class BackedStore:
             by_graph.setdefault(q.graph_name, []).append(q)
         return " ".join(_data_block(group, graph) for graph, group in by_graph.items())
 
-    # ---- reads -------------------------------------------------------------------------------------------------------
-    def quads_for_pattern(self, subject: Any, predicate: Any, object: Any, graph_name: Any = None) -> Iterator[ox.Quad]:  # noqa: A002
-        """With no copy, a pattern with a bound term is one query to the endpoint; otherwise the copy answers."""
-        if self._copy is None and self.cache == "temporary" and not self._holds:
-            remote = self._point_read(subject, predicate, object, graph_name)
-            if remote is not None:
-                return iter(remote)
-        return self._local().quads_for_pattern(subject, predicate, object, graph_name)
-
-    def _point_read(self, s: Any, p: Any, o: Any, g: Any) -> list[ox.Quad] | None:
-        """The quads matching a pattern, asked of the endpoint; ``None`` when the pattern is not a point read (nothing bound, or a
-        blank node, which the endpoint cannot match)."""
-        terms = (s, p, o)
-        if all(t is None for t in terms) or any(isinstance(t, ox.BlankNode) or _has_blank(t) for t in terms):
-            return None
-        if g is None and not self.dataset:
-            g = self.graph
-        names = ("?s", "?p", "?o")
-        shown = [_term(t) if t is not None else n for t, n in zip(terms, names, strict=True)]
-        pattern = " ".join(shown)
-        wanted = [n for t, n in zip(terms, names, strict=True) if t is None]
-        if not wanted and g is not None:  # every term bound: is the statement there?
-            where = pattern if _is_default(g) else f"GRAPH {_term(g)} {{ {pattern} }}"
-            return [ox.Quad(s, p, o, ox.DefaultGraph() if _is_default(g) else g)] if self.endpoint.ask(f"ASK {{ {where} }}") else []
-        if not wanted:  # a dataset, every graph, all terms bound
-            wanted = ["?s"]
-        if g is None:  # a dataset, every graph
-            where = f"{{ {pattern} }} UNION {{ GRAPH ?g {{ {pattern} }} }}"
-            rows = self.endpoint.query(f"SELECT ?g {' '.join(wanted)} WHERE {{ {where} }}")
-            graph_of = lambda row: ox.DefaultGraph() if row["g"] is None else row["g"]  # noqa: E731
-        else:
-            where = pattern if _is_default(g) else f"GRAPH {_term(g)} {{ {pattern} }}"
-            rows = self.endpoint.query(f"SELECT {' '.join(wanted)} WHERE {{ {where} }}")
-            graph_of = lambda row, g=g: ox.DefaultGraph() if _is_default(g) else g  # noqa: E731
-        out = []
-        for row in rows:
-            got = [row[n[1:]] if t is None else t for t, n in zip(terms, names, strict=True)]
-            out.append(ox.Quad(got[0], got[1], got[2], graph_of(row)))
-        return out
-
+    # ---- reads: the local copy ---------------------------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
         if name.startswith("_"):
             raise AttributeError(name)
@@ -297,22 +274,13 @@ class BackedStore:
     def remove(self, quad: Any) -> None:
         (q,) = self._mine([quad])
         self.endpoint.update(f"DELETE DATA {{ {self._blocks([q])} }}")
-        if self.cache == "full" and self._copy is not None:
-            self._copy.remove(q)
-        elif self.cache == "temporary":
-            self._copy = None
-
-    def _forget(self, apply: Any) -> None:
-        if self.cache == "full" and self._copy is not None:
-            apply(self._copy)
-        elif self.cache == "temporary":
-            self._copy = None
+        self._copy.remove(q)
 
     def clear_graph(self, graph: Any) -> None:
         if not self.dataset and graph != self.graph:
             raise ValueError(f"this store holds graph {self.graph}; it cannot clear graph {graph}")
         self.endpoint.update("CLEAR DEFAULT" if _is_default(graph) else f"CLEAR SILENT GRAPH {_term(graph)}")
-        self._forget(lambda copy: copy.clear_graph(graph))
+        self._copy.clear_graph(graph)
 
     def add_graph(self, graph: Any) -> None:
         if not self.dataset:
@@ -321,35 +289,26 @@ class BackedStore:
             return
         if not _is_default(graph):
             self.endpoint.update(f"CREATE SILENT GRAPH {_term(graph)}")
-            self._forget(lambda copy: copy.add_graph(graph))
+            self._copy.add_graph(graph)
 
     def remove_graph(self, graph: Any) -> None:
         if not self.dataset:
             raise NotImplementedError("a store backed by an endpoint holds one graph; drop it with an update on the endpoint")
         self.endpoint.update("CLEAR DEFAULT" if _is_default(graph) else f"DROP SILENT GRAPH {_term(graph)}")
-        self._forget(lambda copy: copy.clear_graph(graph) if _is_default(graph) else copy.remove_graph(graph))
+        self._copy.clear_graph(graph) if _is_default(graph) else self._copy.remove_graph(graph)
 
     def clear(self) -> None:
         if not self.dataset:
             raise NotImplementedError("clear() would empty the whole endpoint; clear this graph with graph.clear()")
         self.endpoint.update("CLEAR ALL")
-        self._forget(lambda copy: copy.clear())
+        self._copy.clear()
 
     def update(self, update: str, *args: Any, **kwargs: Any) -> None:
-        """SPARQL Update runs on the endpoint only; a full copy is pulled again, a temporary one dropped."""
+        """SPARQL Update runs on the endpoint only; the copy is pulled again."""
         self.endpoint.update(update)
-        if self.cache == "full":
-            self.sync()
-        else:
-            self._copy = None
+        self.sync()
 
     def load(self, *args: Any, **kwargs: Any) -> None:
         raise NotImplementedError("load into an endpoint-backed graph with graph.parse()")
 
     bulk_load = load
-
-
-def _has_blank(term: Any) -> bool:
-    return isinstance(term, ox.Triple) and (
-        isinstance(term.subject, ox.BlankNode) or isinstance(term.object, ox.BlankNode) or _has_blank(term.subject) or _has_blank(term.object)
-    )

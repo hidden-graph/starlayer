@@ -6,7 +6,6 @@ on the way in (see ``terms.term``). These are the library's graph classes (``sta
 
 from __future__ import annotations
 
-import contextlib
 import os
 import re
 from collections.abc import Iterable, Iterator, Mapping
@@ -194,25 +193,6 @@ class _Base:
         if hasattr(self.store, "sync"):
             self.store.sync()
         return self
-
-    def release(self) -> Any:
-        """Drop the temporary local copy of an endpoint-backed graph (``cache="temporary"``)."""
-        if hasattr(self.store, "release"):
-            self.store.release()
-        return self
-
-    @contextlib.contextmanager
-    def local(self) -> Iterator[Any]:
-        """Hold one local copy of an endpoint-backed graph for the block (a read, a validation) and drop it at the end; a write inside
-        the block still drops it, and the next read pulls again. A graph with no endpoint yields itself."""
-        if not hasattr(self.store, "hold"):
-            yield self
-            return
-        self.store.hold()
-        try:
-            yield self
-        finally:
-            self.store.unhold()
 
     def as_store(self) -> ox.Store:
         union.touch()  # the caller may write to it: a deduplicated copy of the union is stale from now on
@@ -865,20 +845,20 @@ class StarLayerGraph(_Base):
     ``BlankNode``, or an IRI string)."""
 
     def __init__(self, store: Any = None, path: Any = None, identifier: Any = None, *, prefixes: dict[str, str] | None = None,
-                 backend: str | None = None, endpoint: Any = None, cache: str = "full", max_age: float | None = None) -> None:
-        """``endpoint`` (an ``Endpoint``) holds this graph (the default graph, or the named graph ``identifier``) in a SPARQL endpoint:
-        ``cache="full"`` keeps a local copy in sync with the writes made through this object (``max_age`` seconds old at most, when
-        given); ``cache="temporary"`` writes to the endpoint only and copies the graph when something needs its triples. See
+                 backend: str | None = None, endpoint: Any = None, max_age: float | None = None, pull: bool = True) -> None:
+        """``endpoint`` (an ``Endpoint``) holds this graph (the default graph, or the named graph ``identifier``) in a SPARQL endpoint;
+        the graph keeps a full local copy, in memory or, with ``path``, on disk, in sync with the writes made through this object
+        (``max_age`` seconds old at most, when given; ``pull=False`` opens an existing on-disk copy without asking the endpoint). See
         ``oxgraph/endpoint.py``."""
         _no_backend(backend)
         self._g = terms.graph_name(identifier)
         if endpoint is not None:
-            if store is not None or path is not None:
-                raise ValueError("give an endpoint, or a store, or a path")
+            if store is not None:
+                raise ValueError("give an endpoint, or a store")
             from starlayer.graph.oxgraph.endpoint import BackedStore
 
-            self.store = BackedStore(endpoint, self._g, cache=cache, max_age=max_age)
-            self._path = None
+            self.store = BackedStore(endpoint, self._g, max_age=max_age, path=path, pull=pull)
+            self._path = os.fspath(path) if path is not None else None
             self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
         else:
             self._init_store(store, path, prefixes)
@@ -977,17 +957,17 @@ class StarLayerDataset(_Base):
     _default_format = "trig"  # a dataset writes its graphs unless asked for a triple format
 
     def __init__(self, store: Any = None, path: Any = None, default_union: bool = True, *, prefixes: dict[str, str] | None = None,
-                 backend: str | None = None, endpoint: Any = None, cache: str = "full", max_age: float | None = None) -> None:
-        """``endpoint`` (an ``Endpoint``) holds the whole dataset in a SPARQL endpoint; ``cache`` and ``max_age`` are as for
+                 backend: str | None = None, endpoint: Any = None, max_age: float | None = None, pull: bool = True) -> None:
+        """``endpoint`` (an ``Endpoint``) holds the whole dataset in a SPARQL endpoint; ``path``, ``max_age`` and ``pull`` are as for
         ``StarLayerGraph`` (see ``oxgraph/endpoint.py``)."""
         _no_backend(backend)
         if endpoint is not None:
-            if store is not None or path is not None:
-                raise ValueError("give an endpoint, or a store, or a path")
+            if store is not None:
+                raise ValueError("give an endpoint, or a store")
             from starlayer.graph.oxgraph.endpoint import BackedStore
 
-            self.store = BackedStore(endpoint, dataset=True, cache=cache, max_age=max_age)
-            self._path = None
+            self.store = BackedStore(endpoint, dataset=True, max_age=max_age, path=path, pull=pull)
+            self._path = os.fspath(path) if path is not None else None
             self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
         else:
             self._init_store(store, path, prefixes)

@@ -19,22 +19,6 @@ from starlayer.shacl_engine.terms import RDF, SH, term_policy, to_engine
 _RDF_REIFIES = RDF.reifies
 
 
-def _holding(fn: Any) -> Any:
-    """Run an entry point with its data graph's local copy held for the call: a graph held by an endpoint with ``cache="temporary"``
-    copies it once for the call and drops the copy at the end; any other graph is unaffected (``graph.local()``)."""
-    import functools
-
-    @functools.wraps(fn)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        graph = kwargs.get("data_graph", args[0] if args else None)
-        local = getattr(graph, "local", None)
-        if local is None or not hasattr(getattr(graph, "store", None), "hold"):
-            return fn(*args, **kwargs)
-        with local():
-            return fn(*args, **kwargs)
-
-    return wrapper
-
 # The keywords ``validate()`` (and so ``apply_rules()``) take besides its named parameters: the option presets of
 # ``validation_modes`` and their per-call overrides. ``advanced=False`` turns rule execution off; ``debug`` is accepted and ignored;
 # ``invalid_terms`` is ``"error"`` (the default: a graph holding a term that is not an RDF term, such as a relative IRI, raises
@@ -176,7 +160,6 @@ def _annotate_conformance_disallows(report: Any, floor: Any) -> None:
 # validate
 
 
-@_holding
 def validate(
     *,
     data_graph: Any,
@@ -282,7 +265,6 @@ _VALIDATE_KEYWORDS = (
 )
 
 
-@_holding
 def apply_rules(
     *,
     data_graph: Any,
@@ -360,7 +342,6 @@ def apply_rules(
 # evaluate / extract_subgraph / target_nodes / shapes-graph helpers
 
 
-@_holding
 def evaluate(
     data_graph: Any,
     shacl_graph: Any,
@@ -388,7 +369,6 @@ def evaluate(
     )
 
 
-@_holding
 def extract_subgraph(
     data_graph: Any,
     shacl_graph: Any,
@@ -413,7 +393,6 @@ def extract_subgraph(
     )
 
 
-@_holding
 def target_nodes(*, data_graph: Any, shacl_graph: Any, shape_node: Any, ont_graph: Any, inference: Any) -> tuple[Any, ...]:
     """The nodes ``shape_node`` targets in ``data_graph``, as ``validate()`` resolves them."""
     from starlayer.shacl_engine import api
