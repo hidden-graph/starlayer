@@ -33,7 +33,6 @@ from typing import Any, Literal
 import pyoxigraph as ox
 
 from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
-from starlayer.shacl.validator import validate
 from starlayer.shacl_engine.terms import NS, RDF, SH
 
 # The terms are pyoxigraph terms. The graphs are read as they are (``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store``), with
@@ -162,36 +161,23 @@ class _Boundary:
         )
 
 
-def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: Any) -> frozenset:
+def _conformance_context(base_graph: Any, shapes_graph: Any) -> Any:
+    """What answers "does this node conform to this shape?" directly: the shapes graph's plan (a shape is built the first time it is asked about) over ``base_graph``."""
+    from starlayer.shacl_engine.executor import Context
+    from starlayer.shacl_engine.plan import Plan
+
+    return Context(data=base_graph, plan=Plan(shapes_graph=shapes_graph))
+
+
+def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: Any, context: Any = None) -> frozenset:
     """The members of ``nodes`` (resources in ``base_graph``) that conform to ``shape`` (defined in ``shapes_graph``).
 
-    One probe shape (``sh:targetNode`` each node, ``sh:node shape``) is validated, and a node fails only if the probe's
-    own ``sh:node`` check reports it. Nothing else in ``shapes_graph`` counts: its other shapes are not validated
-    (their targets are dropped from the copy, so they cost nothing and cannot crash) and any result of theirs is
-    ignored (the whole report's ``conforms`` is not used). ``owl:imports`` in ``shapes_graph`` is left unresolved
-    (it plays no part in the check). Built on ``starlayer.shacl``'s public ``validate()``.
+    Only ``shape`` and what it reaches are looked at: no other shape of ``shapes_graph`` is built or validated, no report
+    is made, and ``owl:imports`` plays no part. Asked of the engine's own conformance check, not of ``validate()``: a
+    full validation copied the shapes graph, rebuilt its plan and built a report for what is one yes/no answer.
     """
-    from starlayer.shacl.validator import _find_genuine_report_node
-
-    nodes = tuple(nodes)
-    probe_shapes = StarLayerGraph()
-    probe_shapes.extend(iter(shapes_graph))
-    for predicate in (*_TARGET_PREDICATES, _OWL_IMPORTS):
-        probe_shapes.remove((None, predicate, None))
-    wrapper = ox.BlankNode()
-    probe_shapes.add((wrapper, RDF.type, SH.NodeShape))
-    probe_shapes.add((wrapper, SH.node, shape))
-    for node in nodes:
-        probe_shapes.add((wrapper, SH.targetNode, node))
-    result = validate(base_graph, probe_shapes, meta_shacl=False, ignore_imports=True)
-    violating: set[Any] = set()
-    report = result.report_graph
-    report_node = _find_genuine_report_node(report)
-    if report_node is not None:
-        for result_node in report.objects(report_node, SH.result):
-            if wrapper in set(report.objects(result_node, SH.sourceShape)):
-                violating.update(report.objects(result_node, SH.focusNode))
-    return frozenset(n for n in nodes if n not in violating)
+    context = context or _conformance_context(base_graph, shapes_graph)
+    return frozenset(n for n in tuple(nodes) if context.conforms(shape, n))
 
 
 def _node_conforms(node: Any, shape: Any, *, base_graph: Any, shapes_graph: Any) -> bool:
@@ -201,12 +187,11 @@ def _node_conforms(node: Any, shape: Any, *, base_graph: Any, shapes_graph: Any)
 
 
 class _ConformanceBatch:
-    """Answers "does ``node`` conform to ``shape``?" for a fixed set of ``nodes`` with one ``validate()`` per distinct
-    ``shape`` instead of one per (node, shape) pair.
+    """Answers "does ``node`` conform to ``shape``?" for the nodes of one ``select_widgets`` call.
 
-    ``select_widgets`` asks the same matcher shapes about every property shape of a node shape. Each single check
-    re-encodes the whole shapes graph, which dominated its cost (GitHub issue #14). Here all the nodes are targets
-    of one probe shape, so the graph is encoded once per matcher shape. The answer for a node is the same as
+    ``select_widgets`` asks the same matcher shapes about every property shape of a node shape. One plan over the
+    shapes graph (the catalog) and one conformance context over the base graph serve all the questions, so a matcher
+    shape is built once and a (shape, node) answer is remembered (GitHub issue #14). The answer for a node is the same as
     :func:`_node_conforms` gives for it alone.
     """
 
@@ -214,6 +199,7 @@ class _ConformanceBatch:
         self._nodes = tuple(nodes)
         self._base_graph = base_graph
         self._shapes_graph = shapes_graph
+        self._context = _conformance_context(base_graph, shapes_graph)
         self._conforming: dict[Any, frozenset] = {}
 
     def conforms(self, node: Any, shape: Any) -> bool:
@@ -221,7 +207,7 @@ class _ConformanceBatch:
             return _node_conforms(node, shape, base_graph=self._base_graph, shapes_graph=self._shapes_graph)
         if shape not in self._conforming:
             self._conforming[shape] = _conforming_nodes(
-                self._nodes, shape, base_graph=self._base_graph, shapes_graph=self._shapes_graph
+                self._nodes, shape, base_graph=self._base_graph, shapes_graph=self._shapes_graph, context=self._context
             )
         return node in self._conforming[shape]
 

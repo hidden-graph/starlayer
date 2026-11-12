@@ -82,19 +82,21 @@ def test_batched_answers_equal_one_property_at_a_time(graphs):
     assert batched == single
 
 
-def test_validation_runs_once_per_matcher_shape_not_once_per_property(graphs, monkeypatch):
+def test_each_matcher_shape_is_asked_once_and_no_full_validation_runs(graphs, monkeypatch):
     shapes, catalog = graphs
     calls = []
-    real_validate = ui_widget_selection.validate
+    real = ui_widget_selection._conforming_nodes
 
-    def counting(*args, **kwargs):
-        calls.append(1)
-        return real_validate(*args, **kwargs)
+    def counting(nodes, shape, **kwargs):
+        calls.append(shape)
+        return real(nodes, shape, **kwargs)
 
-    monkeypatch.setattr(ui_widget_selection, "validate", counting)
+    monkeypatch.setattr(ui_widget_selection, "_conforming_nodes", counting)
+    monkeypatch.setattr("starlayer.shacl.validator.validate", lambda *a, **k: pytest.fail("a conformance question must not run a full validate()"))
     select_widgets(shape_node=EX.S, shapes_graph=shapes, scoring_graph=catalog, role="editor")
     matcher_shapes = 6
     assert len(calls) <= matcher_shapes  # was one per (property, matcher) check: 7 properties x up to 6 matchers
+    assert len(calls) == len(set(calls))
 
 
 def test_a_wrong_batch_answer_would_be_noticed(graphs, monkeypatch):

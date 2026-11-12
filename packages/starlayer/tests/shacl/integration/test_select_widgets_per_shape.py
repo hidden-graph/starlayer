@@ -135,8 +135,8 @@ def test_the_shape_conditions_are_checked_once_however_many_nodes_follow(shapes,
     """The cost the issue was about: per node, every shape condition is validated again; per shape, once."""
     catalog = _graph(CATALOGS["shape and data conditions together"])
     calls = []
-    real = uws.validate
-    monkeypatch.setattr(uws, "validate", lambda *a, **k: (calls.append(1), real(*a, **k))[1])
+    real = uws._conforming_nodes
+    monkeypatch.setattr(uws, "_conforming_nodes", lambda *a, **k: (calls.append(1), real(*a, **k))[1])
 
     def per_shape(nodes):
         calls.clear()
