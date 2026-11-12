@@ -44,10 +44,12 @@ def _uses_rdf12(items: Iterable[Any]) -> bool:
 
 def as_store(x: Any) -> ox.Store:
     """The ``pyoxigraph.Store`` behind a wrapper, an ``OxigraphGraph`` view, or a bare store."""
-    if isinstance(x, ox.Store):
+    from starlayer.graph.oxgraph.endpoint import BackedStore
+
+    if isinstance(x, (ox.Store, BackedStore)):
         return x
     s = getattr(x, "store", None)
-    if isinstance(s, ox.Store):
+    if isinstance(s, (ox.Store, BackedStore)):
         return s
     raise TypeError(f"expected an StarLayerGraph, StarLayerDataset or pyoxigraph.Store, not {type(x).__name__}")
 
@@ -975,9 +977,20 @@ class StarLayerDataset(_Base):
     _default_format = "trig"  # a dataset writes its graphs unless asked for a triple format
 
     def __init__(self, store: Any = None, path: Any = None, default_union: bool = True, *, prefixes: dict[str, str] | None = None,
-                 backend: str | None = None) -> None:
+                 backend: str | None = None, endpoint: Any = None, cache: str = "full", max_age: float | None = None) -> None:
+        """``endpoint`` (an ``Endpoint``) holds the whole dataset in a SPARQL endpoint; ``cache`` and ``max_age`` are as for
+        ``StarLayerGraph`` (see ``oxgraph/endpoint.py``)."""
         _no_backend(backend)
-        self._init_store(store, path, prefixes)
+        if endpoint is not None:
+            if store is not None or path is not None:
+                raise ValueError("give an endpoint, or a store, or a path")
+            from starlayer.graph.oxgraph.endpoint import BackedStore
+
+            self.store = BackedStore(endpoint, dataset=True, cache=cache, max_age=max_age)
+            self._path = None
+            self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
+        else:
+            self._init_store(store, path, prefixes)
         self._union = default_union
         self._overlap = union.Overlap()
 

@@ -31,6 +31,7 @@ class _Mock:
     def __init__(self) -> None:
         self.store = ox.Store()
         self.headers: dict[str, str] = {}
+        self.queries: list[str] = []  # the query texts it was asked, in order
         outer = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -46,6 +47,7 @@ class _Mock:
                         self.send_response(204)
                         self.end_headers()
                         return
+                    outer.queries.append(text)
                     result = outer.store.query(text)
                 except Exception as exc:  # noqa: BLE001  (a bad request is a 400, as a real endpoint says)
                     body = str(exc).encode()
@@ -187,11 +189,28 @@ def test_a_failed_endpoint_write_leaves_the_copy_as_it_was(mock) -> None:
     assert len(g) == 1
 
 
-def test_a_blank_node_is_refused_before_anything_is_written(endpoint, graph_name) -> None:
+def test_a_blank_node_is_skolemized_on_the_endpoint_and_in_the_copy(endpoint, graph_name) -> None:
     g = StarLayerGraph(endpoint=endpoint, identifier=graph_name)
-    with pytest.raises(ValueError, match="skolemize"):
-        g.extend([(_n("a"), _n("v"), _n("b")), (ox.BlankNode(), _n("v"), _n("c"))])
-    assert len(g) == 0 and _remote(endpoint, graph_name) == set()
+    node = ox.BlankNode()
+    g.extend([(node, _n("v"), _n("b")), (_n("a"), _n("knows"), node)])  # one blank node in two triples
+    remote = _remote(endpoint, graph_name)
+    assert len(remote) == 2 and not any(isinstance(t, ox.BlankNode) for triple in remote for t in triple)
+    (subject,) = {t[0] for t in remote if t[1] == _n("v")}
+    assert subject.value.startswith("http") and "/.well-known/genid/" in subject.value
+    assert {t for t in set(g)} == remote  # the copy holds the same IRIs
+    g.add((node, _n("w"), _n("c")))  # the same node later: the same IRI
+    assert (subject, _n("w"), _n("c")) in _remote(endpoint, graph_name)
+
+
+def test_a_blank_node_that_came_from_the_endpoint_cannot_be_written(mock) -> None:
+    name = _n(f"bnodes-{uuid.uuid4().hex}")
+    mock.store.update(f"INSERT DATA {{ GRAPH <{name.value}> {{ _:x <{EX}v> <{EX}b> }} }}")
+    g = StarLayerGraph(endpoint=mock.endpoint, identifier=name)
+    (pulled,) = {t[0] for t in g}
+    assert isinstance(pulled, ox.BlankNode)
+    with pytest.raises(ValueError, match="came from the endpoint"):
+        g.add((pulled, _n("w"), _n("c")))
+    assert len(g) == 1  # reading it is fine
 
 
 def test_a_sparql_update_runs_on_the_endpoint_and_the_copy_is_pulled_again(endpoint, graph_name) -> None:
@@ -264,3 +283,82 @@ def test_validate_and_extract_work_on_an_endpoint_graph(endpoint, graph_name, ca
     assert len(extract_subgraph(g, shapes)) == 2
     if cache == "temporary":
         assert g.store._copy is None  # validation held its copy for the call only
+
+
+# ---------------------------------------------------------------------------------------------------------------- datasets
+@pytest.fixture
+def two_graphs(endpoint):
+    g1, g2 = _n(f"ds-{uuid.uuid4().hex}"), _n(f"ds-{uuid.uuid4().hex}")
+    yield g1, g2
+    for g in (g1, g2):
+        endpoint.update(f"DROP SILENT GRAPH <{g.value}>")
+
+
+def _quads_in(dataset, *names) -> set:
+    return {(q.subject, q.predicate, q.object, q.graph_name) for q in dataset.store if q.graph_name in names}
+
+
+@pytest.mark.parametrize("cache", ["full", "temporary"])
+def test_a_dataset_pulls_every_graph_and_writes_to_the_right_one(endpoint, two_graphs, cache) -> None:
+    from starlayer.graph import StarLayerDataset
+
+    g1, g2 = two_graphs
+    _seed(endpoint, g1, (EX + "a", EX + "v", f"<{EX}b>"))
+    ds = StarLayerDataset(endpoint=endpoint, cache=cache)
+    assert _quads_in(ds, g1) == {(_n("a"), _n("v"), _n("b"), g1)}
+    ds.graph(g2).add((_n("c"), _n("v"), _n("d")))  # a view of one graph writes into that graph on the endpoint
+    assert _remote(endpoint, g2) == {(_n("c"), _n("v"), _n("d"))}
+    ds.graph(g1).remove((_n("a"), None, None))
+    assert _remote(endpoint, g1) == set() and _quads_in(ds, g1, g2) == {(_n("c"), _n("v"), _n("d"), g2)}
+    ds.graph(g2).clear()
+    assert _remote(endpoint, g2) == set()
+
+
+def test_a_dataset_drops_a_graph_and_skolemizes_blank_nodes(endpoint, two_graphs) -> None:
+    from starlayer.graph import StarLayerDataset
+
+    g1, _ = two_graphs
+    ds = StarLayerDataset(endpoint=endpoint)
+    ds.graph(g1).add((ox.BlankNode(), _n("v"), _n("b")))
+    (subject,) = {t[0] for t in _remote(endpoint, g1)}
+    assert isinstance(subject, ox.NamedNode)
+    ds.remove_graph(g1)
+    assert _remote(endpoint, g1) == set() and g1 not in set(ds.store.named_graphs())
+
+
+def test_a_dataset_is_validated_as_its_union(endpoint, two_graphs) -> None:
+    from starlayer.graph import StarLayerDataset
+    from starlayer.shacl import validate
+
+    g1, g2 = two_graphs
+    _seed(endpoint, g1, (EX + "a", "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", f"<{EX}P>"))
+    _seed(endpoint, g2, (EX + "a", EX + "v", "1"))  # the type is in one graph, the value in another
+    shapes = StarLayerGraph()
+    shapes.parse(data=_SHAPES, format="turtle12")
+    ds = StarLayerDataset(endpoint=endpoint, cache="temporary", default_union=False)
+    assert validate(ds, shapes, meta_shacl=False).conforms
+    assert ds.store._copy is None  # held for the call only
+
+
+# ------------------------------------------------------------------------------------------------------- the point-read rule
+def test_a_point_read_asks_the_endpoint_and_makes_no_copy(mock) -> None:
+    name = _n(f"point-{uuid.uuid4().hex}")
+    mock.store.update(f"INSERT DATA {{ GRAPH <{name.value}> {{ <{EX}a> <{EX}v> <{EX}b> , <{EX}c> . <{EX}d> <{EX}v> <{EX}b> }} }}")
+    g = StarLayerGraph(endpoint=mock.endpoint, identifier=name, cache="temporary")
+    before = len(mock.queries)
+    assert sorted(o.value for o in g.objects(_n("a"), _n("v"))) == [EX + "b", EX + "c"]
+    assert (_n("a"), _n("v"), _n("b")) in g and (_n("a"), _n("v"), _n("z")) not in g
+    assert sorted(s.value for s in g.subjects(_n("v"), _n("b"))) == [EX + "a", EX + "d"]
+    assert len(mock.queries) - before == 4 and g.store._copy is None
+
+
+def test_a_whole_graph_read_pulls_the_copy_once(mock) -> None:
+    name = _n(f"whole-{uuid.uuid4().hex}")
+    mock.store.update(f"INSERT DATA {{ GRAPH <{name.value}> {{ <{EX}a> <{EX}v> <{EX}b> }} }}")
+    g = StarLayerGraph(endpoint=mock.endpoint, identifier=name, cache="temporary")
+    before = len(mock.queries)
+    assert len(g) == 1 and len(list(g)) == 1 and g.serialize(format="nt")
+    assert len(mock.queries) - before == 1 and g.store._copy is not None  # one pull served all three
+    with g.local():
+        assert g.objects(_n("a"), _n("v")) is not None and next(g.objects(_n("a"), _n("v"))) == _n("b")
+    assert len(mock.queries) - before == 1  # while a copy exists, point reads use it
