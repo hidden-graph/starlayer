@@ -41,11 +41,15 @@ summarized here so the code and its rationale stay together):
    ``oneOrMorePath``) over data graphs that actually have cycles.
 2. Nested/referenced shapes (``sh:node``, ``sh:property``,
    ``sh:qualifiedValueShape``) are included recursively.
-3. For logical constraints where a shape can be satisfied more than one way
-   (``sh:or``/``sh:xone``), only the branch that actually caused the pass is
-   included - deterministic because ``sh:or``/``sh:xone``'s disjuncts are an
-   RDF list (a real order), so "the first list member that conforms" is a
-   fixed, reproducible rule, not an arbitrary one.
+3. Logical constraints (updated 2026-11-11; the first design kept only "the first list member that conforms", replaced when the
+   result became the shape fragment of rule 5's paper): ``sh:and`` includes every conjunct. ``sh:or`` includes EVERY disjunct that
+   holds (list order is an authoring artifact, not a tie-break) and nothing of a disjunct that fails (it cannot make the shape
+   fail). ``sh:xone`` includes the one disjunct that holds plus the FULL TRACE of each of the others, so that they keep
+   failing. ``sh:not`` includes the full trace of the negated shape (every triple it reads), not the minimal witness. The fragment
+   therefore does not depend on the order of a list: the same data and the same shape give the same fragment and the same
+   canonical hash however the lists are written. That is the point of extraction: a fragment says "this is the state of the
+   graph, at the time it validated", so that a change to anything the shape reads is detectable from the fragment (or its
+   hash) alone.
 4. Where a requirement is satisfiable by more than one candidate and nothing
    in the shape imposes an order over them (``sh:qualifiedValueShape`` +
    ``sh:qualifiedMinCount`` where more values conform than the minimum
@@ -93,6 +97,14 @@ entailment handling (which does let entailed values appear in its own
 returned subgraph) - the two functions have a genuinely different
 relationship to "what counts as real" for their own stated purposes, not an
 inconsistency to resolve uniformly.
+
+**Sufficiency, not minimality (decided with the user, 2026-11-11): over-extracting
+is allowed, under-extracting is a bug.** The fragment may hold more than strictly
+needed (every holding ``sh:or`` disjunct, every qualifying value, a full trace), but it
+must never omit a triple that validation reads: a fragment is "the state of the graph
+at the time it validated", so a change to anything the shape reads has to show up in
+the fragment (or its hash). A missing triple makes the fragment stop validating on
+its own, which is how an under-extraction is detected.
 
 **Shape Fragments (GitHub issue #11, 2026-10-23).** The result is the *shape
 fragment* of Delva, Dimou, Jakubowski and Van den Bussche (arXiv 2112.11796),
