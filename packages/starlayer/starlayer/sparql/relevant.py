@@ -9,7 +9,9 @@ same answer on ``F`` as on ``graph``: the same solutions (with their multiplicit
   all its variables are bound, and a triple that is not in the graph is dropped);
 * the **evidence of absence and exclusion**: ``FILTER (NOT) EXISTS`` and ``MINUS`` depend on triples that are *not* part of a
   solution. The group is relaxed (those parts removed), so the solutions they excluded are found too; each excluded solution
-  keeps the triples of the excluded group's patterns that matched it, the ones that excluded it. A solution that was not
+  keeps the triples of the excluded group's patterns that matched it, the ones that excluded it. A negation is evaluated against the
+  solutions of the group it sits in (for a ``FILTER`` in an ``OPTIONAL``: the row the left side and the group make), not against the whole
+  row, so the excluded group is joined with that group's relaxed text: a variable bound only outside the group does not constrain it. A solution that was not
   excluded has no such match in the graph, and none in a subgraph either.
 
 A ``FILTER`` that tests whether a variable is bound (``BOUND``, ``COALESCE``, ``IF``) is relaxed as well, with no group to keep:
@@ -24,10 +26,8 @@ subgraph holds the support of every solution of the group, so they give the same
 
 Handled: property paths (the edges a walk of the path from the pattern's subject to its object takes, by ``CONSTRUCT`` over the
 relaxed group joined with a guard that spells the walk out), sub-selects (the relevant triples of the sub-select as a query
-of its own, for all its rows), ``EXISTS`` inside ``OPTIONAL`` and ``UNION`` branches, labelled blank nodes (they are variables in a
-pattern). Not computable this way: ``MINUS`` inside ``OPTIONAL`` (it compares with the optional group's solutions, not with the row, so
-the join with the relaxed group could miss the triples that excluded it), an anonymous blank node (``[ ]``), ``GRAPH``,
-``SERVICE``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
+of its own, for all its rows), ``EXISTS`` and ``MINUS`` inside ``OPTIONAL`` and ``UNION`` branches, blank nodes (labelled ones, and ``[ ... ]``, are variables
+in a pattern). Not computable this way: a collection (``( ... )``), ``GRAPH``, ``SERVICE``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
 triple that matches some triple pattern of the query (constants and pre-bound variables fixed, other variables free): larger,
 never smaller. ``relevant_triples`` returns which was used.
 """
@@ -150,28 +150,28 @@ class _Parts:
 
     def __init__(self) -> None:
         self.cuts: list[tuple[int, int]] = []  # (first token, last token)
-        self.evidence: list[str] = []  # the text of each excluded group, braces included
+        # each group whose matches are evidence: ("filter" | "minus", token indexes of the braces of the group whose solutions it is
+        # evaluated against, its text)
+        self.evidence: list[tuple[str, int, int, str]] = []
         self.subselects: list[str] = []  # the text of each sub-select, from its SELECT to the end of its body
 
 
 def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
     parts = _Parts()
-    stack: list[str] = []
+    stack: list[tuple[str, int]] = []  # (kind, index of the opening brace) of the groups around the token
     i = lo + 1
     while i < hi:
         t = toks[i]
         word = _word(t)
         if word in ("GRAPH", "SERVICE", "SELECT"):
             raise _NotComputable(word)
-        if t.kind == "P" and t.text == "[":
-            raise _NotComputable("anonymous blank node in a pattern")
         if t.kind == "P" and t.text == "{" and _word(toks[i + 1]) == "SELECT":
             close = _match(toks, i)
             parts.subselects.append(query[toks[i + 1].pos : toks[close].pos])
             i = close
         elif t.kind == "P" and t.text == "{":
             prev = _word(toks[i - 1])
-            stack.append("optional" if prev == "OPTIONAL" else "plain")
+            stack.append(("optional" if prev == "OPTIONAL" else "plain", i))
         elif t.kind == "P" and t.text == "}":
             stack.pop()
         elif word in ("FILTER", "MINUS"):
@@ -183,9 +183,12 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
                 parts.cuts.append((i, end))  # relaxed like a negation, with no group of its own to keep
                 i = end
             elif has_exists:
-                if word == "MINUS" and "optional" in stack:
-                    raise _NotComputable("MINUS inside OPTIONAL")  # it compares with the group's solutions, not the row
                 parts.cuts.append((i, end))
+                # The solutions the negation compares with. A FILTER sees the solutions of its own group, except in an OPTIONAL group,
+                # where it is part of the left join and sees the row the left side and the group make together: the group around the
+                # OPTIONAL. MINUS removes solutions of the group it sits in.
+                around = stack[:-1] if (word == "FILTER" and stack and stack[-1][0] == "optional") else stack
+                group_lo, group_hi = (around[-1][1], _match(toks, around[-1][1])) if around else (lo, hi)
                 for k in range(i, end + 1):
                     if _word(toks[k]) == "EXISTS" or (word == "MINUS" and k == i):
                         inner_open = k + 1
@@ -193,7 +196,8 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
                         inner = toks[inner_open : inner_close + 1]
                         if any(_word(s) in ("EXISTS", "MINUS", "OPTIONAL", "SELECT", "GRAPH", "SERVICE") for s in inner[1:-1]):
                             raise _NotComputable("nested negation or OPTIONAL inside an EXISTS / MINUS group")
-                        parts.evidence.append(query[inner[0].pos : inner[-1].pos + 1])
+                        kind = "minus" if word == "MINUS" else "filter"
+                        parts.evidence.append((kind, group_lo, group_hi, query[inner[0].pos : inner[-1].pos + 1]))
                 i = end
         i += 1
     return parts
@@ -333,8 +337,54 @@ def _mentions(graph: Any, node: Any) -> list[_Triple]:
     return [(t[0], t[1], t[2]) for pattern in ((node, None, None), (None, None, node)) for t in graph.triples(pattern)]
 
 
+def _without_anonymous_blank_nodes(query: str) -> str:
+    """The query with each ``[ ... ]`` written as a variable and the properties inside it as a statement of their own, put at the
+    end of the statement the bracket was in: ``?s :p [ :q ?o ] ; :r ?x .`` becomes ``?s :p ?v ; :r ?x . ?v :q ?o .``. (Collections,
+    ``( ... )``, are left; their patterns carry blank nodes and take the fallback.)"""
+    n = 0
+    while True:
+        toks = tokenize(query)
+        opens = [i for i, t in enumerate(toks) if t.kind == "P" and t.text == "["]
+        if not opens:
+            return query
+        i = opens[-1]  # the last bracket has no bracket inside it
+        j = next(k for k in range(i + 1, len(toks)) if toks[k].kind == "P" and toks[k].text == "]")
+        n += 1
+        var = f"?__an{n}"
+        inner = query[toks[i + 1].pos : toks[j].pos].strip()
+        depth, end = 0, None
+        for k in range(j + 1, len(toks)):  # the end of the statement: a '.' at this depth, or the brace closing the group
+            t = toks[k]
+            if t.kind == "P" and t.text in ("[", "(", "{"):
+                depth += 1
+            elif t.kind == "P" and t.text in ("]", ")", "}"):
+                depth -= 1
+                if depth < 0:
+                    end = k
+                    break
+            elif depth == 0 and t.kind == "P" and t.text == ".":
+                end = k
+                break
+        if end is None:
+            raise _NotComputable("a blank node outside a group")
+        extra = f" . {var} {inner}" if inner else ""
+        query = (
+            query[: toks[i].pos]
+            + var
+            + query[toks[j].pos + 1 : toks[end].pos]
+            + extra
+            + " "
+            + query[toks[end].pos :]
+        )
+
+
+def _variables(text: str) -> set[str]:
+    """The names of the variables a piece of query text mentions (``?x`` and ``$x`` are the same variable)."""
+    return {t.text[1:] for t in tokenize(text) if t.kind == "VAR"}
+
+
 def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[str, Any]) -> set[_Triple]:
-    query = _without_labelled_blank_nodes(query)
+    query = _without_labelled_blank_nodes(_without_anonymous_blank_nodes(query))
     toks = tokenize(query)
     lo, hi = _where_group(toks)
     form = next(k for k, t in enumerate(toks) if _word(t) in ("SELECT", "ASK", "CONSTRUCT"))
@@ -346,13 +396,19 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[
         raise _NotComputable("EXISTS outside the WHERE group, or a dataset clause")
 
     parts = _scan(query, toks, lo, hi)
-    pieces: list[str] = []
-    cursor = toks[lo].pos + 1
-    for first, last in sorted(parts.cuts):
-        pieces.append(query[cursor : toks[first].pos])
-        cursor = toks[last].pos + len(toks[last].text)
-    pieces.append(query[cursor : toks[hi].pos])
-    relaxed = "".join(pieces)
+
+    def cut_text(first_brace: int, last_brace: int) -> str:
+        """The text between two braces with the relaxed parts (the cuts inside them) removed."""
+        pieces: list[str] = []
+        cursor = toks[first_brace].pos + 1
+        for first, last in sorted(parts.cuts):
+            if first_brace < first and last < last_brace:
+                pieces.append(query[cursor : toks[first].pos])
+                cursor = toks[last].pos + len(toks[last].text)
+        pieces.append(query[cursor : toks[last_brace].pos])
+        return "".join(pieces)
+
+    relaxed = cut_text(lo, hi)
 
     def parsed(group_text: str) -> Node:
         return parse_sparql(f"{prologue} SELECT * WHERE {{ {group_text} }}")
@@ -376,9 +432,12 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[
 
     body_lines, body_paths = _patterns(parsed(relaxed))
     add(body_lines, body_paths, f"{{ {relaxed} }}")
-    for group in parts.evidence:
+    for kind, group_lo, group_hi, group in parts.evidence:
+        context = cut_text(group_lo, group_hi)
+        if kind == "minus" and not _variables(group) & _variables("{" + context + "}"):
+            continue  # MINUS compares on the variables shared with the group's solutions; with none shared it removes nothing
         inner_lines, inner_paths = _patterns(parsed(group))
-        add(inner_lines, inner_paths, f"{{ {relaxed} }} {group}")
+        add(inner_lines, inner_paths, f"{{ {context} }} {group}")
 
     found: set[_Triple] = set()
     nodes: list[Any] = []

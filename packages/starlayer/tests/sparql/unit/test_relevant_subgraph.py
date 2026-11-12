@@ -78,13 +78,21 @@ EXACT = {
     "the whole body is a sub-select": "SELECT (COUNT(*) AS ?n) WHERE { SELECT ?s WHERE { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } } }",
     "not exists inside optional": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :n ?n FILTER NOT EXISTS { ?s :blk ?w } } }",
     "labelled blank node": "SELECT ?s WHERE { ?s :q _:x . _:x :p ?o }",
+    "minus inside optional": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :n ?n MINUS { ?s :blk ?w } } }",
+    "minus inside optional sharing a variable": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :q ?n MINUS { ?n :p ?w } } }",
+    "minus sharing no variable": "SELECT ?s WHERE { ?s :p ?o MINUS { ?x :blk ?w } }",
+    "anonymous node": "SELECT ?s WHERE { ?s :q [ :p ?o ] }",
+    "anonymous node as subject, nested": "SELECT ?o WHERE { [ :q [ :p ?o ] ] :n ?x }",
+    "empty anonymous node": "SELECT ?s WHERE { ?s :q [] }",
+    "filter in a branch does not see a variable bound outside the branch": (
+        "SELECT * WHERE { ?a :p ?a . { } UNION { FILTER NOT EXISTS { ?a :q ?a } } }"
+    ),
     "two not exists": "SELECT ?s WHERE { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } FILTER NOT EXISTS { ?s :blk ?w } }",
     "not exists in a union branch": "SELECT ?s WHERE { { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } } UNION { ?s :blk ?y } }",
 }
 
 FALLBACK = {
-    "minus inside optional": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :n ?n MINUS { ?s :blk ?w } } }",
-    "anonymous node": "SELECT ?s WHERE { ?s :q [ :p ?o ] }",
+    "collection": "SELECT ?s WHERE { ?s :q ( ?o ) }",
 }
 
 
@@ -184,7 +192,7 @@ def _graph_ttl(draw) -> str:
 def _pattern(draw) -> str:
     s = draw(st.sampled_from(_VARS + _NODES))
     p = draw(st.sampled_from(_PREDS + ["?p"] + _PATHS))
-    o = draw(st.sampled_from(_VARS + _OBJECTS + ["_:b"]))
+    o = draw(st.sampled_from(_VARS + _OBJECTS + ["_:b", "[]", "[ :p ?a ]", "[ :q ?b ; :r [ :p ?c ] ]"]))
     if o == "_:b":  # a label is local to one basic graph pattern: a fresh one each time
         o = f"_:b{draw(st.integers(0, 10**9))}"
     return f"{s} {p} {o} ."
