@@ -12,7 +12,7 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 - **Do not import the SPARQL grammar lazily while pytest is collecting.** It corrupts the shared grammar (still used by the `sparql/` parsers) for the rest of the run. `tests/conftest.py` imports and installs it eagerly.
 - **Some strings are infrastructure, not names.** Namespace IRIs in bundled data are data identity, so renaming one is a breaking change.
 - **Test tiers.** The W3C suites are pinned to a commit (bump `PINNED_SHA` deliberately and read the diff). Integration tests need local servers and skip without them.
-- **Check the spec before RDF/SPARQL 1.2 work:** from `packages/starlayer`, `python tests/graph/vendor/spec_snapshots/refresh_snapshots.py` and `git diff` the snapshots. Nothing watches the specs automatically.
+- **Check the spec before RDF/SPARQL 1.2 work:** from `packages/starlayer`, `python tests/graph/vendor/spec_snapshots/refresh_snapshots.py` and `git diff` the snapshots. To see what moved upstream (specs, the pinned W3C test suites, the vendored vocabularies): `python scripts/spec_drift.py`; after a review, `--record`. It runs only when you run it.
 - **`rustdl` is young and has changed behaviour between versions** (a silent incomplete answer became a hang). Re-verify any claim about it against the installed version.
 
 ## How the code is laid out

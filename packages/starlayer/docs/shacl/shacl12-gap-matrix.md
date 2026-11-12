@@ -24,6 +24,8 @@ Status values used throughout this file: `done` (implemented and tested), `parti
 
 ## Tracking Upstream Spec Changes
 
+**Start with `python scripts/spec_drift.py`** (2026-11-11). It lists the specs whose publication date is later than the one recorded in `docs/working/spec-dates.json`, the upstream commits and files that changed in the vendored subtrees of the pinned W3C test suites (`w3c/data-shapes`, `w3c/rdf-tests`), and the vendored vocabularies that differ from upstream. After you have read what moved and dealt with it, `python scripts/spec_drift.py --record` writes the current dates, so the next run reports only what moved after that. The rest of this section is the manual procedure it replaces the first step of.
+
 All six SHACL 1.2 documents are still W3C **Working Drafts** (First Public Working Draft for UI) - none has reached Candidate Recommendation, so wording, vocabulary, and even scope can still change. This repo has no automated way to detect that (no CI job watches the W3C TR-track), so it's a manual check - this section exists so that check is concrete and repeatable rather than "go re-read the spec" with no defined procedure.
 
 **Recorded baseline**: every claim in this file's per-document table and "Full Changelog Coverage"/"Not Covered / Deferred" tables was verified live against the TR-track URLs listed at the top of this file, **as of 2026-07-19**, re-audited **2026-08-15**. Treat the later date as the last-confirmed-current point for everything in this file; anything checked after should update this date (and the per-row content, not just the date).

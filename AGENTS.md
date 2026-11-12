@@ -6,7 +6,7 @@ starlayer is a platform for building Python semantic apps on the RDF 1.2 / SPARQ
 - `packages/starlayer/starlayer/` is the one installed package (the `pyproject.toml` is at the repo root):
   `graph/` (`StarLayerGraph` / `StarLayerDataset` over Oxigraph, interop, set operations, Manchester syntax), `sparql/` (SPARQL 1.2, `sqe:` query trees, SRL rules), `shacl/` (SHACL 1.2 validation, rules, UI widget selection),
   `starontology/` (bundled ontologies and shapes, as `.ttl` files), and `conformance.py`. The code-KG tooling is outside the package, in `tools/kg/codekg/` (repo-only).
-- Tests: `packages/starlayer/tests/{graph,sparql,shacl,starontology,kg}/`. Guides: `docs/guides/*.ipynb` (index: `docs/guides/README.md`). Build scripts: `scripts/`.
+- Tests: `packages/starlayer/tests/{graph,sparql,shacl,starontology,kg}/`. Guides: `docs/guides/*.ipynb` (index: `docs/guides/README.md`). Build scripts: `scripts/`. What changed in the RDF, SPARQL and SHACL drafts and their test suites since we last looked: `python scripts/spec_drift.py` (records in `docs/working/spec-dates.json`).
 - Each of `graph/`, `sparql/`, `shacl/` has a `CLAUDE.md` starting with "Rules that bite". Read that block, not the design history below it.
 
 ## Set up, test, lint

@@ -169,7 +169,7 @@ regimes; the OWL, RIF and datatype-recognition regimes were not compared line by
 now have documents: fix the README claim); re-extract the SPARQL Query productions to confirm "editorial only"; decide on
 `rdfs14a` (optional, one entailment rule); read the Entailment Regimes draft (no baseline date recorded).
 
-**Phase 6. Stop doing this by hand (small).** Write `scripts/spec_drift.py`: for each pin, the upstream commit count and the files
+**Phase 6. Stop doing this by hand (small). Done 2026-11-11:** `scripts/spec_drift.py` reports, from our own records, the specs whose publication date moved since `docs/working/spec-dates.json`, the upstream commits and files in the vendored subtrees of both pinned suites, and vendored vocabularies that differ from upstream; `--record` after a review, `--offline` for a check that needs no network (a test runs it: no vendored copy older than the last review), `--commits`, `--json`. Exit 0 current, 1 something moved, 2 a check failed. (Original scope:)** Write `scripts/spec_drift.py`: for each pin, the upstream commit count and the files
 changed, and each spec's current date against a recorded date. `AGENTS.md` says nothing watches the specs automatically; this
 review took most of its time on exactly that.
 
