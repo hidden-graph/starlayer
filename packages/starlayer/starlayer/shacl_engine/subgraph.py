@@ -484,13 +484,20 @@ def extract_subgraph(
     both: that pair, whether or not the shape targets the node. ``include_targets`` adds the triples that make each
     focus node a target (class membership, subjects-of / objects-of triples). Raises ``TypeError`` for a ``str``
     ``shape`` / ``focus_node`` and ``ValueError`` for a shape that is not in the shapes graph. ``sh:target`` is ignored
-    with a ``UserWarning`` (SPARQL targets are not part of SHACL 1.2).
+    with a ``UserWarning`` (SPARQL targets are not part of SHACL 1.2). ``TypeError`` for a ``StarLayerDataset`` as the data graph.
     """
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and type(value) is str:  # a bare str is not a term (an rdflib ``URIRef`` is a str subclass)
             raise TypeError(f"{argument} must be an RDF term such as a NamedNode or URIRef, not {type(value).__name__}: {value!r}")
     check_graphs((data_graph, "data graph"), (shacl_graph, "shapes graph"), (ont_graph, "ontology graph"))
     data_graph = engine_view(data_graph, "data graph")
+    from starlayer.graph.oxgraph import StarLayerDataset
+
+    if isinstance(data_graph, StarLayerDataset):
+        raise TypeError(
+            "extract_subgraph takes one data graph, not a dataset: a fragment does not say which graph a triple came from. "
+            "Use dataset.default_graph, dataset.graph(name) or dataset.to_graph() (every graph merged)."
+        )
     shapes = engine_view(shacl_graph, "shapes graph") if shacl_graph is not None else data_graph
     shape, focus_node = to_engine(shape), to_engine(focus_node)
     plan = Plan(shapes_graph=shapes)

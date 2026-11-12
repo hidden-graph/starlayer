@@ -492,3 +492,19 @@ class TestWholeShapesGraphExtraction:
         serialized = result.serialize(format="turtle12")
         assert "Alice" in serialized
         assert "Acme" not in serialized
+
+
+def test_a_dataset_is_refused_and_one_of_its_graphs_is_accepted() -> None:
+    import pytest
+    from starlayer.graph.oxgraph import StarLayerDataset
+
+    prefixes = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
+    dataset = StarLayerDataset()
+    dataset.parse(data=prefixes + "ex:a a ex:P ; ex:v 1 .", format="turtle12")
+    shapes = StarLayerGraph()
+    shapes.parse(
+        data=prefixes + "ex:S a sh:NodeShape ; sh:targetClass ex:P ; sh:property [ sh:path ex:v ; sh:minCount 1 ] .", format="turtle12"
+    )
+    with pytest.raises(TypeError, match="not a dataset"):
+        extract_subgraph(dataset, shapes)
+    assert len(extract_subgraph(dataset.to_graph(), shapes)) > 0
