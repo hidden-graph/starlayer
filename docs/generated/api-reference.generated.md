@@ -4215,7 +4215,7 @@ docstring's entailment section for the full design.
 
 **Returns:** `Any` - A new graph - the union of every conforming ``(shape, focus_node)`` pair's own extraction. Empty (never ``None``) if nothing conforms.
 
-**Source:** [starlayer.shacl.subgraph_extraction.extract_subgraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/subgraph_extraction.py#L628-L745)
+**Source:** [starlayer.shacl.subgraph_extraction.extract_subgraph](https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/shacl/subgraph_extraction.py#L651-L768)
 
 ---
 
