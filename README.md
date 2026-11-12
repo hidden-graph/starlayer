@@ -63,6 +63,7 @@ print(result.conforms)             # False: "thirty" is not an integer
 ## Where to go next
 
 - [User guides](docs/guides/README.md): notebooks from getting started through graphs, SPARQL, SHACL, ontologies and storage.
+- [Moving from the original main](docs/migration.md): the changes to names, options and behaviour.
 - [docs/README.md](docs/README.md): the map of every document (guides, generated reference, design notes, gap analyses, known upstream bugs).
 - [Generated API reference](docs/generated/api-overview.generated.md) and [functionality overview](docs/generated/functionality-overview.generated.md).
 - [Contributing](CONTRIBUTING.md). Working with an AI agent? Start from [AGENTS.md](AGENTS.md).
