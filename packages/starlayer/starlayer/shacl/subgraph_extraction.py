@@ -45,7 +45,8 @@ summarized here so the code and its rationale stay together):
    result became the shape fragment of rule 5's paper): ``sh:and`` includes every conjunct. ``sh:or`` includes EVERY disjunct that
    holds (list order is an authoring artifact, not a tie-break) and nothing of a disjunct that fails (it cannot make the shape
    fail). ``sh:xone`` includes the one disjunct that holds plus the FULL TRACE of each of the others, so that they keep
-   failing. ``sh:not`` includes the full trace of the negated shape (every triple it reads), not the minimal witness. The fragment
+   failing. ``sh:not`` includes the full trace of the negated shape (every triple it reads, and for a ``sh:closed true`` shape every triple of the node),
+   not the minimal witness. The fragment
    therefore does not depend on the order of a list: the same data and the same shape give the same fragment and the same
    canonical hash however the lists are written. That is the point of extraction: a fragment says "this is the state of the
    graph, at the time it validated", so that a change to anything the shape reads is detectable from the fragment (or its
@@ -125,7 +126,8 @@ Three things follow from that:
   the minimal witness of non-conformance. The paper's Sufficiency Lemma allows
   returning more. A ``sh:qualifiedMaxCount`` keeps the non-qualifying values'
   full trace for the same reason, and ``sh:xone`` keeps the full trace of the
-  disjuncts that do not hold.
+  disjuncts that do not hold. A ``sh:closed true`` shape read in a full trace includes every triple of its node (the
+  undeclared property that makes it fail must stay, GitHub issue #205); in a positive context it adds nothing.
 
 Built on top of pySHACL's own ``Shape``/path-resolution machinery (the
 project's existing `_shape_conforms` pattern in ``node_expressions.py``)
@@ -583,6 +585,15 @@ def _extract(
     for cls in _class_values(sg, shape.node):
         for v in value_nodes:
             triples |= _type_paths(data_graph, v, None if full_trace else cls)
+
+    # sh:closed true read in a full trace (the shape is negated or a failing disjunct): it fails because the node has a
+    # property the shape neither declares nor ignores, so that triple must be in the fragment. Every triple of the value
+    # node goes in (over-extraction is allowed; which predicates count as declared is the validator's business, e.g. a
+    # complex path declares nothing). A positive context needs nothing: a conforming node has no undeclared property.
+    if full_trace and any(str(c).lower() in ("true", "1") for c in sg.graph.objects(shape.node, SH.closed)):
+        for v in value_nodes:
+            if not isinstance(v, Literal):
+                triples |= {(s, p, o) for s, p, o in data_graph.triples((v, None, None))}
 
     for nested_shape_node in sg.graph.objects(shape.node, SH.node):
         nested_shape = sg.lookup_shape_from_node(nested_shape_node)

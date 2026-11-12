@@ -18,6 +18,10 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
+## A violated `sh:closed` is evidence in `extract_subgraph()` (2026-11-11, GitHub issue #205)
+
+A `sh:closed true` shape that is false (under `sh:not`, in a failing `sh:xone` branch, or anywhere inside a full trace) fails because of a triple the shape does not declare, and that triple was not extracted, so the fragment no longer validated. `_extract` now adds, for a closed shape in `full_trace` mode, every triple of each value node (simplest correct rule; over-extraction is allowed, and `sh:ignoredProperties` and complex paths need no special case). Positive contexts (top level, `sh:and`, `sh:or`, `sh:node`) add nothing, since a conforming node has no undeclared property. The fuzzer (`test_fragment_fuzz.py`) now generates closed shapes under `sh:not` / `sh:xone`.
+
 ## `evaluate(validate=True)`: conformance-gated evaluation (2026-11-11)
 
 `evaluate()` / `StarShaclSchema.evaluate()` take a keyword-only `validate: bool = False`. Off, nothing changes: evaluation is a lens that needs no conformance and costs no validation. On, it has `extract_subgraph()`'s contract: the values for a (shape, focus node) pair are computed only when the node conforms to the shape that holds the target (the host node shape for a property shape reached through `sh:property`, not the property shape alone), so a node that fails contributes nothing, a node several shapes target gets the values of exactly the shapes it conforms to, and a value two conforming shapes compute appears once (the result is a set of triples). The check is `subgraph_extraction._shape_conforms`, which installs `install_validation_patches()`, so computed `sh:values` count as in `validate()` (#202); deactivated shapes target nothing, as before. `validator._evaluation_focus_nodes` does the target collection and the gate for both entry points (one answer cached per shape and node). No other output: the reason a node was left out is the report of `validate()`. Tests: `tests/shacl/integration/test_evaluate_validate.py`.

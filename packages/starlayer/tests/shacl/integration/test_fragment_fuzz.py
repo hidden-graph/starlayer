@@ -40,10 +40,6 @@ CLASSES = ["A", "B"]
 PREDS = ["p", "q", "r"]
 OBJECTS = [f":{n}" for n in NODES] + LITERALS
 
-# A closed shape that must be *false* (under sh:not or in an sh:xone branch) needs the offending triple in the fragment;
-# extraction does not record it (see test_a_violated_closed_shape_is_evidence). The generator stays out of that corner
-# until the bug is fixed, so the other properties keep being hunted.
-_NEGATIVE_CLOSED = os.environ.get("STARLAYER_FUZZ_NEGATIVE_CLOSED", "") == "1"
 _EXAMPLES = int(os.environ.get("STARLAYER_FUZZ_EXAMPLES", "200"))
 _SEED = os.environ.get("STARLAYER_FUZZ_SEED", "")
 _FUZZ = settings(
@@ -124,7 +120,7 @@ _SINGULAR = [
 
 
 def _property_item(draw, depth: int, neg: bool = False) -> str:
-    singular = [k for k in _SINGULAR if not (neg and k == "closedNode" and not _NEGATIVE_CLOSED)]
+    singular = _SINGULAR
     kinds = draw(st.lists(st.sampled_from(singular + (["node", "not", "and"] if depth < 2 else [])), min_size=1, max_size=2, unique=True))
     constraints = [_value_constraint(draw, depth, kind, neg) for kind in kinds]
     return f"sh:property [ sh:path {draw(_path())} ; {' ; '.join(constraints)} ]"
@@ -133,8 +129,7 @@ def _property_item(draw, depth: int, neg: bool = False) -> str:
 @st.composite
 def _logical_item(draw, depth: int = 0, neg: bool = False) -> str:
     """A constraint of a node shape: a property shape, or a logical constructor over node shapes of property shapes."""
-    closed = ["closed"] if (not neg or _NEGATIVE_CLOSED) else []
-    kind = draw(st.sampled_from(["prop"] * 3 + ["and", "or", "xone", "not"] + closed + (["nested"] if depth < 1 else [])))
+    kind = draw(st.sampled_from(["prop"] * 3 + ["and", "or", "xone", "not", "closed"] + (["nested"] if depth < 1 else [])))
     if kind == "prop":
         return _property_item(draw, 0, neg)
     if kind == "closed":
@@ -357,7 +352,7 @@ def test_the_generator_makes_usable_cases() -> None:
     assert seen["usable"] >= 1, seen
 
 
-# ---------------------------------------------------------------------------------------------- known open bugs
+# ---------------------------------------------------------------------------------- closed shapes as evidence (#205)
 _NOT_CLOSED = (
     ":S sh:targetNode :n0 ; sh:not [ sh:closed true ; sh:property [ sh:path :p ] ] .",
     ":n0 :p :n1 . :n0 :r :n1 .",
@@ -366,15 +361,45 @@ _XONE_CLOSED = (
     ":S sh:targetNode :n0 ; sh:xone ( [ sh:property [ sh:path :p ; sh:minCount 1 ] ] [ sh:closed true ; sh:property [ sh:path :p ] ] ) .",
     ":n0 :p :n1 . :n0 :r :n1 .",
 )
-
-
-@pytest.mark.xfail(
-    strict=True,
-    reason="open bug: a closed shape that is false (under sh:not, or the false branch of sh:xone) is not evidence-extracted; "
-    "the offending triple :n0 :r :n1 is missing from the fragment, so the node stops conforming inside it",
+_NOT_CLOSED_IGNORING_TYPE = (
+    ":S sh:targetNode :n0 ; sh:not [ sh:closed true ; sh:ignoredProperties ( rdf:type ) ; sh:property [ sh:path :p ] ] .",
+    ":n0 :p :n1 . :n0 a :A . :n0 :r :n1 .",
 )
-@pytest.mark.parametrize(("shapes", "data"), [_NOT_CLOSED, _XONE_CLOSED], ids=["not-closed", "xone-closed"])
-def test_a_violated_closed_shape_is_evidence(shapes, data) -> None:
+_NOT_CLOSED_COMPLEX_PATH = (
+    ":S sh:targetNode :n0 ; sh:not [ sh:closed true ; sh:property [ sh:path ( :p :q ) ] ] .",
+    ":n0 :p :n1 . :n1 :q :n2 . :n0 :r :n1 .",
+)
+_NESTED_CLOSED = (
+    ":S sh:targetNode :n0 ; sh:xone ( [ sh:property [ sh:path :p ; sh:minCount 1 ] ] "
+    "[ sh:property [ sh:path :q ; sh:node [ sh:closed true ; sh:property [ sh:path :p ] ] ] ] ) .",
+    ":n0 :p :n1 . :n0 :q :n2 . :n2 :p :n3 . :n2 :r :n3 .",
+)
+
+
+@pytest.mark.parametrize(
+    ("shapes", "data", "offending"),
+    [
+        (*_NOT_CLOSED, ":n0 :r :n1"),
+        (*_XONE_CLOSED, ":n0 :r :n1"),
+        (*_NOT_CLOSED_IGNORING_TYPE, ":n0 :r :n1"),
+        (*_NOT_CLOSED_COMPLEX_PATH, ":n0 :r :n1"),
+        (*_NESTED_CLOSED, ":n2 :r :n3"),
+    ],
+    ids=["not-closed", "xone-closed", "not-closed-ignoring-type", "not-closed-complex-path", "xone-nested-closed"],
+)
+def test_a_violated_closed_shape_is_evidence(shapes, data, offending) -> None:
     shapes_graph, data_graph = _graph(shapes), _graph(data)
     assert _conforms(data_graph, shapes_graph)
-    assert _conforms(_extract(data_graph, shapes_graph), shapes_graph)
+    fragment = _extract(data_graph, shapes_graph)
+    for triple in _graph(offending + " ."):
+        assert triple in fragment
+    assert _conforms(fragment, shapes_graph)
+
+
+def test_a_closed_shape_in_a_positive_context_adds_nothing_else() -> None:
+    """A conforming node has no undeclared property, so the closed shape needs none of the node's other triples; here the
+    ignored `:r` is not read by anything and stays out (the negated closed shape of the cases above takes it in)."""
+    shapes = ":S sh:targetNode :n0 ; sh:node [ sh:closed true ; sh:ignoredProperties ( :r ) ; sh:property [ sh:path :p ] ] ."
+    data_graph = _graph(":n0 :p :n1 . :n0 :r :n2 . :n0 :r :n3 .")
+    fragment = _extract(data_graph, _graph(shapes))
+    assert {(s, p, o) for s, p, o in fragment} == {(E.n0, E.p, E.n1)}
