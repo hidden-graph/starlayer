@@ -6,13 +6,21 @@ import sys
 import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
-from starlayer.shacl_engine.deactivation import deactivated_at
+from starlayer.shacl_engine.deactivation import any_true, deactivated_at
 from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 from starlayer.shacl_engine.paths import eval_path
-from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
+from starlayer.shacl_engine.plan import (
+    SH,
+    Path,
+    Plan,
+    Shape,
+    ShapeError,
+    Term,
+    most_severe,
+)
 from starlayer.shacl_engine.targets import focus_nodes
 from starlayer.shacl_engine.terms import engine_view, unmask
 
@@ -27,6 +35,7 @@ class Result:
     shape: Term
     severity: Term
     messages: tuple[Any, ...] = ()
+    messages_stated: bool = False  # the messages are the constraint's own sh:message (a reifier annotation): kept, not replaced by generic wording
     source_constraint: Term = None
     annotations: tuple[tuple[Any, Any], ...] = ()  # (property, value) pairs: sh:resultAnnotation
     details: tuple[Result, ...] = ()  # nested results reported as sh:detail (SHACL 1.2 Core 6.9.2.6); never block conformance
@@ -185,35 +194,83 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
         ctx._depth -= 1
 
 
+# The parameter whose own annotation wins when one constraint has several triples (SHACL 1.2 Core: an annotation may sit on
+# any triple of the constraint). Components not listed here have no primary: their triples count equally.
+_PRIMARY = {
+    SH.QualifiedMinCountConstraintComponent: SH.qualifiedMinCount,
+    SH.QualifiedMaxCountConstraintComponent: SH.qualifiedMaxCount,
+    SH.ClosedConstraintComponent: SH.closed,
+    SH.PatternConstraintComponent: SH.pattern,
+    SH.ReifierShapeConstraintComponent: SH.reifierShape,
+}
+
+
+def _effective(spec: Any, shape: Shape, triples: list) -> tuple[Term, tuple, tuple]:
+    """(severity, messages, deactivation expressions) of a constraint made of these (parameter, value) triples: the primary
+    parameter's severity if it has one, else the most severe stated, else the shape's; the messages of every triple, united."""
+    primary = _PRIMARY.get(spec.iri)
+    infos = [(p, a) for p, v in triples if (a := shape.annotations.get((p, v)))]
+    severity = (
+        most_severe(a["severity"] for p, a in infos if p == primary)
+        or most_severe(a["severity"] for p, a in infos)
+        or shape.severity
+    )
+    messages = tuple(dict.fromkeys(m for _p, a in infos for m in a["messages"]))
+    exprs = tuple(dict.fromkeys(e for _p, a in infos for e in a["exprs"]))
+    return severity, messages, exprs
+
+
 def _shape_components(ctx: Context, shape: Shape) -> list:
-    """The (component spec, present parameters, severity) triples that apply to ``shape``: independent of the focus node,
-    so computed once per shape per run."""
+    """The ``(spec, present parameters, severity, messages, deactivation expressions)`` constraints that apply to ``shape``:
+    independent of the focus node, so computed once per shape per run (the expressions are evaluated per focus node).
+
+    A component with several parameters is one constraint, annotated on any of its triples (a literal ``sh:deactivated`` on one
+    of them deactivates it). A component with one parameter has one constraint per value, so values with different annotations
+    run separately and values with equal annotations run together."""
     key = ("components", shape.node)
     cached = ctx.cache.get(key)
     if cached is not None:
         return cached
     out = []
     for spec in ctx.plan.components():
-        present = {
-            p: kept
-            for p in spec.predicates
-            if p in shape.params and (kept := tuple(v for v in shape.params[p] if not _deactivated(shape, p, v)))
-        }
+        present = {p: shape.params[p] for p in spec.predicates if shape.params.get(p)}
         if not present or not all(r in present for r in spec.required):
             continue
-        severity = next(
-            (a["severity"] for p, vs in present.items() for v in vs if (a := shape.annotations.get((p, v))) and a["severity"]),
-            shape.severity,
-        )
-        out.append((spec, present, severity))
+        if len(spec.predicates) > 1:
+            triples = [(p, v) for p, vs in present.items() for v in vs]
+            if any(_deactivated(shape, p, v) for p, v in triples):
+                continue
+            out.append((spec, present, *_effective(spec, shape, triples)))
+            continue
+        (pred,) = spec.predicates
+        groups: dict = {}
+        for v in present[pred]:
+            if not _deactivated(shape, pred, v):
+                groups.setdefault(_effective(spec, shape, [(pred, v)]), []).append(v)
+        out.extend((spec, {pred: tuple(vs)}, *eff) for eff, vs in groups.items())
     ctx.cache[key] = out
     return out
+
+
+def _restated(details: tuple, shape: Shape, severity: Term, messages: tuple) -> tuple:
+    """The detail results a component built for this shape (unique members) carry the shape's severity and messages; they take
+    the constraint's own when it has them. Details of other shapes are left alone."""
+    if not details or (severity == shape.severity and not messages):
+        return details
+    return tuple(
+        replace(d, severity=severity, messages=messages or d.messages, messages_stated=bool(messages) or d.messages_stated)
+        if d.shape == shape.node
+        else d
+        for d in details
+    )
 
 
 def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     values = ctx.value_nodes(shape, focus)
     out: list[Result] = []
-    for spec, present, severity in _shape_components(ctx, shape):
+    for spec, present, severity, messages, exprs in _shape_components(ctx, shape):
+        if exprs and any_true(ctx, exprs, focus):
+            continue
         for v in spec.fn(ctx, shape, present, focus, tuple(values)) or ():
             out.append(
                 Result(
@@ -224,10 +281,11 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
                     component=v.component or spec.iri,
                     shape=shape.node,
                     severity=v.severity or severity,
-                    messages=v.messages or shape.messages or ((unmask(v.message),) if v.message else ()),
+                    messages=messages or v.messages or shape.messages or ((unmask(v.message),) if v.message else ()),
+                    messages_stated=bool(messages),
                     source_constraint=v.source_constraint,
                     annotations=v.annotations,
-                    details=v.details,
+                    details=_restated(v.details, shape, severity, messages),
                 )
             )
         if out and ctx.abort_on_first:
@@ -235,7 +293,8 @@ def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     for ps in shape.property_shapes:
         if out and ctx.abort_on_first:
             break
-        if _deactivated(shape, SH.property, ps):
+        link = shape.annotations.get((SH.property, ps))
+        if link and (link["deactivated"] or (link["exprs"] and any_true(ctx, link["exprs"], focus))):
             continue
         pshape = ctx.shape(ps)
         for value in values:

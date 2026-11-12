@@ -160,6 +160,8 @@ def shape_to_json(shape: Shape) -> dict:
                 "value": term_to_json(v),
                 "deactivated": bool(info["deactivated"]),
                 "severity": term_to_json(info["severity"]) if info["severity"] is not None else None,
+                "messages": _terms(info["messages"]),
+                "exprs": _terms(info["exprs"]),
             }
             for (p, v), info in shape.annotations.items()
         ],
@@ -183,6 +185,8 @@ def shape_from_json(obj: dict) -> Shape:
             (term_from_json(a["predicate"]), term_from_json(a["value"])): {
                 "deactivated": a["deactivated"],
                 "severity": term_from_json(a["severity"]) if a["severity"] is not None else None,
+                "messages": _from_terms(a.get("messages", [])),
+                "exprs": _from_terms(a.get("exprs", [])),
             }
             for a in obj["annotations"]
         },
@@ -251,6 +255,7 @@ def shape_references(graph: Any, shape: Shape) -> list[Term]:
         if pred not in known:
             refs.extend(v for v in vs if isinstance(v, (URIRef, BNode)) and is_shape_type(graph, v))
     exprs = [*shape.values, *shape.default_values, *shape.deactivated_exprs]
+    exprs += [e for info in shape.annotations.values() for e in info["exprs"]]
     exprs += [v for p, vs in shape.params.items() if p in (SH.expression, SH.nodeByExpression) for v in vs]
     exprs += [v for p, v in shape.targets if p == SH.targetNode and isinstance(v, BNode)]
     refs.extend(_expression_refs(graph, exprs))
@@ -358,6 +363,7 @@ def _term_store(plan: Plan, graph: Any, shapes: list[Shape], rule_nodes: list[Te
         seeds.extend(v for _p, v in s.targets)
         seeds.extend(info["severity"] for info in s.annotations.values() if info["severity"] is not None)
         seeds.extend(v for _p, v in s.annotations)
+        seeds.extend(t for info in s.annotations.values() for t in (*info["messages"], *info["exprs"]))
         for pred, vs in s.params.items():  # IRI-valued nodes that carry structure (a named sh:sparql node, custom parameters)
             if pred in (SH.sparql, SH.expression, SH.nodeByExpression) or pred not in static_preds:
                 follow.update(v for v in vs if isinstance(v, URIRef))

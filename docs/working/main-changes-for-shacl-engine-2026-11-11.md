@@ -7,6 +7,10 @@ Review of 2026-11-11. `main` has 11 commits since the merge base (`040868fe`, 20
 adapted: pyoxigraph terms for rdflib terms, no `pyshacl` import). The adaptations are mechanical and listed at the end; what still fails is a
 behaviour difference.
 
+## Status
+
+Ported so far: #204 (meta-shapes), `evaluate(validate=True)`, #201 (all 303 of `main`'s per-constraint annotation tests pass: `tests/shacl/integration/test_per_constraint_annotations.py`). Remaining: #203, the fuzzer.
+
 ## Result
 
 | `main` change | `shacl-engine` today | Port? | Size |

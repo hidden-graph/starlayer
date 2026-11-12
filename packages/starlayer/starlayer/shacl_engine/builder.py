@@ -5,8 +5,11 @@ from __future__ import annotations
 from typing import Any
 
 from starlayer.shacl_engine.components.registry import all_param_predicates
-from starlayer.shacl_engine.plan import SH, Path, Shape, ShapeError, Term
-from starlayer.shacl_engine.targets import declared_shape_nodes, shape_targets  # noqa: F401  (re-exported)
+from starlayer.shacl_engine.plan import SH, Path, Shape, ShapeError, Term, most_severe
+from starlayer.shacl_engine.targets import (  # noqa: F401  (re-exported)
+    declared_shape_nodes,
+    shape_targets,
+)
 from starlayer.shacl_engine.terms import RDF, XSD, Literal, NamedNode, Triple, text
 
 
@@ -25,17 +28,21 @@ def _is_true(term: Term) -> bool:
 
 
 def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -> dict:
-    """Per-triple ``sh:deactivated`` / ``sh:severity`` from the reifiers of ``<<( node pred value )>>``."""
+    """Per-triple ``sh:deactivated`` / ``sh:severity`` / ``sh:message`` from the reifiers of ``<<( node pred value )>>``.
+
+    ``deactivated`` is the literal ``true``; a ``sh:deactivated`` that is a node expression is kept in ``exprs`` for the executor
+    to evaluate per focus node. Several reifiers of one triple are merged: the most severe ``sh:severity`` and every message."""
     out: dict = {}
     pairs = [(p, v) for p, vs in params.items() for v in vs] + [(SH.property, v) for v in property_shapes]
     for pred, value in pairs:
         for reifier in graph.subjects(_REIFIES, Triple(node, pred, value)):
-            info = out.setdefault((pred, value), {"deactivated": False, "severity": None})
-            if any(_is_true(d) for d in graph.objects(reifier, SH.deactivated)):
+            info = out.setdefault((pred, value), {"deactivated": False, "severity": None, "messages": (), "exprs": ()})
+            deactivated = list(graph.objects(reifier, SH.deactivated))
+            if any(_is_true(d) for d in deactivated):
                 info["deactivated"] = True
-            sev = next(iter(graph.objects(reifier, SH.severity)), None)
-            if sev is not None:
-                info["severity"] = sev
+            info["exprs"] = tuple(dict.fromkeys([*info["exprs"], *(d for d in deactivated if not isinstance(d, Literal))]))
+            info["severity"] = most_severe([info["severity"], *graph.objects(reifier, SH.severity)])
+            info["messages"] = tuple(dict.fromkeys([*info["messages"], *graph.objects(reifier, SH.message)]))
     return out
 
 

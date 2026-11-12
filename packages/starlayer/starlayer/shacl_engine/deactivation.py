@@ -14,11 +14,16 @@ from starlayer.shacl_engine.plan import Shape, Term
 from starlayer.shacl_engine.terms import TRUE
 
 
-def deactivated_at(ctx: Any, shape: Shape, focus: Term) -> bool:
-    for expr in shape.deactivated_exprs:
+def any_true(ctx: Any, exprs: Any, focus: Term) -> bool:
+    """True if some expression's output at ``focus`` is the single node ``true``; a failing expression counts as false."""
+    for expr in exprs:
         try:
             if evaluate_expression(ctx, expr, focus) == [TRUE]:
                 return True
         except EvaluationFailure:
             continue  # no result for this focus node: not deactivated
     return False
+
+
+def deactivated_at(ctx: Any, shape: Shape, focus: Term) -> bool:
+    return any_true(ctx, shape.deactivated_exprs, focus)

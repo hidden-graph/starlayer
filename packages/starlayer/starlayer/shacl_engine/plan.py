@@ -20,6 +20,19 @@ class ShapeError(ValueError):
     """The shapes graph is malformed (the W3C suite's ``sht:Failure`` cases)."""
 
 
+_SEVERITY_RANK = {SH.Violation: 2, SH.Warning: 1, SH.Info: 0}
+
+
+def most_severe(severities: Any) -> Term:
+    """The most severe of the given severities (``None`` entries ignored; ``None`` if there are none). Violation, Warning,
+    Info; any other severity IRI ranks below Info. A tie keeps the first."""
+    best = None
+    for s in severities:
+        if s is not None and (best is None or _SEVERITY_RANK.get(s, -1) > _SEVERITY_RANK.get(best, -1)):
+            best = s
+    return best
+
+
 @dataclass(frozen=True)
 class Path:
     """A SHACL property path. ``kind`` is one of: pred, inverse, seq, alt, zero_or_more, one_or_more, zero_or_one.
@@ -45,7 +58,7 @@ class Shape:
     messages: tuple[Term, ...]
     values: tuple[Term, ...] = ()  # sh:values node expressions (extra value nodes of a property shape)
     default_values: tuple[Term, ...] = ()  # sh:defaultValue node expressions (used only if there are no other value nodes)
-    # (parameter predicate, value) -> {'deactivated': bool, 'severity': Term|None}, read from RDF 1.2 reifiers of the
+    # (parameter predicate, value) -> {'deactivated': bool, 'severity': Term|None, 'messages': tuple, 'exprs': tuple}, read from RDF 1.2 reifiers of the
     # shape's own triples (`sh:datatype xsd:boolean {| sh:deactivated true |}`); sh:property uses the same key shape.
     annotations: dict[tuple[Term, Term], dict[str, Any]] = field(default_factory=dict)
     deactivated_exprs: tuple[Term, ...] = ()  # sh:deactivated values that are node expressions, evaluated per focus node

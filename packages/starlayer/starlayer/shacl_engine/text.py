@@ -215,7 +215,7 @@ def result_messages(r: Result, shapes: Any, data: Any) -> list:
     wording where it is known, else what the engine component wrote."""
     own = set(shapes.objects(r.shape, SH.message))
     messages = list(r.messages)
-    if not own.intersection(messages):
+    if not r.messages_stated and not own.intersection(messages):
         try:
             generic = generic_message(r, shapes, data)
         except Exception:  # noqa: BLE001  (a message is never worth failing a validation for)
