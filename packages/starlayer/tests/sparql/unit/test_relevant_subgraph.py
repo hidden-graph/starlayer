@@ -7,7 +7,9 @@ EXISTS`` and ``MINUS``, aggregates, ``ORDER BY`` with ``LIMIT``. ``STARLAYER_FUZ
 
 from __future__ import annotations
 
+import itertools
 import os
+import re
 
 import pyoxigraph as ox
 import pytest
@@ -69,14 +71,19 @@ EXACT = {
         "SELECT ?s WHERE { { ?s :p ?o OPTIONAL { ?s :n ?z } FILTER(!BOUND(?z)) } UNION { ?s :p ?o } }"
     ),
     "coalesce in a filter": "SELECT ?s WHERE { ?s :p ?o OPTIONAL { ?s :n ?z } FILTER(COALESCE(?z, \"none\") = \"none\") }",
+    "sub-select": "SELECT ?s WHERE { { SELECT ?s WHERE { ?s :p ?o } } ?s :q ?t }",
+    "sub-select with aggregate and limit": (
+        "SELECT ?s ?c WHERE { { SELECT ?s (COUNT(?o) AS ?c) WHERE { ?s :p ?o } GROUP BY ?s ORDER BY DESC(?c) ?s LIMIT 1 } ?s :n ?x }"
+    ),
+    "the whole body is a sub-select": "SELECT (COUNT(*) AS ?n) WHERE { SELECT ?s WHERE { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } } }",
+    "not exists inside optional": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :n ?n FILTER NOT EXISTS { ?s :blk ?w } } }",
+    "labelled blank node": "SELECT ?s WHERE { ?s :q _:x . _:x :p ?o }",
     "two not exists": "SELECT ?s WHERE { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } FILTER NOT EXISTS { ?s :blk ?w } }",
     "not exists in a union branch": "SELECT ?s WHERE { { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } } UNION { ?s :blk ?y } }",
 }
 
 FALLBACK = {
-    "sub-select": "SELECT ?s WHERE { { SELECT ?s WHERE { ?s :p ?o } } ?s :q ?t }",
-    "not exists inside optional": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :n ?n FILTER NOT EXISTS { ?s :blk ?w } } }",
-    "blank node in a pattern": "SELECT ?s WHERE { ?s :q _:x . _:x :p ?o }",
+    "minus inside optional": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :n ?n MINUS { ?s :blk ?w } } }",
     "anonymous node": "SELECT ?s WHERE { ?s :q [ :p ?o ] }",
 }
 
@@ -152,35 +159,62 @@ def _graph_ttl(draw) -> str:
 def _pattern(draw) -> str:
     s = draw(st.sampled_from(_VARS + _NODES))
     p = draw(st.sampled_from(_PREDS + ["?p"]))
-    o = draw(st.sampled_from(_VARS + _OBJECTS))
+    o = draw(st.sampled_from(_VARS + _OBJECTS + ["_:b"]))
+    if o == "_:b":  # a label is local to one basic graph pattern: a fresh one each time
+        o = f"_:b{draw(st.integers(0, 10**9))}"
     return f"{s} {p} {o} ."
 
 
 @st.composite
-def _group(draw, allow_negation: bool = True) -> str:
-    parts = draw(st.lists(_pattern(), min_size=1, max_size=3))
-    extras = []
-    if draw(st.booleans()):
-        extras.append("OPTIONAL { " + draw(_pattern()) + " }")
-    if draw(st.booleans()):
-        extras.append("{ " + draw(_pattern()) + " } UNION { " + draw(_pattern()) + " }")
-    if draw(st.booleans()):
-        extras.append(f"FILTER({draw(st.sampled_from(_VARS))} != {draw(st.sampled_from(_NODES + ['1', '2']))})")
-    if draw(st.booleans()):
-        v = draw(st.sampled_from(_VARS))
-        extras.append(draw(st.sampled_from([f"FILTER(!BOUND({v}))", f"FILTER(BOUND({v}))", f"FILTER(COALESCE({v}, 9) != 1)"])))
-    if allow_negation and draw(st.booleans()):
-        extras.append("FILTER NOT EXISTS { " + draw(_pattern()) + " }")
-    if allow_negation and draw(st.booleans()):
-        extras.append("FILTER EXISTS { " + draw(_pattern()) + " }")
-    if allow_negation and draw(st.booleans()):
-        extras.append("MINUS { " + draw(_pattern()) + " }")
-    return " ".join(parts + extras)
+def _filter(draw, depth: int) -> str:
+    v = draw(st.sampled_from(_VARS))
+    kind = draw(st.sampled_from(["value", "bound", "notbound", "coalesce", "not exists", "exists", "or exists"]))
+    inner = draw(_pattern())
+    if kind == "value":
+        return f"FILTER({v} != {draw(st.sampled_from(_NODES + ['1', '2']))})"
+    if kind == "bound":
+        return f"FILTER(BOUND({v}))"
+    if kind == "notbound":
+        return f"FILTER(!BOUND({v}))"
+    if kind == "coalesce":
+        return f"FILTER(COALESCE({v}, 9) != 1)"
+    if kind == "exists":
+        return "FILTER EXISTS { " + inner + " }"
+    if kind == "or exists":
+        return f"FILTER(BOUND({v}) || NOT EXISTS {{ {inner} }})"
+    return "FILTER NOT EXISTS { " + inner + " }"
+
+
+@st.composite
+def _group(draw, depth: int = 2) -> str:
+    """A group graph pattern body: patterns, then some of OPTIONAL / UNION / VALUES / MINUS / sub-select / filters, nested."""
+    parts = list(draw(st.lists(_pattern(), min_size=0 if depth < 2 else 1, max_size=3)))
+    for _ in range(draw(st.integers(0, 3))):
+        kind = draw(st.sampled_from(["optional", "union", "values", "minus", "subselect", "filter", "filter"]))
+        if kind == "optional" and depth > 0:
+            parts.append("OPTIONAL { " + draw(_group(depth - 1)) + " }")
+        elif kind == "union" and depth > 0:
+            parts.append("{ " + draw(_group(depth - 1)) + " } UNION { " + draw(_group(depth - 1)) + " }")
+        elif kind == "values":
+            parts.append(f"VALUES {draw(st.sampled_from(_VARS))} {{ {draw(st.sampled_from(_NODES))} UNDEF }}")
+        elif kind == "minus":
+            parts.append("MINUS { " + draw(_pattern()) + " }")
+        elif kind == "subselect" and depth > 0:
+            parts.append("{ SELECT " + draw(st.sampled_from(["?a", "?a ?b", "*"])) + " WHERE { " + draw(_group(0)) + " } }")
+        elif kind == "filter":
+            parts.append(draw(_filter(depth)))
+    return " ".join(parts)
+
+
+def _unique_blank_labels(text: str) -> str:
+    """A blank node label is local to one basic graph pattern: give every occurrence its own."""
+    counter = itertools.count()
+    return re.sub(r"_:b\w*", lambda _m: f"_:u{next(counter)}", text)
 
 
 @st.composite
 def _query(draw) -> str:
-    group = draw(_group())
+    group = _unique_blank_labels(draw(_group()))
     shape = draw(st.sampled_from(["select", "distinct", "count", "group", "ask", "order"]))
     if shape == "ask":
         return f"ASK {{ {group} }}"

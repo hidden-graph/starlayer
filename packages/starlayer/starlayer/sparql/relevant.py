@@ -19,10 +19,13 @@ Solution modifiers (``ORDER BY``, ``LIMIT``, ``OFFSET``, ``GROUP BY``, ``HAVING`
 subgraph holds the support of every solution of the group, so they give the same result on it. Pre-bound variables
 (``init_bindings``) apply to every query.
 
-Not computable this way: a property path (its edges are not template triples), a sub-select, ``GRAPH``, ``SERVICE``, a blank node
-or a triple term in a pattern, ``EXISTS`` anywhere but a plain group (not inside ``OPTIONAL``) or outside the ``WHERE`` group. For
-those the result is every triple that matches some triple pattern of the query (constants and pre-bound variables fixed, other
-variables free; a blank node in a pattern is a variable): larger, never smaller. ``relevant_triples`` returns which was used.
+Handled: property paths (every triple with a predicate of the path), sub-selects (the relevant triples of the sub-select as a query
+of its own, for all its rows), ``EXISTS`` inside ``OPTIONAL`` and ``UNION`` branches, labelled blank nodes (they are variables in a
+pattern). Not computable this way: ``MINUS`` inside ``OPTIONAL`` (it compares with the optional group's solutions, not with the row, so
+the join with the relaxed group could miss the triples that excluded it), an anonymous blank node (``[ ]``), ``GRAPH``,
+``SERVICE``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
+triple that matches some triple pattern of the query (constants and pre-bound variables fixed, other variables free): larger,
+never smaller. ``relevant_triples`` returns which was used.
 """
 
 from __future__ import annotations
@@ -77,7 +80,7 @@ def relevant_triples(
     if run is None:
         return _pattern_triples(graph, ast, init_bindings), False
     try:
-        return _supports(graph, query, ast, run), True
+        return _supports(graph, query, ast, run, init_bindings), True
     except _NotComputable:
         return _pattern_triples(graph, ast, init_bindings), False
 
@@ -144,6 +147,7 @@ class _Parts:
     def __init__(self) -> None:
         self.cuts: list[tuple[int, int]] = []  # (first token, last token)
         self.evidence: list[str] = []  # the text of each excluded group, braces included
+        self.subselects: list[str] = []  # the text of each sub-select, from its SELECT to the end of its body
 
 
 def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
@@ -155,9 +159,13 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
         word = _word(t)
         if word in ("GRAPH", "SERVICE", "SELECT"):
             raise _NotComputable(word)
-        if t.kind == "BNODE" or (t.kind == "P" and t.text == "["):
-            raise _NotComputable("blank node in a pattern")
-        if t.kind == "P" and t.text == "{":
+        if t.kind == "P" and t.text == "[":
+            raise _NotComputable("anonymous blank node in a pattern")
+        if t.kind == "P" and t.text == "{" and _word(toks[i + 1]) == "SELECT":
+            close = _match(toks, i)
+            parts.subselects.append(query[toks[i + 1].pos : toks[close].pos])
+            i = close
+        elif t.kind == "P" and t.text == "{":
             prev = _word(toks[i - 1])
             stack.append("optional" if prev == "OPTIONAL" else "plain")
         elif t.kind == "P" and t.text == "}":
@@ -171,8 +179,8 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
                 parts.cuts.append((i, end))  # relaxed like a negation, with no group of its own to keep
                 i = end
             elif has_exists:
-                if "optional" in stack:
-                    raise _NotComputable("EXISTS or MINUS inside OPTIONAL")
+                if word == "MINUS" and "optional" in stack:
+                    raise _NotComputable("MINUS inside OPTIONAL")  # it compares with the group's solutions, not the row
                 parts.cuts.append((i, end))
                 for k in range(i, end + 1):
                     if _word(toks[k]) == "EXISTS" or (word == "MINUS" and k == i):
@@ -203,7 +211,7 @@ def _patterns(ast: Node) -> tuple[list[str], set[ox.NamedNode]]:
     def walk(item: Any) -> None:
         if isinstance(item, Node):
             if item.kind == "SubSelect":
-                raise _NotComputable("sub-select")
+                return  # its patterns belong to the sub-select's own support queries
             if item.kind == "TriplePattern":
                 p = item.f["p"]
                 if isinstance(p, Node):
@@ -239,13 +247,30 @@ def _path_iris(path: Node) -> set[ox.NamedNode]:
     return out
 
 
-def _supports(graph: Any, query: str, ast: Node, run: Runner) -> set[_Triple]:
+def _without_labelled_blank_nodes(query: str) -> str:
+    """The query with each ``_:label`` written as a variable: in a pattern a blank node is a variable that is never projected, and
+    as a variable the support queries can name it."""
+    out, cursor = [], 0
+    for t in tokenize(query):
+        if t.kind == "BNODE":
+            out.append(query[cursor : t.pos])
+            out.append("?__bn_" + t.text[2:])
+            cursor = t.pos + len(t.text)
+    out.append(query[cursor:])
+    return "".join(out)
+
+
+def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[str, Any]) -> set[_Triple]:
+    query = _without_labelled_blank_nodes(query)
     toks = tokenize(query)
     lo, hi = _where_group(toks)
-    if any(_word(t) in ("EXISTS", "FROM") for k, t in enumerate(toks) if k < lo or k > hi):
-        raise _NotComputable("EXISTS outside the WHERE group, or a dataset clause")
     form = next(k for k, t in enumerate(toks) if _word(t) in ("SELECT", "ASK", "CONSTRUCT"))
     prologue = query[: toks[form].pos]
+    if _word(toks[lo + 1]) == "SELECT":  # the whole body is a sub-select: its rows are the outer query's rows
+        inner = prologue + query[toks[lo + 1].pos : toks[hi].pos]
+        return relevant_triples(graph, inner, bindings, run)[0]
+    if any(_word(t) in ("EXISTS", "FROM") for k, t in enumerate(toks) if k < lo or k > hi):
+        raise _NotComputable("EXISTS outside the WHERE group, or a dataset clause")
 
     parts = _scan(query, toks, lo, hi)
     pieces: list[str] = []
@@ -275,6 +300,8 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner) -> set[_Triple]:
             triple = (t[0], t[1], t[2])
             if triple in graph:
                 found.add(triple)
+    for sub in parts.subselects:
+        found |= relevant_triples(graph, prologue + sub, bindings, run)[0]
     for predicate in path_predicates:
         found.update((t[0], t[1], t[2]) for t in graph.triples((None, predicate, None)))
     return found
