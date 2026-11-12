@@ -350,6 +350,7 @@ def evaluate(
     focus_nodes: Any,
     properties: Any,
     rules_entailment: bool,
+    validate: bool = False,
 ) -> Any:
     """``evaluate()`` on the engine (a plain graph)."""
     from starlayer.shacl_engine.evaluate import evaluate as engine_evaluate
@@ -363,6 +364,7 @@ def evaluate(
         focus_nodes=focus_nodes,
         properties=properties,
         rules_entailment=rules_entailment,
+        validate=validate,
     )
 
 

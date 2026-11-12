@@ -10,6 +10,11 @@ Deviation from nothing in the draft but from the old function's silence: a prope
 predicate (sequence, inverse, ...) is skipped, as in the old ``evaluate``, since a computed value has no triple to be
 written as. A ``sh:deactivated`` given as a node expression is honoured per focus node (the old function read only the
 literal); an expression that fails contributes no values.
+
+With ``validate=True`` the evaluation is conformance-gated, the contract of ``extract_subgraph()``: the values for a focus node are
+computed only when the node conforms, checked as ``validate()`` does (computed ``sh:values`` included), to the shape that targets it
+(for a focus node reached through a host shape, the shape that targets the root of that chain). A node several shapes target
+contributes the values of the shapes it conforms to. ``validate=False``, the default, is a lens that needs no conformance.
 """
 
 from __future__ import annotations
@@ -39,6 +44,7 @@ def evaluate(
     focus_nodes: Iterable[Any] | None = None,
     properties: Iterable[Any] | None = None,
     rules_entailment: bool = False,
+    validate: bool = False,
     plan: Plan | None = None,
 ) -> Any:
     """Evaluate ``sh:values`` / ``sh:defaultValue`` of ``shapes_graph`` (default: ``data_graph``) over ``data_graph``.
@@ -47,7 +53,8 @@ def evaluate(
     to that closure only); entailed triples count as stored triples. ``rules_entailment`` also runs the rules the
     shapes graph's ``sh:entailment`` selects, before evaluating. ``focus_nodes`` restricts evaluation to those nodes (the
     shapes' targets are still resolved over the whole data graph); ``properties`` to property shapes whose ``sh:path`` is one
-    of those predicates. Returns a new graph (an ``StarLayerGraph``) with the data graph's prefixes.
+    of those predicates. ``validate`` makes the evaluation conformance-gated (module docstring). Returns a new graph (an
+    ``StarLayerGraph``) with the data graph's prefixes.
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 
@@ -81,10 +88,12 @@ def evaluate(
         if wanted_predicates is not None and predicate not in wanted_predicates:
             continue
         foci = _foci(ctx, plan, shapes, node, ())
-        for focus in foci:
+        for focus, gates in foci.items():
             if wanted_focus is not None and focus not in wanted_focus:
                 continue
             if deactivated_at(ctx, pshape, focus):
+                continue
+            if validate and not any(ctx.conforms(gate_shape, gate_focus) for gate_shape, gate_focus in gates):
                 continue
             for value in ctx.value_nodes(pshape, focus):
                 found.append((focus, predicate, value))
@@ -93,21 +102,23 @@ def evaluate(
 
 
 
-def _foci(ctx: Context, plan: Plan, shapes: Any, node: Any, active: tuple) -> dict[Any, None]:
+def _foci(ctx: Context, plan: Plan, shapes: Any, node: Any, active: tuple) -> dict[Any, dict[tuple, None]]:
     """The focus nodes a shape applies to: its own targets, plus for each shape that lists it with ``sh:property`` the
     host's focus nodes, or, when the host is itself a property shape, the host's value nodes (Core, "Value Nodes of
-    Property Shapes")."""
+    Property Shapes"). Each focus node comes with its gates: the ``(shape, focus node)`` pairs it was reached from, the pairs a
+    conformance-gated evaluation checks (a shape's own target is gated by the shape itself)."""
     shape = plan.shape(node)
-    foci: dict[Any, None] = dict.fromkeys(ctx.shape_focus(shape))
+    foci: dict[Any, dict[tuple, None]] = {f: {(node, f): None} for f in ctx.shape_focus(shape)}
     for host_node in dict.fromkeys(shapes.subjects(SH.property, node)):
         host = plan.shape(host_node)
         if host.deactivated or host_node in active or host_node == node or _deactivated(host, SH.property, node):  # also {| sh:deactivated true |} on the link
             continue
-        for f in _foci(ctx, plan, shapes, host_node, (*active, node)):
+        for f, gates in _foci(ctx, plan, shapes, host_node, (*active, node)).items():
             if deactivated_at(ctx, host, f):
                 continue
             if host.path is None:
-                foci[f] = None
+                foci.setdefault(f, {}).update(gates)
             else:
-                foci.update(dict.fromkeys(ctx.value_nodes(host, f)))
+                for value in ctx.value_nodes(host, f):
+                    foci.setdefault(value, {}).update(gates)
     return foci

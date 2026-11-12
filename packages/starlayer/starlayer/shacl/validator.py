@@ -101,6 +101,7 @@ def evaluate(
     focus_nodes: Any | None = None,
     properties: Any | None = None,
     rules_entailment: bool = False,
+    validate: bool = False,
 ) -> Any:
     """Computes the ``sh:values`` / ``sh:defaultValue`` virtual properties of ``shacl_graph`` and returns a shape-driven subgraph.
 
@@ -118,6 +119,12 @@ def evaluate(
         focus_nodes: Restrict evaluation to these focus nodes (``None``: every node the shapes target).
         properties: Restrict evaluation to property shapes with one of these ``sh:path`` IRIs (``None``: all).
         rules_entailment: Also run the rules the shapes graph names in ``sh:entailment`` first.
+        validate: Make the evaluation conformance-gated, like ``extract_subgraph()``: the values for a focus node are computed only
+            when the node conforms to the shape that targets it, checked as ``validate()`` does (computed ``sh:values`` values
+            included; a deactivated shape is skipped). A node that does not conform contributes nothing; a node several shapes
+            target contributes the values of the shapes it conforms to, a value computed twice once. Off by default: evaluation
+            is then a lens that needs no conformance and costs no validation. To see why a node was left out, run ``validate()``;
+            its report is the explanation.
     """
     return _adapter.evaluate(
         data_graph,
@@ -127,6 +134,7 @@ def evaluate(
         focus_nodes=focus_nodes,
         properties=properties,
         rules_entailment=rules_entailment,
+        validate=validate,
     )
 
 
@@ -418,6 +426,7 @@ class StarShaclSchema:
         focus_nodes: Any | None = None,
         properties: Any | None = None,
         rules_entailment: bool = False,
+        validate: bool = False,
     ) -> Any:
         """Computes the ``sh:values`` / ``sh:defaultValue`` virtual properties of the bound shapes graph over ``data_graph``
         (default: the bound one); see :func:`evaluate`."""
@@ -430,6 +439,7 @@ class StarShaclSchema:
             focus_nodes=focus_nodes,
             properties=properties,
             rules_entailment=rules_entailment,
+            validate=validate,
         )
 
     def select_widgets(
