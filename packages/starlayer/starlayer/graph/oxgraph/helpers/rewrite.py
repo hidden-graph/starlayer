@@ -50,6 +50,12 @@ def _new_graph_like(g: Any) -> Any:
 
 
 def skolem_iri(bnode: ox.BlankNode, authority: str | None = None, basepath: str | None = None) -> ox.NamedNode:
+    """Map a blank node to a deterministic skolem IRI, using rdflib's genid scheme unless overridden.
+
+    Args:
+        authority: replaces the default authority (``https://rdflib.github.io``).
+        basepath: replaces the default path prefix (``/.well-known/genid/rdflib/``); the blank node id is appended to it.
+    """
     return ox.NamedNode(urljoin(authority or SKOLEM_AUTHORITY, (basepath or RDFLIB_SKOLEM_GENID) + bnode.value))
 
 

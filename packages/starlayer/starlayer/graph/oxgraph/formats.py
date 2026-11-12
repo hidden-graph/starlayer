@@ -36,6 +36,13 @@ def is_manchester(name: Any) -> bool:
 
 
 def to_format(name: str | ox.RdfFormat | None, *, default: ox.RdfFormat = _F.TURTLE) -> ox.RdfFormat:
+    """Resolve a format name, media type or ``RdfFormat`` to an ``RdfFormat``.
+
+    Names are case-insensitive; an unknown name raises ``ValueError`` listing the known short names.
+
+    Args:
+        default: returned when ``name`` is None.
+    """
     if name is None:
         return default
     if isinstance(name, ox.RdfFormat):
@@ -49,4 +56,5 @@ def to_format(name: str | ox.RdfFormat | None, *, default: ox.RdfFormat = _F.TUR
 
 
 def format_from_path(path: str) -> ox.RdfFormat | None:
+    """Guess the RDF format from a file's extension, case-insensitively; ``.json`` counts as JSON-LD."""
     return _EXT.get(str(path).rsplit(".", 1)[-1].lower()) if "." in str(path) else None

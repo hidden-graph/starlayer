@@ -44,6 +44,7 @@ class TripleTerm:
     _IMMUTABLE = frozenset({'subject', 'predicate', 'object'})
 
     def __init__(self, subject, predicate, obj):
+        """Build a triple term; a subject or predicate that RDF 1.2 does not allow raises ValueError."""
         # RDF 1.2 (17.4.6, TRIPLE()): a triple term's subject must be an IRI
         # or blank node, its predicate an IRI - never a Literal in either
         # position, and never itself a triple term (triple terms are only
@@ -75,6 +76,7 @@ class TripleTerm:
         self._namespace_manager = None
 
     def __setattr__(self, name, value):
+        """Keep subject, predicate and object fixed after construction, as a value-typed triple term needs."""
         if name in TripleTerm._IMMUTABLE:
             try:
                 object.__getattribute__(self, name)
@@ -90,6 +92,7 @@ class TripleTerm:
         return (s, self.predicate, o)
 
     def __eq__(self, other):
+        """Equal to a TripleTerm with the same (s, p, o), or to a 3-tuple that makes the same triple term."""
         if isinstance(other, TripleTerm):
             return self._key() == other._key()
         if isinstance(other, tuple) and len(other) == 3:
@@ -100,9 +103,11 @@ class TripleTerm:
         return NotImplemented
 
     def __hash__(self):
+        """Hash of the (s, p, o) key, so equal triple terms hash alike."""
         return hash(self._key())
 
     def __iter__(self):
+        """Yield subject, predicate, object, so a triple term unpacks like a 3-tuple."""
         yield self.subject
         yield self.predicate
         yield self.object
@@ -113,6 +118,7 @@ class TripleTerm:
         return f'<<( {_n3(self.subject, nm)} {_n3(self.predicate, nm)} {_n3(self.object, nm)} )>>'
 
     def __str__(self):
+        """The N3 text form from n3(); a half-constructed instance falls back to repr()."""
         try:
             return self.n3()
         except AttributeError:
@@ -126,6 +132,7 @@ class TripleTerm:
             return repr(self)
 
     def __repr__(self):
+        """Constructor-style text; a field not yet assigned shows as '<unset>' instead of raising."""
         fields = ', '.join(
             repr(getattr(self, name, '<unset>'))
             for name in ('subject', 'predicate', 'object')

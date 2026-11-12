@@ -47,6 +47,7 @@ class Turtle12SyntaxError(SyntaxError):
         super().__init__(str(self))
 
     def __str__(self) -> str:
+        """Format the error with its location and a ^ marker at the failing position; reads 'at end of input' while line is unset."""
         pre = '...' if self.pos > 60 else ''
         start = max(0, self.pos - 60)
         before = self.text[start:self.pos]
@@ -119,6 +120,7 @@ class ManchesterSyntaxError(SyntaxError):
         super().__init__(str(self))
 
     def __str__(self) -> str:
+        """Format the error with its location and a ^ marker at the failing position; reads 'at end of input' while line is unset."""
         pre = '...' if self.pos > 60 else ''
         start = max(0, self.pos - 60)
         before = self.text[start:self.pos]

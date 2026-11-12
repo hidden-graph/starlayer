@@ -30,6 +30,7 @@ def to_rdflib_term(term: Any) -> Any:
 
 
 def to_rdflib_triples(triples: Iterable[tuple[Any, Any, Any]]) -> list[tuple[Any, Any, Any]]:
+    """Convert engine (pyoxigraph) triples to rdflib-term triples."""
     from starlayer.shacl_engine.terms import from_engine
 
     return [(from_engine(s), from_engine(p), from_engine(o)) for s, p, o in triples]
@@ -359,6 +360,7 @@ def convert_result(value: Any, *sources: Any) -> Any:
 
 
 def ox_types() -> tuple[type, ...]:
+    """The Oxigraph-backed graph and dataset classes."""
     from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 
     return (StarLayerGraph, StarLayerDataset)
@@ -777,29 +779,36 @@ class LegacyTermView:
         return _T().to_engine(t)
 
     def triples(self, pattern: tuple[Any, Any, Any]) -> Iterator[tuple[Any, Any, Any]]:
+        """Triples matching ``pattern``, with rdflib terms in and out."""
         s, p, o = pattern
         for t in self.view.triples((self._in(s), self._in(p), self._in(o))):
             yield tuple(engine_to_foreign(x) for x in t)
 
     def objects(self, subject: Any = None, predicate: Any = None) -> Iterator[Any]:
+        """Objects of the matching triples, as rdflib terms."""
         for o in self.view.objects(self._in(subject), self._in(predicate)):
             yield engine_to_foreign(o)
 
     def subjects(self, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: A002
+        """Subjects of the matching triples, as rdflib terms."""
         for s in self.view.subjects(self._in(predicate), self._in(object)):
             yield engine_to_foreign(s)
 
     def predicate_objects(self, subject: Any = None) -> Iterator[tuple[Any, Any]]:
+        """(predicate, object) pairs of ``subject``, as rdflib terms."""
         for p, o in self.view.predicate_objects(self._in(subject)):
             yield engine_to_foreign(p), engine_to_foreign(o)
 
     def __contains__(self, triple: tuple[Any, Any, Any]) -> bool:
+        """Whether the rdflib-term triple is in the underlying view."""
         return tuple(self._in(t) for t in triple) in self.view
 
     def __len__(self) -> int:
+        """Number of triples in the underlying view."""
         return len(self.view)
 
     def predicates(self, subject: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: A002
+        """Distinct predicates of the matching triples, as rdflib terms."""
         seen: set = set()
         for _s, p, _o in self.triples((subject, None, object)):
             if p not in seen:
@@ -832,6 +841,7 @@ class LegacyTermView:
         return out
 
     def __getattr__(self, name: str) -> Any:
+        """Forward a fixed set of graph-metadata attributes to the wrapped view; any other name raises AttributeError."""
         if name in ("namespaces", "namespace_manager", "identifier", "store"):
             return getattr(self.view, name)
         raise AttributeError(name)

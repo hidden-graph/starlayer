@@ -29,6 +29,10 @@ class DirLangString:
     __slots__ = ('value', 'language', 'direction')
 
     def __init__(self, value: str, language: str, direction: str):
+        """A string with a language tag and base direction ('ltr' or 'rtl'); the language is lowercased.
+
+        Raises ValueError for any other direction or an empty language.
+        """
         if direction not in _VALID_DIRECTIONS:
             raise ValueError(f"direction must be 'ltr' or 'rtl', got {direction!r}")
         if not language:
@@ -38,20 +42,24 @@ class DirLangString:
         object.__setattr__(self, 'direction', direction)
 
     def __setattr__(self, name, value):
+        """Refuses every assignment: the value is immutable."""
         raise AttributeError("DirLangString is immutable")
 
     def __reduce__(self):  # pickle / copy would restore the slots with setattr, which is refused
+        """Rebuilds the value through the constructor, so pickle and copy work despite immutability."""
         return (DirLangString, (self.value, self.language, self.direction))
 
     def _key(self):
         return (self.value, self.language, self.direction)
 
     def __eq__(self, other):
+        """Compares by value, language and direction; NotImplemented for other types."""
         if isinstance(other, DirLangString):
             return self._key() == other._key()
         return NotImplemented
 
     def __hash__(self):
+        """Hash of (value, language, direction), consistent with equality."""
         return hash(self._key())
 
     def n3(self, namespace_manager=None) -> str:
@@ -59,9 +67,11 @@ class DirLangString:
         return f'{_quoted(self.value)}@{self.language}--{self.direction}'
 
     def __str__(self):
+        """The text alone, without language or direction (use n3() for the tagged form)."""
         return self.value
 
     def __repr__(self):
+        """Constructor-call form, so eval of the repr (with the class in scope) gives an equal value."""
         return f'DirLangString({self.value!r}, {self.language!r}, {self.direction!r})'
 
 

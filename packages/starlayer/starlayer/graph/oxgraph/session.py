@@ -26,6 +26,14 @@ class EntailmentSession:
     """
 
     def __init__(self, graph: Any, regime: str, *, infer: str, engine: str, timeout: Any) -> None:
+        """Make the copy of ``graph`` plus the triples ``regime`` entails; call ``graph.entailment_session()`` rather than this.
+
+        Args:
+            regime: the ``.value`` string of ``ENTAILMENT['OWL-RDF-Based']`` or ``ENTAILMENT['OWL-Direct']``; anything else raises ``ValueError``.
+            infer: when the entailed triples are computed (see the class docstring); an unknown value raises ``ValueError``.
+            engine: only for ``OWL-Direct``; with the other regime anything but the default raises ``ValueError``.
+            timeout: only for ``OWL-Direct``; ``None`` takes the default timeout, and with the other regime any value raises.
+        """
         from starlayer.graph.oxgraph.helpers import entailment as ent
 
         if regime not in (ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
@@ -70,6 +78,7 @@ class EntailmentSession:
 
     @property
     def closed(self) -> bool:
+        """True once the session has been closed; its copy is gone and queries raise ``RuntimeError``."""
         return self._copy is None
 
     def refresh(self, infer: str = "changed") -> EntailmentSession:
@@ -92,11 +101,14 @@ class EntailmentSession:
         return self._copy
 
     def __enter__(self) -> EntailmentSession:
+        """Start a ``with`` block on the open session; raises ``RuntimeError`` if it is already closed."""
         self._open()
         return self
 
     def __exit__(self, *exc: Any) -> None:
+        """Close the session at the end of the ``with`` block; an exception in the block is not suppressed."""
         self.close()
 
     def __repr__(self) -> str:
+        """Show whether the session is closed, stale or open."""
         return f"<EntailmentSession {'closed' if self.closed else 'stale' if self.stale else 'open'}>"

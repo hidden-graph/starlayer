@@ -20,24 +20,29 @@ class Vocab:
     __slots__ = ("_base", "_cache")
 
     def __init__(self, base: str) -> None:
+        """A vocabulary over the namespace IRI ``base``."""
         self._base = base
         self._cache: dict[str, ox.NamedNode] = {}
 
     def __getitem__(self, name: str) -> ox.NamedNode:
+        """The ``NamedNode`` of the namespace IRI plus ``name``; one node is made per name and reused."""
         node = self._cache.get(name)
         if node is None:
             node = self._cache[name] = ox.NamedNode(self._base + name)
         return node
 
     def __getattr__(self, name: str) -> ox.NamedNode:
+        """Attribute access as ``self[name]``; names starting with ``__`` raise ``AttributeError`` instead."""
         if name.startswith("__"):
             raise AttributeError(name)
         return self[name]
 
     def __str__(self) -> str:
+        """The namespace IRI."""
         return self._base
 
     def __contains__(self, node: object) -> bool:
+        """Whether ``node`` is a ``NamedNode`` whose IRI starts with the namespace IRI."""
         return isinstance(node, ox.NamedNode) and node.value.startswith(self._base)
 
 

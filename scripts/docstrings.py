@@ -2,7 +2,7 @@
 """scripts/docstrings.py - the mechanical half of the docstring work: what is undocumented, and whether an edit is only docstrings.
 
 ``inventory``: the public functions, classes, methods and modules of ``packages/starlayer/starlayer`` that have no docstring, as JSON
-(a symbol is public when its name does not start with an underscore; dunder names count). ``--files`` limits it to some files.
+(a symbol is public when its name does not start with an underscore, dunder names count, and it is not defined inside a function). ``--files`` limits it to some files.
 
 ``check FILE [--base REV]``: compares FILE with its version at REV (default ``HEAD``) and fails when
 
@@ -43,17 +43,19 @@ def _symbols(tree: ast.Module) -> list[tuple[str, str, ast.AST]]:
     """(qualified name, kind, node) for the module, and every class, function and method, nested ones included."""
     out: list[tuple[str, str, ast.AST]] = [("<module>", "module", tree)]
 
-    def walk(node: ast.AST, prefix: str) -> None:
+    def walk(node: ast.AST, prefix: str, in_function: bool = False) -> None:
         for child in ast.iter_child_nodes(node):
             if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 kind = "class" if isinstance(child, ast.ClassDef) else "function"
                 if prefix and not kind == "class" and node.__class__ is ast.ClassDef:
                     kind = "method"
+                if in_function:
+                    kind = "closure"  # defined inside a function: not part of the public API
                 qual = f"{prefix}.{child.name}" if prefix else child.name
                 out.append((qual, kind, child))
-                walk(child, qual)
+                walk(child, qual, in_function or isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)))
             else:
-                walk(child, prefix)
+                walk(child, prefix, in_function)
 
     walk(tree, "")
     return out
@@ -81,7 +83,7 @@ def inventory(files: list[Path]) -> dict:
             continue
         rel = str(path.resolve().relative_to(ROOT))
         for qual, kind, node in _symbols(tree):
-            if not _public(qual) or ast.get_docstring(node, clean=False):
+            if kind == "closure" or not _public(qual) or ast.get_docstring(node, clean=False):
                 continue
             line = getattr(node, "lineno", 1)
             end = getattr(node, "end_lineno", line)
@@ -97,7 +99,7 @@ def _strip_docstrings(tree: ast.Module) -> str:
         if isinstance(node, (ast.Module, ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             body = node.body
             if body and isinstance(body[0], ast.Expr) and isinstance(body[0].value, ast.Constant) and isinstance(body[0].value.value, str):
-                node.body = body[1:] or [ast.Pass()]
+                node.body = body[1:] if isinstance(node, ast.Module) else (body[1:] or [ast.Pass()])
     return ast.dump(tree, include_attributes=False)
 
 
@@ -161,10 +163,12 @@ def check(path: Path, base: str) -> int:
     from codekg.extractor.docstrings import parse_docstring
 
     known = _known_identifiers()
+    old_docs = {q: ast.get_docstring(n, clean=False) for q, _k, n in _symbols(ast.parse(old_source))} if old_source else {}
     for qual, _kind, node in _symbols(new_tree):
         doc = ast.get_docstring(node, clean=False)
         if not doc:
             continue
+        changed = old_docs.get(qual) != doc  # warnings are for what this edit wrote, not for older text
         where = f"{qual}"
         if doc.lstrip(" ").startswith("\n") and not doc.strip():
             errors.append(f"{where}: an empty docstring")
@@ -185,7 +189,7 @@ def check(path: Path, base: str) -> int:
                 word = word.strip("`'\".*")
                 if word and _IDENT.match(word) and ("_" in word or "." in word or (word[0].isupper() and any(c.islower() for c in word))):
                     parts = word.split(".")
-                    if not all(p in known for p in parts[-1:]):
+                    if changed and not all(p in known for p in parts[-1:]):
                         warnings.append(f"{where}: `{word}` is not defined anywhere in the package (a stale citation?)")
     leftover = [s for s in inventory([path]).get(str(path.resolve().relative_to(ROOT)), [])]
     for w in sorted(set(warnings)):

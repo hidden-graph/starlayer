@@ -87,6 +87,7 @@ def _as_quads(data) -> list[ox.Quad]:
 
 
 def has_triple_terms(quads: Iterable) -> bool:
+    """Whether any quad or triple has a triple term as its object (the only position :func:`to_basic` rewrites)."""
     return any(isinstance(q.object, ox.Triple) for q in _as_quads(quads))
 
 

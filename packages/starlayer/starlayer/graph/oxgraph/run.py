@@ -84,6 +84,7 @@ def _has_from(text: str) -> bool:
 
 
 def merge_prefixes(*maps: Mapping[str, str] | None) -> dict[str, str] | None:
+    """One prefix map from several, later maps winning; None when the result is empty."""
     out: dict[str, str] = {}
     for m in maps:
         if m:
@@ -95,6 +96,16 @@ def merge_prefixes(*maps: Mapping[str, str] | None) -> dict[str, str] | None:
 def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
           init_bindings: Mapping[Any, Any] | None = None, base: str | None = None, default_graph: Any = None,
           union: bool = False, entailment: Any = None) -> Result:
+    """Run SPARQL query text on a store and return the wrapper's ``Result``.
+
+    Args:
+        prefixes: the graph's own prefix map; ``init_ns`` is merged over it.
+        init_bindings: pre-bound variables. A variable the query does not project is handled by a ``VALUES`` clause, or,
+            for a blank node, by adding it to the SELECT list and hiding the extra column (not supported for aggregate queries).
+        union: read all graphs as the default graph; ignored when the query has its own ``FROM`` clause.
+        default_graph: the graph used as the default graph, unless ``union`` applies.
+        entailment: a regime for query-time entailment; the query is rewritten and the data is not changed.
+    """
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs query text, not a prepared Query object")
     check_native_version_conformance(text)
@@ -138,6 +149,16 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
 
 def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
            base: str | None = None, union: bool = False, overlap: Any = None) -> None:
+    """Run SPARQL update text on a store, optionally with the default graph read as the union of all graphs.
+
+    Args:
+        prefixes: the graph's own prefix map; ``init_ns`` is merged over it.
+        union: rewrite the text (see ``union_update_text``) so that the ``WHERE`` of each operation reads all graphs.
+            Operations with their own ``USING`` are left as written. A temporary scratch graph is used only when the
+            default graph or blank-node graphs hold data, or when triples overlap, and is removed afterwards.
+        overlap: the union tracker; consulted only when ``union`` is true. If it reports a triple held in more than
+            one graph, the scratch graph holds each triple once.
+    """
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs update text, not a prepared Update object")
     check_native_version_conformance(text)

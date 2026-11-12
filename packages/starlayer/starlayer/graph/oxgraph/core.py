@@ -881,6 +881,7 @@ class StarLayerGraph(_Base):
 
     @property
     def identifier(self) -> Any:
+        """The name of the graph this view is bound to."""
         return self._g
 
     def _pattern_graph(self) -> Any:
@@ -921,6 +922,7 @@ class StarLayerGraph(_Base):
         return default if isinstance(self._g, ox.DefaultGraph) else self._g
 
     def clear(self) -> StarLayerGraph:
+        """Remove every triple of this graph only; other graphs of the store are untouched."""
         self.store.clear_graph(self._g)
         union.touch()
         return self
@@ -947,6 +949,7 @@ class StarLayerGraph(_Base):
         return (_rebuild_graph, (self._g, dict(self.prefixes), list(self._quads(None, None, None))))
 
     def __repr__(self) -> str:
+        """A short form with the graph name and the triple count."""
         return f"<StarLayerGraph {self._g} ({len(self)} triples)>"
 
 
@@ -996,6 +999,7 @@ class StarLayerDataset(_Base):
 
     @property
     def default_union(self) -> bool:
+        """Whether the default graph is the union of all graphs."""
         return self._union
 
     def _pattern_graph(self) -> Any:
@@ -1034,6 +1038,9 @@ class StarLayerDataset(_Base):
         return self if fmt in formats.QUAD_FORMATS else list(self._serial_items(fmt))
 
     def remove(self, pattern: tuple) -> StarLayerDataset:
+        """Remove every quad matching ``(s, p, o[, graph])`` (``None`` is a wildcard).
+
+        Without a graph, a union dataset matches in every graph; otherwise only the default graph is searched."""
         s, p, o = pattern[:3]
         g = terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else self._pattern_graph()
         for q in list(self._quads(s, p, o, g)):
@@ -1093,9 +1100,11 @@ class StarLayerDataset(_Base):
         return [self.graph(None), *(StarLayerGraph(self.store, identifier=n, prefixes=self.prefixes) for n in self.store.named_graphs())]
 
     def graph_names(self) -> list[Any]:
+        """The names of the named graphs, empty ones included (the default graph is not listed)."""
         return list(self.store.named_graphs())
 
     def has_graph(self, identifier: Any) -> bool:
+        """Whether ``identifier`` names a graph of the dataset; the default graph always exists."""
         name = terms.graph_name(identifier)
         return isinstance(name, ox.DefaultGraph) or name in set(self.store.named_graphs())
 
@@ -1110,6 +1119,7 @@ class StarLayerDataset(_Base):
         return self
 
     def clear(self) -> StarLayerDataset:
+        """Remove every quad and every named graph."""
         self.store.clear()
         union.touch()
         return self
@@ -1131,6 +1141,7 @@ class StarLayerDataset(_Base):
         return StarLayerDataset(store=fn(self.store, other.store), default_union=self._union)
 
     def copy(self) -> StarLayerDataset:
+        """An independent in-memory copy of this dataset, including empty named graphs, prefixes and ``default_union``."""
         d = StarLayerDataset(default_union=self._union)
         d.store.extend(self.store)
         for name in self.store.named_graphs():  # empty named graphs have no quad to carry them
@@ -1146,6 +1157,7 @@ class StarLayerDataset(_Base):
         return (_rebuild_dataset, (self._union, dict(self.prefixes), list(self.store), list(self.store.named_graphs())))
 
     def __repr__(self) -> str:
+        """A short form with the quad count."""
         return f"<StarLayerDataset ({len(self.store)} quads)>"
 
 

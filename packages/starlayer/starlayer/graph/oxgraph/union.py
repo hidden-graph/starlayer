@@ -79,12 +79,14 @@ class Overlap:
     One per ``StarLayerDataset`` (a ``pyoxigraph.Store`` takes no attribute and no weak reference, so the cache cannot sit on it)."""
 
     def __init__(self) -> None:
+        """Start unscanned, so the first overlapping() or store() call scans."""
         self._stamp: int | None = None
         self._overlapping = False
         self._copy: ox.Store | None = None
         self._lock = threading.RLock()  # one scan and one copy at a time; a thread never records a stamp older than its data
 
     def overlapping(self, store: ox.Store) -> bool:
+        """Whether a triple is in more than one graph of ``store``, rescanning after any write made through the wrapper."""
         with self._lock:
             stamp = current()  # taken before the scan: a write that lands during it leaves the stamp behind, so the next call rescans
             if self._stamp != stamp:
