@@ -1,0 +1,1384 @@
+RDF 1.2 TriG
+Snapshot source: https://www.w3.org/TR/rdf12-trig/
+Status at fetch time: W3C Working Draft 05 November 2026
+Published: 2026-11-05
+Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
+W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
+See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
+======================================================================
+
+[![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)
+
+# RDF 1.2 TriG
+
+## RDF Dataset Language
+
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 05 November 2026
+
+More details about this document
+
+This version:
+     <https://www.w3.org/TR/2026/WD-rdf12-trig-20261105/>
+Latest published version:
+     <https://www.w3.org/TR/rdf12-trig/>
+Latest editor's draft:
+    <https://w3c.github.io/rdf-trig/spec/>
+History:
+     <https://www.w3.org/standards/history/rdf12-trig/>
+     [Commit history](https://github.com/w3c/rdf-trig/commits/)
+Test suite:
+    <https://w3c.github.io/rdf-tests/rdf/rdf12/rdf-trig/>
+Latest Recommendation:
+    <https://www.w3.org/TR/trig>
+Editors: 
+     Gregg Kellogg (until 2025-09-06), in memoriam
+     Dominik Tomaszuk[ ](https://orcid.org/0000-0003-1806-067X)
+Former editors: 
+     Gavin Carothers (RDF 1.1) 
+     Andy Seaborne (RDF 1.1) 
+Authors: 
+     Chris Bizer[ ](https://orcid.org/0000-0003-2367-0237) ([Freie Universität Berlin](http://www.fu-berlin.de/)) 
+     [Richard Cyganiak](http://richard.cyganiak.de) ([Freie Universität Berlin](http://www.fu-berlin.de/)) 
+Feedback:
+     [GitHub w3c/rdf-trig](https://github.com/w3c/rdf-trig/) ([pull requests](https://github.com/w3c/rdf-trig/pulls/), [new issue](https://github.com/w3c/rdf-trig/issues/new/choose), [open issues](https://github.com/w3c/rdf-trig/issues/)) 
+    [public-rdf-star-wg@w3.org](mailto:public-rdf-star-wg@w3.org?subject=%5Brdf12-trig%5D%20YOUR%20TOPIC%20HERE) with subject line `[rdf12-trig] _… message topic …_` ([archives](https://lists.w3.org/Archives/Public/public-rdf-star-wg))
+
+[Copyright](https://www.w3.org/policies/#copyright) © 2010-2026 [World Wide Web Consortium](https://www.w3.org/). W3C® [liability](https://www.w3.org/policies/#Legal_Disclaimer), [trademark](https://www.w3.org/policies/#W3C_Trademarks) and [permissive document license](https://www.w3.org/copyright/software-license-2023/ "W3C Software and Document Notice and License") rules apply. 
+
+* * *
+
+## Abstract
+
+This document defines a textual syntax for RDF called TriG that allows an [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset) to be completely written in a compact and natural text form, with abbreviations for common usage patterns and datatypes. TriG is an extension of the Turtle [RDF12-TURTLE] format. 
+
+RDF 1.2 TriG shares [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) with [RDF12-TURTLE] as a fourth kind of [RDF term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) which can be used as the [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of another [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple), making it possible to make statements about other statements. RDF 1.2 TriG also shares [directional language-tagged strings](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string) with [RDF12-TURTLE].
+
+In addition, RDF 1.2 TriG shares the [reifying triples](https://www.w3.org/TR/rdf12-turtle/#reifying-triples) and [annotation syntax](https://www.w3.org/TR/rdf12-turtle/#annotation-syntax) extensions with [RDF12-TURTLE] which allows [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) to also be [asserted](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple).
+
+## Status of This Document
+
+ _This section describes the status of this document at the time of its publication. A list of current W3C publications and the latest revision of this technical report can be found in the [W3C standards and drafts index](https://www.w3.org/TR/)._
+
+This document is part of the RDF 1.2 document suite. TriG is intended to meet the charter requirement of the RDF & SPARQL Working Group to define an RDF syntax for multiple graphs. TriG is an extension of the Turtle syntax for RDF [RDF12-TURTLE]. The current document is based on the original proposal by Chris Bizer and Richard Cyganiak.
+
+This document was published by the [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star) as a Working Draft using the [Recommendation track](https://www.w3.org/policies/process/20250818/#recs-and-notes). 
+
+Publication as a Working Draft does not imply endorsement by W3C and its Members. 
+
+This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
+
+This document was produced by a group operating under the [W3C Patent Policy](https://www.w3.org/policies/patent-policy/). W3C maintains a [public list of any patent disclosures](https://www.w3.org/groups/wg/rdf-star/ipr) made in connection with the deliverables of the group; that page also includes instructions for disclosing a patent. An individual who has actual knowledge of a patent that the individual believes contains [Essential Claim(s)](https://www.w3.org/policies/patent-policy/#def-essential) must disclose the information in accordance with [section 6 of the W3C Patent Policy](https://www.w3.org/policies/patent-policy/#sec-Disclosure). 
+
+This document is governed by the [18 August 2025 W3C Process Document](https://www.w3.org/policies/process/20250818/). 
+
+### Set of Documents
+
+This document is one of eleven RDF 1.2 and twelve SPARQL 1.2 documents produced by the [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star).
+
+List of documents
+
+RDF 1.2 Documents:
+
+  1. [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/)
+  2. [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/)
+  3. [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/)
+  4. [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/)
+  5. [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/)
+  6. [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/)
+  7. [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/)
+  8. RDF 1.2 TriG (this document)
+  9. [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/)
+  10. [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/)
+  11. [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/)
+
+
+
+SPARQL 1.2 Documents:
+
+  1. [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/)
+  2. [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/)
+  3. [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/)
+  4. [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/)
+  5. [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/)
+  6. [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/)
+  7. [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/)
+  8. [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/)
+  9. [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/)
+  10. [SPARQL 1.2 Entailment Regimes](https://www.w3.org/TR/sparql12-entailment/)
+  11. [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/)
+  12. [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/)
+
+
+
+## Table of Contents
+
+  1. Abstract
+  2. Status of This Document
+     1. Set of Documents
+  3. 1\. Introduction
+  4. 2\. TriG Language
+     1. 2.1 Version Announcement
+     2. 2.2 Triple Statements
+     3. 2.3 Graph Statements
+     4. 2.4 Other Terms
+        1. 2.4.1 Special Considerations for Blank Nodes
+  5. 3\. Conformance
+     1. 3.1 Media Type and Content Encoding
+     2. 3.2 Future-proofness of TriG
+  6. 4\. TriG Grammar
+     1. 4.1 White Space
+     2. 4.2 Comments
+     3. 4.3 IRI References
+     4. 4.4 Escape Sequences
+     5. 4.5 Grammar
+     6. 4.6 Selected Terminal Literal Strings
+  7. 5\. Parsing
+     1. 5.1 Parser State
+     2. 5.2 RDF Term Constructors
+     3. 5.3 RDF Triples Construction
+        1. 5.3.1 Output Graph
+        2. 5.3.2 Triple Output
+        3. 5.3.3 Triple Production
+        4. 5.3.4 Reifiers
+        5. 5.3.5 Reified Triples
+        6. 5.3.6 Annotations
+        7. 5.3.7 Annotation Blocks
+        8. 5.3.8 Property Lists
+        9. 5.3.9 Collections
+     4. 5.4 Non-conformant Documents
+  8. A. Privacy Considerations
+  9. B. Security Considerations
+  10. C. Internet Media Type and File Extension
+  11. D. Acknowledgments
+     1. D.1 Acknowledgments for RDF 1.1
+     2. D.2 Acknowledgments for RDF 1.2
+  12. E. Changes between RDF 1.1 and RDF 1.2
+  13. F. Index
+     1. F.1 Terms defined by this specification
+     2. F.2 Terms defined by reference
+  14. G. References
+     1. G.1 Normative references
+     2. G.2 Informative references
+
+
+
+## 1\. Introduction
+
+ _This section is non-normative._
+
+This document defines TriG, a concrete syntax for RDF as defined in the RDF Concepts and Abstract Syntax document [RDF12-CONCEPTS]. TriG is an extension of Turtle [RDF12-TURTLE], extended to support representing a complete [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset).
+
+This specification extends the original TriG syntax, as defined in [RDF 1.1 TriG](https://www.w3.org/TR/trig/) [TRIG], to support the new features introduced by [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/) [RDF12-CONCEPTS]. This extension is fully backward compatible.
+
+## 2\. TriG Language
+
+ _This section is non-normative._
+
+A TriG document allows writing down an [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset) in a compact textual form. It consists of a sequence of directives, triple statements, graph statements which contain triple-generating statements and optional blank lines. Comments may be given after a `#` that is not part of another lexical token and continue to the end of the line.
+
+Graph statements are a pair of an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) or [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) and a group of triple statements surrounded by braces (`{``}`). The [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) or [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) of the graph statement may be used in another graph statement which implies taking the union of the triples generated by each graph statement. An [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) or [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) used as a graph label may also reoccur as part of any triple statement. Optionally a graph statement may not not be labeled with an IRI. Such a graph statement corresponds to the [Default Graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph) of an [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset).
+
+The construction of an [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset) from a TriG document is defined in 4\. TriG Grammar and 5\. Parsing. 
+
+### 2.1 Version Announcement
+
+TriG uses the same version announcement mechanism as Turtle [RDF12-TURTLE].
+
+### 2.2 Triple Statements
+
+As TriG is an extention of the Turtle language it allows for any constructs from the [Turtle language](https://www.w3.org/TR/rdf12-turtle/#language-features). [Simple Triples](https://www.w3.org/TR/rdf12-turtle/#simple-triples), [Predicate Lists](https://www.w3.org/TR/rdf12-turtle/#predicate-lists), and [Object Lists](https://www.w3.org/TR/rdf12-turtle/#object-lists) can all be used either inside a graph statement, or on their own as in a TriG document. When outside a graph statement, the triples are considered to be part of the [default graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph) of the [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset).
+
+### 2.3 Graph Statements
+
+A graph statement pairs an [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) or [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) with an [RDF graph](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph). The triple statements that make up the graph are enclosed in `{``}`.
+
+In a TriG document a graph IRI or [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) may be used as label for more than one graph statement. The graph label of a graph statement may be omitted. In this case the graph is considered the [default graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph) of the [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset).
+
+A [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset) might contain only a single graph.
+
+Example 1: Dataset with single graph
+    
+    
+    # This document encodes one graph.
+    PREFIX ex: <http://www.example.org/vocabulary#>
+    PREFIX : <http://www.example.org/exampleDocument#>
+    
+    :G1 { :Monica a ex:Person ;
+        ex:name "Monica Murphy" ;
+        ex:homepage <http://www.monicamurphy.org> ;
+        ex:email <mailto:monica@monicamurphy.org> ;
+        ex:hasSkill ex:Management ,
+                    ex:Programming .
+    }
+    
+
+An [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset) may contain a [default graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph) and/or zero or more [named graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-named-graph).
+
+Example 2: Dataset with default and named graphs
+    
+    
+    # This document contains a default graph and two named graphs.
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX dc: <http://purl.org/dc/terms/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    
+    # default graph
+    {
+      <http://example.org/bob> dc:publisher "Bob" .
+      <http://example.org/alice> dc:publisher "Alice" .
+    }
+    
+    <http://example.org/bob> {
+       _:a foaf:name "Bob" .
+       _:a foaf:mbox <mailto:bob@oldcorp.example.org> .
+       _:a foaf:knows _:b .
+    }
+    
+    <http://example.org/alice> {
+       _:b foaf:name "Alice" .
+       _:b foaf:mbox <mailto:alice@work.example.org> .
+    }
+    
+
+TriG provides various alternative ways to write graphs and triples, giving the data writer choices for clarity:
+
+Example 3: Alternative ways to write named graphs
+    
+    
+    # This document contains a same data as the previous example.
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX dc: <http://purl.org/dc/terms/>
+    PREFIX foaf: <http://xmlns.com/foaf/0.1/>
+    
+    # default graph - no {} used.
+    <http://example.org/bob> dc:publisher "Bob" .
+    <http://example.org/alice> dc:publisher "Alice" .
+    
+    # GRAPH keyword to highlight a named graph
+    # Abbreviation of triples using ;
+    GRAPH <http://example.org/bob>
+    {
+       [] foaf:name "Bob" ;
+          foaf:mbox <mailto:bob@oldcorp.example.org> ;
+          foaf:knows _:b .
+    }
+    
+    GRAPH <http://example.org/alice>
+    {
+        _:b foaf:name "Alice" ;
+            foaf:mbox <mailto:alice@work.example.org>
+    }
+    
+
+### 2.4 Other Terms
+
+All other terms, syntax forms, and directives come from [RDF Turtle](https://www.w3.org/TR/rdf12-turtle/#language-features). 
+
+#### 2.4.1 Special Considerations for Blank Nodes
+
+[Blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) sharing the same [identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) in differently labeled graph statements are considered to be the same blank node.
+
+## 3\. Conformance
+
+As well as sections marked as non-normative, all authoring guidelines, diagrams, examples, and notes in this specification are non-normative. Everything else in this specification is normative.
+
+The key words _MUST_ , _MUST NOT_ , and _SHOULD_ in this document are to be interpreted as described in [BCP 14](https://www.rfc-editor.org/info/bcp14) [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as shown here. 
+
+This specification defines conformance criteria for:
+
+  * TriG documents
+  * TriG parsers
+
+
+
+A conforming TriG document is a Unicode string that conforms to the grammar and additional constraints defined in 4\. TriG Grammar, starting with the `trigDoc` production. A TriG document serializes an [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset).
+
+A conforming TriG parser is a system capable of reading TriG documents on behalf of an application. It makes the serialized [RDF dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset), as defined in 5\. Parsing, available to the application, usually through some form of API.
+
+The [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) that identifies the TriG language is: `http://www.w3.org/ns/formats/TriG`
+
+Note
+
+This specification does not define how TriG parsers handle non-conforming input documents.
+
+### 3.1 Media Type and Content Encoding
+
+The media type of TriG is `application/trig`. The content encoding of TriG content is always UTF-8.
+
+### 3.2 Future-proofness of TriG
+
+Any future evolution of the TriG format, if it reuses the same media type, will require the use of a version directive (either `@version` or `VERSION`) with a version label greater than `1.2`, for any document that is not strictly compliant with TriG 1.2. This will allow parsers to gracefully handle newer features that they do not yet support. 
+
+## 4\. TriG Grammar
+
+A TriG document is an [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) encoded in UTF-8 [RFC3629]. Only [Unicode scalar values](https://www.w3.org/TR/i18n-glossary/#dfn-scalar-value), in the ranges `U+0000` to `U+D7FF` and `U+E000` to `U+10FFFF`, are allowed. This excludes [surrogate code points](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate), range `U+D800` to `U+DFFF`. 
+
+### 4.1 White Space
+
+White space (production `WS`) is used to separate two terminals which would otherwise be (mis-)recognized as one terminal. Rule names below in capitals indicate where white space is significant; these form a possible choice of terminals for constructing a TriG parser.
+
+White space is significant in the production `String`.
+
+### 4.2 Comments
+
+Comments in TriG start with a `#` outside an `IRIREF`, `STRING_LITERAL_SINGLE_QUOTE`, `STRING_LITERAL_QUOTE`, `STRING_LITERAL_LONG_SINGLE_QUOTE`, or `STRING_LITERAL_LONG_QUOTE`, and continue to the end of line (marked by `LFs`, or `CRs`), or end of file if there is no end of line after the comment marker. Comments are treated as white space.
+
+### 4.3 IRI References
+
+[Relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) are resolved with base IRIs as per [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/) [RFC3986] using only the basic algorithm in section 5.2. Neither Syntax-Based Normalization nor Scheme-Based Normalization (described in sections 6.2.2 and 6.2.3 of RFC3986) are performed. Characters additionally allowed in IRI references are treated in the same way that unreserved characters are treated in URI references, per section 6.5 of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/) [RFC3987]. 
+
+The `@base` or `BASE` directive defines the Base IRI used to resolve [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) per [RFC3986] [section 5.1.1, "Base URI Embedded in Content"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.1). [Section 5.1.2, "Base URI from the Encapsulating Entity"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.2) defines how the In-Scope Base IRI may come from an encapsulating document, such as a SOAP envelope with an `xml:base` directive or a MIME multipart document with a `Content-Location` header. The "Retrieval URI" identified in [5.1.3, Base "URI from the Retrieval URI"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.3), is the URL from which a particular TriG document was retrieved. If none of the above specifies the Base URI, the default Base URI ([section 5.1.4, "Default Base URI"](https://www.rfc-editor.org/info/rfc3986/#section-5.1.4)) is used. Each `@base` or `BASE` directive sets a new In-Scope Base URI, relative to the previous one. 
+
+### 4.4 Escape Sequences
+
+There are three forms of escapes used in TriG documents:
+
+  * A numeric escape sequence represents the value of a [Unicode code point](https://www.w3.org/TR/i18n-glossary/#dfn-code-point). 
+
+A numeric escape sequence _MUST NOT_ produce a code point value in the range `U+D800` to `U+DFFF`, which is the range for Unicode [surrogates](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate). 
+
+Escape sequence | Unicode code point  
+---|---  
+`\u` `hex` `hex` `hex` `hex` | A [Unicode code point](https://www.w3.org/TR/i18n-glossary/#dfn-code-point) in the ranges `U+0000` to `U+D7FF` and `U+E000` to `U+D7FF`, corresponding to the value encoded by the four hexadecimal digits interpreted from most significant to least significant digit.  
+`\U` `hex` `hex` `hex` `hex` `hex` `hex` `hex` `hex` | A [Unicode code point](https://www.w3.org/TR/i18n-glossary/#dfn-code-point) in the ranges `U+0000` to `U+D7FF` and `U+E000` to `U+10FFFF`, corresponding to the value encoded by the eight hexadecimal digits interpreted from most significant to least significant digit.  
+  
+where `hex` is a hexadecimal character
+
+``HEX` ::= [0-9] | [A-F] | [a-f]`
+
+  * A string escape sequence represents a character traditionally escaped in string literals: 
+
+Escape sequence | Unicode code point  
+---|---  
+`\t` | `U+0009`  
+`\b` | `U+0008`  
+`\n` | `U+000A`  
+`\r` | `U+000D`  
+`\f` | `U+000C`  
+`\"` | `U+0022`  
+`\'` | `U+0027`  
+`\\` | `U+005C`  
+  * A reserved character escape sequence consists of a `\` followed by one of these characters `~.-!$&'()*+,;=/?#@%_`, and represents the character to the right of the `\`. 
+
+
+Context where each kind of escape sequence can be used | numeric  
+escapes | string  
+escapes | reserved character  
+escapes  
+---|---|---|---  
+IRIs, used as [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) or as in `PREFIX` or `BASE` declarations | yes | no | no  
+local names | no | no | yes  
+Strings | yes | yes | no  
+  
+Note
+
+%-encoded sequences are in the character range for IRIs and are explicitly allowed in local names. These appear as a '%' followed by two hex characters and represent that same sequence of three characters. These sequences are _not_ decoded during processing. A term written as `<http://a.example/%66oo-bar>` in TriG designates the IRI `http://a.example/%66oo-bar` and not IRI `http://a.example/foo-bar`. A term written as `ex:%66oo-bar` with a prefix `PREFIX ex: <http://a.example/>` also designates the IRI `http://a.example/%66oo-bar`.
+
+### 4.5 Grammar
+
+The EBNF used here is defined in XML 1.0 [EBNF-NOTATION]. 
+
+Notes:
+
+  1. A [blank node identifier](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier) represents the same [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) throughout the TriG document. 
+  2. Keywords in single quotes ('`@base`', '`@prefix`', '`@version`', '`a`', '`true`', and '`false`') are case-sensitive. Keywords in quotation marks ("`BASE`", "`PREFIX`"), and "`VERSION`") are case-insensitive. 
+  3. Escape sequences `UCHAR` and `ECHAR` are case sensitive. 
+  4. When tokenizing the input and choosing grammar rules, the longest match is chosen. 
+  5. The TriG grammar is LL(1) and LALR(1) when the rules with uppercased names are used as terminals. 
+  6. The entry point into the grammar is `trigDoc`. 
+  7. In signed numbers, no white space is allowed between the sign and the number. 
+  8. The strings '`@prefix`', '`@base`', and '`@version`' match the pattern for `LANG_DIR`, though neither `prefix`, `base`, nor `version` are [registered language subtags](http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry#). This specification does not define whether a quoted literal followed by either of these tokens (e.g., `"A"@base`) is in the Turtle language. 
+
+
+
+[1] | `trigDoc` | ::= | `(`directive `|` block`)``*`  
+---|---|---|---  
+[2] | `block` | ::= | triplesOrGraph `|` wrappedGraph `|` triples2 `|` `(`"`GRAPH`" labelOrSubject wrappedGraph`)`  
+[3] | `triplesOrGraph` | ::= | `(`labelOrSubject `(`wrappedGraph `|` `(`predicateObjectList '`.`'`)``)``)` `|` `(`reifiedTriple predicateObjectList`?` '`.`'`)`  
+[4] | `triples2` | ::= | `(`blankNodePropertyList predicateObjectList`?` '`.`'`)` `|` `(`collection predicateObjectList '`.`'`)`  
+[5] | `wrappedGraph` | ::= | '`{`' triplesBlock`?` '`}`'  
+[6] | `triplesBlock` | ::= | triples `(`'`.`' triplesBlock`?``)``?`  
+[7] | `labelOrSubject` | ::= | iri `|` BlankNode  
+[8] | `directive` | ::= | prefixID `|` base `|` version `|` sparqlPrefix `|` sparqlBase `|` sparqlVersion  
+[9] | `prefixID` | ::= | '`@prefix`' PNAME_NS IRIREF '`.`'  
+[10] | `base` | ::= | '`@base`' IRIREF '`.`'  
+[11] | `version` | ::= | '`@version`' VersionSpecifier '`.`'  
+[12] | `sparqlPrefix` | ::= | "`PREFIX`" PNAME_NS IRIREF  
+[13] | `sparqlBase` | ::= | "`BASE`" IRIREF  
+[14] | `sparqlVersion` | ::= | "`VERSION`" VersionSpecifier  
+[15] | `VersionSpecifier` | ::= | STRING_LITERAL_QUOTE `|` STRING_LITERAL_SINGLE_QUOTE  
+[16] | `triples` | ::= | `(`subject predicateObjectList`)` `|` `(`blankNodePropertyList predicateObjectList`?``)` `|` `(`reifiedTriple predicateObjectList`?``)`  
+[17] | `predicateObjectList` | ::= | verb objectList `(`'`;`' `(`verb objectList`)``?``)``*`  
+[18] | `objectList` | ::= | object annotation `(`'`,`' object annotation`)``*`  
+[19] | `verb` | ::= | predicate `|` '`a`'  
+[20] | `subject` | ::= | iri `|` BlankNode `|` collection  
+[21] | `predicate` | ::= | iri  
+[22] | `object` | ::= | iri `|` BlankNode `|` collection `|` blankNodePropertyList `|` literal `|` tripleTerm `|` reifiedTriple  
+[23] | `literal` | ::= | RDFLiteral `|` NumericLiteral `|` BooleanLiteral  
+[24] | `blankNodePropertyList` | ::= | '`[`' predicateObjectList '`]`'  
+[25] | `collection` | ::= | '`(`' object`*` '`)`'  
+[26] | `NumericLiteral` | ::= | INTEGER `|` DECIMAL `|` DOUBLE  
+[27] | `RDFLiteral` | ::= | String `(`LANG_DIR `|` `(`'`^^`' iri`)``)``?`  
+[28] | `BooleanLiteral` | ::= | '`true`' `|` '`false`'  
+[29] | `String` | ::= | STRING_LITERAL_QUOTE `|` STRING_LITERAL_SINGLE_QUOTE `|` STRING_LITERAL_LONG_SINGLE_QUOTE `|` STRING_LITERAL_LONG_QUOTE  
+[30] | `iri` | ::= | IRIREF `|` PrefixedName  
+[31] | `PrefixedName` | ::= | PNAME_LN `|` PNAME_NS  
+[32] | `BlankNode` | ::= | BLANK_NODE_LABEL `|` ANON  
+[33] | `reifier` | ::= | '`~`' `(`iri `|` BlankNode`)``?`  
+[34] | `reifiedTriple` | ::= | '`<<`' rtSubject verb rtObject reifier`?` '`>>`'  
+[35] | `rtSubject` | ::= | iri `|` BlankNode `|` reifiedTriple  
+[36] | `rtObject` | ::= | iri `|` BlankNode `|` literal `|` tripleTerm `|` reifiedTriple  
+[37] | `tripleTerm` | ::= | '`<<(`' ttSubject verb ttObject '`)>>`'  
+[38] | `ttSubject` | ::= | iri `|` BlankNode  
+[39] | `ttObject` | ::= | iri `|` BlankNode `|` literal `|` tripleTerm  
+[40] | `annotation` | ::= | `(`reifier `|` annotationBlock`)``*`  
+[41] | `annotationBlock` | ::= | '`{|`' predicateObjectList '`|}`'  
+  
+### Productions for terminals  
+  
+[43] | `IRIREF` | ::= | '`<`' `(``[``^``#x00``-``#x20``<>"{}|^`\``]` `|` UCHAR`)``*` '`>`'   
+/* #x00=NULL #x01-#x1F=control codes #x20=space */  
+[44] | `PNAME_NS` | ::= | PN_PREFIX`?` '`:`'  
+[45] | `PNAME_LN` | ::= | PNAME_NS PN_LOCAL  
+[46] | `BLANK_NODE_LABEL` | ::= | '`_:`' `(`PN_CHARS_U `|` `[``0-9``]``)` `(``(`PN_CHARS `|` '`.`'`)``*` PN_CHARS`)``?`  
+[47] | `LANG_DIR` | ::= | '`@`' `[``a-zA-Z``]``+` `(`'`-`' `[``a-zA-Z0-9``]``+``)``*` `(`'`--`' `[``a-zA-Z``]``+``)``?`  
+[48] | `INTEGER` | ::= | `[``+-``]``?` `[``0-9``]``+`  
+[49] | `DECIMAL` | ::= | `[``+-``]``?` `(``[``0-9``]``*` '`.`' `[``0-9``]``+``)`  
+[50] | `DOUBLE` | ::= | `[``+-``]``?` `(``(``[``0-9``]``+` '`.`' `[``0-9``]``*` EXPONENT`)` `|` `(`'`.`' `[``0-9``]``+` EXPONENT`)` `|` `(``[``0-9``]``+` EXPONENT`)``)`  
+[51] | `EXPONENT` | ::= | `[``eE``]` `[``+-``]``?` `[``0-9``]``+`  
+[52] | `STRING_LITERAL_QUOTE` | ::= | '`"`' `(``[``^``#x22``#x5C``#x0A``#x0D``]` `|` ECHAR `|` UCHAR`)``*` '`"`'  
+[53] | `STRING_LITERAL_SINGLE_QUOTE` | ::= | "`'`" `(``[``^``#x27``#x5C``#x0A``#x0D``]` `|` ECHAR `|` UCHAR`)``*` "`'`"  
+[54] | `STRING_LITERAL_LONG_SINGLE_QUOTE` | ::= | "`'''`" `(``(`"`'`" `|` "`''`"`)``?` `(``[``^'\``]` `|` ECHAR `|` UCHAR`)``)``*` "`'''`"  
+[55] | `STRING_LITERAL_LONG_QUOTE` | ::= | '`"""`' `(``(`'`"`' `|` '`""`'`)``?` `(``[``^"\``]` `|` ECHAR `|` UCHAR`)``)``*` '`"""`'  
+[56] | `UCHAR` | ::= | `(`'`\u`' HEX HEX HEX HEX`)` `|` `(`'`\U`' HEX HEX HEX HEX HEX HEX HEX HEX`)`  
+[57] | `ECHAR` | ::= | '`\`' `[``tbnrf\"'``]`  
+[58] | `WS` | ::= | `#x20` `|` `#x09` `|` `#x0D` `|` `#x0A`  
+[59] | `ANON` | ::= | '`[`' WS`*` '`]`'  
+[60] | `PN_CHARS_BASE` | ::= | `[``A-Z``]`  
+| `|` | `[``a-z``]`  
+| `|` | `[``#xC0``-``#xD6``]`  
+| `|` | `[``#xD8``-``#xF6``]`  
+| `|` | `[``#xF8``-``#x02FF``]`  
+| `|` | `[``#x0370``-``#x037D``]`  
+| `|` | `[``#x037F``-``#x1FFF``]`  
+| `|` | `[``#x200C``-``#x200D``]`  
+| `|` | `[``#x2070``-``#x218F``]`  
+| `|` | `[``#x2C00``-``#x2FEF``]`  
+| `|` | `[``#x3001``-``#xD7FF``]`  
+| `|` | `[``#xF900``-``#xFDCF``]`  
+| `|` | `[``#xFDF0``-``#xFFFD``]`  
+| `|` | `[``#x00010000``-``#x000EFFFF``]`  
+[61] | `PN_CHARS_U` | ::= | PN_CHARS_BASE `|` '`_`'  
+[62] | `PN_CHARS` | ::= | PN_CHARS_U `|` '`-`' `|` `[``0-9``]` `|` `#xB7` `|` `[``#x0300``-``#x036F``]` `|` `[``#x203F``-``#x2040``]`  
+[63] | `PN_PREFIX` | ::= | PN_CHARS_BASE `(``(`PN_CHARS `|` '`.`'`)``*` PN_CHARS`)``?`  
+[64] | `PN_LOCAL` | ::= | `(`PN_CHARS_U `|` '`:`' `|` `[``0-9``]` `|` PLX`)` `(``(`PN_CHARS `|` '`.`' `|` '`:`' `|` PLX`)``*` `(`PN_CHARS `|` '`:`' `|` PLX`)``)``?`  
+[65] | `PLX` | ::= | PERCENT `|` PN_LOCAL_ESC  
+[66] | `PERCENT` | ::= | '`%`' HEX HEX  
+[67] | `HEX` | ::= | `[``0-9``]` `|` `[``A-F``]` `|` `[``a-f``]`  
+[68] | `PN_LOCAL_ESC` | ::= | '`\`' `(`'`_`' `|` '`~`' `|` '`.`' `|` '`-`' `|` "`!`" `|` '`$`' `|` '`&`' `|` "`'`" `|` '`(`' `|` '`)`' `|` '`*`' `|` '`+`' `|` '`,`' `|` '`;`' `|` '`=`' `|` '`/`' `|` '`?`' `|` '`#`' `|` '`@`' `|` '`%`'`)`  
+  
+A text version of this grammar is available [here](trig.bnf).
+
+### 4.6 Selected Terminal Literal Strings
+
+This document uses some specific terminal literal strings [EBNF-NOTATION]. To clarify the Unicode code points used for these terminal literal strings, the following table describes specific characters and sequences used throughout this document.
+
+Code| Glyph| Description  
+---|---|---  
+`U+000A` | `LF` | Line feed  
+`U+000D` | `CR` | Carriage return  
+`U+0022` | `"` | Quotation mark  
+`U+0023` | `#` | Number sign  
+`U+0027` | `'` | Apostrophe  
+`U+002D` | `-` | Hyphen  
+`U+003B` | `:` | Colon  
+`U+0040` | `@` | At sign  
+`U+005C` | `\` | Backslash  
+`U+005F` | `_` | Underscore  
+`U+0061` | `a` | Latin small letter E  
+`U+007B` | `{` | Left curly bracket  
+`U+007D` | `}` | Right curly bracket  
+  
+Other short terminal literal strings are composed of specific sequences of Unicode characters:
+
+`space`
+    `U+0020`
+`"""`
+    three concatenated quotation mark characters, each having the code point `U+0022`
+`'''`
+    three concatenated apostrophe characters, each having the code point `U+0027`
+`--`
+    two concatenated `-` characters
+
+## 5\. Parsing
+
+The RDF Concepts and Abstract Syntax [RDF12-CONCEPTS] specification defines four types of [RDF term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term): [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri), [literals](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal), [blank nodes](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node), and [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). Literals are composed of a [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form) and an optional [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) [BCP47] – possibly including an [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) – or an optional [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri). An extra type, `prefix`, is used during parsing to map string identifiers to namespace IRIs. This section maps a string conforming to the grammar in 4.5 Grammar to a set of triples by mapping strings matching productions and lexical tokens to [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) or their components (e.g., language tags, lexical forms of literals). Grammar productions change the parser state and emit triples.
+
+### 5.1 Parser State
+
+Parsing TriG requires a state of ten items:
+
+  * IRI baseURI — When the `base` production is reached, the second rule argument, `IRIREF`, is the base URI used for [relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) resolution.
+  * Map[prefix -> IRI] namespaces — The second and third rule arguments (`PNAME_NS` and `IRIREF`) in the prefixID production assign a namespace name (`IRIREF`) for the prefix (`PNAME_NS`). Outside of a `prefixID` production, any `PNAME_NS` is substituted with the namespace. Note that the prefix may be an empty string, per the `PNAME_NS` production: `PN_PREFIX? ":"`.
+  * Map[string -> [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)] bnodeLabels — A mapping from a string to a blank node.
+  * [RDF Term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) curSubject — The curSubject is bound to the `subject`, `rtSubject`, `ttSubject`, `blankNodePropertyList`, `collection`, `tripleTerm`, and `annotationBlock` productions.
+  * RDF_Term curPredicate — The curPredicate is bound to the `verb` production. If token matched was `a`, curPredicate is bound to the IRI `http://www.w3.org/1999/02/22-rdf-syntax-ns#type`.
+  * [RDF Term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) curObject — The curObject is bound to the `object`, `rtObject`, and `ttObject` productions.
+  * [RDF Term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) curReifier — The curReifier is bound to the `reifier` and `annotationBlock` productions.
+  * [Triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) curTripleTerm — The curTripleTerm is set in the Annotations constructor. 
+  * RDF_Term curGraph — The curGraph is bound to the label of the graph that is the destination of triples produced in parsing. When undefined, triples are destined for the [default graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph). 
+  * `xsd:string` curVersion – The RDF version used for parsing the document into [Triples](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple). If specified as part of a Media Type, the default value for curVersion is taken from the `version` parameter. The only defined value is `"1.2"`. Parser behavior for other version values is undefined. This specification does not define behavior if different versions are provided for curVersion. 
+
+
+
+Term Constructors can create a stack of these values indicated by using language such as "records the curSubject and curPredicate."
+
+### 5.2 RDF Term Constructors
+
+This table maps productions and lexical tokens to [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) or components of [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) listed in 5\. Parsing:
+
+production |  type | procedure  
+---|---|---  
+IRIREF | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| The characters between `<` and `>` are taken, with the numeric escape sequences unescaped, to form the IRI. [Relative IRI reference](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) resolution is performed per Section 6.3. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/info/rfc3987/#section-2.2) of generic IRI syntax, and _SHOULD_ conform to [section 3.3](https://www.rfc-editor.org/info/rfc3986/#section-3.3) of [RFC3986] and comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+PNAME_NS | prefix | When used in a `prefixID` or `sparqlPrefix` production, the `prefix` is the potentially empty [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) that matches the first argument of the rule. That string serves as a key in the namespaces map; the expanded second argument is stored under that key for future lookup.  
+[IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| When used in a `PrefixedName` production, the `iri` is the value in the namespaces map corresponding to the first argument of the rule.  
+PNAME_LN | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| A potentially empty prefix is identified by the first sequence, `PNAME_NS`. The namespaces map __MUST__ have a corresponding `namespace`. The [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of the IRI is formed by unescaping the reserved characters in the second argument, `PN_LOCAL`, and concatenating this onto the `namespace`. The resulting IRI _MUST_ comply with the [syntactic restrictions](https://www.rfc-editor.org/info/rfc3987/#section-2.2) of generic IRI syntax, and _SHOULD_ comply with any narrower restrictions imposed by the corresponding IRI scheme specification.  
+VersionSpecifier | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The curVersion is taken from a literal using the matched [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) lexical form and `xsd:string` datatype.  
+STRING_LITERAL_SINGLE_QUOTE | [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'`s are taken, with numeric and string escape sequences unescaped, to form the Unicode string of a lexical form.  
+STRING_LITERAL_QUOTE | [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"`s are taken, with numeric and string escape sequences unescaped, to form the Unicode string of a lexical form.  
+STRING_LITERAL_LONG_SINGLE_QUOTE| [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'''`s are taken, with numeric and string escape sequences unescaped, to form the unicode string of a lexical form.  
+STRING_LITERAL_LONG_QUOTE. | [lexical form](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"""`s are taken, with numeric and string escape sequences unescaped, to form the Unicode string of a lexical form.  
+LANG_DIR | [language tag ](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)| The characters following the `@` form the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and optionally the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), if the matched characters include `--`. The [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) _MUST_ be well-formed according to [section 2.2.9](https://www.rfc-editor.org/info/bcp47#section-2.2.9) of [BCP47]. If present, the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) _MUST_ be either `ltr` or `rtl`.  
+RDFLiteral | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the first rule argument, `String`. If the `'^^' iri` rule is matched, the [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri) is derived from the `iri`, and the literal has no language tag. If the `LANG_DIR` rule is matched, the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) are taken from `LANG_DIR`. If there is no [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:langString`. If there is an [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:dirLangString`. If neither matched, the datatype is `xsd:string`, and the literal has no language tag.  
+INTEGER | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:integer`.  
+DECIMAL | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:decimal`.  
+DOUBLE | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:double`.  
+BooleanLiteral | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the `true` or `false`, depending on which matched the input, and a datatype of `xsd:boolean`.  
+BLANK_NODE_LABEL | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| The string matching the second argument, `PN_LOCAL`, is a key in bnodeLabels. If there is no corresponding blank node in the map, one is allocated.  
+ANON | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| A blank node is generated.  
+blankNodePropertyList | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| A blank node is generated. Note the rules for `blankNodePropertyList` in the next section.  
+collection | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)| For non-empty lists, a blank node is generated. Note the rules for `collection` in the next section.  
+[IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)| For empty lists, the resulting IRI is `rdf:nil`. Note the rules for `collection` in the next section.  
+reifier | [IRI ](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) | [blank node ](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) |  The curReifier is taken from [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term), which is taken from the matched `iri` production or `BlankNode` production, if any. If no such production is matched, [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) is taken from a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node).   
+tripleTerm | [triple term ](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) |  The [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) is composed of the terms constructed from the `ttSubject`, `predicate`, and `ttObject` productions.   
+reifiedTriple | [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) | [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) |  The [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) is taken from the matched `reifier`, if any, or from a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node).   
+annotationBlock | [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) | [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) |  The [term](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term) is taken from a previously matched [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier), if any, or from a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node).   
+  
+Note
+
+As processors which detect errors on input can result in graphs which contain fewer triples than are described in the input (including no triples whatsoever), consumers should consider information of any errors signaled when using the output triples, which may be incomplete and/or include [ill-typed](https://www.w3.org/TR/rdf12-concepts/#dfn-ill-typed) or ill-formed terms.
+
+### 5.3 RDF Triples Construction
+
+A TriG document defines an [RDF Dataset](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset) composed of one [default graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph) and zero or more [named graphs](https://www.w3.org/TR/rdf12-concepts/#dfn-named-graph). Each graph is composed of a set of [RDF triples](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple). 
+
+#### 5.3.1 Output Graph
+
+The state curGraph is initially unset. It records the label of the graph for triples produced during parsing. If undefined, the [default graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph) is used.
+
+The rule `labelOrSubject` sets both curGraph and curSubject (only one of these will be used). 
+
+The following grammar production clauses set curGraph to be undefined, indicating the default graph: 
+
+  * The grammar production clause `wrappedGraph` in rule `block`
+  * The grammar production in rule `triples2`. 
+
+
+
+The grammar production `labelOrSubject predicateObjectList '.'` unsets curGraph before handling the `predicateObjectList` production in rule `triplesOrGraph`. 
+
+#### 5.3.2 Triple Output
+
+Each RDF triple produced is added to curGraph, or the [default graph](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph) if curGraph is not set at that point in the parsing process. 
+
+The `subject` production sets the curSubject. The `verb` production sets the curPredicate. 
+
+Triples are produced at the following points in the parsing process and each RDF triple produced is added to the graph identified by curGraph. 
+
+#### 5.3.3 Triple Production
+
+Each object N in the document produces an RDF triple: curSubject curPredicate N.
+
+#### 5.3.4 Reifiers
+
+Beginning the `reifier` production, the curReifier is taken from the `reifier` term constructor. Then yield the RDF triple curReifier `rdf:reifies` curTripleTerm.
+
+#### 5.3.5 Reified Triples
+
+Beginning the `reifiedTriple` production records the curTripleTerm. A new `tripleTerm` instance curTripleTerm is created using the `rtSubject`, `verb`, and `rtObject` productions. Finishing the `reifiedTriple` production, if the curReifier is not set, it is assigned a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node); it next yields the RDF triple curReifier `rdf:reifies` curTripleTerm, and then restores the recorded value of the curTripleTerm. The node produced by matching `reifiedTriple` is the curReifier.
+
+#### 5.3.6 Annotations
+
+Beginning the `annotation` production records the curSubject and curPredicate. A new `tripleTerm` instance curTripleTerm is created using the curSubject curPredicate curObject, and the value of the curReifier is cleared. Finishing the `annotation` production restores the recorded values of the curSubject and curPredicate.
+
+#### 5.3.7 Annotation Blocks
+
+Beginning the `annotationBlock` production records the curTripleTerm. If the curReifier is not set, then it is assigned a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) and the production yields the RDF triple curReifier `rdf:reifies` curTripleTerm. The curSubject is taken from the curReifier Finishing the `annotationBlock` production clears the value of the curReifier and restores the curTripleTerm.
+
+Note
+
+If the curReifier was already set, the reifying triple curReifier `rdf:reifies` curTripleTerm was emitted in 5.3.4 Reifiers.
+
+#### 5.3.8 Property Lists
+
+Beginning the `blankNodePropertyList` production records the curSubject and curPredicate, and sets curSubject to a novel [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) B. Finishing the `blankNodePropertyList` production restores curSubject and curPredicate. The node produced by matching `blankNodePropertyList` is the blank node B. 
+
+#### 5.3.9 Collections
+
+Beginning the `collection` production records the curSubject and curPredicate. Each `object` in the `collection` production has a curSubject set to a novel [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node) B and a curPredicate set to `rdf:first`. For each object objectn after the first produces a triple:objectn-1 `rdf:rest` objectn . Finishing the `collection` production creates an additional triple `curSubject rdf:rest rdf:nil` . and restores curSubject and curPredicate The node produced by matching `collection` is the first blank node B for non-empty lists and `rdf:nil` for empty lists. 
+
+### 5.4 Non-conformant Documents
+
+If the target of a parsing process does not conform to the grammar specified in 4\. TriG Grammar, the result is not defined by this specification. Error detection, reporting, and recovery are left to implementors, because the appropriate behavior depends on the application interfaces and protocols within which the parser is used. 
+
+## A. Privacy Considerations
+
+ _This section is non-normative._
+
+The TriG format is used to express arbitrary application data, which may include the expression of personally identifiable information (PII) or other information which could be considered sensitive. Authors publishing such information are advised to carefully consider the needs and use of publishing such information, as well as the applicable regulations for the regions where the data is expected to be consumed and potentially revealed (e.g., [GDPR](https://gdpr.eu/), [CCPA](https://oag.ca.gov/privacy/ccpa), [others](https://termly.io/resources/infographics/privacy-laws-around-the-world/)), particularly whether authorization measures are needed for access to the data.
+
+## B. Security Considerations
+
+ _This section is non-normative._
+
+The `STRING_LITERAL_SINGLE_QUOTE`, `STRING_LITERAL_QUOTE`, `STRING_LITERAL_LONG_SINGLE_QUOTE`, and `STRING_LITERAL_LONG_QUOTE`, productions allows the use of unescaped control characters. Although this specification does not directly expose this content to an end user, it might be presented through a user agent, which may cause the presented text to be obfuscated due to presentation of such characters.
+
+TriG is a general-purpose assertion language; applications may evaluate given data to infer more assertions or to dereference [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri), invoking the security considerations of the scheme for that IRI. Note in particular, the privacy issues in [RFC3023] section 10 for HTTP IRIs. Data obtained from an inaccurate or malicious data source may lead to inaccurate or misleading conclusions, as well as the dereferencing of unintended IRIs. Care must be taken to align the trust in consulted resources with the sensitivity of the intended use of the data; inferences of potential medical treatments would likely require different trust than inferences for trip planning.
+
+The TriG language is used to express arbitrary application data; security considerations will vary by domain of use. Security tools and protocols applicable to text (for example, PGP encryption, checksum validation, password-protected compression) may also be used on TriG documents. Security/privacy protocols must be imposed which reflect the sensitivity of the embedded information.
+
+TriG can express data which is presented to the user, such as RDF Schema labels. Applications rendering strings retrieved from untrusted TriG documents, or using unescaped characters, _SHOULD_ use warnings and other appropriate means to limit the possibility that malignant strings might be used to mislead the reader. The security considerations in the media type registration for XML ([RFC3023] section 10) provide additional guidance around the expression of arbitrary data and markup.
+
+TriG uses [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) as term identifiers. Applications interpreting data expressed in TriG _SHOULD_ address the security issues of [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/) [RFC3987] Section 8, as well as [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/) [RFC3986] Section 7.
+
+Multiple [IRIs](https://www.w3.org/TR/rdf12-concepts/#dfn-iri) may have the same appearance. Characters in different scripts may look similar (for instance, a Cyrillic "о" (code point `U+043E`) may appear similar to a Latin "o" (code point `U+006F`)). A character followed by combining characters may have the same visual representation as another character (for example, LATIN SMALL LETTER "E" (code point `U+0065`) followed by COMBINING ACUTE ACCENT (code point `U+0301`) has the same visual representation as LATIN SMALL LETTER "E" WITH ACUTE (`U+00E9`)). Any person or application that is writing or interpreting data in TriG must take care to use the IRI that matches the intended semantics, and avoid IRIs that may look similar. Further information about matching visually similar characters can be found in [Unicode Security Considerations](https://www.unicode.org/reports/tr36/tr36-15.html) [UNICODE-SECURITY] and [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/) [RFC3987] Section 8.
+
+## C. Internet Media Type and File Extension
+
+The Internet Media Type (formerly known as MIME Type) for TriG is "application/trig".
+
+It is recommended that TriG files have the extension ".trig" (all lowercase) on all platforms.
+
+The information that follows has been submitted to the Internet Engineering Steering Group (IESG) for review, approval, and registration with IANA.
+
+Type name:
+    application
+Subtype name:
+    trig
+Required parameters:
+    None
+Optional parameters:
+    
+
+`version`
+    This parameter is optional. If present, acceptable values of `version` are defined in [2.1 Version Labels](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels) in [RDF12-CONCEPTS]. 
+`profile`
+     This parameter is optional and is used to include additional information. It does not change the semantics of the resource representation when processed without knowledge of the profile. The value of a profile parameter is a non-empty list of space-separated URIs. For more information and background, please refer to [RFC6906]. 
+Encoding considerations:
+    The syntax of TriG is expressed over code points in Unicode [UNICODE]. The encoding is always UTF-8 [UTF-8].
+    Unicode code points may also be expressed using an \uXXXX (U+0000 to U+FFFF) or \UXXXXXXXX syntax (for U+10000 onwards) where X is a hexadecimal digit [0-9A-Fa-f]
+Security considerations:
+    See B. Security Considerations.
+Interoperability considerations:
+    There are no known interoperability issues.
+Published specification:
+    This specification.
+Applications which use this media type:
+    TriG is used widely for representing RDF data. There are implementations available in most common programming languages.
+Additional information:
+    
+
+Magic number(s):
+    TriG documents may have the strings 'prefix' or 'base' (case independent) near the beginning of the document.
+File extension(s):
+    .trig
+Base URI:
+    The TriG base directive can change the current base URI for [relative IRI references](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri) in the language that are used sequentially later in the document.
+Person & email address to contact for further information:
+    W3C RDF & SPARQL Working Group <public-rdf-star-wg@w3.org>
+Intended usage:
+    Common
+Restrictions on usage:
+    None
+Author(s):
+    The TriG specification is the product of the RDF & SPARQL WG. The W3C reserves change control over this specifications.
+
+Note
+
+The `profile` parameter may be used by clients to express their preferences in the content negotiation process and by a server to indicate additional information about the response. 
+
+If the `profile` parameter is given by a client, a server should return a document that honors all the profiles in the list that are recognized by the server. A server should not respond with an error solely based upon the profile value. 
+
+If the `profile` parameter is given by a server, a client may choose to ignore it. 
+
+Note
+
+It is recommended that profile URIs be dereferenceable and provide useful documentation at that URI. 
+
+Note
+
+When used as a [media type parameter](https://tools.ietf.org/html/rfc4288#section-4.3) [RFC4288] in an [HTTP Content-Type header](https://httpwg.org/specs/rfc7231.html#header.content-type) or an [HTTP Accept header](https://httpwg.org/specs/rfc7231.html#header.accept) [RFC7231] the value of the `profile` parameter will need to be enclosed in quotes (ASCII `"`) if it contains special characters such as white space, including any space used to separate multiple profile URIs. 
+
+It is important to note that the value of the `profile` parameter contains one or more URIs and not IRIs. It might therefore be necessary to convert between IRIs and URIs, as specified in [section 3 Relationship between IRIs and URIs](https://tools.ietf.org/html/rfc3986#section-5.1) of [RFC3987]. 
+
+## D. Acknowledgments
+
+ _This section is non-normative._
+
+### D.1 Acknowledgments for RDF 1.1
+
+ _This section is non-normative._
+
+The editors gratefully acknowledge the work of Chris Bizer and Richard Cyganiak in creating the original TriG specification. Valuable contributions to this version were made by Gregg Kellogg, Eric Prud'hommeaux and Sandro Hawke. 
+
+The document was improved through the review process by the wider community.
+
+### D.2 Acknowledgments for RDF 1.2
+
+ _This section is non-normative._
+
+In addition to the editors, the following people have contributed to this specification: Andy Seaborne, Denis Ah-Kang, Gregory Todd Williams, james anderson, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, and Thomas Tanon
+
+Members of the RDF & SPARQL Working Group included the following:   
+James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
+† Gregg Kellogg passed away in September 2025. His vast contributions to RDF and the broader ecosystem of related standards are gratefully acknowledged. 
+
+Editor's note
+
+Recognize members of the Task Force? Not an easy to find list of contributors.
+
+## E. Changes between RDF 1.1 and RDF 1.2
+
+ _This section is non-normative._
+
+This section describes the main differences from the RDF 1.1 Recommendation.
+
+This specification extends the original TriG syntax, as defined in [RDF 1.1 TriG](https://www.w3.org/TR/trig/) [TRIG], to support the new features introduced by [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/) [RDF12-CONCEPTS]. This extension is fully backward compatible: any document complying with the old version complies with the new version, and parses to the same graph. Furthermore, any document complying with the new version and containing only RDF 1.1 features is also compliant with the older version (with the exception of the `VERSION` directive; see 2.1 Version Announcement). Finally, none of the new syntactic constructs are valid in the old syntax. This means that any TriG document using RDF 1.2 features does not comply with the previous version of this specification and cannot be interpreted as a different graph under it.
+
+More specifically, the following changes have been made:
+
+  * Syntax is aligned to the Turtle [RDF12-TURTLE] recommendation for [RDF terms](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term).
+  * Separated B. Security Considerations from C. Internet Media Type and File Extension and updated language.
+  * Changes the `LANGTAG` terminal production to `LANG_DIR` to include an optional [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction).
+  * Added Triple Terms for representing [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) in TriG.
+  * Removed the `NIL` terminal production from the grammar, which was unused.
+  * Added 2.1 Version Announcement and parser state and productions to announce the RDF version associated with the input document. Note that this also includes a provision that `@version` does not match `LANG_DIR`; the previous version of the grammar would allow such a match, but would result in a literal with an ill-formed language tag according to [BCP47], and form an invalid literal.
+  * Added the optional `profile` media type parameter to allow clients and servers to convey additional profile information for TriG representations without changing their semantics.
+
+
+
+## F. Index
+
+### F.1 Terms defined by this specification
+
+  * numeric escape sequence §4.4
+  * reserved character escape sequence §4.4
+  * string escape sequence §4.4
+  * TriG document §3.
+  * TriG parser §3.
+
+
+
+### F.2 Terms defined by reference
+
+  * [BCP47] defines the following: 
+    * section 2.2.9
+  * [I18N-GLOSSARY] defines the following: 
+    * surrogate code points
+    * Unicode code point
+    * Unicode scalar values
+  * [LANG-SUBTAG-REGISTRY] defines the following: 
+    * registered language subtags
+  * [RDF12-CONCEPTS] defines the following: 
+    * 2.1 Version Labels
+    * asserted
+    * blank node
+    * datatype IRI
+    * Default Graph
+    * directional language-tagged strings
+    * identifier
+    * ill-typed
+    * initial text direction
+    * IRI
+    * language tag
+    * lexical form
+    * literals
+    * named graphs
+    * object type
+    * RDF dataset
+    * RDF graph
+    * RDF string
+    * RDF term
+    * reifier
+    * Relative IRI references
+    * triple
+    * triple terms
+  * [RDF12-TURTLE] defines the following: 
+    * annotation syntax
+    * Object Lists
+    * Predicate Lists
+    * reifying triples
+    * Simple Triples
+    * Turtle language
+  * [RFC3986] defines the following: 
+    * 5.1.3, Base "URI from the Retrieval URI"
+    * section 3.3
+    * section 5.1.1, "Base URI Embedded in Content"
+    * Section 5.1.2, "Base URI from the Encapsulating Entity"
+    * section 5.1.4, "Default Base URI"
+  * [RFC3987] defines the following: 
+    * syntactic restrictions
+
+
+
+## G. References
+
+### G.1 Normative references
+
+[BCP47]
+     [Tags for Identifying Languages](https://www.rfc-editor.org/info/bcp47). Addison Phillips; Mark Davis. IETF. September 2009. Best Current Practice. URL: <https://www.rfc-editor.org/info/bcp47>
+[EBNF-NOTATION]
+     [EBNF Notation](https://www.w3.org/TR/xml/#sec-notation). Tim Bray; Jean Paoli; Michael Sperberg-McQueen; Eve Maler; François Yergeau et al. W3C. W3C Recommendation. URL: <https://www.w3.org/TR/xml/#sec-notation>
+[I18N-GLOSSARY]
+     [Internationalization Glossary](https://www.w3.org/TR/i18n-glossary/). Richard Ishida; Addison Phillips. W3C. 17 October 2024. W3C Working Group Note. URL: <https://www.w3.org/TR/i18n-glossary/>
+[RDF12-CONCEPTS]
+     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
+[RFC2119]
+     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/info/rfc2119/). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc2119/>
+[RFC3629]
+     [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/info/rfc3629/). F. Yergeau. IETF. November 2003. Internet Standard. URL: <https://www.rfc-editor.org/info/rfc3629/>
+[RFC3986]
+     [Uniform Resource Identifier (URI): Generic Syntax](https://www.rfc-editor.org/info/rfc3986/). T. Berners-Lee; R. Fielding; L. Masinter. IETF. January 2005. Internet Standard. URL: <https://www.rfc-editor.org/info/rfc3986/>
+[RFC3987]
+     [Internationalized Resource Identifiers (IRIs)](https://www.rfc-editor.org/info/rfc3987/). M. Duerst; M. Suignard. IETF. January 2005. Proposed Standard. URL: <https://www.rfc-editor.org/info/rfc3987/>
+[RFC6906]
+     [The 'profile' Link Relation Type](https://www.rfc-editor.org/info/rfc6906/). E. Wilde. IETF. March 2013. Informational. URL: <https://www.rfc-editor.org/info/rfc6906/>
+[RFC8174]
+     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/info/rfc8174/). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc8174/>
+[UNICODE]
+     [The Unicode Standard](https://www.unicode.org/versions/latest/). Unicode Consortium. URL: <https://www.unicode.org/versions/latest/>
+
+### G.2 Informative references
+
+[LANG-SUBTAG-REGISTRY]
+     [Language Subtag Registry](http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry). IANA. URL: <http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry>
+[RDF12-INTEROP]
+     [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
+[RDF12-N-QUADS]
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+[RDF12-N-TRIPLES]
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+[RDF12-NEW]
+     [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
+[RDF12-PRIMER]
+     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 17 September 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
+[RDF12-SCHEMA]
+     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
+[RDF12-SEMANTICS]
+     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
+[RDF12-TURTLE]
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 1 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+[RDF12-XML]
+     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
+[RFC3023]
+     [XML Media Types](https://www.rfc-editor.org/info/rfc3023/). M. Murata; S. St. Laurent; D. Kohn. IETF. January 2001. Proposed Standard. URL: <https://www.rfc-editor.org/info/rfc3023/>
+[RFC4288]
+     [Media Type Specifications and Registration Procedures](https://www.rfc-editor.org/info/rfc4288/). N. Freed; J. Klensin. IETF. December 2005. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc4288/>
+[RFC7231]
+     [Hypertext Transfer Protocol (HTTP/1.1): Semantics and Content](https://httpwg.org/specs/rfc7231.html). R. Fielding, Ed.; J. Reschke, Ed. IETF. June 2014. Proposed Standard. URL: <https://httpwg.org/specs/rfc7231.html>
+[SPARQL12-CONCEPTS]
+     [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
+[SPARQL12-ENTAILMENT]
+     [SPARQL 1.2 Entailment Regimes](https://www.w3.org/TR/sparql12-entailment/). Peter Patel-Schneider. W3C. 9 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-entailment/>
+[SPARQL12-FEDERATED-QUERY]
+     [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
+[SPARQL12-GRAPH-STORE-PROTOCOL]
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 24 September 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+[SPARQL12-NEW]
+     [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
+[SPARQL12-PROTOCOL]
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+[SPARQL12-QUERY]
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 1 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+[SPARQL12-RESULTS-CSV-TSV]
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+[SPARQL12-RESULTS-JSON]
+     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
+[SPARQL12-RESULTS-XML]
+     [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
+[SPARQL12-SERVICE-DESCRIPTION]
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 29 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+[SPARQL12-UPDATE]
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+[TRIG]
+     [RDF 1.1 TriG](https://www.w3.org/TR/trig/). Gavin Carothers; Andy Seaborne. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/trig/>
+[UNICODE-SECURITY]
+     [Unicode Security Considerations](https://www.unicode.org/reports/tr36/tr36-15.html). Mark Davis; Michel Suignard. Unicode Consortium. 19 September 2014. Unicode Technical Report #36. URL: <https://www.unicode.org/reports/tr36/tr36-15.html>
+
+↑
+
+Permalink
+
+**Referenced in:**
+
+  * § 2. TriG Language (2)
+  * § 2.2 Triple Statements
+  * § 2.3 Graph Statements
+  * § 4. TriG Grammar
+  * § 4.3 IRI References
+  * § 4.4 Escape Sequences
+  * § 4.5 Grammar
+  * § 5.3 RDF Triples Construction
+  * § B. Security Considerations (2)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 4.1 White Space
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 4.4 Escape Sequences (2)
+  * § 5.2 RDF Term Constructors (2) (3) (4) (5)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 4.4 Escape Sequences
+  * § 5.2 RDF Term Constructors (2) (3) (4)
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 4.4 Escape Sequences
+  * § 5.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.rfc-editor.org/info/bcp47#section-2.2.9)
+
+**Referenced in:**
+
+  * § 5.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate)
+
+**Referenced in:**
+
+  * § 4. TriG Grammar
+  * § 4.4 Escape Sequences
+
+
+
+[Permalink](https://www.w3.org/TR/i18n-glossary/#dfn-code-point)
+
+**Referenced in:**
+
+  * § 4.4 Escape Sequences (2) (3)
+
+
+
+[Permalink](https://www.w3.org/TR/i18n-glossary/#dfn-scalar-value)
+
+**Referenced in:**
+
+  * § 4. TriG Grammar
+
+
+
+[Permalink](http://www.iana.org/assignments/language-subtag-registry/language-subtag-registry#)
+
+**Referenced in:**
+
+  * § 4.5 Grammar
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#defined-version-labels)
+
+**Referenced in:**
+
+  * § C. Internet Media Type and File Extension
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple)
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node)
+
+**Referenced in:**
+
+  * § 2. TriG Language (2) (3)
+  * § 2.3 Graph Statements (2)
+  * § 2.4.1 Special Considerations for Blank Nodes
+  * § 4.5 Grammar
+  * § 5. Parsing
+  * § 5.1 Parser State
+  * § 5.2 RDF Term Constructors (2) (3) (4) (5) (6) (7) (8) (9) (10)
+  * § 5.3.5 Reified Triples
+  * § 5.3.7 Annotation Blocks
+  * § 5.3.8 Property Lists
+  * § 5.3.9 Collections
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri)
+
+**Referenced in:**
+
+  * § 5. Parsing
+  * § 5.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-default-graph)
+
+**Referenced in:**
+
+  * § 2. TriG Language
+  * § 2.2 Triple Statements
+  * § 2.3 Graph Statements (2)
+  * § 5.1 Parser State
+  * § 5.3 RDF Triples Construction
+  * § 5.3.1 Output Graph
+  * § 5.3.2 Triple Output
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-dir-lang-string)
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node-identifier)
+
+**Referenced in:**
+
+  * § 2.4.1 Special Considerations for Blank Nodes
+  * § 4.5 Grammar
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-ill-typed)
+
+**Referenced in:**
+
+  * § 5.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction)
+
+**Referenced in:**
+
+  * § 5. Parsing
+  * § 5.2 RDF Term Constructors (2) (3) (4) (5)
+  * § E. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)
+
+**Referenced in:**
+
+  * § 2. TriG Language (2) (3)
+  * § 2.3 Graph Statements
+  * § 3. Conformance
+  * § 5. Parsing
+  * § 5.2 RDF Term Constructors (2) (3) (4) (5) (6) (7)
+  * § B. Security Considerations (2) (3)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)
+
+**Referenced in:**
+
+  * § 5. Parsing
+  * § 5.2 RDF Term Constructors (2) (3) (4)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)
+
+**Referenced in:**
+
+  * § 5. Parsing
+  * § 5.2 RDF Term Constructors (2) (3) (4)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)
+
+**Referenced in:**
+
+  * § 5. Parsing
+  * § 5.2 RDF Term Constructors (2) (3) (4) (5) (6)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-named-graph)
+
+**Referenced in:**
+
+  * § 2.3 Graph Statements
+  * § 5.3 RDF Triples Construction
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-object)
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-dataset)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 1. Introduction
+  * § 2. TriG Language (2) (3)
+  * § 2.2 Triple Statements
+  * § 2.3 Graph Statements (2) (3)
+  * § 3. Conformance (2)
+  * § 5.3 RDF Triples Construction
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-graph)
+
+**Referenced in:**
+
+  * § 2.3 Graph Statements
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string)
+
+**Referenced in:**
+
+  * § 4. TriG Grammar
+  * § 5.2 RDF Term Constructors (2) (3)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-term)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 4.4 Escape Sequences
+  * § 5. Parsing (2)
+  * § 5.1 Parser State (2) (3)
+  * § 5.2 RDF Term Constructors (2) (3) (4) (5) (6)
+  * § E. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier)
+
+**Referenced in:**
+
+  * § 5.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-relative-iri)
+
+**Referenced in:**
+
+  * § 4.3 IRI References (2)
+  * § 5.1 Parser State
+  * § 5.2 RDF Term Constructors
+  * § C. Internet Media Type and File Extension
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple)
+
+**Referenced in:**
+
+  * § Abstract
+  * § 5.1 Parser State
+  * § 5.3 RDF Triples Construction
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term)
+
+**Referenced in:**
+
+  * § Abstract (2)
+  * § 5. Parsing
+  * § 5.1 Parser State
+  * § 5.2 RDF Term Constructors (2)
+  * § E. Changes between RDF 1.1 and RDF 1.2
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-turtle/#annotation-syntax)
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-turtle/#object-lists)
+
+**Referenced in:**
+
+  * § 2.2 Triple Statements
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-turtle/#predicate-lists)
+
+**Referenced in:**
+
+  * § 2.2 Triple Statements
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-turtle/#reifying-triples)
+
+**Referenced in:**
+
+  * § Abstract
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-turtle/#simple-triples)
+
+**Referenced in:**
+
+  * § 2.2 Triple Statements
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-turtle/#language-features)
+
+**Referenced in:**
+
+  * § 2.2 Triple Statements
+  * § 2.4 Other Terms
+
+
+
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.3)
+
+**Referenced in:**
+
+  * § 4.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-3.3)
+
+**Referenced in:**
+
+  * § 5.2 RDF Term Constructors
+
+
+
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.1)
+
+**Referenced in:**
+
+  * § 4.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.2)
+
+**Referenced in:**
+
+  * § 4.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5.1.4)
+
+**Referenced in:**
+
+  * § 4.3 IRI References
+
+
+
+[Permalink](https://www.rfc-editor.org/info/rfc3987/#section-2.2)
+
+**Referenced in:**
+
+  * § 5.2 RDF Term Constructors (2)
+
+
+  *[W3C]: World Wide Web Consortium
+  *[ W3C]: World Wide Web Consortium
+  *[EBNF]: Extended Backus–Naur Form
+  *[#x00]: null
+  *[#x20]: space
+  *[#x22]: dquote
+  *[#x5C]: backslash
+  *[#x0A]: new line
+  *[#x0D]: carriage return
+  *[#x27]: apos
+  *[#x09]: horizontal tab
+  *[#xC0]: unicode U+00C0
+  *[#xD6]: unicode U+00D6
+  *[#xD8]: unicode U+00D8
+  *[#xF6]: unicode U+00F6
+  *[#xF8]: unicode U+00F8
+  *[#x02FF]: unicode U+02FF
+  *[#x0370]: unicode U+0370
+  *[#x037D]: unicode U+037D
+  *[#x037F]: unicode U+037F
+  *[#x1FFF]: unicode U+1FFF
+  *[#x200C]: unicode U+200C
+  *[#x200D]: unicode U+200D
+  *[#x2070]: unicode U+2070
+  *[#x218F]: unicode U+218F
+  *[#x2C00]: unicode U+2C00
+  *[#x2FEF]: unicode U+2FEF
+  *[#x3001]: unicode U+3001
+  *[#xD7FF]: unicode U+D7FF
+  *[#xF900]: unicode U+F900
+  *[#xFDCF]: unicode U+FDCF
+  *[#xFDF0]: unicode U+FDF0
+  *[#xFFFD]: unicode U+FFFD
+  *[#x00010000]: unicode U+10000
+  *[#x000EFFFF]: unicode U+EFFFF
+  *[#xB7]: unicode U+00B7
+  *[#x0300]: unicode U+0300
+  *[#x036F]: unicode U+036F
+  *[#x203F]: unicode U+203F
+  *[#x2040]: unicode U+2040
+  *[↑]: Back to Top

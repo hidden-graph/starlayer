@@ -1,22 +1,22 @@
 RDF 1.2 XML Syntax
 Snapshot source: https://www.w3.org/TR/rdf12-xml/
-Status at fetch time: W3C Working Draft 14 September 2026
-Published: 2026-09-14
+Status at fetch time: W3C Working Draft 25 October 2026
+Published: 2026-10-25
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
-See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
+See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
 ======================================================================
 
 [![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)
 
 # RDF 1.2 XML Syntax
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 14 September 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 25 October 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-rdf12-xml-20260914/>
+     <https://www.w3.org/TR/2026/WD-rdf12-xml-20261025/>
 Latest published version:
      <https://www.w3.org/TR/rdf12-xml/>
 Latest editor's draft:
@@ -67,7 +67,7 @@ This document was published by the [RDF & SPARQL Working Group](https://www.w3.o
 
 Publication as a Working Draft does not imply endorsement by W3C and its Members. 
 
-This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming Recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
+This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
 
 This document was produced by a group operating under the [W3C Patent Policy](https://www.w3.org/policies/patent-policy/). W3C maintains a [public list of any patent disclosures](https://www.w3.org/groups/wg/rdf-star/ipr) made in connection with the deliverables of the group; that page also includes instructions for disclosing a patent. An individual who has actual knowledge of a patent that the individual believes contains [Essential Claim(s)](https://www.w3.org/policies/patent-policy/#def-essential) must disclose the information in accordance with [section 6 of the W3C Patent Policy](https://www.w3.org/policies/patent-policy/#sec-Disclosure). 
 
@@ -141,8 +141,9 @@ SPARQL 1.2 Documents:
      20. 2.20 Annotating Triples: `rdf:annotation` or `rdf:annotationNodeID`
   5. 3\. Conformance
      1. 3.1 RDF/XML Internet Media Type and File Extension
-     2. 3.2 Privacy Considerations
-     3. 3.3 Security Considerations
+     2. 3.2 Non-conformant Documents
+     3. 3.3 Privacy Considerations
+     4. 3.4 Security Considerations
   6. 4\. Global Issues
      1. 4.1 The RDF Namespace and Vocabulary
      2. 4.2 Identifiers
@@ -851,7 +852,7 @@ Conformance:
 ### 3.1 RDF/XML Internet Media Type and File Extension
 
 Contact:
-    Dan Brickley
+    RDF & SPARQL Working Group <public-rdf-star-wg@w3.org>
 See also:
     [How to Register a Media Type for a W3C Specification](https://www.w3.org/2002/06/registering-mediatype)
     [Internet Media Type registration, consistency of use](https://www.w3.org/2001/tag/2002/0129-mime)  
@@ -865,13 +866,17 @@ Features introduced in RDF 1.2 require a version announcement on an in-scope nod
 
 The `application/rdf+xml` media type has been registered at IANA as [RFC3870].
 
-### 3.2 Privacy Considerations
+### 3.2 Non-conformant Documents
+
+If the target of a parsing process does not conform to the requirements specified in sections 3.1 RDF/XML Internet Media Type and File Extension and 5\. Syntax Data Model, the result is not defined by this specification. Error detection, reporting, and recovery are left to implementers, because the appropriate behavior depends on the application interfaces and protocols within which the parser is used. 
+
+### 3.3 Privacy Considerations
 
  _This section is non-normative._
 
 The RDF/XML format is used to express arbitrary application data, which may include the expression of personally identifiable information (PII) or other information which could be considered sensitive. Authors publishing such information are advised to carefully consider the needs and use of publishing such information, as well as the applicable regulations for the regions where the data is expected to be consumed and potentially revealed (e.g., [GDPR](https://gdpr.eu/), [CCPA](https://oag.ca.gov/privacy/ccpa), [others](https://termly.io/resources/infographics/privacy-laws-around-the-world/)), particularly whether authorization measures are needed for access to the data.
 
-### 3.3 Security Considerations
+### 3.4 Security Considerations
 
  _This section is non-normative._
 
@@ -1853,7 +1858,7 @@ The following people provided valuable contributions to the document:
 
  _This section is non-normative._
 
-In addition to the editors, the following people have contributed to this specification: Andy Seaborne, Denis Ah-Kang, Dominik Tomaszuk, Gregory Todd Williams, John Walker, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, and Thomas Tanon
+In addition to the editors, the following people have contributed to this specification: Andy Seaborne, Denis Ah-Kang, Dominik Tomaszuk, Gregory Todd Williams, james anderson, John Walker, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, and Thomas Tanon
 
 Members of the RDF & SPARQL Working Group included the following:   
 James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
@@ -1867,7 +1872,7 @@ Recognize members of the Task Force? Not an easy to find list of contributors.
 
  _This section is non-normative._
 
-  * Adds 3.2 Privacy Considerations and 3.3 Security Considerations.
+  * Adds 3.3 Privacy Considerations and 3.4 Security Considerations.
   * Updates reference for [SAX].
   * Removes the statement that the `rdf:HTML` datatype cannot be serialized in RDF/XML.
   * Adds 2.8 Base Direction: `its:dir` and `rdf:version`.
@@ -2263,7 +2268,7 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [RDF12-CONCEPTS]
      [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RDF12-N-TRIPLES]
-     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
 [RFC2119]
      [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/info/rfc2119/). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc2119/>
 [RFC3870]
@@ -2304,19 +2309,19 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [RDF12-INTEROP]
      [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [RDF12-NEW]
      [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
 [RDF12-PRIMER]
-     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 16 April 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
+     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 17 September 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
 [RDF12-SCHEMA]
-     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
+     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
 [RDF12-SEMANTICS]
-     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
+     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-TRIG]
-     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
 [RDF12-TURTLE]
-     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 12 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
 [RDFA-PRIMER]
      [RDFa 1.1 Primer - Third Edition](https://www.w3.org/TR/rdfa-primer/). Ivan Herman; Ben Adida; Manu Sporny; Mark Birbeck. W3C. 17 March 2015. W3C Working Group Note. URL: <https://www.w3.org/TR/rdfa-primer/>
 [RELAXNG-SCHEMA]
@@ -2328,15 +2333,15 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [SPARQL12-FEDERATED-QUERY]
      [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
 [SPARQL12-GRAPH-STORE-PROTOCOL]
-     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 24 September 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-PROTOCOL]
      [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 20 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 11 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
      [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
@@ -2344,7 +2349,7 @@ The RNGC schema has been updated to attempt to match the grammar but this has no
 [SPARQL12-SERVICE-DESCRIPTION]
      [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 [SPARQL12-UPDATE]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 12 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [STRIPEDRDF]
      [RDF: Understanding the Striped RDF/XML Syntax](https://www.w3.org/2001/10/stripes/). W3C. 2001. Team Submission. URL: [http://www.w3.org/2001/10/stripes/](https://www.w3.org/2001/10/stripes/)
 [SVG10]
@@ -2808,7 +2813,7 @@ Permalink
 
 **Referenced in:**
 
-  * § 3.3 Security Considerations
+  * § 3.4 Security Considerations
 
 
 

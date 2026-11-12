@@ -1,10 +1,10 @@
 RDF 1.2 Turtle
 Snapshot source: https://www.w3.org/TR/rdf12-turtle/
-Status at fetch time: W3C Working Draft 14 September 2026
-Published: 2026-09-14
+Status at fetch time: W3C Working Draft 11 November 2026
+Published: 2026-11-11
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
-See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
+See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
 ======================================================================
 
 [![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)
@@ -13,12 +13,12 @@ See tests/vendor/spec_snapshots/README.md for how this snapshot is used and rege
 
 ## Terse RDF Triple Language
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 14 September 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 11 November 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-rdf12-turtle-20260914/>
+     <https://www.w3.org/TR/2026/WD-rdf12-turtle-20261111/>
 Latest published version:
      <https://www.w3.org/TR/rdf12-turtle/>
 Latest editor's draft:
@@ -70,7 +70,7 @@ This document was published by the [RDF & SPARQL Working Group](https://www.w3.o
 
 Publication as a Working Draft does not imply endorsement by W3C and its Members. 
 
-This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming Recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
+This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
 
 This document was produced by a group operating under the [W3C Patent Policy](https://www.w3.org/policies/patent-policy/). W3C maintains a [public list of any patent disclosures](https://www.w3.org/groups/wg/rdf-star/ipr) made in connection with the deliverables of the group; that page also includes instructions for disclosing a patent. An individual who has actual knowledge of a patent that the individual believes contains [Essential Claim(s)](https://www.w3.org/policies/patent-policy/#def-essential) must disclose the information in accordance with [section 6 of the W3C Patent Policy](https://www.w3.org/policies/patent-policy/#sec-Disclosure). 
 
@@ -141,6 +141,7 @@ SPARQL 1.2 Documents:
   6. 4\. Turtle compared to SPARQL
   7. 5\. Conformance
      1. 5.1 Media Type and Content Encoding
+     2. 5.2 Future-proofness of Turtle
   8. 6\. Turtle Grammar
      1. 6.1 White Space
      2. 6.2 Comments
@@ -159,6 +160,7 @@ SPARQL 1.2 Documents:
         5. 7.3.5 Property Lists
         6. 7.3.6 Collections
      4. 7.4 Parsing Example
+     5. 7.5 Non-conformant Documents
   10. A. Embedding Turtle in HTML documents
      1. A.1 XHTML
      2. A.2 Parsing Turtle in HTML
@@ -932,7 +934,7 @@ A conforming Turtle document is an [RDF string](https://www.w3.org/TR/rdf12-conc
 
 A conforming Turtle parser is a system capable of reading Turtle documents on behalf of an application. It makes the serialized RDF graph, as defined in 7\. Parsing, available to the application, usually through some form of API.
 
-The IRI that identifies the Turtle language is: `http://www.w3.org/ns/formats/Turtle`
+The IRI that identifies the Turtle language is `http://www.w3.org/ns/formats/Turtle`.
 
 Note
 
@@ -941,6 +943,10 @@ This specification does not define how Turtle parsers handle non-conforming inpu
 ### 5.1 Media Type and Content Encoding
 
 The media type of Turtle is `text/turtle`. The content encoding of Turtle content is always UTF-8 [RFC3629]. 
+
+### 5.2 Future-proofness of Turtle
+
+Any future evolution of the Turtle format, if it reuses the same media type, will require the use of a version directive (either `@version` or `VERSION`) with a version label greater than `1.2`, for any document that is not strictly compliant with Turtle 1.2. This will allow parsers to gracefully handle newer features that they do not yet support. 
 
 ## 6\. Turtle Grammar
 
@@ -1143,7 +1149,7 @@ Code| Glyph| Description
 `U+002E` | `.` | Full stop  
 `U+0030` | `0` | Digit zero  
 `U+0039` | `9` | Digit nine  
-`U+003B` | `:` | Colon  
+`U+003A` | `:` | Colon  
 `U+003B` | `;` | Semicolon  
 `U+003C` | `<` | Less-than sign  
 `U+003E` | `>` | Greater-than sign  
@@ -1151,7 +1157,7 @@ Code| Glyph| Description
 `U+0045` | `E` | Latin capital letter E  
 `U+005B` | `[` | Left square bracket  
 `U+005C` | `\` | Backslash  
-`U+005D` | `[` | Right square bracket  
+`U+005D` | `]` | Right square bracket  
 `U+005F` | `_` | Underscore  
 `U+0061` | `a` | Latin small letter A  
 `U+0065` | `e` | Latin small letter E  
@@ -1176,7 +1182,7 @@ Other short terminal literal strings are composed of specific sequences of Unico
 `<<(`
     two concatenated less-than sign characters, each having the code point `U+003C`, followed by a left parenthesis character, having the code point `U+0028`
 `)>>`
-    a left parenthesis character, having the code point `U+0029` followed by two concatenated greater-than sign characters, each having the code point `U+003E`
+    a right parenthesis character, having the code point `U+0029` followed by two concatenated greater-than sign characters, each having the code point `U+003E`
 `^^`
     two concatenated circumflex accent characters, each having the code point `U+005E`
 `{|`
@@ -1224,7 +1230,7 @@ VersionSpecifier | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-lite
 STRING_LITERAL_SINGLE_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'`s are taken, after numeric and string escape sequences are replaced with the characters that they represent, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
 STRING_LITERAL_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"`s are taken, with numeric and string escape sequences unescaped, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
 STRING_LITERAL_LONG_SINGLE_QUOTE| [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `'''`s are taken, with numeric and string escape sequences unescaped, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
-STRING_LITERAL_LONG_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"""`s are taken, after numeric and string escape sequences are are replaced with the characters that they represent, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
+STRING_LITERAL_LONG_QUOTE | [lexical form ](https://www.w3.org/TR/rdf12-concepts/#dfn-lexical-form)| The characters between the outermost `"""`s are taken, after numeric and string escape sequences are replaced with the characters that they represent, to form the [RDF string](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-string) of a lexical form.  
 LANG_DIR | [language tag ](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag)| The characters following the `@` form the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and optionally the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), if the matched characters include `--`. The [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) _MUST_ be well-formed according to [section 2.2.9](https://www.rfc-editor.org/info/bcp47#section-2.2.9) of [BCP47]. If present, the [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) _MUST_ be either `ltr` or `rtl`.  
 RDFLiteral | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the first rule argument, `String`. If the `'^^' iri` rule is matched, the [datatype IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-datatype-iri) is derived from the `iri`, and the literal has no language tag. If the `LANG_DIR` rule is matched, the [language tag](https://www.w3.org/TR/rdf12-concepts/#dfn-language-tag) and [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) are taken from `LANG_DIR`. If there is no [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:langString`. If there is a [initial text direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction), the datatype is `rdf:dirLangString`. If neither matched, the datatype is `xsd:string`, and the literal has no language tag.  
 INTEGER | [literal ](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-literal)| The literal has a lexical form of the input string, and a datatype of `xsd:integer`.  
@@ -1255,7 +1261,7 @@ Beginning the `reifier` production, the curReifier is taken from the `reifier` t
 
 #### 7.3.2 Reified Triples
 
-Beginning the `reifiedTriple` production records the curTripleTerm. A new `tripleTerm` instance curTripleTerm is created using the `rtSubject`, `verb`, and `rtObject` productions. Finishing the `reifiedTriple` production, if the curReifier is not set, it is assigned a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node); it next yields the RDF triple curReifier `rdf:reifies` curTripleTerm, and then restores the recorded value of the curTripleTerm. The node produced by matching `reifiedTriple` is the the curReifier.
+Beginning the `reifiedTriple` production records the curTripleTerm. A new `tripleTerm` instance curTripleTerm is created using the `rtSubject`, `verb`, and `rtObject` productions. Finishing the `reifiedTriple` production, if the curReifier is not set, it is assigned a fresh RDF [blank node](https://www.w3.org/TR/rdf12-concepts/#dfn-blank-node); it next yields the RDF triple curReifier `rdf:reifies` curTripleTerm, and then restores the recorded value of the curTripleTerm. The node produced by matching `reifiedTriple` is the curReifier.
 
 #### 7.3.3 Annotations
 
@@ -1310,6 +1316,10 @@ Example 43: Example of parsing Turtle
   * Emit an RDF triple: `<...rdf#ericP>` `<.../knows>` `<http://getopenid.com/amyvdh>` .
 
 
+
+### 7.5 Non-conformant Documents
+
+If the target of a parsing process does not conform to the grammar specified in 6\. Turtle Grammar, the result is not defined by this specification. Error detection, reporting, and recovery are left to implementors, because the appropriate behavior depends on the application interfaces and protocols within which the parser is used. 
 
 ## A. Embedding Turtle in HTML documents
 
@@ -1472,7 +1482,7 @@ The document was improved through the review process by the wider community.
 
  _This section is non-normative._
 
-In addition to the editors, the following people have contributed to this specification: Andrew Louis, Denis Ah-Kang, Gregory Todd Williams, John Walker, Mirek Kratochvil, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, Thomas Tanon, and William Van Woensel
+In addition to the editors, the following people have contributed to this specification: Andrew Louis, Denis Ah-Kang, Gregory Todd Williams, james anderson, John Walker, Mirek Kratochvil, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, Thomas Tanon, William Van Woensel, and 金东勋 | 金東勳 | 김동훈 | Jin Dongxun
 
 Members of the RDF & SPARQL Working Group included the following:   
 James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
@@ -1617,21 +1627,21 @@ More specifically, the following changes have been made:
 [RDF12-INTEROP]
      [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [RDF12-N-TRIPLES]
-     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
 [RDF12-NEW]
      [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
 [RDF12-PRIMER]
-     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 16 April 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
+     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 17 September 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
 [RDF12-SCHEMA]
-     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
+     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
 [RDF12-SEMANTICS]
-     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
+     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-TRIG]
-     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
 [RDF12-XML]
-     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 18 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
+     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
 [RFC3023]
      [XML Media Types](https://www.rfc-editor.org/info/rfc3023/). M. Murata; S. St. Laurent; D. Kohn. IETF. January 2001. Proposed Standard. URL: <https://www.rfc-editor.org/info/rfc3023/>
 [RFC4288]
@@ -1645,23 +1655,23 @@ More specifically, the following changes have been made:
 [SPARQL12-FEDERATED-QUERY]
      [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
 [SPARQL12-GRAPH-STORE-PROTOCOL]
-     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 24 September 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-PROTOCOL]
      [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 20 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 1 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
      [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
-     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 29 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 [SPARQL12-UPDATE]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [TURTLE]
      [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/). Eric Prud'hommeaux; Gavin Carothers. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/turtle/>
 [UNICODE-SECURITY]

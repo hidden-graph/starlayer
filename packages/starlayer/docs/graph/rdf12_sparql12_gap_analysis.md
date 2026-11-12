@@ -1,20 +1,24 @@
 # RDF 1.2 / SPARQL 1.2 Spec vs. Implementation — Conformance Status
 
-**Last reviewed:** 2026-09-20, against the W3C documents below. This is a snapshot conformance checklist, not a changelog — for fix-by-fix history see `CHANGELOG.md`; for the ongoing re-verification process as the spec moves toward a final Recommendation, see `docs/future_enhancements.md`'s "Keeping in step" section. RDF 1.2 is still Candidate Recommendation stage, so section numbers below can drift — re-verify before citing them externally.
+**Last reviewed:** 2026-11-11, against the W3C documents below (the checklist rows themselves date from 2026-09-20 and describe the older rdflib-based class: see `starlayer/graph/CLAUDE.md`). This is a snapshot conformance checklist, not a changelog — for fix-by-fix history see `CHANGELOG.md`; for the ongoing re-verification process as the spec moves toward a final Recommendation, see `docs/future_enhancements.md`'s "Keeping in step" section. RDF 1.2 is still Candidate Recommendation stage, so section numbers below can drift — re-verify before citing them externally.
 
 2026-09-20 re-verification: refreshed all seven snapshots and diffed against the 2026-07-17 versions. RDF 1.2 Concepts and RDF 1.2 Schema were unchanged; SPARQL 1.2 Update was unchanged. RDF 1.2 Turtle/N-Triples/XML and SPARQL 1.2 Query all moved, but every change found was editorial or formal-semantics precision (URL formatting, blank-node handling formalized as an explicit algebra translation step, `DISTINCT` made an explicit `Aggregation` parameter, string-function Unicode/NULL-character edge cases, anonymous-reifier wording tightened to match this project's own fresh-BNode behavior) — no new user-facing syntax or functions. The one substantive update below is the WHERE-clause reification-shorthand row, upgraded from "likely match" to a confirmed match now that the grammar section (previously truncated in the fetch) is complete.
 
+2026-11-11 re-verification: refreshed the snapshots (adding N-Quads and TriG, which now have their own drafts) and diffed against the 2026-07-17 versions. New since then: RDF Concepts requires the textual base direction to be lowercase (already so: Oxigraph's parser and `DirLangString` both reject `LTR`) and gains an appendix on version announcement and content negotiation (its first downgrade option, eliminating triple terms by the basic encoding, is what `serialize(rdf_version="1.1")` does; the other options were not compared); N-Triples replaced "processors MUST signal input errors" by "the result of parsing a non-conformant document is undefined" and requires a future version to announce itself with `VERSION`; Schema made the `rdf:HTML`, `rdf:XMLLiteral` and `rdf:JSON` sections normative; SPARQL Query only renamed algebra terms and moved the nested-triple-pattern and version sections (the 194 grammar productions are unchanged since 2026-10-25); SPARQL Update added triple-term examples. No code change was needed. See `docs/working/spec-delta-2026-11-11.md`.
+
 | Document | Status fetched | Date |
 |---|---|---|
-| RDF 1.2 Concepts and Abstract Syntax | Candidate Recommendation Snapshot | 2026-04-07 |
-| RDF 1.2 Schema | Working Draft | 2026-03-28 |
-| RDF 1.2 Turtle | Working Draft | 2026-09-14 |
-| RDF 1.2 N-Triples | Working Draft | 2026-07-23 |
-| RDF 1.2 XML Syntax | Working Draft | 2026-09-14 |
-| SPARQL 1.2 Query | Working Draft | 2026-09-13 |
-| SPARQL 1.2 Update | Working Draft | 2026-06-12 |
+| RDF 1.2 Concepts and Abstract Syntax | Candidate Recommendation Draft | 2026-11-11 |
+| RDF 1.2 Schema | Working Draft | 2026-10-23 |
+| RDF 1.2 Turtle | Working Draft | 2026-11-11 |
+| RDF 1.2 N-Triples | Working Draft | 2026-11-05 |
+| RDF 1.2 N-Quads | Working Draft | 2026-11-05 |
+| RDF 1.2 TriG | Working Draft | 2026-11-05 |
+| RDF 1.2 XML Syntax | Working Draft | 2026-10-25 |
+| SPARQL 1.2 Query | Working Draft | 2026-11-01 |
+| SPARQL 1.2 Update | Working Draft | 2026-10-25 |
 
-Plain-text snapshots of all seven documents as of the dates above are saved in `packages/starlayer/tests/graph/vendor/spec_snapshots/` — re-run `packages/starlayer/tests/graph/vendor/spec_snapshots/refresh_snapshots.py` and `git diff` it to see exactly what changed in the spec text since this review, rather than re-reading each document from scratch.
+Plain-text snapshots of all nine documents as of the dates above are saved in `packages/starlayer/tests/graph/vendor/spec_snapshots/` — re-run `packages/starlayer/tests/graph/vendor/spec_snapshots/refresh_snapshots.py` and `git diff` it to see exactly what changed in the spec text since this review, rather than re-reading each document from scratch.
 
 No RDF 1.2 companion spec exists yet for JSON-LD or TriX — see §6, the one open item in this review.
 

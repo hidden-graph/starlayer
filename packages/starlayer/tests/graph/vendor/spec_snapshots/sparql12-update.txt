@@ -1,22 +1,22 @@
 SPARQL 1.2 Update
 Snapshot source: https://www.w3.org/TR/sparql12-update/
-Status at fetch time: W3C Working Draft 12 June 2026
-Published: 2026-06-12
+Status at fetch time: W3C Working Draft 25 October 2026
+Published: 2026-10-25
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
-See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
+See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
 ======================================================================
 
 [![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)
 
 # SPARQL 1.2 Update
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 12 June 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 25 October 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-sparql12-update-20260612/>
+     <https://www.w3.org/TR/2026/WD-sparql12-update-20261025/>
 Latest published version:
      <https://www.w3.org/TR/sparql12-update/>
 Latest editor's draft:
@@ -58,7 +58,7 @@ This document was published by the [RDF & SPARQL Working Group](https://www.w3.o
 
 Publication as a Working Draft does not imply endorsement by W3C and its Members. 
 
-This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming Recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
+This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
 
 This document was produced by a group operating under the [W3C Patent Policy](https://www.w3.org/policies/patent-policy/). W3C maintains a [public list of any patent disclosures](https://www.w3.org/groups/wg/rdf-star/ipr) made in connection with the deliverables of the group; that page also includes instructions for disclosing a patent. An individual who has actual knowledge of a patent that the individual believes contains [Essential Claim(s)](https://www.w3.org/policies/patent-policy/#def-essential) must disclose the information in accordance with [section 6 of the W3C Patent Policy](https://www.w3.org/policies/patent-policy/#sec-Disclosure). 
 
@@ -382,38 +382,62 @@ Data after:
     <http://example/book1> dc:title "Fundamentals of Compiler Design" .
     <http://example/book1> ns:price 42 .
 
-**Example 3: Adding a reifying triple**
+**Example 3: Adding a triple containing a triple term**
 
-When inserting triples containing [reifying triples](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple), these reifying triples are not automatically inserted as [asserted triples](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple). In other words, when executing the `INSERT DATA` operation below, the default graph will _not_ contain the triple `:bob :age 23`. 
+Inserting a triple containing a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) does not automatically assert the triple represented by that term. In other words, when executing the `INSERT DATA` operation below, the default graph will _not_ contain the triple `:bob :age 23`. 
+    
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX : <http://www.example.org/>
+    INSERT DATA {
+        [] :claimedBy :alice ;
+            rdf:reifies <<( :bob :age 23 )>> .
+    }
+
+The same example can also be written using the [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) syntax:
     
     
     PREFIX : <http://www.example.org/>
-    INSERT DATA
-    { :alice :claims << :bob :age 23 >> . }
+    INSERT DATA {
+        << :bob :age 23 >> :claimedBy :alice .
+    }
 
 Data before is the empty graph.
 
 Data after:
     
     
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     PREFIX : <http://www.example.org/>
-    :alice :claims << :bob :age 23 >> .
+    [] :claimedBy :alice ;
+       rdf:reifies <<( :bob :age 23 )>> .
 
-If a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) is to be present as an [asserted triple](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple), then it needs to be explicitly inserted, through an operation like the following `INSERT DATA`.
+To also assert the triple represented by the [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), explicitly insert that triple, as shown in the following `INSERT DATA` operation.
+    
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX : <http://www.example.org/>
+    INSERT DATA {
+        [] :claimedBy :alice ;
+            rdf:reifies <<( :bob :age 23 )>> .
+        :bob :age 23 .
+    }
+
+The same example can also be written using the [annotation syntax](https://www.w3.org/TR/sparql12-query/#dfn-annotation-syntax):
     
     
     PREFIX : <http://www.example.org/>
-    INSERT DATA
-    {
-      :alice :claims << :bob :age 23 >>.
-      :bob :age 23.
+    INSERT DATA {
+        :bob :age 23 {| :claimedBy :alice |} .
     }
 
 Data after:
     
     
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     PREFIX : <http://www.example.org/>
-    :alice :claims << :bob :age 23 >> .
+    [] :claimedBy :alice ;
+        rdf:reifies <<( :bob :age 23 )>> .
     :bob :age 23 .
 
 #### 3.1.2 DELETE DATA
@@ -489,22 +513,34 @@ Data after:
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     <http://example/book1> dc:title "Fundamentals of Compiler Design" .
 
-**Example 6: Removing a reifying triple**
+**Example 6: Removing a triple containing a triple term**
 
-When deleting triples containing [reifying triples](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple), these reifying triples are not automatically deleted as [asserted triples](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple). In other words, when executing the `DELETE DATA` operation below, the default graph will still contain the triple `:bob :age 23` if it was previously present as an [asserted triple](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple). 
+Deleting a triple containing a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) does not automatically delete the [asserted triple](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple) represented by that term. In other words, when executing the `DELETE DATA` operation below, the default graph will still contain the triple `:bob :age 23` if it was previously present as an [asserted triple](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple). 
+    
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX : <http://www.example.org/>
+    DELETE DATA {
+        :claim1 :claimedBy :alice ;
+            rdf:reifies <<( :bob :age 23 )>> .
+    }
+
+The same example can also be written using the [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) syntax:
     
     
     PREFIX : <http://www.example.org/>
-    DELETE DATA
-    {
-      :alice :claims << :bob :age 23 >>.
+    DELETE DATA {
+        << :bob :age 23 ~ :claim1 >> :claimedBy :alice .
     }
 
 Data before:
     
     
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     PREFIX : <http://www.example.org/>
-    :alice :claims << :bob :age 23 >> .
+    
+    :claim1 :claimedBy :alice ;
+        rdf:reifies <<( :bob :age 23 )>> .
     :bob :age 23 .
 
 Data after:
@@ -513,7 +549,7 @@ Data after:
     PREFIX : <http://www.example.org/>
     :bob :age 23 .
 
-In contrast, deleting an [asserted triple](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple) with the request shown below would _not_ delete any triple containing this triple as a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple).
+In contrast, deleting an [asserted triple](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple) with the request shown below would _not_ delete any triple containing this triple as a [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term).
     
     
     PREFIX : <http://www.example.org/>
@@ -521,6 +557,10 @@ In contrast, deleting an [asserted triple](https://www.w3.org/TR/rdf12-concepts/
     {
       :bob :age 23 .
     }
+
+Note
+
+Blank nodes are not allowed in `DELETE DATA`. Consequently, `DELETE DATA` cannot delete a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) whose subject is a blank node. Use `DELETE WHERE` or `DELETE/INSERT` with a variable bound to the blank node instead. 
 
 #### 3.1.3 DELETE/INSERT
 
@@ -617,16 +657,30 @@ Data after:
     <http://example/president42> foaf:givenName "William" .
     <http://example/president42> foaf:familyName "Clinton" .
 
-**Example 8: Updating reifying triples**
+**Example 8: Updating triples containing triple terms**
 
-Just like with the `INSERT DATA` and `DELETE DATA` operations, inserting or deleting triples containing [reifying triples](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) does not automatically impact [asserted triples](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple). It is still possible to impact such triples by explicitly asserting them, as shown below. 
+As with `INSERT DATA` and `DELETE DATA`, inserting or deleting triples containing [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) does not automatically insert or delete the [asserted triples](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple) they represent. The following operation changes the claim's attribution from Alice to Carol and explicitly inserts the represented triple. 
+    
+    
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX :  <http://www.example.org/>
+    
+    DELETE { ?claim rdf:reifies <<( ?s ?p ?o )>> ; ?pp :alice . }
+    INSERT { ?claim rdf:reifies <<( ?s ?p ?o )>> ; ?pp :carol . ?s ?p ?o . }
+    WHERE { ?claim rdf:reifies <<( ?s ?p ?o )>> ; ?pp :alice . }
+
+The same example can also be written using shorter notations:
     
     
     PREFIX :  <http://www.example.org/>
     
-    DELETE { :alice ?pp << ?s ?p ?o >> . }
-    INSERT { :carol ?pp << ?s ?p ?o >> .  ?s ?p ?o .}
-    WHERE {  :alice ?pp << ?s ?p ?o >> . }
+    DELETE { << ?s ?p ?o ~ ?claim >> ?pp :alice }
+    INSERT { ?s ?p ?o ~ ?claim {| ?pp :carol |} }
+    WHERE { << ?s ?p ?o ~ ?claim >> ?pp :alice }
+
+Note
+
+The `WHERE` clause binds the reifier to `?claim`, which is then used in the `DELETE` and `INSERT` templates. Specifying `?claim` explicitly avoids an implicit blank node in the `DELETE` template, where blank-node syntax is forbidden. 
 
 ##### 3.1.3.1 DELETE (Informative)
     
@@ -1636,7 +1690,7 @@ Encoding considerations:
     The syntax of the SPARQL Update Language is expressed over code points in Unicode [UNICODE]. The encoding is always UTF-8 [RFC3629].
     Unicode code points may also be expressed using an \uXXXX (U+0 to U+FFFF) or \UXXXXXXXX syntax (for U+10000 onwards) where X is a hexadecimal digit [0-9A-F]
 Security considerations:
-    See SPARQL Update appendix A, Security Considerations as well as [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/rfc/rfc3629) [RFC3629] section 7, Security Considerations.
+    See SPARQL Update appendix A, Security Considerations as well as [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/info/rfc3629/) [RFC3629] section 7, Security Considerations.
 Interoperability considerations:
     There are no known interoperability issues.
 Published specification:
@@ -1650,14 +1704,14 @@ File extension(s):
     ".ru"
 Base IRI:
     The SPARQL 'BASE <IRIref>' term can change the current base IRI for relative IRIrefs in the query language that are used sequentially later in the document.
-Person & email address to contact for further information:
-    public-rdf-dawg-comments@w3.org
+Contact for further information:
+    RDF & SPARQL Working Group <public-rdf-star-wg@w3.org>
 Intended usage:
     COMMON
 Restrictions on usage:
     None
 Author/Change controller:
-    The SPARQL 1.2 specification is a work product of the World Wide Web Consortium's RDF-star Working Group. The W3C has change control over these specifications.
+    The SPARQL 1.2 specification is a work product of the World Wide Web Consortium's RDF and SPARQL Working Group. The W3C has change control over these specifications.
 
 ## 8\. SPARQL 1.2 Update Grammar
 
@@ -1668,7 +1722,7 @@ The formal definition for the SPARQL 1.2 Update grammar is provided with the [SP
  _This section is non-normative._
 
   * Use Media Type language instead of MIME Type in 7\. Internet Media Type and File Extension
-  * Add reifying triples examples in 3.1.1 INSERT DATA, 3.1.2 DELETE DATA, and 3.1.3.1 DELETE (Informative)
+  * Add examples using triple terms in 3.1.1 INSERT DATA, 3.1.2 DELETE DATA, and 3.1.3 DELETE/INSERT
   * Use PREFIX instead of @prefix in all Turtle examples
   * Revise `LOAD` description and definition for handling RDF documents which contain a dataset
 
@@ -1696,10 +1750,11 @@ TODO
 ### E.2 Terms defined by reference
 
   * [RDF12-CONCEPTS] defines the following: 
-    * asserted triples
+    * asserted triple
     * RDF Dataset
     * RDF Graph
-    * reifying triples
+    * reifying triple
+    * triple term
     * valid RDF triples
   * [RDF12-SEMANTICS] defines the following: 
     * merged
@@ -1707,6 +1762,7 @@ TODO
   * [SPARQL12-FEDERATED-QUERY] defines the following: 
     * SERVICE
   * [SPARQL12-QUERY] defines the following: 
+    * annotation syntax
     * ConstructTriples
     * DeleteClause
     * eval
@@ -1740,23 +1796,23 @@ TODO
 [RDF12-CONCEPTS]
      [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RDF12-SEMANTICS]
-     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
+     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RFC2119]
-     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/rfc/rfc2119). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc2119>
+     [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/info/rfc2119/). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc2119/>
 [RFC3629]
-     [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/rfc/rfc3629). F. Yergeau. IETF. November 2003. Internet Standard. URL: <https://www.rfc-editor.org/rfc/rfc3629>
+     [UTF-8, a transformation format of ISO 10646](https://www.rfc-editor.org/info/rfc3629/). F. Yergeau. IETF. November 2003. Internet Standard. URL: <https://www.rfc-editor.org/info/rfc3629/>
 [RFC8174]
-     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/rfc/rfc8174). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/rfc/rfc8174>
+     [Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words](https://www.rfc-editor.org/info/rfc8174/). B. Leiba. IETF. May 2017. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc8174/>
 [SPARQL12-ENTAILMENT]
      [SPARQL 1.2 Entailment Regimes](https://www.w3.org/TR/sparql12-entailment/). Peter Patel-Schneider. W3C. 9 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-entailment/>
 [SPARQL12-FEDERATED-QUERY]
      [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
 [SPARQL12-GRAPH-STORE-PROTOCOL]
-     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 24 September 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
 [SPARQL12-PROTOCOL]
-     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 26 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 11 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [UNICODE]
      [The Unicode Standard](https://www.unicode.org/versions/latest/). Unicode Consortium. URL: <https://www.unicode.org/versions/latest/>
 
@@ -1765,15 +1821,15 @@ TODO
 [JSON-LD11]
      [JSON-LD 1.1](https://www.w3.org/TR/json-ld11/). Gregg Kellogg; Pierre-Antoine Champin; Dave Longley. W3C. 16 July 2020. W3C Recommendation. URL: <https://www.w3.org/TR/json-ld11/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 28 May 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [SPARQL12-CONCEPTS]
      [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
-     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 28 March 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
+     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
@@ -1785,7 +1841,6 @@ TODO
 
 **Referenced in:**
 
-  * § 3.1.1 INSERT DATA (2)
   * § 3.1.2 DELETE DATA (2) (3)
   * § 3.1.3 DELETE/INSERT
 
@@ -1808,6 +1863,15 @@ TODO
 
 
 [Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple)
+
+**Referenced in:**
+
+  * § 3.1.1 INSERT DATA
+  * § 3.1.2 DELETE DATA (2)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term)
 
 **Referenced in:**
 
@@ -1847,6 +1911,14 @@ TODO
 **Referenced in:**
 
   * § 2.2 SPARQL 1.2 Update Services
+
+
+
+[Permalink](https://www.w3.org/TR/sparql12-query/#dfn-annotation-syntax)
+
+**Referenced in:**
+
+  * § 3.1.1 INSERT DATA
 
 
 

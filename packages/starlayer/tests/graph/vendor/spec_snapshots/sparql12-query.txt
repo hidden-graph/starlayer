@@ -1,22 +1,22 @@
 SPARQL 1.2 Query Language
 Snapshot source: https://www.w3.org/TR/sparql12-query/
-Status at fetch time: W3C Working Draft 13 September 2026
-Published: 2026-09-13
+Status at fetch time: W3C Working Draft 01 November 2026
+Published: 2026-11-01
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
-See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
+See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
 ======================================================================
 
 [![W3C](https://www.w3.org/StyleSheets/TR/2021/logos/W3C) ](https://www.w3.org/)
 
 # SPARQL 1.2 Query Language
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 13 September 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 01 November 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-sparql12-query-20260913/>
+     <https://www.w3.org/TR/2026/WD-sparql12-query-20261101/>
 Latest published version:
      <https://www.w3.org/TR/sparql12-query/>
 Latest editor's draft:
@@ -60,7 +60,7 @@ This document was published by the [RDF & SPARQL Working Group](https://www.w3.o
 
 Publication as a Working Draft does not imply endorsement by W3C and its Members. 
 
-This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming Recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
+This is a draft document and may be updated, replaced, or obsoleted by other documents at any time. It is inappropriate to cite this document as other than a work in progress. Future updates to this upcoming recommendation may incorporate [new features](https://www.w3.org/policies/process/20250818/#allow-new-features). 
 
 This document was produced by a group operating under the [W3C Patent Policy](https://www.w3.org/policies/patent-policy/). W3C maintains a [public list of any patent disclosures](https://www.w3.org/groups/wg/rdf-star/ipr) made in connection with the deliverables of the group; that page also includes instructions for disclosing a patent. An individual who has actual knowledge of a patent that the individual believes contains [Essential Claim(s)](https://www.w3.org/policies/patent-policy/#def-essential) must disclose the information in accordance with [section 6 of the W3C Patent Policy](https://www.w3.org/policies/patent-policy/#sec-Disclosure). 
 
@@ -128,8 +128,11 @@ SPARQL 1.2 Documents:
         2. 4.2.2 Object Lists
         3. 4.2.3 RDF Collections
         4. 4.2.4 rdf:type
-     3. 4.3 Version Announcement
-        1. 4.3.1 Version Labels
+     3. 4.3 Nested Triple Patterns
+        1. 4.3.1 Shorthand to Match Reifying Triples
+        2. 4.3.2 Annotation Syntax
+     4. 4.4 Version Announcement
+        1. 4.4.1 Version Labels
   7. 5\. Graph Patterns
      1. 5.1 Basic Graph Patterns
         1. 5.1.1 Blank Node Identifiers
@@ -1036,7 +1039,263 @@ is syntactic sugar for:
     _:b0  rdf:type  :appClass .
     _:b0  :p        "v" .
 
-### 4.3 Version Announcement
+### 4.3 Nested Triple Patterns
+
+Triple patterns can be nested; that is, their subject or object can be another triple pattern. Such nested triple patterns are meant to match triples that contain [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term). 
+
+To write a nested triple pattern the triple pattern that it contains must be preceded by `<<(`, and followed by `)>>`. 
+
+The example below illustrates how a triple pattern can be used in the object position of another triple pattern.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?person ?authority {
+        ?person :familyName "Smith" .
+        _:anno rdf:reifies <<( ?person :jobTitle "Designer" )>> .
+        _:anno :accordingTo ?authority .
+    }
+
+#### 4.3.1 Shorthand to Match Reifying Triples
+
+[Triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) are used as the [object](https://www.w3.org/TR/rdf12-concepts/#dfn-object) of a [triple](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple) with a [predicate](https://www.w3.org/TR/rdf12-concepts/#dfn-predicate) of `rdf:reifies`. Such a triple is called a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple). SPARQL provides a shorthand notation for writing triple patterns that are meant to match such [reifying triples](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple).
+
+Note
+
+Reification using triple terms is a concept distinct from the [Reification vocabulary](https://www.w3.org/TR/rdf12-semantics/#Reif) originally defined in [RDF Semantics](https://www.w3.org/TR/rdf-mt/#Reif). While both concepts describe a representation of an RDF triple using components, RDF 1.2 and SPARQL 1.2 have a dedicated [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term), which can be used with the `rdf:reifies` predicate. 
+
+The example below matches reifying triples.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?person ?authority {
+        ?person :familyName "Smith" .
+        << ?person :jobTitle "Designer" >> :accordingTo ?authority .
+    }
+
+The syntactic sugar of the example above expands to the following query, in which `_:id` represents a fresh blank node that is not used anywhere else in the query (and every such expansion has to use a different fresh blank node).
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?person ?authority {
+        ?person :familyName "Smith" .
+        _:id rdf:reifies <<( ?person :jobTitle "Designer" )>> .
+        _:id :accordingTo ?authority .
+    }
+
+The shorthand notation for matching reifying triples also allows the [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) of these reifying triples to be matched. This is done by placing an IRI, a variable, or a blank node after a tilde (`~`), as demonstrated by the following query. 
+
+The example below matches reifying triples with a variable to match the reifier.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?person ?authority ?id {
+        ?person :familyName "Smith" .
+        << ?person :jobTitle "Designer" ~ ?id >> :accordingTo ?authority .
+    }
+
+The syntactic sugar of the example above expands to the following query:
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    
+    SELECT ?person ?authority ?id {
+        ?person :familyName "Smith" .
+        ?id rdf:reifies <<( ?person :jobTitle "Designer" )>> .
+        ?id :accordingTo ?authority .
+    }
+
+Note
+
+The grammar production for this shorthand notation, `ReifiedTriple`, permits nesting. For instance, it is possible to write   
+`<< ?subject1 :predicate1 << :subject2 :predicate2 :object2 >> ~ :IRIREF1 >>`  
+and   
+`<< :subject4 :predicate4 << :subject3 :predicate3 ?object3 ~ :IRIREF3 >> >>`  
+in which cases the expansion is applied recursively. 
+
+Note
+
+Note the subtle difference in syntax between the syntactic sugar of the `ReifiedTriple` rule (i.e., `<< ... >>`) and the regular `TripleTerm` rule (i.e., `<<( ... )>>`).
+
+#### 4.3.2 Annotation Syntax
+
+SPARQL also defines the so-called annotation syntax, which is a shorthand notation for matching the combination of a [reifying triple](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple) together with both an [asserted triple](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple) that corresponds to the [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) of the reifying triple and further triples that have the [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) of the reifying triple as their [subject](https://www.w3.org/TR/rdf12-concepts/#dfn-subject). 
+
+The following query is an example in which the annotation syntax is used for a triple pattern. 
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority {
+        ?person :name "Alice" {| :statedBy ?authority ; :recorded "2021-07-07"^^xsd:date |} .
+    }
+
+The annotation syntax used in the previous query expands as illustrated in the following query.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority {
+        ?person :name "Alice" .
+        << ?person :name "Alice" >> :statedBy ?authority ;
+                                    :recorded "2021-07-07"^^xsd:date .
+    }
+
+This query expands further as per Section 4.3.1 Shorthand to Match Reifying Triples, resulting in the following query.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority {
+        ?person :name "Alice" .
+        _:id rdf:reifies <<( ?person :name "Alice" )>> ;
+             :statedBy ?authority ;
+             :recorded "2021-07-07"^^xsd:date .
+    }
+
+As in the shorthand notation for matching of reified triples (Section 4.3.1 Shorthand to Match Reifying Triples), the annotation syntax can also refer explicitly to the corresponding [reifier](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) — written as either a variable, a blank node, or an IRI, preceded by a tilde (`~`) — to identify the [triple term](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) being reified. The following query illustrates this use of the annotation syntax. 
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority {
+        ?person :name "Alice" ~ :t {| :statedBy ?authority ;
+                                      :recorded "2021-07-07"^^xsd:date |}
+    }
+
+The syntactic sugar of the annotation syntax in the example above expands to the following query:
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority {
+        ?person :name "Alice" .
+        << ?person :name "Alice" ~ :t >> :statedBy ?authority ;
+                                         :recorded "2021-07-07"^^xsd:date .
+    }
+
+If we fully expand this query to not use the shorthand for matching reifying triples, the query is expanded to the following:
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority {
+        ?person :name "Alice" .
+        :t rdf:reifies <<( ?person :name "Alice" )>> .
+        :t :statedBy ?authority .
+        :t :recorded "2021-07-07"^^xsd:date .
+    }
+
+The annotation syntax can be used with multiple separate annotation blocks. For each such block that is not immediately preceded by the tilde-based construct for matching the corresponding reifier, a separate fresh blank node is allocated when expanding this shorthand notation. The following example query illustrates such a case.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority1 ?authority2 {
+        ?person :name "Alice" 
+          {| :statedBy ?authority1 ; :recorded "2021-02-01"^^xsd:date |}
+          {| :statedBy ?authority2 ; :recorded "2021-07-07"^^xsd:date |} .
+    }
+
+The query above will be fully expanded to the query below, where `_:b0` and `_:b1` stand for fresh blank nodes.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority1 ?authority2 {
+        ?person :name "Alice" .
+    
+        _:b0 rdf:reifies <<( ?person :name "Alice" )>> .
+        _:b0 :statedBy ?authority1 .
+        _:b0 :recorded "2021-02-01"^^xsd:date .
+    
+        _:b1 rdf:reifies <<( ?person :name "Alice" )>> .
+        _:b1 :statedBy ?authority2 .
+        _:b1 :recorded "2021-07-07"^^xsd:date .
+    }
+
+The annotation syntax may also contain multiple references to [reifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) without annotation blocks, as shown in the example below. Each such a tilde-based construct causes a corresponding reifying triple to be matched.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person {
+        ?person :name "Alice" ~ :stmt1 ~ :stmt2 .
+    }
+
+The query above will be fully expanded to the query below.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person {
+        ?person :name "Alice" .
+        :stmt1 rdf:reifies <<( ?person :name "Alice" )>> .
+        :stmt2 rdf:reifies <<( ?person :name "Alice" )>> .
+    }
+
+The annotation syntax could also contain multiple references to [reifiers](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier) with annotation blocks, as shown in the example below.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority1 ?authority2 {
+        ?person :name "Alice"
+          ~ :stmt1 {| :statedBy ?authority1 |}
+          ~ :stmt2 {| :statedBy ?authority2 |} .
+    }
+
+The query above will be fully expanded to the query below.
+    
+    
+    VERSION "1.2"
+    PREFIX : <http://example/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+    
+    SELECT ?person ?authority1 ?authority2 {
+        ?person :name "Alice" .
+        :stmt1 rdf:reifies <<( ?person :name "Alice" )>> .
+        :stmt1 :statedBy ?authority1 .
+        :stmt2 rdf:reifies <<( ?person :name "Alice" )>> .
+        :stmt2 :statedBy ?authority2 .
+    }
+
+### 4.4 Version Announcement
 
 To cope with the language evolution of SPARQL, the `VERSION` directive can be used. When writing SPARQL queries with new features such as [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) or functions on triple terms, authors _MAY_ announce the use of the new syntax forms by including this directive followed by a version label indicating the version required to process the included features. 
 
@@ -1056,7 +1315,7 @@ Version labels are defined in the following section. Processors may treat unreco
 
 The [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/) also provides a [version announcement](https://www.w3.org/TR/sparql12-protocol/#section-version-announcement) using the `version` parameter of the Media Type. This is considered if there is no `VERSION` directive. 
 
-#### 4.3.1 Version Labels
+#### 4.4.1 Version Labels
 
 A SPARQL version label is a string that identifies the syntax and semantics conformance for the SPARQL query. 
 
@@ -2654,7 +2913,7 @@ Modifiers are applied in the order given by the list above.
 
 The `ORDER BY` clause establishes the order of a solution sequence.
 
-Following the `ORDER BY` clause is a sequence of order comparators, composed of an expression and an optional order modifier (either `ASC()` or `DESC()`). Each ordering comparator is either ascending (indicated by the `ASC()` modifier or by no modifier) or descending (indicated by the `DESC()` modifier).
+The clause consists of the `ORDER BY` keyword, followed by a sequence of one or more order comparators, where every such order comparator is composed of an expression and an optional order modifier (either `ASC()` or `DESC()`). Each order comparator is either ascending (indicated by the `ASC()` modifier or by no modifier) or descending (indicated by the `DESC()` modifier).
     
     
     PREFIX foaf:    <http://xmlns.com/foaf/0.1/>
@@ -3362,6 +3621,7 @@ SPARQL provides a subset of the functions and operators defined by [XPath and XQ
   * A logical-or that encounters an error on only one branch will return TRUE if the other branch is TRUE and an error if the other branch is FALSE. 
   * A logical-and that encounters an error on only one branch will return an error if the other branch is TRUE and FALSE if the other branch is FALSE. 
   * A logical-or or logical-and that encounters errors on both branches will produce _either_ of the errors. 
+  * If the SPARQL expression is a variable and the solution mapping with respect to which the expression is evaluated contains that variable, then the result of this evaluation is the RDF term that the solution mapping assigns to that variable. If the SPARQL expression is a variable that the solution mapping does not contain, then the result of evaluating the expression is an error. 
 
 
 
@@ -5115,12 +5375,7 @@ Do we really need both of the previous two points?
 Group and Aggregation should not be independent operators but, instead, should be integrated into the definition of AggregateJoin.
 
   * AggregateJoin(A1, ..., An) is an algebraic query expression if A1, ..., An is a non-empty sequence of algebraic query expressions (i.e., n ≥ 1) such that every expression Ai in this sequence is of the form Aggregation(exprlisti, funci, distincti, scalarvalsi, grpi) that is captured by the previous point.
-  * OrderBy(A, condition) is an algebraic query expression if A is an algebraic query expression and condition is an ordering condition. 
-
-[Issue 229](https://github.com/w3c/sparql-query/issues/229): Notion of "ordering condition" undefined [spec:bug](https://github.com/w3c/sparql-query/issues/?q=is%3Aissue+is%3Aopen+label%3A%22spec%3Abug%22)
-
-The term "ordering condition" should link to some definition of this notion.
-
+  * OrderBy(A, comparators) is an algebraic query expression if A is an algebraic query expression and comparators is a sequence of one or more order comparators. 
   * Project(A, PV) is an algebraic query expression if A is an algebraic query expression and PV is a set of variables.
   * Distinct(A) is an algebraic query expression if A is an algebraic query expression.
   * Reduced(A) is an algebraic query expression if A is an algebraic query expression.
@@ -5839,7 +6094,7 @@ The translation of property path expressions converts every property path expres
 
 Thereafter, the translation of property path patterns converts some of these algebraic property path expressions to other SPARQL graph patterns, such as converting property paths of length one to triple patterns, which in turn are combined into basic graph patterns. This leaves algebraic property path expressions with the operators Alt, ZeroOrOnePath, ZeroOrMorePath, OneOrMorePath, and NPS, as well as algebraic property path expressions contained within these operators.
 
-The property path patterns with these remaining algebraic property path expressions are present in the algebraic syntax in the form Path(X, ppe, X) for endpoints X and Y.
+The property path patterns with these remaining algebraic property path expressions are present in the algebraic syntax in the form Path(X, ppe, Y) for endpoints X and Y.
 
 **Notation**
 
@@ -5871,34 +6126,6 @@ Let iri be an IRI.
     
     
     ppeval(X, Link(iri), Y) = evaluation of basic graph pattern {X iri Y}
-
-If both X and Y are variables, this is the same as:
-    
-    
-    ppeval(X:var, Link(iri), Y:var) =
-        { (X, xn:term) (Y, yn:term) | triple (xn, iri, yn) is in the active graph }
-
-If X is a variable and Y an RDF term:
-    
-    
-    ppeval(X:var, Link(iri), Y:term) =
-        { (X, xn:term) | triple (xn, iri, Y) is in the active graph }
-
-If X is an RDF term and Y is a variable:
-    
-    
-    ppeval(X:term, Link(iri), Y:var) =
-        { (Y, yn:term) | triple (X, iri, yn) is in the active graph }
-
-If both X and Y are RDF terms:
-    
-    
-    ppeval(X:term, Link(iri), Y:term)
-        = { μ0 } if triple (X, iri, Y) is in the active graph
-        = { { } } = Ω0 
-    
-    ppeval(X:term, Link(iri), Y:term) =
-         { } if triple (X, iri, Y) is not in the active graph
 
 Informally, evaluating a Predicate Property Path is the same as executing a subquery `SELECT * { X iri Y }` at that point in the query evaluation.
 
@@ -5960,7 +6187,7 @@ Let ppe be an algebraic property path expression. Let G be the active graph.
     
     
     ppeval(X:term, ZeroOrOnePath(ppe), Y:term) = 
-        { {} } if X = Y or ppeval(X,ppe,X) is not empty
+        { {} } if X = Y or ppeval(X,ppe,Y) is not empty
         { } otherwise
     
     
@@ -6046,18 +6273,25 @@ Let ppe be an algebraic property path expression. Let G be the active graph.
         { } otherwise
 
 **Definition: Evaluation of NegatedPropertySet**
+
+Let S be a nonempty set of IRIs. Let G be the active graph.
     
     
-    Write μ' as the extension of a solution mapping:
-    μ'(μ, x) = μ(x)   if x is a variable
-    μ'(μ, t) = t      if t is an RDF term
+    ppeval(vx:var, NPS(S), vy:var) =
+         { { (vx, s), (vy, o) } |
+             ∃ an IRI p such that p ∉ S and the triple (s, p, o) is in G }
     
+    ppeval(vx:var, NPS(S), y:term) =
+         { { (vx, s) } |
+             ∃ an IRI p such that p ∉ S and the triple (s, p, y) is in G }
     
-    Let x and y be variables or RDF terms, S a set of IRIs,
-    and G the active graph.
+    ppeval(x:term, NPS(S), vy:var) =
+         { { (vy, o) } |
+             ∃ an IRI p such that p ∉ S and the triple (x, p, o) is in G }
     
-       ppeval(x, NPS(S), y) =
-           { μ | ∃ triple(μ'(μ, x), p, μ'(μ, y)) in G, such that the IRI of p ∉ S }
+    ppeval(x:term, NPS(S), y:term) =
+         { {} |
+             ∃ an IRI p such that p ∉ S and the triple (x, p, y) is in G }
 
 ### 18.6 SPARQL Algebra
 
@@ -6163,9 +6397,9 @@ multiplicity( μ | ToList(Ω) ) = multiplicity( μ | Ω )
 
 **Definition: OrderBy**
 
-Let Ψ be a sequence of solution mappings. We define:
+Let Ψ be a sequence of solution mappings, and comparators be a sequence of one or more order comparators. We define:
 
-OrderBy(Ψ, condition) = [ μ | μ in Ψ and the sequence satisfies the ordering condition]
+OrderBy(Ψ, comparators) = a sequence of all solution mappings in Ψ such that this sequence satisfies comparators
 
 multiplicity( μ | OrderBy(Ψ, condition) ) = multiplicity( μ | Ψ )
 
@@ -6603,7 +6837,7 @@ eval( D(G), Project(A, vars), μctx ) = Project( eval(D(G), A, μctx), vars )
 
 **Definition: Evaluation of OrderBy**
 
-eval( D(G), OrderBy(A, condition), μctx ) = OrderBy( eval(D(G), A, μctx), condition ) 
+eval( D(G), OrderBy(A, comparators), μctx ) = OrderBy( eval(D(G), A, μctx), comparators ) 
 
 **Definition: Evaluation of ToMultiSet**
 
@@ -6686,7 +6920,7 @@ A SPARQL query string is a SPARQL string that conforms to the grammar starting a
 
 A SPARQL update string is a SPARQL string that conforms to the grammar starting at the UpdateUnit production. 
 
-For compatibility with future versions of Unicode, the characters in this string may include Unicode codepoints that are unassigned as of the date of this publication (see [Unicode Identifiers and Syntax](https://www.unicode.org/reports/tr31/tr31-43.html) [UAX31] section 4 Pattern Syntax). For productions with excluded character classes (for example `[^<>'{}|^`]`), the characters are excluded from the range `#x0 - #x10FFFF`. 
+For compatibility with future versions of Unicode, the characters in this string may include Unicode codepoints that are unassigned as of the date of this publication (see [Unicode Identifiers and Syntax](https://www.unicode.org/reports/tr31/tr31-45.html) [UAX31] section 4 Pattern Syntax). For productions with excluded character classes (for example `[^<>'{}|^`]`), the characters are excluded from the range `#x0 - #x10FFFF`. 
 
 ### 19.2 Escape Sequences
 
@@ -7156,21 +7390,21 @@ File extension(s):
     ".rq"
 Base URI:
     The SPARQL 'BASE <IRIref>' term can change the current base URI for relative IRIrefs in the query language that are used sequentially later in the document.
-Person & email address to contact for further information:
-    public-rdf-dawg-comments@w3.org
+Contact for further information:
+    RDF & SPARQL Working Group <public-rdf-star-wg@w3.org>
 Intended usage:
     COMMON
 Restrictions on usage:
     None
 Author/Change controller:
-    The SPARQL 1.2 specification is a work product of the World Wide Web Consortium's RDF-star Working Group. The W3C has change control over these specifications.
+    The SPARQL 1.2 specification is a work product of the World Wide Web Consortium's RDF and SPARQL Working Group. The W3C has change control over these specifications.
 
 ## A. Changes between SPARQL 1.1 Query Language and SPARQL 1.2 Query Language
 
  _This section is non-normative._
 
   * Normative changes: 
-    * Update grammar for triple terms, reifiers, reified triples, annotation syntax, and triple term functions in 19.7 Grammar.
+    * Update grammar for triple terms, reifiers, reified triples, annotation syntax, and triple term functions in 19.7 Grammar and explain them in 4.3 Nested Triple Patterns and 4.3.1 Shorthand to Match Reifying Triples.
     * Add functions related to [triple terms](https://www.w3.org/TR/rdf12-concepts/#dfn-triple-term) to 17.4.6 Functions on Triple Terms: `TRIPLE`, `isTRIPLE`, `SUBJECT`, `PREDICATE`, `OBJECT`.
     * Update grammar for literal [base direction](https://www.w3.org/TR/rdf12-concepts/#dfn-base-direction) syntax.
     * Update grammar for `VERSION` declaration and a new section to describe its use.
@@ -7259,16 +7493,18 @@ TODO
 
 ### E.1 Terms defined by this specification
 
+  * annotation syntax §4.3.2
   * argument compatible §17.4.3
   * Effective boolean value §17.2.3
   * error §17.2.2
   * numeric escape sequence §19.2
+  * order comparator §15.1
   * reserved character escape sequence §19.2
   * SPARQL Query §18.1.8
   * SPARQL query string §19.1
   * SPARQL string §19.1
   * SPARQL update string §19.1
-  * SPARQL version label §4.3.1
+  * SPARQL version label §4.4.1
   * string escape sequence §19.2
   * string literal §17.4.3
 
@@ -7285,7 +7521,10 @@ TODO
   * [RDF-CONCEPTS] defines the following: 
     * RDF term
     * RDF triple
+  * [RDF-MT] defines the following: 
+    * RDF Semantics
   * [RDF12-CONCEPTS] defines the following: 
+    * asserted triple
     * base direction
     * blank node
     * blank node identifier
@@ -7309,18 +7548,21 @@ TODO
     * RDF strings
     * RDF term
     * RDF terms
-    * RDF triple
+    * reifier
+    * reifying triple
     * same as IRIs
     * same RDF term
     * simple literal
     * subject
     * the version labels defined by RDF
+    * triple
     * triple term
   * [RDF12-SEMANTICS] defines the following: 
     * merging
     * RDF collections
     * RDF interpolation lemma
     * RDF merge
+    * Reification vocabulary
   * [RDF12-TURTLE] defines the following: 
     * escape sequences in Turtle
   * [RDF12-XML] defines the following: 
@@ -7445,9 +7687,9 @@ TODO
 [RDF12-CONCEPTS]
      [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RDF12-SEMANTICS]
-     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Enrico Franconi; Dörthe Arndt. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-semantics/>
+     [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-XML]
-     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 18 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
+     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
 [RFC2119]
      [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/info/rfc2119/). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc2119/>
 [RFC3629]
@@ -7481,13 +7723,13 @@ TODO
 [SPARQL12-PROTOCOL]
      [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-Query]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 20 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-Update]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 12 June 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [TURTLE]
      [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/). Eric Prud'hommeaux; Gavin Carothers. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/turtle/>
 [UAX31]
-     [Unicode Identifiers and Syntax](https://www.unicode.org/reports/tr31/tr31-43.html). Mark Davis; Robin Leroy. Unicode Consortium. 20 August 2025. Unicode Standard Annex #31. URL: <https://www.unicode.org/reports/tr31/tr31-43.html>
+     [Unicode Identifiers and Syntax](https://www.unicode.org/reports/tr31/tr31-45.html). Mark Davis; Robin Leroy. Unicode Consortium. 1 September 2026. Unicode Standard Annex #31. URL: <https://www.unicode.org/reports/tr31/tr31-45.html>
 [UNICODE]
      [The Unicode Standard](https://www.unicode.org/versions/latest/). Unicode Consortium. URL: <https://www.unicode.org/versions/latest/>
 [UTR36]
@@ -7511,8 +7753,10 @@ TODO
 
 ### F.2 Informative references
 
+[RDF-MT]
+     [RDF Semantics](https://www.w3.org/TR/rdf-mt/). Patrick Hayes. W3C. 10 February 2004. W3C Recommendation. URL: <https://www.w3.org/TR/rdf-mt/>
 [RDF12-TURTLE]
-     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 12 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
 [SPARQL12-CONCEPTS]
      [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
 [SPARQL12-ENTAILMENT]
@@ -7520,25 +7764,42 @@ TODO
 [SPARQL12-FEDERATED-QUERY]
      [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
 [SPARQL12-GRAPH-STORE-PROTOCOL]
-     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 24 September 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
      [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
-     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 29 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 
 ↑
+
+Permalink
+
+**Referenced in:**
+
+  * Not referenced in this document.
+
+
 
 Permalink exported
 
 **Referenced in:**
 
   * Not referenced in this document.
+
+
+
+Permalink
+
+**Referenced in:**
+
+  * § 18.2 Algebraic Syntax
+  * § 18.6 SPARQL Algebra
 
 
 
@@ -7694,6 +7955,22 @@ Permalink
 **Referenced in:**
 
   * § 18.1.3 Triple Patterns
+
+
+
+[Permalink](https://www.w3.org/TR/rdf-mt/#Reif)
+
+**Referenced in:**
+
+  * § 4.3.1 Shorthand to Match Reifying Triples
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-asserted-triple)
+
+**Referenced in:**
+
+  * § 4.3.2 Annotation Syntax
 
 
 
@@ -7882,6 +8159,7 @@ Permalink
 
 **Referenced in:**
 
+  * § 4.3.1 Shorthand to Match Reifying Triples
   * § 17.4.2.1 sameTerm
   * § 17.4.6.4 OBJECT
 
@@ -7899,6 +8177,7 @@ Permalink
 
 **Referenced in:**
 
+  * § 4.3.1 Shorthand to Match Reifying Triples
   * § 17.4.2.1 sameTerm
   * § 17.4.6.3 PREDICATE
 
@@ -7953,11 +8232,21 @@ Permalink
 
 
 
-[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple)
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-reifier)
 
 **Referenced in:**
 
-  * § 17.4.6.1 TRIPLE
+  * § 4.3.1 Shorthand to Match Reifying Triples
+  * § 4.3.2 Annotation Syntax (2) (3) (4)
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-reifying-triple)
+
+**Referenced in:**
+
+  * § 4.3.1 Shorthand to Match Reifying Triples (2)
+  * § 4.3.2 Annotation Syntax
 
 
 
@@ -7990,6 +8279,7 @@ Permalink
 
 **Referenced in:**
 
+  * § 4.3.2 Annotation Syntax
   * § 17.4.2.1 sameTerm
   * § 17.4.6.2 SUBJECT
 
@@ -7999,7 +8289,16 @@ Permalink
 
 **Referenced in:**
 
-  * § 4.3.1 Version Labels
+  * § 4.4.1 Version Labels
+
+
+
+[Permalink](https://www.w3.org/TR/rdf12-concepts/#dfn-rdf-triple)
+
+**Referenced in:**
+
+  * § 4.3.1 Shorthand to Match Reifying Triples
+  * § 17.4.6.1 TRIPLE
 
 
 
@@ -8008,7 +8307,10 @@ Permalink
 **Referenced in:**
 
   * § 1.2.4 Terminology
-  * § 4.3 Version Announcement
+  * § 4.3 Nested Triple Patterns
+  * § 4.3.1 Shorthand to Match Reifying Triples (2)
+  * § 4.3.2 Annotation Syntax (2)
+  * § 4.4 Version Announcement
   * § 17.1 Operand Data Types
   * § 17.3 Operator Mapping (2) (3) (4) (5)
   * § 17.4.2.1 sameTerm
@@ -8056,6 +8358,14 @@ Permalink
 
 
 
+[Permalink](https://www.w3.org/TR/rdf12-semantics/#Reif)
+
+**Referenced in:**
+
+  * § 4.3.1 Shorthand to Match Reifying Triples
+
+
+
 [Permalink](https://www.w3.org/TR/rdf12-turtle/#sec-escapes)
 
 **Referenced in:**
@@ -8100,7 +8410,7 @@ Permalink
 
 **Referenced in:**
 
-  * § 4.3 Version Announcement
+  * § 4.4 Version Announcement
 
 
 

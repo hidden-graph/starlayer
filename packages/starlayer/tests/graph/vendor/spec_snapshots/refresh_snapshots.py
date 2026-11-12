@@ -1,20 +1,21 @@
 """
-tests/vendor/spec_snapshots/refresh_snapshots.py
+tests/graph/vendor/spec_snapshots/refresh_snapshots.py
 
 Re-fetches the current W3C RDF 1.2 / SPARQL 1.2 spec documents and overwrites
 the local .txt snapshots in this directory. Run this, then `git diff
-tests/vendor/spec_snapshots/` to see exactly what changed in the spec text since the
+tests/graph/vendor/spec_snapshots/` to see exactly what changed in the spec text since the
 last snapshot - the whole point of keeping these files (see README.md).
 
 Requires: pip install html2text (dev-only, not a project dependency)
 
 Run from anywhere:
-    python3 tests/vendor/spec_snapshots/refresh_snapshots.py
+    python3 tests/graph/vendor/spec_snapshots/refresh_snapshots.py
 """
 
 import os
 import re
 import subprocess
+import sys
 import urllib.request
 
 SPECS = [
@@ -22,6 +23,8 @@ SPECS = [
     ("rdf12-schema",    "RDF 1.2 Schema"),
     ("rdf12-turtle",    "RDF 1.2 Turtle"),
     ("rdf12-n-triples", "RDF 1.2 N-Triples"),
+    ("rdf12-n-quads",   "RDF 1.2 N-Quads"),
+    ("rdf12-trig",      "RDF 1.2 TriG"),
     ("rdf12-xml",       "RDF 1.2 XML Syntax"),
     ("sparql12-query",  "SPARQL 1.2 Query Language"),
     ("sparql12-update", "SPARQL 1.2 Update"),
@@ -41,7 +44,7 @@ def fetch(slug, title):
     pub_date = m2.group(1)[:10] if m2 else "unknown date"
 
     result = subprocess.run(
-        ["python3", "-m", "html2text", "--body-width=0"],
+        [sys.executable, "-m", "html2text", "--body-width=0"],
         input=html, capture_output=True, text=True, check=True,
     )
 
@@ -52,7 +55,7 @@ def fetch(slug, title):
         f"Published: {pub_date}\n"
         f"Copyright © 2004-2026 World Wide Web Consortium. Distributed under the\n"
         f"W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/\n"
-        f"See tests/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.\n"
+        f"See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.\n"
         f"{'=' * 70}\n\n"
     )
 
@@ -65,7 +68,7 @@ def fetch(slug, title):
 def main():
     for slug, title in SPECS:
         fetch(slug, title)
-    print("\nDone. Run: git diff tests/vendor/spec_snapshots/*.txt")
+    print("\nDone. Run: git diff tests/graph/vendor/spec_snapshots/*.txt")
 
 
 if __name__ == "__main__":

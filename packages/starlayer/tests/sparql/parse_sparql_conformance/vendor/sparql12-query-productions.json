@@ -1,8 +1,8 @@
 {
  "source": "https://www.w3.org/TR/sparql12-query/#sparqlGrammar",
- "document": "W3C Working Draft 25 October 2026",
- "retrieved": "2026-10-31",
- "sha256_of_html": "50d4d94a83cd12c3a0fdc1b1397367bd64333f72d2cbcc620f62e10b2913d234",
+ "document": "W3C Working Draft 01 November 2026",
+ "retrieved": "2026-11-11",
+ "sha256_of_html": "59e9ec504cd320e3e371629cb331619a9f77fc5e193e8f89c66d6b30611e2f9d",
  "productions": [
   {
    "n": 1,
