@@ -156,7 +156,16 @@ is non-monotonic, treat like negation), well-formedness rules for group variable
 examples, the coverage matrix and the baseline date mismatch. The suite has syntax tests only, no evaluation tests for `GROUP` yet,
 so write evaluation cases from the spec's examples.
 
-**Phase 5. Small items (small).** Snapshot refreshes for the RDF and SPARQL drafts (the changes are editorial; N-Quads and TriG
+**Phase 5. Small items (small). Done 2026-11-11.** The nine RDF and SPARQL snapshots were refreshed (N-Quads and TriG added; the README claim that they
+have no documents is gone; the script's paths fixed). The changes since the July snapshots need no code: RDF Concepts requires the textual base
+direction to be lowercase (already so: Oxigraph's parser and `DirLangString` reject `LTR`), adds an appendix on version announcement and content
+negotiation, and N-Triples now says the result of parsing a non-conformant document is undefined. The SPARQL Query grammar (194 productions) is
+identical to the vendored one of 2026-10-25, so "editorial only" is confirmed; its vendored record carries the new date and hash. **`rdfs14` and
+`rdfs14a` are not implemented, by decision**: they entail only that an anonymous node is an `rdfs:Proposition`, a blank node introduced by saturation
+is never returned in a solution (Entailment Regimes, section 3.1), so materializing them would add junk and answer nothing (guide 02b says so). The
+**Entailment Regimes** draft is WD 2026-04-09, unchanged since; its inconsistency rules for RDFS and D-entailment are MAY/SHOULD (raise `QueryRequestRefused` or warn), and the
+common conditions (Skolem conditions, scoping graph) describe what `query(entailment=...)` already does. I read the common conditions and the RDF and RDFS
+regimes; the OWL, RIF and datatype-recognition regimes were not compared line by line. No change found necessary. (Original scope:) Snapshot refreshes for the RDF and SPARQL drafts (the changes are editorial; N-Quads and TriG
 now have documents: fix the README claim); re-extract the SPARQL Query productions to confirm "editorial only"; decide on
 `rdfs14a` (optional, one entailment rule); read the Entailment Regimes draft (no baseline date recorded).
 
