@@ -124,12 +124,15 @@ def test_validate_each_takes_oxigraph_graphs():
     assert {k: r.conforms for k, r in results.items()} == {0: False, 1: True}
 
 
-def test_extract_subgraph_takes_oxigraph_graphs(kind):
+def test_extract_subgraph_takes_one_graph_and_refuses_a_dataset(kind):
     from starlayer.shacl import extract_subgraph
 
-    got = extract_subgraph(kind(FIXED_DATA), kind(SHAPES))
     want = extract_subgraph(_rdflib(FIXED_DATA), _rdflib(SHAPES))
-    assert len(got) == len(want) > 0
+    if kind is KINDS["StarLayerGraph"]:
+        assert len(extract_subgraph(kind(FIXED_DATA), kind(SHAPES))) == len(want) > 0
+    else:  # a StarLayerDataset, or a bare pyoxigraph Store (which is read as one): a fragment would not say which graph a triple is from
+        with pytest.raises(TypeError, match="not a dataset"):
+            extract_subgraph(kind(FIXED_DATA), kind(SHAPES))
 
 
 def test_extract_subgraph_with_pyoxigraph_shape_and_focus_node():

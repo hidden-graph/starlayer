@@ -28,12 +28,9 @@ def _dataset_with_named_graph(data: str) -> "StarLayerDataset":
 
 
 class TestStarLayerDatasetDefaultUnion:
-    def test_default_union_false_ignores_named_graph_content(self) -> None:
-        # default_union=False (the old class's default; StarLayerDataset's is True). Data placed in a
-        # named context is invisible to validation unless the caller opts in
-        # via default_union=True - the default graph is empty here, so no
-        # ex:Person nodes are ever targeted and the result trivially conforms,
-        # even though ex:bob (missing ex:age) would fail if the data were seen.
+    def test_default_union_false_still_validates_the_union_of_all_graphs(self) -> None:
+        # SHACL validates one data graph, and a dataset is the union of its graphs whatever its own default_union says (as pySHACL
+        # does). The data and the shapes sit in a named graph here, the default graph is empty, and ex:bob (missing ex:age) is found.
         data = _dataset_with_named_graph(_PERSON_DATA)
         shapes = _dataset_with_named_graph(_PERSON_SHAPE)
 
@@ -41,7 +38,8 @@ class TestStarLayerDatasetDefaultUnion:
             data_graph=data, meta_shacl=False
         )
 
-        assert result.conforms is True
+        assert result.conforms is False
+        assert "ex:bob" in result.report_text
 
     def test_default_union_true_sees_named_graph_content(self) -> None:
         data = StarLayerDataset(default_union=True)

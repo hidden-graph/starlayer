@@ -352,10 +352,23 @@ def check_graphs(*labelled: tuple[Any, str]) -> tuple[TermError, ...]:
 def engine_view(graph: Any, where: str = "graph") -> Any:
     """The engine's term view of ``graph``: an Oxigraph-backed graph (``StarLayerGraph``, ``StarLayerDataset``, ``OxigraphGraph``) as it
     is; a bare ``pyoxigraph.Store`` as an ``StarLayerDataset``; an rdflib / StarLayer graph as an ``StarLayerGraph`` copy made by the rdflib
-    bridge, which raises ``TermError`` for a term that is not an RDF term (see there)."""
-    if graph is None or getattr(graph, "engine_terms", False):
+    bridge, which raises ``TermError`` for a term that is not an RDF term (see there). A dataset is its union (``_union_view``)."""
+    if graph is None:
         return graph
+    if getattr(graph, "engine_terms", False):
+        return _union_view(graph)
     return _bridge().to_oxgraph(graph, where)
+
+
+def _union_view(graph: Any) -> Any:
+    """SHACL validates one data graph, and a dataset is that graph's union of all its graphs (as pySHACL does, which sets
+    ``default_union`` on a multi-graph data graph). A dataset whose own ``default_union`` is off is seen through a view of the same
+    store with it on; every other graph is returned as it is."""
+    from starlayer.graph.oxgraph import StarLayerDataset
+
+    if isinstance(graph, StarLayerDataset) and not graph.default_union:
+        return StarLayerDataset(store=graph.store, default_union=True, prefixes=dict(graph.prefixes))
+    return graph
 
 
 def __getattr__(name: str) -> Any:

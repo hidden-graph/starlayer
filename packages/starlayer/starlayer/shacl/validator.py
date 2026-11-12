@@ -7,7 +7,7 @@ graph and an entailment regime) once and offers the same operations as methods.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from starlayer.shacl import _adapter
@@ -80,16 +80,36 @@ def validate(
     )
 
 
+def _each_items(data_graphs: Any) -> list[tuple[Any, Any]]:
+    """The ``(key, graph)`` pairs ``validate_each`` validates: a dataset's graphs (``None`` for a default graph that holds triples,
+    then the named graphs by name), a mapping's items, or a sequence's graphs by position."""
+    from starlayer.graph.oxgraph import StarLayerDataset
+
+    if isinstance(data_graphs, StarLayerDataset):
+        default = data_graphs.default_graph
+        return ([(None, default)] if len(default) else []) + [
+            (name, data_graphs.graph(name)) for name in sorted(data_graphs.graph_names(), key=str)
+        ]
+    if isinstance(data_graphs, Mapping):
+        return list(data_graphs.items())
+    return list(enumerate(data_graphs))
+
+
 def validate_each(
-    data_graphs: Iterable[Any],
+    data_graphs: Iterable[Any] | Mapping[Any, Any] | Any,
     shacl_graph: Any | None = None,
     ont_graph: Any | None = None,
     **kwargs: Any,
-) -> dict[int, ValidationResult]:
-    """Validates each graph of ``data_graphs`` against the same ``shacl_graph`` / ``ont_graph``; the shapes are parsed once for the
-    whole batch. ``kwargs`` are those of :func:`validate`. Returns ``{index: ValidationResult}``."""
+) -> dict[Any, ValidationResult]:
+    """Validates each graph of ``data_graphs`` on its own against the same ``shacl_graph`` / ``ont_graph``; the shapes are parsed once
+    for the whole batch. ``kwargs`` are those of :func:`validate`.
+
+    ``data_graphs`` is a sequence of graphs (the result is keyed by position), a mapping (keyed as given) or a ``StarLayerDataset``,
+    whose graphs are each validated alone: the result is keyed by graph name, plus ``None`` for the default graph when it holds any
+    triples. Validating a dataset *as a whole* is :func:`validate`, which sees the union of its graphs."""
+    items = _each_items(data_graphs)
     with _adapter.shared_plans():
-        return {i: validate(data_graph, shacl_graph, ont_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
+        return {key: validate(data_graph, shacl_graph, ont_graph, **kwargs) for key, data_graph in items}
 
 
 def evaluate(
@@ -389,13 +409,14 @@ class StarShaclSchema:
             include_used_configuration=include_used_configuration,
         )
 
-    def validate_each(self, data_graphs: Iterable[Any] | None = None, **kwargs: Any) -> dict[int, ValidationResult]:
+    def validate_each(self, data_graphs: Iterable[Any] | Mapping[Any, Any] | Any | None = None, **kwargs: Any) -> dict[Any, ValidationResult]:
         """Validates each graph of ``data_graphs`` (default: just the bound data graph) with :meth:`validate`; the shapes are parsed
-        once for the whole batch. Returns ``{index: ValidationResult}``."""
+        once for the whole batch. ``data_graphs`` is as for the module function :func:`validate_each` (a sequence, a mapping or a
+        ``StarLayerDataset``); the result is keyed the same way."""
         if data_graphs is None:
             data_graphs = (self.data_graph,)
         with _adapter.shared_plans():
-            return {i: self.validate(data_graph, **kwargs) for i, data_graph in enumerate(data_graphs)}
+            return {key: self.validate(data_graph, **kwargs) for key, data_graph in _each_items(data_graphs)}
 
     def apply_rules(
         self,
