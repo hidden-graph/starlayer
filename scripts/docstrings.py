@@ -168,7 +168,7 @@ def check(path: Path, base: str) -> int:
         where = f"{qual}"
         if doc.lstrip(" ").startswith("\n") and not doc.strip():
             errors.append(f"{where}: an empty docstring")
-        if any(line != line.rstrip() for line in doc.split("\n")):
+        if any(line != line.rstrip() for line in doc.split("\n")[:-1]):  # the last line is the indent before the closing quotes
             errors.append(f"{where}: trailing whitespace inside the docstring")
         if _SCRATCH.search(doc):
             errors.append(f"{where}: a scratch note ({_SCRATCH.search(doc).group(1)}) in the docstring")
