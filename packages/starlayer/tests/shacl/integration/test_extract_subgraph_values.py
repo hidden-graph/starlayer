@@ -205,3 +205,24 @@ class TestFragmentIsMoreThanTheReads:
     def test_a_shape_without_computed_values_is_unchanged(self) -> None:
         shapes = "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:first ; sh:minCount 1 ] ."
         assert {p for _s, p, _o in _extract(shapes, include_targets=False)} == {EX.first}
+
+
+class TestConformanceInsideAnExpression:
+    """A shape check inside ``sh:values`` reads data too; a cached answer must not hide those reads from the fragment."""
+
+    SHAPES = """
+    ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property ex:Virt, ex:Virt2 .
+    ex:Virt2 a sh:PropertyShape ; sh:path ex:virtual2 ;
+      sh:values [ shnex:filterShape ex:HasName ; shnex:nodes [ shnex:pathValues ex:child ] ] .
+    ex:Virt a sh:PropertyShape ; sh:path ex:virtual ; sh:minCount 1 ;
+      sh:values [ shnex:filterShape ex:HasName ; shnex:nodes [ shnex:pathValues ex:child ] ] .
+    ex:HasName a sh:NodeShape ; sh:property [ sh:path ex:name ; sh:minCount 1 ] .
+    ex:Seen a sh:NodeShape ; sh:targetNode ex:c1 ; sh:node ex:HasName .
+    """
+
+    def test_the_triples_a_shape_check_reads_are_in_the_fragment(self) -> None:
+        shapes, data = _g(self.SHAPES), _g(DATA)
+        fragment = extract_subgraph(data, shapes, shape=EX.S, focus_node=EX.a)
+        assert (EX.c1, EX.name, next(iter(data.objects(EX.c1, EX.name)))) in set(fragment)
+        assert _stored(evaluate(fragment, shapes), EX.virtual) == _stored(evaluate(data, shapes), EX.virtual)
+        assert _stored(evaluate(data, shapes), EX.virtual)

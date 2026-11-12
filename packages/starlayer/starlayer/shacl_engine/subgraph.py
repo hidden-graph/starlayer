@@ -197,7 +197,7 @@ class _Extractor:
         self.shapes = plan.shapes_graph
         self.ctx = Context(data=data, plan=plan)
         self._recorder = RecordingGraph(data)
-        self._record_ctx = Context(data=self._recorder, plan=plan)  # computes sh:values / sh:defaultValue, noting what it reads
+        self._record_ctx = Context(data=self._recorder, plan=plan, memoize=False)  # computes sh:values / sh:defaultValue, noting what it reads
 
     def conforms(self, shape_node: Term, node: Term) -> bool:
         return self.ctx.conforms(shape_node, node)

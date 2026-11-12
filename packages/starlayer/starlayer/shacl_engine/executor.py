@@ -58,6 +58,7 @@ class Context:
     _detail_memo: dict = field(default_factory=dict)  # (shape, node) -> the results reported as sh:detail (assumption-free only)
     _conforms_memo: dict = field(default_factory=dict)  # (shape, node) -> (bool, nesting height), assumption-free only
     _peak: int = 0  # deepest ``_depth`` at which a shape was entered since the enclosing conforms() started
+    memoize: bool = True  # False: every conformance check is evaluated, so every triple it reads is read (extract_subgraph records reads)
     _assumed: int = 0  # how many times a re-entry assumed 'conforms' (the greatest-fixpoint reading) so far
 
     def __post_init__(self) -> None:
@@ -82,7 +83,7 @@ class Context:
         A cycle that meets the data only at positive links (sh:node, sh:property, sh:and, sh:or) keeps 'conforms'.
         """
         key = (shape_node, node)
-        memo = self._conforms_memo.get(key)
+        memo = self._conforms_memo.get(key) if self.memoize else None
         if memo is not None:
             limit = self.max_validation_depth
             # The evaluation entered shapes up to ``height`` levels below its start; replayed here it must not cross the
@@ -113,7 +114,7 @@ class Context:
             del self._active[key]
         # Memoise only an answer that did not lean on a recursion assumption, so it does not depend on which (shape, node)
         # pairs happened to be active. Its nesting height is kept so max_validation_depth is still enforced on replay.
-        if self._assumed == assumed_before:
+        if self.memoize and self._assumed == assumed_before:
             self._conforms_memo[key] = (answer, height)
         return answer
 
@@ -123,7 +124,7 @@ class Context:
         key = (shape_node, node)
         if key in self._active:
             return ()
-        memoise = self._negations == 0 and not self._active  # only an answer that leaned on no recursion assumption is reusable
+        memoise = self.memoize and self._negations == 0 and not self._active  # only an answer that leaned on no recursion assumption is reusable
         if memoise and key in self._detail_memo:
             return self._detail_memo[key]
         self._active[key] = self._negations
