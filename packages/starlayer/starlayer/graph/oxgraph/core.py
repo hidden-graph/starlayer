@@ -6,6 +6,7 @@ on the way in (see ``terms.term``). These are the library's graph classes (``sta
 
 from __future__ import annotations
 
+import contextlib
 import os
 import re
 from collections.abc import Iterable, Iterator, Mapping
@@ -131,8 +132,8 @@ def _no_backend(backend: Any) -> None:
     if backend is not None:
         raise TypeError(
             f"backend={backend!r} is not an option of the Oxigraph wrapper: it is always an Oxigraph store speaking RDF 1.2. "
-            "Choose the storage with store= (a pyoxigraph.Store) or path= (an on-disk store); a remote SPARQL endpoint "
-            "can be read from a query with SERVICE"
+            "Choose the storage with store= (a pyoxigraph.Store) or path= (an on-disk store), or hold a graph of a remote SPARQL "
+            "endpoint with endpoint= (an Endpoint); a query can also read one with SERVICE"
         )
 
 
@@ -184,6 +185,32 @@ class _Base:
         self.store = as_store(store) if store is not None else ox.Store(os.fspath(path) if path is not None else None)
         self._path = os.fspath(path) if path is not None else None
         self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
+
+    # ---- a graph held by an endpoint (``StarLayerGraph(endpoint=...)``) ---------------------------------------------
+    def sync(self) -> Any:
+        """Pull the graph from the endpoint again, replacing the local copy (a graph that has no endpoint is already in sync)."""
+        if hasattr(self.store, "sync"):
+            self.store.sync()
+        return self
+
+    def release(self) -> Any:
+        """Drop the temporary local copy of an endpoint-backed graph (``cache="temporary"``)."""
+        if hasattr(self.store, "release"):
+            self.store.release()
+        return self
+
+    @contextlib.contextmanager
+    def local(self) -> Iterator[Any]:
+        """Hold one local copy of an endpoint-backed graph for the block (a read, a validation) and drop it at the end; a write inside
+        the block still drops it, and the next read pulls again. A graph with no endpoint yields itself."""
+        if not hasattr(self.store, "hold"):
+            yield self
+            return
+        self.store.hold()
+        try:
+            yield self
+        finally:
+            self.store.unhold()
 
     def as_store(self) -> ox.Store:
         union.touch()  # the caller may write to it: a deduplicated copy of the union is stale from now on
@@ -836,10 +863,23 @@ class StarLayerGraph(_Base):
     ``BlankNode``, or an IRI string)."""
 
     def __init__(self, store: Any = None, path: Any = None, identifier: Any = None, *, prefixes: dict[str, str] | None = None,
-                 backend: str | None = None) -> None:
+                 backend: str | None = None, endpoint: Any = None, cache: str = "full", max_age: float | None = None) -> None:
+        """``endpoint`` (an ``Endpoint``) holds this graph (the default graph, or the named graph ``identifier``) in a SPARQL endpoint:
+        ``cache="full"`` keeps a local copy in sync with the writes made through this object (``max_age`` seconds old at most, when
+        given); ``cache="temporary"`` writes to the endpoint only and copies the graph when something needs its triples. See
+        ``oxgraph/endpoint.py``."""
         _no_backend(backend)
-        self._init_store(store, path, prefixes)
         self._g = terms.graph_name(identifier)
+        if endpoint is not None:
+            if store is not None or path is not None:
+                raise ValueError("give an endpoint, or a store, or a path")
+            from starlayer.graph.oxgraph.endpoint import BackedStore
+
+            self.store = BackedStore(endpoint, self._g, cache=cache, max_age=max_age)
+            self._path = None
+            self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
+        else:
+            self._init_store(store, path, prefixes)
 
     @classmethod
     def from_rdflib(cls, graph: Any) -> StarLayerGraph:
