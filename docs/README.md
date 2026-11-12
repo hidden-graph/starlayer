@@ -4,7 +4,6 @@ Every document in the repository, by what you want to do. Files marked *generate
 
 ## Learn StarLayer
 - [User guides](guides/README.md): notebooks, from [getting started](guides/01-getting-started.ipynb) through graphs, SPARQL, SHACL, ontologies and storage. [STYLE_GUIDE.md](guides/STYLE_GUIDE.md) is for guide authors.
-- [Moving from the original main](migration.md): what went away (rdflib terms and re-exports, pySHACL options, the `salg:` encoding), what replaces it and what behaves differently.
 - [Appendix A: public resources](guides/appendix-a-public-resources.ipynb): the ontologies, shapes and profiles the library publishes, with links.
 
 ## Look something up
