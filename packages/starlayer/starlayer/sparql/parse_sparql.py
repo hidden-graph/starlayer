@@ -339,6 +339,9 @@ class _Parser:
         self._data_op: int | None = None  # set while the QuadData of an INSERT DATA is parsed
         self._data_labels: dict[str, int] = {}
         self._in_template = False  # a CONSTRUCT template is not a basic graph pattern: its labels are a separate space
+        # Every collection ``( ... )`` of a triples block as (offset of '(', [(start, end) offsets of each item], offset of ')'),
+        # innermost last: for callers that rewrite the text (``relevant.py``).
+        self.collections: list[tuple[int, list[tuple[int, int]], int]] = []
 
     def _fresh_bgp(self) -> int:
         self._bgp_next += 1
@@ -1073,12 +1076,18 @@ class _Parser:
             self.expect_p("]")
             return b
         self.expect_p("(")
+        open_at = self.toks[self.i - 1].pos
         items = []
+        spans: list[tuple[int, int]] = []
         while not self.at_p(")"):
             if self.peek().kind == "EOF":
                 self.err("unterminated collection")
+            start = self.peek().pos
             items.append(self.graph_node(out, path))
+            last = self.toks[self.i - 1]
+            spans.append((start, last.pos + len(last.text)))
         self.expect_p(")")
+        self.collections.append((open_at, spans, self.toks[self.i - 1].pos))
         if not items:
             return RDF.nil
         head = ox.BlankNode()
@@ -1782,6 +1791,14 @@ def parse_sparql(text: str, base: str | None = None, prefixes: dict[str, str] | 
         return parser.parse_query()
     except RecursionError:  # the grammar nests without limit, Python's stack does not (as in manchester_parser.run_guarded)
         raise SparqlSyntaxError("expression or pattern nested too deeply to parse", text, 0) from None
+
+
+def collections_of(text: str) -> list[tuple[int, list[tuple[int, int]], int]]:
+    """The collections ``( ... )`` of the triples blocks of a query, as (offset of '(', item spans, offset of ')'), in the order
+    they close (a nested one before the one around it)."""
+    parser = _Parser(text, None)
+    parser.parse_query()
+    return parser.collections
 
 
 def parse_sparql_update(text: str, base: str | None = None) -> Node:

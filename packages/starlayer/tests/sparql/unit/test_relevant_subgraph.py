@@ -81,6 +81,14 @@ EXACT = {
     "minus inside optional": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :n ?n MINUS { ?s :blk ?w } } }",
     "minus inside optional sharing a variable": "SELECT ?s ?n WHERE { ?s :p ?o OPTIONAL { ?s :q ?n MINUS { ?n :p ?w } } }",
     "minus sharing no variable": "SELECT ?s WHERE { ?s :p ?o MINUS { ?x :blk ?w } }",
+    "collection": "SELECT ?s WHERE { ?s :q ( ?o ) }",
+    "collection of two, with a nested one": "SELECT ?s WHERE { ?s :q ( ?o ( ?x 1 ) ) }",
+    "empty collection": "SELECT ?s WHERE { ?s :q () }",
+    "collection as subject, then more of the statement": "SELECT ?s WHERE { ( ?a ?b ) :p ?s ; :q ?x }",
+    "collection then OPTIONAL without a dot": "SELECT ?s ?z WHERE { ?s :q ( ?o ) OPTIONAL { ?s :n ?z } }",
+    "bracket then OPTIONAL without a dot": "SELECT ?s ?z WHERE { ?s :q [ :p ?o ] OPTIONAL { ?s :n ?z } }",
+    "bracket with a collection": "SELECT ?s WHERE { ?s :q [ :p ( ?a ?b ) ] }",
+    "collection with a bracket": "SELECT ?s WHERE { ?s :q ( [ :p ?a ] 1 ) }",
     "anonymous node": "SELECT ?s WHERE { ?s :q [ :p ?o ] }",
     "anonymous node as subject, nested": "SELECT ?o WHERE { [ :q [ :p ?o ] ] :n ?x }",
     "empty anonymous node": "SELECT ?s WHERE { ?s :q [] }",
@@ -92,7 +100,7 @@ EXACT = {
 }
 
 FALLBACK = {
-    "collection": "SELECT ?s WHERE { ?s :q ( ?o ) }",
+    "graph": "SELECT ?s WHERE { GRAPH ?g { ?s :p ?o } }",
 }
 
 
@@ -192,7 +200,11 @@ def _graph_ttl(draw) -> str:
 def _pattern(draw) -> str:
     s = draw(st.sampled_from(_VARS + _NODES))
     p = draw(st.sampled_from(_PREDS + ["?p"] + _PATHS))
-    o = draw(st.sampled_from(_VARS + _OBJECTS + ["_:b", "[]", "[ :p ?a ]", "[ :q ?b ; :r [ :p ?c ] ]"]))
+    o = draw(
+        st.sampled_from(
+            _VARS + _OBJECTS + ["_:b", "[]", "[ :p ?a ]", "[ :q ?b ; :r [ :p ?c ] ]", "( ?a 1 )", "()", "( :n0 ( ?b ) )", "( [ :p ?c ] ?a )"]
+        )
+    )
     if o == "_:b":  # a label is local to one basic graph pattern: a fresh one each time
         o = f"_:b{draw(st.integers(0, 10**9))}"
     return f"{s} {p} {o} ."

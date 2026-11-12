@@ -26,8 +26,8 @@ subgraph holds the support of every solution of the group, so they give the same
 
 Handled: property paths (the edges a walk of the path from the pattern's subject to its object takes, by ``CONSTRUCT`` over the
 relaxed group joined with a guard that spells the walk out), sub-selects (the relevant triples of the sub-select as a query
-of its own, for all its rows), ``EXISTS`` and ``MINUS`` inside ``OPTIONAL`` and ``UNION`` branches, blank nodes (labelled ones, and ``[ ... ]``, are variables
-in a pattern). Not computable this way: a collection (``( ... )``), ``GRAPH``, ``SERVICE``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
+of its own, for all its rows), ``EXISTS`` and ``MINUS`` inside ``OPTIONAL`` and ``UNION`` branches, blank nodes (labelled ones, ``[ ... ]`` and collections ``( ... )`` become variables
+and triples). Not computable this way: ``GRAPH``, ``SERVICE``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
 triple that matches some triple pattern of the query (constants and pre-bound variables fixed, other variables free): larger,
 never smaller. ``relevant_triples`` returns which was used.
 """
@@ -39,7 +39,13 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.sparql.parse_sparql import Node, Tok, parse_sparql, tokenize
+from starlayer.sparql.parse_sparql import (
+    Node,
+    Tok,
+    collections_of,
+    parse_sparql,
+    tokenize,
+)
 
 _Triple = tuple[Any, Any, Any]
 
@@ -337,6 +343,47 @@ def _mentions(graph: Any, node: Any) -> list[_Triple]:
     return [(t[0], t[1], t[2]) for pattern in ((node, None, None), (None, None, node)) for t in graph.triples(pattern)]
 
 
+_ELEMENT_WORDS = {"OPTIONAL", "MINUS", "FILTER", "BIND", "VALUES", "GRAPH", "SERVICE"}
+
+
+def _statement_end(toks: list[Tok], after: int) -> int:
+    """The index of the token that ends the triples statement a bracket or collection closing at ``after`` belongs to: the '.' or the
+    token that starts the next element of the group (a keyword or a brace). Extra triples go in front of it."""
+    for k in range(after + 1, len(toks)):
+        t = toks[k]
+        if (t.kind == "P" and t.text in (".", "{", "}")) or _word(t) in _ELEMENT_WORDS or t.kind == "EOF":
+            return k
+    raise _NotComputable("a pattern outside a group")
+
+
+def _without_collections(query: str) -> str:
+    """The query with each collection ``( a b )`` of a triples block written as a variable and its ``rdf:first`` / ``rdf:rest`` triples
+    as statements of their own at the end of the statement it was in, as ``_without_anonymous_blank_nodes`` does for ``[ ]``."""
+    rdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+    n = 0
+    while True:
+        toks = tokenize(query)
+        lo, hi = _where_group(toks)
+        inside = [c for c in collections_of(query) if toks[lo].pos < c[0] < toks[hi].pos]
+        if not inside:
+            return query
+        open_at, spans, close_at = inside[0]  # the first to close has no collection inside it
+        close_tok = next(i for i, t in enumerate(toks) if t.pos == close_at)
+        items = [query[a:b] for a, b in spans]
+        if not items:
+            head, extra = f"<{rdf}nil>", ""
+        else:
+            names = [f"?__l{n + k + 1}" for k in range(len(items))]
+            n += len(items)
+            head = names[0]
+            rest = names[1:] + [f"<{rdf}nil>"]
+            extra = " . " + " . ".join(
+                f"{name} <{rdf}first> {item} . {name} <{rdf}rest> {nxt}" for name, item, nxt in zip(names, items, rest, strict=True)
+            )
+        end = _statement_end(toks, close_tok)
+        query = query[:open_at] + head + query[close_at + 1 : toks[end].pos] + extra + " " + query[toks[end].pos :]
+
+
 def _without_anonymous_blank_nodes(query: str) -> str:
     """The query with each ``[ ... ]`` written as a variable and the properties inside it as a statement of their own, put at the
     end of the statement the bracket was in: ``?s :p [ :q ?o ] ; :r ?x .`` becomes ``?s :p ?v ; :r ?x . ?v :q ?o .``. (Collections,
@@ -352,21 +399,7 @@ def _without_anonymous_blank_nodes(query: str) -> str:
         n += 1
         var = f"?__an{n}"
         inner = query[toks[i + 1].pos : toks[j].pos].strip()
-        depth, end = 0, None
-        for k in range(j + 1, len(toks)):  # the end of the statement: a '.' at this depth, or the brace closing the group
-            t = toks[k]
-            if t.kind == "P" and t.text in ("[", "(", "{"):
-                depth += 1
-            elif t.kind == "P" and t.text in ("]", ")", "}"):
-                depth -= 1
-                if depth < 0:
-                    end = k
-                    break
-            elif depth == 0 and t.kind == "P" and t.text == ".":
-                end = k
-                break
-        if end is None:
-            raise _NotComputable("a blank node outside a group")
+        end = _statement_end(toks, j)
         extra = f" . {var} {inner}" if inner else ""
         query = (
             query[: toks[i].pos]
@@ -384,7 +417,7 @@ def _variables(text: str) -> set[str]:
 
 
 def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[str, Any]) -> set[_Triple]:
-    query = _without_labelled_blank_nodes(_without_anonymous_blank_nodes(query))
+    query = _without_labelled_blank_nodes(_without_anonymous_blank_nodes(_without_collections(query)))
     toks = tokenize(query)
     lo, hi = _where_group(toks)
     form = next(k for k, t in enumerate(toks) if _word(t) in ("SELECT", "ASK", "CONSTRUCT"))
