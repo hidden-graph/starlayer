@@ -883,9 +883,9 @@ class TestLongStringWithEmbeddedQuoteOrBlankLine:
         parses back without error and is isomorphic to the original graph."""
         from pathlib import Path
 
+        from codekg.extractor import visitor
         from rdflib import Graph
         from rdflib.compare import isomorphic
-        from starlayer.codekg.extractor import visitor
         from starlayer.graph.serializers.turtle12 import serialize_turtle12
 
         src_root = Path(__file__).resolve()

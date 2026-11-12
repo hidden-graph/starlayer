@@ -5,8 +5,8 @@ description: Review links from guide notebook cells to the code they demonstrate
 
 # Review notebook links
 
-The links live in `packages/starlayer/starlayer/codekg/curated/notebook-links.ttl` (hand-edited; vocabulary in
-`codekg/ontology.ttl`, shapes in `codekg/notebook-links-shapes.ttl`, logic in `starlayer.codekg.notebook_links`).
+The links live in `tools/kg/codekg/curated/notebook-links.ttl` (hand-edited; vocabulary in
+`codekg/ontology.ttl`, shapes in `codekg/notebook-links-shapes.ttl`, logic in `codekg.notebook_links`).
 A link names a guide cell by notebook path and cell id, the dotted identifiers of the symbols it demonstrates, one
 sentence saying why, and a hash of the cell as of the last review. The hash answers "did it change". This skill
 answers "is it still a good relationship".
@@ -19,7 +19,7 @@ Notebooks are never edited from here. If a cell is wrong or missing something, s
 2. For each flagged link run `python scripts/check_notebook_links.py --show NAME`. It prints the link, its reason, the
    cell as it is now, and the `git log -p` command that shows what changed since the review.
 3. Run that `git log -p` command, so the review is of the change, not of the whole cell.
-4. Look up each symbol as it is now: `python -m starlayer.codekg.queries run symbol-info symbol=<identifier>` (and
+4. Look up each symbol as it is now: `python scripts/kg.py run symbol-info symbol=<identifier>` (and
    `parameters-of`). The code graph can lag the source: if it disagrees with the source file, trust the file.
 5. Decide, per link:
    - **Still good.** The cell still calls the symbol, in the way `why` says. A cosmetic edit, a changed example value or a
@@ -32,7 +32,7 @@ Notebooks are never edited from here. If a cell is wrong or missing something, s
    - **moved.** The cell is elsewhere: set `slkg:notebookPath` and `slkg:cellId` to the place the finding names, then
      restamp.
    - **broken, cell removed.** Remove the link, and name a replacement cell if there is one.
-6. Run the check again, and `python -m pytest packages/starlayer/tests/codekg -q`, which also validates the links
+6. Run the check again, and `python -m pytest packages/starlayer/tests/kg -q`, which also validates the links
    against their shapes. Report each link as kept, rewritten, repointed or removed, with the reason in a few words.
    Do not restamp a link you did not read.
 

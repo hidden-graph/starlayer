@@ -21,13 +21,13 @@ def _collect(*args: str) -> list[str]:
 
 
 def test_an_area_marker_selects_exactly_that_directory():
-    ids = _collect("tests/codekg", "tests/starontology", "-m", "codekg")
-    assert ids and all("/tests/codekg/" in i for i in ids)
+    ids = _collect("tests/kg", "tests/starontology", "-m", "kg")
+    assert ids and all("/tests/kg/" in i for i in ids)
 
 
 def test_deferred_checks_are_left_out_unless_asked_for():
-    plain = _collect("tests/codekg/unit/test_queries.py")
-    with_deferred = _collect("tests/codekg/unit/test_queries.py", "--deferred")
+    plain = _collect("tests/kg/unit/test_queries.py")
+    with_deferred = _collect("tests/kg/unit/test_queries.py", "--deferred")
     wanted = "test_queries.py::test_the_library_is_valid"
     assert not any(wanted in i for i in plain)
     assert any(wanted in i for i in with_deferred)
