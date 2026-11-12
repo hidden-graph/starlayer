@@ -1,7 +1,7 @@
 """``infer()``: RDFS / RDF / OWL-RL (owlrl) and OWL-DL (HermiT, rustdl) closure over an ``StarLayerGraph`` / ``StarLayerDataset``.
 
-Ported from ``StarLayerGraph.infer`` and ``graph/graph/entailment_regimes.py``. The RDF regime is computed natively on pyoxigraph
-terms. owlrl and the OWL-DL bridges work on rdflib graphs, so the store is copied to one inside the call
+Ported from ``StarLayerGraph.infer`` and ``graph/graph/entailment_regimes.py``. The RDF and RDFS regimes are computed natively on
+pyoxigraph terms (``rdfs_closure.py``), so they need no rdflib. owlrl (OWL-RL and the combined regimes) and the OWL-DL bridges work on rdflib graphs, so the store is copied to one inside the call
 (``_rdflib_bridge``) and the delta is converted back. The OWL-DL engines (``graph/graph/owl_dl*.py``, ``_timeout.py``) are
 reused as they are, lazily, with their optional-dependency errors and their subprocess timeout.
 """
@@ -16,6 +16,7 @@ import pyoxigraph as ox
 
 from starlayer.graph.oxgraph import _rdflib_bridge as bridge
 from starlayer.graph.oxgraph import terms
+from starlayer.graph.oxgraph.helpers.rdfs_closure import rdfs_delta
 
 VALID_INFER_RETURN_MODES = frozenset({"full", "delta", "in-place"})
 #: same value as ``graph.graph._timeout.DEFAULT_TIMEOUT_SECONDS`` (tested); not imported so the wrapper stays rdflib-free
@@ -184,7 +185,9 @@ def _delta_for(g: Any, regimes: frozenset[str], engine: str, timeout: Any) -> se
     if RDF_REGIME in regimes:
         delta |= _rdf_delta(g)
     rest = regimes - {RDF_REGIME}
-    if rest:
+    if rest == {RDFS_REGIME}:
+        delta |= rdfs_delta(g.triples())
+    elif rest:
         delta |= _owlrl_delta(g, rest)
     return delta
 

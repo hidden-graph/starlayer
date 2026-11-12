@@ -235,6 +235,29 @@ def test_manchester_syntax_tree_round_trip():
     assert "done" in out
 
 
+def test_rdfs_inference_and_infer_types_run_without_rdflib():
+    out = ok("""
+        import sys
+        from starlayer import StarLayerGraph
+        from starlayer.graph import ENTAILMENT
+        from starlayer.shacl import infer_types, validate
+
+        g = StarLayerGraph()
+        g.parse(format="turtle12", data="@prefix : <http://e/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . :A rdfs:subClassOf :B . :x a :A .")
+        delta = g.infer(ENTAILMENT.RDFS, mode="delta")
+        assert any(str(o) == "<http://e/B>" for _s, _p, o in delta.triples()), "subclass typing missing"
+        shapes = StarLayerGraph()
+        shapes.parse(format="turtle12", data="@prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . :S sh:property [ sh:path :p ; sh:group :G ] .")
+        types = infer_types(shapes)
+        got = {(s.value, o.value) for s, _p, o in types.triples()}
+        assert ("http://e/G", "http://www.w3.org/ns/shacl#PropertyGroup") in got, got
+        import starlayer.starontology.manchester as m
+        m.manchester_validate(m.manchester_parse_to_tree("Class: <http://e/A>"))  # validates with RDFS inference
+        print("done", "rdflib" in sys.modules and sys.modules["rdflib"] is not None)
+    """)
+    assert out.strip() == "done False"
+
+
 def test_nothing_in_the_core_imports_rdflib():
     # With rdflib importable, the core surface must still not load it.
     code = """
@@ -428,7 +451,8 @@ def test_the_sqe_text_path_loads_no_rdflib_module():
         "from starlayer.graph import StarLayerGraph; StarLayerGraph.from_rdflib(None)",
         "from starlayer.graph import StarLayerGraph, ENTAILMENT; g = StarLayerGraph(); "
         "g.update('INSERT DATA { <http://e/s> a <http://e/C> }'); g.infer(entailment=ENTAILMENT['OWL-RDF-Based'])",
-        "import starlayer.starontology.manchester as m; m.manchester_validate(m.manchester_parse_to_tree('Class: <http://e/A>'))",
+        "from starlayer.graph import StarLayerGraph, ENTAILMENT; g = StarLayerGraph(); "
+        "g.update('INSERT DATA { <http://e/s> a <http://e/C> }'); g.infer(entailment=[ENTAILMENT.RDFS, ENTAILMENT['OWL-RDF-Based']])",
     ],
 )
 def test_an_rdflib_feature_raises_a_clear_import_error(code):
