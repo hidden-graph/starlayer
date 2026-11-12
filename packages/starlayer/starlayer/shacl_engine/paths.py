@@ -39,6 +39,10 @@ def _read_list(graph: Any, head: Term, what: str) -> list[Term]:
 
 
 def parse_path(graph: Any, node: Term, _stack: tuple = ()) -> Path:
+    """Parse the property path rooted at ``node`` in the shapes graph into a ``Path`` tree.
+
+    Raises ``ShapeError`` for a malformed or cyclic path.
+    """
     if isinstance(node, NamedNode):
         return Path(kind="pred", iri=node, node=node)
     if isinstance(node, Literal) or not isinstance(node, BlankNode):

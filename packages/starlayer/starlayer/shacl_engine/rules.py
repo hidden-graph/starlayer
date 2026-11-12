@@ -79,6 +79,7 @@ class InferredView:
         return getattr(self.base, "preserves_lexical_forms", True)
 
     def __init__(self, base: Any) -> None:
+        """Overlay inferred triples on ``base`` without modifying it."""
         self.base = base
         self._inferred: set[Triple] = set()
         self._index: tuple[dict, dict, dict] = ({}, {}, {})
@@ -107,6 +108,7 @@ class InferredView:
 
     @property
     def inferred(self) -> frozenset[Triple]:
+        """A snapshot of the inferred triples, without those of the base."""
         return frozenset(self._inferred)
 
     # -- GraphView
@@ -121,11 +123,13 @@ class InferredView:
                 yield tr
 
     def triples(self, pattern: tuple[Term | None, Term | None, Term | None]) -> Iterator[Triple]:
+        """The base's matches for ``pattern``, then the inferred ones; ``None`` is a wildcard."""
         s, p, o = pattern
         yield from self.base.triples((s, p, o))
         yield from self._inferred_matching(s, p, o)  # inferred triples are never in base (see add)
 
     def objects(self, subject: Term | None = None, predicate: Term | None = None) -> Iterator[Term]:
+        """The distinct objects of the matching triples, base and inferred."""
         seen: set = set()
         for _s, _p, o in self.triples((subject, predicate, None)):
             if o not in seen:
@@ -133,6 +137,7 @@ class InferredView:
                 yield o
 
     def predicates(self, subject: Term | None = None, object: Term | None = None) -> Iterator[Term]:  # noqa: A002
+        """The distinct predicates of the matching triples, base and inferred."""
         seen: set = set()
         for _s, p, _o in self.triples((subject, None, object)):
             if p not in seen:
@@ -140,6 +145,7 @@ class InferredView:
                 yield p
 
     def subjects(self, predicate: Term | None = None, object: Term | None = None) -> Iterator[Term]:  # noqa: A002
+        """The distinct subjects of the matching triples, base and inferred."""
         seen: set = set()
         for s, _p, _o in self.triples((None, predicate, object)):
             if s not in seen:
@@ -162,10 +168,12 @@ class InferredView:
             head = next(self.objects(head, RDF.rest), None)
 
     def predicate_objects(self, subject: Term | None = None) -> Iterator[tuple[Term, Term]]:
+        """The ``(predicate, object)`` pairs of the matching triples, base and inferred, not de-duplicated."""
         for _s, p, o in self.triples((subject, None, None)):
             yield p, o
 
     def __contains__(self, triple: Triple) -> bool:
+        """True if ``triple`` is in the base or among the inferred triples."""
         return triple in self._inferred or triple in self.base
 
     # -- SPARQL: through the materialised union
@@ -183,9 +191,11 @@ class InferredView:
     def sparql_query(
         self, text: str, init_bindings: Mapping[str, Term] | None = None, custom_functions: Any = None
     ) -> Solutions:
+        """Run a SPARQL query over the base plus the inferred triples, through ``materialised``."""
         return self.materialised().sparql_query(text, init_bindings, custom_functions)
 
     def construct(self, text: str, init_bindings: Mapping[str, Term] | None) -> list[Triple]:
+        """Run a CONSTRUCT query over the base plus the inferred triples and return the triples."""
         import pyoxigraph as ox
 
         raw = self.materialised().engine_view()._run(text, dict(init_bindings or {}), None, None)
@@ -220,6 +230,8 @@ def new_overlay(base: Any) -> InferredView:
 
 @dataclass
 class Rule:
+    """A rule read from the shapes graph, with its scheduling (layer, order, run_once) and its shapes and conditions."""
+
     node: Term
     types: tuple[Term, ...]
     layer: float
@@ -243,6 +255,7 @@ class RuleResult:
 
     @property
     def ok(self) -> bool:
+        """True when no rule failed."""
         return not self.failures
 
 
@@ -324,6 +337,12 @@ def entailment_selection(shapes: Any) -> tuple[bool, list[Term]]:
 
 
 def read_rule(graph: Any, node: Term) -> Rule:
+    """Read the rule at ``node`` from the shapes graph.
+
+    Raises ``RuleError`` if the node has no rule type, has several values or a non-numeric value for ``sh:layer`` /
+    ``sh:order``, has several ``sh:runOnce`` values, or has a ``sh:ruleProcessor`` on it, its types or a rule set
+    containing it.
+    """
     classes = _rule_classes(graph)
     types = tuple(t for t in graph.objects(node, RDF.type) if t in classes)
     if not types:

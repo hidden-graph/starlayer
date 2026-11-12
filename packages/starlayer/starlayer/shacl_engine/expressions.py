@@ -4,8 +4,7 @@ Public API::
 
     evaluate_expression(ctx, expr, focus, bindings=None) -> list[Term]
 
-``expr`` is a node of the shapes graph (``ctx.shapes``); ``focus`` the focus node (``None`` for none, as in a
-``sh:targetNode`` expression); ``bindings`` maps variable names to a term or a list of terms (``shnex:var``). The result
+``expr`` is a node of the shapes graph (``ctx.shapes``); ``focus`` the focus node (``None`` for none); ``bindings`` maps variable names to a term or a list of terms (``shnex:var``). The result
 is the ordered list of output nodes; an evaluation failure raises ``EvaluationFailure``, a malformed expression
 ``ShapeError``. Expressions read the shapes graph; paths, class membership and shape conformance run on the data graph
 (the "focus graph").
@@ -55,6 +54,8 @@ OPERATORS: dict[URIRef, Operator] = {}
 
 
 def operator(*iris: str):
+    """Register the decorated function in ``OPERATORS`` as the evaluator of each given key predicate IRI."""
+
     def deco(fn: Operator) -> Operator:
         for iri in iris:
             OPERATORS[URIRef(iri)] = fn
@@ -74,6 +75,12 @@ def _n(name: str) -> URIRef:
 def evaluate_expression(
     ctx: Any, expr: Term, focus: Term | None, bindings: Mapping[str, Any] | None = None
 ) -> list[Term]:
+    """Evaluate the node expression ``expr`` of the shapes graph at ``focus`` and return its output nodes in order.
+
+    Args:
+        focus: The focus node, or ``None`` when the evaluation has none.
+        bindings: Variable name to a term or a list of terms, read by ``shnex:var``.
+    """
     scope = {
         k: (list(v) if isinstance(v, (list, tuple)) else [v])
         for k, v in (bindings or {}).items()

@@ -64,6 +64,7 @@ _SHAPE_REF_KEYS = {SHNEX + "filterShape", SHNEX + "findFirst", SHNEX + "matchAll
 
 
 def term_to_json(term: Term) -> dict:
+    """An RDF term (including a triple term) as its tagged JSON object; raises ``TypeError`` for anything else."""
     if isinstance(term, NamedNode):
         return {"t": "iri", "v": term.value}
     if isinstance(term, BlankNode):
@@ -87,6 +88,7 @@ def term_to_json(term: Term) -> dict:
 
 
 def term_from_json(obj: dict) -> Term:
+    """The RDF term a tagged JSON object stands for; raises ``ValueError`` for an unknown tag."""
     kind = obj["t"]
     if kind == "iri":
         return NamedNode(obj["v"])
@@ -118,6 +120,7 @@ def _from_terms(items: Iterable[dict]) -> tuple[Term, ...]:
 
 
 def path_to_json(path: Path | None) -> dict | None:
+    """A property path as a nested JSON object, or ``None`` when there is no path."""
     if path is None:
         return None
     out: dict[str, Any] = {"kind": path.kind}
@@ -130,6 +133,7 @@ def path_to_json(path: Path | None) -> dict | None:
 
 
 def path_from_json(obj: dict | None) -> Path | None:
+    """The property path a JSON object stands for, or ``None`` when given ``None``."""
     if obj is None:
         return None
     return Path(
@@ -141,6 +145,7 @@ def path_from_json(obj: dict | None) -> Path | None:
 
 
 def shape_to_json(shape: Shape) -> dict:
+    """A built shape as a JSON object with one key per ``Shape`` field, terms in the tagged form."""
     return {
         "node": term_to_json(shape.node),
         "is_property": shape.is_property,
@@ -169,6 +174,7 @@ def shape_to_json(shape: Shape) -> dict:
 
 
 def shape_from_json(obj: dict) -> Shape:
+    """The ``Shape`` a JSON object stands for; the inverse of ``shape_to_json``."""
     return Shape(
         node=term_from_json(obj["node"]),
         is_property=obj["is_property"],
@@ -460,11 +466,13 @@ class SerializedPlan(Plan):
     format_version: int = FORMAT_VERSION
 
     def shape(self, node: Term) -> Shape:
+        """The shape for a node, raising ShapeError with the recorded message if the plan file lists it as failed."""
         if node in self.errors:
             raise ShapeError(self.errors[node])
         return super().shape(node)
 
     def all_shape_nodes(self) -> list[Term]:
+        """The declared shape nodes as listed in the plan file, not re-derived from the shapes graph."""
         return list(self.declared)
 
 
@@ -494,6 +502,7 @@ def plan_from_json(obj: dict, shapes_graph: Any = None) -> Plan:
 
 
 def load_shapes_graph(location: str) -> Any:
+    """Parse a shapes graph file into a new graph, reading .ttl and .turtle as Turtle 1.2."""
     from starlayer.shacl_engine.graphs import new_graph
 
     g = new_graph()
@@ -503,6 +512,7 @@ def load_shapes_graph(location: str) -> Any:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Command-line entry point: print the JSON plan of a shapes graph file to standard output."""
     ap = argparse.ArgumentParser(prog="python -m starlayer.shacl_engine.plan_json", description=__doc__.split("\n")[0])
     ap.add_argument("shapes", help="shapes graph file (Turtle 1.2 by default)")
     ap.add_argument("--indent", type=int, default=None, help="pretty-print with this indent")

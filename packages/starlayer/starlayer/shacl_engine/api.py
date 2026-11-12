@@ -28,6 +28,8 @@ DEFAULT_MAX_VALIDATION_DEPTH = 500  # the removed pySHACL-era validator's defaul
 
 @dataclass
 class Outcome:
+    """The value returned by ``validate()`` and ``validate_each()``."""
+
     conforms: bool
     report_graph: Any
     results: list[Result]
@@ -144,7 +146,7 @@ def validate(
     removes the bound. Recursive shapes: see ``Context.conforms``.
 
     ``meta_shacl``, ``shapes_graph_loader``, ``ignore_imports`` and ``meta_shapes_extra`` are the seam for
-    ``shacl_engine.meta`` and ``shacl_engine.imports`` (see the TODO below).
+    ``shacl_engine.meta`` and ``shacl_engine.imports`` (see the wiring comment in the body).
 
     ``plan``: a ``Plan`` already built over ``shapes_graph`` (used by ``validate_each`` to parse the shapes once); it
     must belong to the shapes graph actually validated against.

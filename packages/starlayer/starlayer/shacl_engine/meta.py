@@ -26,12 +26,15 @@ class MetaShaclError(ValueError):
 
 @dataclass
 class MetaResult:
+    """Outcome of validating a shapes graph against the meta-shapes, with a printable report."""
+
     conforms: bool
     report_graph: Any
     report_text: str
     results: list = field(default_factory=list)
 
     def raise_if_invalid(self) -> None:
+        """Raise ``MetaShaclError`` carrying the report text when the shapes graph did not conform."""
         if not self.conforms:
             raise MetaShaclError(f"{META_ERROR_PREFIX}\n{self.report_text}")
 

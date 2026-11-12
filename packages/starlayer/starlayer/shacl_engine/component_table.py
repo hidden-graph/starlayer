@@ -203,6 +203,11 @@ def _operator_meta(iri: str) -> dict[str, Any] | None:
 
 
 def component_rows() -> list[dict[str, Any]]:
+    """One table row per registered constraint component, merging the registry with the hand-written annotation.
+
+    A row has ``"annotated": false`` when the component has no ``_COMPONENT_META`` entry, or when the annotated
+    parameters do not match the registry's predicates exactly.
+    """
     rows = []
     for iri, spec in REGISTRY.items():
         meta = _COMPONENT_META.get(iri.value) or _COMPONENT_META.get(_local(iri.value))
@@ -233,6 +238,7 @@ def component_rows() -> list[dict[str, Any]]:
 
 
 def operator_rows() -> list[dict[str, Any]]:
+    """One table row per registered node-expression operator, with ``"annotated": false`` where no annotation exists."""
     rows = []
     for iri in OPERATORS:
         iri = iri.value
@@ -275,6 +281,7 @@ def component_table() -> dict[str, Any]:
 
 
 def main() -> int:
+    """Command-line entry point: print ``component_table()`` to stdout as indented JSON."""
     json.dump(component_table(), sys.stdout, indent=2)
     sys.stdout.write("\n")
     return 0

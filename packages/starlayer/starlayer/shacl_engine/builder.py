@@ -14,6 +14,7 @@ from starlayer.shacl_engine.terms import RDF, XSD, Literal, NamedNode, Triple, t
 
 
 def build_path(graph: Any, node: Term) -> Path:
+    """Parse the SHACL property path rooted at ``node``."""
     from starlayer.shacl_engine.paths import parse_path
 
     return parse_path(graph, node)
@@ -47,6 +48,11 @@ def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -
 
 
 def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
+    """Build a ``Shape`` from a node or property shape in the shapes graph, raising ``ShapeError`` if it is malformed.
+
+    Args:
+        extra_predicates: Parameter predicates to collect in addition to those of the built-in components.
+    """
     path_values = list(graph.objects(node, SH.path))
     if len(path_values) > 1:
         raise ShapeError(f"{text(node)}: more than one sh:path")

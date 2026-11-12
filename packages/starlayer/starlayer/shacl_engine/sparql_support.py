@@ -78,6 +78,7 @@ def prefixes_for(plan: Plan, holder: Term) -> dict[str, str]:
 
 
 def with_prefixes(plan: Plan, holder: Term, text: str) -> str:
+    """The query text with a ``PREFIX`` header for the prefixes declared for ``holder`` (see ``prefixes_for``)."""
     header = "".join(f"PREFIX {p}: <{ns}>\n" for p, ns in prefixes_for(plan, holder).items())  # str-ok: prefix and namespace strings
     return header + text
 
@@ -239,6 +240,11 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
 
 
 def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_this: bool = True) -> Solutions:
+    """Check a SHACL SPARQL SELECT and run it on the data graph with ``bindings`` pre-bound.
+
+    Raises ``ShapeError`` if ``check_query`` rejects the query or, unless ``require_this`` is false, it does not project
+    ``?this``.
+    """
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
         raise ShapeError("a SHACL SPARQL SELECT query must project ?this")
@@ -246,6 +252,11 @@ def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_thi
 
 
 def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
+    """Check a SHACL SPARQL ASK and run it on the data graph with ``bindings`` pre-bound.
+
+    A blank node (or a triple term containing one) can be pre-bound only in a SELECT, so then the query is run as a SELECT
+    of the same pattern and any solution counts as true.
+    """
     check_query(ctx.plan, text, bindings, ask=True)
     from starlayer.graph.oxgraph.run import _has_blank, _mask
 
@@ -263,6 +274,7 @@ def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
 
 
 def path_to_sparql(path: Path) -> str:
+    """The SPARQL property-path text for a parsed ``sh:path``, with every composite parenthesised."""
     if path.kind == "pred":
         return f"<{path.iri.value}>"
     args = [path_to_sparql(a) for a in path.args]

@@ -17,11 +17,27 @@ Term = Any
 
 @runtime_checkable
 class GraphView(Protocol):
-    def triples(self, pattern: tuple[Term | None, Term | None, Term | None]) -> Iterator[tuple[Term, Term, Term]]: ...
-    def objects(self, subject: Term | None = None, predicate: Term | None = None) -> Iterator[Term]: ...
-    def subjects(self, predicate: Term | None = None, object: Term | None = None) -> Iterator[Term]: ...
-    def predicate_objects(self, subject: Term | None = None) -> Iterator[tuple[Term, Term]]: ...
-    def __contains__(self, triple: tuple[Term, Term, Term]) -> bool: ...
+    """The read-only graph surface the SHACL engine uses; ``None`` in any position is a wildcard."""
+
+    def triples(self, pattern: tuple[Term | None, Term | None, Term | None]) -> Iterator[tuple[Term, Term, Term]]:
+        """Yield the triples matching ``pattern``."""
+        ...
+
+    def objects(self, subject: Term | None = None, predicate: Term | None = None) -> Iterator[Term]:
+        """The objects of the triples matching the given subject and predicate."""
+        ...
+
+    def subjects(self, predicate: Term | None = None, object: Term | None = None) -> Iterator[Term]:
+        """The subjects of the triples matching the given predicate and object."""
+        ...
+
+    def predicate_objects(self, subject: Term | None = None) -> Iterator[tuple[Term, Term]]:
+        """The (predicate, object) pairs of the triples matching the given subject."""
+        ...
+
+    def __contains__(self, triple: tuple[Term, Term, Term]) -> bool:
+        """Whether any triple matches ``triple``; ``None`` in a position matches anything."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -50,4 +66,6 @@ class SparqlCapable(Protocol):
 
     def sparql_query(
         self, text: str, init_bindings: Mapping[str, Term] | None = None, custom_functions: Mapping[Term, Any] | None = None
-    ) -> Solutions: ...
+    ) -> Solutions:
+        """Run a SPARQL SELECT or ASK query with variables pre-bound; the contract is in the class docstring."""
+        ...

@@ -38,6 +38,11 @@ def _is_implicit_class_target(graph: Any, node: Term) -> bool:
 
 
 def shape_targets(graph: Any, node: Term) -> list[tuple[URIRef, Term]]:
+    """The (target predicate, value) declarations of one shape, ready for ``focus_nodes``.
+
+    The result always ends with the pseudo target ``(sh:shape, node)``, and a shape that is also a class gets an
+    implicit ``sh:targetClass`` entry for itself. Raises ``ShapeError`` when a ``sh:targetWhere`` value is a literal.
+    """
     out: list[tuple[URIRef, Term]] = []
     for pred in _TARGET_PREDICATES:
         for v in graph.objects(node, pred):
@@ -52,6 +57,7 @@ def shape_targets(graph: Any, node: Term) -> list[tuple[URIRef, Term]]:
 
 
 def declared_shape_nodes(graph: Any) -> list[Term]:
+    """Every node of a shapes graph that is typed as a shape or carries a target declaration, each once."""
     nodes: dict = {}
     for typ in _SHAPE_TYPES:
         for sub in _class_closure(graph, typ):  # a SHACL instance of a shape type includes instances of its subclasses

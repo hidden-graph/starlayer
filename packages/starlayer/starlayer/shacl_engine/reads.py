@@ -21,11 +21,16 @@ class RecordingGraph:
     engine_terms = True
 
     def __init__(self, graph: Any) -> None:
+        """Wrap ``graph``, the engine graph whose reads are to be recorded."""
         self._g = graph
         self._reads: set[_Triple] | None = None
 
     @contextmanager
     def recording(self) -> Iterator[set[_Triple]]:
+        """Record, into the yielded set, the triples read inside the ``with`` block.
+
+        A nested ``recording()`` collects its own reads only; the outer set does not receive them.
+        """
         outer, self._reads = self._reads, set()
         try:
             yield self._reads
@@ -33,6 +38,7 @@ class RecordingGraph:
             self._reads = outer
 
     def __getattr__(self, name: str) -> Any:
+        """Forward any attribute not defined here to the wrapped graph, without recording."""
         return getattr(self._g, name)
 
     def _read(self, pattern: _Triple) -> Iterator[_Triple]:
@@ -43,15 +49,19 @@ class RecordingGraph:
             yield triple
 
     def triples(self, pattern: _Triple = (None, None, None)) -> Iterator[_Triple]:
+        """Yield the triples matching the pattern; they are recorded as they are consumed, while a ``recording()`` is active."""
         return self._read(pattern)
 
     def __iter__(self) -> Iterator[_Triple]:
+        """Iterate over every triple; recorded as consumed, while a ``recording()`` is active."""
         return self._read((None, None, None))
 
     def __contains__(self, item: Any) -> bool:
+        """Test membership in the wrapped graph; the check is not recorded."""
         return item in self._g
 
     def __len__(self) -> int:
+        """The size of the wrapped graph; not recorded."""
         return len(self._g)
 
     def _project(self, pattern: _Triple, slot: int, unique: bool) -> Iterator[Any]:
@@ -64,27 +74,40 @@ class RecordingGraph:
             yield t[slot]
 
     def objects(self, subject: Any = None, predicate: Any = None, unique: bool = False) -> Iterator[Any]:
+        """Yield the objects of triples matching the subject and predicate."""
         return self._project((subject, predicate, None), 2, unique)
 
     def subjects(self, predicate: Any = None, object: Any = None, unique: bool = False) -> Iterator[Any]:  # noqa: A002
+        """Yield the subjects of triples matching the predicate and object."""
         return self._project((None, predicate, object), 0, unique)
 
     def predicates(self, subject: Any = None, object: Any = None, unique: bool = False) -> Iterator[Any]:  # noqa: A002
+        """Yield the predicates of triples matching the subject and object."""
         return self._project((subject, None, object), 1, unique)
 
     def predicate_objects(self, subject: Any = None) -> Iterator[tuple[Any, Any]]:
+        """Yield (predicate, object) pairs for the subject."""
         for _s, p, o in self._read((subject, None, None)):
             yield p, o
 
     def subject_objects(self, predicate: Any = None) -> Iterator[tuple[Any, Any]]:
+        """Yield (subject, object) pairs for the predicate."""
         for s, _p, o in self._read((None, predicate, None)):
             yield s, o
 
     def subject_predicates(self, object: Any = None) -> Iterator[tuple[Any, Any]]:  # noqa: A002
+        """Yield (subject, predicate) pairs for the object."""
         for s, p, _o in self._read((None, None, object)):
             yield s, p
 
     def value(self, subject: Any = None, predicate: Any = None, object: Any = None, default: Any = None, any: bool = True) -> Any:  # noqa: A002
+        """Return the first matching term, or ``default`` if nothing matches.
+
+        The term returned is the subject if subject is None, else the predicate if predicate is None, else the object.
+
+        Args:
+            any: when false, more than one match raises ``ValueError``; when true, the first match is returned.
+        """
         slot = 0 if subject is None else 1 if predicate is None else 2
         found = [t[slot] for t in self._read((subject, predicate, object))]
         if not found:
@@ -94,6 +117,12 @@ class RecordingGraph:
         return found[0]
 
     def sparql_query(self, text: str, init_bindings: Mapping[str, Any] | None = None, custom_functions: Any = None) -> Any:
+        """Run the query on the wrapped graph, recording its relevant triples while a ``recording()`` is active.
+
+        The query's own reads are not observable, so the recorded set is derived from the query text via
+        ``starlayer.sparql.relevant``. Queries that module cannot analyse (kinds other than SELECT, ASK and CONSTRUCT,
+        and queries containing SERVICE) record nothing.
+        """
         result = self._g.sparql_query(text, init_bindings, custom_functions)
         if self._reads is not None:
             self._reads |= self._query_reads(text, dict(init_bindings or {}), custom_functions)

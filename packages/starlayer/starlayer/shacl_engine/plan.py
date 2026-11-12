@@ -64,6 +64,8 @@ class Path:
 
 @dataclass(frozen=True)
 class Shape:
+    """One SHACL shape read from the shapes graph into a frozen record of terms and tuples."""
+
     node: Term
     is_property: bool
     path: Path | None
@@ -83,12 +85,17 @@ class Shape:
 
 @dataclass
 class Plan:
+    """A shapes graph plus its lazily built ``Shape`` objects and constraint components."""
+
     shapes_graph: Any
     _cache: dict[Term, Shape] = field(default_factory=dict)
     _components: list | None = None
     sparql_cache: dict = field(default_factory=dict)  # prefix declarations and checked queries, keyed by their inputs
 
     def __post_init__(self) -> None:
+        """Normalise the shapes graph to an engine-term view and refuse one using unsupported constructs.
+
+        The refused constructs are sh:target, sh:SPARQLTarget, sh:SPARQLTargetType and sh:SPARQLFunction."""
         self.shapes_graph = engine_view(self.shapes_graph, "shapes graph")  # the seam: rdflib / StarLayer graphs get an engine-term view
         reject_removed_constructs(self.shapes_graph)
 
@@ -104,6 +111,7 @@ class Plan:
         return self._components
 
     def shape(self, node: Term) -> Shape:
+        """The ``Shape`` for a node, built on first request and cached."""
         if node not in self._cache:
             from starlayer.shacl_engine.builder import build_shape
 
@@ -112,10 +120,12 @@ class Plan:
         return self._cache[node]
 
     def all_shape_nodes(self) -> list[Term]:
+        """The shape nodes the shapes graph declares, by shape type or by having a target, without duplicates."""
         from starlayer.shacl_engine.builder import declared_shape_nodes
 
         return declared_shape_nodes(self.shapes_graph)
 
 
 def is_shape_type(graph: Any, node: Term) -> bool:
+    """Whether the node is explicitly typed sh:NodeShape, sh:PropertyShape or sh:Shape (subclasses not followed)."""
     return any(t in (SH.NodeShape, SH.PropertyShape, SH.Shape) for t in graph.objects(node, RDF.type))

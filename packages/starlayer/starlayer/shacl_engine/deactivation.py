@@ -26,4 +26,5 @@ def any_true(ctx: Any, exprs: Any, focus: Term) -> bool:
 
 
 def deactivated_at(ctx: Any, shape: Shape, focus: Term) -> bool:
+    """True if one of the shape's ``sh:deactivated`` node expressions yields true at ``focus``; a literal ``true`` is not checked here."""
     return any_true(ctx, shape.deactivated_exprs, focus)

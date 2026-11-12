@@ -339,6 +339,14 @@ def provenance_text(report: Any, data_graph_iri: Any = None, *graphs: Any) -> st
 def report_text(
     results: list[Result], conforms: bool, shapes: Any, data: Any, report: Any = None, data_graph_iri: Any = None
 ) -> str:
+    """The human-readable validation report text: header, sorted result blocks, then the ``Provenance:`` appendix.
+
+    Result blocks are sorted by their text, so the output does not depend on result order.
+
+    Args:
+        report: the report graph; the appendix is built from it, and is omitted when this is ``None``.
+        data_graph_iri: the data graph's IRI (or str); the ``conformsTo`` triples on it in ``report`` are listed in the appendix. Ignored without ``report``.
+    """
     text = f"Validation Report\nConforms: {conforms}\n"
     if results:
         text += f"Results ({len(results)}):\n"

@@ -27,6 +27,8 @@ from starlayer.shacl_engine.terms import engine_view, unmask
 
 @dataclass(frozen=True)
 class Result:
+    """A single SHACL validation result; also used for nested ``sh:detail`` results."""
+
     focus: Term
     path: Path | None
     value: Term
@@ -62,13 +64,16 @@ class Context:
     _assumed: int = 0  # how many times a re-entry assumed 'conforms' (the greatest-fixpoint reading) so far
 
     def __post_init__(self) -> None:
+        """Wrap the data graph in the engine's term view."""
         self.data = engine_view(self.data, "data graph")
 
     @property
     def shapes(self) -> Any:
+        """The plan's shapes graph, as an engine term view."""
         return self.plan.shapes_graph
 
     def shape(self, node: Term) -> Shape:
+        """The built shape for ``node``; delegates to the plan."""
         return self.plan.shape(node)
 
     def conforms(self, shape_node: Term, node: Term, *, negated: bool = False) -> bool:
@@ -181,6 +186,10 @@ def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:
 
 
 def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
+    """Validate one focus node against a shape and its property shapes.
+
+    A deactivated shape yields no results. Entering a shape beyond ``ctx.max_validation_depth`` raises ``ShapeError``.
+    """
     if shape.deactivated or deactivated_at(ctx, shape, focus):
         return []
     limit = ctx.max_validation_depth

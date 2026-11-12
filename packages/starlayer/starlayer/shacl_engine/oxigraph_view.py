@@ -134,11 +134,18 @@ def inject_everywhere(text: str, values: str) -> str:
 
 
 class OxigraphGraph:
+    """A ``GraphView`` and ``SparqlCapable`` data graph over a ``pyoxigraph.Store``, returning the store's own terms."""
+
     engine_terms = True
     preserves_lexical_forms = False
     native_sparql = True
 
     def __init__(self, store: ox.Store | None = None, graph_name: Any = UNION) -> None:
+        """Wrap a store, creating an empty one if none is given.
+
+        Args:
+            graph_name: ``UNION`` (default) reads every graph, ``DEFAULT`` the default graph only, any other value that named graph.
+        """
         self.store = store if store is not None else ox.Store()
         from starlayer.graph.oxgraph import union
 
@@ -167,6 +174,11 @@ class OxigraphGraph:
     def from_text(
         cls, text: str, *, format: str = "turtle", graph_name: Any = UNION, base_iri: str | None = None
     ) -> OxigraphGraph:
+        """Build a graph from RDF text, loading into the default graph or into ``graph_name`` when that is a named graph.
+
+        Args:
+            format: ``"turtle"``, ``"trig"`` or ``"nt"``.
+        """
         fmt = {"turtle": ox.RdfFormat.TURTLE, "trig": ox.RdfFormat.TRIG, "nt": ox.RdfFormat.N_TRIPLES}[format]
         target = graph_name if graph_name not in (UNION, DEFAULT) else None
         store = ox.Store()
@@ -188,6 +200,7 @@ class OxigraphGraph:
         return cls(store, graph_name)
 
     def add(self, triple: tuple[Any, Any, Any]) -> None:
+        """Add a triple to the selected graph (the default graph when reading the union)."""
         g = ox.DefaultGraph() if self._graph is None else self._graph
         self.store.add(ox.Quad(*(to_ox(t) for t in triple), g))
         from starlayer.graph.oxgraph import union
@@ -206,6 +219,7 @@ class OxigraphGraph:
         return self.store.quads_for_pattern(s, p, o, self._graph)
 
     def triples(self, pattern: tuple[Any, Any, Any]) -> Iterator[tuple[Any, Any, Any]]:
+        """The triples matching ``pattern`` (``None`` is a wildcard), each once even when several graphs hold it."""
         s, p, o = pattern
         seen: set | None = set() if self._graph is None else None
         for q in self._quads(s, p, o):
@@ -217,6 +231,7 @@ class OxigraphGraph:
             yield q.subject, q.predicate, q.object
 
     def objects(self, subject: Any = None, predicate: Any = None) -> Iterator[Any]:
+        """The objects of the triples matching ``subject`` and ``predicate``; a triple held by several graphs is not repeated."""
         # Only the object is converted; with subject and predicate fixed the union de-duplicates on the object alone.
         if subject is None or predicate is None:
             for _s, _p, o in self.triples((subject, predicate, None)):
@@ -232,6 +247,7 @@ class OxigraphGraph:
             yield o
 
     def subjects(self, predicate: Any = None, object: Any = None) -> Iterator[Any]:
+        """The subjects of the triples matching ``predicate`` and ``object``; a triple held by several graphs is not repeated."""
         if predicate is None or object is None:
             for s, _p, _o in self.triples((None, predicate, object)):
                 yield s
@@ -246,14 +262,17 @@ class OxigraphGraph:
             yield s
 
     def predicate_objects(self, subject: Any = None) -> Iterator[tuple[Any, Any]]:
+        """The (predicate, object) pairs of the triples matching ``subject``."""
         for _s, p, o in self.triples((subject, None, None)):
             yield p, o
 
     def __contains__(self, triple: tuple[Any, Any, Any]) -> bool:
+        """Whether the triple is in the selected graph; a wildcard (``None``) in a position matches anything."""
         s, p, o = triple
         return next(self._raw_quads(s, p, o), None) is not None
 
     def __len__(self) -> int:
+        """The number of distinct triples in the selected graph; a triple held by several graphs counts once."""
         return sum(1 for _ in self.triples((None, None, None)))
 
     # ---- SPARQL -------------------------------------------------------------------------------------------------

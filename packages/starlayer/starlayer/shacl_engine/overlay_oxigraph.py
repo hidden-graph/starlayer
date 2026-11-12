@@ -73,6 +73,7 @@ class OxigraphOverlay(InferredView):
     Python storage (``self._inferred`` / ``self._index``, the "side" set)."""
 
     def __init__(self, base: Any) -> None:
+        """Create an empty overlay on ``base``, which is never modified."""
         super().__init__(base)
         self._store = ox.Store()
         self._stored = 0  # number of triples in the store
@@ -91,6 +92,7 @@ class OxigraphOverlay(InferredView):
 
     # -- writes
     def add(self, triple: Triple) -> bool:
+        """Add an inferred triple; True if it is new to the view, False if ``base`` or the overlay already has it."""
         s, p, o = triple
         if triple in self.base or triple in self._inferred:
             return False
@@ -108,6 +110,7 @@ class OxigraphOverlay(InferredView):
         return super().add(triple)
 
     def remove(self, triple: Triple) -> None:
+        """Remove an inferred triple; a triple of ``base`` or an unknown one is ignored."""
         if triple in self._inferred:
             super().remove(triple)
             return
@@ -124,16 +127,19 @@ class OxigraphOverlay(InferredView):
 
     @property
     def inferred(self) -> frozenset[Triple]:
+        """Every inferred triple, from the store and from the Python side."""
         out = set(self._inferred)
         for q in self._store:
             out.add((q.subject, q.predicate, q.object))
         return frozenset(out)
 
     def __len__(self) -> int:
+        """Number of inferred triples (``base`` is not counted)."""
         return len(self._inferred) + self._stored
 
     # -- GraphView
     def triples(self, pattern: tuple[Any, Any, Any]) -> Iterator[Triple]:
+        """Triples matching ``pattern`` (``None`` is a wildcard): ``base`` first, then the store, then the Python side."""
         s, p, o = pattern
         yield from self.base.triples((s, p, o))
         for q in self._store_quads(s, p, o):
@@ -141,6 +147,7 @@ class OxigraphOverlay(InferredView):
         yield from self._inferred_matching(s, p, o)
 
     def objects(self, subject: Any = None, predicate: Any = None) -> Iterator[Any]:
+        """Distinct objects of the triples matching ``subject`` and ``predicate`` across ``base`` and the overlay."""
         seen: set = set()
         for o in self.base.objects(subject, predicate):
             if o not in seen:
@@ -157,6 +164,7 @@ class OxigraphOverlay(InferredView):
                 yield o
 
     def subjects(self, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: A002
+        """Distinct subjects of the triples matching ``predicate`` and ``object`` across ``base`` and the overlay."""
         seen: set = set()
         for s in self.base.subjects(predicate, object):
             if s not in seen:
@@ -173,10 +181,12 @@ class OxigraphOverlay(InferredView):
                 yield s
 
     def predicate_objects(self, subject: Any = None) -> Iterator[tuple[Any, Any]]:
+        """Every predicate and object pair for ``subject`` across ``base`` and the overlay, not de-duplicated."""
         for _s, p, o in self.triples((subject, None, None)):
             yield p, o
 
     def __contains__(self, triple: Triple) -> bool:
+        """True if ``triple`` is in ``base`` or among the inferred triples."""
         if triple in self._inferred or triple in self.base:
             return True
         s, p, o = triple
@@ -184,6 +194,10 @@ class OxigraphOverlay(InferredView):
 
     # -- SPARQL: the materialised union is an StarLayerGraph (the store normalises its literals, as for any query on a store)
     def materialised(self) -> Any:
+        """The base plus inferred triples as one graph for SPARQL, cached between calls.
+
+        ``add`` updates the cached graph in place; ``remove`` discards it and the next call rebuilds it.
+        """
         if self._mat is None:
             from starlayer.shacl_engine.graphs import new_graph
 
