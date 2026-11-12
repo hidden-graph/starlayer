@@ -196,8 +196,40 @@ class _NegationElement:
     evaldata: bool = True
 
 
+@dataclass(frozen=True)
+class _Aggregation:
+    """§4.1 "Aggregation assignment" - ``?n := COUNT(*)``: ``var`` is the aggregation variable, ``function`` the name of the
+    aggregation function (``COUNT``, ``MIN``, ``MAX`` or ``SUM``), ``argument`` the aggregation argument (a variable, or ``None``
+    for ``*``, which only ``COUNT`` takes) and ``distinct`` the distinct flag (only ``COUNT`` takes it).
+
+    Private - see ``_FilterElement`` above."""
+
+    var: ox.Variable
+    function: str
+    argument: ox.Variable | None = None
+    distinct: bool = False
+
+
+# §4.1's group pattern (production [23], GroupPattern ::= triple patterns with Filter | Assignment): like a rule body, without
+# negation or a nested group.
+GroupBodyElement = TriplePattern | _FilterElement | _AssignmentElement
+
+
+@dataclass(frozen=True)
+class _GroupElement:
+    """§4.1 "Group element" - ``GROUP BY ?x { pattern } [ ?n := COUNT(*) ]``. ``keys`` are the group keys (``group.keys``, a set in
+    the spec, kept in the order written and without repeats), ``pattern`` the group pattern (``group.pattern``) and
+    ``aggregations`` the aggregation assignments (``group.aggregations``, possibly none: ``[]``).
+
+    A rule with a group element is a run-once rule. Private - see ``_FilterElement`` above."""
+
+    keys: list[ox.Variable] = field(default_factory=list)
+    pattern: list[GroupBodyElement] = field(default_factory=list)
+    aggregations: list[_Aggregation] = field(default_factory=list)
+
+
 # §4.1's "Rule element" - the union every rule body member belongs to.
-BodyElement = TriplePattern | _FilterElement | _NegationElement | _AssignmentElement
+BodyElement = TriplePattern | _FilterElement | _NegationElement | _AssignmentElement | _GroupElement
 
 
 def _triple_term_has_variable(term: Any) -> bool:
@@ -257,7 +289,7 @@ class _Rule:
         Returns:
             True if this rule is run-once; False if it is general.
         """
-        if any(isinstance(e, _AssignmentElement) for e in self.body):
+        if any(isinstance(e, (_AssignmentElement, _GroupElement)) for e in self.body):
             return True
         return any(
             isinstance(t.subject, ox.BlankNode)

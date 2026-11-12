@@ -24,7 +24,7 @@ TEXT = {e["block"]: PRELUDE + e["text"] for e in SPEC_EXAMPLES}
 
 @pytest.mark.srl_conformance
 def test_all_examples_were_extracted():
-    assert len(SPEC_EXAMPLES) == 13
+    assert len(SPEC_EXAMPLES) == 14
 
 
 @pytest.mark.srl_conformance

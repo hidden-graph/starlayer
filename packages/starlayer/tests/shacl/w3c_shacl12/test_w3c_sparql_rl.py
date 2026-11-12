@@ -33,9 +33,7 @@ MF = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#"
 SRT = "http://www.w3.org/ns/sparql-rl-tests#"
 RDF_TYPE = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
 
-_GROUP = "GROUP in a rule body is not implemented (SPARQL 1.2 Rules WD 2026-11-09; docs/working/spec-delta-2026-11-11.md, phase 4)"
 KNOWN: dict[str, str] = {
-    **{f"syntax/syntax-rule-elements-group-{n:02d}.srl": _GROUP for n in range(1, 17)},
     "eval2/Eval-assign-01": "the manifest names eval-assign-01.srl and its results file, and neither is in the upstream suite",
 }
 

@@ -12,7 +12,7 @@ xfail in `known_failures.py` that flips to a failing XPASS the moment it is fixe
 
 | File | Property | Oracle |
 |---|---|---|
-| `test_sr_coverage_matrix.py` | all 153 grammar productions are exercised by the corpus | the draft's grammar table, `vendor/` |
+| `test_sr_coverage_matrix.py` | all 161 grammar productions are exercised by the corpus | the draft's grammar table, `vendor/` |
 | `test_sr_corpus.py` | each case parses; renders to text that re-parses to a fixpoint; **keeps its meaning** (every FILTER/SET expression evaluates the same before and after); the `srl:` tree validates and decodes to the same text | the draft; rdflib's expression evaluator |
 | `test_sr_spec_examples.py` | the draft's 13 code examples parse, plan (stratify), round-trip and keep their meaning | the draft |
 | `test_sr_builtins.py` | 70 SPARQL functions: those in SRL's `BuiltInCall` parse and encode; those that are not are rejected | the draft's `BuiltInCall` production |
@@ -72,7 +72,7 @@ the tests now canonicalise.
 
 `tools/mutation_scan.py` damages the `srl:` tree of every corpus case (remove a triple, swap a value for a
 literal, add a second value, drop an `rdf:type`, break a list) once per distinct (node class, property,
-operator): 153 mutants, about 3 minutes.
+operator): 161 mutants, about 3 minutes.
 
 | Verdict | Mutants |
 |---|---|
@@ -146,6 +146,10 @@ New findings from the wiring:
 |---|---|
 | V2 | A zero-argument function call (`FILTER :f()`) failed `spexpr:_FunctionExprBodyShape` (requires an argument list and `distinct`). Closed 2026-11-11: the parser now always sets `distinct` and an empty argument list on function nodes. |
 | V3 | An aggregate inside `SET` is no longer rejected by the shapes (the shared spexpr shapes accept aggregates); `parse_ruleset` still rejects it in Python. Needs a constraint in `srl_shapes.ttl` (strict xfail in `tests/sparql/unit/test_srl_shapes.py`). |
+
+G1 (2026-11-11): the draft of 2026-11-09 added `GROUP [BY] { } [ ... ]` (productions [22] to [29]); `parse_srl`, the well-formedness checks, the evaluator,
+the dependency graph, the `srl:` tree and shapes, and the corpus (`body-group-*`) now cover it. The 16 positive and 10 negative `GROUP` syntax tests of the
+W3C suite pass (`tests/shacl/w3c_shacl12/test_w3c_sparql_rl.py`).
 
 Later the same day: L1 (a `.` is now required between triple groups), L2 (the ten non-SRL functions are rejected),
 V1 (`SRLParseError` for an undeclared prefix), P2b (unicode escapes: `parse_ruleset` now runs rdflib's

@@ -1,5 +1,5 @@
 """Every SPARQL (1.1 and 1.2) function name with a small example call, and whether SRL's BuiltInCall
-production (spec [118], W3C WD 14 October 2026) includes it.
+production (spec [126], W3C WD 09 November 2026) includes it.
 
 ``SPEC`` is read from the vendored grammar table, not typed in, so it moves with the spec.
 """

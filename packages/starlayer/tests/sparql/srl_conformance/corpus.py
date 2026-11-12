@@ -1,6 +1,6 @@
 """Positive corpus for the SRL conformance suite.
 
-Each ``Case`` names the grammar productions of the SPARQL 1.2 RL draft (W3C WD 14 October 2026, section
+Each ``Case`` names the grammar productions of the SPARQL 1.2 RL draft (W3C WD 09 November 2026, section
 7.6) that it exercises (``covers``); the coverage-matrix test fails if any production is exercised by no case
 or a case names a production that is not in the grammar table. Cases are small and one construct each, so a
 failure points at one production.
@@ -74,11 +74,27 @@ _c("body-filter-multiple", "BodyNotTriples", "RULE { ?x :p ?y } WHERE { ?x :q ?y
 _c("body-triples-between-elements", "BodyPattern BodyTriplesBlock",
    "RULE { ?x :p ?z } WHERE { ?x :q ?y FILTER (?y > 1) ?x :r ?z }")
 _c("body-dot-after-filter", "BodyPattern", "RULE { ?x :p ?y } WHERE { ?x :q ?y . FILTER (?y > 1) . ?x :r ?z . }")
-_c("body-not", "Negation BodyBasic", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT { ?x :r ?y } }")
+_c("body-not", "Negation NegationPattern", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT { ?x :r ?y } }")
 _c("body-not-data", "Negation", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT DATA { ?x :r ?y } }")
-_c("body-not-filter", "BodyBasicNotTriples", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT { ?x :r ?z FILTER (?z > ?y) } }")
-_c("body-not-several-patterns", "BodyBasic", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT { ?x :r ?z . ?z :s ?y } }")
+_c("body-not-filter", "NegationPatternNotTriples", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT { ?x :r ?z FILTER (?z > ?y) } }")
+_c("body-not-several-patterns", "NegationPattern", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT { ?x :r ?z . ?z :s ?y } }")
 _c("body-not-empty", "Negation", "RULE { ?x :p ?y } WHERE { ?x :q ?y NOT { } }")
+# --- grouping and aggregation (WD 2026-11-09, section 3.6) ---------------------------------------------
+_c("body-group-count", "BodyNotTriples GroupAggregate GroupPattern AggregationAssignments AggregationAssignment AggregationFunction VarOrStar",
+   "RULE { ?x :n ?n } WHERE { ?x a :C GROUP { ?x :p ?v } [ ?n := COUNT(*) ] }")
+_c("body-group-by", "ListVars", "RULE { ?x :n ?n } WHERE { ?x a :C GROUP BY ?x { ?x :p ?v } [ ?n := COUNT(*) ] }")
+_c("body-group-by-several", "ListVars", "RULE { ?x :n ?n } WHERE { ?x :q ?w GROUP BY ?x ?w { ?x :p ?v . ?w :r ?v } [ ?n := COUNT(?v) ] }")
+_c("body-group-anon", "ANON", "RULE { :a :b :c } WHERE { GROUP { ?x :p ?v } [] }")
+_c("body-group-not-triples", "GroupPatternNotTriples",
+   "RULE { ?x :n ?n } WHERE { GROUP BY ?x { ?x :p ?v FILTER (?v > 1) SET (?z := ?v + 1) } [ ?n := SUM(?z) ] }")
+_c("body-group-count-distinct", "AggregationFunction VarOrStar",
+   "RULE { ?x :n ?n ; :m ?m } WHERE { GROUP BY ?x { ?x :p ?v } [ ?n := COUNT(DISTINCT ?v) , ?m := COUNT(DISTINCT *) ] }")
+_c("body-group-min-max", "AggregationFunction",
+   "RULE { ?x :lo ?lo ; :hi ?hi } WHERE { GROUP BY ?x { ?x :p ?v } [ ?lo := MIN(?v) , ?hi := MAX(?v) ] }")
+_c("body-group-then-filter", "BodyNotTriples",
+   "RULE { ?x :n ?n } WHERE { GROUP BY ?x { ?x :p ?v } [ ?n := COUNT(*) ] FILTER (?n > 1) }")
+_c("body-group-two", "GroupAggregate",
+   "RULE { ?x :n ?n ; :s ?s } WHERE { GROUP BY ?x { ?x :p ?v } [ ?n := COUNT(*) ] GROUP BY ?x { ?x :q ?w } [ ?s := SUM(?w) ] }")
 _c("body-set", "Assignment", "RULE { ?x :p ?z } WHERE { ?x :q ?y SET (?z := ?y + 1) }")
 _c("body-set-chain", "Assignment", "RULE { ?x :p ?w } WHERE { ?x :q ?y SET (?z := ?y + 1) SET (?w := ?z * 2) }")
 _c("body-set-dollar-var", "VAR2", "RULE { ?x :p $z } WHERE { ?x :q $y SET ($z := $y + 1) }")

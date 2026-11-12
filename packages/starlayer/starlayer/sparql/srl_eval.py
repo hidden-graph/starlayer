@@ -179,6 +179,12 @@ def _build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[_DependencyEdge]:
                 for inner in elt.inner:
                     if isinstance(inner, srl_ast.TriplePattern):
                         body_dependencies.append((inner, "closed"))
+            elif isinstance(elt, srl_ast._GroupElement):
+                # the triple patterns of a group pattern are closed dependencies (§4.3.2): the group sees every triple its
+                # patterns can match, so the rules that produce them finish first
+                for inner in elt.pattern:
+                    if isinstance(inner, srl_ast.TriplePattern):
+                        body_dependencies.append((inner, "closed"))
             elif isinstance(elt, srl_ast.TriplePattern):
                 body_dependencies.append((elt, "open"))
             # FilterElement / AssignmentElement: no dependency contribution.
@@ -389,6 +395,14 @@ def _collect_variables(rule: srl_ast._Rule) -> set[Variable]:
         elif isinstance(e, srl_ast._NegationElement):
             for inner in e.inner:
                 _element(inner)
+        elif isinstance(e, srl_ast._GroupElement):
+            found.update(e.keys)
+            for agg in e.aggregations:
+                found.add(agg.var)
+                if agg.argument is not None:
+                    found.add(agg.argument)
+            for inner in e.pattern:
+                _element(inner)
 
     for t in rule.head:
         _triple(t)
@@ -446,6 +460,8 @@ def _blank_nodes_to_vars(
             return _sub_triple(e)
         if isinstance(e, srl_ast._NegationElement):
             return srl_ast._NegationElement(inner=[_sub_element(x) for x in e.inner], evaldata=e.evaldata)
+        if isinstance(e, srl_ast._GroupElement):
+            return srl_ast._GroupElement(keys=e.keys, pattern=[_sub_element(x) for x in e.pattern], aggregations=e.aggregations)
         return e  # FilterElement/AssignmentElement: no raw BNode terms to substitute
 
     return [_sub_element(e) for e in body]
@@ -563,6 +579,72 @@ def _eval_expr(expr, mu: dict):
     return None
 
 
+_XSD_INTEGER = ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer")
+_SET_FUNCTION = {"SUM": "SUM", "MIN": "MIN", "MAX": "MAX"}
+
+
+def _aggregate(agg: srl_ast._Aggregation, solutions: list[dict]):
+    """§6.4 ``evalAggregate``: the value of one aggregation function over the solutions of one group, or ``None`` for an error.
+
+    ``COUNT(*)`` counts solution mappings (distinct ones with DISTINCT). Otherwise the argument variable's value is taken from each
+    solution (without repeats for ``COUNT(DISTINCT ?v)``) and the SPARQL set function is applied: ``COUNT`` counts them, and ``SUM``,
+    ``MIN`` and ``MAX`` are computed by the SPARQL engine itself over those values, so numeric promotion and the ORDER BY ordering are
+    SPARQL's. An empty group counts 0 and sums to 0; MIN or MAX of nothing, and a SUM of a value that is not a number, are errors."""
+    if agg.argument is None:
+        n = len({frozenset(mu.items()) for mu in solutions}) if agg.distinct else len(solutions)
+        return ox.Literal(str(n), datatype=_XSD_INTEGER)
+    values = [mu[agg.argument] for mu in solutions]
+    if agg.distinct:
+        values = list(dict.fromkeys(values))
+    if agg.function == "COUNT":
+        return ox.Literal(str(len(values)), datatype=_XSD_INTEGER)
+    placeholders: dict = {}
+    rows: list[str] = []
+    for value in values:
+        if isinstance(value, ox.BlankNode):  # a blank node cannot be written in VALUES: stand in an IRI, mapped back below
+            placeholders.setdefault(value, ox.NamedNode(f"urn:starlayer:srl-bnode:{len(placeholders)}"))
+            value = placeholders[value]
+        try:
+            rows.append(_pattern_term_text(value))
+        except Exception:  # noqa: BLE001  (a term the engine cannot take in a query: the aggregate is an error)
+            return None
+    text = f"SELECT ({_SET_FUNCTION[agg.function]}(?v) AS ?r) WHERE {{ VALUES ?v {{ {' '.join(rows)} }} }}"
+    try:
+        solution = next(iter(_EVAL_STORE.query(text)), None)
+    except Exception:  # noqa: BLE001
+        return None
+    result = None if solution is None else solution["r"]
+    for blank, stand_in in placeholders.items():
+        if result == stand_in:
+            return blank
+    return result
+
+
+def _eval_group(group: srl_ast._GroupElement, seq: list[dict], g, gd) -> list[dict]:
+    """§6.4, a group element: for each incoming solution μ the group pattern is evaluated from μ restricted to the group keys,
+    its solutions are collected into groups by the keys (with no keys there is one group, even with no solutions), and each group
+    gives one solution: μ extended with the keys and the aggregation values. A group whose aggregation is an error is dropped."""
+    out: list[dict] = []
+    for mu in seq:
+        start = {k: mu[k] for k in group.keys if k in mu}
+        solutions = _eval_rule_elements(group.pattern, [start], g, gd)
+        groups: dict[tuple, list[dict]] = {}
+        if not group.keys:
+            groups[()] = []
+        for solution in solutions:
+            groups.setdefault(tuple(solution[k] for k in group.keys), []).append(solution)
+        for key_values, members in groups.items():
+            extension = dict(zip(group.keys, key_values, strict=True))
+            for agg in group.aggregations:
+                value = _aggregate(agg, members)
+                if value is None:
+                    break
+                extension[agg.var] = value
+            else:
+                out.append({**mu, **extension})
+    return out
+
+
 def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g, gd) -> list[dict]:
     """§6.4's ``evalRuleElements`` - processes ``elements`` against the
     incoming solution sequence ``seq``, matching ordinary triple-pattern
@@ -599,6 +681,9 @@ def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g,
                 if not neg:
                     new_seq.append(mu)
             seq = new_seq
+            i += 1
+        elif isinstance(elt, srl_ast._GroupElement):
+            seq = _eval_group(elt, seq, g, gd)
             i += 1
         else:  # pragma: no cover - srl_ast.BodyElement is exhaustive
             raise TypeError(f"unrecognized rule body element: {elt!r}")

@@ -44,7 +44,8 @@ class _SRLWellFormednessIssue:
     rule: srl_ast._Rule | None  # None for an issue in a rule set's DATA block
     kind: str  # "unbound_filter_variable" | "unbound_assignment_expr_variable"
     # | "reused_assignment_variable" | "unbound_head_variable" | "aggregate_in_expression"
-    # | "triple_term_in_subject" | "triple_term_in_predicate" | "variable_in_data"
+    # | "triple_term_in_subject" | "triple_term_in_predicate" | "variable_in_data" | "unsupported_variable_name"
+    # | "group_key_unbound" | "aggregation_variable_in_scope" | "duplicate_aggregation_variable" | "unbound_aggregation_argument"
     variable: Variable | None  # None when the issue is not about one variable
     context: str
 
@@ -69,8 +70,8 @@ def _expr_vars(expr) -> set[Variable]:
 
 def _has_aggregate(expr) -> bool:
     """True if an ``Aggregate_*`` node (COUNT, SUM, ...) or an ``EXISTS`` / ``NOT EXISTS`` occurs anywhere in ``expr``.
-    Aggregation is a separate rule element in SRL (still an open issue),
-    never a function inside ``FILTER`` or ``SET``; use a ``NOT { ... }`` negation element instead of ``NOT EXISTS``."""
+    Aggregation is a separate rule element in SRL (``GROUP``), never a function inside ``FILTER`` or ``SET``; use a
+    ``NOT { ... }`` negation element instead of ``NOT EXISTS``."""
     # EXISTS needs a graph pattern the rule evaluator does not run: reject it here rather than crash later (#96)
     return any(
         isinstance(n, Node) and (n.kind.startswith("Aggregate_") or n.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"))
@@ -130,9 +131,38 @@ def _check_sequence(
             # varsi = {} for a negation element - v_current unchanged (a
             # variable first bound only inside a negation is NOT visible
             # afterwards, matching ordinary SPARQL NOT EXISTS/MINUS scoping).
+        elif isinstance(elt, srl_ast._GroupElement):
+            v_current = _check_group(elt, v_current, rule, issues)
         else:  # pragma: no cover - srl_ast.BodyElement is exhaustive
             raise TypeError(f"unrecognized rule body element: {elt!r}")
     return v_current
+
+
+def _check_group(
+    group: srl_ast._GroupElement, v_in: set[Variable], rule: srl_ast._Rule, issues: list[_SRLWellFormednessIssue]
+) -> set[Variable]:
+    """§4.2 for a group element ``GRP``, with ``V_in`` the variables before it and ``GK_in = GRP.keys ∩ V_in``: the group pattern
+    is a well-formed sequence given ``GK_in`` (so it sees only the keys that are already bound, not the other variables); every
+    group key is in ``vars(GRP.pattern, GK_in)``; no aggregation variable is in ``vars(GRP.pattern, GK_in) ∪ V_in`` and none is
+    repeated; an aggregation argument that is a variable is in ``vars(GRP.pattern, GK_in)``.
+
+    Returns the variables in scope after the group: ``V_in ∪ GRP.keys ∪ aggVars`` (what the pattern binds beyond the keys is not
+    in scope after it)."""
+    keys = set(group.keys)
+    pattern_vars = _check_sequence(group.pattern, keys & v_in, rule, issues)
+    for key in group.keys:
+        if key not in pattern_vars:
+            issues.append(_SRLWellFormednessIssue(rule, "group_key_unbound", key, "GROUP BY"))
+    seen: set[Variable] = set()
+    for agg in group.aggregations:
+        if agg.var in pattern_vars or agg.var in v_in:
+            issues.append(_SRLWellFormednessIssue(rule, "aggregation_variable_in_scope", agg.var, "GROUP aggregation"))
+        if agg.var in seen:
+            issues.append(_SRLWellFormednessIssue(rule, "duplicate_aggregation_variable", agg.var, "GROUP aggregation"))
+        seen.add(agg.var)
+        if agg.argument is not None and agg.argument not in pattern_vars:
+            issues.append(_SRLWellFormednessIssue(rule, "unbound_aggregation_argument", agg.argument, "GROUP aggregation"))
+    return v_in | keys | {agg.var for agg in group.aggregations}
 
 
 def _triples_of(rule: srl_ast._Rule) -> list[srl_ast.TriplePattern]:
@@ -144,6 +174,9 @@ def _triples_of(rule: srl_ast._Rule) -> list[srl_ast.TriplePattern]:
             found.append(e)
         elif isinstance(e, srl_ast._NegationElement):
             for inner in e.inner:
+                _element(inner)
+        elif isinstance(e, srl_ast._GroupElement):
+            for inner in e.pattern:
                 _element(inner)
 
     for e in rule.body:
@@ -188,6 +221,14 @@ def _check_variable_names(rule: srl_ast._Rule, issues: list[_SRLWellFormednessIs
             names.update(_expr_vars(e.expr))
         elif isinstance(e, srl_ast._NegationElement):
             for inner in e.inner:
+                _element(inner)
+        elif isinstance(e, srl_ast._GroupElement):
+            names.update(e.keys)
+            for agg in e.aggregations:
+                names.add(agg.var)
+                if agg.argument is not None:
+                    names.add(agg.argument)
+            for inner in e.pattern:
                 _element(inner)
 
     for template in rule.head:

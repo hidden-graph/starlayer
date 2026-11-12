@@ -139,7 +139,18 @@ the case to the application (`shacl/ui_widget_selection.py`: decide how the repo
 reworked search-query text (`shui:searchQuery` substitution, `$language` for `$uiLanguage`) and `shui:suggestedValues`. Keep our
 deterministic ordering: the spec now says SHOULD, so this is no change.
 
-**Phase 4. SRL `GROUP` aggregation (medium to large; the one real feature).** Read the 2026-11-09 text first. Parser (the 16
+**Phase 4. SRL `GROUP` aggregation (medium to large; the one real feature). Done 2026-11-11.** `GROUP [BY ?k ...] { pattern } [ ?n := COUNT | MIN | MAX | SUM ]`
+(productions [22] to [29] of the WD 2026-11-09): the parser (`parse_srl.py`), the AST (`_GroupElement`, `_Aggregation`, a rule with one is run-once),
+the well-formedness conditions of 4.2 (`srl_semantic_checks._check_group`: the pattern sees only the keys already bound; a key is bound by the
+pattern; an aggregation variable is new and unique; an argument is bound by the pattern), the evaluation of 6.4 (a group per key, one group
+when there is no key even if the pattern has no solution, an aggregation error drops the group, `SUM`/`MIN`/`MAX` computed by the engine's own
+SPARQL set functions), the closed dependencies of the group pattern in the dependency graph (so stratification orders it after what it reads,
+and a rule that groups over its own output is a `StratificationError`), the `srl:` tree (`srl:GroupElement`, `srl:Aggregation`, six new
+predicates) with shapes in `srl_shapes.ttl`, and the text renderer. The 16 positive and 10 negative `GROUP` syntax tests of the W3C suite pass
+(the strict xfails are gone). The vendored grammar (161 productions, was 153: `BodyBasic` is now `NegationPattern`) and the 14 spec
+examples were refreshed from the WD of 2026-11-09, and the corpus has `body-group-*` cases. The suite has no evaluation tests for `GROUP`;
+`tests/sparql/test_srl_group.py` (47 tests) is built from the draft's algorithm and its example 8. Guide 03b has a new section 12.
+(Original scope:) Read the 2026-11-09 text first. Parser (the 16
 syntax tests), AST, the `srl:` tree encoding and shapes (`srl_shapes.ttl`, regenerate), evaluation, stratification (an aggregate
 is non-monotonic, treat like negation), well-formedness rules for group variables, refreshed vendored productions and
 examples, the coverage matrix and the baseline date mismatch. The suite has syntax tests only, no evaluation tests for `GROUP` yet,

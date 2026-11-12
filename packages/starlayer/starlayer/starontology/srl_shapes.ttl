@@ -212,8 +212,134 @@ srl:RuleShape a sh:NodeShape ;
     ] ;
     sh:targetClass srl:Rule .
 
+srl:GroupElementShape a sh:NodeShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "srl:GroupElement must have exactly one srl:keys list" ;
+        sh:minCount 1 ;
+        sh:node srl:GroupKeysListShape ;
+        sh:path srl:keys
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:GroupElement must have exactly one srl:pattern list" ;
+        sh:minCount 1 ;
+        sh:node srl:GroupPatternListShape ;
+        sh:path srl:pattern
+    ], [
+        sh:maxCount 1 ;
+        sh:message "srl:GroupElement must have exactly one srl:aggregations list" ;
+        sh:minCount 1 ;
+        sh:node srl:AggregationListShape ;
+        sh:path srl:aggregations
+    ] ;
+    sh:targetClass srl:GroupElement .
+
+srl:GroupKeysListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of variables" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER ( !isLiteral(?item) || datatype(?item) != spexpr:Variable )
+                }
+            }
+        """
+    ] .
+
+srl:GroupPatternListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:GroupBodyElement (triple patterns, filters and assignments only)" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:GroupBodyElement }
+                }
+            }
+        """
+    ] .
+
+srl:AggregationListShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "expected a well-formed rdf:List of srl:Aggregation" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                {
+                    FILTER ( $this != rdf:nil )
+                    FILTER NOT EXISTS { $this rdf:first ?head }
+                } UNION {
+                    $this rdf:rest*/rdf:first ?item .
+                    FILTER NOT EXISTS { ?item a srl:Aggregation }
+                }
+            }
+        """
+    ] .
+
+srl:AggregationShape a sh:NodeShape ;
+    sh:property [
+        sh:datatype spexpr:Variable ;
+        sh:maxCount 1 ;
+        sh:message "srl:Aggregation must have exactly one srl:var, a variable" ;
+        sh:minCount 1 ;
+        sh:path srl:var
+    ], [
+        sh:in ( "COUNT" "MIN" "MAX" "SUM" ) ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:message "srl:Aggregation must have exactly one srl:function: COUNT, MIN, MAX or SUM" ;
+        sh:minCount 1 ;
+        sh:path srl:function
+    ], [
+        sh:datatype spexpr:Variable ;
+        sh:maxCount 1 ;
+        sh:message "srl:Aggregation has at most one srl:argument, a variable (none means *)" ;
+        sh:path srl:argument
+    ], [
+        sh:datatype xsd:boolean ;
+        sh:maxCount 1 ;
+        sh:message "srl:Aggregation must have exactly one boolean srl:distinct" ;
+        sh:minCount 1 ;
+        sh:path srl:distinct
+    ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "only COUNT takes DISTINCT or *; MIN, MAX and SUM take a variable" ;
+        sh:select """
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT $this
+            WHERE {
+                $this srl:function ?f .
+                FILTER ( ?f != "COUNT" )
+                { $this srl:distinct true } UNION { FILTER NOT EXISTS { $this srl:argument ?a } }
+            }
+        """
+    ] ;
+    sh:targetClass srl:Aggregation .
+
 srl:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:NegationElementShape, srl:RuleShape ;
+    rdfs:member srl:GroupElementShape, srl:GroupKeysListShape, srl:GroupPatternListShape, srl:AggregationListShape, srl:AggregationShape, srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:NegationElementShape, srl:RuleShape ;
     owl:imports spexpr:ShapesGraph .
 
 srl:TermOrVariableShape a sh:NodeShape ;

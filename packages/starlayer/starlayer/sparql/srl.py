@@ -139,6 +139,8 @@ _TRIPLE_PATTERN = SRL.TriplePattern
 _FILTER_ELEMENT = SRL.FilterElement
 _NEGATION_ELEMENT = SRL.NegationElement
 _ASSIGNMENT_ELEMENT = SRL.AssignmentElement
+_GROUP_ELEMENT = SRL.GroupElement
+_AGGREGATION = SRL.Aggregation
 
 _TRIPLE_SUBJECT = SRL["subject"]
 _TRIPLE_PREDICATE = SRL["predicate"]
@@ -162,6 +164,14 @@ _RULE_ID = SRL["id"]
 _EXPR = SRL["expr"]
 _VAR = SRL["var"]
 _NEGATION_EVALDATA_FLAG = SRL["negationEvaldata"]
+# a group element (§4.1: group.keys, group.pattern, group.aggregations) and its aggregation assignments (aggregation.variable is srl:var;
+# aggfunc.name, aggfunc.argument and aggfunc.distinct are srl:function, srl:argument, srl:distinct; no srl:argument is ``*``)
+_GROUP_KEYS = SRL["keys"]
+_GROUP_PATTERN = SRL["pattern"]
+_GROUP_AGGREGATIONS = SRL["aggregations"]
+_AGG_FUNCTION = SRL["function"]
+_AGG_ARGUMENT = SRL["argument"]
+_AGG_DISTINCT = SRL["distinct"]
 
 
 class SRLError(ValueError):
@@ -330,8 +340,23 @@ class _Writer:
             g.add((node, RDF.type, _NEGATION_ELEMENT))
             g.add((node, _INNER, _list(g, [self.body_element(e) for e in element.inner])))
             g.add((node, _NEGATION_EVALDATA_FLAG, self.node(element.evaldata)))
+        elif isinstance(element, srl_ast._GroupElement):
+            g.add((node, RDF.type, _GROUP_ELEMENT))
+            g.add((node, _GROUP_KEYS, _list(g, [self.node(k) for k in element.keys])))
+            g.add((node, _GROUP_PATTERN, _list(g, [self.body_element(e) for e in element.pattern])))
+            g.add((node, _GROUP_AGGREGATIONS, _list(g, [self.aggregation(a) for a in element.aggregations])))
         else:  # pragma: no cover
             raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")
+        return node
+
+    def aggregation(self, agg: srl_ast._Aggregation):
+        g, node = self.g, ox.BlankNode()
+        g.add((node, RDF.type, _AGGREGATION))
+        g.add((node, _VAR, self.node(agg.var)))
+        g.add((node, _AGG_FUNCTION, ox.Literal(agg.function)))
+        if agg.argument is not None:
+            g.add((node, _AGG_ARGUMENT, self.node(agg.argument)))
+        g.add((node, _AGG_DISTINCT, self.node(agg.distinct)))
         return node
 
     def rule(self, rule: srl_ast._Rule):
@@ -441,7 +466,26 @@ def _decode_body_element(node, graph) -> srl_ast.BodyElement:
     if t == _NEGATION_ELEMENT:
         inner = [_decode_body_element(n, graph) for n in _read_list(graph.value(node, _INNER), graph)]
         return srl_ast._NegationElement(inner=inner, evaldata=_is_true(graph.value(node, _NEGATION_EVALDATA_FLAG)))
+    if t == _GROUP_ELEMENT:
+        return srl_ast._GroupElement(
+            keys=[_decode_term(n, graph) for n in _read_list(graph.value(node, _GROUP_KEYS), graph)],
+            pattern=[_decode_body_element(n, graph) for n in _read_list(graph.value(node, _GROUP_PATTERN), graph)],
+            aggregations=[_decode_aggregation(n, graph) for n in _read_list(graph.value(node, _GROUP_AGGREGATIONS), graph)],
+        )
     raise SRLDecodeError(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
+
+
+def _decode_aggregation(node, graph) -> srl_ast._Aggregation:
+    function = graph.value(node, _AGG_FUNCTION)
+    if not isinstance(function, ox.Literal) or function.value not in ("COUNT", "MIN", "MAX", "SUM"):
+        raise SRLDecodeError(f"aggregation node {node!r} has no aggregation function COUNT, MIN, MAX or SUM")
+    argument = graph.value(node, _AGG_ARGUMENT)
+    return srl_ast._Aggregation(
+        var=_decode_term(graph.value(node, _VAR), graph),
+        function=function.value,
+        argument=None if argument is None else _decode_term(argument, graph),
+        distinct=_is_true(graph.value(node, _AGG_DISTINCT)),
+    )
 
 
 def _decode_rule(node, graph) -> srl_ast._Rule:
@@ -557,7 +601,18 @@ def _body_element_text(element: srl_ast.BodyElement, prefixes: dict) -> str:
         inner = " ".join(_body_element_text(e, prefixes) for e in element.inner)
         data = "" if element.evaldata else "DATA "
         return f"NOT {data}{{ {inner} }}"
+    if isinstance(element, srl_ast._GroupElement):
+        keys = "BY " + " ".join(_term_text(k, prefixes) for k in element.keys) + " " if element.keys else ""
+        inner = " ".join(_body_element_text(e, prefixes) for e in element.pattern)
+        aggregations = ", ".join(_aggregation_text(a, prefixes) for a in element.aggregations)
+        return f"GROUP {keys}{{ {inner} }} [ {aggregations} ]" if aggregations else f"GROUP {keys}{{ {inner} }} []"
     raise NotImplementedError(f"starlayer.sparql.srl: no text rendering yet for body element {element!r}")
+
+
+def _aggregation_text(agg: srl_ast._Aggregation, prefixes: dict) -> str:
+    argument = "*" if agg.argument is None else _term_text(agg.argument, prefixes)
+    distinct = "DISTINCT " if agg.distinct else ""
+    return f"{_term_text(agg.var, prefixes)} := {agg.function}({distinct}{argument})"
 
 
 def _data_text(data: srl_ast._Data, prefixes: dict) -> str:

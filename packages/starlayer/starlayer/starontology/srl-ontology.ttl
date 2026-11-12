@@ -2,18 +2,28 @@
 @prefix srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#> .
 
 srl:AssignmentElement a rdfs:Class ;
-    rdfs:comment "SET (?var := expr) - srl:var/srl:expr, §4.1. Never legal inside a negation element's own body." ;
-    rdfs:subClassOf srl:BodyElement .
+    rdfs:comment "SET (?var := expr) - srl:var/srl:expr, §4.1. Never legal inside a negation element's own body; legal in a group pattern." ;
+    rdfs:subClassOf srl:BodyElement, srl:GroupBodyElement .
 
 srl:BodyElement a rdfs:Class ;
-    rdfs:comment "The union of every rule-body element kind: TriplePattern, FilterElement, AssignmentElement, NegationElement." .
+    rdfs:comment "The union of every rule-body element kind: TriplePattern, FilterElement, AssignmentElement, NegationElement, GroupElement." .
 
 srl:Data a rdfs:Class ;
     rdfs:comment "One top-level DATA {} block - srl:triples, ground only, §4.1." .
 
 srl:FilterElement a rdfs:Class ;
     rdfs:comment "FILTER Constraint - srl:expr, a spexpr: expression tree, §4.1." ;
-    rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement .
+    rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement, srl:GroupBodyElement .
+
+srl:GroupBodyElement a rdfs:Class ;
+    rdfs:comment "The union a group element's pattern is restricted to: TriplePattern, FilterElement or AssignmentElement (production [23]): no negation and no nested group." .
+
+srl:GroupElement a rdfs:Class ;
+    rdfs:comment "GROUP [BY ?k ...] { pattern } [ aggregations ] - srl:keys (a list of variables, possibly empty), srl:pattern (a list of srl:GroupBodyElement), srl:aggregations (a list of srl:Aggregation, possibly empty), §4.1. A rule with a group element is a run-once rule. Never legal inside another group or a negation element." ;
+    rdfs:subClassOf srl:BodyElement .
+
+srl:Aggregation a rdfs:Class ;
+    rdfs:comment "One aggregation assignment, ?n := COUNT(...) - srl:var (the aggregation variable), srl:function (the string COUNT, MIN, MAX or SUM), srl:argument (a variable; absent means *, which only COUNT takes), srl:distinct (bool; only COUNT takes true), §4.1." .
 
 srl:NegationBodyElement a rdfs:Class ;
     rdfs:comment "The narrower union a negation element's own inner body is restricted to: TriplePattern or FilterElement only." .
@@ -30,4 +40,4 @@ srl:RuleSet a rdfs:Class ;
 
 srl:TriplePattern a rdfs:Class ;
     rdfs:comment "A triple template (rule head) or triple pattern (rule body/DATA) - srl:subject/srl:predicate/srl:object, same shape either way per §4.1." ;
-    rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement .
+    rdfs:subClassOf srl:BodyElement, srl:NegationBodyElement, srl:GroupBodyElement .

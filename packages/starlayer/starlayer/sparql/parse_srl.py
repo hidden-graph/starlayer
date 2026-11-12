@@ -3,7 +3,7 @@
 SRL (SPARQL Rules) text -> the ``_srl_ast`` tree, on the same tokenizer and productions as
 :mod:`starlayer.sparql.parse_sparql`. SRL reuses SPARQL's triple syntax (``TriplesSameSubject`` with every RDF 1.2
 addition), ``Constraint`` and ``Expression``, so :class:`_SrlParser` subclasses the query parser and adds only what is
-new in the SRL grammar (``RULE``, ``DATA``, ``WHERE [DATA]``, ``NOT [DATA]``, ``SET(?v := expr)``, ``IMPORTS``).
+new in the SRL grammar (``RULE``, ``DATA``, ``WHERE [DATA]``, ``NOT [DATA]``, ``SET(?v := expr)``, ``GROUP [BY] { } [ ... ]``, ``IMPORTS``).
 
 ``parse_srl(text, base)`` returns a ``RuleSet`` of pyoxigraph terms whose expressions are the parser's own ``Node`` trees,
 the form the SRL evaluator and the ``srl:`` tree encoder consume.
@@ -22,7 +22,7 @@ from .triple_term import ExprNode, TripleTermNode
 
 __all__ = ["parse_srl"]
 
-# SPARQL built-ins that SRL's BuiltInCall (spec [118]) does not list. RAND is non-deterministic, which a fixpoint
+# SPARQL built-ins that SRL's BuiltInCall (spec [126]) does not list. RAND is non-deterministic, which a fixpoint
 # evaluation cannot allow, and EXISTS has no defined meaning in a rule; the rest are outside the draft's function set.
 _NOT_IN_SRL = {
     "Builtin_BOUND": "BOUND",
@@ -154,18 +154,79 @@ class _SrlParser(_Parser):
         self.expect_p("}")
         return srl_ast._NegationElement(inner=inner, evaldata=not data)
 
+    def _assign_op(self) -> None:
+        """``:=``, one token in the grammar: nothing (whitespace, a comment) between the ':' and the '='."""
+        t = self.peek()
+        if not (t.kind == "PNAME" and t.text == ":" and self.at_p("=", k=1) and self.peek(1).pos == t.pos + 1):
+            self.err("expected ':='")
+        self.i += 2
+
     def _assignment(self) -> srl_ast._AssignmentElement:
         self.expect_kw("SET")
         self.expect_p("(")
         var = self.var()
-        t = self.peek()
-        # ':=' is one token in the grammar: nothing (whitespace, a comment) between the ':' and the '='
-        if not (t.kind == "PNAME" and t.text == ":" and self.at_p("=", k=1) and self.peek(1).pos == t.pos + 1):
-            self.err("expected ':='")
-        self.i += 2
+        self._assign_op()
         expr = self.expression()
         self.expect_p(")")
         return srl_ast._AssignmentElement(var=var, expr=_convert(expr))
+
+    def _group_pattern(self) -> list:
+        """``{ GroupPattern }``: triple patterns with FILTER and SET (production [23])."""
+        self.expect_p("{")
+        inner: list = []
+        pending: list[Node] = []
+        while not self.at_p("}"):
+            if self.peek().kind == "EOF":
+                self.err("unterminated GROUP block, expected '}'")
+            if self.at_kw("FILTER", "SET"):
+                inner.extend(_triples(pending))
+                pending = []
+                inner.append(self._filter() if self.at_kw("FILTER") else self._assignment())
+                self.accept_p(".")
+            else:
+                self._group(pending, True)
+        inner.extend(_triples(pending))
+        self.expect_p("}")
+        return inner
+
+    def _aggregation(self) -> srl_ast._Aggregation:
+        """``?n := COUNT([DISTINCT] ?v | *)``, ``MIN(?v)``, ``MAX(?v)`` or ``SUM(?v)`` (productions [27] to [29]): the argument
+        is a variable (or ``*`` for COUNT), never an expression, and DISTINCT is only for COUNT."""
+        var = self.var()
+        self._assign_op()
+        if not self.at_kw("COUNT", "MIN", "MAX", "SUM"):
+            self.err("expected an aggregation function: COUNT, MIN, MAX or SUM")
+        name = self.peek().text.upper()
+        self.i += 1
+        self.expect_p("(")
+        distinct = name == "COUNT" and self.accept_kw("DISTINCT")
+        if name == "COUNT" and self.accept_p("*"):
+            argument = None
+        else:
+            argument = self.var()
+        self.expect_p(")")
+        return srl_ast._Aggregation(var=var, function=name, argument=argument, distinct=distinct)
+
+    def _group_aggregate(self) -> srl_ast._GroupElement:
+        """``GROUP [BY ?k ...] { GroupPattern } ( [] | [ ?n := AGG(...) , ... ] )`` (production [22])."""
+        self.expect_kw("GROUP")
+        keys: list = []
+        if self.accept_kw("BY"):
+            if self.peek().kind != "VAR":
+                self.err("expected a variable after GROUP BY")
+            while self.peek().kind == "VAR":
+                key = self.var()
+                if key not in keys:
+                    keys.append(key)
+        pattern = self._group_pattern()
+        self.expect_p("[")
+        aggregations: list = []
+        if not self.at_p("]"):
+            aggregations.append(self._aggregation())
+            while self.accept_p(","):
+                aggregations.append(self._aggregation())
+        self.expect_p("]")
+        return srl_ast._GroupElement(keys=keys, pattern=pattern, aggregations=aggregations)
 
     def _body(self) -> list:
         self.expect_p("{")
@@ -174,13 +235,15 @@ class _SrlParser(_Parser):
         while not self.at_p("}"):
             if self.peek().kind == "EOF":
                 self.err("unterminated rule body, expected '}'")
-            if self.at_kw("FILTER", "NOT", "SET"):
+            if self.at_kw("FILTER", "NOT", "SET", "GROUP"):
                 out.extend(_triples(pending))
                 pending = []
                 if self.at_kw("FILTER"):
                     out.append(self._filter())
                 elif self.at_kw("NOT"):
                     out.append(self._negation())
+                elif self.at_kw("GROUP"):
+                    out.append(self._group_aggregate())
                 else:
                     out.append(self._assignment())
                 self.accept_p(".")
