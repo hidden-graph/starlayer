@@ -25,6 +25,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph.oxgraph._detached import detached
 from starlayer.shacl_engine.terms import (
     check_graphs,
     from_engine,
@@ -195,6 +196,9 @@ class OxigraphGraph:
 
     # ---- GraphView ----------------------------------------------------------------------------------------------
     def _quads(self, s: Any, p: Any, o: Any) -> Iterator[ox.Quad]:
+        return detached(self._raw_quads(s, p, o))  # (an unexhausted reader must not hold a thread-bound store iterator)
+
+    def _raw_quads(self, s: Any, p: Any, o: Any) -> Iterator[ox.Quad]:
         # Oxigraph raises on a literal / triple term subject or a non-IRI predicate; RDF graphs simply have no match.
         s, p, o = to_ox(s), to_ox(p), to_ox(o)  # a caller may still pass rdflib terms (identity on engine terms)
         if isinstance(s, (ox.Literal, ox.Triple)) or (p is not None and not isinstance(p, ox.NamedNode)):
@@ -247,7 +251,7 @@ class OxigraphGraph:
 
     def __contains__(self, triple: tuple[Any, Any, Any]) -> bool:
         s, p, o = triple
-        return next(iter(self._quads(s, p, o)), None) is not None
+        return next(self._raw_quads(s, p, o), None) is not None
 
     def __len__(self) -> int:
         return sum(1 for _ in self.triples((None, None, None)))

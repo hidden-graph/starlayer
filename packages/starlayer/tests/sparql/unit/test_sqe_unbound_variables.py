@@ -85,3 +85,55 @@ class TestEmbeddedShaclQueries:
     @pytest.mark.parametrize("variable", ["x", "other"])
     def test_any_other_unbound_variable_is_still_a_defect(self, variable):
         assert self._problems(f"SELECT $this ?{variable} WHERE {{ $this ?p ?o }}")
+
+
+class TestDeclaredParametersArePreBound:
+    """A query's owner declares the variables the engine pre-binds: a constraint component's validators, a SPARQL function and a
+    rule template take every ``sh:parameter`` path's local name; constraint queries also have ``$currentShape`` and ``$shapesGraph``.
+    Only the owner's own parameters count."""
+
+    PREFIXES = f"@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <{EX}> . "
+
+    def _problems(self, turtle: str) -> list[str]:
+        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.shacl.meta_shapes import sparql_query_problems
+
+        g = StarLayerGraph()
+        g.parse(data=self.PREFIXES + turtle, format="turtle")
+        return [message for _node, _predicate, message in sparql_query_problems(g)]
+
+    def _component(self, validator: str, parameter: str = "ex:evenParameter") -> str:
+        return f"ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path {parameter} ] ; sh:validator [ {validator} ] ."
+
+    def test_ask_validator_parameter(self):
+        assert self._problems(self._component('a sh:SPARQLAskValidator ; sh:ask "ASK { FILTER ($value = $evenParameter) }"')) == []
+
+    def test_select_validator_parameter(self):
+        select = "SELECT $this $value WHERE { FILTER ($value = $evenParameter) }"
+        assert self._problems(self._component(f'a sh:SPARQLSelectValidator ; sh:select "{select}"')) == []
+
+    def test_node_and_property_validators(self):
+        for predicate in ("sh:nodeValidator", "sh:propertyValidator"):
+            turtle = f'ex:C a sh:ConstraintComponent ; sh:parameter [ sh:path ex:p ] ; {predicate} [ sh:ask "ASK {{ FILTER ($value = $p) }}" ] .'
+            assert self._problems(turtle) == []
+
+    def test_another_components_parameter_is_not_bound(self):
+        turtle = self._component('sh:ask "ASK { FILTER ($value = $evenParameter) }"') + ' ex:D a sh:ConstraintComponent ; sh:parameter [ sh:path ex:q ] ; sh:validator [ sh:ask "ASK { FILTER ($value = $evenParameter) }" ] .'
+        assert len(self._problems(turtle)) == 1
+
+    def test_an_undeclared_variable_in_a_validator_is_still_a_defect(self):
+        assert self._problems(self._component('sh:ask "ASK { FILTER ($value = $nobody) }"'))
+
+    def test_sparql_function_parameters(self):
+        turtle = 'ex:greeting a sh:SPARQLFunction ; sh:parameter [ sh:path ex:who ] ; sh:select "SELECT (CONCAT(\\"Hello, \\", $who) AS ?greeting) WHERE { }" .'
+        assert self._problems(turtle) == []
+        assert self._problems(turtle.replace("$who", "$whom"))
+
+    def test_constraint_query_current_shape_and_shapes_graph(self):
+        turtle = 'ex:S a sh:NodeShape ; sh:sparql [ a sh:SPARQLConstraint ; sh:select "SELECT $this WHERE { FILTER (isIRI($currentShape) && isIRI($shapesGraph)) }" ] .'
+        assert self._problems(turtle) == []
+
+    def test_parameterised_target(self):
+        turtle = 'ex:T a sh:SPARQLTargetType ; sh:parameter [ sh:path ex:kind ] ; sh:select "SELECT ?this WHERE { ?this ?p ?o FILTER (?p = $kind) }" .'
+        assert self._problems(turtle) == []
+        assert self._problems(turtle.replace("$kind", "$other"))

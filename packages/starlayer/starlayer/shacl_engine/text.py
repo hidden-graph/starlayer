@@ -7,14 +7,15 @@ block text, then the ``Provenance:`` appendix. Natively written: nothing here im
 Everything here works on engine (pyoxigraph) terms; a graph is any engine-term graph (``StarLayerGraph``, an overlay), and its
 prefixes are those it binds (``namespaces()``), when it has any.
 
-Known differences from the old text: a result's *generic* message (the ``Less than 1 values on ex:a->ex:p`` lines pySHACL
-adds when a shape has no ``sh:message``) is only present when the engine component produced one; a SPARQL-based
-component names itself ``ConstraintComponent`` in pySHACL and by its own IRI local name here.
+Known differences from the old text: the default result messages are the engine's own wording (``Needs at least 1 value for
+ex:p``), not pySHACL's (``Less than 1 values on ex:a->ex:p``); a SPARQL-based component names itself ``ConstraintComponent``
+in pySHACL and by its own IRI local name here.
 """
 
 from __future__ import annotations
 
 from typing import Any
+from urllib.parse import unquote
 
 import pyoxigraph as ox
 
@@ -129,84 +130,123 @@ def _list_items(shapes: Any, head: Any) -> list[Any]:
         return []
 
 
-_RANGE = {
-    "MinExclusiveConstraintComponent": (SH.minExclusive, ">"),
-    "MinInclusiveConstraintComponent": (SH.minInclusive, ">="),
-    "MaxExclusiveConstraintComponent": (SH.maxExclusive, "<"),
-    "MaxInclusiveConstraintComponent": (SH.maxInclusive, "<="),
-}
-_PAIR = {
-    "EqualsConstraintComponent": (SH.equals, "!="),
-    "DisjointConstraintComponent": (SH.disjoint, "=="),
-    "LessThanConstraintComponent": (SH.lessThan, "<="),
-    "LessThanOrEqualsConstraintComponent": (SH.lessThanOrEquals, "<"),
-}
-
-
 def _component_name(component: Any) -> str:
     return T.iri_text(component).rsplit("#", 1)[-1].rsplit("/", 1)[-1]
 
 
+_NODE_KINDS = {
+    "IRI": "an IRI",
+    "BlankNode": "a blank node",
+    "Literal": "a literal",
+    "BlankNodeOrIRI": "an IRI or a blank node",
+    "IRIOrLiteral": "an IRI or a literal",
+    "BlankNodeOrLiteral": "a blank node or a literal",
+}
+_RANGE_WORDS = {
+    "MinExclusiveConstraintComponent": ("minExclusive", "greater than"),
+    "MinInclusiveConstraintComponent": ("minInclusive", "at least"),
+    "MaxExclusiveConstraintComponent": ("maxExclusive", "less than"),
+    "MaxInclusiveConstraintComponent": ("maxInclusive", "at most"),
+}
+_PAIR_WORDS = {
+    "EqualsConstraintComponent": (SH.equals, "should also be a value of {q}"),
+    "DisjointConstraintComponent": (SH.disjoint, "should not also be a value of {q}"),
+    "LessThanConstraintComponent": (SH.lessThan, "should be less than every value of {q}"),
+    "LessThanOrEqualsConstraintComponent": (SH.lessThanOrEquals, "should be at most every value of {q}"),
+}
+_SHAPE_LISTS = {
+    "AndConstraintComponent": ("and", "all of"),
+    "OrConstraintComponent": ("or", "at least one of"),
+    "XoneConstraintComponent": ("xone", "exactly one of"),
+}
+
+
+def plain_term(graph: Any, node: Any) -> str:
+    """A term as a UI reads it: prefixed IRIs, a literal as its quoted text (bare for numbers and booleans, with its
+    language tag or prefixed datatype otherwise), a blank node as ``_:label``."""
+    if isinstance(node, ox.Literal):
+        if node.language:
+            return f'"{node.value}"@{node.language}'
+        if node.datatype == T.XSD.string:
+            return f'"{node.value}"'
+        if isinstance(node.datatype, ox.NamedNode) and node.datatype.value.startswith(T._INVALID_LANG_PREFIX):  # lenient mode: a malformed tag
+            return f'"{node.value}"@{unquote(node.datatype.value[len(T._INVALID_LANG_PREFIX):], errors="surrogatepass")}'  # str-ok: text
+        if node.datatype in (T.XSD.integer, T.XSD.decimal, T.XSD.double, T.XSD.boolean):
+            return node.value
+        return f'"{node.value}"^^{_n3(graph, node.datatype)}'
+    if isinstance(node, ox.BlankNode):
+        return f"_:{node.value}"
+    return stringify_node(graph, node)
+
+
+def _count(n: Any, noun: str) -> str:
+    """``1 value`` / ``2 values``: the singular only for exactly one."""
+    text = (_python_value(n) if isinstance(n, ox.Literal) else None) or getattr(n, "value", f"{n}")  # str-ok: text
+    return f"{text} {noun}" if text == "1" else f"{text} {noun}s"  # str-ok: text
+
+
 def generic_message(r: Result, shapes: Any, data: Any) -> str | None:
-    """The generic result message the old validator (pySHACL) writes for a result of a shape without ``sh:message``, for
-    the constraint components where it is a fixed template of one parameter value; ``None`` otherwise (the engine's own
-    message is then kept)."""
+    """The default result message for a constraint component of one parameter value, built from the result's structured
+    fields (component, path, value) and the shape's parameter value, so it names the path, the offending value and the
+    expected value or limit; ``None`` where the component's own message is kept. Conventions: ``shacl/CLAUDE.md``."""
     name = _component_name(r.component)
-    sn = lambda node: stringify_node(shapes, node)  # noqa: E731
-    dn = lambda node: stringify_node(data, node)  # noqa: E731
+    sn = lambda node: plain_term(shapes, node)  # noqa: E731
+    dn = lambda node: plain_term(data, node)  # noqa: E731
     path = r.path.node if r.path is not None and r.path.node is not None else None
+    on_path = f" for {sn(path)}" if path is not None else ""
+    # a blank node's label means nothing to a reader (and differs between runs), so it is not printed
+    subject = ("A blank node value" if isinstance(r.value, ox.BlankNode) else f"Value {dn(r.value)}") if r.has_value else "Value"
 
     def one(predicate: Any) -> Any:
         vals = _params(shapes, r, predicate)
         return vals[0] if len(vals) == 1 else None
 
-    if name in ("MinCountConstraintComponent", "MaxCountConstraintComponent"):
-        n = one(SH.minCount if name.startswith("Min") else SH.maxCount)
-        if not isinstance(n, ox.Literal):
-            return None
-        word = "Less than" if name.startswith("Min") else "More than"
-        return f"{word} {_python_value(n) or n.value} values on {dn(r.focus)}" + (f"->{sn(path)}" if path is not None else "")  # str-ok: text
+    if name == "MinCountConstraintComponent" and isinstance(n := one(SH.minCount), ox.Literal):
+        return f"Needs at least {_count(n, 'value')}{on_path}"  # str-ok: text
+    if name == "MaxCountConstraintComponent" and isinstance(n := one(SH.maxCount), ox.Literal):
+        return f"Allows at most {_count(n, 'value')}{on_path}"  # str-ok: text
     if name == "ClassConstraintComponent":
         vals = _params(shapes, r, SH["class"])
         if len(vals) == 1:
-            return f"Value does not have class {sn(vals[0])}"
-        return f"Value class is not in classes ({', '.join(sn(c) for c in vals)})" if vals else None
+            return f"{subject} should be an instance of {sn(vals[0])}"  # str-ok: text
+        return f"{subject} should be an instance of all of {', '.join(sn(c) for c in vals)}" if vals else None  # str-ok: text
     if name == "DatatypeConstraintComponent" and (v := one(SH.datatype)) is not None:
-        return f"Value is not Literal with datatype {sn(v)}"
+        return f"{subject} should have the datatype {sn(v)}"  # str-ok: text
     if name == "NodeKindConstraintComponent" and (v := one(SH.nodeKind)) is not None:
-        return f"Value is not of Node Kind {sn(v)}"
-    if name == "MinLengthConstraintComponent" and (v := one(SH.minLength)) is not None:
-        return f"String length not >= {dn(v)}"
-    if name == "MaxLengthConstraintComponent" and (v := one(SH.maxLength)) is not None:
-        return f"String length not <= {dn(v)}"
-    if name in _RANGE and (v := one(_RANGE[name][0])) is not None:
-        return f"Value is not {_RANGE[name][1]} {sn(v)}"
+        kind = _NODE_KINDS.get(T.iri_text(v).rsplit("#", 1)[-1]) if isinstance(v, ox.NamedNode) else None
+        return f"{subject} should be {kind or sn(v)}"  # str-ok: text
+    if name in ("MinLengthConstraintComponent", "MaxLengthConstraintComponent"):
+        low = name.startswith("Min")
+        if (v := one(SH.minLength if low else SH.maxLength)) is not None:
+            return f"{subject} should have {'at least' if low else 'at most'} {_count(v, 'character')}"  # str-ok: text
+    if name in _RANGE_WORDS and (v := one(SH[_RANGE_WORDS[name][0]])) is not None:
+        return f"{subject} should be {_RANGE_WORDS[name][1]} {sn(v)}"  # str-ok: text
     if name == "PatternConstraintComponent" and isinstance(v := one(SH.pattern), ox.Literal):
-        return f"Value does not match pattern '{v.value}'"
-    if name == "LanguageInConstraintComponent" and (v := one(SH.languageIn)) is not None:
-        return f"String language is not in {sn(v)}"
+        return f"{subject} should match the pattern '{v.value}'"  # str-ok: text
+    if name == "LanguageInConstraintComponent" and (heads := _params(shapes, r, SH.languageIn)):
+        return f"{subject} should have a language tag in {', '.join(sn(i) for i in _list_items(shapes, heads[0]))}"  # str-ok: text
     if name == "UniqueLangConstraintComponent":
-        return "More than one String shares the same Language"
-    if name in _PAIR and (v := one(_PAIR[name][0])) is not None and r.has_value:
-        return f"Value of {dn(r.focus)}->{sn(v)} {_PAIR[name][1]} {dn(r.value)}"
+        return f"Values{on_path} should not share a language tag"  # str-ok: text
+    if name in _PAIR_WORDS:
+        pred, words = _PAIR_WORDS[name]
+        if (v := one(pred)) is not None and r.has_value:
+            return f"{subject} {words.format(q=sn(v))}"  # str-ok: text
     if name == "NotConstraintComponent" and (v := one(SH["not"])) is not None and r.has_value:
-        return f"Node {dn(r.value)} must not conform to shape {sn(v)}"
-    if name in ("AndConstraintComponent", "OrConstraintComponent", "XoneConstraintComponent") and r.has_value:
-        pred, tail = {
-            "AndConstraintComponent": (SH["and"], "must conform to all shapes in"),
-            "OrConstraintComponent": (SH["or"], "must conform to one or more shapes in"),
-            "XoneConstraintComponent": (SH.xone, "must conform to exactly one shape in"),
-        }[name]
-        heads = _params(shapes, r, pred)
+        return f"{subject} should not conform to the shape {sn(v)}"  # str-ok: text
+    if name == "NodeConstraintComponent" and (v := one(SH.node)) is not None and r.has_value:
+        return f"{subject} should conform to the shape {sn(v)}"  # str-ok: text
+    if name in _SHAPE_LISTS and r.has_value:
+        pred, words = _SHAPE_LISTS[name]
+        heads = _params(shapes, r, SH[pred])
         if not heads:
             return None
-        text = lambda head: " , ".join(sn(i) for i in _list_items(shapes, head))  # noqa: E731
-        body = text(heads[0]) if len(heads) < 2 else " and ".join(f"({text(h)})" for h in heads)
-        return f"Node {dn(r.value)} {tail} {body}"
+        listed = lambda head: ", ".join(sn(i) for i in _list_items(shapes, head))  # noqa: E731
+        body = listed(heads[0]) if len(heads) < 2 else " and ".join(f"({listed(h)})" for h in heads)  # str-ok: text
+        return f"{subject} should conform to {words} the shapes {body}"  # str-ok: text
     if name == "InConstraintComponent" and (heads := _params(shapes, r, SH["in"])) and r.has_value:
-        return f"Value {dn(r.value)} not in list {[sn(i) for i in _list_items(shapes, heads[0])]}"  # str-ok: rendered text
-    if name == "ClosedConstraintComponent" and r.has_value:
-        return f"Node {dn(r.focus)} is closed. It cannot have value: {dn(r.value)}"
+        return f"{subject} should be one of {', '.join(dn(i) for i in _list_items(shapes, heads[0]))}"  # str-ok: text
+    if name == "ClosedConstraintComponent" and r.has_value and path is not None:
+        return f"The property {sn(path)} is not allowed here, because the shape is closed"
     return None
 
 

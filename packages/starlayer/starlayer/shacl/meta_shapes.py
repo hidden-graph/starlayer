@@ -236,7 +236,7 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
     return prefixes
 
 
-def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dict, is_target: bool) -> tuple:
+def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dict, is_target: bool, declared: frozenset[str] = frozenset()) -> tuple:
     """Cache key for one query's structural-validation outcome - the exact
     inputs the *effective* (exemption-applied) result depends on for this
     one embedded query: which predicate carried it (part of the error
@@ -255,6 +255,7 @@ def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dic
         text(text_literal),
         tuple(sorted(prefixes.items())),
         is_target,
+        tuple(sorted(declared)),
     )
 
 
@@ -280,15 +281,33 @@ def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dic
 # binds $this silently passed this check. check_sparql_query_text() below
 # detects this via `is_target` (whether query_node is itself the object of
 # a sh:target triple) and only applies this exemption when it's False.
-_SHACL_PREBOUND_VARIABLE_NAMES = frozenset({"this", "value", "PATH"})
+_SHACL_PREBOUND_VARIABLE_NAMES = frozenset({"this", "value", "PATH", "currentShape", "shapesGraph"})
+
+_VALIDATOR_PREDICATES = (SH.validator, SH.nodeValidator, SH.propertyValidator)
+
+
+def _declared_parameter_names(shapes_graph: Any, query_node: Any) -> frozenset[str]:
+    """The variables the engine pre-binds for ``query_node`` because its owner declares ``sh:parameter``s (SHACL-SPARQL, constraint
+    components: each parameter's path local name): the parameters of a component that has the node as a validator, and the node's own
+    (a SPARQL function, a rule template, a parameterised target type). Only the owner's: another component's parameters are not bound."""
+    owners = [query_node]
+    for predicate in _VALIDATOR_PREDICATES:
+        owners.extend(shapes_graph.subjects(predicate, query_node))
+    names: set[str] = set()
+    for owner in owners:
+        for parameter in shapes_graph.objects(owner, SH.parameter):
+            for path in shapes_graph.objects(parameter, SH.path):
+                if isinstance(path, ox.NamedNode):
+                    names.add(re.split(r"[#/]", path.value)[-1])
+    return frozenset(names)
 
 
 _UNBOUND_VARIABLE_MESSAGE = re.compile(r"^(?:Projected variable|Template variable|Variable) (\S+) (?:is never bound|is used inside an expression)")
 
 
-def _is_prebound_variable_only_report(report_graph: Any, extra: frozenset[str] = frozenset()) -> bool:
+def _is_prebound_variable_only_report(report_graph: Any, extra: frozenset[str] = frozenset(), base: frozenset[str] = _SHACL_PREBOUND_VARIABLE_NAMES) -> bool:
     """True iff every violation in an ``sqe_validate()`` report is an unbound-variable hit naming only a SHACL pre-bound
-    pseudo-variable (``$this``/``$value``/``$PATH``) - a false positive this check should suppress, not a real defect. The
+    pseudo-variable (``$this``/``$value``/``$PATH``/``$currentShape``/``$shapesGraph``, or a declared parameter in ``extra``) - a false positive this check should suppress, not a real defect. The
     variable is read from the result message the ``sqe:`` shapes write ("Projected variable this is never bound ...").
     ``extra`` adds names that are bound some other way (for ``shui:searchQuery``: ``$searchTerm`` and ``$language``, which the renderer
     substitutes before it runs the query).
@@ -302,7 +321,7 @@ def _is_prebound_variable_only_report(report_graph: Any, extra: frozenset[str] =
     for result in results:
         message = report_graph.value(result, SH.resultMessage)
         match = _UNBOUND_VARIABLE_MESSAGE.match(text(message)) if message is not None else None
-        if match is None or match.group(1) not in _SHACL_PREBOUND_VARIABLE_NAMES | extra:
+        if match is None or match.group(1) not in base | extra:
             return False
     return True
 
@@ -417,7 +436,8 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
             # pre-bound-variable exemption below must not apply to it. See
             # _SHACL_PREBOUND_VARIABLE_NAMES's own comment.
             is_target = any(True for _ in shapes_graph.subjects(SH.target, query_node))
-            cache_key = _sparql_structure_cache_key(predicate, text_literal, prefixes, is_target)
+            declared = _declared_parameter_names(shapes_graph, query_node)
+            cache_key = _sparql_structure_cache_key(predicate, text_literal, prefixes, is_target, declared)
             cached = _SPARQL_STRUCTURE_CACHE.get(cache_key)
             if cached is not None:
                 conforms, report_text = cached
@@ -427,8 +447,9 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
                 encoded_graph = StarLayerGraph(prefixes={})
                 encoded_graph.extend(ast_to_triples(query)[0])
                 conforms, report_graph, report_text = sqe_validate(encoded_graph)
-                substituted = _SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset()
-                if not conforms and not is_target and _is_prebound_variable_only_report(report_graph, substituted):
+                bound = declared | (_SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset())
+                # (a target's own $this is computed by the query, but its declared parameters are pre-bound)
+                if not conforms and _is_prebound_variable_only_report(report_graph, bound, frozenset() if is_target else _SHACL_PREBOUND_VARIABLE_NAMES):
                     conforms = True
                 _SPARQL_STRUCTURE_CACHE[cache_key] = (conforms, report_text)
                 _SPARQL_STRUCTURE_CACHE.move_to_end(cache_key)

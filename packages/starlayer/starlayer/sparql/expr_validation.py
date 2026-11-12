@@ -106,8 +106,8 @@ def rdfs_schema(ontology: Any) -> tuple[dict, dict, dict, dict]:
 
 def rdfs_entailed_copy(data_graph: Any, schema: tuple[dict, dict, dict, dict]) -> Any:
     """A copy of ``data_graph`` closed under the RDFS rules the ``sqe:`` / ``srl:`` shapes rely on: sub-property (rdfs7),
-    domain (rdfs2), range (rdfs3) and sub-class (rdfs9) inference from the ontology ``schema`` was made from. Done here,
-    natively, because the general RDFS closure (``infer()``) runs on owlrl and so on rdflib."""
+    domain (rdfs2), range (rdfs3) and sub-class (rdfs9) inference from the ontology ``schema`` was made from. Only those four rules,
+    from a fixed ontology, so it skips the full closure of ``infer()``."""
     sub_prop, sub_class, domains, ranges = schema
     copy = data_graph.copy()
     added: set = set()

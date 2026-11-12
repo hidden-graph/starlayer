@@ -16,6 +16,7 @@ import pyoxigraph as ox
 
 from starlayer.graph.backends._versions import require_supported_pyoxigraph
 from starlayer.graph.oxgraph import config, formats, ntversion, run, terms, union
+from starlayer.graph.oxgraph._detached import detached
 from starlayer.graph.oxgraph.result import Result
 
 require_supported_pyoxigraph()
@@ -255,10 +256,17 @@ class _Base:
 
     # ---- reading ------------------------------------------------------------------------------------------------
     def _quads(self, s: Any, p: Any, o: Any, g: Any = ...) -> Iterator[ox.Quad]:
+        """The matching quads, safe to abandon or finish on another thread (see ``_detached``); ``_has_quad`` for an existence test."""
         pat = terms.in_pattern(s, p, o)
         if pat is None:
             return iter(())
-        return self.store.quads_for_pattern(*pat, self._pattern_graph() if g is ... else g)
+        return detached(self.store.quads_for_pattern(*pat, self._pattern_graph() if g is ... else g))
+
+    def _has_quad(self, s: Any, p: Any, o: Any, g: Any = ...) -> bool:
+        pat = terms.in_pattern(s, p, o)
+        if pat is None:
+            return False
+        return next(self.store.quads_for_pattern(*pat, self._pattern_graph() if g is ... else g), None) is not None  # (dropped here, on this thread)
 
     def triples(self, pattern: tuple[Any, Any, Any] = (None, None, None)) -> Iterator[tuple[Any, Any, Any]]:
         s, p, o = pattern
@@ -293,7 +301,7 @@ class _Base:
             item = tuple(item)
         if len(item) == 4:  # a graph view contains nothing of another graph (``_quads_in`` is empty for a foreign graph)
             return next(self._quads_in(*item[:3], terms.graph_name(item[3])), None) is not None
-        return next(self._quads(*item), None) is not None
+        return self._has_quad(*item)
 
     def _terms(self, s: Any, p: Any, o: Any, pick: Any, unique: bool) -> Iterator[Any]:
         """The ``pick`` term of each matching triple. On a union view a triple held by several graphs counts once (as ``triples()``

@@ -204,7 +204,7 @@ def unique_lang(ctx, shape, params, focus, values) -> Iterator[Violation]:
         for (lang, direction), n in counts.items():
             if n > 1:
                 tag = f"{lang}--{direction}" if direction else lang  # str-ok: a BaseDirection prints ltr / rtl
-                yield Violation(message=f"Language tag {tag!r} is used by {n} value nodes")  # str-ok: n is a count
+                yield Violation(message=f"{n} values have the language tag {tag!r}")  # str-ok: n is a count
 
 
 @component(SH.SingleLineConstraintComponent, SH.singleLine)

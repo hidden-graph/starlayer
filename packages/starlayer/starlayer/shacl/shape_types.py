@@ -50,7 +50,7 @@ def _copy(graph: Any) -> Any:
 def infer_types(shapes_graph: Any) -> Any:
     """The ``rdf:type`` triples ``shapes_graph``'s structure entails and it does not already state, as an ``StarLayerGraph``.
 
-    ``shapes_graph`` is read as data and left unchanged. Needs the optional ``owlrl`` dependency (for the RDFS step).
+    ``shapes_graph`` is read as data and left unchanged.
     """
     from starlayer import starontology
     from starlayer.shacl.validator import apply_rules

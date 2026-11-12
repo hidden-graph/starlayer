@@ -98,7 +98,7 @@ def class_(ctx, shape, params, focus, values) -> Iterator[Violation]:
             raise ShapeError(f"sh:class needs IRIs or blank nodes, got {param!r}")
         for v in values:
             if not any(_is_instance(ctx.data, v, c) for c in classes):
-                yield Violation(value=v, message=f"Value {text(v)} is not an instance of {text(param)}")
+                yield Violation(value=v, message=f"Value {text(v)} should be an instance of {text(param)}")
 
 
 # --- sh:datatype ------------------------------------------------------------------------------------------------
@@ -120,7 +120,7 @@ def datatype(ctx, shape, params, focus, values) -> Iterator[Violation]:
             raise ShapeError(f"sh:datatype needs an IRI or a list of IRIs, got {dt!r}")
         for v in values:
             if not _has_datatype(v, allowed):
-                yield Violation(value=v, message=f"Value {text(v)} does not have datatype {text(dt)}")
+                yield Violation(value=v, message=f"Value {text(v)} should have the datatype {text(dt)}")
 
 
 # --- sh:nodeKind ------------------------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ def node_kind(ctx, shape, params, focus, values) -> Iterator[Violation]:
         allowed = set().union(*(_KINDS[k] for k in kinds))
         for v in values:
             if _kind(v) not in allowed:
-                yield Violation(value=v, message=f"Value {text(v)} does not have node kind {text(nk)}")
+                yield Violation(value=v, message=f"Value {text(v)} should have the node kind {text(nk)}")
 
 
 # --- sh:minCount / sh:maxCount ----------------------------------------------------------------------------------
@@ -165,17 +165,20 @@ def node_kind(ctx, shape, params, focus, values) -> Iterator[Violation]:
 def min_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
     n = _single_int(params, SH.minCount)
     if len(values) < n:
-        yield Violation(message=f"Expected at least {n} value(s), found {len(values)}")  # str-ok: n is an int
+        yield Violation(message=f"Needs at least {n} value{'' if n == 1 else 's'}, found {len(values)}")  # str-ok: n is an int
 
 
 @component(SH.MaxCountConstraintComponent, SH.maxCount)
 def max_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
     n = _single_int(params, SH.maxCount)
     if len(values) > n:
-        yield Violation(message=f"Expected at most {n} value(s), found {len(values)}")  # str-ok: n is an int
+        yield Violation(message=f"Allows at most {n} value{'' if n == 1 else 's'}, found {len(values)}")  # str-ok: n is an int
 
 
 # --- value ranges -----------------------------------------------------------------------------------------------
+
+
+_RANGE_WORD = {"minExclusive": "greater than", "minInclusive": "at least", "maxExclusive": "less than", "maxInclusive": "at most"}
 
 
 def _compare(op, value: Any, bound: Any) -> bool:
@@ -191,7 +194,7 @@ def _range_component(pred: NamedNode, op):
                 raise ShapeError(f"{text(pred)} needs a literal, got {bound!r}")
             for v in values:
                 if not _compare(op, v, bound):
-                    yield Violation(value=v, message=f"Value {text(v)} fails {pred.value.split('#')[-1]} {text(bound)}")
+                    yield Violation(value=v, message=f"Value {text(v)} should be {_RANGE_WORD[pred.value.split('#')[-1]]} {text(bound)}")
 
     return check
 
@@ -212,7 +215,7 @@ for _iri, _pred, _op in (
 def has_value(ctx, shape, params, focus, values) -> Iterator[Violation]:
     for want in params[SH.hasValue]:
         if want not in values:
-            yield Violation(message=f"Missing required value {text(want)}")
+            yield Violation(message=f"Needs the value {text(want)}")
 
 
 @component(SH.InConstraintComponent, SH["in"])
@@ -223,4 +226,4 @@ def in_(ctx, shape, params, focus, values) -> Iterator[Violation]:
             raise ShapeError(f"sh:in needs an rdf:list, got {head!r}")
         for v in values:
             if v not in members:
-                yield Violation(value=v, message=f"Value {text(v)} is not in the allowed list")
+                yield Violation(value=v, message=f"Value {text(v)} should be one of the allowed values")

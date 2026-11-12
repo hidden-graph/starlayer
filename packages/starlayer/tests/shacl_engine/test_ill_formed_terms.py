@@ -305,7 +305,7 @@ def test_lenient_report_text_and_messages_show_the_original_term():
     out = _relative_iri_outcome()
     assert "urn:starlayer:invalid-iri:" not in out.report_text
     assert "Focus Node: <relative/s>" in out.report_text and "Value Node: <rel/o>" in out.report_text
-    assert "Value <rel/o> not in list" in out.report_text
+    assert "Value <rel/o> should be one of" in out.report_text
     assert not any("urn:starlayer:invalid-iri:" in m for r in out.results for m in r.messages)
     assert any("rel/o" in m for r in out.results for m in r.messages)
     texts = [str(o) for o in out.report_graph.objects(None, URIRef("http://www.w3.org/ns/shacl#resultMessage"))]

@@ -22,6 +22,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph.oxgraph._detached import detached
 from starlayer.shacl_engine.rules import InferredView, Triple
 
 _SCRATCH = ox.Store()
@@ -86,7 +87,7 @@ class OxigraphOverlay(InferredView):
             return iter(())
         if (o is not None and not term_is_safe(o)) or (s is not None and not term_is_safe(s)):
             return iter(())  # an unsafe term is never in the store (and a lookup by it would match its normalised twin)
-        return self._store.quads_for_pattern(s, p, o, ox.DefaultGraph())
+        return detached(self._store.quads_for_pattern(s, p, o, ox.DefaultGraph()))
 
     # -- writes
     def add(self, triple: Triple) -> bool:
