@@ -15,6 +15,9 @@ same answer on ``F`` as on ``graph``: the same solutions (with their multiplicit
 A ``FILTER`` that tests whether a variable is bound (``BOUND``, ``COALESCE``, ``IF``) is relaxed as well, with no group to keep:
 a row it excluded keeps the optional triples that made its variable bound, otherwise dropping them would let the row pass.
 
+The result is reproducible: no step chooses. Every way the answer can be derived is kept (two paths that reach the same node both stay,
+every triple that makes a node exist stays), so the same query and graph give the same set whatever order the store lists triples in.
+
 Solution modifiers (``ORDER BY``, ``LIMIT``, ``OFFSET``, ``GROUP BY``, ``HAVING``, projection, ``DISTINCT``) are not applied: the
 subgraph holds the support of every solution of the group, so they give the same result on it. Pre-bound variables
 (``init_bindings``) apply to every query.
@@ -66,7 +69,7 @@ def relevant_subgraph(
 
     triples, _exact = relevant_triples(graph, query, bindings, run)
     out = StarLayerGraph()
-    for t in triples:
+    for t in sorted(triples, key=repr):  # a fixed insertion order too
         out.add(t)
     return out
 
@@ -324,12 +327,10 @@ def _without_labelled_blank_nodes(query: str) -> str:
     return "".join(out)
 
 
-def _mention(graph: Any, node: Any) -> list[_Triple]:
-    """One triple of ``graph`` that has ``node`` as subject or object (a node exists in a graph by appearing in one)."""
-    for pattern in ((node, None, None), (None, None, node)):
-        for t in graph.triples(pattern):
-            return [(t[0], t[1], t[2])]
-    return []
+def _mentions(graph: Any, node: Any) -> list[_Triple]:
+    """Every triple of ``graph`` that has ``node`` as subject or object: each is a way for the node to exist in the graph, and the
+    result must not depend on which one a store happens to list first."""
+    return [(t[0], t[1], t[2]) for pattern in ((node, None, None), (None, None, node)) for t in graph.triples(pattern)]
 
 
 def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[str, Any]) -> set[_Triple]:
@@ -364,9 +365,12 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[
             queries.append(f"{prologue} CONSTRUCT {{ {' '.join(lines)} }} WHERE {{ {where} }}")
         for s_text, path, o_text in paths:
             if _nullable(path):
-                # a zero-length walk matches a node that is in the graph (every one, at a variable end): it has to stay there
-                for end in (s_text, o_text):
-                    queries.append(f"{prologue} CONSTRUCT {{ <{_NODE_MARK.value}> <{_NODE_MARK.value}> {end} }} WHERE {{ {where} }}")
+                # a walk of length zero matches a node that is in the graph, so where the two ends are the same node it is one way
+                # the row exists: the node has to stay in the graph
+                queries.append(
+                    f"{prologue} CONSTRUCT {{ <{_NODE_MARK.value}> <{_NODE_MARK.value}> {s_text} }} "
+                    f"WHERE {{ {where} FILTER(sameTerm({s_text}, {o_text})) }}"
+                )
             for template, guards in _edges(path, s_text, o_text, fresh):
                 queries.append(f"{prologue} CONSTRUCT {{ {' '.join(template)} }} WHERE {{ {where} {' '.join(guards)} }}")
 
@@ -385,12 +389,8 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[
                 nodes.append(triple[2])
             elif triple in graph:
                 found.add(triple)
-    mentioned = {x for t in found for x in (t[0], t[2])}
-    for node in nodes:  # a zero-length walk needs the node in the graph: one triple that mentions it, if none is kept yet
-        if node not in mentioned:
-            for t in _mention(graph, node):
-                found.add(t)
-                mentioned.update((t[0], t[2]))
+    for node in nodes:  # a zero-length walk needs the node in the graph: every triple that mentions it is a way to have it
+        found.update(_mentions(graph, node))
     for sub in parts.subselects:
         found |= relevant_triples(graph, prologue + sub, bindings, run)[0]
     return found

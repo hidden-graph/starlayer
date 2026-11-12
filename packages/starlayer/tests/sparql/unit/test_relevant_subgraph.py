@@ -265,3 +265,23 @@ _EXAMPLES = int(os.environ.get("STARLAYER_FUZZ_EXAMPLES", "200"))
 def test_random_queries_give_the_same_answer_on_the_subgraph(ttl: str, query: str) -> None:
     graph = _graph(ttl)
     _same_answer(graph, PROLOGUE + query)
+
+
+# ------------------------------------------------------------------------------------------------------ reproducibility
+def test_every_way_to_derive_the_answer_stays() -> None:
+    """Two routes to the same node both stay, and so does every triple that makes a node exist."""
+    graph = _graph(":a :q :b . :b :q :d . :a :q :c . :c :q :d . :d :r 1 . :d :s 2 .")
+    both_routes = _same_answer(graph, PROLOGUE + "ASK { :a :q+ :d }")
+    assert len(both_routes) == 4
+    node_exists = _same_answer(graph, PROLOGUE + "ASK { :d :q* :d }")
+    assert {t[1].value.rsplit("/", 1)[-1] for t in node_exists} >= {"r", "s", "q"}  # :d as subject (r, s) and as object (q)
+
+
+@settings(max_examples=_EXAMPLES, deadline=None, suppress_health_check=list(HealthCheck), derandomize=True)
+@given(_graph_ttl(), _query(), st.randoms(use_true_random=False))
+def test_the_result_does_not_depend_on_the_order_the_triples_were_added(ttl: str, query: str, rnd) -> None:
+    triples = [t for t in ttl.split(" .") if t.strip()]
+    shuffled = list(triples)
+    rnd.shuffle(shuffled)
+    first, second = _graph(" ".join(f"{t} ." for t in triples)), _graph(" ".join(f"{t} ." for t in shuffled))
+    assert set(relevant_subgraph(first, PROLOGUE + query)) == set(relevant_subgraph(second, PROLOGUE + query))
