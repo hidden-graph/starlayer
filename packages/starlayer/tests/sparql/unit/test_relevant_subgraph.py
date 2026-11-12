@@ -181,6 +181,18 @@ def test_service_is_refused_because_the_answer_depends_on_a_remote_graph() -> No
             relevant_subgraph(DATA, PROLOGUE + query)
 
 
+def test_a_dataset_is_refused_and_one_of_its_graphs_is_accepted() -> None:
+    from starlayer.graph.oxgraph import StarLayerDataset
+
+    dataset = StarLayerDataset()
+    dataset.parse(data="@prefix : <http://e/> . :a :p 1 .", format="turtle")
+    query = "SELECT ?o WHERE { ?s ?p ?o }"
+    with pytest.raises(TypeError, match="not a dataset"):
+        relevant_subgraph(dataset, query)
+    assert len(relevant_subgraph(dataset.to_graph(), query)) == 1
+    assert len(relevant_subgraph(dataset.default_graph, query)) == 1
+
+
 def test_an_update_is_refused() -> None:
     with pytest.raises(ValueError):
         relevant_subgraph(DATA, PROLOGUE + "DESCRIBE :a")

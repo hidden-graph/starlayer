@@ -63,10 +63,15 @@ def relevant_subgraph(
     """The relevant subgraph of ``query`` in ``graph`` (see the module docstring), as a ``StarLayerGraph``. ``init_ns`` (prefix to
     namespace) declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
 
-    Raises ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
+    Raises ``TypeError`` for a ``StarLayerDataset`` (name one of its graphs, or merge them: ``to_graph()``), ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
     depends on a remote graph, so it cannot be reproduced from a subgraph of this one)."""
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
+    if isinstance(graph, StarLayerDataset):
+        raise TypeError(
+            "relevant_subgraph takes one graph, not a dataset: the subgraph does not say which graph a triple came from. "
+            "Use dataset.default_graph, dataset.graph(name) or dataset.to_graph() (every graph merged)."
+        )
     bindings = dict(init_bindings or {})
     if init_ns:
         query = "".join(f"PREFIX {p}: <{ns}> " for p, ns in init_ns.items()) + query
