@@ -49,6 +49,7 @@ class EndpointError(OSError):
     no answer)."""
 
     def __init__(self, message: str, status: int | None = None) -> None:
+        """Carry the HTTP status of the failed request next to the message."""
         super().__init__(message)
         self.status = status
 
@@ -66,6 +67,12 @@ class Endpoint:
         headers: dict[str, str] | None = None,
         timeout: float = 30.0,
     ) -> None:
+        """Hold the endpoint URLs and the request settings; nothing is sent until a query or update is made.
+
+        Args:
+            auth: ``(user, password)`` for HTTP Basic; it sets ``Authorization`` and so replaces one given in ``headers``.
+            timeout: Seconds to wait on each request.
+        """
         self.query_url, self.update_url, self.timeout = query_url, update_url, timeout
         self.headers = dict(headers or {})
         if auth is not None:
@@ -114,9 +121,11 @@ class Endpoint:
         return [ox.Triple(q.subject, q.predicate, q.object) for q in ox.parse(io.BytesIO(body), _RDF_FORMATS[mime])]
 
     def ask(self, text: str) -> bool:
+        """Run an ASK query and return its boolean answer."""
         return bool(self.query(text))
 
     def update(self, text: str) -> None:
+        """Run a SPARQL Update on the endpoint; a read-only endpoint (no ``update_url``) raises ``EndpointError``."""
         if self.update_url is None:
             raise EndpointError("this endpoint has no update URL (it is read-only)")
         self._post(self.update_url, "application/sparql-update", "*/*", text)
@@ -176,6 +185,14 @@ class BackedStore:
         path: Any = None,
         pull: bool = True,
     ) -> None:
+        """Open the local copy of the endpoint's data, in memory or on disk at ``path``, and fill it by pulling.
+
+        Args:
+            graph: The graph this store holds; ``None`` is the default graph. Not used when ``dataset`` is true.
+            max_age: Seconds after which a read pulls the copy again; ``None`` never refreshes by age.
+            path: Directory of an on-disk Oxigraph store to use as the copy; ``None`` keeps it in memory.
+            pull: ``False`` skips the initial pull so an existing on-disk copy is reused. With ``max_age`` set, the first read still pulls.
+        """
         self.endpoint, self.dataset, self.max_age = endpoint, dataset, max_age
         self.graph = ox.DefaultGraph() if _is_default(graph) else graph
         self.path = None if path is None else os.fspath(path)
@@ -247,21 +264,26 @@ class BackedStore:
 
     # ---- reads: the local copy ---------------------------------------------------------------------------------------
     def __getattr__(self, name: str) -> Any:
+        """Forward any other public name to the local ``pyoxigraph.Store``, pulling first if the copy is stale or older than ``max_age``."""
         if name.startswith("_"):
             raise AttributeError(name)
         return getattr(self._local(), name)
 
     def __len__(self) -> int:
+        """Number of quads in the local copy."""
         return len(self._local())
 
     def __iter__(self) -> Iterator[ox.Quad]:
+        """Iterate the quads of the local copy."""
         return iter(self._local())
 
     def __contains__(self, quad: Any) -> bool:
+        """Whether the local copy holds the quad."""
         return quad in self._local()
 
     # ---- writes: the endpoint first ----------------------------------------------------------------------------------
     def extend(self, quads: Iterable[Any]) -> None:
+        """Insert quads on the endpoint in chunks, adding each chunk to the copy once the endpoint has accepted it."""
         for chunk in _chunks(self._mine(quads), _CHUNK):
             self.endpoint.update(f"INSERT DATA {{ {self._blocks(chunk)} }}")
             self._wrote(chunk)
@@ -269,20 +291,24 @@ class BackedStore:
     bulk_extend = extend
 
     def add(self, quad: Any) -> None:
+        """Insert one quad; see ``extend``."""
         self.extend([quad])
 
     def remove(self, quad: Any) -> None:
+        """Delete one quad on the endpoint, then from the copy."""
         (q,) = self._mine([quad])
         self.endpoint.update(f"DELETE DATA {{ {self._blocks([q])} }}")
         self._copy.remove(q)
 
     def clear_graph(self, graph: Any) -> None:
+        """Empty a graph on the endpoint, then in the copy; a graph store may clear only its own graph."""
         if not self.dataset and graph != self.graph:
             raise ValueError(f"this store holds graph {self.graph}; it cannot clear graph {graph}")
         self.endpoint.update("CLEAR DEFAULT" if _is_default(graph) else f"CLEAR SILENT GRAPH {_term(graph)}")
         self._copy.clear_graph(graph)
 
     def add_graph(self, graph: Any) -> None:
+        """Create an empty named graph on the endpoint (dataset only); on a graph store this is a no-op for its own graph."""
         if not self.dataset:
             if graph != self.graph:
                 raise ValueError(f"this store holds graph {self.graph}; it cannot add graph {graph}")
@@ -292,12 +318,14 @@ class BackedStore:
             self._copy.add_graph(graph)
 
     def remove_graph(self, graph: Any) -> None:
+        """Drop a named graph on the endpoint, then in the copy; the default graph is cleared. Not available on a graph store."""
         if not self.dataset:
             raise NotImplementedError("a store backed by an endpoint holds one graph; drop it with an update on the endpoint")
         self.endpoint.update("CLEAR DEFAULT" if _is_default(graph) else f"DROP SILENT GRAPH {_term(graph)}")
         self._copy.clear_graph(graph) if _is_default(graph) else self._copy.remove_graph(graph)
 
     def clear(self) -> None:
+        """Empty every graph of the endpoint; refused on a graph store so one graph cannot wipe the others."""
         if not self.dataset:
             raise NotImplementedError("clear() would empty the whole endpoint; clear this graph with graph.clear()")
         self.endpoint.update("CLEAR ALL")
@@ -309,6 +337,7 @@ class BackedStore:
         self.sync()
 
     def load(self, *args: Any, **kwargs: Any) -> None:
+        """Not supported; load into an endpoint-backed graph with ``graph.parse()``."""
         raise NotImplementedError("load into an endpoint-backed graph with graph.parse()")
 
     bulk_load = load

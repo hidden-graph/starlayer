@@ -25,11 +25,13 @@ class Row(tuple):
     _names: tuple[str, ...]
 
     def __new__(cls, values: Any, names: tuple[str, ...]) -> Row:
+        """Build a row from values in ``names`` order."""
         obj = super().__new__(cls, values)
         obj._names = names
         return obj
 
     def __getitem__(self, key: Any) -> Any:
+        """Index by position, or by variable name (a ``Variable``, or a string with or without its leading ``?`` / ``$``)."""
         if isinstance(key, ox.Variable):
             key = key.value
         if isinstance(key, str):
@@ -40,6 +42,10 @@ class Row(tuple):
         return tuple.__getitem__(self, key)
 
     def __getattr__(self, name: str) -> Any:
+        """Read a variable as an attribute.
+
+        Names starting with ``_`` are never looked up as variables, so internals and protocol probes fail normally.
+        """
         if name.startswith("_"):
             raise AttributeError(name)
         try:
@@ -48,6 +54,7 @@ class Row(tuple):
             raise AttributeError(name) from None
 
     def get(self, key: Any, default: Any = None) -> Any:
+        """Value of a variable, or ``default`` when the name is unknown or the variable is unbound."""
         try:
             v = self[key]
         except KeyError:
@@ -55,6 +62,7 @@ class Row(tuple):
         return default if v is None else v
 
     def asdict(self) -> dict[str, Any]:
+        """Map variable name to term, leaving unbound variables out."""
         return {n: v for n, v in zip(self._names, self, strict=True) if v is not None}
 
 
@@ -63,10 +71,12 @@ class HiddenColumns:
     pre-binding could be applied; see ``run._query_widening``)."""
 
     def __init__(self, raw: Any, hide: set[str]) -> None:
+        """Wrap ``raw`` so that ``variables`` omits the names in ``hide`` while iteration still yields the full solutions."""
         self._raw = raw
         self.variables = [v for v in raw.variables if v.value not in hide]
 
     def __iter__(self) -> Iterator[Any]:
+        """Iterate the underlying solutions unchanged, hidden columns included."""
         return iter(self._raw)
 
 
@@ -95,7 +105,13 @@ def _query_type(text: str, raw: Any) -> str:
 
 
 class Result:
+    """A pyoxigraph query result read like an rdflib one: rows, bindings, triples or a boolean, by query form."""
     def __init__(self, raw: Any, text: str = "") -> None:
+        """Wrap ``raw`` and classify the query form.
+
+        Args:
+            text: the query text; needed only to tell CONSTRUCT from DESCRIBE, which the raw triple stream does not say.
+        """
         self.raw = raw
         self.type = _query_type(text, raw)
         self._rows: list[Row] | None = None
@@ -115,15 +131,18 @@ class Result:
 
     @property
     def rows(self) -> list[Row]:
+        """The SELECT solutions, read from the one-shot stream once; other query forms raise ``TypeError``."""
         return self._read_rows()
 
     @property
     def bindings(self) -> list[dict[str, Any]]:
+        """The SELECT solutions as ``{name: term}`` dicts, with unbound variables absent."""
         return [r.asdict() for r in self._read_rows()]
 
     # ---- CONSTRUCT / DESCRIBE -----------------------------------------------------------------------------------
     @property
     def triples(self) -> list[tuple[Any, Any, Any]]:
+        """The CONSTRUCT or DESCRIBE triples, read from the one-shot stream once; other forms raise ``TypeError``."""
         if self._triples is None:
             if self.type not in ("CONSTRUCT", "DESCRIBE"):
                 raise TypeError(f"a {self.type} result has no triples")
@@ -132,6 +151,7 @@ class Result:
 
     @property
     def graph(self) -> Any:
+        """The CONSTRUCT or DESCRIBE triples as a new in-memory ``StarLayerGraph``, built once."""
         if self._graph is None:
             from starlayer.graph.oxgraph.core import StarLayerGraph
 
@@ -142,6 +162,7 @@ class Result:
 
     # ---- protocol -----------------------------------------------------------------------------------------------
     def __iter__(self) -> Iterator[Any]:
+        """Iterate rows for SELECT, the single answer for ASK, or ``(s, p, o)`` tuples."""
         if self.type == "SELECT":
             return iter(self._read_rows())
         if self.type == "ASK":
@@ -149,6 +170,7 @@ class Result:
         return iter(self.triples)
 
     def __len__(self) -> int:
+        """Number of items ``iter`` yields (1 for ASK); this reads the stream."""
         if self.type == "SELECT":
             return len(self._read_rows())
         if self.type == "ASK":
@@ -156,9 +178,11 @@ class Result:
         return len(self.triples)
 
     def __bool__(self) -> bool:
+        """The answer for ASK; otherwise whether there is at least one row or triple."""
         if self.type == "ASK":
             return bool(self.askAnswer)
         return len(self) > 0
 
     def __repr__(self) -> str:
+        """Show only the query form, so printing never consumes the stream."""
         return f"<Result {self.type}>"

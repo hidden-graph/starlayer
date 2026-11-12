@@ -42,21 +42,25 @@ class NS:
     __slots__ = ("_base", "_cache")
 
     def __init__(self, base: str) -> None:
+        """Create a namespace rooted at the IRI prefix ``base``."""
         object.__setattr__(self, "_base", base)
         object.__setattr__(self, "_cache", {})
 
     def __getitem__(self, name: str) -> ox.NamedNode:
+        """The term for ``name`` in this namespace, built on first use and then reused; use it for names that are not identifiers."""
         node = self._cache.get(name)
         if node is None:
             node = self._cache[name] = ox.NamedNode(self._base + name)
         return node
 
     def __getattr__(self, name: str) -> ox.NamedNode:
+        """Attribute access as ``__getitem__``; dunder names raise ``AttributeError`` so copy and pickle probes do not mint terms."""
         if name.startswith("__"):
             raise AttributeError(name)
         return self[name]
 
     def __str__(self) -> str:
+        """The base IRI text, so a namespace can be concatenated into IRI strings."""
         return self._base
 
 
@@ -124,6 +128,7 @@ def unmask(message: str) -> str:
 
 
 def local_name(iri: ox.NamedNode) -> str:
+    """The part of an IRI after the last ``#``, or after the last ``/`` when there is no ``#``."""
     v = iri.value
     return v.rsplit("#", 1)[-1] if "#" in v else v.rsplit("/", 1)[-1]
 
@@ -137,16 +142,19 @@ def datatype_iri(lit: ox.Literal) -> ox.NamedNode:
 
 
 def literal(lexical: str, datatype: ox.NamedNode | None = None, lang: str | None = None) -> ox.Literal:
+    """A literal from a lexical form; ``lang`` takes precedence over ``datatype`` when both are given."""
     if lang:
         return ox.Literal(lexical, language=lang)
     return ox.Literal(lexical, datatype=datatype) if datatype is not None else ox.Literal(lexical)
 
 
 def boolean(value: bool) -> ox.Literal:
+    """An ``xsd:boolean`` literal in its canonical form (``true`` / ``false``)."""
     return ox.Literal("true" if value else "false", datatype=XSD.boolean)
 
 
 def integer(value: int) -> ox.Literal:
+    """An ``xsd:integer`` literal in the decimal form of ``value``."""
     return ox.Literal(str(value), datatype=XSD.integer)  # str-ok: value is a python int
 
 
@@ -209,6 +217,11 @@ class TermError(ValueError):
         triple: Any = None,
         errors: tuple[TermError, ...] = (),
     ) -> None:
+        """Build the error; when ``errors`` is given the message summarises those offenders instead of describing this one.
+
+        Args:
+            errors: every offender found in one scan, for the aggregate error raised by the up-front check.
+        """
         self.term, self.kind, self.reason = term, kind, reason
         self.where, self.position, self.triple, self.errors = where, position, triple, errors
         super().__init__(self._message())
@@ -224,6 +237,7 @@ class TermError(ValueError):
         return self.describe()
 
     def describe(self) -> str:
+        """One-line text naming the term, where it was found and why it is ill-formed, with no aggregate summary."""
         where = ""
         if self.where:
             where = f" in the {self.where}"
@@ -234,6 +248,7 @@ class TermError(ValueError):
         return f"ill-formed {self.kind} {_bridge().show(self.term)}{where}: {self.reason}"  # str-ok: show() returns text
 
     def located(self, where: str | None, position: str | None, triple: Any) -> TermError:
+        """A copy of this error with the graph label, position and triple filled in by the scan that found it."""
         return TermError(self.term, self.kind, self.reason, where=where, position=position, triple=triple)
 
 
@@ -281,6 +296,7 @@ def _lang_literal_or_stand_in(lexical_: str, lang: str, original: Any, direction
 
 
 def has_lone_surrogate(text_: str) -> bool:
+    """Whether ``text_`` holds a lone UTF-16 surrogate, which is not a Unicode scalar value and so cannot be an Oxigraph literal."""
     return _SURROGATE.search(text_) is not None
 
 
@@ -319,10 +335,12 @@ def from_engine(term: Any) -> Any:
 
 
 def from_engine_triple(t: tuple[Any, Any, Any]) -> tuple[Any, Any, Any]:
+    """``from_engine`` applied to each position of a triple."""
     return from_engine(t[0]), from_engine(t[1]), from_engine(t[2])
 
 
 def to_engine_triple(t: tuple[Any, Any, Any]) -> tuple[Any, Any, Any]:
+    """``to_engine`` applied to each position of a triple."""
     return to_engine(t[0]), to_engine(t[1]), to_engine(t[2])
 
 
@@ -372,6 +390,7 @@ def _union_view(graph: Any) -> Any:
 
 
 def __getattr__(name: str) -> Any:
+    """Module-level lazy lookup of ``LegacyTermView``, which lives in the bridge and is imported only on first use."""
     # ``LegacyTermView`` (an rdflib-term view of an engine graph) lives in the bridge
     if name == "LegacyTermView":
         return _bridge().LegacyTermView
