@@ -65,6 +65,10 @@ EXACT = {
     "variable predicate": "SELECT ?p ?o WHERE { :a ?p ?o }",
     "property path": "SELECT ?s ?o WHERE { ?s :q+ ?o }",
     "sequence path": "ASK { ?s :p/:q ?o }",
+    "bound test on an optional, row added by a union": (
+        "SELECT ?s WHERE { { ?s :p ?o OPTIONAL { ?s :n ?z } FILTER(!BOUND(?z)) } UNION { ?s :p ?o } }"
+    ),
+    "coalesce in a filter": "SELECT ?s WHERE { ?s :p ?o OPTIONAL { ?s :n ?z } FILTER(COALESCE(?z, \"none\") = \"none\") }",
     "two not exists": "SELECT ?s WHERE { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } FILTER NOT EXISTS { ?s :blk ?w } }",
     "not exists in a union branch": "SELECT ?s WHERE { { ?s :p ?o FILTER NOT EXISTS { ?s :n ?z } } UNION { ?s :blk ?y } }",
 }
@@ -162,6 +166,9 @@ def _group(draw, allow_negation: bool = True) -> str:
         extras.append("{ " + draw(_pattern()) + " } UNION { " + draw(_pattern()) + " }")
     if draw(st.booleans()):
         extras.append(f"FILTER({draw(st.sampled_from(_VARS))} != {draw(st.sampled_from(_NODES + ['1', '2']))})")
+    if draw(st.booleans()):
+        v = draw(st.sampled_from(_VARS))
+        extras.append(draw(st.sampled_from([f"FILTER(!BOUND({v}))", f"FILTER(BOUND({v}))", f"FILTER(COALESCE({v}, 9) != 1)"])))
     if allow_negation and draw(st.booleans()):
         extras.append("FILTER NOT EXISTS { " + draw(_pattern()) + " }")
     if allow_negation and draw(st.booleans()):

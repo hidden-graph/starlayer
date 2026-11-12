@@ -12,6 +12,9 @@ same answer on ``F`` as on ``graph``: the same solutions (with their multiplicit
   keeps the triples of the excluded group's patterns that matched it, the ones that excluded it. A solution that was not
   excluded has no such match in the graph, and none in a subgraph either.
 
+A ``FILTER`` that tests whether a variable is bound (``BOUND``, ``COALESCE``, ``IF``) is relaxed as well, with no group to keep:
+a row it excluded keeps the optional triples that made its variable bound, otherwise dropping them would let the row pass.
+
 Solution modifiers (``ORDER BY``, ``LIMIT``, ``OFFSET``, ``GROUP BY``, ``HAVING``, projection, ``DISTINCT``) are not applied: the
 subgraph holds the support of every solution of the group, so they give the same result on it. Pre-bound variables
 (``init_bindings``) apply to every query.
@@ -131,6 +134,10 @@ def _filter_end(toks: list[Tok], i: int) -> int:
     return _match(toks, j)
 
 
+#: functions whose result differs for an unbound variable and a bound one: a filter using them tests for absence
+_ABSENCE_TESTS = {"BOUND", "COALESCE", "IF"}
+
+
 class _Parts:
     """What the scan of the ``WHERE`` group found: spans to cut, and the groups whose matches are evidence."""
 
@@ -159,7 +166,11 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
             end = _match(toks, i + 1) if word == "MINUS" else _filter_end(toks, i)
             span = toks[i : end + 1]
             has_exists = word == "MINUS" or any(_word(s) == "EXISTS" for s in span)
-            if has_exists:
+            tests_absence = any(_word(s) in _ABSENCE_TESTS for s in span)
+            if tests_absence and not has_exists:
+                parts.cuts.append((i, end))  # relaxed like a negation, with no group of its own to keep
+                i = end
+            elif has_exists:
                 if "optional" in stack:
                     raise _NotComputable("EXISTS or MINUS inside OPTIONAL")
                 parts.cuts.append((i, end))
