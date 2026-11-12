@@ -231,7 +231,7 @@ def validate(
     return ValidationResult(
         conforms=outcome.conforms,
         report_graph=outcome.report_graph,
-        report_text=outcome.report_text,
+        report_text=lambda: outcome.report_text,
         data_graph=out_data,
         diagnostics=outcome.diagnostics,
     )
@@ -322,7 +322,7 @@ def apply_rules(
     validation = ValidationResult(
         conforms=outcome.conforms,
         report_graph=outcome.report_graph,
-        report_text=outcome.report_text,
+        report_text=lambda: outcome.report_text,
         data_graph=None,
         diagnostics=outcome.diagnostics,
     )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -23,7 +24,7 @@ class ExecutionDiagnostics:
     recursive shape met a cycle in the data (a (shape, node) pair already being evaluated further up is assumed to conform). 0 for data with no cycle."""
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class ValidationResult:
     """Result of ``validate()``: whether the data conforms, the validation report as a graph and as text.
 
@@ -31,13 +32,42 @@ class ValidationResult:
     (the ``"rules"`` mode's own default) - the caller's own data graph,
     mutated with any in-place changes decoded back; ``None`` otherwise,
     not an error. ``diagnostics`` is an ``ExecutionDiagnostics``.
+
+    ``report_text`` is built on first read (it costs about as much as the validation itself on small data, and most callers only read
+    ``conforms`` or the report graph); it may be passed to the constructor as a string or as a function that returns one. A lazily
+    built text describes the graphs as they are when it is first read.
     """
 
     conforms: bool
     report_graph: Any
-    report_text: str
     data_graph: Any | None = None
     diagnostics: ExecutionDiagnostics | None = None
+    _report_text: Any = field(default=None, repr=False, compare=False)
+
+    def __init__(
+        self,
+        conforms: bool,
+        report_graph: Any,
+        report_text: str | Callable[[], str],
+        data_graph: Any | None = None,
+        diagnostics: ExecutionDiagnostics | None = None,
+    ) -> None:
+        for name, value in (
+            ("conforms", conforms),
+            ("report_graph", report_graph),
+            ("data_graph", data_graph),
+            ("diagnostics", diagnostics),
+            ("_report_text", report_text),
+        ):
+            object.__setattr__(self, name, value)
+
+    @property
+    def report_text(self) -> str:
+        text = self._report_text
+        if callable(text):
+            text = text()
+            object.__setattr__(self, "_report_text", text)
+        return text
 
 
 @dataclass(frozen=True)
