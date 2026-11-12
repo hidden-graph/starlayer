@@ -19,7 +19,8 @@ Solution modifiers (``ORDER BY``, ``LIMIT``, ``OFFSET``, ``GROUP BY``, ``HAVING`
 subgraph holds the support of every solution of the group, so they give the same result on it. Pre-bound variables
 (``init_bindings``) apply to every query.
 
-Handled: property paths (every triple with a predicate of the path), sub-selects (the relevant triples of the sub-select as a query
+Handled: property paths (the edges a walk of the path from the pattern's subject to its object takes, by ``CONSTRUCT`` over the
+relaxed group joined with a guard that spells the walk out), sub-selects (the relevant triples of the sub-select as a query
 of its own, for all its rows), ``EXISTS`` inside ``OPTIONAL`` and ``UNION`` branches, labelled blank nodes (they are variables in a
 pattern). Not computable this way: ``MINUS`` inside ``OPTIONAL`` (it compares with the optional group's solutions, not with the row, so
 the join with the relaxed group could miss the triples that excluded it), an anonymous blank node (``[ ]``), ``GRAPH``,
@@ -203,10 +204,91 @@ def _term_text(term: Any) -> str:
     raise _NotComputable("blank node or triple term in a pattern")
 
 
-def _patterns(ast: Node) -> tuple[list[str], set[ox.NamedNode]]:
-    """The triple-pattern template lines of a parsed group, and the predicates of its property-path patterns."""
+class _Fresh:
+    """Variable names for the intermediate nodes of a path."""
+
+    def __init__(self) -> None:
+        self.n = 0
+
+    def var(self) -> str:
+        self.n += 1
+        return f"?__pv{self.n}"
+
+
+def _path_text(path: Any) -> str:
+    if isinstance(path, ox.NamedNode):
+        return str(path)
+    if not isinstance(path, Node):
+        raise _NotComputable("unknown path")
+    k = path.kind
+    if k == "InvPath":
+        return f"^({_path_text(path.f['arg'])})"
+    if k == "SequencePath":
+        return "(" + "/".join(_path_text(a) for a in path.f["args"]) + ")"
+    if k == "AlternativePath":
+        return "(" + "|".join(_path_text(a) for a in path.f["args"]) + ")"
+    if k == "MulPath":
+        return f"({_path_text(path.f['path'])}){path.f['mod']}"
+    raise _NotComputable(f"path {k}")  # a negated property set: its edges are every edge but a few
+
+
+_NODE_MARK = ox.NamedNode("urn:starlayer:relevant:node")
+
+
+def _nullable(path: Any) -> bool:
+    """True if the path can match with the same node at both ends (a zero-length walk)."""
+    if isinstance(path, ox.NamedNode):
+        return False
+    k = path.kind
+    if k == "InvPath":
+        return _nullable(path.f["arg"])
+    if k == "SequencePath":
+        return all(_nullable(a) for a in path.f["args"])
+    if k == "AlternativePath":
+        return any(_nullable(a) for a in path.f["args"])
+    if k == "MulPath":
+        return path.f["mod"] in ("*", "?") or _nullable(path.f["path"])
+    return False
+
+
+def _edges(path: Any, a: str, b: str, fresh: _Fresh) -> list[tuple[list[str], list[str]]]:
+    """``(template lines, guard conjuncts)`` pairs whose ``CONSTRUCT`` over a group joined with the guards gives the edges the path
+    walks from ``a`` to ``b`` (term texts). The guards bind the intermediate variables the template uses and keep them on walks
+    that really connect the endpoints."""
+    if isinstance(path, ox.NamedNode):
+        return [([f"{a} {path} {b} ."], [])]
+    k = path.kind
+    if k == "InvPath":
+        return _edges(path.f["arg"], b, a, fresh)
+    if k == "SequencePath":
+        steps = path.f["args"]
+        nodes = [a] + [fresh.var() for _ in steps[:-1]] + [b]
+        chain = [f"{nodes[i]} {_path_text(step)} {nodes[i + 1]} ." for i, step in enumerate(steps)]
+        return [
+            (template, guards + chain)
+            for i, step in enumerate(steps)
+            for template, guards in _edges(step, nodes[i], nodes[i + 1], fresh)
+        ]
+    if k == "AlternativePath":
+        return [
+            (template, guards + [f"{a} {_path_text(alt)} {b} ."])
+            for alt in path.f["args"]
+            for template, guards in _edges(alt, a, b, fresh)
+        ]
+    if k == "MulPath":
+        inner = path.f["path"]
+        if path.f["mod"] == "?":
+            return [(t, g + [f"{a} {_path_text(inner)} {b} ."]) for t, g in _edges(inner, a, b, fresh)]
+        x, y = fresh.var(), fresh.var()
+        walk = [f"{a} ({_path_text(inner)})* {x} .", f"{x} {_path_text(inner)} {y} .", f"{y} ({_path_text(inner)})* {b} ."]
+        return [(t, g + walk) for t, g in _edges(inner, x, y, fresh)]
+    raise _NotComputable(f"path {k}")
+
+
+def _patterns(ast: Node) -> tuple[list[str], list[tuple[str, Any, str]]]:
+    """The triple-pattern template lines of a parsed group, and its property-path patterns as ``(subject text, path, object text)``."""
     lines: list[str] = []
-    path_predicates: set[ox.NamedNode] = set()
+    paths: list[tuple[str, Any, str]] = []
 
     def walk(item: Any) -> None:
         if isinstance(item, Node):
@@ -214,10 +296,11 @@ def _patterns(ast: Node) -> tuple[list[str], set[ox.NamedNode]]:
                 return  # its patterns belong to the sub-select's own support queries
             if item.kind == "TriplePattern":
                 p = item.f["p"]
+                s_text, o_text = _term_text(item.f["s"]), _term_text(item.f["o"])
                 if isinstance(p, Node):
-                    path_predicates.update(_path_iris(p))
+                    paths.append((s_text, p, o_text))
                 else:
-                    lines.append(f"{_term_text(item.f['s'])} {_term_text(p)} {_term_text(item.f['o'])} .")
+                    lines.append(f"{s_text} {_term_text(p)} {o_text} .")
             for value in item.f.values():
                 walk(value)
         elif isinstance(item, (list, tuple)):
@@ -225,26 +308,7 @@ def _patterns(ast: Node) -> tuple[list[str], set[ox.NamedNode]]:
                 walk(value)
 
     walk(ast)
-    return list(dict.fromkeys(lines)), path_predicates
-
-
-def _path_iris(path: Node) -> set[ox.NamedNode]:
-    out: set[ox.NamedNode] = set()
-
-    def walk(item: Any) -> None:
-        if isinstance(item, ox.NamedNode):
-            out.add(item)
-        elif isinstance(item, Node):
-            if item.kind in ("NegatedPropertySet", "NegPropertySet"):
-                raise _NotComputable("negated property set")
-            for value in item.f.values():
-                walk(value)
-        elif isinstance(item, (list, tuple)):
-            for value in item:
-                walk(value)
-
-    walk(path)
-    return out
+    return list(dict.fromkeys(lines)), paths
 
 
 def _without_labelled_blank_nodes(query: str) -> str:
@@ -258,6 +322,14 @@ def _without_labelled_blank_nodes(query: str) -> str:
             cursor = t.pos + len(t.text)
     out.append(query[cursor:])
     return "".join(out)
+
+
+def _mention(graph: Any, node: Any) -> list[_Triple]:
+    """One triple of ``graph`` that has ``node`` as subject or object (a node exists in a graph by appearing in one)."""
+    for pattern in ((node, None, None), (None, None, node)):
+        for t in graph.triples(pattern):
+            return [(t[0], t[1], t[2])]
+    return []
 
 
 def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[str, Any]) -> set[_Triple]:
@@ -284,26 +356,43 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[
     def parsed(group_text: str) -> Node:
         return parse_sparql(f"{prologue} SELECT * WHERE {{ {group_text} }}")
 
-    body_lines, path_predicates = _patterns(parsed(relaxed))
+    fresh = _Fresh()
     queries: list[str] = []
-    if body_lines:
-        queries.append(f"{prologue} CONSTRUCT {{ {' '.join(body_lines)} }} WHERE {{ {{ {relaxed} }} }}")
+
+    def add(lines: list[str], paths: list[tuple[str, Any, str]], where: str) -> None:
+        if lines:
+            queries.append(f"{prologue} CONSTRUCT {{ {' '.join(lines)} }} WHERE {{ {where} }}")
+        for s_text, path, o_text in paths:
+            if _nullable(path):
+                # a zero-length walk matches a node that is in the graph (every one, at a variable end): it has to stay there
+                for end in (s_text, o_text):
+                    queries.append(f"{prologue} CONSTRUCT {{ <{_NODE_MARK.value}> <{_NODE_MARK.value}> {end} }} WHERE {{ {where} }}")
+            for template, guards in _edges(path, s_text, o_text, fresh):
+                queries.append(f"{prologue} CONSTRUCT {{ {' '.join(template)} }} WHERE {{ {where} {' '.join(guards)} }}")
+
+    body_lines, body_paths = _patterns(parsed(relaxed))
+    add(body_lines, body_paths, f"{{ {relaxed} }}")
     for group in parts.evidence:
         inner_lines, inner_paths = _patterns(parsed(group))
-        path_predicates |= inner_paths
-        if inner_lines:
-            queries.append(f"{prologue} CONSTRUCT {{ {' '.join(inner_lines)} }} WHERE {{ {{ {relaxed} }} {group} }}")
+        add(inner_lines, inner_paths, f"{{ {relaxed} }} {group}")
 
     found: set[_Triple] = set()
+    nodes: list[Any] = []
     for text in queries:
         for t in run(text):
             triple = (t[0], t[1], t[2])
-            if triple in graph:
+            if triple[1] == _NODE_MARK:
+                nodes.append(triple[2])
+            elif triple in graph:
                 found.add(triple)
+    mentioned = {x for t in found for x in (t[0], t[2])}
+    for node in nodes:  # a zero-length walk needs the node in the graph: one triple that mentions it, if none is kept yet
+        if node not in mentioned:
+            for t in _mention(graph, node):
+                found.add(t)
+                mentioned.update((t[0], t[2]))
     for sub in parts.subselects:
         found |= relevant_triples(graph, prologue + sub, bindings, run)[0]
-    for predicate in path_predicates:
-        found.update((t[0], t[1], t[2]) for t in graph.triples((None, predicate, None)))
     return found
 
 
@@ -335,6 +424,29 @@ def _pattern_triples(graph: Any, ast: Node, bindings: Mapping[str, Any]) -> set[
 
     reads: set[_Triple] = set()
     for pattern in patterns:
+        if isinstance(pattern.f.get("p"), Node):  # a path walks through nodes the pattern does not name: every edge of its predicates
+            predicates = [] if _nullable(pattern.f["p"]) else _path_predicates(pattern.f["p"])  # a zero-length walk: every node
+            for predicate in predicates or [None]:
+                reads.update((t[0], t[1], t[2]) for t in graph.triples((None, predicate, None)))
+            continue
         s, p, o = (fixed(pattern.f.get(k)) for k in ("s", "p", "o"))
         reads.update((t[0], t[1], t[2]) for t in graph.triples((s, p, o)))
     return reads
+
+
+def _path_predicates(path: Any) -> list[Any]:
+    """The predicates a path names; empty if it contains a negated property set (any predicate can be walked)."""
+    out: list[Any] = []
+
+    def walk(item: Any) -> bool:
+        if isinstance(item, ox.NamedNode):
+            out.append(item)
+        elif isinstance(item, Node):
+            if item.kind == "NegatedPath":
+                return False
+            return all(walk(v) for v in item.f.values())
+        elif isinstance(item, (list, tuple)):
+            return all(walk(v) for v in item)
+        return True
+
+    return out if walk(path) else []

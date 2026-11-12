@@ -106,6 +106,30 @@ def test_a_construct_the_support_queries_cannot_follow_falls_back_and_stays_corr
     assert not _exact(DATA, FALLBACK[name])
 
 
+PATH_DATA = _graph(
+    """
+    :a :q :b . :b :q :c . :c :q :d . :x :q :y . :a :r :c . :b :p :a . :y :p :x .
+    """
+)
+
+
+@pytest.mark.parametrize(
+    ("query", "edges"),
+    [
+        ("ASK { :a :q+ :c }", {("a", "q", "b"), ("b", "q", "c")}),
+        ("ASK { :a :q/:q :c }", {("a", "q", "b"), ("b", "q", "c")}),
+        ("SELECT ?o WHERE { :a :q|:r ?o }", {("a", "q", "b"), ("a", "r", "c")}),
+        ("ASK { :c ^:q :b }", {("b", "q", "c")}),
+        ("ASK { :a (:q/:q)* :c }", {("a", "q", "b"), ("b", "q", "c")}),
+        ("ASK { :a :q? :b }", {("a", "q", "b")}),
+    ],
+)
+def test_a_path_keeps_only_the_edges_it_walks(query: str, edges: set) -> None:
+    fragment = _same_answer(PATH_DATA, PROLOGUE + query)
+    got = {tuple(t.value.rsplit("/", 1)[-1] for t in triple) for triple in fragment}
+    assert got == edges
+
+
 def test_the_subgraph_is_smaller_than_the_graph_when_the_query_reads_little() -> None:
     fragment = _same_answer(DATA, PROLOGUE + "SELECT ?o WHERE { :a :p ?o }")
     assert set(fragment) == {t for t in DATA if t[0] == ox.NamedNode("http://e/a") and t[1] == ox.NamedNode("http://e/p")}
@@ -141,6 +165,7 @@ _NODES = [":n0", ":n1", ":n2"]
 _PREDS = [":p", ":q", ":r"]
 _OBJECTS = _NODES + ["1", "2", "3"]
 _VARS = ["?a", "?b", "?c"]
+_PATHS = [":p+", ":p*", ":p/:q", ":p|:q", "^:p", ":p?", "(:p/:q)+", "(:p|^:q)*", "^(:p/:q)", ":p/:q*", "(:p+)/:r"]
 
 
 @st.composite
@@ -158,7 +183,7 @@ def _graph_ttl(draw) -> str:
 @st.composite
 def _pattern(draw) -> str:
     s = draw(st.sampled_from(_VARS + _NODES))
-    p = draw(st.sampled_from(_PREDS + ["?p"]))
+    p = draw(st.sampled_from(_PREDS + ["?p"] + _PATHS))
     o = draw(st.sampled_from(_VARS + _OBJECTS + ["_:b"]))
     if o == "_:b":  # a label is local to one basic graph pattern: a fresh one each time
         o = f"_:b{draw(st.integers(0, 10**9))}"
