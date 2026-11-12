@@ -9,8 +9,8 @@ inherited from the old function: the entry points are discovered from the shapes
 count keeps every qualifying value; ``sh:not`` and the failing branches of ``sh:xone`` keep a *full trace* (a superset
 of the paper's neighborhood, which the Sufficiency Lemma allows).
 
-Behaviour changes from the old function: ``sh:target`` (SPARQL targets, removed from SHACL 1.2) is ignored with a
-``UserWarning`` naming the shape; ``focus_node=`` alone considers only shapes that really target that node (the old
+Behaviour changes from the old function: a shapes graph that uses ``sh:target`` / ``sh:SPARQLTarget`` (removed from SHACL 1.2) is a
+``ShapeError``, as in ``validate``; ``focus_node=`` alone considers only shapes that really target that node (the old
 docstring said so, its code tried every shape); deactivated nested shapes contribute nothing; ``sh:shape`` data links
 (``<node> sh:shape <shape>``) are targets, as in the engine.
 
@@ -21,7 +21,6 @@ appears.
 
 from __future__ import annotations
 
-import warnings
 from typing import Any
 
 from starlayer.shacl_engine import (
@@ -56,7 +55,6 @@ _QUALIFIED_FAMILY = frozenset(
 _NON_CONSTRAINT_METADATA = frozenset(
     {SH.path, SH.name, SH.description, SH.order, SH.group, SH.message, SH.severity, SH.deactivated, RDF.type}
 )
-_SH_TARGET = SH.target
 
 
 def _items(graph: Any, head: Term) -> list[Term]:
@@ -443,7 +441,7 @@ class _Extractor:
 
     def target_triples(self, shape: Shape, node: Term) -> set[_Triple]:
         """The triples that make ``node`` a target of ``shape`` (the paper conjoins the shape with its target). Nothing
-        for ``sh:targetNode``; a SPARQL ``sh:target`` is not supported."""
+        for ``sh:targetNode``; a SPARQL ``sh:target`` is a ``ShapeError``."""
         triples: set[_Triple] = set()
         data = self.data
         for pred, value in shape.targets:
@@ -483,8 +481,9 @@ def extract_subgraph(
     ``data_graph``. ``shape`` alone: that shape's own targets; ``focus_node`` alone: every shape that targets the node;
     both: that pair, whether or not the shape targets the node. ``include_targets`` adds the triples that make each
     focus node a target (class membership, subjects-of / objects-of triples). Raises ``TypeError`` for a ``str``
-    ``shape`` / ``focus_node`` and ``ValueError`` for a shape that is not in the shapes graph. ``sh:target`` is ignored
-    with a ``UserWarning`` (SPARQL targets are not part of SHACL 1.2). ``TypeError`` for a ``StarLayerDataset`` as the data graph.
+    ``shape`` / ``focus_node`` and ``ValueError`` for a shape that is not in the shapes graph, ``ShapeError`` for SHACL Advanced Features
+    constructs SHACL 1.2 no longer defines (``sh:target``, ``sh:SPARQLTarget``, ``sh:SPARQLFunction``) and ``TypeError`` for a
+    ``StarLayerDataset`` as the data graph.
     """
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and type(value) is str:  # a bare str is not a term (an rdflib ``URIRef`` is a str subclass)
@@ -516,12 +515,6 @@ def extract_subgraph(
         sobj = plan.shape(node)
         if sobj.deactivated:
             continue
-        if (node, _SH_TARGET, None) in shapes:
-            warnings.warn(
-                f"sh:target on shape {text(node)} is ignored: SPARQL-based targets are not part of SHACL 1.2",
-                UserWarning,
-                stacklevel=2,
-            )
         if focus_node is not None:
             if shape is None and not _is_target_of(ex, sobj, focus_node):
                 continue

@@ -4,7 +4,7 @@ Status: draft for discussion, branch `shacl-engine`. Background: `shacl-engine-f
 
 ## Goals and non-goals
 - Implement all of SHACL 1.2 as the drafts define it: Core, SPARQL-Related Features, Node Expressions, Inference Rules
-  (including `sh:TripleRule`, `sh:SPARQLRule`, layers, rule sets), targets (including `sh:targetWhere`, `sh:SPARQLTarget`),
+  (including `sh:TripleRule`, `sh:SPARQLRule`, layers, rule sets), targets (`sh:targetNode`, `sh:targetClass`, `sh:targetSubjectsOf`, `sh:targetObjectsOf`, `sh:targetWhere`, node-expression targets; SPARQL-based targets are not defined in 1.2 and are a `ShapeError`, see the cutover note of 2026-11-12),
   reports with annotations and provenance.
 - Triple terms and `rdf:dirLangString` are first-class. No encode to RDF 1.1 and decode back.
 - No pyshacl, no rdflib object model inside the engine core.

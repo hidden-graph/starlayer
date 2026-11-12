@@ -285,7 +285,7 @@ Old-validator deviations (engine follows the draft):
 - Engine is more lenient where the old validator raised (category 11): imports without loader, unsupported regimes, some malformed shapes; decide per item whether to restore the error.
 DROP-LEGACY (removed, no replacement, issue #185):
 - SPARQL queries using a Turtle `@prefix` that is not declared via `sh:declare`/`sh:prefixes` (3 calls).
-- `sh:SPARQLTarget` as an old-style target (if the Core draft is confirmed not to define it; note feasibility doc lists it as in the vocabulary: decide before b).
+- `sh:SPARQLTarget` as an old-style target. DECIDED 2026-11-12: dropped. SHACL 1.2 SPARQL-Related Features, Appendix F: "SPARQL-based targets (`sh:target` with `sh:SPARQLTarget` and `sh:SPARQLTargetType`) are no longer defined", and `sh:SPARQLFunction` "has been replaced" by node-expression functions (section 7). The W3C vocabulary file still lists the terms, so a shapes graph that uses `sh:target`, `sh:SPARQLTarget`, `sh:SPARQLTargetType` or `sh:SPARQLFunction` is a `ShapeError` (`plan.reject_removed_constructs`) in `validate`, `evaluate`, `extract_subgraph` and the rest; it used to validate with the target silently doing nothing.
 - Shapes-graph-only `rdfs:subClassOf` for implicit class targets, and `rdfs_subclass_reasoning_includes_shapes_graph`.
 - Legacy `sh:`-namespaced node expressions (`sh:union`, `sh:intersection`, `sh:filterShape`, `sh:path` as expression) and the `sh:filterShape` shim.
 - Malformed `sh:uniqueValuesFor` accepted under `meta_shacl=False` (now a `ShapeError`).
@@ -296,7 +296,7 @@ DROP-LEGACY (removed, no replacement, issue #185):
 | Item | Today | Size guess | Must precede b? |
 |---|---|---:|---|
 | Custom node-expression functions: `sh:ListParameterExpressionFunction`, `sh:NamedParameterExpressionFunction` defining predicate = function IRI / key-parameter path, `shnex:arg`, SPARQL-body functions (differential cat. 6; partly fixed in round 2: callable by IRI from `sh:select`/`sh:ask`) | `expressions._custom_functions`, `_call_custom` exist; the 6 run-1 engine_errors are down to 0 of that kind in `results2` | 100-200 lines + 10 tests | yes (worked examples in spec) |
-| `sh:SPARQLTarget` / `sh:SPARQLTargetType`, `$currentShape`, `$shapesGraph` (0 grep hits) | missing; `test_hunt3_targets[sparql_target]` differs | 120-250 lines (`targets.py`, `sparql_support`) | yes if kept in the draft; otherwise DROP-LEGACY |
+| `sh:SPARQLTarget` / `sh:SPARQLTargetType`, `$currentShape`, `$shapesGraph` | dropped (DROP-LEGACY, 2026-11-12: not defined in SHACL 1.2, a `ShapeError`) | none | no |
 | `sh:ruleProcessor` (3 refs: selection only; `_check_rule_processors` old code raises on an unknown processor) | partial | 60 lines | yes (3 test files) |
 | `sh:sourceRule` provenance reifiers (`include_source_rule_provenance`) | 0 refs | 150-250 lines in `rules._Run` (record which rule produced a triple) | yes (`test_source_rule_provenance`) |
 | `iterate_rules` (pyshacl iteration to fixpoint; engine rules run layer/runOnce/iterating per the draft pseudocode) | not offered | 30 lines if the draft's iteration is the same; otherwise drop the option | decide; 3 calls |

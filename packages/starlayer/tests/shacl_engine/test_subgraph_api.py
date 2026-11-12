@@ -2,7 +2,7 @@
 
 The old ones (``starlayer.shacl``) are the oracle: every case the project's existing tests cover is run through both on the
 same inline Turtle and the results must be equal (as triple sets), plus the Conformance Theorem checked with the engine's
-own ``validate``. Deviations are tested on their own (sh:target warning, focus_node anchoring, backends).
+own ``validate``. Deviations are tested on their own (sh:target error, focus_node anchoring, backends).
 """
 
 from __future__ import annotations
@@ -273,14 +273,15 @@ def test_does_not_mutate_the_shapes_graph() -> None:
     assert set(shapes) == before
 
 
-def test_sparql_target_is_ignored_with_a_warning() -> None:
+def test_sparql_target_is_a_shape_error() -> None:
+    from starlayer.shacl import ShapeError
+
     shapes = _g(
         'ex:NamedThingShape a sh:NodeShape ; sh:target [ a sh:SPARQLTarget ; sh:select "SELECT $this WHERE { $this ex:name ?n }" ] ; '
         "sh:property [ sh:path ex:name ; sh:minCount 1 ] ."
     )
-    with pytest.warns(UserWarning, match="NamedThingShape"):
-        result = extract_subgraph(_g(PEOPLE_DATA), shapes)
-    assert len(result) == 0
+    with pytest.raises(ShapeError, match="NamedThingShape"):
+        extract_subgraph(_g(PEOPLE_DATA), shapes)
 
 
 def test_focus_node_alone_only_uses_shapes_that_target_it() -> None:

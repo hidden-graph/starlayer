@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from starlayer.shacl_engine.terms import RDF, SH, NamedNode, engine_view
+from starlayer.shacl_engine.terms import RDF, SH, NamedNode, engine_view, text
 
 URIRef = NamedNode  # type alias kept for the annotations below
 Term = Any
@@ -18,6 +18,23 @@ Term = Any
 
 class ShapeError(ValueError):
     """The shapes graph is malformed (the W3C suite's ``sht:Failure`` cases)."""
+
+
+def reject_removed_constructs(graph: Any) -> None:
+    """SHACL 1.2 SPARQL-Related Features, Appendix F: "SPARQL-based targets (``sh:target`` with ``sh:SPARQLTarget`` and
+    ``sh:SPARQLTargetType``) are no longer defined", and ``sh:SPARQLFunction`` (SHACL Advanced Features) is replaced by functions
+    declared on node expressions. The W3C vocabulary file still lists the terms, so the vocabulary cannot tell them from live
+    ones; a shapes graph that uses them would otherwise validate with those parts silently doing nothing, so it is refused."""
+    found = [(f"sh:target on {text(s)}") for s, _p, _o in graph.triples((None, SH.target, None))]
+    for cls, name in ((SH.SPARQLTarget, "sh:SPARQLTarget"), (SH.SPARQLTargetType, "sh:SPARQLTargetType"), (SH.SPARQLFunction, "sh:SPARQLFunction")):
+        found += [f"{text(s)} is a {name}" for s in graph.subjects(RDF.type, cls)]
+    if found:
+        shown = "; ".join(found[:5]) + (f"; and {len(found) - 5} more" if len(found) > 5 else "")
+        raise ShapeError(
+            "the shapes graph uses SHACL Advanced Features constructs that SHACL 1.2 no longer defines (SHACL SPARQL-Related Features, "
+            f"Appendix F): {shown}. Use sh:targetNode with a node expression, for example sh:targetNode [ sh:select \"...\" ] (section 6.1), "
+            "and sh:ListParameterExpressionFunction for a function (section 7)"
+        )
 
 
 _SEVERITY_RANK = {SH.Violation: 2, SH.Warning: 1, SH.Info: 0}
@@ -73,6 +90,7 @@ class Plan:
 
     def __post_init__(self) -> None:
         self.shapes_graph = engine_view(self.shapes_graph, "shapes graph")  # the seam: rdflib / StarLayer graphs get an engine-term view
+        reject_removed_constructs(self.shapes_graph)
 
     def components(self) -> list:
         """Built-in components plus the SPARQL-based constraint components declared in the shapes graph (built once)."""
