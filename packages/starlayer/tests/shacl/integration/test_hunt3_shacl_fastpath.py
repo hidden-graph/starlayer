@@ -199,15 +199,15 @@ class TestModuleMemberWithNamedPropertyShapeOutsideTheModule:
 
 
 class TestNodeKindMessage:
-    def test_single_kind_violation_has_pyshacls_message(self) -> None:
+    def test_single_kind_violation_has_the_default_message(self) -> None:
         shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:property [ sh:path ex:p ; sh:nodeKind sh:IRI ] ."
         result = validate(g("ex:n ex:p 'lit' ."), g(shapes))
-        assert [str(m) for m in rd(result.report_graph).objects(None, SH.resultMessage)] == ["Value is not of Node Kind sh:IRI"]
+        assert [str(m) for m in rd(result.report_graph).objects(None, SH.resultMessage)] == ['Value "lit" should be an IRI']
 
     def test_node_shape_violation_has_a_message(self) -> None:
         result = validate(g("ex:n ex:p 'lit' ."), g("ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:nodeKind sh:Literal ."))
         assert [str(m) for m in rd(result.report_graph).objects(None, SH.resultMessage)] == [
-            "Value is not of Node Kind sh:Literal"
+            "Value ex:n should be a literal"
         ]
 
 

@@ -133,13 +133,13 @@ def test_a_node_shape_with_sh_path_is_an_ill_formed_shapes_graph():
 
 
 def test_result_messages_use_prefixed_names_and_the_generic_wording():
-    """Found by running the graph workbench on the engine: the report graph says what the old validator said."""
+    """Found by running the graph workbench on the engine: the report graph carries a default message that names the path."""
     result = run(
         "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minCount 1 ; sh:datatype xsd:integer ] .",
         'ex:a ex:q 1 . ex:b ex:p "x" .',
     )
     messages = {text(m) for m in result.report_graph.objects(None, SH.resultMessage)}
-    assert any(m.startswith("Less than 1 values on") for m in messages), messages
+    assert "Needs at least 1 value for ex:p" in messages, messages
 
 
 def test_a_function_called_from_sparql_may_have_any_node_expression_as_its_body():
