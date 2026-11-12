@@ -344,6 +344,14 @@ stsh:DeclareShapes a sh:NodeShape ;
             sh:path sh:declare ] ;
     sh:targetSubjectsOf sh:declare .
 
+stsh:DefaultValuePathShape a sh:NodeShape ;
+    rdfs:label "sh:defaultValue needs a single property as sh:path"@en ;
+    sh:property [ sh:message "sh:defaultValue derives a property of the focus node, so sh:path must be a single property"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:path sh:path ;
+            sh:severity sh:Violation ] ;
+    sh:targetSubjectsOf sh:defaultValue .
+
 stsh:DefaultValueShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:defaultValue"@en ;
     sh:property [ sh:maxCount 1 ;
@@ -869,6 +877,14 @@ stsh:TripleRuleTermsShape a sh:NodeShape ;
             sh:severity sh:Warning ] ;
     sh:targetClass sh:TripleRule .
 
+stsh:ValuesPathShape a sh:NodeShape ;
+    rdfs:label "sh:values needs a single property as sh:path"@en ;
+    sh:property [ sh:message "sh:values derives a property of the focus node, so sh:path must be a single property"@en ;
+            sh:nodeKind sh:IRI ;
+            sh:path sh:path ;
+            sh:severity sh:Violation ] ;
+    sh:targetSubjectsOf sh:values .
+
 stsh:ValuesShape a sh:NodeShape ;
     rdfs:label "Well-formed sh:values"@en ;
     rdfs:comment "SHACL 1.2 Node Expressions: sh:values on a property shape holds the node expression that computes its values."@en ;
@@ -1035,12 +1051,6 @@ sh:deactivated rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     skos:example "sh:deactivated true"@en ;
     sh:description "When true, this shape is skipped entirely during validation — as if it weren't there. Useful for temporarily disabling a rule without deleting it, e.g. while a training exercise focuses on a different constraint."@en ;
     sh:name "deactivated"@en .
-
-sh:defaultValue rdfs:comment "The value is checked when a shapes graph is validated: at most one, and a well-formed node expression (stsh:DefaultValueShape)."@en ;
-    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
-    sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
-    sh:name "default value"@en .
 
 sh:description rdfs:comment "The value is checked when a shapes graph is validated: an xsd:string or language-tagged string (stsh:NameAndDescriptionShape)."@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
@@ -1244,6 +1254,12 @@ sh:datatype rdfs:comment "xsd:integer and xsd:int/xsd:decimal are *not* the same
     skos:example "sh:path ex:age ; sh:datatype xsd:integer"@en ;
     sh:description "Every value node must be a literal with this exact XSD (or other) datatype IRI. SHACL 1.2 widens this to also accept a list of datatypes (a union, same as sh:class)."@en ;
     sh:name "datatype"@en .
+
+sh:defaultValue rdfs:comment "The value is checked when a shapes graph is validated: at most one, and a well-formed node expression (stsh:DefaultValueShape)."@en ;
+    rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+    skos:example "sh:path ex:status ; sh:defaultValue \"pending\""@en ;
+    sh:description "A suggested default value for a property shape, for a UI to pre-fill when creating a new instance. Purely informational — has no effect on validation."@en ;
+    sh:name "default value"@en .
 
 sh:flags rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
     sh:description "Regex flags to apply alongside sh:pattern (e.g. \"i\" for case-insensitive). Has no effect without a sh:pattern on the same shape."@en ;
@@ -1814,13 +1830,6 @@ stsh:NodeExpressionShape a sh:NodeShape ;
     sh:targetClass sh:NodeExpression ;
     sh:targetObjectsOf sh:values .
 
-sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
-    rdfs:seeAlso sh:alternativePath,
-        sh:inversePath ;
-    skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
-    sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
-    sh:name "path"@en .
-
 sh:select rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
         <https://www.w3.org/TR/shacl12-sparql/> ;
     rdfs:seeAlso sh:ask,
@@ -1838,3 +1847,10 @@ sh:TripleRule rdfs:isDefinedBy <https://www.w3.org/TR/shacl-af/>,
     skos:example "[ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:ancestor ; sh:object [ sh:path ex:parent ] ]"@en ;
     sh:description "A rule type that derives one new triple per matching focus node from three independently-evaluated node expressions — sh:subject/sh:predicate/sh:object — without needing any SPARQL."@en ;
     sh:name "triple rule"@en .
+
+sh:path rdfs:isDefinedBy <https://www.w3.org/TR/shacl/> ;
+    rdfs:seeAlso sh:alternativePath,
+        sh:inversePath ;
+    skos:example "sh:path ex:email — the simple case, a single predicate."@en ;
+    sh:description "Required on every property shape. Names the property more complex path expression that connects a focus node to its value nodes. The simplest form is a single IRI; SHACL also supports sequence, alternative, inverse, and repeated (*/+/?) paths."@en ;
+    sh:name "path"@en .
