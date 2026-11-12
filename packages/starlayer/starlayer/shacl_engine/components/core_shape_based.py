@@ -77,6 +77,7 @@ def _lists(ctx: Any, terms: tuple, what: str) -> Iterator[list[Any]]:
 
 @component(SH.NotConstraintComponent, SH["not"])
 def not_(ctx, shape, params, focus, values):
+    """sh:not: each value node must not conform to the referenced shape."""
     for s in _shape_refs(params[SH["not"]], "sh:not"):
         for v in values:
             if ctx.conforms(s, v, negated=True):
@@ -85,6 +86,7 @@ def not_(ctx, shape, params, focus, values):
 
 @component(SH.AndConstraintComponent, SH["and"])
 def and_(ctx, shape, params, focus, values):
+    """sh:and: each value node must conform to every shape in the list."""
     for members in _lists(ctx, params[SH["and"]], "sh:and"):
         for v in values:
             if not all(ctx.conforms(m, v) for m in members):
@@ -93,6 +95,7 @@ def and_(ctx, shape, params, focus, values):
 
 @component(SH.OrConstraintComponent, SH["or"])
 def or_(ctx, shape, params, focus, values):
+    """sh:or: each value node must conform to at least one shape in the list."""
     for members in _lists(ctx, params[SH["or"]], "sh:or"):
         for v in values:
             if not any(ctx.conforms(m, v) for m in members):
@@ -101,6 +104,7 @@ def or_(ctx, shape, params, focus, values):
 
 @component(SH.XoneConstraintComponent, SH.xone)
 def xone(ctx, shape, params, focus, values):
+    """sh:xone: each value node must conform to exactly one shape in the list."""
     for members in _lists(ctx, params[SH.xone], "sh:xone"):
         for v in values:
             if sum(1 for m in members if ctx.conforms(m, v)) != 1:
@@ -109,6 +113,7 @@ def xone(ctx, shape, params, focus, values):
 
 @component(SH.NodeConstraintComponent, SH.node)
 def node(ctx, shape, params, focus, values):
+    """sh:node: each value node must conform to the referenced node shape; that shape's own results are reported as sh:detail."""
     for s in _shape_refs(params[SH.node], "sh:node"):
         for v in values:
             if not ctx.conforms(s, v):
@@ -143,6 +148,10 @@ def _qualified(ctx, shape, params, values) -> Iterator[tuple[int, Any]]:
 
 @component(SH.QualifiedMinCountConstraintComponent, SH.qualifiedValueShape, SH.qualifiedMinCount, SH.qualifiedValueShapesDisjoint)
 def qualified_min(ctx, shape, params, focus, values):
+    """sh:qualifiedMinCount: at least that many value nodes conform to sh:qualifiedValueShape (and, if sh:qualifiedValueShapesDisjoint, to no sibling's).
+
+    One violation is yielded for each (qualifiedMinCount, qualifiedValueShape) pair that falls short.
+    """
     for m in params.get(SH.qualifiedMinCount, ()):
         minimum = _count(m, "sh:qualifiedMinCount")
         for n, _ in _qualified(ctx, shape, params, values):
@@ -152,6 +161,10 @@ def qualified_min(ctx, shape, params, focus, values):
 
 @component(SH.QualifiedMaxCountConstraintComponent, SH.qualifiedValueShape, SH.qualifiedMaxCount, SH.qualifiedValueShapesDisjoint)
 def qualified_max(ctx, shape, params, focus, values):
+    """sh:qualifiedMaxCount: at most that many value nodes conform to sh:qualifiedValueShape (and, if sh:qualifiedValueShapesDisjoint, to no sibling's).
+
+    One violation is yielded for each (qualifiedMaxCount, qualifiedValueShape) pair that is exceeded.
+    """
     for m in params.get(SH.qualifiedMaxCount, ()):
         maximum = _count(m, "sh:qualifiedMaxCount")
         for n, _ in _qualified(ctx, shape, params, values):
@@ -192,6 +205,10 @@ def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
 
 @component(SH.ClosedConstraintComponent, SH.closed, SH.ignoredProperties)
 def closed(ctx, shape, params, focus, values):
+    """sh:closed: when true, a value node may only have the properties its shape declares or sh:ignoredProperties lists.
+
+    With the value sh:ByTypes, the properties declared by the value node's types are allowed instead.
+    """
     closed_vals = params.get(SH.closed, ())
     if not closed_vals:
         return  # sh:closed is the only required parameter: sh:ignoredProperties alone is not an instance of the component
@@ -227,6 +244,10 @@ def closed(ctx, shape, params, focus, values):
 
 @component(SH.ReifierShapeConstraintComponent, SH.reifierShape, SH.reificationRequired)
 def reifier_shape(ctx, shape, params, focus, values):
+    """sh:reifierShape / sh:reificationRequired: the reifiers of each (focus, path, value) triple conform to every reifier shape.
+
+    Needs a property shape with an IRI path; anything else raises ShapeError.
+    """
     if shape.path is None or shape.path.kind != "pred":
         raise ShapeError(f"{text(shape.node)}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
     required = any(_only_true(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
@@ -247,6 +268,7 @@ def reifier_shape(ctx, shape, params, focus, values):
 
 @component(SH.RootClassConstraintComponent, SH.rootClass)
 def root_class(ctx, shape, params, focus, values):
+    """sh:rootClass: each value node must be, or be an rdfs:subClassOf descendant of, one of the root classes."""
     roots: set = set()
     for r in params[SH.rootClass]:
         if isinstance(r, NamedNode):

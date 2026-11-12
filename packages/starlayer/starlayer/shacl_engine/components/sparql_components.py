@@ -158,6 +158,12 @@ def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, 
 
 
 def declared_components(plan: Plan) -> list[ComponentSpec]:
+    """One ComponentSpec per parameterised sh:ConstraintComponent (or subclass instance) in the plan's shapes graph.
+
+    Components already in the registry, and non-IRI components, are skipped, so a re-declared built-in stays native. A
+    component with no validator still gets a spec, whose check reports nothing. Raises ShapeError on a malformed
+    parameter declaration, including one whose parameters are all optional.
+    """
     graph = plan.shapes_graph
     comps: dict = {}
     for cls in _subclass_closure(graph, SH.ConstraintComponent):

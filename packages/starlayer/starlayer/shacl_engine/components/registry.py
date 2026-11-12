@@ -22,6 +22,8 @@ from starlayer.shacl_engine.terms import to_engine
 
 @dataclass(frozen=True)
 class Violation:
+    """What a component function yields for one failed check; the executor fills in the rest of the validation result."""
+
     value: Term = None  # sh:value; None means no sh:value is reported
     message: str | None = None
     path: Any = None  # a Path overriding the shape's own (used e.g. by closed, which reports the offending predicate)
@@ -36,6 +38,8 @@ class Violation:
 
 @dataclass(frozen=True)
 class ComponentSpec:
+    """A constraint component: its IRI, the parameter predicates that trigger it and the function that checks it."""
+
     iri: URIRef
     predicates: tuple[URIRef, ...]
     fn: Callable[..., Iterable[Violation]]
@@ -66,4 +70,5 @@ def static_specs() -> list[ComponentSpec]:
 
 
 def all_param_predicates() -> set[URIRef]:
+    """The parameter predicates of the built-in components; ``build_shape`` adds those of declared SPARQL-based components."""
     return {p for spec in REGISTRY.values() for p in spec.predicates}

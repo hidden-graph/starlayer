@@ -60,6 +60,7 @@ def _deactivated_at(ctx, exprs, focus) -> bool:
 
 @component(SH.SPARQLConstraintComponent, SH.sparql)
 def sparql_constraint(ctx, shape, params, focus, values):
+    """Validate a focus node against each non-deactivated ``sh:sparql`` constraint, one violation per solution row."""
     graph = ctx.shapes
     out: list[Violation] = []
     for constraint in params[SH.sparql]:

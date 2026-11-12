@@ -100,6 +100,7 @@ def _other_values(ctx: Any, path_term: Any, focus: Any) -> list[Any]:
 
 @component(SH.MinLengthConstraintComponent, SH.minLength)
 def min_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:minLength: each value node's lexical form must be at least n characters; blank nodes and triple terms always fail."""
     for param in params[SH.minLength]:
         n = _int_param(shape, SH.minLength, param)
         for v in values:
@@ -110,6 +111,7 @@ def min_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.MaxLengthConstraintComponent, SH.maxLength)
 def max_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:maxLength: each value node's lexical form must be at most n characters; blank nodes and triple terms always fail."""
     for param in params[SH.maxLength]:
         n = _int_param(shape, SH.maxLength, param)
         for v in values:
@@ -160,6 +162,7 @@ def _strip_free_space(pattern: str) -> str:
 
 @component(SH.PatternConstraintComponent, SH.pattern, SH.flags)
 def pattern(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:pattern with sh:flags: each value node's lexical form must match the XPath regular expression somewhere."""
     if SH.pattern not in params:
         return
     flag_values = params.get(SH.flags, ())
@@ -182,6 +185,7 @@ def _range_matches(rng: str, tag: str) -> bool:
 
 @component(SH.LanguageInConstraintComponent, SH.languageIn)
 def language_in(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:languageIn: each value must be a language-tagged literal whose tag matches one of the listed language ranges."""
     for head in params[SH.languageIn]:
         what = f"{term_text(shape.node)} sh:languageIn"
         ranges = [_string_param(shape, SH.languageIn, r) for r in _list_items(ctx.shapes, head, what)]
@@ -193,6 +197,7 @@ def language_in(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.UniqueLangConstraintComponent, SH.uniqueLang)
 def unique_lang(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:uniqueLang true: no two distinct value nodes may share a language tag and base direction."""
     for param in params[SH.uniqueLang]:
         if not _bool_param(shape, SH.uniqueLang, param):
             continue
@@ -209,6 +214,7 @@ def unique_lang(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.SingleLineConstraintComponent, SH.singleLine)
 def single_line(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:singleLine true: no literal value node may contain a line break."""
     for param in params[SH.singleLine]:
         if not _bool_param(shape, SH.singleLine, param):
             continue
@@ -222,6 +228,7 @@ def single_line(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.EqualsConstraintComponent, SH.equals)
 def equals(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:equals: the value nodes and the values of the other path from the focus node must be the same set."""
     own = set(values)
     for param in params[SH.equals]:
         others = _other_values(ctx, param, focus)
@@ -236,6 +243,7 @@ def equals(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.DisjointConstraintComponent, SH.disjoint)
 def disjoint(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:disjoint: no value node may also be a value of the other path from the focus node."""
     for param in params[SH.disjoint]:
         other = set(_other_values(ctx, param, focus))
         for v in values:
@@ -260,16 +268,19 @@ def _pair_order(pred: URIRef, params: dict, ctx: Any, focus: Any, values: tuple,
 
 @component(SH.LessThanConstraintComponent, SH.lessThan)
 def less_than(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:lessThan: each value node must be strictly less than every value of the other path from the focus node."""
     yield from _pair_order(SH.lessThan, params, ctx, focus, values, False)
 
 
 @component(SH.LessThanOrEqualsConstraintComponent, SH.lessThanOrEquals)
 def less_than_or_equals(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:lessThanOrEquals: each value node must be less than or equal to every value of the other path from the focus node."""
     yield from _pair_order(SH.lessThanOrEquals, params, ctx, focus, values, True)
 
 
 @component(SH.SubsetOfConstraintComponent, SH.subsetOf)
 def subset_of(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:subsetOf: every value node must also be a value of the other path from the focus node."""
     for param in params[SH.subsetOf]:
         other = set(_other_values(ctx, param, focus))
         for v in values:
@@ -282,6 +293,7 @@ def subset_of(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.MinListLengthConstraintComponent, SH.minListLength)
 def min_list_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:minListLength: each value node must be a well-formed rdf:List with at least n members."""
     for param in params[SH.minListLength]:
         n = _int_param(shape, SH.minListLength, param)
         for v in values:
@@ -292,6 +304,7 @@ def min_list_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.MaxListLengthConstraintComponent, SH.maxListLength)
 def max_list_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:maxListLength: each value node must be a well-formed rdf:List with at most n members."""
     for param in params[SH.maxListLength]:
         n = _int_param(shape, SH.maxListLength, param)
         for v in values:
@@ -302,6 +315,7 @@ def max_list_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.UniqueMembersConstraintComponent, SH.uniqueMembers)
 def unique_members(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:uniqueMembers true: each value node must be a well-formed rdf:List without repeated members."""
     for param in params[SH.uniqueMembers]:
         if not _bool_param(shape, SH.uniqueMembers, param):
             continue
@@ -332,6 +346,7 @@ def unique_members(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.MemberShapeConstraintComponent, SH.memberShape)
 def member_shape(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:memberShape: each value node must be a well-formed rdf:List whose members all conform to the given shape."""
     for member_shape_node in params[SH.memberShape]:
         for v in values:
             members = _members_or_none(ctx.data, v)
@@ -348,6 +363,7 @@ def member_shape(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.SomeValueConstraintComponent, SH.someValue)
 def some_value(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:someValue: at least one value node must conform to the given shape."""
     for shape_node in params[SH.someValue]:
         if not any(ctx.conforms(shape_node, v) for v in values):
             yield Violation()

@@ -27,10 +27,12 @@ from starlayer.shacl_engine.terms import (
 
 
 def is_literal(t: Any) -> bool:
+    """Whether a term is an RDF literal."""
     return isinstance(t, Literal)
 
 
 def is_triple_term(t: Any) -> bool:
+    """Whether a term is an RDF 1.2 triple term."""
     return isinstance(t, Triple)
 
 
@@ -92,6 +94,7 @@ def _is_instance(data: Any, node: Any, cls: Any) -> bool:
 
 @component(SH.ClassConstraintComponent, SH["class"])
 def class_(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:class: every value node must be an instance of the class (or one in a list), via rdf:type and rdfs:subClassOf in the data."""
     for param in params[SH["class"]]:
         classes = alternatives(ctx.shapes, param, "sh:class")
         if any(is_literal(c) or is_triple_term(c) for c in classes):
@@ -114,6 +117,7 @@ def _has_datatype(v: Any, datatypes: list[Any]) -> bool:
 
 @component(SH.DatatypeConstraintComponent, SH.datatype)
 def datatype(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:datatype: every value node must be a well-formed literal of the datatype (or of one in a list of datatypes)."""
     for dt in params[SH.datatype]:
         allowed = alternatives(ctx.shapes, dt, "sh:datatype")  # a list of datatype IRIs is a union
         if not all(isinstance(a, NamedNode) for a in allowed):
@@ -148,6 +152,7 @@ def _kind(t: Any) -> str:
 
 @component(SH.NodeKindConstraintComponent, SH.nodeKind)
 def node_kind(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:nodeKind: every value node must be of the given node kind (or of one in a list of node kinds)."""
     for nk in params[SH.nodeKind]:
         kinds = alternatives(ctx.shapes, nk, "sh:nodeKind")
         if not all(k in _KINDS for k in kinds):
@@ -163,6 +168,7 @@ def node_kind(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.MinCountConstraintComponent, SH.minCount)
 def min_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:minCount: the focus node must have at least n value nodes, where n is the sh:minCount integer."""
     n = _single_int(params, SH.minCount)
     if len(values) < n:
         yield Violation(message=f"Needs at least {n} value{'' if n == 1 else 's'}, found {len(values)}")  # str-ok: n is an int
@@ -170,6 +176,7 @@ def min_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.MaxCountConstraintComponent, SH.maxCount)
 def max_count(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:maxCount: the focus node must have at most n value nodes, where n is the sh:maxCount integer."""
     n = _single_int(params, SH.maxCount)
     if len(values) > n:
         yield Violation(message=f"Allows at most {n} value{'' if n == 1 else 's'}, found {len(values)}")  # str-ok: n is an int
@@ -213,6 +220,7 @@ for _iri, _pred, _op in (
 
 @component(SH.HasValueConstraintComponent, SH.hasValue)
 def has_value(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:hasValue: the value nodes must include each given term."""
     for want in params[SH.hasValue]:
         if want not in values:
             yield Violation(message=f"Needs the value {text(want)}")
@@ -220,6 +228,7 @@ def has_value(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 @component(SH.InConstraintComponent, SH["in"])
 def in_(ctx, shape, params, focus, values) -> Iterator[Violation]:
+    """sh:in: every value node must be a member of the given rdf:list in the shapes graph."""
     for head in params[SH["in"]]:
         members = rdf_list(ctx.shapes, head) if not isinstance(head, Literal) else None
         if members is None:
