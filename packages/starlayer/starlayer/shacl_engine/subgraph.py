@@ -24,12 +24,15 @@ from __future__ import annotations
 import warnings
 from typing import Any
 
-from starlayer.shacl_engine import components  # noqa: F401  (registers the constraint components)
+from starlayer.shacl_engine import (
+    components,  # noqa: F401  (registers the constraint components)
+)
 from starlayer.shacl_engine.components.core_shape_based import _boolean, _siblings
 from starlayer.shacl_engine.entailment import resolve_data_view
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.paths import parse_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
+from starlayer.shacl_engine.reads import RecordingGraph
 from starlayer.shacl_engine.terms import (
     RDF,
     RDFS,
@@ -193,6 +196,8 @@ class _Extractor:
         self.plan = plan
         self.shapes = plan.shapes_graph
         self.ctx = Context(data=data, plan=plan)
+        self._recorder = RecordingGraph(data)
+        self._record_ctx = Context(data=self._recorder, plan=plan)  # computes sh:values / sh:defaultValue, noting what it reads
 
     def conforms(self, shape_node: Term, node: Term) -> bool:
         return self.ctx.conforms(shape_node, node)
@@ -221,6 +226,19 @@ class _Extractor:
                 triples |= _walk(self.data, path, focus)[1]
         return triples
 
+    def _computed_values(self, shape: Shape, focus: Term, stored: frozenset) -> tuple[frozenset, set[_Triple]]:
+        """The values ``sh:values`` / ``sh:defaultValue`` compute at ``focus`` (as ``Context.value_nodes`` does: the default only if
+        the stored and ``sh:values`` values together are empty) and the stored triples read to compute them. The computed triples
+        are never output; the triples read are."""
+        if not (shape.values or shape.default_values):
+            return frozenset(), set()
+        ctx = self._record_ctx
+        with self._recorder.recording() as reads:
+            computed = list(dict.fromkeys(ctx._expression_values(shape.values, focus)))
+            if not stored and not computed:
+                computed = list(dict.fromkeys(ctx._expression_values(shape.default_values, focus)))
+        return frozenset(computed), set(reads)
+
     def extract(self, shape: Shape, focus: Term, visiting: frozenset = frozenset(), full_trace: bool = False) -> set[_Triple]:
         """The triples ``shape`` reads at ``focus``: the minimal neighborhood (paper Table 2) or, with ``full_trace``,
         every triple the evaluation reads whether or not its branch holds (what a negated shape needs)."""
@@ -236,6 +254,9 @@ class _Extractor:
         if shape.is_property and shape.path is not None:
             path = shape.path
             value_nodes, path_triples = _walk(data, path, focus)
+            computed, computed_reads = self._computed_values(shape, focus, value_nodes)
+            triples |= computed_reads
+            value_nodes = value_nodes | computed
             qshapes = _values(shape, SH.qualifiedValueShape)
             narrow = (
                 bool(qshapes)

@@ -9,7 +9,7 @@ behaviour difference.
 
 ## Status
 
-Ported so far: #204 (meta-shapes), `evaluate(validate=True)`, #201 (all 303 of `main`'s per-constraint annotation tests pass: `tests/shacl/integration/test_per_constraint_annotations.py`). Remaining: #203, the fuzzer.
+Ported so far: #204 (meta-shapes), `evaluate(validate=True)`, #201 (all 303 of `main`'s per-constraint annotation tests pass: `tests/shacl/integration/test_per_constraint_annotations.py`). #203 (the stored triples read by `sh:values` / `sh:defaultValue` are in the fragment: `shacl_engine/reads.py`; for `sh:select` the reads are the triples matching a pattern of the query, a superset), and `main`'s fuzzer and logic tests as standing engine tests. All five items are ported.
 
 ## Result
 
