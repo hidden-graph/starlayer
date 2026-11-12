@@ -41,6 +41,8 @@ class ComponentSpec:
     fn: Callable[..., Iterable[Violation]]
     required: tuple[URIRef, ...] = ()  # when set, the component applies only if the shape has all of these (SPARQL-based
     # components: the non-optional parameters)
+    queries: Callable[..., list] | None = None  # SPARQL-based components: (ctx, shape, present, focus, values) -> the
+    # (query text, pre-bound variables) pairs ``fn`` runs, for extract_subgraph to find the triples they depend on
 
 
 REGISTRY: dict[URIRef, ComponentSpec] = {}

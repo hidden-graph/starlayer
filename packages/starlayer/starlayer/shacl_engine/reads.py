@@ -2,8 +2,8 @@
 ``sh:defaultValue`` read to compute their values, so that evaluating the fragment recomputes them).
 
 ``RecordingGraph`` stands in for the data graph: it forwards every read and notes the triples it returned. A SPARQL query runs
-inside Oxigraph, where reads cannot be observed, so for ``sh:select`` the notes are the triples that match a triple pattern of
-the query (constants and the pre-bound variables fixed, other variables free): a superset of what the query reads, never less.
+inside Oxigraph, where reads cannot be observed, so for ``sh:select`` the notes are the query's relevant triples
+(``starlayer.sparql.relevant``).
 """
 
 from __future__ import annotations
@@ -11,8 +11,6 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any
-
-import pyoxigraph as ox
 
 _Triple = tuple[Any, Any, Any]
 
@@ -98,39 +96,21 @@ class RecordingGraph:
     def sparql_query(self, text: str, init_bindings: Mapping[str, Any] | None = None, custom_functions: Any = None) -> Any:
         result = self._g.sparql_query(text, init_bindings, custom_functions)
         if self._reads is not None:
-            self._reads |= query_reads(self._g, text, init_bindings or {})
+            self._reads |= self._query_reads(text, dict(init_bindings or {}), custom_functions)
         return result
 
+    def _query_reads(self, text: str, bindings: dict, custom_functions: Any) -> set[_Triple]:
+        """The triples the query depends on (``starlayer.sparql.relevant``). The support queries run on the engine's own
+        Oxigraph view of the graph, with the same pre-bound variables and custom functions as the query."""
+        from starlayer.sparql.relevant import relevant_triples
 
-def query_reads(graph: Any, text: str, bindings: Mapping[str, Any]) -> set[_Triple]:
-    """The triples of ``graph`` that match some triple pattern of the query ``text`` (``bindings`` fix the pre-bound variables)."""
-    from starlayer.sparql.parse_sparql import Node, parse_sparql
+        base = self._g.materialised() if hasattr(self._g, "materialised") else self._g
+        view = base.engine_view() if hasattr(base, "engine_view") else None
 
-    patterns: list[Node] = []
+        def run(construct: str) -> Any:
+            return view.query(construct, bindings, custom_functions=custom_functions)
 
-    def walk(item: Any) -> None:
-        if isinstance(item, Node):
-            if item.kind == "TriplePattern":
-                patterns.append(item)
-            for value in item.f.values():
-                walk(value)
-        elif isinstance(item, (list, tuple)):
-            for value in item:
-                walk(value)
-
-    walk(parse_sparql(text))
-
-    def fixed(term: Any) -> Any:
-        if isinstance(term, (ox.NamedNode, ox.Literal, ox.BlankNode)):
-            return term
-        name = getattr(term, "value", None)
-        if isinstance(term, ox.Variable) and name in bindings:
-            return bindings[name]
-        return None  # a free variable, a path, a triple term: any
-
-    reads: set[_Triple] = set()
-    for pattern in patterns:
-        s, p, o = (fixed(pattern.f.get(k)) for k in ("s", "p", "o"))
-        for t in graph.triples((s, p, o)):
-            reads.add((t[0], t[1], t[2]))
-    return reads
+        try:
+            return relevant_triples(self._g, text, bindings, run if view is not None else None)[0]
+        except ValueError:  # an update or DESCRIBE: nothing to record
+            return set()

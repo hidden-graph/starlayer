@@ -30,6 +30,7 @@ from starlayer.shacl_engine import (
 from starlayer.shacl_engine.components.core_shape_based import _boolean, _siblings
 from starlayer.shacl_engine.entailment import resolve_data_view
 from starlayer.shacl_engine.executor import Context
+from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 from starlayer.shacl_engine.paths import parse_path
 from starlayer.shacl_engine.plan import SH, Path, Plan, Shape, ShapeError, Term
 from starlayer.shacl_engine.reads import RecordingGraph
@@ -239,6 +240,64 @@ class _Extractor:
                 computed = list(dict.fromkeys(ctx._expression_values(shape.default_values, focus)))
         return frozenset(computed), set(reads)
 
+    def _sparql_triples(self, shape: Shape, focus: Term, value_nodes: frozenset) -> set[_Triple]:
+        """The triples the SPARQL queries of ``shape`` depend on at ``focus``: its ``sh:sparql`` constraints and the validators of
+        the SPARQL-based components it uses (``starlayer.sparql.relevant``). The focus node conforms, so the queries found no
+        violation there; the subgraph keeps them finding none."""
+        from starlayer.shacl_engine.components.sparql_constraints import _prepared
+        from starlayer.shacl_engine.sparql_support import shacl_functions
+
+        queries: list[tuple[str, dict]] = []
+        for constraint in _values(shape, SH.sparql):
+            prepared = _prepared(self.ctx, shape, constraint)
+            if prepared is not None:
+                queries.append((prepared[0], {"this": focus}))
+        for spec in self.plan.components():
+            if spec.queries is None:
+                continue
+            present = {p: tuple(_values(shape, p)) for p in spec.predicates if _values(shape, p)}
+            if present and all(r in present for r in spec.required):
+                queries.extend(spec.queries(self.ctx, shape, present, focus, tuple(value_nodes)))
+        triples: set[_Triple] = set()
+        if queries:
+            with self._recorder.recording() as reads:
+                functions = shacl_functions(self._record_ctx)
+                for text, bindings in queries:
+                    triples |= self._recorder._query_reads(text, bindings, functions)
+            triples |= reads
+        return triples
+
+    def _expression_triples(
+        self, shape: Shape, focus: Term, value_nodes: frozenset, visiting: frozenset, full_trace: bool
+    ) -> set[_Triple]:
+        """The triples ``sh:expression`` and ``sh:nodeByExpression`` read: the expression is evaluated as the constraint does,
+        noting what it reads; the shapes ``sh:nodeByExpression`` computes are extracted at the value node like ``sh:node``."""
+        exprs = _values(shape, SH.expression)
+        by_exprs = _values(shape, SH.nodeByExpression)
+        if not (exprs or by_exprs):
+            return set()
+        triples: set[_Triple] = set()
+        ctx = self._record_ctx
+        with self._recorder.recording() as reads:
+            for expr in exprs:
+                for v in value_nodes:
+                    try:
+                        evaluate_expression(ctx, expr, focus, {"value": [v]})
+                    except (EvaluationFailure, ShapeError):
+                        pass
+            for expr in by_exprs:
+                for v in value_nodes:
+                    try:
+                        computed = evaluate_expression(ctx, expr, v)
+                    except (EvaluationFailure, ShapeError):
+                        continue
+                    for node in computed:
+                        try:
+                            triples |= self.extract(self.plan.shape(node), v, visiting, full_trace)
+                        except ShapeError:
+                            continue
+        return triples | reads
+
     def extract(self, shape: Shape, focus: Term, visiting: frozenset = frozenset(), full_trace: bool = False) -> set[_Triple]:
         """The triples ``shape`` reads at ``focus``: the minimal neighborhood (paper Table 2) or, with ``full_trace``,
         every triple the evaluation reads whether or not its branch holds (what a negated shape needs)."""
@@ -291,6 +350,9 @@ class _Extractor:
                             triples |= self.extract(plan.shape(sibling), v, visiting, True)
         else:
             value_nodes = frozenset({focus})
+
+        triples |= self._sparql_triples(shape, focus, value_nodes)
+        triples |= self._expression_triples(shape, focus, value_nodes, visiting, full_trace)
 
         # sh:equals / sh:disjoint / sh:lessThan(OrEquals) read their second path from the focus on a node shape too
         triples |= self._second_path_triples(shape, focus)

@@ -9,7 +9,7 @@ behaviour difference.
 
 ## Status
 
-Ported so far: #204 (meta-shapes), `evaluate(validate=True)`, #201 (all 303 of `main`'s per-constraint annotation tests pass: `tests/shacl/integration/test_per_constraint_annotations.py`). #203 (the stored triples read by `sh:values` / `sh:defaultValue` are in the fragment: `shacl_engine/reads.py`; for `sh:select` the reads are the triples matching a pattern of the query, a superset), and `main`'s fuzzer and logic tests as standing engine tests. All five items are ported.
+Ported so far: #204 (meta-shapes), `evaluate(validate=True)`, #201 (all 303 of `main`'s per-constraint annotation tests pass: `tests/shacl/integration/test_per_constraint_annotations.py`). #203 (the stored triples read by `sh:values` / `sh:defaultValue` are in the fragment: `shacl_engine/reads.py`; for `sh:select` the reads come from `starlayer.sparql.relevant`: the supports and the evidence of exclusion of the query), and `main`'s fuzzer and logic tests as standing engine tests. All five items are ported.
 
 ## Result
 
@@ -75,3 +75,7 @@ in a direct run (the generator works), and P1 to P5 pass at 150 examples.
 
 In nine days `main` gained these five issues, and each needs a re-implementation here, not a merge. That is the cost of two lines, measured; it
 is input to `branch-decision-2026-11.md`. `main` also has none of the hunt fixes, so the work does not flow the other way either.
+
+## After the port: SPARQL-based constraints and `sh:expression` in fragments
+
+Checking the `sh:select` limit showed that `extract_subgraph` ignored `sh:sparql`, SPARQL-based components, `sh:expression` and `sh:nodeByExpression` altogether: a conforming node's fragment did not conform (2026-11-11). Fixed with the relevant-subgraph computation (`starlayer/sparql/relevant.py`) and `tests/shacl/integration/test_extract_subgraph_sparql.py`. `main` has the same gap (not checked there).

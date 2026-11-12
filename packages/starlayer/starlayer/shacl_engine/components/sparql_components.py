@@ -102,6 +102,31 @@ def _make_fn(comp: Term, params: list[tuple[URIRef, str, bool]]):
     return fn
 
 
+def _make_queries(comp: Term, params: list[tuple[URIRef, str, bool]]):
+    def queries(ctx, shape: Shape, present, focus: Term, values: tuple) -> list[tuple[str, dict]]:
+        graph = ctx.shapes
+        validator = _validator(graph, comp, shape)
+        if validator is None:
+            return []
+        choices = [list(present.get(pred, ())) or [None] for pred, _n, _o in params]
+        out: list[tuple[str, dict]] = []
+        for combo in itertools.product(*choices):
+            bound = {name: v for (_p, name, _o), v in zip(params, combo, strict=True) if v is not None}
+            asks = list(graph.objects(validator, SH.ask))
+            selects = list(graph.objects(validator, SH.select))
+            if len(asks) + len(selects) != 1:
+                raise ShapeError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select")
+            if asks:
+                text = with_prefixes(ctx.plan, validator, asks[0].value)
+                out.extend((text, {"this": focus, "value": value, **bound}) for value in values)
+            else:
+                text = substitute_path(with_prefixes(ctx.plan, validator, selects[0].value), shape)
+                out.append((text, {"this": focus, **bound}))
+        return out
+
+    return queries
+
+
 def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, values: tuple, params: dict):
     graph = ctx.shapes
     messages = list(graph.objects(validator, SH.message)) or list(graph.objects(comp, SH.message))
@@ -147,5 +172,5 @@ def declared_components(plan: Plan) -> list[ComponentSpec]:
             continue
         preds = tuple(p for p, _n, _o in params)
         required = tuple(p for p, _n, opt in params if not opt)
-        specs.append(ComponentSpec(comp, preds, _make_fn(comp, params), required))
+        specs.append(ComponentSpec(comp, preds, _make_fn(comp, params), required, _make_queries(comp, params)))
     return specs

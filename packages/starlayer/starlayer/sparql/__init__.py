@@ -7,6 +7,7 @@ from typing import Any
 _LAZY = {
     "check_query": "check",
     "StarQuery": "star_query",
+    "relevant_subgraph": "relevant",
 }
 
 
@@ -45,4 +46,5 @@ def __dir__() -> list[str]:
 __all__ = [
     "check_query",
     "StarQuery",
+    "relevant_subgraph",
 ]
