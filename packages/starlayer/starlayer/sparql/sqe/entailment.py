@@ -38,7 +38,9 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from .._oxterms import NS, RDF
+from starlayer.graph.namespaces import RDFS  # noqa: E402,F401
+
+from .._oxterms import RDF
 from ..parse_sparql import (
     Node,
     SparqlSyntaxError,
@@ -49,7 +51,6 @@ from ..parse_sparql import (
 )
 from ._memtree import TreeIndex
 
-RDFS = NS("http://www.w3.org/2000/01/rdf-schema#")
 BNode, Literal, URIRef, Variable = ox.BlankNode, ox.Literal, ox.NamedNode, ox.Variable
 
 __all__ = ["EntailmentRewriteError", "RDF_REGIME", "RDFS_REGIME", "rewrite_for_entailment"]

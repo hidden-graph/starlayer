@@ -383,6 +383,42 @@ class _Base:
             yield firsts[0]
             head = rests[0]
 
+    def add_list(self, items: Iterable[Any], head: Any = None) -> Any:
+        """Write ``items`` as an RDF list and return its head (``rdf:nil`` for none); see ``rdflist.add_list``."""
+        from starlayer.graph import rdflist
+
+        return rdflist.add_list(self, items, head)
+
+    def remove_list(self, head: Any) -> Any:
+        """Remove the cells of the list starting at ``head``; see ``rdflist.remove_list``."""
+        from starlayer.graph import rdflist
+
+        return rdflist.remove_list(self, head)
+
+    def set_list(self, subject: Any, predicate: Any, items: Iterable[Any]) -> Any:
+        """Make ``items`` the one list ``subject`` has for ``predicate`` and return its head; see ``rdflist.set_list``."""
+        from starlayer.graph import rdflist
+
+        return rdflist.set_list(self, subject, predicate, items)
+
+    def set(self, triple: Any) -> Any:  # noqa: A003
+        """Make ``triple`` the only one with its subject and predicate: remove the others, then add it (``rdflib.Graph.set``)."""
+        subject, predicate, _object = triple
+        self.remove((subject, predicate, None))
+        return self.add(triple)
+
+    def transitive_objects(self, subject: Any, predicate: Any) -> Iterator[Any]:
+        """``subject`` and the nodes reached from it by repeating ``predicate``, each once; see ``rdflist.transitive_objects``."""
+        from starlayer.graph import rdflist
+
+        return rdflist.transitive_objects(self, subject, predicate)
+
+    def transitive_subjects(self, predicate: Any, object: Any) -> Iterator[Any]:  # noqa: A002
+        """``object`` and the nodes that reach it by repeating ``predicate``, each once; see ``rdflist.transitive_subjects``."""
+        from starlayer.graph import rdflist
+
+        return rdflist.transitive_subjects(self, predicate, object)
+
     # ---- writing ------------------------------------------------------------------------------------------------
     def _quad(self, triple: Any, g: Any, strict: bool = True) -> ox.Quad:
         """The quad for a triple (into graph ``g``) or a quad. With ``strict`` a quad that is not in this graph (a view of

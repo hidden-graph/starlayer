@@ -10,32 +10,57 @@ from starlayer.graph import config, reification
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.config import DEFAULT_PREFIXES, set_default_prefixes
 from starlayer.graph.core import StarLayerDataset, StarLayerGraph, as_store
+from starlayer.graph.delta import GraphDelta, diff
 from starlayer.graph.endpoint import Endpoint, EndpointError
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.execution.result import Result, Row
 from starlayer.graph.execution.session import EntailmentSession
 from starlayer.graph.imports import can_resolve_import
-from starlayer.graph.namespaces import OWL, RDF, RDFS, XSD, Namespace
+from starlayer.graph.namespaces import (
+    DCAT,
+    DCTERMS,
+    FOAF,
+    OWL,
+    PROV,
+    RDF,
+    RDFS,
+    SCHEMA,
+    SKOS,
+    XSD,
+    Namespace,
+)
+from starlayer.graph.terms import literal, parse_term, to_python
 
 __all__ = [
+    "DCAT",
+    "DCTERMS",
     "DEFAULT_PREFIXES",
     "ENTAILMENT",
     "Endpoint",
     "EndpointError",
     "EntailmentSession",
+    "FOAF",
     "Namespace",
     "OWL",
+    "PROV",
     "RDF",
     "RDFS",
     "Result",
     "Row",
+    "SCHEMA",
+    "SKOS",
     "XSD",
     "StarLayerDataset",
+    "GraphDelta",
     "StarLayerGraph",
     "as_store",
     "can_resolve_import",
     "config",
+    "diff",
     "isomorphic",
+    "literal",
+    "parse_term",
     "reification",
     "set_default_prefixes",
+    "to_python",
 ]

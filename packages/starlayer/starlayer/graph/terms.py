@@ -1,8 +1,13 @@
-"""Term coercion for the wrapper. Terms are pyoxigraph terms; an rdflib or StarLayer term is converted (rdflib is imported
-lazily, only when such a term actually arrives)."""
+"""Terms: coercion for the wrapper, and the helpers for making a term from a Python value (``literal``), reading a literal's Python value
+(``to_python``) and reading a term from Turtle text (``parse_term``). Terms are pyoxigraph terms; an rdflib or StarLayer term is converted
+(rdflib is imported lazily, only when such a term actually arrives)."""
 
 from __future__ import annotations
 
+import datetime as _dt
+import re
+from collections.abc import Mapping
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 import pyoxigraph as ox
@@ -53,3 +58,104 @@ def in_pattern(s: Any, p: Any, o: Any) -> tuple[Any, Any, Any] | None:
     if isinstance(s, (ox.Literal, ox.Triple)) or (p is not None and not isinstance(p, ox.NamedNode)):
         return None
     return s, p, o
+
+
+XSD = "http://www.w3.org/2001/XMLSchema#"
+_INTEGER_TYPES = frozenset(
+    XSD + n for n in ("integer", "int", "long", "short", "byte", "nonNegativeInteger", "positiveInteger", "nonPositiveInteger",
+                      "negativeInteger", "unsignedInt", "unsignedLong", "unsignedShort", "unsignedByte")
+)
+
+
+def literal(value: Any, datatype: Any = None, *, lang: str | None = None, direction: str | None = None) -> ox.Literal:
+    """A literal from a Python value, or from text with a ``datatype`` (a ``NamedNode`` or IRI text), a language ``lang`` and a base
+    ``direction`` (``"ltr"`` or ``"rtl"``, with ``lang``).
+
+    A ``bool`` is ``xsd:boolean``, an ``int`` ``xsd:integer``, a ``float`` ``xsd:double``, a ``Decimal`` ``xsd:decimal``, a ``datetime`` /
+    ``date`` / ``time`` ``xsd:dateTime`` / ``xsd:date`` / ``xsd:time``, a ``str`` a plain string. ``lang`` takes precedence over
+    ``datatype``, as in RDF. A Python value with a ``datatype`` is written as its own lexical form (``literal(5, XSD.long)``)."""
+    if lang is not None:
+        if direction is not None and direction not in ("ltr", "rtl"):
+            raise ValueError(f"direction must be 'ltr' or 'rtl', not {direction!r}")
+        return Literal(str(value), language=lang, **({"direction": ox.BaseDirection.LTR if direction == "ltr" else ox.BaseDirection.RTL} if direction else {}))
+    if direction is not None:
+        raise ValueError("a base direction needs a language tag")
+    iri = None if datatype is None else (datatype if isinstance(datatype, NamedNode) else NamedNode(str(datatype)))
+    if isinstance(value, bool):
+        text, default = ("true" if value else "false"), "boolean"
+    elif isinstance(value, int):
+        text, default = str(value), "integer"
+    elif isinstance(value, float):
+        text, default = repr(value) if value == value and abs(value) != float("inf") else ("NaN" if value != value else ("INF" if value > 0 else "-INF")), "double"
+    elif isinstance(value, Decimal):
+        text, default = format(value, "f"), "decimal"
+    elif isinstance(value, _dt.datetime):
+        text, default = value.isoformat(), "dateTime"
+    elif isinstance(value, _dt.date):
+        text, default = value.isoformat(), "date"
+    elif isinstance(value, _dt.time):
+        text, default = value.isoformat(), "time"
+    else:
+        text, default = str(value), None
+    if iri is None and default is not None:
+        iri = NamedNode(XSD + default)
+    return Literal(text, datatype=iri) if iri is not None else Literal(text)
+
+
+def _date_time(text: str) -> Any:
+    return text[:-1] + "+00:00" if text.endswith("Z") else text
+
+
+def to_python(term: Any) -> Any:
+    """The Python value of a literal: ``bool`` for ``xsd:boolean``, ``int`` for the integer types, ``Decimal`` for ``xsd:decimal``,
+    ``float`` for ``xsd:double`` and ``xsd:float``, ``datetime`` / ``date`` / ``time`` for ``xsd:dateTime`` / ``xsd:date`` /
+    ``xsd:time``, and the lexical form for any other datatype, a plain string and a language string.
+
+    ``TypeError`` for a term that is not a literal; ``ValueError`` for a lexical form that is not valid for its datatype
+    (``"abc"^^xsd:integer``)."""
+    if not isinstance(term, Literal):
+        raise TypeError(f"only a literal has a Python value, not {type(term).__name__}")
+    text, datatype = term.value, term.datatype.value
+    if not datatype.startswith(XSD):
+        return text
+    kind = datatype[len(XSD):]
+    try:
+        if kind == "boolean":
+            return {"true": True, "1": True, "false": False, "0": False}[text.strip()]
+        if kind in {n[len(XSD):] for n in _INTEGER_TYPES}:
+            return int(text)
+        if kind == "decimal":
+            return Decimal(text)
+        if kind in ("double", "float"):
+            return float(text)
+        if kind == "dateTime":
+            return _dt.datetime.fromisoformat(_date_time(text))
+        if kind == "date":
+            return _dt.date.fromisoformat(text[:10])
+        if kind == "time":
+            return _dt.time.fromisoformat(_date_time(text))
+    except (KeyError, ValueError, InvalidOperation, ArithmeticError) as error:
+        raise ValueError(f"{text!r} is not a valid {kind}") from error
+    return text
+
+
+_PREFIX_NAME = re.compile(r"[A-Za-z][\w.-]*|")
+
+
+def parse_term(text: str, prefixes: Mapping[str, str] | None = None) -> Any:
+    """The term Turtle 1.2 text denotes: ``<http://e/x>``, ``"text"``, ``"text"@en``, ``"text"@ar--rtl``, ``"1"^^<...#integer>``, ``5``,
+    ``true``, ``_:b0`` or a triple term ``<<( s p o )>>``. A prefixed name (``ex:alice``, ``xsd:integer`` inside a typed literal) is
+    resolved with ``prefixes`` (prefix to namespace IRI) and is an error without one.
+
+    ``ValueError`` for text that is not exactly one term."""
+    if not isinstance(text, str) or not text.strip():
+        raise ValueError(f"not a term: {text!r}")
+    head = "".join(f"@prefix {p}: <{n}> .\n" for p, n in (prefixes or {}).items() if _PREFIX_NAME.fullmatch(p))
+    document = f"{head}<urn:x-starlayer:s> <urn:x-starlayer:p> {text.strip()} ."
+    try:
+        quads = list(ox.parse(document, format=ox.RdfFormat.TURTLE, rename_blank_nodes=False))
+    except (SyntaxError, ValueError) as error:
+        raise ValueError(f"not a term: {text.strip()!r}") from error
+    if len(quads) != 1:
+        raise ValueError(f"not exactly one term: {text.strip()!r}")
+    return quads[0].object

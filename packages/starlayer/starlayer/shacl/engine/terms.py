@@ -14,7 +14,6 @@ from urllib.parse import unquote
 import pyoxigraph as ox
 
 from starlayer.graph._versions import require_supported_pyoxigraph
-from starlayer.graph.namespaces import Namespace as NS  # the public namespace class
 
 require_supported_pyoxigraph()
 
@@ -24,12 +23,8 @@ _DIRECTIONS = {"ltr": ox.BaseDirection.LTR, "rtl": ox.BaseDirection.RTL}
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 
 
-RDF = NS("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
-RDFS = NS("http://www.w3.org/2000/01/rdf-schema#")
-XSD = NS(_XSD)
-OWL = NS("http://www.w3.org/2002/07/owl#")
-SH = NS("http://www.w3.org/ns/shacl#")
-DCTERMS = NS("http://purl.org/dc/terms/")
+from starlayer.graph.namespaces import DCTERMS, OWL, RDF, RDFS, SH, XSD  # noqa: E402,F401  (shared vocabularies)
+from starlayer.graph.namespaces import Namespace as NS  # noqa: E402,F401  (the public namespace class)
 
 # ---- kind tests and text ----------------------------------------------------------------------------------------------
 

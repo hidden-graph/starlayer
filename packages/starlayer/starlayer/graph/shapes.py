@@ -27,11 +27,8 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.graph import terms
-from starlayer.shacl.engine.terms import NS
+from starlayer.graph.namespaces import DCTERMS, RDFS, SH  # noqa: E402,F401
 
-SH = NS("http://www.w3.org/ns/shacl#")
-RDFS = NS("http://www.w3.org/2000/01/rdf-schema#")
-DCTERMS = NS("http://purl.org/dc/terms/")
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 _SH_NS = "http://www.w3.org/ns/shacl#"
 

@@ -33,11 +33,11 @@ from typing import Any, Literal
 import pyoxigraph as ox
 
 from starlayer.graph.core import StarLayerDataset, StarLayerGraph
-from starlayer.shacl.engine.terms import NS, RDF, SH
 
 # The terms are pyoxigraph terms. The graphs are read as they are (``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store``), with
 # no copy; an rdflib graph or term is a ``TypeError``.
-SHUI = NS("http://www.w3.org/ns/shacl-ui/")
+from starlayer.graph.namespaces import SHUI  # noqa: E402,F401
+from starlayer.shacl.engine.terms import RDF, SH
 
 Role = Literal["editor", "viewer"]
 

@@ -124,10 +124,9 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph.namespaces import DCTERMS  # noqa: E402,F401
 from starlayer.shacl.engine.graphs import new_graph
 from starlayer.shacl.engine.terms import NS
-
-DCTERMS = NS("http://purl.org/dc/terms/")
 
 CONFORMANCE = NS("https://github.com/hidden-graph/starlayer/ns/conformance#")
 DOES_NOT_CONFORM_TO = CONFORMANCE.doesNotConformTo
