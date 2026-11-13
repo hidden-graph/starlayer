@@ -73,5 +73,5 @@ _:gen1 a rdf:PropositionForm;
 ## Files read in full for this analysis
 
 - `https://w3c.github.io/rdf-interop/spec/` (full document, plus its three linked Turtle fixtures)
-- `packages/starlayer/docs/graph/rdf12_sparql12_gap_analysis.md` (template/model document)
+- `docs/design/graph/rdf12_sparql12_gap_analysis.md` (template/model document)
 - `packages/starlayer/starlayer/graph/model/conformance.py`, `model/triple.py`, `compare.py`, `rdfc.py`, `graph/starlayer_graph.py`, `graph/owl_dl.py`, `graph/owl_dl_rustdl.py`, `serializers/jsonld12.py`, `parsers/turtle_parser.py`

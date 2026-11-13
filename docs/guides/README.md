@@ -49,7 +49,7 @@ The guides above are user-facing walkthroughs. For implementation detail, compat
 
 - [`functionality-overview.generated.md`](../generated/functionality-overview.generated.md) - an inventory of what's currently covered, generated from the curated functionality graph - start here for "does StarLayer support X".
 - [`api-overview.generated.md`](../generated/api-overview.generated.md) and [`api-reference.generated.md`](../generated/api-reference.generated.md) - the public API surface, name by name, generated from the code knowledge graph - start here for "what's the exact signature of X."
-- [`../../packages/starlayer/docs/future_enhancements.md`](../../packages/starlayer/docs/future_enhancements.md) - open suggestions and known, deliberately-deferred gaps.
-- [`../../packages/starlayer/docs/graph/starlayergraph.md`](../../packages/starlayer/docs/graph/starlayergraph.md) - the graph subpackage's architecture and design, including backend compatibility.
-- [`../../packages/starlayer/docs/shacl/compatibility.md`](../../packages/starlayer/docs/shacl/compatibility.md) - the shacl subpackage's graph contract, version support, and backend compatibility matrix.
-- [`../../packages/starlayer/docs/shacl/shacl12-gap-matrix.md`](../../packages/starlayer/docs/shacl/shacl12-gap-matrix.md) - SHACL 1.2 feature-by-feature status across all six W3C documents.
+- [`../../docs/design/future_enhancements.md`](../../docs/design/future_enhancements.md) - open suggestions and known, deliberately-deferred gaps.
+- [`../../docs/design/graph/starlayergraph.md`](../../docs/design/graph/starlayergraph.md) - the graph subpackage's architecture and design, including backend compatibility.
+- [`../../docs/design/shacl/compatibility.md`](../../docs/design/shacl/compatibility.md) - the shacl subpackage's graph contract, version support, and backend compatibility matrix.
+- [`../../docs/design/shacl/shacl12-gap-matrix.md`](../../docs/design/shacl/shacl12-gap-matrix.md) - SHACL 1.2 feature-by-feature status across all six W3C documents.

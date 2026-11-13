@@ -135,7 +135,7 @@ cur:cap-rdf-graph-11 a slkg:Capability ;
     slkg:hasStatus "roadmap" ;
     slkg:appRole "storage" ;
     rdfs:comment "Built-in fetching of owl:imports, and one import mechanism shared by graphs, SHACL and SRL." ;
-    slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
+    slkg:seeAlsoPath "docs/design/future_enhancements.md" .
 
 
 ### SPARQL
@@ -275,7 +275,7 @@ cur:cap-srl-9 a slkg:Capability ;
     slkg:appRole "infer" ;
     slkg:implementsSpecification tr:sparql12-rl ;
     rdfs:comment "Aggregation, and converting a rule set to SPARQL - waiting on the specification." ;
-    slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
+    slkg:seeAlsoPath "docs/design/future_enhancements.md" .
 
 
 ### Manchester Syntax
@@ -453,7 +453,7 @@ cur:cap-shacl-10 a slkg:Capability ;
     slkg:appRole "ui-generate" ;
     slkg:implementsSpecification tr:shacl12-ui ;
     rdfs:comment "SHACL 1.2 User Interfaces: property roles (shui:propertyRole) are accepted but not interpreted, and no default widget scoring catalog ships (the specification publishes none)." ;
-    slkg:seeAlsoPath "packages/starlayer/docs/shacl/shacl12-gap-matrix.md" .
+    slkg:seeAlsoPath "docs/design/shacl/shacl12-gap-matrix.md" .
 
 cur:cap-shacl-11 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -461,7 +461,7 @@ cur:cap-shacl-11 a slkg:Capability ;
     slkg:hasStatus "roadmap" ;
     slkg:appRole "validate" ;
     rdfs:comment "SHACL Compact syntax support, plus an ontology and shapes over that syntax (mirroring the Manchester and SPARQL syntax-as-RDF pattern) to drive validation and an editor." ;
-    slkg:seeAlsoPath "packages/starlayer/docs/shacl/shacl12-gap-matrix.md" .
+    slkg:seeAlsoPath "docs/design/shacl/shacl12-gap-matrix.md" .
 
 cur:cap-shacl-12 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -469,7 +469,7 @@ cur:cap-shacl-12 a slkg:Capability ;
     slkg:hasStatus "roadmap" ;
     slkg:appRole "ui-generate" ;
     rdfs:comment "SHACL UI shapes for the SHACL validation shapes, so a form can edit a shapes graph, starting from the archived presentation shapes." ;
-    slkg:seeAlsoPath "packages/starlayer/docs/future_enhancements.md" .
+    slkg:seeAlsoPath "docs/design/future_enhancements.md" .
 
 
 ### Other

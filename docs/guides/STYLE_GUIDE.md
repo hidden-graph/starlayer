@@ -87,7 +87,7 @@ Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A 
 ## 10. Cross-referencing
 
 - **Sibling guides**: always a real markdown link with descriptive text, `[Topic](NNx-filename.ipynb)`, optionally with a heading anchor (`02b-graphs-inferencing.ipynb#2.4-Detecting-inconsistencies`) when pointing at one specific subsection rather than a whole guide.
-- **Deeper project docs** (`CLAUDE.md` files, the gap-matrix): also real markdown links from now on, not bare backtick-quoted paths — e.g. `[shacl12-gap-matrix.md](../../packages/starlayer/docs/shacl/shacl12-gap-matrix.md)`, not `` `packages/starlayer/docs/shacl/shacl12-gap-matrix.md` ``. A bare path isn't clickable in a rendered notebook; a link is, and costs nothing extra. This is a deliberate change from the currently-dominant-but-inconsistent practice, not a continuation of it.
+- **Deeper project docs** (`CLAUDE.md` files, the gap-matrix): also real markdown links from now on, not bare backtick-quoted paths — e.g. `[shacl12-gap-matrix.md](../../docs/design/shacl/shacl12-gap-matrix.md)`, not `` `docs/design/shacl/shacl12-gap-matrix.md` ``. A bare path isn't clickable in a rendered notebook; a link is, and costs nothing extra. This is a deliberate change from the currently-dominant-but-inconsistent practice, not a continuation of it.
 
 ## 11. No leftover authoring notes, ever
 

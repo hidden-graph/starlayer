@@ -79,7 +79,7 @@ the KG's run path ties to the generic decoder, not to salg.
 
 `docs/guides/05-starlayer-schemas-and-ontologies.ipynb`, `05d-shacl-library-registry.ipynb`, `appendix-a-public-resources.ipynb`
 (salg ontology/shapes links); generated: `docs/generated/api-reference.generated.md`, `api-overview.generated.md`; working notes
-(8 files in `docs/working/`), `packages/starlayer/docs/{sparql/implementation-notes,future_enhancements,graph/manchester_syntax_gap_analysis,shacl/shacl12-gap-matrix}.md`;
+(8 files in `docs/working/`), `docs/design/{sparql/implementation-notes,future_enhancements,graph/manchester_syntax_gap_analysis,shacl/shacl12-gap-matrix}.md`;
 `sparql/CLAUDE.md` (rule on salg/sqe; stale `starsparql` paths), `graph/CLAUDE.md`. Notebook `05b` uses the encoder per the earlier
 doc (not re-verified; the grep for the word `salg` did not list it).
 

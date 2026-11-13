@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Project-specific instructions for Claude Code sessions working in this repo. See `docs/guides/README.md` for the docs index (start with `packages/starlayer/docs/shacl/implementation-plan.md`).
+Project-specific instructions for Claude Code sessions working in this repo. See `docs/guides/README.md` for the docs index (start with `docs/design/shacl/implementation-plan.md`).
 
 ## Rules that bite
 
@@ -18,7 +18,7 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 - **`owl:imports` that are not already in the shapes graph raise** in `validate()` unless you pass a loader (`shapes_graph_loader=`) or `ignore_imports=True`. Nothing is fetched on its own.
 - **`shapes_graph_resource=`** selects a named `sh:ShapesGraph` module of the bound shapes graph (its IRI becomes `sh:usedShapesGraph`), or is only a provenance tag when the graph does not contain it. With no bound shapes graph it raises.
 - **A passing test is not proof.** Check that a fixture would fail on the behaviour you changed; for meta-shapes, check that a malformed value is rejected, not only that a valid one passes. The W3C suites run through `tests/shacl/w3c_shacl12/` (engine runners: `test_w3c_engine_*.py`; deviations from a fixture are asserted, not skipped).
-- **The six SHACL 1.2 documents are all still moving.** Status and procedure: `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`, "Tracking Upstream Spec Changes".
+- **The six SHACL 1.2 documents are all still moving.** Status and procedure: `docs/design/shacl/shacl12-gap-matrix.md`, "Tracking Upstream Spec Changes".
 
 ## Design history
 

@@ -13,7 +13,7 @@ is a pure-Rust SROIQ reasoner with a native PyO3 Python binding - no JVM,
 no subprocess, unlike HermiT via owlready2. That is the entire reason to
 choose engine="rustdl" over the default. The reasons NOT to default to it,
 found and confirmed live rather than assumed - see
-packages/starlayer/docs/future_enhancements.md for the fuller writeup:
+docs/design/future_enhancements.md for the fuller writeup:
 
 1. **Not provably complete on full SROIQ.** RustDL's own docs: complete
    by construction only on the EL/Horn fragment; beyond it, "the

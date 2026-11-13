@@ -361,7 +361,7 @@ slkg:implementsSpecification a owl:ObjectProperty ;
 slkg:seeAlsoPath a owl:DatatypeProperty ;
     rdfs:range xsd:string ;
     rdfs:label "see also path" ;
-    rdfs:comment "A repository-relative path to another hand-maintained doc a CapabilityArea (typically a roadmap group) points readers at for more detail, e.g. \"packages/starlayer/docs/future_enhancements.md\" - a plain path string, not a dereferenceable URI, so rdfs:seeAlso (which expects a resource) isn't reused here; mirrors slkg:filePath's own plain-string convention instead." .
+    rdfs:comment "A repository-relative path to another hand-maintained doc a CapabilityArea (typically a roadmap group) points readers at for more detail, e.g. \"docs/design/future_enhancements.md\" - a plain path string, not a dereferenceable URI, so rdfs:seeAlso (which expects a resource) isn't reused here; mirrors slkg:filePath's own plain-string convention instead." .
 
 slkg:implementedByIdentifier a owl:DatatypeProperty ;
     rdfs:range xsd:string ;

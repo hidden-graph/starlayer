@@ -13,10 +13,10 @@ Every document in the repository, by what you want to do. Files marked *generate
 - Rules and gotchas for each area, at the top of [graph](../packages/starlayer/starlayer/graph/CLAUDE.md), [sparql](../packages/starlayer/starlayer/sparql/CLAUDE.md) and [shacl](../packages/starlayer/starlayer/shacl/CLAUDE.md) `CLAUDE.md`. What changed: `git log`.
 
 ## How it is designed, and how closely it follows the specs
-- Graph: [docs/graph/](../packages/starlayer/docs/graph/README.md) (architecture, SPARQL 1.2 design, the RDF 1.2 and SPARQL 1.2 gap analyses, the Protocol and Interoperability analyses, performance, testing strategy).
-- SPARQL and SRL: [docs/sparql/](../packages/starlayer/docs/sparql/README.md); [design of `StarQuery` and the SRL `RuleSet` enhancements](../packages/starlayer/docs/sparql_srl_object_model_design.md).
-- SHACL: [docs/shacl/](../packages/starlayer/docs/shacl/README.md) (implementation plan, the SHACL 1.2 gap matrix, compatibility, W3C test suite plan).
-- [Open items and deferred follow-ups](../packages/starlayer/docs/future_enhancements.md). Some entries are stale; check before relying on one.
+- Graph: [docs/design/graph/](design/graph/README.md) (architecture, SPARQL 1.2 design, the RDF 1.2 and SPARQL 1.2 gap analyses, the Protocol and Interoperability analyses, performance, testing strategy).
+- SPARQL and SRL: [docs/design/sparql/](design/sparql/README.md); [design of `StarQuery` and the SRL `RuleSet` enhancements](design/sparql_srl_object_model_design.md).
+- SHACL: [docs/design/shacl/](design/shacl/README.md) (implementation plan, the SHACL 1.2 gap matrix, compatibility, W3C test suite plan).
+- [Open items and deferred follow-ups](design/future_enhancements.md). Some entries are stale; check before relying on one.
 
 ## Known bugs in other projects
 [docs/upstream-issues/](upstream-issues/): rdflib, pySHACL, Oxigraph and Fuseki bugs we found, each with a minimal repro and where we work around it.

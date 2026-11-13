@@ -1,6 +1,6 @@
 # CLAUDE.md
 
-Project-specific instructions for Claude Code sessions working in this repo. See `docs/guides/README.md` for the docs index (start with the Oxigraph-backed graph guide, `docs/guides/02d-oxigraph-wrapper.ipynb`). The older notes in `packages/starlayer/docs/graph/` describe the deleted rdflib-based class.
+Project-specific instructions for Claude Code sessions working in this repo. See `docs/guides/README.md` for the docs index (start with the Oxigraph-backed graph guide, `docs/guides/02d-oxigraph-wrapper.ipynb`). The older notes in `docs/design/graph/` describe the deleted rdflib-based class.
 
 ## Rules that bite
 

@@ -459,7 +459,7 @@ class RuleSet:
         stored "bound schema"/"bound entailment regime" field would either
         leak into that encoding or need excluding from it for no benefit
         over a plain per-call argument. See
-        ``packages/starlayer/docs/sparql_srl_object_model_design.md`` for
+        ``docs/design/sparql_srl_object_model_design.md`` for
         the full design discussion.
 
         Args:

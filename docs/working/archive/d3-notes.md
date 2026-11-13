@@ -22,7 +22,7 @@
    Two stale code texts found while checking: the docstring of `oxgraph/run.py` (named `graph.query.direct`) and the docstring and error
    message of `sparql/spexpr_codec.py::_encode_list` (said `import starlayer.graph` applies a rdflib patch that D1 deleted).
    `README.md` listed TriX, "Fuseki or SQLAlchemy" storage and JSON-LD 1.1 as features of `starlayer.graph`: reworded to what `oxgraph/formats.py` offers.
-   The older design notes in `packages/starlayer/docs/graph/` (`starlayergraph.md`, `starlayergraph_vs_rdflib.md`, `sparql12_design.md`,
+   The older design notes in `docs/design/graph/` (`starlayergraph.md`, `starlayergraph_vs_rdflib.md`, `sparql12_design.md`,
    `sparql12_protocol_gap_analysis.md`, `fuseki-reasoning-setup.md`, `performance.md`) are marked "Historical" at the top and in that folder's README; they were
    not rewritten.
 4. **Removed**: `scripts/b1_flip_experiment.py` (patches `graph/graph/starlayer_graph.py` / `starlayer_dataset.py`, deleted at D1),
@@ -30,5 +30,5 @@
    backup of the real test from before the rename). `docs/working/archive/b1-classification.md` still mentions the scripts; it is history.
 5. **Left alone, for a decision**: the `sqlalchemy` and `oxigraph` extras in `pyproject.toml` (`rdflib-sqlalchemy`, `oxrdflib`) serve only the
    deleted rdflib store paths (the `oxigraph` comment still describes `StarLayerGraph(store=OxigraphStore(...), backend='rdf-1.2')`);
-   README and AGENTS list them. Removing them touches `uv.lock`. Also `packages/starlayer/docs/future_enhancements.md` has many entries about the old class
+   README and AGENTS list them. Removing them touches `uv.lock`. Also `docs/design/future_enhancements.md` has many entries about the old class
    and `backends/native.py`.

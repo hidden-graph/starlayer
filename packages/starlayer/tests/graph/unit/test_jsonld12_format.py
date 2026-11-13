@@ -3,7 +3,7 @@ jsonld12 was removed as a recognized format (2026-10-02), not restricted to
 plain RDF 1.1 content - it previously delegated straight to rdflib's own
 JSON-LD writer for ordinary content and raised ValueError for a triple term
 or direction-tagged literal (matching Fuseki/Oxigraph's own refusal
-behavior - see packages/starlayer/docs/graph/rdf12_sparql12_gap_analysis.md
+behavior - see docs/design/graph/rdf12_sparql12_gap_analysis.md
 §6 for that design's own history). The concern that motivated full removal:
 JSON-LD has no published RDF 1.2 companion spec at all - even the
 "plain content only" compromise meant this project was the one deciding

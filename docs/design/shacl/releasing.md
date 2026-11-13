@@ -19,12 +19,12 @@ pytest -q tests/integration
 
 ## 3. Check docs are current
 
-- `packages/starlayer/docs/shacl/implementation-plan.md`, `packages/starlayer/docs/shacl/compatibility.md`, and the architecture docs match current behavior.
+- `docs/design/shacl/implementation-plan.md`, `docs/design/shacl/compatibility.md`, and the architecture docs match current behavior.
 - README examples still execute against the current API.
 
 ## 4. Choose the version bump
 
-Per `packages/starlayer/docs/shacl/compatibility.md`'s semantic versioning policy:
+Per `docs/design/shacl/compatibility.md`'s semantic versioning policy:
 
 - **MAJOR** for breaking contracts or behavior
 - **MINOR** for backward-compatible features
@@ -34,7 +34,7 @@ Update the version in `pyproject.toml`.
 
 ## 5. Write release notes
 
-Copy `packages/starlayer/docs/shacl/release-notes-template.md`, fill in all sections, and write the changes from `git log` since the last release.
+Copy `docs/design/shacl/release-notes-template.md`, fill in all sections, and write the changes from `git log` since the last release.
 
 ## 6. Re-run validation
 

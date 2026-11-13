@@ -38,7 +38,7 @@ docker run -d --name oxigraph-bench -p 7878:7878 \
 
 ## Results summary
 
-See [performance.md](../docs/graph/performance.md) for benchmark results and backend recommendations.
+See [performance.md](../../../docs/design/graph/performance.md) for benchmark results and backend recommendations.
 
 ## Regression guard: `test_bench_graph.py`
 

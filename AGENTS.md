@@ -48,4 +48,4 @@ Do not read large files into context: `tools/kg/codekg/codekg.trig` (6 MB, built
 FastAPI + Jinja2 + HTMX, one vendored JS library for graph drawing, no Node build chain, UI behind an optional extra so the core stays UI-free. Reasoning and the revision process: `docs/app-development-plans/repo-prep-plan.md`. The first app is planned in `docs/app-development-plans/graph-workbench-app.md`.
 
 ## Plans and open work
-`docs/app-development-plans/` (planning only), `packages/starlayer/docs/future_enhancements.md` (open items; some entries are stale, check before relying on one), `docs/upstream-issues/` (rdflib, pySHACL and Oxigraph bugs with minimal repros).
+`docs/app-development-plans/` (planning only), `docs/design/future_enhancements.md` (open items; some entries are stale, check before relying on one), `docs/upstream-issues/` (rdflib, pySHACL and Oxigraph bugs with minimal repros).

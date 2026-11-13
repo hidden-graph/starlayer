@@ -126,7 +126,7 @@ Upstream-doc sizes: `docs/upstream-issues/rdflib-upstream-issues.md` 630 lines; 
 |---|---|---:|---|
 | Triple terms (`TripleTerm`, `<<( )>>`, reifiers, `rdf:reifies`, `{| |}` annotation, `~`) | model/triple.py, encoding.py, graph-class A group, parsers, serializers, `sparql/lower_rdf11.py` | spread | no |
 | `rdf:dirLangString` / `"x"@en--ltr` | model/dirlangstring.py, parsers, `custom_functions.py` (`LANGDIR`, `hasLANGDIR`, `STRLANGDIR`), `builtin_error_patches.normalise_directional_language`, `backends/dirlang_equality.py` | 84 + parts | no |
-| Turtle/TriG/N-Triples/N-Quads/RDF-XML/TriX 1.2 parsers and writers | parsers/*, serializers/* | 5,686 + 2,301 (includes Manchester) | rdflib has 1.1 versions of all but TriX 1.2, which follows Jena's convention (`packages/starlayer/docs/graph/starlayergraph_vs_rdflib.md`) |
+| Turtle/TriG/N-Triples/N-Quads/RDF-XML/TriX 1.2 parsers and writers | parsers/*, serializers/* | 5,686 + 2,301 (includes Manchester) | rdflib has 1.1 versions of all but TriX 1.2, which follows Jena's convention (`docs/design/graph/starlayergraph_vs_rdflib.md`) |
 | Manchester syntax | parsers/manchester_parser.py 1,672; serializers/manchester.py 715 | 2,387 | no |
 | SPARQL 1.2 syntax (parse and lower to 1.1) | `sparql/parse12.py` 341, `_grammar12.py` 932, `lower_rdf11.py` 1,971 (sparql/ total 3,244); `graph/query/*` A files | 3,244 + 1,796 | no |
 | RDFC-1.0 canonicalisation | rdfc.py (D), compare.py (A) | 410 + 282 | no (rdflib's `compare.py` is a different algorithm) |

@@ -2,16 +2,16 @@
 
 *Last reviewed: 2026-07-31*
 
-**Status (2026-08-15, re-synced from the 2026-08-01/2026-07-30 pin): Phases 1, 2, and 3 all done, triaged, and every fixable finding fixed.** `sht:Validate` (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/core/`+`tests/sparql/`), `sht:EvalNodeExpr` (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/node-expr/`), and `sht:Infer` (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/sparql/rules/`) entries are all wired up - **320 passed, 5 xfailed (all reasoned, `strict=True`), 0 unexplained failures combined**, pinned to `gh-pages` commit `59b38cd7061ff3e6e3dc9e216836ef848f7d8baf` (up from `e5311eef94ac9a6bd15fd22ecfe256c658ef1bc1`). The re-sync (24 added / 2 removed net) surfaced 11 new results, resolved the same session: 7 fixed (new SHACL 1.2 SPARQL Extensions §8 rule-execution predicates - `sh:layer`/`sh:runOnce`/`sh:expectedPredicate`/`sh:tempTriple` - plus a genuine pre-existing fixpoint-iteration bug in the global/unattached-rule execution path, exposed by 4 new RDFS-entailment fixtures), 4 newly xfailed with real reasoning (`run-once-example` - a deeper implicit-class-target-recomputation-timing gap; 3 `sh:ListParameterExpressionFunction` fixtures - a genuinely separate, unimplemented user-definable-custom-SPARQL-function feature). See `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s "SHACL 1.2 Node Expressions — Custom Node Expressions" section for the full technical writeup (the list-parameter-function-as-SPARQL-function-call mechanism these 3 fixtures need remains unimplemented and `xfail`, even after the *node-expression-call* forms of both Custom List/Named Parameter Functions were implemented 2026-09-05 - see that section for the distinction). The 1 pre-2026-08-15 xfail is a plain-`rdflib` fixture-formatting quirk deliberately left unpatched (`seconds-example` - patching it would make rdflib's output *less* spec-compliant elsewhere) - it does not represent open work. Two earlier "out of scope"/"deliberate limitation" framings were since revisited and fixed: 9 fixtures depending on 2 rdflib SPARQL-evaluator bugs (now monkeypatched directly in `starlayergraph`, the same technique already used elsewhere in this project for pySHACL internals), and 2 fixtures (`subsetOf-002`, `instancesOf-base-class`) that turned out to be narrow implementation choices rather than structural gaps - see `packages/starlayer/docs/shacl/starlayergraph-upstream-change-log.md`'s 2026-08-01 entry and `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s Phase 1/2 writeups. See `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s "W3C SHACL 1.2 Test Suite Integration" section for the full results summary and `packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py` for exact per-entry reasons. Only "Not scheduled": SRL (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/rules/`) - see "Scope decision" below.
+**Status (2026-08-15, re-synced from the 2026-08-01/2026-07-30 pin): Phases 1, 2, and 3 all done, triaged, and every fixable finding fixed.** `sht:Validate` (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/core/`+`tests/sparql/`), `sht:EvalNodeExpr` (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/node-expr/`), and `sht:Infer` (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/sparql/rules/`) entries are all wired up - **320 passed, 5 xfailed (all reasoned, `strict=True`), 0 unexplained failures combined**, pinned to `gh-pages` commit `59b38cd7061ff3e6e3dc9e216836ef848f7d8baf` (up from `e5311eef94ac9a6bd15fd22ecfe256c658ef1bc1`). The re-sync (24 added / 2 removed net) surfaced 11 new results, resolved the same session: 7 fixed (new SHACL 1.2 SPARQL Extensions §8 rule-execution predicates - `sh:layer`/`sh:runOnce`/`sh:expectedPredicate`/`sh:tempTriple` - plus a genuine pre-existing fixpoint-iteration bug in the global/unattached-rule execution path, exposed by 4 new RDFS-entailment fixtures), 4 newly xfailed with real reasoning (`run-once-example` - a deeper implicit-class-target-recomputation-timing gap; 3 `sh:ListParameterExpressionFunction` fixtures - a genuinely separate, unimplemented user-definable-custom-SPARQL-function feature). See `docs/design/shacl/shacl12-gap-matrix.md`'s "SHACL 1.2 Node Expressions — Custom Node Expressions" section for the full technical writeup (the list-parameter-function-as-SPARQL-function-call mechanism these 3 fixtures need remains unimplemented and `xfail`, even after the *node-expression-call* forms of both Custom List/Named Parameter Functions were implemented 2026-09-05 - see that section for the distinction). The 1 pre-2026-08-15 xfail is a plain-`rdflib` fixture-formatting quirk deliberately left unpatched (`seconds-example` - patching it would make rdflib's output *less* spec-compliant elsewhere) - it does not represent open work. Two earlier "out of scope"/"deliberate limitation" framings were since revisited and fixed: 9 fixtures depending on 2 rdflib SPARQL-evaluator bugs (now monkeypatched directly in `starlayergraph`, the same technique already used elsewhere in this project for pySHACL internals), and 2 fixtures (`subsetOf-002`, `instancesOf-base-class`) that turned out to be narrow implementation choices rather than structural gaps - see `docs/design/shacl/starlayergraph-upstream-change-log.md`'s 2026-08-01 entry and `docs/design/shacl/shacl12-gap-matrix.md`'s Phase 1/2 writeups. See `docs/design/shacl/shacl12-gap-matrix.md`'s "W3C SHACL 1.2 Test Suite Integration" section for the full results summary and `packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py` for exact per-entry reasons. Only "Not scheduled": SRL (`packages/starlayer/tests/shacl/vendor/shacl12-test-suite/tests/rules/`) - see "Scope decision" below.
 
 Both phases found and fixed real bugs rather than just cataloguing them, at the user's explicit direction each time:
 
-- **Phase 1** (2026-07-30): 4 `starlayergraph` `StarLayerTurtleParser`/`StarLayerGraph.parse()` bugs, fixed directly in that repo - see `packages/starlayer/docs/shacl/starlayergraph-upstream-change-log.md`'s 2026-07-30 entries. `packages/starlayer/tests/shacl/w3c_shacl12/manifest.py`'s local `_resolve_relative_uris` workaround was removed accordingly. One Phase 1 finding (`sh:expression` "not implemented") was also found to be a false positive on re-check - the harness needed `advanced=True`, not a missing feature - see the gap matrix's "Self-correction" note.
+- **Phase 1** (2026-07-30): 4 `starlayergraph` `StarLayerTurtleParser`/`StarLayerGraph.parse()` bugs, fixed directly in that repo - see `docs/design/shacl/starlayergraph-upstream-change-log.md`'s 2026-07-30 entries. `packages/starlayer/tests/shacl/w3c_shacl12/manifest.py`'s local `_resolve_relative_uris` workaround was removed accordingly. One Phase 1 finding (`sh:expression` "not implemented") was also found to be a false positive on re-check - the harness needed `advanced=True`, not a missing feature - see the gap matrix's "Self-correction" note.
 - **Phase 2** (2026-07-31): a core correctness bug affecting most `shnex:` list-argument operators, several smaller `shnex:` bugs, the entire previously-unimplemented `sparql:` node-expression namespace (77 SPARQL functions/operators), one more `starlayergraph` lexical-form bug, and a real `validate()`/`apply_rules()` wiring gap for shapes graphs using only `sparql:` (not `shnex:`) node expressions - all fixed in `starshacl` (and one in `starlayergraph`); see the gap matrix's Phase 2 section for the full list.
 
 The W3C Data Shapes Working Group publishes an official SHACL 1.2 test suite at
 [w3c/data-shapes, `gh-pages` branch, `shacl12-test-suite/`](https://github.com/w3c/data-shapes/tree/gh-pages/shacl12-test-suite).
-This did not exist when `packages/starlayer/docs/shacl/implementation-plan.md` and `packages/starlayer/docs/shacl/shacl12-gap-matrix.md` were
+This did not exist when `docs/design/shacl/implementation-plan.md` and `docs/design/shacl/shacl12-gap-matrix.md` were
 last written (both explicitly say "no W3C test suite exists" for any of the six SHACL 1.2
 documents) - that statement is now stale and should be corrected as part of this work.
 
@@ -65,7 +65,7 @@ Four distinct test-entry shapes exist, each needing its own runner:
 `StarShaclSchema.validate()` / `apply_rules()` / `starshacl.node_expressions.eval_expr()`,
 the library's actual public surface. This is 291 of the 391 leaf-level RDF test files (158 + 31 + 102).
 
-**Deferred, not built**: the `rules/` SRL text-syntax tests. `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s
+**Deferred, not built**: the `rules/` SRL text-syntax tests. `docs/design/shacl/shacl12-gap-matrix.md`'s
 "Not Covered / Deferred" table already excludes "Shape Rules Language (SRL) concrete text
 syntax" for starshacl itself (SRL compiles to the same `sh:rule` RDF vocabulary the
 library already executes; parsing the human-authoring text syntax is a separate, currently
@@ -93,7 +93,7 @@ matrix's "Tracking Upstream Spec Changes" section) rather than introducing new g
 - The pinned SHA is a constant at the top of the sync script - bumping it is a deliberate,
   reviewable one-line change, not an automatic moving target. This is the same "manual,
   explicit, one commit to update" posture as the six-document spec-baseline tracking already
-  in `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`.
+  in `docs/design/shacl/shacl12-gap-matrix.md`.
 - Vendored files are committed to the repo (not `.gitignore`d) so `tests/` remains fully
   self-contained and offline-runnable, matching every other fixture already under `tests/`.
 
@@ -149,7 +149,7 @@ New package: `packages/starlayer/tests/shacl/w3c_shacl12/` (parallel to `tests/i
 
 ## Known-failures registry (not blanket skips)
 
-Given `packages/starlayer/docs/shacl/shacl12-gap-matrix.md` already documents specific, deliberate gaps (`sh:PropertyRule`/
+Given `docs/design/shacl/shacl12-gap-matrix.md` already documents specific, deliberate gaps (`sh:PropertyRule`/
 `sh:values` unimplemented; SPARQL `SERVICE` unsupported; etc.), expect some suite entries to
 legitimately fail on first run. Per this repo's `CLAUDE.md` testing discipline, the response
 to a failing conformance test is never a silent skip - it's one of:
@@ -167,7 +167,7 @@ to a failing conformance test is never a silent skip - it's one of:
    first (assume starshacl is wrong until checked, not the test).
 
 The registry (`packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py`, a plain dict keyed by entry IRI ->
-reason string) is reviewed the same way `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s tables are: every entry
+reason string) is reviewed the same way `docs/design/shacl/shacl12-gap-matrix.md`'s tables are: every entry
 is a claim that should still be true, not a historical record to leave stale.
 
 ## Phased implementation
@@ -182,12 +182,12 @@ is a claim that should still be true, not a historical record to leave stale.
 2. **Phase 2 - `sht:EvalNodeExpr` (`node-expr/`'s 102 files, 145 entries). Done (2026-07-31),
    142 passed / 1 xfailed as of 2026-08-01.** Directly exercises `starshacl/node_expressions.py`
    (and, as of this phase, the new `starshacl/sparql_node_expressions.py`) - confirmed
-   live to be the newest and most spec-volatile area per `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`: surfaced
+   live to be the newest and most spec-volatile area per `docs/design/shacl/shacl12-gap-matrix.md`: surfaced
    a core correctness bug and several smaller ones in existing `shnex:` operators, plus a
    wholly unimplemented `sparql:` node-expression namespace. All fixed, including 5 of the 6
    fixtures originally xfailed as "out-of-scope plain-`rdflib` quirks" - `starlayergraph` now
    monkeypatches the 2 underlying rdflib SPARQL-evaluator bugs (see
-   `packages/starlayer/docs/shacl/starlayergraph-upstream-change-log.md`'s 2026-08-01 entry) - and `instancesOf-base-class`,
+   `docs/design/shacl/starlayergraph-upstream-change-log.md`'s 2026-08-01 entry) - and `instancesOf-base-class`,
    fixed by making `shnex:instancesOf` walk `rdfs:subClassOf` directly (via the same
    `_transitive_subclasses` helper `sh:ShapeClass` uses) rather than relying on the caller's
    `inference=` setting. The 1 remaining xfail is a plain-`rdflib` fixture-formatting quirk
@@ -198,7 +198,7 @@ is a claim that should still be true, not a historical record to leave stale.
    needed already existed from Phases 1-2. Surfaced one genuine new SHACL 1.2 feature - a
    "global" (shape-independent) `sh:SPARQLRule` node, which pySHACL's rule discovery never
    finds at all - since implemented, scoped to `sh:SPARQLRule` (see
-   `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s "Not Covered / Deferred" table for why `sh:TripleRule`
+   `docs/design/shacl/shacl12-gap-matrix.md`'s "Not Covered / Deferred" table for why `sh:TripleRule`
    wasn't extended the same way). The 4 fixtures originally xfailed on the Phase 2
    rdflib integer-multiplication-yields-decimal quirk now pass, fixed by the same
    `starlayergraph` monkeypatch.
@@ -215,7 +215,7 @@ even wired into the top-level manifest yet - the Working Group is still assembli
 needs a repeatable procedure, not a one-time import:
 
 1. **Re-run `scripts/sync_w3c_shacl12_suite.py`** with an updated pinned SHA (bump it, don't
-   auto-follow `gh-pages`'s tip) whenever `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`'s existing "Tracking
+   auto-follow `gh-pages`'s tip) whenever `docs/design/shacl/shacl12-gap-matrix.md`'s existing "Tracking
    Upstream Spec Changes" review cadence flags it worth checking, or whenever a specific
    SHACL 1.2 behavior change is being investigated anyway.
 2. **Diff manifest entries before/after the sync**, not just file contents - a small helper
@@ -231,8 +231,8 @@ needs a repeatable procedure, not a one-time import:
    revisit the "Scope decision" section above, not to silently ignore new content the sync
    script would otherwise pull in unnoticed. The sync script should log (not silently drop)
    any top-level manifest directory it doesn't yet have a runner for.
-4. **Record results in `packages/starlayer/docs/shacl/shacl12-gap-matrix.md`**: replace the stale "no W3C test suite
-   exists" line in `packages/starlayer/docs/shacl/implementation-plan.md` (line 16) and add a short "W3C Test Suite
+4. **Record results in `docs/design/shacl/shacl12-gap-matrix.md`**: replace the stale "no W3C test suite
+   exists" line in `docs/design/shacl/implementation-plan.md` (line 16) and add a short "W3C Test Suite
    Conformance" summary (pass/xfail counts per phase, last-synced SHA and date) alongside the
    existing per-document coverage table, so suite conformance becomes part of the same
    single source of truth the rest of SHACL 1.2 status already lives in, rather than a
