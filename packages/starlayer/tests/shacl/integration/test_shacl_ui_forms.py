@@ -15,9 +15,9 @@ from build_shacl_ui import (
     is_excluded,
     missing_fields,
 )
-from rdflib.compare import to_isomorphic
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
+from starlayer.graph import isomorphic
 from starlayer.shacl.ui.widget_selection import select_widgets
 from tests.support.terms import RDF, XSD, NamedNode, lit
 
@@ -54,7 +54,7 @@ def fields_of(ui: Graph, form: NamedNode) -> dict[NamedNode, NamedNode]:
 def test_the_stored_file_matches_a_fresh_build() -> None:
     """The library reads the stored shacl12-shacl-ui.ttl, so it must equal what the build produces. On failure run
     scripts/build_starontology.py (the overlay source or shacl_shacl changed)."""
-    assert to_isomorphic(_onto("shacl_shacl_ui")) == to_isomorphic(build_shacl_ui_graph())
+    assert isomorphic(_onto("shacl_shacl_ui"), build_shacl_ui_graph())
 
 
 def test_every_predicate_shacl_shacl_validates_is_a_field_of_a_form_or_excluded_with_a_reason(ui) -> None:

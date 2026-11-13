@@ -52,7 +52,7 @@ What StarLayer does today, and what is planned.
 ## Reasoning
 
 - Support for reasoning and inference using various entailment regimes: RDF, RDFS, OWL-RL, and OWL-DL. ([sparql12-entailment](https://www.w3.org/TR/sparql12-entailment))
-- OWL-DL support via two engines: HermiT (through owlready2, which needs Java) or a Rust engine.
+- OWL-DL support via two engines: HermiT (through owlready2, which needs Java) or a Rust engine. The engines are in the starlayer-reasoning package; infer() and query(entailment=...) call them.
 - Support for both graph reasoning and query-time reasoning. ([sparql12-entailment](https://www.w3.org/TR/sparql12-entailment))
 
 ## SHACL

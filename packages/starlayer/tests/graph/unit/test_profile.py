@@ -39,6 +39,11 @@ def test_classes_properties_and_types():
     assert p.types_of(EX.b) == {EX.Person, EX.Agent} and p.types_of(EX.d) == frozenset() and p.instances(EX.Nothing) == []
 
 
+def test_subjects_include_the_untyped():
+    p = profile(_graph())
+    assert EX.d in p.subjects and EX.a in p.subjects and p.types_of(EX.d) == frozenset()
+
+
 def test_how_the_instances_of_a_class_use_each_property():
     uses = {u.property: u for u in profile(_graph()).class_properties(EX.Person)}
     name = uses[EX.name]

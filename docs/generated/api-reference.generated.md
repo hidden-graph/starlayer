@@ -1051,9 +1051,9 @@ The net effect of this delta followed by ``other`` (a triple added and then remo
 <a id="entity-starlayer-graph-profile-GraphProfile"></a>
 ### `GraphProfile`  _(class)_
 
-The profile of a graph: ``classes``, ``properties``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``.
+The profile of a graph: ``classes``, ``properties``, ``subjects``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``.
 
-**Source:** [starlayer.graph.profile.GraphProfile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L31-L77)
+**Source:** [starlayer.graph.profile.GraphProfile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L31-L82)
 
 ---
 
@@ -1072,7 +1072,7 @@ The properties the instances of ``cls`` use (see ``properties_of``).
 
 **Returns:** `list[PropertyUse]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.class_properties](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L75-L77)
+**Source:** [starlayer.graph.profile.GraphProfile.class_properties](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L80-L82)
 
 ---
 
@@ -1106,7 +1106,7 @@ The nodes typed exactly ``cls``.
 
 **Returns:** `list[Any]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.instances](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L55-L57)
+**Source:** [starlayer.graph.profile.GraphProfile.instances](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L60-L62)
 
 ---
 
@@ -1140,7 +1140,22 @@ The properties ``nodes`` use, most used first (then by IRI text).
 
 **Returns:** `list[PropertyUse]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.properties_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L63-L73)
+**Source:** [starlayer.graph.profile.GraphProfile.properties_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L68-L78)
+
+---
+
+<a id="entity-starlayer-graph-profile-GraphProfile-subjects"></a>
+### `GraphProfile.subjects`  _(method)_
+
+```python
+def subjects(self) -> frozenset
+```
+
+Every subject of the graph (typed or not).
+
+**Returns:** `frozenset`
+
+**Source:** [starlayer.graph.profile.GraphProfile.subjects](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L56-L58)
 
 ---
 
@@ -1159,7 +1174,7 @@ The IRIs ``node`` is typed with.
 
 **Returns:** `frozenset`
 
-**Source:** [starlayer.graph.profile.GraphProfile.types_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L59-L61)
+**Source:** [starlayer.graph.profile.GraphProfile.types_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L64-L66)
 
 ---
 
@@ -1493,7 +1508,7 @@ Profile ``graph`` (a ``StarLayerGraph`` or ``StarLayerDataset``) in one pass ove
 
 **Returns:** `GraphProfile`
 
-**Source:** [starlayer.graph.profile.profile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L80-L95)
+**Source:** [starlayer.graph.profile.profile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L85-L100)
 
 ---
 

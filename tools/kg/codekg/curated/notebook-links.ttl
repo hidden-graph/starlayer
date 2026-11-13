@@ -67,11 +67,11 @@ nl:02b-2c6151e0 a slkg:NotebookExample ;
 nl:02c-b87b0ce5 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02c-owl-dl-reasoning.ipynb" ;
     slkg:cellId "b87b0ce5" ;
-    slkg:cellHash "7ee955565153c81d" ;
-    slkg:reviewedOn "2026-11-12"^^xsd:date ;
+    slkg:cellHash "ffefa4996dd368f2" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "Shows the OWL-Direct (OWL-DL) regime raising InconsistentOntologyError for a contradiction that the rule-based OWL-RDF-Based regime does not report." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.entailment.owl_dl" .
+        "starlayer.graph.entailment.infer.infer" .
 
 nl:03-2e4d34f3 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
@@ -162,8 +162,8 @@ nl:04e-96560f37 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "Validates against a profile and then calls profiling.derive_conforms_to() explicitly to add the conformsTo statements from the report." ;
     slkg:demonstratesIdentifier
-        "starlayer.shacl.profiling.derive_conforms_to",
-        "starlayer.shacl.profiling" .
+        "starlayer.shacl.profiling.profiles.derive_conforms_to",
+        "starlayer.shacl.profiling.__init__" .
 
 nl:04e-c2a7c429 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04e-shacl-profiling.ipynb" ;
@@ -236,7 +236,7 @@ nl:05-da3100e0 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "Loads the bundled SKOS shapes graph and validates a SKOS concept scheme against it with a StarShaclSchema." ;
     slkg:demonstratesIdentifier
-        "starlayer.starontology.skos" .
+        "starlayer.starontology.__init__.get_ontology_graph" .
 
 nl:05d-2957fd17 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05d-shacl-library-registry.ipynb" ;
@@ -254,7 +254,7 @@ nl:05a-92f83318 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Parses Manchester Syntax into a graph and serializes it back with format='manchester'." ;
     slkg:demonstratesIdentifier
-        "starlayer.starontology.manchester" .
+        "starlayer.starontology.manchester.__init__" .
 
 nl:03b-c0a10008 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
@@ -299,3 +299,88 @@ nl:03-b337c254 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Runs a SPARQL 1.2 INSERT DATA with a triple term through update() on a StarLayerGraph." ;
     slkg:demonstratesIdentifier "starlayer.graph.core._Base.update" .
+
+nl:02d-0e389edf a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "0e389edf" ;
+    slkg:cellHash "02e289f3665d74b6" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Makes literals from Python values, reads them back with to_python and reads Turtle terms with parse_term." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.terms.literal",
+        "starlayer.graph.terms.to_python",
+        "starlayer.graph.terms.parse_term" .
+
+nl:02d-b720f67c a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "b720f67c" ;
+    slkg:cellHash "a32a1829c76c48b6" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Writes and replaces an RDF list with set_list, keeps one value with set and follows a predicate with transitive_objects and transitive_subjects." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.rdflist.set_list",
+        "starlayer.graph.rdflist.transitive_objects" .
+
+nl:02d-86299ef1 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "86299ef1" ;
+    slkg:cellHash "c623184f857f5ee5" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Takes the difference of two graphs as a GraphDelta, applies it and applies its inverse." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.delta.diff" .
+
+nl:02d-33753b85 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "33753b85" ;
+    slkg:cellHash "237b445abb650b42" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Profiles a graph: classes with counts and the properties their instances use." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.profile.profile" .
+
+nl:03-e79f89e7 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "e79f89e7" ;
+    slkg:cellHash "0133dbc487f3db6a" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Passes a Python function and a Python aggregate to query() as custom_functions and custom_aggregate_functions." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.core._Base.query" .
+
+nl:03-4a5c50bb a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "4a5c50bb" ;
+    slkg:cellHash "72ae726acc8e6ff9" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Writes a SELECT result as CSV and TSV, an ASK result as JSON and a CONSTRUCT result as N-Triples." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.execution.result.Result.serialize" .
+
+nl:04d-98809341 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04d-shacl-ui.ipynb" ;
+    slkg:cellId "98809341" ;
+    slkg:cellHash "20f89000e0b4b774" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Lists every candidate widget of a property shape with its score and outcome." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.ui.widget_selection.explain_widgets" .
+
+nl:04e-352c1708 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04e-shacl-profiling.ipynb" ;
+    slkg:cellId "352c1708" ;
+    slkg:cellHash "349b85aefbfb0b11" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Finds the shapes a shape refers to and what its rules need besides." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.shapes_graphs.rule_dependencies",
+        "starlayer.shacl.shapes_graphs.referenced_shapes" .
+
+nl:04-30c67e26 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04-shacl-shapes.ipynb" ;
+    slkg:cellId "30c67e26" ;
+    slkg:cellHash "84991614b3b99b71" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Derives a shapes graph from data and validates the data against it." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.shapes.derive_shape" .

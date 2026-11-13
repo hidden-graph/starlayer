@@ -82,7 +82,7 @@ def test_every_workaround_exists_in_the_code_graph(graph, codekg_dataset):
     dataset = codekg_dataset
     known = {o.value for n in dataset.graph_names() for o in dataset.graph(n).objects(None, DCTERMS.identifier)}
     cited = {term_text(o) for o in graph.objects(None, CODEKG_NS.workedAroundByIdentifier)}
-    assert len(cited) >= 3  # 5 before the rdflib grammar workarounds were deleted with the grammar (E4)
+    assert len(cited) >= 2  # 5 before the rdflib grammar workarounds were deleted with the grammar (E4); the TripleTerm one went with the class, which is in starlayer-reasoning now
     assert not sorted(cited - known), f"workarounds the code KG does not have: {sorted(cited - known)}"
 
 

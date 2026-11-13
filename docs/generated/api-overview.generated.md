@@ -65,12 +65,13 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 - **[`GraphDelta.apply`](api-reference.generated.md#entity-starlayer-graph-delta-GraphDelta-apply)** (method) - Remove ``removed`` from ``graph`` and add ``added``; returns ``graph``.
 - **[`GraphDelta.inverse`](api-reference.generated.md#entity-starlayer-graph-delta-GraphDelta-inverse)** (method) - The delta that undoes this one: what was added is removed and what was removed is added.
 - **[`GraphDelta.then`](api-reference.generated.md#entity-starlayer-graph-delta-GraphDelta-then)** (method) - The net effect of this delta followed by ``other`` (a triple added and then removed, or removed and then added, is no change).
-- **[`GraphProfile`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile)** (class) - The profile of a graph: ``classes``, ``properties``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``.
+- **[`GraphProfile`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile)** (class) - The profile of a graph: ``classes``, ``properties``, ``subjects``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``.
 - **[`GraphProfile.class_properties`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile-class_properties)** (method) - The properties the instances of ``cls`` use (see ``properties_of``).
 - **[`GraphProfile.classes`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile-classes)** (method) - ``{class: number of instances}`` for the classes the graph has instances of (exactly that class, not its subclasses).
 - **[`GraphProfile.instances`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile-instances)** (method) - The nodes typed exactly ``cls``.
 - **[`GraphProfile.properties`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile-properties)** (method) - ``{property: number of triples}`` for every predicate of the graph.
 - **[`GraphProfile.properties_of`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile-properties_of)** (method) - The properties ``nodes`` use, most used first (then by IRI text).
+- **[`GraphProfile.subjects`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile-subjects)** (method) - Every subject of the graph (typed or not).
 - **[`GraphProfile.types_of`](api-reference.generated.md#entity-starlayer-graph-profile-GraphProfile-types_of)** (method) - The IRIs ``node`` is typed with.
 - **[`Namespace`](api-reference.generated.md#entity-starlayer-graph-namespaces-Namespace)** (class) - A namespace of pyoxigraph ``NamedNode`` constants: ``SH.minCount``, ``SH["class"]``. Terms are created once.
 - **[`Namespace.term`](api-reference.generated.md#entity-starlayer-graph-namespaces-Namespace-term)** (method) - The term for ``name`` (the same as ``ns[name]``).

@@ -178,8 +178,7 @@ ui:fuseki-1 a slkg:UpstreamIssue ;
     slkg:issueDocPath "docs/upstream-issues/fuseki-upstream-issues.md" ;
     slkg:issueNumber 1 ;
     slkg:upstreamUrl "https://github.com/apache/jena/issues/4141" ;
-    slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.graph.model.triple.TripleTerm.__init__" .
+    slkg:issueStatus "documented-only" .
 
 ui:fuseki-2 a slkg:UpstreamIssue ;
     rdfs:label "SPARQL JSON Results blank-node labels are inconsistent across rows of one result set" ;

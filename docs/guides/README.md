@@ -1,6 +1,6 @@
 # StarLayer User Guides
 
-*Last reviewed: 2026-10-14*
+*Last reviewed: 2026-11-13*
 
 This is the single master index for every guide notebook - every notebook's own "How to run this notebook" cell links back here, rather than repeating this list in-body (see [`STYLE_GUIDE.md`](STYLE_GUIDE.md)). Update this file when a guide is added, renamed, or reordered; no other file needs to change.
 
@@ -8,21 +8,21 @@ This is the single master index for every guide notebook - every notebook's own 
 
 ## The guides
 
-1. **[Getting Started](01-getting-started.ipynb)** - install, first parse, first query, first validate.
+1. **[Getting Started](01-getting-started.ipynb)** - install (and what the separate `starlayer-reasoning` package adds), first parse, first query, first validate.
 2. **[Graphs](02-graphs.ipynb)** - `TripleTerm`/`DirLangString` semantics.
    - **2.a [Working with datasets](02a-graphs-datasets.ipynb)** - `StarLayerDataset`, multiple named graphs in one store.
    - **2.b [Inferencing](02b-graphs-inferencing.ipynb)** - RDF/RDFS/OWL 2 RL reasoning via `owlrl` (and natively for RDF), the full entailment-regime picture (what each regime means, the regime-support status table, which one to use), and a worked example of both the `infer()` and `query(entailment=...)` forms per regime.
    - **2.c [OWL 2 DL reasoning](02c-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).
-   - **2.d [The Oxigraph-backed graph](02d-oxigraph-wrapper.ipynb)** - `StarLayerGraph` / `StarLayerDataset`: the `.store` boundary to pyoxigraph, which methods are wrapped, how queries and persistence differ from raw Oxigraph, set operations, literal rewriting and RDF 1.1 output.
-3. **[SPARQL](03-sparql.ipynb)** - query semantics and built-in functions.
+   - **2.d [The Oxigraph-backed graph](02d-oxigraph-wrapper.ipynb)** - `StarLayerGraph` / `StarLayerDataset`: the `.store` boundary to pyoxigraph, which methods are wrapped, how queries and persistence differ from raw Oxigraph, set operations, literal rewriting and RDF 1.1 output, then the everyday helpers: terms and Python values (`literal`, `to_python`, `parse_term`), RDF lists, `set` and walks, changes between graphs (`diff`, `GraphDelta`) and `profile()`.
+3. **[SPARQL](03-sparql.ipynb)** - query semantics and built-in functions, your own Python functions and aggregates (`custom_functions`), and writing results as JSON, XML, CSV, TSV or RDF (`Result.serialize`).
    - **3.a [SPARQL entailment](03a-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.b already covers per regime: caching behavior (`infer=`) and detecting an inconsistency via `ASK`.
    - **3.b [SRL (SPARQL Rules)](03b-srl-sparql-rules.ipynb)** - a separate Datalog-style rules language independent of SHACL: parsing (including RDF 1.2 triple terms, annotations, `/` `^` property paths and `IMPORTS`), inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.
-4. **[SHACL shapes](04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, and an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`).
+4. **[SHACL shapes](04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`), and deriving a shapes graph from data (`derive_shape()`).
    - **4.a [SHACL node expressions](04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
    - **4.b [SHACL and SPARQL](04b-shacl-and-sparql.ipynb)** - `sh:sparql` constraints, user-defined `sh:ConstraintComponent`.
    - **4.c [SHACL inference rules](04c-shacl-inference-rules.ipynb)** - `sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, execution ordering, rule sets, provenance.
-   - **4.d [SHACL UI](04d-shacl-ui.ipynb)** - `shui:` widgets: fixed `shui:editor`/`shui:viewer` choices via `select_widgets()` (a dict of property shape to widget), launching a form in a browser, then `shui:WidgetScore` scoring for properties that name no widget.
-   - **4.e [SHACL profiling](04e-shacl-profiling.ipynb)** - `sh:ShapesGraph`/`sh:DataGraph`/`owl:imports` packaging conventions.
+   - **4.d [SHACL UI](04d-shacl-ui.ipynb)** - `shui:` widgets: fixed `shui:editor`/`shui:viewer` choices via `select_widgets()` (a dict of property shape to widget), launching a form in a browser, then `shui:WidgetScore` scoring for properties that name no widget, and `explain_widgets()` for why a widget was chosen.
+   - **4.e [SHACL profiling](04e-shacl-profiling.ipynb)** - `sh:ShapesGraph`/`sh:DataGraph`/`owl:imports` packaging conventions, and making a set of shapes self-contained (`referenced_shapes`, `rule_dependencies`).
    - **4.f [SHACL subgraph extraction & hashing](04f-shacl-subgraph-extraction.ipynb)** - `extract_subgraph()`, `close_shape()`, and the hash-and-verify commitment pattern.
 5. **[StarLayer Schemas and Ontologies](05-starlayer-schemas-and-ontologies.ipynb)** - the vocabularies StarLayer defines for representing an artifact's own internal structure as RDF, inspectable/editable/validatable like any other graph; plus the registry that bundles all of them (including SKOS and the SHACL meta-shapes).
    - **5.a [Manchester Syntax](05a-manchester-syntax.ipynb)** - OWL 2 Manchester Syntax's English-readable notation, via `parse()`/`serialize()` with `format="manchester"`, plus treating a document's own internal structure as an inspectable, editable RDF graph via the `manch:` ontology.

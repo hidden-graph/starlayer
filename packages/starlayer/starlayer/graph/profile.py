@@ -29,7 +29,7 @@ class PropertyUse(NamedTuple):
 
 
 class GraphProfile:
-    """The profile of a graph: ``classes``, ``properties``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``."""
+    """The profile of a graph: ``classes``, ``properties``, ``subjects``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``."""
 
     def __init__(self, by_node: dict, types: dict, predicates: dict) -> None:
         """Built by ``profile()``; ``by_node`` maps node -> {property: [triples, datatypes, kinds]}."""
@@ -51,6 +51,11 @@ class GraphProfile:
     def properties(self) -> dict[Any, int]:
         """``{property: number of triples}`` for every predicate of the graph."""
         return dict(self._predicates)
+
+    @property
+    def subjects(self) -> frozenset:
+        """Every subject of the graph (typed or not)."""
+        return frozenset(self._by_node)
 
     def instances(self, cls: Any) -> list[Any]:
         """The nodes typed exactly ``cls``."""

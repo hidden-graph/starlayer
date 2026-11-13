@@ -27,7 +27,7 @@ GUIDES = REPO / "docs" / "guides"
 PACKAGE_ROOT = Path(__file__).resolve().parents[2]
 
 # error text that means "an optional package is missing", not "the notebook is broken"
-OPTIONAL_PACKAGES = ("owlready2", "rdflib_sqlalchemy", "rdflib-sqlalchemy", "rustdl", "owlrl", "oxrdflib")
+OPTIONAL_PACKAGES = ("owlready2", "rdflib_sqlalchemy", "rdflib-sqlalchemy", "rustdl", "owlrl", "oxrdflib", "starlayer-reasoning", "starlayer_reasoning")
 
 
 def _is_missing_optional(error: dict) -> bool:
@@ -38,7 +38,8 @@ def _is_missing_optional(error: dict) -> bool:
 @pytest.mark.parametrize("notebook", sorted(GUIDES.glob("*.ipynb")), ids=lambda p: p.stem)
 def test_notebook_runs(notebook, monkeypatch):
     # the kernel is a child process: it finds starlayer through PYTHONPATH when the package is not installed
-    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, [str(PACKAGE_ROOT), os.environ.get("PYTHONPATH", "")])))
+    plugin = PACKAGE_ROOT.parent / "starlayer-reasoning"  # in a checkout: the rdflib and OWL package, when it is not installed
+    monkeypatch.setenv("PYTHONPATH", os.pathsep.join(filter(None, [str(PACKAGE_ROOT), str(plugin) if plugin.is_dir() else "", os.environ.get("PYTHONPATH", "")])))
     nb = nbformat.read(notebook, as_version=4)
     client = nbclient.NotebookClient(
         nb, timeout=600, kernel_name="python3", resources={"metadata": {"path": str(GUIDES)}}, allow_errors=True
