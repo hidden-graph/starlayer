@@ -12,12 +12,13 @@ entailment of its own to compare against.
 Requires the `reasoning` extra: pip install -e ".[reasoning]"
 """
 
+import pyoxigraph as ox
 import pytest
+from pyoxigraph import NamedNode
 from rdflib import Graph
-from starlayer.graph import TripleTerm
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph import OWL, RDF, RDFS, Namespace
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
-from tests.terms import OWL, RDF, RDFS, NamedNode, Namespace
 
 try:
     import owlrl
@@ -35,7 +36,7 @@ REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
 
-from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine  # noqa: E402
+from starlayer_reasoning.rdflib_bridge import foreign_to_engine  # noqa: E402
 
 
 def _expand_to_fixpoint(semantics, graph):
@@ -231,7 +232,7 @@ class TestInferDelta:
         assert (EX.fido, RDF.type, EX.Animal) in delta
 
     def test_original_decomposed_union_delta_equals_closure(self) -> None:
-        from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
+        from starlayer_reasoning.rdflib_bridge import decompose as _decompose
 
         g = _rdfs_graph()
 
@@ -259,14 +260,14 @@ class TestInferDelta:
         # isomorphic(), not raw equality, for the same _decompose()-mints-a-
         # fresh-BNode-per-call reason.
         from starlayer.graph.compare import isomorphic
-        from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
-        from starlayer.graph.oxgraph._rdflib_bridge import (
+        from starlayer_reasoning.rdflib_bridge import decompose as _decompose
+        from starlayer_reasoning.rdflib_bridge import (
             decomposition_nodes,
             drop_decomposition,
         )
 
         g = _rdfs_graph()
-        g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
+        g.add((EX.claim, REIFIES, ox.Triple(EX.alice, EX.knows, EX.bob)))
 
         delta = g.infer(mode="delta")
 
@@ -298,7 +299,7 @@ class TestInferWithTripleTerms:
         # decompose it first (see infer()'s own docstring) rather than
         # handing owlrl a graph owlrl would otherwise crash on.
         g = _rdfs_graph()
-        g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
+        g.add((EX.claim, REIFIES, ox.Triple(EX.alice, EX.knows, EX.bob)))
 
         closed = g.infer()
 
@@ -313,7 +314,7 @@ class TestInferWithTripleTerms:
         # test, and infer()'s own docstring for exactly why that part is
         # unavoidable).
         g = _rdfs_graph()
-        tt = TripleTerm(EX.alice, EX.knows, EX.bob)
+        tt = ox.Triple(EX.alice, EX.knows, EX.bob)
         g.add((EX.claim, REIFIES, tt))
 
         closed = g.infer()
@@ -331,14 +332,14 @@ class TestInferWithTripleTerms:
         # previous test) is the correct oracle comparison for the part that
         # genuinely still goes through decomposition.
         from starlayer.graph.compare import isomorphic
-        from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
-        from starlayer.graph.oxgraph._rdflib_bridge import (
+        from starlayer_reasoning.rdflib_bridge import decompose as _decompose
+        from starlayer_reasoning.rdflib_bridge import (
             decomposition_nodes,
             drop_decomposition,
         )
 
         g = _rdfs_graph()
-        g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
+        g.add((EX.claim, REIFIES, ox.Triple(EX.alice, EX.knows, EX.bob)))
 
         delta = g.infer(mode="delta")
 
@@ -364,7 +365,7 @@ class TestInferWithTripleTerms:
         from starlayer.graph.compare import isomorphic
 
         g = _rdfs_graph()
-        g.add((EX.claim, REIFIES, TripleTerm(EX.alice, EX.knows, EX.bob)))
+        g.add((EX.claim, REIFIES, ox.Triple(EX.alice, EX.knows, EX.bob)))
 
         closure = g.infer(mode="full")
         delta = g.infer(mode="delta")
@@ -507,7 +508,7 @@ class TestInferInPlace:
 
     def test_triple_term_bearing_self_preserves_the_real_triple_term(self) -> None:
         g = _rdfs_graph()
-        tt = TripleTerm(EX.alice, EX.knows, EX.bob)
+        tt = ox.Triple(EX.alice, EX.knows, EX.bob)
         g.add((EX.claim, REIFIES, tt))
 
         result = g.infer(mode="in-place")

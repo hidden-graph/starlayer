@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install starlayer
-        run: pip install -e "packages/starlayer[test,benchmark]"
+        run: pip install -e packages/starlayer-reasoning -e "packages/starlayer[test,benchmark]"
 
       - name: Run graph benchmarks
         working-directory: packages/starlayer

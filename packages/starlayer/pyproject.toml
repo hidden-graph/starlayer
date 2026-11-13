@@ -34,18 +34,12 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# rdflib is not needed to use StarLayer; it is only for StarLayerGraph.from_rdflib / to_rdflib (whole graphs).
-rdflib = ["rdflib>=7.0"]
-# owlrl computes the OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph.
-reasoning = ["owlrl>=6", "starlayer[rdflib]"]
-# The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can dispatch to (graph/entailment/owl_dl.py,
-# owl_dl_rustdl.py). Neither is core: "hermit" also needs a real JVM on PATH, and "rustdl" has no JVM but is not provably complete.
-hermit = ["starlayer[rdflib]", "owlready2>=0.51"]
-rustdl = ["starlayer[rdflib]", "rustdl>=0.4"]
-# The tests use rdflib (a bridge and an oracle) and owlrl.
-test = ["pytest>=8.0", "hypothesis>=6", "starlayer[reasoning]"]
+# rdflib interchange (from_rdflib / to_rdflib) and the OWL regimes of infer() live in the starlayer-reasoning package, which this
+# project's tests also use as a bridge and an oracle.
+reasoning = ["starlayer-reasoning"]
+test = ["pytest>=8.0", "hypothesis>=6", "starlayer-reasoning"]
 # Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
-notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "starlayer[reasoning]"]
+notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "starlayer-reasoning"]
 # pytest-benchmark for the benchmarks-graph regression guard (outside `testpaths`; see .github/workflows/benchmark.yml).
 benchmark = ["pytest-benchmark>=5.0"]
 

@@ -169,8 +169,8 @@ def plain_term(graph: Any, node: Any) -> str:
             return f'"{node.value}"@{node.language}'
         if node.datatype == T.XSD.string:
             return f'"{node.value}"'
-        if isinstance(node.datatype, ox.NamedNode) and node.datatype.value.startswith(T._INVALID_LANG_PREFIX):  # lenient mode: a malformed tag
-            return f'"{node.value}"@{unquote(node.datatype.value[len(T._INVALID_LANG_PREFIX):], errors="surrogatepass")}'  # str-ok: text
+        if isinstance(node.datatype, ox.NamedNode) and node.datatype.value.startswith(T.INVALID_LANG_PREFIX):  # lenient mode: a malformed tag
+            return f'"{node.value}"@{unquote(node.datatype.value[len(T.INVALID_LANG_PREFIX):], errors="surrogatepass")}'  # str-ok: text
         if node.datatype in (T.XSD.integer, T.XSD.decimal, T.XSD.double, T.XSD.boolean):
             return node.value
         return f'"{node.value}"^^{_n3(graph, node.datatype)}'
@@ -269,7 +269,7 @@ def _unmasked(m: Any) -> Any:
     """A message with the lenient-mode stand-in IRIs in its text mapped back to the original terms (``terms.unmask``)."""
     if isinstance(m, str):
         return T.unmask(m)
-    if isinstance(m, ox.Literal) and T._INVALID_IRI_PREFIX in m.value:
+    if isinstance(m, ox.Literal) and T.INVALID_IRI_PREFIX in m.value:
         text = T.unmask(m.value)
         if m.language:
             return ox.Literal(text, language=m.language, direction=m.direction)

@@ -1,9 +1,9 @@
 """
-starlayer.graph.entailment.owl_dl_rustdl
+starlayer_reasoning.owl_dl_rustdl
 
 OWL 2 Direct Semantics reasoning via RustDL - the second engine
 infer(entailment=ENTAILMENT['OWL-Direct']) can dispatch to, alongside engine="hermit"
-(starlayer.graph.entailment.owl_dl, the default). Same entailment regime, same
+(starlayer_reasoning.owl_dl, the default). Same entailment regime, same
 InconsistentOntologyError contract, same (before, delta) return shape -
 a genuinely different tradeoff, not a strictly-better replacement, which
 is why both exist rather than one being swapped for the other.
@@ -89,17 +89,14 @@ just filling in what RustDL's parser needs to see explicitly.
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 import tempfile
 from pathlib import Path
 
 from rdflib import RDF, RDFS, Graph, Literal, URIRef
 from rdflib.namespace import OWL
 
-from starlayer.graph.entailment import _timeout
-from starlayer.graph.entailment.owl_dl import (
+from starlayer_reasoning import _timeout
+from starlayer_reasoning.owl_dl import (
     InconsistentOntologyError,
     _delta_from_result,
     _skolemize_individuals,
@@ -170,7 +167,7 @@ def _require_rustdl():
         raise RuntimeError(
             "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') "
             "requires the optional rustdl package - install it with "
-            "`pip install starlayer[rustdl]` (or `pip install rustdl` "
+            "`pip install starlayer-reasoning[rustdl]` (or `pip install rustdl` "
             "directly), then retry."
         ) from exc
     return rustdl
@@ -283,7 +280,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
     """
     _require_rustdl()
 
-    from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
+    from starlayer_reasoning.rdflib_bridge import decompose as _decompose
     before = _decompose(graph)
     _check_rustdl_hang_risk(before)
 

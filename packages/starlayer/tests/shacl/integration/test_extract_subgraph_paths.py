@@ -123,7 +123,7 @@ def test_path_values_agree_with_sparql_property_paths(case) -> None:
     path_node = shapes.value(E.A, Namespace("http://www.w3.org/ns/shacl#").property)
     path_node = shapes.value(path_node, Namespace("http://www.w3.org/ns/shacl#").path)
     # rdflib is the independent oracle (a test-only dependency): Oxigraph misses the zero-length path from a node that is not in the graph
-    from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
+    from starlayer_reasoning.rdflib_bridge import foreign_to_engine
 
     plain = graph.to_rdflib()
     expected = {foreign_to_engine(row[0]) for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}
@@ -147,7 +147,7 @@ def test_a_repeated_complex_path_is_followed(path, sparql, data) -> None:
     prop = shapes.value(E.A, Namespace("http://www.w3.org/ns/shacl#").property)
     path_node = shapes.value(prop, Namespace("http://www.w3.org/ns/shacl#").path)
     # rdflib is the independent oracle (a test-only dependency): Oxigraph misses the zero-length path from a node that is not in the graph
-    from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
+    from starlayer_reasoning.rdflib_bridge import foreign_to_engine
 
     plain = graph.to_rdflib()
     expected = {foreign_to_engine(row[0]) for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}

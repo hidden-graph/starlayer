@@ -16,7 +16,7 @@ unrelated to this project's own translation work. The shape itself is
 simple and documented in the SPARQL 1.2 Results JSON format, and is handled
 here recursively (a `"type": "triple"` value has its own nested
 subject/predicate/object, themselves ordinary term JSON) to build
-``starlayer.graph.model.triple.TripleTerm`` values — the same type
+``starlayer_reasoning.model.triple.TripleTerm`` values — the same type
 ``StarLayerGraph.query()`` itself returns for a triple-term-valued binding,
 confirmed by inspection, so comparison is apples-to-apples.
 """
@@ -30,8 +30,8 @@ import os
 from dataclasses import dataclass
 
 from rdflib import BNode, Graph, Literal, URIRef, Variable
-from starlayer.graph.model.dirlangstring import DirLangString
-from starlayer.graph.model.triple import TripleTerm
+from starlayer_reasoning.model.dirlangstring import DirLangString
+from starlayer_reasoning.model.triple import TripleTerm
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 INDEX_FILE = os.path.join(DATA_DIR, "index.tsv")
@@ -145,7 +145,7 @@ def _canon_term(v) -> str:
     if isinstance(v, TripleTerm):
         return f"<<( {_canon_term(v.subject)} {_canon_term(v.predicate)} {_canon_term(v.object)} )>>"
     if isinstance(v, DirLangString):
-        # Not an rdflib Node at all (see starlayer.graph.model.dirlangstring's own
+        # Not an rdflib Node at all (see starlayer_reasoning.model.dirlangstring's own
         # module docstring - deliberately, so it stays invisible to
         # rdflib's own machinery), so it has no `.n3()` and would raise
         # AttributeError falling through to the generic case below, now

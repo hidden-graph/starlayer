@@ -1,9 +1,8 @@
-"""``infer()``: RDFS / RDF / OWL-RL (owlrl) and OWL-DL (HermiT, rustdl) closure over an ``StarLayerGraph`` / ``StarLayerDataset``.
+"""``infer()``: RDF and RDFS closure natively; OWL-RL and OWL-DL through the ``starlayer-reasoning`` package.
 
-Ported from ``StarLayerGraph.infer`` and ``graph/entailment/entailment_regimes.py``. The RDF and RDFS regimes are computed natively on
-pyoxigraph terms (``rdfs_closure.py``), so they need no rdflib. owlrl (OWL-RL and the combined regimes) and the OWL-DL bridges work on rdflib graphs, so the store is copied to one inside the call
-(``_rdflib_bridge``) and the delta is converted back. The OWL-DL engines (``graph/entailment/owl_dl*.py``, ``_timeout.py``) are
-reused as they are, lazily, with their optional-dependency errors and their subprocess timeout.
+The RDF and RDFS regimes are computed on pyoxigraph terms (``rdfs_closure.py``). The OWL-RL and combined regimes (``owlrl``) and
+OWL-DL (HermiT, rustdl) work on rdflib graphs, so they live in ``starlayer-reasoning``, which this module calls only for those
+regimes and which must be installed for them.
 """
 
 from __future__ import annotations
@@ -14,42 +13,25 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph import _rdflib_bridge as bridge
+from starlayer.graph.entailment import (
+    D_REGIME,
+    ENTAILMENT,
+    KNOWN_REGIMES,  # noqa: F401  (re-exported)
+    OWL_DIRECT_REGIME,
+    OWL_RL_REGIME,
+    RDF_REGIME,
+    RDFS_REGIME,
+    SUPPORTED_REGIMES,
+)
 from starlayer.graph.oxgraph import terms
 from starlayer.graph.oxgraph.helpers.rdfs_closure import rdfs_delta
 
 VALID_INFER_RETURN_MODES = frozenset({"full", "delta", "in-place"})
-#: same value as ``graph.graph._timeout.DEFAULT_TIMEOUT_SECONDS`` (tested); not imported so the wrapper stays rdflib-free
+#: the default ``timeout=`` of ``infer()`` for OWL-DL (seconds); the same value as ``starlayer_reasoning``'s own default
 DEFAULT_TIMEOUT = 120.0
-
-_ENTAILMENT_BASE = "http://www.w3.org/ns/entailment/"
-
-
-class _EntailmentNamespace:
-    """``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-Direct"]``: the regime IRIs of the SPARQL 1.2 Entailment Regimes spec, as
-    ``NamedNode``s. ``graph/entailment/entailment_regimes.py`` re-exports it."""
-
-    def __getitem__(self, name: str) -> ox.NamedNode:
-        return ox.NamedNode(_ENTAILMENT_BASE + name)
-
-    def __getattr__(self, name: str) -> ox.NamedNode:
-        if name.startswith("_"):
-            raise AttributeError(name)
-        return self[name]
-
-
-ENTAILMENT = _EntailmentNamespace()
-RDF_REGIME = ENTAILMENT.RDF.value
-RDFS_REGIME = ENTAILMENT.RDFS.value
-D_REGIME = ENTAILMENT.D.value
-OWL_RL_REGIME = ENTAILMENT["OWL-RDF-Based"].value
-OWL_DIRECT_REGIME = ENTAILMENT["OWL-Direct"].value
-KNOWN_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, D_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
-SUPPORTED_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
 
 #: rdf:_n for a positive decimal integer without leading zeros (RDF Semantics, container membership properties); ASCII digits only
 _CONTAINER_MEMBERSHIP = re.compile(re.escape(terms.RDF) + r"_[1-9][0-9]*")
-_OWLRL_ERROR_NS = "http://www.daml.org/2002/03/agents/agent-ont#"
 _RDF = terms.RDF
 _RDF_AXIOMATIC = tuple(ox.NamedNode(_RDF + n) for n in ("type", "subject", "predicate", "object", "reifies", "first", "rest", "value"))
 
@@ -58,69 +40,15 @@ def _regime_iri(x: Any) -> str:
     return x.value if isinstance(x, ox.NamedNode) else str(x)
 
 
-def _resolve_owlrl_semantics(regimes: frozenset[str]) -> Any:
-    from starlayer._optional import require_rdflib
-
-    require_rdflib("infer() with the RDFS or OWL-RL regime (owlrl runs on an rdflib copy of the graph)")
+def _reasoning() -> Any:
+    """The ``starlayer_reasoning`` package, or an ``ImportError`` that says how to install it."""
     try:
-        import owlrl
+        import starlayer_reasoning
     except ImportError as exc:
         raise ImportError(
-            "infer() requires the optional 'owlrl' dependency - install via `pip install starlayer[reasoning]` "
-            "(or `pip install owlrl` directly)."
+            "infer() with the OWL-RL or OWL-DL regimes needs the starlayer-reasoning package: `pip install starlayer-reasoning`"
         ) from exc
-
-    class _NoHiddenSameAsRDFSSemantics(owlrl.RDFSClosure.RDFS_Semantics):
-        def one_time_rules(self) -> None:
-            pass
-
-    by_regime = {
-        frozenset({RDFS_REGIME}): _NoHiddenSameAsRDFSSemantics,
-        frozenset({OWL_RL_REGIME}): owlrl.OWLRL_Semantics,
-        frozenset({RDFS_REGIME, OWL_RL_REGIME}): owlrl.RDFS_OWLRL_Semantics,
-    }
-    semantics = by_regime.get(regimes)
-    if semantics is None:
-        raise ValueError(f"Unsupported entailment regime combination {sorted(regimes)!r}; expected one of {[sorted(k) for k in by_regime]}")
-    return semantics
-
-
-def _drop_repeated_error_messages(graph: Any) -> None:
-    """Keep one ``err:ErrorMessage`` node per message text (each owlrl pass mints a fresh blank node for the same inconsistency)."""
-    from rdflib import RDF, BNode, URIRef
-
-    message_class = URIRef(_OWLRL_ERROR_NS + "ErrorMessage")
-    error = URIRef(_OWLRL_ERROR_NS + "error")
-    seen = set()
-    for node in sorted(graph.subjects(RDF.type, message_class), key=str):
-        if not isinstance(node, BNode):
-            continue
-        key = tuple(sorted(str(o) for o in graph.objects(node, error)))
-        if key in seen:
-            graph.remove((node, None, None))
-        else:
-            seen.add(key)
-
-
-def _owlrl_delta(g: Any, regimes: frozenset[str]) -> set[tuple[Any, Any, Any]]:
-    """The triples owlrl adds, as pyoxigraph triples (generalized ones dropped)."""
-    semantics = _resolve_owlrl_semantics(regimes)
-    import owlrl
-    from rdflib import Graph
-
-    before = bridge.rdflib_graph(g.triples(), decompose=True)
-    expanded = Graph()
-    for t in before:
-        expanded.add(t)
-    # One owlrl pass is not a closure (GitHub issue #97): repeat to a fixpoint.
-    for _ in range(8):
-        size = len(expanded)
-        owlrl.DeductiveClosure(semantics).expand(expanded)
-        _drop_repeated_error_messages(expanded)
-        if len(expanded) == size:
-            break
-    before_set = set(before)
-    return set(bridge.legal_rdf_triples(bridge.drop_decomposition((t for t in expanded if t not in before_set), bridge.decomposition_nodes(before))))
+    return starlayer_reasoning
 
 
 def _rdf_delta(g: Any) -> set[tuple[Any, Any, Any]]:
@@ -166,21 +94,14 @@ def _rdf_delta(g: Any) -> set[tuple[Any, Any, Any]]:
 def _owl_direct_delta(g: Any, engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:
     if engine not in ("hermit", "rustdl"):
         raise ValueError(f"Unsupported engine {engine!r}; expected one of ['hermit', 'rustdl']")
-    if engine == "hermit":
-        from starlayer.graph.entailment import owl_dl
-
-        classify = owl_dl.classify_owl_dl
-    else:
-        from starlayer.graph.entailment import owl_dl_rustdl
-
-        classify = owl_dl_rustdl.classify_owl_dl_rustdl
-    _before, delta = classify(bridge.rdflib_graph(g.triples(), decompose=True), timeout=timeout)
-    return set(bridge.legal_rdf_triples(delta)) - set(g.triples())
+    return _reasoning().owl_direct_delta(g.triples(), engine=engine, timeout=timeout)
 
 
 def _delta_for(g: Any, regimes: frozenset[str], engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:
     if regimes == frozenset({OWL_DIRECT_REGIME}):
         return _owl_direct_delta(g, engine, timeout)
+    if OWL_DIRECT_REGIME in regimes:
+        raise ValueError(f"Unsupported entailment regime combination {sorted(regimes)!r}: OWL-Direct cannot be combined with another regime.")
     delta: set = set()
     if RDF_REGIME in regimes:
         delta |= _rdf_delta(g)
@@ -188,7 +109,7 @@ def _delta_for(g: Any, regimes: frozenset[str], engine: str, timeout: Any) -> se
     if rest == {RDFS_REGIME}:
         delta |= rdfs_delta(g.triples())
     elif rest:
-        delta |= _owlrl_delta(g, rest)
+        delta |= _reasoning().owl_rl_delta(g.triples(), rdfs=RDFS_REGIME in rest, owl_rl=OWL_RL_REGIME in rest)
     return delta
 
 

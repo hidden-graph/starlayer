@@ -10,7 +10,7 @@ A monorepo: `packages/starlayer/` is the library (its `pyproject.toml`, source i
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e "packages/starlayer[test]"
+pip install -e "packages/starlayer-reasoning" -e "packages/starlayer[test]"
 pip install ruff
 ```
 

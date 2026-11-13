@@ -12,7 +12,7 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 The whole store. ``default_union`` (default True) makes ``triples`` / ``len`` / ``iter`` / SPARQL's default graph the
 union of all graphs, as the engine's graph view does; False restricts them to the default graph (rdflib's ``Dataset``).
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L956-L1161)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L959-L1161)
 
 ---
 
@@ -93,7 +93,7 @@ named graphs too, prefixes, ``default_union``) or from a plain graph (its triple
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L981-L990)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L984-L990)
 
 ---
 
@@ -327,7 +327,7 @@ collapse). It is a copy: it can be queried or compared on its own.
 One graph of a store: the default graph (``identifier=None``) or the named graph ``identifier`` (a ``NamedNode``,
 ``BlankNode``, or an IRI string).
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L843-L953)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L849-L956)
 
 ---
 
@@ -342,7 +342,7 @@ Remove every triple of this graph only; other graphs of the store are untouched.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L924-L928)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L927-L931)
 
 ---
 
@@ -358,7 +358,7 @@ An independent in-memory copy of this graph (same identifier, own copy of the pr
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L936-L943)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L939-L946)
 
 ---
 
@@ -381,7 +381,7 @@ For an rdflib dataset's named graphs use ``StarLayerDataset.from_rdflib``.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L867-L880)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L873-L883)
 
 ---
 
@@ -396,7 +396,7 @@ The name of the graph this view is bound to.
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L883-L885)
+**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L886-L888)
 
 ---
 
@@ -407,7 +407,7 @@ A SPARQL query, prepared once, bound with the options
 ``StarLayerGraph.query()`` otherwise takes per call - run it against as
 many graphs as you like via :meth:`run`.
 
-**Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L31-L142)
+**Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L31-L141)
 
 ---
 
@@ -431,7 +431,7 @@ changed.
 
 **Returns:** `Any` - Whatever ``graph.query()`` itself returns for this query.
 
-**Source:** [starlayer.sparql.star_query.StarQuery.run](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L86-L142)
+**Source:** [starlayer.sparql.star_query.StarQuery.run](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L86-L141)
 
 ---
 
@@ -726,39 +726,6 @@ section 7.1, "Dataset Poisoning": implementations MUST terminate early with an e
 
 ---
 
-<a id="entity-starlayer-graph-model-dirlangstring-DirLangString"></a>
-### `DirLangString`  _(class)_
-
-An RDF 1.2 directional language-tagged string literal.
-
-Value-typed: two instances with the same (value, language, direction) are
-equal and have the same hash. Per RDF 1.2 Concepts sec 3.4.1, a language
-tag's case does not participate in the abstract syntax - it is folded to
-lowercase here, mirroring rdflib.Literal's existing behaviour for lang=.
-
-**Source:** [starlayer.graph.model.dirlangstring.DirLangString](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/model/dirlangstring.py#L21-L75)
-
----
-
-<a id="entity-starlayer-graph-model-dirlangstring-DirLangString-n3"></a>
-### `DirLangString.n3`  _(method)_
-
-```python
-def n3(self, namespace_manager=None) -> str
-```
-
-Returns the N3/Turtle-1.2 (``"text"@lang--dir``) text form.
-
-**Parameters:**
-
-- `namespace_manager: None = None`
-
-**Returns:** `str`
-
-**Source:** [starlayer.graph.model.dirlangstring.DirLangString.n3](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/model/dirlangstring.py#L65-L67)
-
----
-
 <a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint"></a>
 ### `Endpoint`  _(class)_
 
@@ -902,40 +869,6 @@ no answer).
 A namespace of pyoxigraph ``NamedNode`` constants: ``SH.minCount``, ``SH["class"]``. Terms are created once.
 
 **Source:** [starlayer.graph.namespaces.Namespace](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/namespaces.py#L12-L37)
-
----
-
-<a id="entity-starlayer-graph-model-triple-TripleTerm"></a>
-### `TripleTerm`  _(class)_
-
-An RDF 1.2 triple term — a triple used as a resource.
-
-Value-typed: two instances with the same (s, p, o) are equal and have the
-same hash. A plain Python 3-tuple is coerced to TripleTerm wherever the
-StarLayerGraph API expects a node.
-
-_namespace_manager is set by StarLayerGraph._restore() when returning a
-TripleTerm from a query result so that __str__ can emit prefixed names.
-It is excluded from equality and hashing.
-
-**Source:** [starlayer.graph.model.triple.TripleTerm](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/model/triple.py#L30-L140)
-
----
-
-<a id="entity-starlayer-graph-model-triple-TripleTerm-n3"></a>
-### `TripleTerm.n3`  _(method)_
-
-```python
-def n3(self, namespace_manager=None)
-```
-
-Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form.
-
-**Parameters:**
-
-- `namespace_manager: None = None`
-
-**Source:** [starlayer.graph.model.triple.TripleTerm.n3](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/model/triple.py#L115-L118)
 
 ---
 
@@ -1423,7 +1356,7 @@ are all pyoxigraph terms (no rdflib needed), and as rdflib / StarLayer terms as 
 
 **Returns:** `list`
 
-**Source:** [starlayer.shacl.node_expression_api.evaluate_expression](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L19-L61)
+**Source:** [starlayer.shacl.node_expression_api.evaluate_expression](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L19-L54)
 
 ---
 
@@ -1523,7 +1456,7 @@ The SPARQL functions and operators a node expression can call (``[ sparql:concat
 
 **Returns:** `list[str]`
 
-**Source:** [starlayer.shacl.node_expression_api.node_expression_functions](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L64-L68)
+**Source:** [starlayer.shacl.node_expression_api.node_expression_functions](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L57-L61)
 
 ---
 
@@ -1538,7 +1471,7 @@ The SHACL node expression operators (``shnex:filterShape``, ``shnex:pathValues``
 
 **Returns:** `list[str]`
 
-**Source:** [starlayer.shacl.node_expression_api.node_expression_operators](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L71-L75)
+**Source:** [starlayer.shacl.node_expression_api.node_expression_operators](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L64-L68)
 
 ---
 

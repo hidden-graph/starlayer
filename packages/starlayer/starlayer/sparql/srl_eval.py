@@ -769,16 +769,15 @@ _NOW: ContextVar = ContextVar("srl_now", default=None)
 def flatten_dataset(graph):
     """``graph`` as an ``StarLayerGraph`` the rules are evaluated on: an ``StarLayerGraph`` as it is; an ``StarLayerDataset`` / ``Store`` as the
     union of its graphs. An rdflib graph is a ``TypeError`` (convert it with ``StarLayerGraph.from_rdflib``). Nothing here changes ``graph``."""
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
     from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.oxgraph.inputs import as_oxigraph
     from starlayer.shacl_engine.graphs import new_graph
 
     if isinstance(graph, StarLayerGraph):
         return graph
-    if not _ox.is_oxigraph_input(graph):
-        raise TypeError(f"an SRL rule set runs on a StarLayerGraph, StarLayerDataset or Store, not {type(graph).__name__} (convert an rdflib graph with StarLayerGraph.from_rdflib)")
+    graph = as_oxigraph(graph, "base graph")
     flat = new_graph()
-    # a Store yields quads; the union of its graphs keeps each triple once, whatever graph it is in
+    # a dataset yields quads; the union of its graphs keeps each triple once, whatever graph it is in
     flat.extend({(item[0], item[1], item[2]) for item in graph})
     return flat
 

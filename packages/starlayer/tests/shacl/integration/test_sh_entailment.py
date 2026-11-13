@@ -13,7 +13,7 @@ to take effect - a real, not vacuous, exercise of this feature.
 """
 
 import pytest
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, target_nodes
 from starlayer.shacl_engine.terms import to_engine

@@ -6,9 +6,10 @@ members = ["packages/*"]
 
 [tool.uv.sources]
 starlayer = { workspace = true }
+starlayer-reasoning = { workspace = true }
 
 [tool.pytest.ini_options]
-testpaths = ["packages/starlayer/tests"]
+testpaths = ["packages/starlayer/tests", "packages/starlayer-reasoning/tests"]
 # Lets tests import the build-time modules in scripts/ (build_meta_shapes.py) and the code-KG tooling in tools/kg (the `codekg` package) directly.
 pythonpath = ["scripts", "tools/kg"]
 markers = [

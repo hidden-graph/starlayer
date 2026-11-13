@@ -9,8 +9,8 @@ import warnings
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import ENTAILMENT
-from starlayer.graph.entailment import _timeout
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer_reasoning import _timeout
 
 warnings.simplefilter("ignore")
 
@@ -174,7 +174,7 @@ def test_no_timeout_still_detects_a_dead_child():  # bug 14
 
 
 def test_native_is_not_promised_by_the_regime_docs():  # bug 11
-    from starlayer.graph.entailment import entailment_regimes
+    from starlayer.graph import entailment as entailment_regimes
 
     with pytest.raises(NotImplementedError):
         StarLayerGraph().query("ASK {}", entailment="native")

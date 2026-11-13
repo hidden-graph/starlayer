@@ -95,7 +95,7 @@ def test_a_node_that_holds_prefix_declarations_is_inferred_to_be_a_prefix_set():
 
 
 def test_an_entailment_nothing_provides_is_a_warning_and_the_regimes_it_provides_are_not():
-    from starlayer.graph.entailment.entailment_regimes import SUPPORTED_REGIMES
+    from starlayer.graph.entailment import SUPPORTED_REGIMES
 
     def about_entailment(turtle):
         return [m for m in messages(turtle) if "entailment" in m]

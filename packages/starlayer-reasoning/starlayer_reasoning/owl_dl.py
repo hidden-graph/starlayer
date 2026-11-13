@@ -1,5 +1,5 @@
 """
-starlayer.graph.entailment.owl_dl
+starlayer_reasoning.owl_dl
 
 OWL 2 Direct Semantics reasoning via owlready2 + Java HermiT - a genuinely
 different computational model (tableau-based DL reasoning, with real
@@ -15,11 +15,11 @@ reasoner is sufficient to cover this regime. sync_reasoner_pellet() is
 never called anywhere in this module.
 
 engine="hermit" (this module) is one of two engines infer(entailment=ENTAILMENT['OWL-Direct'])
-can dispatch to - see starlayer.graph.entailment.owl_dl_rustdl for the other
+can dispatch to - see starlayer_reasoning.owl_dl_rustdl for the other
 (engine="rustdl": no JVM, but sound-not-provably-complete rather than
 sound-and-complete - a real, permanent gap against this module's own
 guarantee, not a bug in either). Both engines' Python packages are optional
-extras (`pip install starlayer[hermit]` / `[rustdl]`), not core
+extras (`pip install starlayer-reasoning[hermit]` / `[rustdl]`), not core
 dependencies - `owlready2` used to be core, moved to opt-in alongside
 `rustdl` for a consistent story across both rather than one being special.
 A real Java runtime on PATH is the one prerequisite `pip` alone still can't
@@ -29,9 +29,6 @@ needs a real JVM at runtime to run it - see `_require_java()` below.
 
 from __future__ import annotations
 
-import starlayer._needs_rdflib  # noqa: F401  (a clear ImportError when rdflib is not installed)
-
-# isort: split
 import shutil
 import tempfile
 from pathlib import Path
@@ -39,7 +36,7 @@ from pathlib import Path
 from rdflib import OWL, RDF, RDFS, BNode, Graph, Literal, URIRef
 from rdflib.namespace import XSD
 
-from starlayer.graph.entailment import _timeout
+from starlayer_reasoning import _timeout
 
 
 class InconsistentOntologyError(RuntimeError):
@@ -67,7 +64,7 @@ def _require_owlready2():
         raise RuntimeError(
             "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='hermit') "
             "requires the optional owlready2 package - install it with "
-            "`pip install starlayer[hermit]` (or `pip install "
+            "`pip install starlayer-reasoning[hermit]` (or `pip install "
             "owlready2` directly), then retry."
         ) from exc
     return owlready2
@@ -158,7 +155,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     _require_owlready2()
     _require_java()
 
-    from starlayer.graph.oxgraph._rdflib_bridge import decompose as _decompose
+    from starlayer_reasoning.rdflib_bridge import decompose as _decompose
     before = _decompose(graph)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -242,7 +239,7 @@ def _delta_from_result(expanded: Graph, before: Graph) -> Graph:
     triples about the user's own terms kept. A triple is not new when ``before`` holds it, plain and xsd:string literals
     being the same term. Blank nodes the reasoner invented (renamed class expressions) and the triple-term placeholders and
     their internal namespace are no part of the user's data."""
-    from starlayer.graph.oxgraph._rdflib_bridge import (
+    from starlayer_reasoning.rdflib_bridge import (
         decomposition_nodes,
         drop_decomposition,
     )

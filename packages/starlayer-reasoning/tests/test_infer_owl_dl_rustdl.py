@@ -4,7 +4,7 @@ tests/unit/test_infer_owl_dl_rustdl.py
 Coverage for StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl") -
 OWL 2 DL reasoning via RustDL, the second engine alongside engine="hermit"
 (test_infer_owl_dl.py). `rustdl` is an optional extra of this package
-(`pip install starlayer[rustdl]`), not a core dependency - the
+(`pip install starlayer-reasoning[rustdl]`), not a core dependency - the
 `rustdl_extra` skip below is a real "not opted into this engine" skip,
 mirroring test_infer_owl_dl.py's own skip for `[hermit]`. No JVM/Java
 skip condition here (RustDL's entire appeal is not needing one) - that's
@@ -28,7 +28,7 @@ engine="hermit", not a bug to chase down here.
 
 import pytest
 from rdflib import RDF, Namespace
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 
 try:
@@ -40,7 +40,7 @@ except ImportError:
 rustdl_extra = pytest.mark.skipif(
     not _RUSTDL_AVAILABLE,
     reason='rustdl not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer[rustdl]',
+           'install with: pip install starlayer-reasoning[rustdl]',
 )
 
 EX = Namespace("http://example.org/")
@@ -106,7 +106,7 @@ class TestOwlDlRustdlSubClassClosure:
 @rustdl_extra
 class TestOwlDlRustdlInconsistency:
     def test_inconsistent_ontology_raises(self):
-        from starlayer.graph.entailment.owl_dl import InconsistentOntologyError
+        from starlayer_reasoning.owl_dl import InconsistentOntologyError
 
         g = StarLayerGraph()
         g.bind("ex", EX)
@@ -229,7 +229,7 @@ class TestOwlDlRustdlTimeout:
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
+        from starlayer_reasoning._timeout import ReasoningTimeoutError
 
         with pytest.raises(ReasoningTimeoutError):
             self._simple_graph().infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl", timeout=0.001)
@@ -280,8 +280,8 @@ def test_missing_rustdl_raises_actionable_error(monkeypatch):
     """
     import sys
 
-    from starlayer.graph.entailment import owl_dl_rustdl
+    from starlayer_reasoning import owl_dl_rustdl
 
     monkeypatch.setitem(sys.modules, "rustdl", None)
-    with pytest.raises(RuntimeError, match=r"starlayer\[rustdl\]"):
+    with pytest.raises(RuntimeError, match=r"starlayer-reasoning\[rustdl\]"):
         owl_dl_rustdl._require_rustdl()

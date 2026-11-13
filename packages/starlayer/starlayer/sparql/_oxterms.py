@@ -13,9 +13,9 @@ from urllib.parse import quote, unquote
 import pyoxigraph as ox
 
 from starlayer.shacl_engine.terms import (
-    _INVALID_BNODE_PREFIX,
-    _INVALID_IRI_PREFIX,
-    _INVALID_LANG_PREFIX,
+    INVALID_BNODE_PREFIX,
+    INVALID_IRI_PREFIX,
+    INVALID_LANG_PREFIX,
     NS,
     RDF,
     XSD,
@@ -45,14 +45,14 @@ def iri(text: str) -> ox.NamedNode:
     try:
         return ox.NamedNode(text)
     except ValueError:
-        return ox.NamedNode(_INVALID_IRI_PREFIX + quote(text, safe=""))
+        return ox.NamedNode(INVALID_IRI_PREFIX + quote(text, safe=""))
 
 
 def iri_text(node: ox.NamedNode) -> str:
     """The text an IRI term was written with (the stand-in taken apart)."""
     value = node.value
-    if value.startswith(_INVALID_IRI_PREFIX):
-        return unquote(value[len(_INVALID_IRI_PREFIX):])
+    if value.startswith(INVALID_IRI_PREFIX):
+        return unquote(value[len(INVALID_IRI_PREFIX):])
     return value
 
 
@@ -63,14 +63,14 @@ def bnode(label: str | None = None) -> ox.BlankNode:
     try:
         return ox.BlankNode(label)
     except ValueError:
-        return ox.BlankNode(_INVALID_BNODE_PREFIX + label.encode("utf-8", "surrogatepass").hex())
+        return ox.BlankNode(INVALID_BNODE_PREFIX + label.encode("utf-8", "surrogatepass").hex())
 
 
 def bnode_label(node: ox.BlankNode) -> str:
     """The label of a blank node, decoding the stand-in that ``bnode`` makes for a label pyoxigraph rejects."""
     value = node.value
-    if value.startswith(_INVALID_BNODE_PREFIX):
-        return bytes.fromhex(value[len(_INVALID_BNODE_PREFIX):]).decode("utf-8", "surrogatepass")
+    if value.startswith(INVALID_BNODE_PREFIX):
+        return bytes.fromhex(value[len(INVALID_BNODE_PREFIX):]).decode("utf-8", "surrogatepass")
     return value
 
 
@@ -89,7 +89,7 @@ def language_literal(lexical: str, tag: str) -> ox.Literal:
     try:
         return ox.Literal(lexical, language=tag)
     except ValueError:
-        return ox.Literal(lexical, datatype=ox.NamedNode(_INVALID_LANG_PREFIX + quote(tag, safe="")))
+        return ox.Literal(lexical, datatype=ox.NamedNode(INVALID_LANG_PREFIX + quote(tag, safe="")))
 
 
 def directional(lexical: str, tag: str, direction: str) -> ox.Literal:
@@ -97,7 +97,7 @@ def directional(lexical: str, tag: str, direction: str) -> ox.Literal:
     try:
         return ox.Literal(lexical, language=tag, direction=_DIRECTION[direction])
     except ValueError:
-        return ox.Literal(lexical, datatype=ox.NamedNode(_INVALID_LANG_PREFIX + quote(f"{tag}--{direction}", safe="")))
+        return ox.Literal(lexical, datatype=ox.NamedNode(INVALID_LANG_PREFIX + quote(f"{tag}--{direction}", safe="")))
 
 
 def language_of(literal: ox.Literal) -> str | None:
@@ -105,8 +105,8 @@ def language_of(literal: ox.Literal) -> str | None:
     if literal.language is not None:
         return literal.language + (("--ltr" if literal.direction == ox.BaseDirection.LTR else "--rtl") if literal.direction is not None else "")
     datatype = literal.datatype.value
-    if datatype.startswith(_INVALID_LANG_PREFIX):
-        return unquote(datatype[len(_INVALID_LANG_PREFIX):])
+    if datatype.startswith(INVALID_LANG_PREFIX):
+        return unquote(datatype[len(INVALID_LANG_PREFIX):])
     return None
 
 

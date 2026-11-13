@@ -1,6 +1,6 @@
 """The core surface works with rdflib absent; the rdflib-only features say so clearly.
 
-rdflib is an optional extra (``pip install starlayer[rdflib]``). Each test runs a child interpreter that sets
+rdflib lives in the ``starlayer-reasoning`` package. Each test runs a child interpreter that sets
 ``sys.modules["rdflib"] = None`` first (so ``import rdflib`` and any ``from rdflib...`` fail), then imports and exercises the
 core: graphs, parse and serialize, SPARQL query and update, SHACL validation and rules. ``test_nothing_in_the_core_imports_rdflib``
 also checks that no rdflib module got loaded.
@@ -37,7 +37,7 @@ def test_imports():
     ok("""
         import starlayer, starlayer.graph, starlayer.shacl, starlayer.sparql, starlayer.starontology
         from starlayer import StarLayerGraph, StarLayerDataset, StarShaclSchema, StarQuery
-        from starlayer.graph import TripleTerm, DirLangString, ENTAILMENT, isomorphic, interop, setops, rdfc_native
+        from starlayer.graph import ENTAILMENT, isomorphic, interop, setops, rdfc_native
         from starlayer.shacl import validate, apply_rules, evaluate, extract_subgraph
         import starlayer.conformance
     """)
@@ -417,7 +417,7 @@ def test_srl_and_the_embedded_query_check_load_no_rdflib_module():
     assert result.stdout.strip() == "[]", f"SRL loaded rdflib: {result.stdout.strip()}"
 
 
-def test_srl_on_a_graph_that_is_not_a_starlayer_graph_says_how_to_convert():
+def test_srl_on_a_graph_that_is_not_a_starlayer_graph_is_a_type_error():
     result = run_blocked("""
         from starlayer.sparql import srl
         class Foreign:  # not an Oxigraph graph
@@ -426,7 +426,7 @@ def test_srl_on_a_graph_that_is_not_a_starlayer_graph_says_how_to_convert():
         srl.parse_ruleset("RULE { ?x <http://e/p> ?y } WHERE { ?x <http://e/q> ?y }").infer(Foreign())
     """)
     assert result.returncode != 0
-    assert "from_rdflib" in result.stderr
+    assert "must be a StarLayerGraph" in result.stderr
 
 
 def test_the_sqe_text_path_loads_no_rdflib_module():
@@ -459,4 +459,4 @@ def test_an_rdflib_feature_raises_a_clear_import_error(code):
     result = run_blocked(code)
     assert result.returncode != 0
     assert "ImportError" in result.stderr
-    assert "starlayer[rdflib]" in result.stderr, result.stderr[-1500:]
+    assert "pip install starlayer-reasoning" in result.stderr, result.stderr[-1500:]

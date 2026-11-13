@@ -3,14 +3,14 @@
 starlayer is a platform for building Python semantic apps on the RDF 1.2 / SPARQL 1.2 / SHACL 1.2 drafts. Read this file first; it is short on purpose.
 
 ## Layout
-- `packages/starlayer/starlayer/` is the one installed package (its `pyproject.toml` is next to it in `packages/starlayer/`):
+- `packages/starlayer/starlayer/` is the library (its `pyproject.toml` is next to it in `packages/starlayer/`):
   `graph/` (`StarLayerGraph` / `StarLayerDataset` over Oxigraph, interop, set operations, Manchester syntax), `sparql/` (SPARQL 1.2, `sqe:` query trees, SRL rules), `shacl/` (SHACL 1.2 validation, rules, UI widget selection),
-  `starontology/` (bundled ontologies and shapes, as `.ttl` files in a folder per vocabulary), and `conformance.py`. The code-KG tooling is outside the package, in `tools/kg/codekg/` (repo-only).
+  `starontology/` (bundled ontologies and shapes, as `.ttl` files in a folder per vocabulary), and `conformance.py`. The code-KG tooling is outside the package, in `tools/kg/codekg/` (repo-only). `packages/starlayer-reasoning/` is the plugin that holds everything needing rdflib or a reasoner (the rdflib conversion, OWL-RL, OWL-DL); `packages/starlayer-kg/` is the code-KG data package.
 - Tests: `packages/starlayer/tests/{graph,sparql,shacl,starontology,kg}/`. Guides: `docs/guides/*.ipynb` (index: `docs/guides/README.md`). Build scripts: `scripts/`. What changed in the RDF, SPARQL and SHACL drafts and their test suites since we last looked: `python scripts/check_spec_drift.py` (records in `docs/working/spec-dates.json`).
 - Each of `graph/`, `sparql/`, `shacl/` has a `CLAUDE.md` starting with "Rules that bite". Read that block, not the design history below it.
 
 ## Set up, test, lint
-- `pip install -e "packages/starlayer[test]"` from the repo root, or `uv sync --all-packages` (extras: `rdflib`, `reasoning`, `hermit`, `rustdl`, `benchmark`; see `packages/starlayer/pyproject.toml`).
+- `pip install -e "packages/starlayer[test]"` from the repo root, or `uv sync --all-packages` (extras: `reasoning`, `notebooks`, `benchmark`; see `packages/starlayer/pyproject.toml`). `starlayer-reasoning` (`packages/starlayer-reasoning`) holds everything that needs rdflib or a reasoner; the core imports none of them (`tests/test_no_rdflib_import.py`).
 - `cd packages/starlayer && pytest tests -m "not integration"` is the fast tier. Integration tests need local Oxigraph/Fuseki servers and skip without them.
 - Test one area alone: `pytest packages/starlayer/tests -m shacl` (areas: graph, shacl, sparql, starontology, kg). Checks of committed data that CI runs anyway are in `--deferred`; run it before a push.
 - Opt-in groups (deselected by default): `--store-matrix`, `--srl-stratification`, `--sqe-coverage`, `--manchester-conformance`, `--codekg-queries` (see `packages/starlayer/tests/conftest.py`).

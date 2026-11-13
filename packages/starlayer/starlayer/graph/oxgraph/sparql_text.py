@@ -87,7 +87,7 @@ def check_native_version_conformance(text: str) -> None:
     Args:
         text: The raw SPARQL query or update text to check.
     """
-    from starlayer.graph.model.conformance import (
+    from starlayer.graph.oxgraph.version_conformance import (
         SPARQL12ConformanceWarning,
         check_version_conformance,
     )

@@ -1,7 +1,7 @@
 """``OxigraphGraph``: a ``GraphView`` straight over a ``pyoxigraph.Store`` (no rdflib graph in between).
 
 Terms handed to and from the engine are pyoxigraph terms (``engine_terms = True``): the view returns the store's terms
-as they are, with no conversion. ``to_ox`` / ``from_ox`` only convert tuples and StarLayer's own term classes a caller passes in, and the reverse.
+as they are, with no conversion. ``to_ox`` converts the tuples a caller passes in (graph names, ``add``, pre-bindings).
 
 Known, parked limitations (oxigraph/oxigraph#526): Oxigraph normalizes literals on storage ("04"^^xsd:integer becomes
 "4", "1"^^xsd:boolean becomes "true", some ill-formed literals are rewritten or dropped), so ``preserves_lexical_forms``
@@ -27,7 +27,6 @@ import pyoxigraph as ox
 
 from starlayer.graph.oxgraph._detached import detached
 from starlayer.shacl_engine.terms import (
-    from_engine,
     to_engine,
 )
 
@@ -36,10 +35,9 @@ DEFAULT = object()
 
 
 
-# Terms handed to and from the engine are pyoxigraph terms: the view returns store terms as they are. ``to_ox`` /
-# ``from_ox`` convert the tuples and StarLayer value classes a caller may pass (graph names, ``add``, pre-bindings); rdflib terms are refused.
+# Terms handed to and from the engine are pyoxigraph terms: the view returns store terms as they are. ``to_ox``
+# converts the tuples a caller may pass (graph names, ``add``, pre-bindings); rdflib terms are refused.
 to_ox = to_engine
-from_ox = from_engine
 
 
 _WORD = re.compile(r"[A-Za-z_]+")

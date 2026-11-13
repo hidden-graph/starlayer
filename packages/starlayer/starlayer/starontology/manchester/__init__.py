@@ -563,8 +563,6 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
     Returns:
         ``graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:Document`` tree.
     """
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
     if graph is None:
         from starlayer.graph.oxgraph.core import StarLayerGraph
 
@@ -573,19 +571,19 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
     if _holds_document(graph):
         raise ValueError("the graph already holds a manch:Document: a graph holds one Manchester syntax tree, parse into a fresh graph")
     graph.bind("manch", str(MANCH))
-    _ox.merge_into(graph, tree)
+    graph.extend(list(tree))  # triples only: no prefixes are copied
     return graph
 
 
 def _holds_document(graph: Any) -> bool:
     """True if ``graph`` (a ``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``) has a ``manch:Document``."""
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
     from starlayer.graph.oxgraph.core import as_store
+    from starlayer.graph.oxgraph.inputs import is_oxigraph_dataset, is_oxigraph_input
 
-    if _ox.is_oxigraph_dataset(graph):
+    if is_oxigraph_dataset(graph):
         return any(True for _ in as_store(graph).quads_for_pattern(
             None, RDF.type, MANCH.Document, None))
-    if _ox.is_oxigraph_input(graph):
+    if is_oxigraph_input(graph):
         return next(iter(graph.subjects(RDF.type, MANCH.Document)), None) is not None
     raise TypeError(f"expected a StarLayerGraph, StarLayerDataset or pyoxigraph Store, not {type(graph).__name__}")
 
@@ -1165,9 +1163,9 @@ def manchester_tree_to_owl(graph: Any) -> Any:
 
 def _as_graph(graph: Any) -> Any:
     """A ``StarLayerGraph`` for any graph a caller may pass (a dataset gives its default graph; an rdflib graph is a ``TypeError``)."""
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+    from starlayer.graph.oxgraph.inputs import as_oxigraph
 
-    graph = _ox.to_oxgraph(graph)
+    graph = as_oxigraph(graph)
     return graph.to_graph() if hasattr(graph, "to_graph") else graph
 
 

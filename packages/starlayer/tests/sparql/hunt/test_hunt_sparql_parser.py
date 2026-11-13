@@ -114,7 +114,7 @@ def test_star_query_run_rejects_an_unknown_override():
 
 def test_entailment_rewrite_of_very_deep_nesting_is_a_rewrite_error():
     from starlayer.graph import StarLayerGraph
-    from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+    from starlayer.graph.entailment import ENTAILMENT
     from starlayer.sparql.sqe.entailment import EntailmentRewriteError
 
     depth = 400

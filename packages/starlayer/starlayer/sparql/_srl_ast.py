@@ -496,8 +496,6 @@ class RuleSet:
             triples plus a validation of them), reused rather than
             duplicated.
         """
-        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
         from . import srl_eval
 
         original_graph = base_graph
@@ -522,11 +520,9 @@ class RuleSet:
         evaluation.extend(list(base_graph))
         evaluation.extend(list(inferred))
         validation = resolved_schema.validate(data_graph=evaluation)
-        converted = _ox.convert_result(
-            RulesResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation), original_graph
-        )
-        self._with_own_prefixes(converted.inferred_graph)
-        return converted
+        result = RulesResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation)
+        self._with_own_prefixes(result.inferred_graph)
+        return result
 
     @staticmethod
     def _with_prefixes_of(inferred: Any, original: Any) -> Any:

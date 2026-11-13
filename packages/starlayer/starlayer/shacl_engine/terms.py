@@ -1,13 +1,9 @@
 """The engine's term model: pyoxigraph ``NamedNode`` / ``BlankNode`` / ``Literal`` / ``Triple`` (one-to-one with Rust
-``oxrdf``), plus the adapters at the boundary with rdflib / StarLayer terms.
+``oxrdf``), the same terms the callers' graphs and the report graph hold.
 
-Inside the engine every term is a pyoxigraph term. Literals keep exactly the lexical form and datatype they were built
-with; value-space logic lives in ``xsd_values``. A language-tagged literal with a base direction is an ``ox.Literal`` with
-``direction`` set; a triple term is an ``ox.Triple``. Outside the engine (callers' graphs, the report graph, query-layer
-results) terms are rdflib ``URIRef`` / ``BNode`` / ``Literal`` and ``starlayer.graph.model`` ``TripleTerm`` /
-``DirLangString``; ``to_engine`` / ``from_engine`` convert, preserving lexical forms (``str(literal)`` as the parser
-stored it on the way in, ``Literal(..., normalize=False)`` on the way out).
-"""
+Literals keep exactly the lexical form and datatype they were built with; value-space logic lives in ``xsd_values``. A
+language-tagged literal with a base direction is an ``ox.Literal`` with ``direction`` set; a triple term is an ``ox.Triple``.
+``to_engine`` checks a caller's term (and says how to convert an rdflib one), ``engine_view`` a caller's graph."""
 
 from __future__ import annotations
 
@@ -75,10 +71,10 @@ def text(term: Any) -> str:
     return str(term)  # str-ok: a plain value (str, int) that is not a term
 
 
-_STAND_IN_IRI = re.compile(r"urn:starlayer:invalid-iri:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)")  # see ``_INVALID_IRI_PREFIX``
+_STAND_IN_IRI = re.compile(r"urn:starlayer:invalid-iri:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)")  # see ``INVALID_IRI_PREFIX``
 
 
-_STAND_IN_LANG = re.compile(r", datatype=<urn:starlayer:invalid-lang:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)>")  # see ``_INVALID_LANG_PREFIX``
+_STAND_IN_LANG = re.compile(r", datatype=<urn:starlayer:invalid-lang:((?:[A-Za-z0-9_.~-]|%[0-9A-Fa-f]{2})*)>")  # see ``INVALID_LANG_PREFIX``
 
 
 def unmask(message: str) -> str:
@@ -125,14 +121,12 @@ def integer(value: int) -> ox.Literal:
 TRUE = boolean(True)
 FALSE = boolean(False)
 
-# ---- foreign terms <-> engine (the rdflib code lives in graph/oxgraph/_rdflib_bridge.py) -------------------------------------------------------------------------------------
-
-_VARIABLE_PREFIX = "urn:starlayer:variable:"  # an rdflib ``Variable`` crosses the boundary as this IRI
+# ---- stand-ins -----------------------------------------------------------------------------------------------------------------
 
 # The stand-ins ``sparql/_oxterms.py`` makes for query text pyoxigraph terms cannot hold (a relative IRI, a bad blank node label or language tag)
-_INVALID_IRI_PREFIX = "urn:starlayer:invalid-iri:"  # + percent-encoded text: an IRI term (also as a literal datatype)
-_INVALID_LANG_PREFIX = "urn:starlayer:invalid-lang:"  # + percent-encoded tag: the datatype of a literal with a bad tag
-_INVALID_BNODE_PREFIX = "starlayer-invalid-bnode-"  # + hex of the UTF-8 id
+INVALID_IRI_PREFIX = "urn:starlayer:invalid-iri:"  # + percent-encoded text: an IRI term (also as a literal datatype)
+INVALID_LANG_PREFIX = "urn:starlayer:invalid-lang:"  # + percent-encoded tag: the datatype of a literal with a bad tag
+INVALID_BNODE_PREFIX = "starlayer-invalid-bnode-"  # + hex of the UTF-8 id
 
 
 class StarLayerFidelityWarning(UserWarning):
@@ -140,26 +134,14 @@ class StarLayerFidelityWarning(UserWarning):
     ``fidelity.py``). Filter it with ``warnings.simplefilter("ignore", StarLayerFidelityWarning)``. StarLayer issue #190."""
 
 
-def _bridge() -> Any:
-    from starlayer.graph.oxgraph import _rdflib_bridge
-
-    return _rdflib_bridge
-
-
 def to_engine(term: Any) -> Any:
-    """A term as a pyoxigraph term. ``None`` stays ``None``; a pyoxigraph term is returned as it is; a 3-tuple is a triple term. A
-    ``TripleTerm`` or ``DirLangString`` (StarLayer's own value classes, which ``to_rdflib`` produces) is converted. Anything else,
-    an rdflib term above all, is a ``TypeError``: StarLayer takes pyoxigraph terms (``pyoxigraph.NamedNode``, ``Namespace`` from
-    ``starlayer.graph``); a whole rdflib graph is converted explicitly with ``StarLayerGraph.from_rdflib()``."""
+    """A term as a pyoxigraph term. ``None`` stays ``None``; a pyoxigraph term is returned as it is; a 3-tuple is a triple term.
+    Anything else, an rdflib term above all, is a ``TypeError``: StarLayer takes pyoxigraph terms (``pyoxigraph.NamedNode``,
+    ``Namespace`` from ``starlayer.graph``); a whole rdflib graph is converted explicitly with ``StarLayerGraph.from_rdflib()``."""
     if term is None or isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
         return term
     if type(term) is tuple and len(term) == 3:
         return ox.Triple(*(to_engine(t) for t in term))
-    from starlayer.graph.model.dirlangstring import DirLangString
-    from starlayer.graph.model.triple import TripleTerm
-
-    if isinstance(term, (TripleTerm, DirLangString)):
-        return _bridge().foreign_to_engine(term)
     module = type(term).__module__.split(".")[0]
     hint = (
         f"an rdflib term ({type(term).__name__}) is not accepted: use a pyoxigraph term (pyoxigraph.NamedNode(...), "
@@ -168,19 +150,6 @@ def to_engine(term: Any) -> Any:
         else f"expected a pyoxigraph term (NamedNode, BlankNode, Literal or Triple), not {type(term).__name__}: {term!r}"
     )
     raise TypeError(hint)
-
-
-def from_engine(term: Any) -> Any:
-    """A pyoxigraph term as an rdflib / StarLayer term (the rdflib bridge); anything that is not a pyoxigraph term is returned
-    unchanged. Only for callers outside the engine that still speak rdflib terms."""
-    if not isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
-        return term
-    return _bridge().engine_to_foreign(term)
-
-
-def from_engine_triple(t: tuple[Any, Any, Any]) -> tuple[Any, Any, Any]:
-    """``from_engine`` applied to each position of a triple."""
-    return from_engine(t[0]), from_engine(t[1]), from_engine(t[2])
 
 
 def to_engine_triple(t: tuple[Any, Any, Any]) -> tuple[Any, Any, Any]:
@@ -196,20 +165,9 @@ def engine_view(graph: Any, where: str = "graph") -> Any:
         return graph
     if getattr(graph, "engine_terms", False):
         return _union_view(graph)
-    if _is_rdflib_graph(graph):
-        raise TypeError(
-            f"an rdflib graph ({type(graph).__name__}) is not accepted as the {where}: convert it with StarLayerGraph.from_rdflib(graph) "
-            "(StarLayerDataset.from_rdflib for a Dataset)"
-        )
-    return _bridge().to_oxgraph(graph, where)
+    from starlayer.graph.oxgraph.inputs import as_oxigraph
 
-
-def _is_rdflib_graph(graph: Any) -> bool:
-    """True for an rdflib ``Graph`` / ``Dataset`` (or a subclass), without importing rdflib when nothing has."""
-    import sys
-
-    rdflib = sys.modules.get("rdflib")
-    return rdflib is not None and isinstance(graph, rdflib.Graph)
+    return as_oxigraph(graph, where)
 
 
 def _union_view(graph: Any) -> Any:
@@ -221,11 +179,3 @@ def _union_view(graph: Any) -> Any:
     if isinstance(graph, StarLayerDataset) and not graph.default_union:
         return StarLayerDataset(store=graph.store, default_union=True, prefixes=dict(graph.prefixes))
     return graph
-
-
-def __getattr__(name: str) -> Any:
-    """Module-level lazy lookup of ``LegacyTermView``, which lives in the bridge and is imported only on first use."""
-    # ``LegacyTermView`` (an rdflib-term view of an engine graph) lives in the bridge
-    if name == "LegacyTermView":
-        return _bridge().LegacyTermView
-    raise AttributeError(name)

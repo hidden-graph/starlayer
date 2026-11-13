@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import NamedNode as URIRef
 from rdflib import Graph
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import (
     RulesResult,

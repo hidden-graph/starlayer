@@ -29,7 +29,7 @@ from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
 sys.path.insert(0, '.')
 from starlayer.graph import StarLayerGraph
-from starlayer.graph.model.triple import TripleTerm
+from starlayer_reasoning.model.triple import TripleTerm
 
 EX          = 'http://example.org/'
 RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')

@@ -70,7 +70,7 @@ def test_rules_entailment_among_other_values_runs_every_rule() -> None:
 
 
 def test_rules_entailment_combines_with_an_entailment_regime() -> None:
-    from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+    from starlayer.graph.entailment import ENTAILMENT
 
     shapes = StarLayerGraph()
     shapes.parse(

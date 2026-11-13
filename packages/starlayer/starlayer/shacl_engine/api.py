@@ -86,14 +86,7 @@ def _write_back(view: Any, original: Any) -> None:
     """``inplace=True``: add the triples of ``view`` (the data plus the inferred and entailed triples) that ``original`` lacks."""
     triples = list(view.triples((None, None, None)))
     original = engine_view(original) if isinstance(original, ox.Store) else original
-    if getattr(original, "engine_terms", False):
-        original.extend([t for t in triples if t not in original])
-        return
-    from starlayer.shacl_engine.terms import from_engine_triple
-
-    for triple in map(from_engine_triple, triples):  # a plain rdflib / StarLayerGraph: the caller's term model
-        if triple not in original:
-            original.add(triple)
+    original.extend([t for t in triples if t not in original])
 
 
 def validate(

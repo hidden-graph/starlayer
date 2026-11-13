@@ -20,8 +20,8 @@ import pytest
 from starlayer.graph import isomorphic
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.sparql_text import strip_version_directive
-from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text
+from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_engine
 from tests.sparql.w3c_sparql12.harness import (
     bindings_match,
     load_index,

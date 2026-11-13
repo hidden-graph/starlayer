@@ -6,7 +6,7 @@ import warnings
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import isomorphic
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from tests.terms import OWL, RDF
 

@@ -36,7 +36,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install starlayer
-        run: pip install -e "packages/starlayer[test]"
+        run: pip install -e packages/starlayer-reasoning -e "packages/starlayer[test]"
 
       - name: Check generated files are current
         run: python scripts/build.py --check
@@ -60,7 +60,7 @@ jobs:
 
       - name: Install starlayer
         run: |
-          pip install -e "packages/starlayer[test]"
+          pip install -e packages/starlayer-reasoning -e "packages/starlayer[test]"
 
       # No test carries the `integration` marker any more (the Fuseki ones were removed), so there is no separate integration step:
       # `pytest -m integration` would collect nothing and exit 5. The step and its Oxigraph service container went with them.
@@ -69,3 +69,7 @@ jobs:
       - name: Unit and W3C tests
         working-directory: packages/starlayer
         run: pytest tests/ -m "not integration" -v
+
+      - name: starlayer-reasoning tests
+        working-directory: packages/starlayer-reasoning
+        run: pytest tests/ -v

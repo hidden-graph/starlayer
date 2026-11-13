@@ -1,11 +1,11 @@
 """
-Unit tests for starlayer.graph.model.triple.TripleTerm's own constructor
+Unit tests for starlayer_reasoning.model.triple.TripleTerm's own constructor
 validation (independent of any parser/backend that might construct one).
 """
 
 import pytest
 from rdflib import BNode, Literal, URIRef
-from starlayer.graph.model.triple import TripleTerm
+from starlayer_reasoning.model.triple import TripleTerm
 
 EX = 'http://example.org/'
 

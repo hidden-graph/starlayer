@@ -39,7 +39,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install starlayer
-        run: pip install -e "packages/starlayer[test]"
+        run: pip install -e packages/starlayer-reasoning -e "packages/starlayer[test]"
 
       - name: Committed-data tests
         working-directory: packages/starlayer

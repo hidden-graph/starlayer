@@ -13,13 +13,13 @@ import xml.etree.ElementTree as ET
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.model.dirlangstring import (
+from starlayer.graph.oxgraph.pretty import pretty_turtle
+from starlayer_reasoning.model.dirlangstring import (
     DIRLANG_NS,
     DirLangString,
     decode_dirlangstring,
 )
-from starlayer.graph.model.triple import TripleTerm
-from starlayer.graph.oxgraph.pretty import pretty_turtle
+from starlayer_reasoning.model.triple import TripleTerm
 
 
 def test_jsonld_dataset_keeps_named_graph():

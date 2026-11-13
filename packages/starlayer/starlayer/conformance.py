@@ -8,7 +8,7 @@ module only reads the three module resources out of it: ``starlayer.graph``
 supported entailment regime by its own IRI), ``starlayer.sparql`` (SPARQL
 1.2 Query, Update and RL) and ``starlayer.shacl`` (the SHACL profiles it
 implements). A test checks the entailment regimes listed in the document
-against ``entailment_regimes.SUPPORTED_REGIMES``, the one claim that
+against ``graph.entailment.SUPPORTED_REGIMES``, the one claim that
 depends on code.
 
 **Per-subpackage resources, not one flat "whole library" node (2026-10-09,
@@ -62,7 +62,7 @@ asserting both predicates on the same object self-contradictory):
 ``starlayer.graph`` doesNotConformTo SPARQL 1.2 Entailment Regimes'
 D-Entailment regime
 (``http://www.w3.org/ns/entailment/D``, known-but-unsupported per
-``entailment_regimes.KNOWN_REGIMES - SUPPORTED_REGIMES``). Everything else
+``graph.entailment.KNOWN_REGIMES - SUPPORTED_REGIMES``). Everything else
 still has no real IRI to hang a predicate off at all - JSON-LD "1.2"/
 TriX "1.2" (no real RDF 1.2 companion spec exists to name), RIF Core
 Entailment (no IRI defined for it anywhere), the SHACL UI Profile
@@ -113,7 +113,7 @@ have their own real, individually dereferenceable IRI
 the same shape as SHACL's own named profiles. So instead of a blanket
 claim, ``starlayer.graph``'s resource asserts ``dcterms:conformsTo``
 each *individually supported* regime - reusing
-``entailment_regimes.SUPPORTED_REGIMES`` directly (not hand-copied),
+``graph.entailment.SUPPORTED_REGIMES`` directly (not hand-copied),
 the same real constant ``infer()``/``query()`` already use to decide
 what they'll actually run.
 """

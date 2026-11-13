@@ -11,19 +11,19 @@ import pytest
 import rdflib
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
-from starlayer.graph.model.dirlangstring import DirLangString
-from starlayer.graph.model.triple import TripleTerm as RdflibTripleTerm
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
 from starlayer.shacl_engine.interface import GraphView
 from starlayer.shacl_engine.oxigraph_view import (
     DEFAULT,
     OxigraphGraph,
-    from_ox,
     to_ox,
 )
 from starlayer.shacl_engine.terms import NS as Namespace
 from starlayer.shacl_engine.terms import RDF, integer, text
+from starlayer_reasoning.model.dirlangstring import DirLangString
+from starlayer_reasoning.model.triple import TripleTerm as RdflibTripleTerm
+from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_ox
+from starlayer_reasoning.rdflib_bridge import foreign_to_engine
 
 EX = Namespace("http://example.com/ns#")
 URIRef = ox.NamedNode
@@ -224,7 +224,7 @@ def test_conversion_round_trip(term):
 
 
 def test_conversion_wildcard_and_errors():
-    assert to_ox(None) is None and from_ox(None) is None
+    assert to_ox(None) is None
     assert from_ox(foreign_to_engine((RDFLIB_EX.a, RDFLIB_EX.p, RDFLIB_EX.b))) == RdflibTripleTerm(RDFLIB_EX.a, RDFLIB_EX.p, RDFLIB_EX.b)
     with pytest.raises(TypeError):
         to_ox(42)

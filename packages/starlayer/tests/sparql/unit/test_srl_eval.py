@@ -256,7 +256,7 @@ class TestInferAndQueryInferenceParameter:
         assert len(gi) == 0
 
     def test_infer_with_rdfs_entailment_sees_the_subclass_fact(self):
-        from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+        from starlayer.graph.entailment import ENTAILMENT
         from starlayer.sparql.srl import parse_ruleset
 
         base = self._base_with_subclass_only()
@@ -267,7 +267,7 @@ class TestInferAndQueryInferenceParameter:
         assert s == _p("bob") and p == _p("flagged") and o.value == "true"
 
     def test_infer_entailment_does_not_mutate_the_callers_base_graph(self):
-        from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+        from starlayer.graph.entailment import ENTAILMENT
         from starlayer.sparql.srl import parse_ruleset
 
         base = self._base_with_subclass_only()
@@ -278,7 +278,7 @@ class TestInferAndQueryInferenceParameter:
 
     def test_query_inference_parameter_sees_the_subclass_fact_too(self):
         import pyoxigraph as ox
-        from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+        from starlayer.graph.entailment import ENTAILMENT
         from starlayer.sparql.srl import parse_ruleset
 
         base = self._base_with_subclass_only()

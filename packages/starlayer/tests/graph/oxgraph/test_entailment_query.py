@@ -41,9 +41,9 @@ try:
 except ImportError:
     _RUSTDL = False
 
-owl_dl_extra = pytest.mark.skipif(not _OWLREADY2, reason="owlready2 not importable (pip install starlayer[hermit])")
+owl_dl_extra = pytest.mark.skipif(not _OWLREADY2, reason="owlready2 not importable (pip install starlayer-reasoning[hermit])")
 java_required = pytest.mark.skipif(shutil.which("java") is None, reason="no Java runtime on PATH (HermiT needs a JVM)")
-rustdl_extra = pytest.mark.skipif(not _RUSTDL, reason="rustdl not importable (pip install starlayer[rustdl])")
+rustdl_extra = pytest.mark.skipif(not _RUSTDL, reason="rustdl not importable (pip install starlayer-reasoning[rustdl])")
 
 _DATA = """
     @prefix ex: <http://example.org/> .
@@ -94,7 +94,7 @@ class TestEntailmentIsPerQueryNotPerGraph:
         assert _col(g.query(_QUERY, entailment=URIRef(ENTAILMENT.RDFS.value))) == _alice()
 
     def test_the_old_rdflib_regime_constant_works(self):
-        from starlayer.graph.entailment.entailment_regimes import ENTAILMENT as OLD
+        from starlayer.graph.entailment import ENTAILMENT as OLD
 
         assert _col(_graph().query(_QUERY, entailment=OLD.RDFS)) == _alice()
 
@@ -405,13 +405,13 @@ class TestEntailmentDirect:
         assert set(g.store) == before
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
+        from starlayer_reasoning._timeout import ReasoningTimeoutError
 
         with pytest.raises(ReasoningTimeoutError):
             list(_graph(_DISJUNCTIVE).query(_Q_WOMAN, entailment=ENTAILMENT["OWL-Direct"], timeout=0.001))
 
     def test_inconsistent_ontology_propagates(self):
-        from starlayer.graph.entailment.owl_dl import InconsistentOntologyError
+        from starlayer_reasoning.owl_dl import InconsistentOntologyError
 
         g = _graph("@prefix ex: <http://example.org/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . ex:Man owl:disjointWith ex:Woman . ex:bob a ex:Man, ex:Woman .")
         with pytest.raises(InconsistentOntologyError):
@@ -453,7 +453,7 @@ class TestStarQueryOnOxGraph:
     @owl_dl_extra
     @java_required
     def test_timeout_reaches_owl_direct(self):
-        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
+        from starlayer_reasoning._timeout import ReasoningTimeoutError
 
         with pytest.raises(ReasoningTimeoutError):
             StarQuery(_Q_WOMAN, entailment=ENTAILMENT["OWL-Direct"], timeout=0.001).run(_graph(_DISJUNCTIVE))

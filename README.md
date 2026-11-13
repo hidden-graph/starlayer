@@ -19,7 +19,7 @@ The RDF, SPARQL and SHACL 1.2 specifications are still drafts. StarLayer follows
 pip install "git+https://github.com/hidden-graph/starlayer.git@shacl-engine"
 ```
 
-Python 3.10 or later. Optional extras, added like `"starlayer[reasoning] @ git+https://github.com/hidden-graph/starlayer.git@shacl-engine"`: `rdflib`, `reasoning` (OWL-RL), `hermit` and `rustdl` (the two OWL-DL engines).
+Python 3.10 or later. The core depends on `pyoxigraph` alone. rdflib interchange (`from_rdflib` / `to_rdflib`) and OWL reasoning (OWL-RL, and the OWL-DL engines HermiT and rustdl) are in the separate [`starlayer-reasoning`](packages/starlayer-reasoning/README.md) package: `pip install starlayer-reasoning` (extras `hermit`, `rustdl`).
 
 **Supported Oxigraph versions.** StarLayer needs Oxigraph 0.5.13 or later. Older versions abort the whole process on SPARQL `=` over `rdf:dirLangString` ([oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982)), and StarLayer does not work around it. `pyoxigraph>=0.5.13` is a core dependency, and importing StarLayer's Oxigraph-based modules raises `ImportError` on an older pyoxigraph. A remote `oxigraph serve` cannot be version-checked from the client; run 0.5.13 or newer there.
 
@@ -73,7 +73,7 @@ print(result.conforms)             # False: "thirty" is not an integer
 git clone https://github.com/hidden-graph/starlayer.git
 cd starlayer
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e "packages/starlayer[test]"
+pip install -e "packages/starlayer-reasoning" -e "packages/starlayer[test]"
 cd packages/starlayer && pytest tests -m "not integration"
 ```
 

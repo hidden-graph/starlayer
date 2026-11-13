@@ -123,10 +123,9 @@ class StarQuery:
                 raise ValueError("a session already applies its own entailment regime: run a StarQuery with no entailment= on it.")
             return graph.query(self._text, initNs=kwargs["initNs"], initBindings=kwargs["initBindings"], base=kwargs.get("base", self._base))
 
-        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
+        from starlayer.graph.oxgraph.inputs import as_oxigraph
 
-        if not _ox.is_oxigraph_input(graph) or isinstance(graph, _ox.ox.Store):  # a bare Store has no StarLayer query() keywords
-            graph = _ox.to_oxgraph(graph)  # an rdflib graph raises TypeError
+        graph = as_oxigraph(graph)  # a bare Store has no StarLayer query() keywords: it becomes a dataset; an rdflib graph is a TypeError
         # The wrapper runs the query text on Oxigraph. RDF / RDFS entailment rewrites the text; the OWL regimes run on a temporary
         # closure copy (see StarLayerGraph.query). timeout is only meaningful for OWL-Direct, as on StarLayerGraph.query(), which is
         # where a misuse raises.

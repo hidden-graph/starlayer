@@ -1,5 +1,5 @@
 """
-starlayer.graph.model.conformance
+starlayer.graph.oxgraph.version_conformance
 
 RDF 1.2 / SPARQL 1.2 VERSION-directive conformance checking.
 

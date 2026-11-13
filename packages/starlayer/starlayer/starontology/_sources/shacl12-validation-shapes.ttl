@@ -839,7 +839,7 @@ stsh:RuleOfOneTemplateShape
 	] .
 
 # Core 1.4 and Inference Rules 6: a value of sh:entailment is an entailment regime, sh:RulesEntailment, or a rule set. StarLayer provides the regimes of
-# entailment_regimes.SUPPORTED_REGIMES (a test keeps this list in step); validating with another one raises, so a warning says so before anyone runs it.
+# graph.entailment.SUPPORTED_REGIMES (a test keeps this list in step); validating with another one raises, so a warning says so before anyone runs it.
 stsh:EntailmentSupportedShape
 	a sh:NodeShape ;
 	rdfs:label "StarLayer provides the entailment a shapes graph asks for"@en ;

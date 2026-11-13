@@ -366,7 +366,7 @@ def test_a_wrong_version_label_is_read_without_a_warning(recwarn):
 
 
 def test_the_rdf_conformance_warning_class_is_gone():
-    from starlayer.graph.model import conformance
+    from starlayer.graph.oxgraph import version_conformance as conformance
 
     assert not hasattr(conformance, "RDF12ConformanceWarning")
     assert hasattr(conformance, "SPARQL12ConformanceWarning")

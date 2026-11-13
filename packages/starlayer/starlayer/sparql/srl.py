@@ -107,8 +107,6 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer._ox_out import ox_out
-
 from . import _oxterms as _T
 from . import _srl_ast as srl_ast
 from ._oxterms import NS, RDF
@@ -794,7 +792,6 @@ def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
     raise SRLParseError(f"SRL: rule set does not conform to the srl: shapes: {detail}")
 
 
-@ox_out("data_graph")
 def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """Validate ``data_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``

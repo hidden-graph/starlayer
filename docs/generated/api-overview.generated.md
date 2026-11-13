@@ -46,8 +46,6 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 ## `starlayer.graph`
 
 - **[`CanonicalizationComplexityError`](api-reference.generated.md#entity-starlayer-graph-rdfc_native-CanonicalizationComplexityError)** (class) - The dataset has a highly symmetric blank-node structure that RDFC-1.0 would take exponential time on (RDFC-1.0 section 7.1, "Dataset Poisoning": implementations MUST terminate early with an exception).
-- **[`DirLangString`](api-reference.generated.md#entity-starlayer-graph-model-dirlangstring-DirLangString)** (class) - An RDF 1.2 directional language-tagged string literal.
-- **[`DirLangString.n3`](api-reference.generated.md#entity-starlayer-graph-model-dirlangstring-DirLangString-n3)** (method) - Returns the N3/Turtle-1.2 (``"text"@lang--dir``) text form.
 - **[`Endpoint`](api-reference.generated.md#entity-starlayer-graph-oxgraph-endpoint-Endpoint)** (class) - A SPARQL endpoint: ``query_url`` for reads and ``update_url`` (omitted: read-only) for writes. ``auth`` is a ``(user, password)`` pair for HTTP Basic, ``headers`` any extra request headers.
 - **[`Endpoint.ask`](api-reference.generated.md#entity-starlayer-graph-oxgraph-endpoint-Endpoint-ask)** (method) - Run an ASK query and return its boolean answer.
 - **[`Endpoint.pull`](api-reference.generated.md#entity-starlayer-graph-oxgraph-endpoint-Endpoint-pull)** (method) - Every triple of one graph of the endpoint (``None`` / ``DefaultGraph``: the default graph), read whole.
@@ -57,8 +55,6 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 - **[`Endpoint.update`](api-reference.generated.md#entity-starlayer-graph-oxgraph-endpoint-Endpoint-update)** (method) - Run a SPARQL Update on the endpoint; a read-only endpoint (no ``update_url``) raises ``EndpointError``.
 - **[`EndpointError`](api-reference.generated.md#entity-starlayer-graph-oxgraph-endpoint-EndpointError)** (class) - The endpoint could not be reached or answered with an error status (``status`` is the HTTP status, ``None`` if there was no answer).
 - **[`Namespace`](api-reference.generated.md#entity-starlayer-graph-namespaces-Namespace)** (class) - A namespace of pyoxigraph ``NamedNode`` constants: ``SH.minCount``, ``SH["class"]``. Terms are created once.
-- **[`TripleTerm`](api-reference.generated.md#entity-starlayer-graph-model-triple-TripleTerm)** (class) - An RDF 1.2 triple term — a triple used as a resource.
-- **[`TripleTerm.n3`](api-reference.generated.md#entity-starlayer-graph-model-triple-TripleTerm-n3)** (method) - Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form.
 - **[`can_resolve_import`](api-reference.generated.md#entity-starlayer-graph-oxgraph-helpers-imports-can_resolve_import)** (function) - Whether ``loader(iri)`` returns a graph (it is called once; there is no cheaper way to ask).
 - **[`isomorphic`](api-reference.generated.md#entity-starlayer-graph-compare-isomorphic)** (function) - True if the two graphs or datasets (``StarLayerGraph``, ``StarLayerDataset``, ``pyoxigraph.Store``) are equal up to blank-node relabelling: equal canonical N-Quads (RDFC-1.0). Datasets are compared as datasets, graph names included; a dataset against a plain graph compares the dataset's quads with the graph's triples in the default graph.
 - **[`rdfc10_hash`](api-reference.generated.md#entity-starlayer-graph-rdfc-rdfc10_hash)** (function) - The hex digest of ``graph``'s canonical N-Quads text, stable under blank-node relabelling.

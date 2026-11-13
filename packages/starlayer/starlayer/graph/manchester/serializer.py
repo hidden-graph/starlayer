@@ -891,9 +891,9 @@ def serialize_manchester(graph) -> str:
     Returns:
         The Manchester Syntax serialization of graph.
     """
-    from starlayer.graph.oxgraph import _rdflib_bridge
+    from starlayer.graph.oxgraph.inputs import as_oxigraph
 
-    graph = _rdflib_bridge.to_oxgraph(graph)  # an rdflib graph is a TypeError
+    graph = as_oxigraph(graph)  # an rdflib graph is a TypeError
     if hasattr(graph, 'to_graph'):
         graph = graph.to_graph()
     ctx = _Ctx(graph)

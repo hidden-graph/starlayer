@@ -20,9 +20,9 @@ query to rdflib's SPARQL 1.1 parser.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.model.conformance import SPARQL12ConformanceWarning
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.sparql_text import check_native_version_conformance
+from starlayer.graph.oxgraph.version_conformance import SPARQL12ConformanceWarning
 from tests.terms import NamedNode
 
 EX = 'http://example.org/'

@@ -105,9 +105,9 @@ def _as_ox_graph(value: Any) -> Any:
         return value
     if isinstance(value, ox.Store):
         return StarLayerDataset(store=value)
-    from starlayer.graph.oxgraph._rdflib_bridge import to_oxgraph
+    from starlayer.graph.oxgraph.inputs import as_oxigraph
 
-    return to_oxgraph(value, "graph")  # raises the TypeError that points to from_rdflib
+    return as_oxigraph(value)  # raises the TypeError that points to from_rdflib
 
 
 def _term_in(term: Any) -> Any:

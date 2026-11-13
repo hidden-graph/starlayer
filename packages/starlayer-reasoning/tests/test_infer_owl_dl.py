@@ -5,7 +5,7 @@ Coverage for StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine="h
 OWL 2 Direct Semantics reasoning via owlready2 + Java HermiT, a genuinely
 different computational model (tableau DL reasoning) from every owlrl-backed
 entailment regime covered by test_infer.py. `owlready2` is an optional extra of this
-package (`pip install starlayer[hermit]`), not a core dependency -
+package (`pip install starlayer-reasoning[hermit]`), not a core dependency -
 the `owl_dl_extra` skip below is a real "not opted into this engine" skip,
 the same spirit as test_infer_owl_dl_rustdl.py's own skip for `[rustdl]`.
 A real Java runtime on PATH is a *further* prerequisite that genuinely
@@ -26,9 +26,9 @@ import os
 import shutil
 
 import pytest
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph import RDF, Namespace
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
-from tests.terms import RDF, Namespace
 
 try:
     import owlready2  # noqa: F401
@@ -39,7 +39,7 @@ except ImportError:
 owl_dl_extra = pytest.mark.skipif(
     not _OWLREADY2_AVAILABLE,
     reason='owlready2 not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer[hermit]',
+           'install with: pip install starlayer-reasoning[hermit]',
 )
 
 java_required = pytest.mark.skipif(
@@ -130,7 +130,7 @@ class TestOwlDlSubClassClosure:
 @java_required
 class TestOwlDlInconsistency:
     def test_inconsistent_ontology_raises(self):
-        from starlayer.graph.entailment.owl_dl import InconsistentOntologyError
+        from starlayer_reasoning.owl_dl import InconsistentOntologyError
 
         g = StarLayerGraph()
         g.bind("ex", EX)
@@ -198,7 +198,7 @@ class TestOwlDlTimeout:
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
+        from starlayer_reasoning._timeout import ReasoningTimeoutError
 
         with pytest.raises(ReasoningTimeoutError):
             self._simple_graph().infer(entailment=ENTAILMENT['OWL-Direct'], engine="hermit", timeout=0.001)
@@ -225,10 +225,10 @@ def test_missing_owlready2_raises_actionable_error(monkeypatch):
     """
     import sys
 
-    from starlayer.graph.entailment import owl_dl
+    from starlayer_reasoning import owl_dl
 
     monkeypatch.setitem(sys.modules, "owlready2", None)
-    with pytest.raises(RuntimeError, match=r"starlayer\[hermit\]"):
+    with pytest.raises(RuntimeError, match=r"starlayer-reasoning\[hermit\]"):
         owl_dl._require_owlready2()
 
 
@@ -255,7 +255,7 @@ def test_missing_java_raises_a_distinct_clear_error(monkeypatch):
     its own clear, actionable RuntimeError rather than an opaque failure
     from deep inside owlready2/subprocess.
     """
-    from starlayer.graph.entailment import owl_dl
+    from starlayer_reasoning import owl_dl
 
     monkeypatch.setattr(owl_dl.shutil, "which", lambda name: None)
     g = StarLayerGraph()
@@ -277,7 +277,7 @@ def test_broken_java_raises_a_distinct_clear_error(tmp_path, monkeypatch):
     explicitly caught; this test pins the re-wrap into the same
     RuntimeError family `_require_java()` already uses.
     """
-    from starlayer.graph.entailment import owl_dl
+    from starlayer_reasoning import owl_dl
 
     fake_java = tmp_path / "java"
     fake_java.write_text(

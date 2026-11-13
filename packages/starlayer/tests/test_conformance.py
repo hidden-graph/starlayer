@@ -65,7 +65,7 @@ def test_entailment_regimes_are_individual_iris_not_the_whole_document() -> None
     claimed - only the four individually-supported regime IRIs, and they
     must be exactly the regimes the library's code supports
     (SUPPORTED_REGIMES), so the declaration can't drift from the code."""
-    from starlayer.graph.entailment.entailment_regimes import SUPPORTED_REGIMES
+    from starlayer.graph.entailment import SUPPORTED_REGIMES
 
     graph = conformance.declared_conformance()
     claimed = set(graph.objects(conformance.GRAPH_SUBJECT, DCTERMS.conformsTo))

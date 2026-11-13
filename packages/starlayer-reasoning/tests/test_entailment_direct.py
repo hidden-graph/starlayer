@@ -7,7 +7,7 @@ query() a throwaway copy of the store plus the entailed triples, which the graph
 (infer= says when they are computed again), as for entailment=ENTAILMENT['OWL-RDF-Based'].
 
 `owlready2`/`rustdl` are both optional extras of this package (`pip install
-starlayer[hermit]`/`[rustdl]`) - the skip markers below are copied
+starlayer-reasoning[hermit]`/`[rustdl]`) - the skip markers below are copied
 locally rather than imported from test_infer_owl_dl.py/test_infer_owl_dl_rustdl.py,
 matching those two files' own precedent of each keeping its own copy rather
 than sharing markers across files.
@@ -17,11 +17,11 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
-from starlayer.graph.entailment.owl_dl import InconsistentOntologyError
+from starlayer.graph import RDF, Namespace
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.helpers import entailment as ent
-from tests.terms import RDF, Namespace
+from starlayer_reasoning.owl_dl import InconsistentOntologyError
 
 try:
     import owlready2  # noqa: F401
@@ -38,7 +38,7 @@ except ImportError:
 owl_dl_extra = pytest.mark.skipif(
     not _OWLREADY2_AVAILABLE,
     reason='owlready2 not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer[hermit]',
+           'install with: pip install starlayer-reasoning[hermit]',
 )
 
 java_required = pytest.mark.skipif(
@@ -50,7 +50,7 @@ java_required = pytest.mark.skipif(
 rustdl_extra = pytest.mark.skipif(
     not _RUSTDL_AVAILABLE,
     reason='rustdl not importable - it is an optional extra of this package; '
-           'install with: pip install starlayer[rustdl]',
+           'install with: pip install starlayer-reasoning[rustdl]',
 )
 
 EX = Namespace("http://example.org/")
@@ -96,7 +96,7 @@ class TestEntailmentDirect:
             g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-RDF-Based'], timeout=5)
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
+        from starlayer_reasoning._timeout import ReasoningTimeoutError
 
         g = _disjunctive_graph()
         with pytest.raises(ReasoningTimeoutError):

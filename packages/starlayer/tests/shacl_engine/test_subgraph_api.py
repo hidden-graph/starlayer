@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import extract_subgraph as old_extract
@@ -22,7 +22,8 @@ from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.shapes_graphs import close_shape, extract_shapes_graph
 from starlayer.shacl_engine.subgraph import extract_subgraph
 from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import from_engine, text
+from starlayer.shacl_engine.terms import text
+from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_engine
 
 EX = Namespace("http://example.org/")
 PRE = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . "

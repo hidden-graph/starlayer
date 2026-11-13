@@ -7,18 +7,16 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.oxgraph.helpers import entailment
 from starlayer.graph.oxgraph.helpers.rdfs_closure import rdfs_delta
+from starlayer_reasoning import owl_rl
 
 warnings.simplefilter("ignore")
 pytest.importorskip("owlrl")
 
 PRE = "@prefix : <http://e/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix owl: <http://www.w3.org/2002/07/owl#> .\n"
-RDFS_REGIME = frozenset({entailment.RDFS_REGIME})
-
 
 def _oracle(g):
-    return entailment._owlrl_delta(g, RDFS_REGIME)
+    return owl_rl.delta(g.triples(), rdfs=True, owl_rl=False)
 
 
 def _graph(ttl):
@@ -69,7 +67,7 @@ def test_infer_uses_the_native_closure_in_every_mode_and_for_rdf_plus_rdfs(monke
     def refuse(*_a, **_k):
         raise AssertionError("owlrl was used")
 
-    monkeypatch.setattr(entailment, "_owlrl_delta", refuse)
+    monkeypatch.setattr(owl_rl, "delta", refuse)
     g = _graph(GRAPHS["domain_range"])
     delta = g.infer(ENTAILMENT.RDFS, mode="delta")
     assert (ox.NamedNode("http://e/x"), ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), ox.NamedNode("http://e/A")) in delta.triples()

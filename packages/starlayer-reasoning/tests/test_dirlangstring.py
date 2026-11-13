@@ -10,14 +10,14 @@ import pyoxigraph as ox
 import pytest
 from rdflib import Literal, URIRef
 from starlayer.graph.interop import DIRLANG_NS
-from starlayer.graph.model.dirlangstring import (
+from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer_reasoning.model.dirlangstring import (
     DirLangString,
     decode_dirlang_datatype,
     decode_dirlangstring,
     encode_dirlang_datatype,
     encode_dirlangstring,
 )
-from starlayer.graph.oxgraph import StarLayerGraph
 
 EX = "http://example.org/"
 XSD_BOOL = "http://www.w3.org/2001/XMLSchema#boolean"

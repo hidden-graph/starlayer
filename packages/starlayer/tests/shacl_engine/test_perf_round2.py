@@ -10,13 +10,14 @@ import pytest
 import rdflib
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
 from starlayer.shacl_engine import executor
 from starlayer.shacl_engine.api import validate
-from starlayer.shacl_engine.oxigraph_view import OxigraphGraph, from_ox
+from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
 from starlayer.shacl_engine.paths import _dedupe
 from starlayer.shacl_engine.plan import ShapeError
 from starlayer.shacl_engine.terms import text
+from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_ox
+from starlayer_reasoning.rdflib_bridge import foreign_to_engine
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 

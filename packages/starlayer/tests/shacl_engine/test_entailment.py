@@ -4,7 +4,7 @@ import time
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.validator import validate as old_validate
 from starlayer.shacl_engine import entailment as _entailment

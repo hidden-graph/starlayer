@@ -820,10 +820,7 @@ class _Base:
         ``rdf:PropositionForm`` basic encoding, each base-direction literal its datatype-IRI form (``direction_policy`` as in
         ``interop.encode_directions``). rdflib terms keep their lexical form as stored. Writes to the result do not reach
         this graph."""
-        from starlayer.graph.oxgraph import _rdflib_bridge
-
-        _rdflib_bridge.require_rdflib("to_rdflib()")
-        return _rdflib_bridge.to_rdflib_rdf11(self, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
+        return _reasoning("to_rdflib()").to_rdflib_rdf11(self, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
 
     def _refuse_path_pickle(self) -> None:
         if self._path is not None:
@@ -838,6 +835,15 @@ class _Base:
 
     def __eq__(self, other: Any) -> bool:
         return self is other
+
+
+def _reasoning(what: str) -> Any:
+    """The ``starlayer_reasoning.rdflib_bridge`` module, or an ``ImportError`` that says how to install it (rdflib lives there)."""
+    try:
+        from starlayer_reasoning import rdflib_bridge
+    except ImportError as exc:
+        raise ImportError(f"{what} needs the starlayer-reasoning package (it holds the rdflib conversion): `pip install starlayer-reasoning`") from exc
+    return rdflib_bridge
 
 
 class StarLayerGraph(_Base):
@@ -870,14 +876,11 @@ class StarLayerGraph(_Base):
         (what ``to_rdflib`` writes) is restored, and the basic encoding is left as triples (``interop.from_basic`` decodes it).
         A term RDF does not allow raises ``ValueError``. An ``StarLayerGraph`` is copied.
         For an rdflib dataset's named graphs use ``StarLayerDataset.from_rdflib``."""
-        from starlayer.graph.oxgraph import _rdflib_bridge
-
         if isinstance(graph, StarLayerGraph):
             return graph.copy()
         if isinstance(graph, (StarLayerDataset, ox.Store)):
             raise TypeError(f"StarLayerGraph.from_rdflib takes an rdflib graph, not {type(graph).__name__}")
-        _rdflib_bridge.require_rdflib("from_rdflib()")
-        return _rdflib_bridge.to_oxgraph(graph, "graph", restore_directions=True, explicit=True)
+        return _reasoning("from_rdflib()").graph_from_rdflib(graph, restore_directions=True)
 
     @property
     def identifier(self) -> Any:
@@ -982,12 +985,9 @@ class StarLayerDataset(_Base):
         """A new in-memory ``StarLayerDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / ``StarLayerDataset`` (every graph, empty
         named graphs too, prefixes, ``default_union``) or from a plain graph (its triples go to the default graph). Terms as in
         ``StarLayerGraph.from_rdflib``. An ``StarLayerDataset`` is copied."""
-        from starlayer.graph.oxgraph import _rdflib_bridge
-
         if isinstance(dataset, StarLayerDataset):
             return dataset.copy()
-        _rdflib_bridge.require_rdflib("from_rdflib()")
-        return _rdflib_bridge.to_oxdataset(dataset, explicit=True)
+        return _reasoning("from_rdflib()").dataset_from_rdflib(dataset)
 
     def _query_store(self) -> ox.Store:
         """The store SPARQL runs on: for a union default graph, one in which a triple held by several graphs is one triple
