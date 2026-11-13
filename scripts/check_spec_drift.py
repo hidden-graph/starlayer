@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""scripts/spec_drift.py - what has moved upstream since we last looked?
+"""scripts/check_spec_drift.py - what has moved upstream since we last looked?
 
 The specs this project follows (RDF 1.2, SPARQL 1.2, SHACL 1.2) are Working Drafts that change every week, and nothing else
 watches them. This script reports three kinds of drift, from our own records:
@@ -13,11 +12,11 @@ watches them. This script reports three kinds of drift, from our own records:
 It changes nothing but ``--record``. After you have *read* what moved and dealt with it, ``--record`` writes the current dates to
 ``spec-dates.json``, so that the next run reports only what moved after that.
 
-    python scripts/spec_drift.py                 # the report; exit 0 current, 1 something moved, 2 a check could not be made
-    python scripts/spec_drift.py --offline       # only our own records: a vendored copy older than the last review
-    python scripts/spec_drift.py --commits       # also list the upstream commits that touched the vendored subtrees
-    python scripts/spec_drift.py --json          # the same, machine-readable
-    python scripts/spec_drift.py --record        # after a review: record today's dates (or name specs: --record shacl12-ui)
+    python scripts/check_spec_drift.py                 # the report; exit 0 current, 1 something moved, 2 a check could not be made
+    python scripts/check_spec_drift.py --offline       # only our own records: a vendored copy older than the last review
+    python scripts/check_spec_drift.py --commits       # also list the upstream commits that touched the vendored subtrees
+    python scripts/check_spec_drift.py --json          # the same, machine-readable
+    python scripts/check_spec_drift.py --record        # after a review: record today's dates (or name specs: --record shacl12-ui)
 
 GitHub's unauthenticated API allows 60 requests an hour; set ``GITHUB_TOKEN`` for more. A full run makes about 25 requests.
 """
@@ -309,7 +308,7 @@ def render(report: dict) -> str:
     errors = [r.get("error") for part in ("specs", "pins", "vocabularies") for r in report[part] if r.get("error")]
     if errors:
         lines += ["", f"{len(errors)} check(s) could not be made, for example: {errors[0]}"]
-    lines += ["", "After reading what moved and dealing with it: python scripts/spec_drift.py --record"]
+    lines += ["", "After reading what moved and dealing with it: python scripts/check_spec_drift.py --record"]
     return "\n".join(lines)
 
 

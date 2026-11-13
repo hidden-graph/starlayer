@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""scripts/docstrings.py - the mechanical half of the docstring work: what is undocumented, and whether an edit is only docstrings.
+"""scripts/check_docstrings.py - the mechanical half of the docstring work: what is undocumented, and whether an edit is only docstrings.
 
 ``inventory``: the public functions, classes, methods and modules of ``packages/starlayer/starlayer`` that have no docstring, as JSON
 (a symbol is public when its name does not start with an underscore, dunder names count, and it is not defined inside a function). ``--files`` limits it to some files.

@@ -1,9 +1,9 @@
-"""scripts/spec_drift.py: what has moved upstream since we last looked. The network parts are not run here; the parsing, the comparison
+"""scripts/check_spec_drift.py: what has moved upstream since we last looked. The network parts are not run here; the parsing, the comparison
 of recorded dates and the report are."""
 
 import json
 
-import spec_drift as sd
+import check_spec_drift as sd
 
 
 def test_a_date_in_a_status_line():
@@ -60,7 +60,7 @@ def test_every_pin_group_reads_a_sha_from_its_scripts():
 
 def test_every_tracked_spec_has_a_recorded_date():
     recorded = json.loads(sd.DATES_FILE.read_text(encoding="utf8"))
-    assert set(recorded["specs"]) == set(sd.SPECS), "run: python scripts/spec_drift.py --record after a review"
+    assert set(recorded["specs"]) == set(sd.SPECS), "run: python scripts/check_spec_drift.py --record after a review"
 
 
 def test_no_vendored_copy_is_older_than_the_last_review():

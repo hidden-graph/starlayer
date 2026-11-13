@@ -22,12 +22,10 @@ jobs:
       - name: ruff check
         run: ruff check packages/ tools/
 
-  # Generated files are committed: the generated starontology .ttl files and
-  # the generated API docs. This fails if any no longer
-  # matches what its build produces (e.g. after a pySHACL upgrade, an edited
-  # .ttl, or a changed generator). The code knowledge graph is not committed;
-  # the API docs are checked against a graph built from the source here (about
-  # 30 seconds). Fix with `python scripts/build.py` and commit the result.
+  # Some generated files are committed: four starontology .ttl files and the generated docs. This job fails if any no longer
+  # matches what its build produces (an edited source, an upgraded dependency or a changed generator). The code knowledge graph
+  # is not committed; the API docs are checked against a graph built from the source here (about 30 seconds). Fix with
+  # `python scripts/build.py` and commit the result.
   generated-files:
     runs-on: ubuntu-latest
     steps:

@@ -1,11 +1,12 @@
-"""First-pass generator for docs/generated/functionality-overview.generated.md,
-built from the hand-curated functionality graph
+"""scripts/generate_functionality_overview.py - docs/generated/functionality-overview.generated.md, from the curated functionality graph.
+
+Built from the hand-curated functionality graph
 (tools/kg/codekg/curated/functionality.ttl).
 
 Prose only: it does not render code or source links. A roadmap item's
 slkg:seeAlsoPath becomes a link to that file on GitHub.
 
-Run: python3 scripts/generate_functionality_overview.py
+Run: python scripts/generate_functionality_overview.py
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import sys
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO_ROOT / "packages/starlayer"))
 
-from docs_ref import REPO_BLOB  # noqa: E402
+from _docs_ref import REPO_BLOB  # noqa: E402
 from starlayer.graph import RDF, RDFS, Namespace  # noqa: E402
 from starlayer.graph import StarLayerGraph as Graph  # noqa: E402
 

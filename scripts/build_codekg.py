@@ -1,5 +1,4 @@
-"""scripts/build_codekg.py - thin CLI wrapper for the code-KG extractor,
-replacing scripts/build_code_kg.py as the maintained entry point.
+"""scripts/build_codekg.py - a thin command line for the code-KG extractor.
 
 Run:
     python scripts/build_codekg.py --paths packages/starlayer/starlayer/graph/model/

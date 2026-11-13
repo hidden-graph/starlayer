@@ -1,4 +1,6 @@
-"""Generates two cross-linked markdown documents straight from
+"""scripts/generate_api_docs.py - the API overview and reference, generated from the code knowledge graph.
+
+Generates two cross-linked markdown documents straight from
 ``tools/kg/codekg/codekg.trig`` - no hand-maintained
 curated content involved, unlike ``docs/working/archive/api-reference.md``/
 ``docs/working/archive/functionality-overview.md``.
@@ -31,7 +33,7 @@ from collections import defaultdict
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path[:0] = [str(REPO_ROOT / "packages/starlayer"), str(REPO_ROOT / "tools/kg")]
 
-from docs_ref import REPO_BLOB  # noqa: E402
+from _docs_ref import REPO_BLOB  # noqa: E402
 from starlayer.graph import RDF, RDFS, Namespace  # noqa: E402
 from starlayer.graph.oxgraph import StarLayerDataset as Dataset  # noqa: E402
 

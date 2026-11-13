@@ -1,5 +1,4 @@
-"""
-scripts/check_benchmark_regression.py
+"""scripts/check_benchmark_regression.py - fail when a benchmark regressed against the committed baseline.
 
 Compares a fresh pytest-benchmark JSON result against a committed
 baseline, failing (non-zero exit) if any benchmark's time regressed

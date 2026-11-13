@@ -1,5 +1,4 @@
-#!/usr/bin/env python3
-"""Vendor a pinned snapshot of the W3C SHACL 1.2 test suite into tests/shacl/vendor/.
+"""scripts/sync_w3c_shacl12_suite.py - vendor a pinned snapshot of the W3C SHACL 1.2 test suite into tests/shacl/vendor/.
 
 Source: https://github.com/w3c/data-shapes/tree/gh-pages/shacl12-test-suite
 
