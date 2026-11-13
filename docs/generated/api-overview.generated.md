@@ -65,6 +65,7 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 - **[`Result.bindings`](api-reference.generated.md#entity-starlayer-graph-execution-result-Result-bindings)** (method) - The SELECT solutions as ``{name: term}`` dicts, with unbound variables absent.
 - **[`Result.graph`](api-reference.generated.md#entity-starlayer-graph-execution-result-Result-graph)** (method) - The CONSTRUCT or DESCRIBE triples as a new in-memory ``StarLayerGraph``, built once.
 - **[`Result.rows`](api-reference.generated.md#entity-starlayer-graph-execution-result-Result-rows)** (method) - The SELECT solutions, read from the one-shot stream once; other query forms raise ``TypeError``.
+- **[`Result.serialize`](api-reference.generated.md#entity-starlayer-graph-execution-result-Result-serialize)** (method) - Write the result in ``format``.
 - **[`Result.triples`](api-reference.generated.md#entity-starlayer-graph-execution-result-Result-triples)** (method) - The CONSTRUCT or DESCRIBE triples, read from the one-shot stream once; other forms raise ``TypeError``.
 - **[`Row`](api-reference.generated.md#entity-starlayer-graph-execution-result-Row)** (class) - One solution: a tuple of terms in ``vars`` order (``None`` for an unbound variable) that can also be read by name: ``row["x"]``, ``row[Variable("x")]``, ``row.x``, ``row.get("x")``, ``row.asdict()``.
 - **[`Row.asdict`](api-reference.generated.md#entity-starlayer-graph-execution-result-Row-asdict)** (method) - Map variable name to term, leaving unbound variables out.

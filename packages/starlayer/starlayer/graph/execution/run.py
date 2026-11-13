@@ -78,6 +78,24 @@ def _widen_projection(text: str, names: list[str]) -> str | None:
     return text[: m.end()] + "".join(f" ?{n}" for n in names) + text[m.end() :]
 
 
+def custom_function_kwargs(custom_functions: Mapping[Any, Any] | None, custom_aggregate_functions: Mapping[Any, Any] | None) -> dict[str, Any]:
+    """The ``custom_functions`` / ``custom_aggregate_functions`` arguments of ``Store.query`` / ``Store.update`` for the two mappings a
+    caller gave (function IRI as a ``NamedNode`` or text, to the callable); empty when there are none. A callable takes pyoxigraph
+    terms and returns a term or ``None``; an aggregate is a factory of objects with ``accumulate(term)`` and ``finish()``."""
+    out: dict[str, Any] = {}
+    for name, given in (("custom_functions", custom_functions), ("custom_aggregate_functions", custom_aggregate_functions)):
+        if not given:
+            continue
+        converted = {}
+        for key, fn in given.items():
+            if not callable(fn):
+                raise TypeError(f"{name}[{key!r}] must be callable, not {type(fn).__name__}")
+            iri = key if isinstance(key, ox.NamedNode) else ox.NamedNode(str(key))
+            converted[iri] = fn
+        out[name] = converted
+    return out
+
+
 def _has_from(text: str) -> bool:
     """True when the query has a dataset clause (``FROM`` / ``FROM NAMED``) of its own."""
     return re.search(r"(?i)(?<![\w:?$])FROM\b(?!:)", _mask(text)) is not None
@@ -95,7 +113,8 @@ def merge_prefixes(*maps: Mapping[str, str] | None) -> dict[str, str] | None:
 
 def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
           init_bindings: Mapping[Any, Any] | None = None, base: str | None = None, default_graph: Any = None,
-          union: bool = False, entailment: Any = None) -> Result:
+          union: bool = False, entailment: Any = None, custom_functions: Mapping[Any, Any] | None = None,
+          custom_aggregate_functions: Mapping[Any, Any] | None = None) -> Result:
     """Run SPARQL query text on a store and return the wrapper's ``Result``.
 
     Args:
@@ -105,6 +124,7 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
         union: read all graphs as the default graph; ignored when the query has its own ``FROM`` clause.
         default_graph: the graph used as the default graph, unless ``union`` applies.
         entailment: a regime for query-time entailment; the query is rewritten and the data is not changed.
+        custom_functions, custom_aggregate_functions: SPARQL functions and aggregates written in Python, by IRI (see ``custom_function_kwargs``).
     """
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs query text, not a prepared Query object")
@@ -120,6 +140,7 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
         kwargs["prefixes"] = pfx
     if base:
         kwargs["base_iri"] = base
+    kwargs.update(custom_function_kwargs(custom_functions, custom_aggregate_functions))
     if union and not _has_from(text):  # the flag would override the query's own FROM / FROM NAMED, which define the dataset
         kwargs["use_default_graph_as_union"] = True
     elif default_graph is not None:
@@ -148,7 +169,8 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
 
 
 def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
-           base: str | None = None, union: bool = False, overlap: Any = None) -> None:
+           base: str | None = None, union: bool = False, overlap: Any = None, custom_functions: Mapping[Any, Any] | None = None,
+           custom_aggregate_functions: Mapping[Any, Any] | None = None) -> None:
     """Run SPARQL update text on a store, optionally with the default graph read as the union of all graphs.
 
     Args:
@@ -168,6 +190,7 @@ def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, in
         kwargs["prefixes"] = pfx
     if base:
         kwargs["base_iri"] = base
+    kwargs.update(custom_function_kwargs(custom_functions, custom_aggregate_functions))
     if not union:
         store.update(text, **kwargs)
         return

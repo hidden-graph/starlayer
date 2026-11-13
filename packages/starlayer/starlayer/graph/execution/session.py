@@ -65,10 +65,12 @@ class EntailmentSession:
             self._copy = None
 
     # ---- use ---------------------------------------------------------------------------------------------------
-    def query(self, text: str, initNs: Any = None, initBindings: Any = None, base: str | None = None) -> Any:  # noqa: N803
+    def query(self, text: str, initNs: Any = None, initBindings: Any = None, base: str | None = None, *,  # noqa: N803
+              custom_functions: Any = None, custom_aggregate_functions: Any = None) -> Any:
         """Run SPARQL ``text`` on the copy (the data as of the last open or refresh, plus the entailed triples). Read the result
         before the session is closed or refreshed: closing empties the copy."""
-        return self._open().query(text, initNs=initNs, initBindings=initBindings, base=base)
+        return self._open().query(text, initNs=initNs, initBindings=initBindings, base=base, custom_functions=custom_functions,
+                                  custom_aggregate_functions=custom_aggregate_functions)
 
     @property
     def stale(self) -> bool:

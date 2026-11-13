@@ -4,13 +4,20 @@ SELECT: iterate rows (``Row``, a tuple that is also readable by variable name), 
 ``.bindings`` (list of ``{name: term}`` dicts, unbound variables absent). ASK: ``.askAnswer`` and ``bool(result)``.
 CONSTRUCT / DESCRIBE: iterate ``(s, p, o)`` tuples, ``.graph`` (an ``StarLayerGraph`` over a fresh store).
 
+``serialize(destination=None, format=None)`` writes the result as SPARQL Results JSON, XML, CSV or TSV (SELECT, ASK) or as an RDF
+syntax (CONSTRUCT, DESCRIBE), after or before the rows are read.
+
 ``.raw`` is the underlying pyoxigraph object (``QuerySolutions`` / ``QueryBoolean`` / ``QueryTriples``). It is a one-shot
-stream: the wrapper reads it on first use of ``rows`` / ``bindings`` / iteration / ``.graph``, so use ``.raw`` directly (for
-``serialize`` to JSON, CSV, TSV, XML) *instead of*, not after, those.
+stream: the wrapper reads it on first use of ``rows`` / ``bindings`` / iteration / ``.graph`` / ``serialize``, so use ``.raw``
+directly *instead of*, not after, those (for a very large SELECT written straight to a file, ``raw.serialize`` streams where
+``Result.serialize`` holds the rows first).
 """
 
 from __future__ import annotations
 
+import io
+import json
+import os
 import re
 from collections.abc import Iterator
 from typing import Any
@@ -78,6 +85,48 @@ class HiddenColumns:
     def __iter__(self) -> Iterator[Any]:
         """Iterate the underlying solutions unchanged, hidden columns included."""
         return iter(self._raw)
+
+
+_XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"
+
+
+def _json_term(term: Any) -> dict[str, Any]:
+    """A term as an entry of SPARQL 1.1 / 1.2 Query Results JSON (``uri``, ``bnode``, ``literal`` with ``xml:lang`` and
+    ``its:dir``, ``triple``), the form ``pyoxigraph.parse_query_results`` reads."""
+    if isinstance(term, ox.NamedNode):
+        return {"type": "uri", "value": term.value}
+    if isinstance(term, ox.BlankNode):
+        return {"type": "bnode", "value": term.value}
+    if isinstance(term, ox.Triple):
+        return {"type": "triple", "value": {"subject": _json_term(term.subject), "predicate": _json_term(term.predicate), "object": _json_term(term.object)}}
+    entry: dict[str, Any] = {"type": "literal", "value": term.value}
+    if term.language:
+        entry["xml:lang"] = term.language
+        if term.direction is not None:
+            entry["its:dir"] = "rtl" if term.direction == ox.BaseDirection.RTL else "ltr"
+    elif term.datatype.value != _XSD_STRING:
+        entry["datatype"] = term.datatype.value
+    return entry
+
+
+_RESULT_FORMATS = {"json": ox.QueryResultsFormat.JSON, "xml": ox.QueryResultsFormat.XML, "csv": ox.QueryResultsFormat.CSV, "tsv": ox.QueryResultsFormat.TSV}
+
+
+def results_format(format: Any = None) -> ox.QueryResultsFormat:  # noqa: A002
+    """A ``pyoxigraph.QueryResultsFormat`` from itself, a name (``"json"``, ``"xml"``, ``"csv"``, ``"tsv"``), a media type
+    (``"application/sparql-results+json"``) or a file extension; JSON when ``format`` is ``None``."""
+    if format is None:
+        return ox.QueryResultsFormat.JSON
+    if isinstance(format, ox.QueryResultsFormat):
+        return format
+    text = str(format).strip().lower().lstrip(".")
+    if text in _RESULT_FORMATS:
+        return _RESULT_FORMATS[text]
+    for lookup in (ox.QueryResultsFormat.from_media_type, ox.QueryResultsFormat.from_extension):
+        found = lookup(text)
+        if found is not None:
+            return found
+    raise ValueError(f"unknown query results format {format!r}; use one of {sorted(_RESULT_FORMATS)} or a media type")
 
 
 _KEYWORD = re.compile(r"\b(SELECT|ASK|CONSTRUCT|DESCRIBE)\b", re.I)
@@ -159,6 +208,43 @@ class Result:
             g.extend(self.triples)
             self._graph = g
         return self._graph
+
+    # ---- writing ------------------------------------------------------------------------------------------------
+    def serialize(self, destination: Any = None, format: Any = None, **options: Any) -> str | None:  # noqa: A002
+        """Write the result in ``format``.
+
+        SELECT and ASK: SPARQL Query Results ``"json"`` (default), ``"xml"``, ``"csv"`` or ``"tsv"`` (a name, a media type such as
+        ``"text/csv"``, a file extension or a ``pyoxigraph.QueryResultsFormat``); Oxigraph writes them. CONSTRUCT and DESCRIBE:
+        any RDF format of ``StarLayerGraph.serialize`` (Turtle by default), and ``options`` are its options (``prefixes=``, ...).
+
+        ``destination`` is a file path, a file object, or ``None``, which returns the text. A SELECT is read from the one-shot
+        stream first (the same rows as ``rows``), so this works before or after reading them."""
+        if self.type in ("CONSTRUCT", "DESCRIBE"):
+            return self.graph.serialize(destination, format=format or "turtle", **options)
+        if options:
+            raise TypeError(f"a {self.type} result takes no serialize options besides format, got {sorted(options)}")
+        fmt = results_format(format)
+        if self.type == "ASK":
+            document = {"head": {}, "boolean": bool(self.askAnswer)}
+        else:
+            names = [v.value for v in self.vars]
+            document = {
+                "head": {"vars": names},
+                "results": {"bindings": [{n: _json_term(v) for n, v in zip(names, row, strict=True) if v is not None} for row in self._read_rows()]},
+            }
+        data = json.dumps(document, ensure_ascii=False).encode("utf-8")
+        if fmt != ox.QueryResultsFormat.JSON:
+            data = ox.parse_query_results(data, format=ox.QueryResultsFormat.JSON).serialize(format=fmt)
+        if destination is None:
+            return data.decode("utf-8")
+        if isinstance(destination, (str, os.PathLike)):
+            with open(destination, "wb") as handle:
+                handle.write(data)
+        elif isinstance(destination, io.TextIOBase):
+            destination.write(data.decode("utf-8"))
+        else:
+            destination.write(data)
+        return None
 
     # ---- protocol -----------------------------------------------------------------------------------------------
     def __iter__(self) -> Iterator[Any]:

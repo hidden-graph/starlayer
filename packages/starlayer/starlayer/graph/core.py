@@ -613,7 +613,8 @@ class _Base:
     # ---- SPARQL -------------------------------------------------------------------------------------------------
     def query(self, text: str, initNs: Mapping[str, str] | None = None, initBindings: Mapping[Any, Any] | None = None,  # noqa: N803
               base: str | None = None, *, entailment: Any = None, infer: str = "changed", engine: str = "hermit",
-              timeout: Any = None) -> Result:
+              timeout: Any = None, custom_functions: Mapping[Any, Any] | None = None,
+              custom_aggregate_functions: Mapping[Any, Any] | None = None) -> Result:
         """Run SPARQL ``text`` on Oxigraph as it is. ``initNs`` overrides the graph's prefixes for this call; ``initBindings``
         pre-binds variables (``substitutions``, with the ``VALUES`` fallback). A graph view queries its own graph as the default
         graph; a dataset the default graph, or the union of all graphs when ``default_union``.
@@ -627,7 +628,11 @@ class _Base:
         from before is not seen, call ``union.touch()`` after it), ``"always"`` on every call, ``"cached"`` only when none
         are kept (they may then be out of date). A write to any store counts, so it can recompute when it need not. ``engine`` /
         ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
-        Anything else raises ``NotImplementedError``."""
+        Anything else raises ``NotImplementedError``.
+
+        ``custom_functions`` maps a function IRI (a ``NamedNode`` or its text) to a Python callable that takes pyoxigraph terms and
+        returns a term or ``None``; the query can then call ``<iri>(?x)``. ``custom_aggregate_functions`` maps an IRI to a factory of
+        objects with ``accumulate(term)`` and ``finish()``. Both are Oxigraph's, passed through for this call only."""
         regime = None if entailment is None else str(getattr(entailment, "value", entailment))
         from starlayer.graph.entailment import infer as ent
 
@@ -644,9 +649,12 @@ class _Base:
             if infer not in ("always", "cached", "changed"):
                 raise ValueError(f"infer must be one of ['always', 'cached', 'changed'], got {infer!r}")
             kw = {"engine": engine, "timeout": ent.DEFAULT_TIMEOUT if timeout is None else timeout}
-            return self._entailed_copy(regime, infer, **kw).query(text, initNs=initNs, initBindings=initBindings, base=base)
+            return self._entailed_copy(regime, infer, **kw).query(text, initNs=initNs, initBindings=initBindings, base=base,
+                                                                  custom_functions=custom_functions,
+                                                                  custom_aggregate_functions=custom_aggregate_functions)
         return run.query(self._query_store(), text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,
-                         default_graph=self._query_default_graph(), union=self._union and not self._merged(), entailment=regime)
+                         default_graph=self._query_default_graph(), union=self._union and not self._merged(), entailment=regime,
+                         custom_functions=custom_functions, custom_aggregate_functions=custom_aggregate_functions)
 
     def entailment_session(self, entailment: Any, *, infer: str = "changed", engine: str = "hermit", timeout: Any = None) -> Any:
         """Open an ``EntailmentSession``: one copy of this graph's data plus the triples ``entailment`` (``ENTAILMENT['OWL-RDF-Based']``
@@ -706,14 +714,16 @@ class _Base:
     def _query_default_graph(self) -> Any:
         return None
 
-    def update(self, text: str, initNs: Mapping[str, str] | None = None, base: str | None = None) -> None:  # noqa: N803
-        """Run SPARQL Update ``text`` on the store. It acts on the whole store, also from a named-graph view (use ``WITH <g>``
+    def update(self, text: str, initNs: Mapping[str, str] | None = None, base: str | None = None, *,  # noqa: N803
+               custom_functions: Mapping[Any, Any] | None = None, custom_aggregate_functions: Mapping[Any, Any] | None = None) -> None:
+        """Run SPARQL Update ``text`` on the store (``custom_functions`` and ``custom_aggregate_functions`` as for ``query()``). It acts on the whole store, also from a named-graph view (use ``WITH <g>``
         or ``GRAPH`` in the text to aim it). On a ``default_union`` dataset the ``WHERE`` of an ``INSERT`` / ``DELETE`` operation
         reads the union of all graphs, as ``query()`` does (done by adding ``USING`` clauses; see
         ``run.union_update_text`` for how, and its limits)."""
         try:
             run.update(self.store, text, prefixes=self.prefixes, init_ns=initNs, base=base, union=self._union,
-                       overlap=self._overlap if self._union else None)
+                       overlap=self._overlap if self._union else None, custom_functions=custom_functions,
+                       custom_aggregate_functions=custom_aggregate_functions)
         finally:
             union.touch()
 
