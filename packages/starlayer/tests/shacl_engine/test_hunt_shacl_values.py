@@ -233,22 +233,6 @@ def _surrogate_case(obj, mode):
         return "TermError"
 
 
-@pytest.mark.parametrize("which", ["iri", "literal", "lang_literal", "typed_literal"])
-def test_lone_surrogate_stand_in_maps_back(which):
-    from starlayer.graph.oxgraph._rdflib_bridge import (
-        engine_to_foreign,
-        foreign_to_engine,
-    )
-    from starlayer.shacl_engine.terms import term_policy
-
-    term = _surrogate_term(which)
-    with term_policy("lenient"):
-        back = engine_to_foreign(foreign_to_engine(term))
-    assert back == term
-    assert getattr(back, "language", None) == getattr(term, "language", None)
-    assert getattr(back, "datatype", None) == getattr(term, "datatype", None)
-
-
 def _surrogate_term(which):
     from rdflib import (  # a lone surrogate cannot be a pyoxigraph term: these arrive only from rdflib graphs
         Literal,

@@ -41,12 +41,6 @@ def _is_ox_term(value: Any) -> bool:
     return isinstance(value, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple, ox.Variable))
 
 
-def _is_foreign_term(value: Any) -> bool:
-    """An rdflib (or rdflib-based StarLayer) term, recognised without importing rdflib."""
-    module = type(value).__module__
-    return module.startswith("rdflib") or module.startswith("starlayer.graph.model")
-
-
 def _ox_to_srl_term(value: Any) -> Any:
     """A pyoxigraph term as a term of the SRL tree: a ``pyoxigraph.Triple`` becomes a ``TripleTermNode``."""
     if isinstance(value, ox.Triple):
@@ -60,8 +54,7 @@ def _ox_to_srl_term(value: Any) -> Any:
 
 
 def _coerce_term(value: Any) -> Any:
-    """``value`` as a term of the SRL tree: a pyoxigraph term (or triple), or an rdflib / StarLayer term (converted by the
-    rdflib bridge, which is imported only then); anything else comes back unchanged."""
+    """``value`` as a term of the SRL tree: a pyoxigraph term (a triple becomes a ``TripleTermNode``); anything else comes back unchanged."""
     if isinstance(value, TripleTermNode):
         parts = {k: _coerce_term(v) for k, v in value.f.items()}
         if all(parts[k] is value.f[k] for k in parts):
@@ -69,20 +62,13 @@ def _coerce_term(value: Any) -> Any:
         return TripleTermNode("TripleTerm", **parts)
     if _is_ox_term(value):
         return _ox_to_srl_term(value)
-    if _is_foreign_term(value):
-        if type(value).__name__ == "Variable":
-            return ox.Variable(str(value))
-        from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
-
-        return _ox_to_srl_term(from_rdflib_term(value))
     return value
 
 
 def check_goal_pattern(goal_pattern: Any) -> TriplePattern:
     """``goal_pattern`` as a ``TriplePattern`` of pyoxigraph terms, raising instead of letting a wrong-typed term match nothing.
 
-    Accepted in each position: pyoxigraph terms (``NamedNode``, ``BlankNode``, ``Literal``, ``Triple``, ``Variable``) and
-    rdflib / StarLayer terms. The predicate must be an IRI or a variable.
+    Accepted in each position: pyoxigraph terms (``NamedNode``, ``BlankNode``, ``Literal``, ``Triple``, ``Variable``). The predicate must be an IRI or a variable.
 
     Raises:
         TypeError: If ``goal_pattern`` is not a ``TriplePattern``, or a position holds something that is not an RDF term or
@@ -122,8 +108,8 @@ class TriplePattern:
     object: Term
 
     def __post_init__(self) -> None:
-        """Converts each position to its pyoxigraph (or ``TripleTermNode``) form, accepting rdflib terms."""
-        # a pyoxigraph triple is stored as a TripleTermNode, an rdflib term as its pyoxigraph form
+        """Converts each position to its pyoxigraph (or ``TripleTermNode``) form."""
+        # a pyoxigraph triple is stored as a TripleTermNode
         for name in ("subject", "predicate", "object"):
             value = getattr(self, name)
             converted = _coerce_term(value)
@@ -514,7 +500,6 @@ class RuleSet:
 
         from . import srl_eval
 
-        from_oxigraph = _ox.is_oxigraph_input(base_graph)  # the rules run on an StarLayerGraph; an rdflib graph is copied in
         original_graph = base_graph
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
@@ -523,8 +508,6 @@ class RuleSet:
         inferred = srl_eval._srl_infer(base_graph, self._with_imports_resolved(imports_loader))
 
         if schema is None:
-            if not from_oxigraph:
-                return srl_eval.to_foreign(inferred, original_graph)
             return self._with_own_prefixes(self._with_prefixes_of(inferred, original_graph))
 
         from starlayer.shacl import RulesResult, StarShaclSchema
@@ -539,13 +522,11 @@ class RuleSet:
         evaluation.extend(list(base_graph))
         evaluation.extend(list(inferred))
         validation = resolved_schema.validate(data_graph=evaluation)
-        if from_oxigraph:
-            converted = _ox.convert_result(
-                RulesResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation), original_graph
-            )
-            self._with_own_prefixes(converted.inferred_graph)
-            return converted
-        return RulesResult(inferred_graph=srl_eval.to_foreign(inferred, original_graph), validation=validation)
+        converted = _ox.convert_result(
+            RulesResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation), original_graph
+        )
+        self._with_own_prefixes(converted.inferred_graph)
+        return converted
 
     @staticmethod
     def _with_prefixes_of(inferred: Any, original: Any) -> Any:
@@ -584,32 +565,20 @@ class RuleSet:
             imports_loader: Same meaning as :meth:`infer`'s own ``imports_loader=``.
 
         Returns:
-            One ``dict[Variable, term]`` solution per match. For an rdflib ``base_graph`` the keys are
-            ``rdflib.Variable`` and the values rdflib terms (rdflib is then needed). For an Oxigraph ``base_graph`` (``StarLayerGraph`` / ``StarLayerDataset`` /
-            ``Store``) the keys are ``pyoxigraph.Variable``, as in the wrapper's own query results (``result.vars``), and the
-            values pyoxigraph terms. The goal pattern may use either kind of term in either case.
+            One ``dict[Variable, term]`` solution per match: the keys are ``pyoxigraph.Variable``, as in the wrapper's own query
+            results (``result.vars``), and the values pyoxigraph terms.
 
         Raises:
             TypeError: If a position of ``goal_pattern`` is not an RDF term or variable (nothing is silently matched).
         """
-        from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
         from . import srl_eval
 
         goal_pattern = check_goal_pattern(goal_pattern)
-        from_oxigraph = _ox.is_oxigraph_input(base_graph)
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
         rows = srl_eval._srl_query(base_graph, self._with_imports_resolved(imports_loader), goal_pattern)
-        if from_oxigraph:  # the solutions hold pyoxigraph terms, as the wrapper's own query results do
-            import pyoxigraph as ox
+        import pyoxigraph as ox
 
-            return [{ox.Variable(var.value): value for var, value in row.items()} for row in rows]
-        from starlayer._optional import require_rdflib
-
-        require_rdflib("Querying an rdflib graph with an SRL rule set")
-        from rdflib import Variable as RVariable
-
-        return [{RVariable(var.value): _ox.to_rdflib_term(value) for var, value in row.items()} for row in rows]
+        return [{ox.Variable(var.value): value for var, value in row.items()} for row in rows]

@@ -201,18 +201,3 @@ def test_isomorphic_raises_instead_of_hanging_on_a_symmetric_blank_node_graph():
     with pytest.raises(CanonicalizationComplexityError):
         isomorphic(g, g)
 
-
-def test_isomorphic_takes_rdflib_graphs_and_datasets():
-    import rdflib
-    from starlayer.graph.oxgraph import StarLayerDataset
-
-    text = '@prefix ex: <http://example.org/> . ex:a ex:p [ ex:q "x" ] .'
-    a, b = rdflib.Graph(), rdflib.Graph()
-    a.parse(data=text, format="turtle")
-    b.parse(data=text.replace("ex:a", "ex:b"), format="turtle")
-    assert isomorphic(a, _graph(text))
-    assert isomorphic(_graph(text), a)
-    assert not isomorphic(a, b)
-    ds = StarLayerDataset()
-    ds.parse(data=text, format="turtle")
-    assert isomorphic(a, ds)

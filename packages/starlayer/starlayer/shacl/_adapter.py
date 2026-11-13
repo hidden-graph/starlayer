@@ -14,15 +14,13 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.shacl_engine.terms import RDF, SH, term_policy, to_engine
+from starlayer.shacl_engine.terms import RDF, SH, to_engine
 
 _RDF_REIFIES = RDF.reifies
 
 
 # The keywords ``validate()`` (and so ``apply_rules()``) take besides its named parameters: the option presets of
-# ``validation_modes`` and their per-call overrides. ``advanced=False`` turns rule execution off; ``debug`` is accepted and ignored;
-# ``invalid_terms`` is ``"error"`` (the default: a graph holding a term that is not an RDF term, such as a relative IRI, raises
-# ``TermError``) or ``"lenient"`` (such terms are processed as opaque stand-ins).
+# ``validation_modes`` and their per-call overrides. ``advanced=False`` turns rule execution off; ``debug`` is accepted and ignored.
 VALIDATE_OPTIONS = frozenset(
     {
         "advanced",
@@ -35,7 +33,6 @@ VALIDATE_OPTIONS = frozenset(
         "abort_on_error",
         "max_validation_depth",
         "inference",
-        "invalid_terms",
     }
 )
 
@@ -82,8 +79,6 @@ def translate_validate_options(options: dict[str, Any]) -> dict[str, Any]:
     meta = options.get("meta_shacl")
     if meta:
         out["meta_shacl"] = meta
-    if options.get("invalid_terms") is not None:
-        out["invalid_terms"] = options["invalid_terms"]
     if options.get("advanced") is False:
         out["rules"] = False
     elif options.get("iterate_rules"):
@@ -112,15 +107,11 @@ def _check_imports(shapes: Any, loader: Any, ignore_imports: bool) -> None:
         resolve_imports(shapes, None, False)
 
 
-def _normalise(data: Any, shapes: Any, ont: Any, invalid_terms: Any = None) -> tuple[Any, Any, Any]:
-    """The three graphs as Oxigraph-backed graphs (an rdflib / StarLayerGraph input is copied by the ``from_rdflib`` bridge, under
-    the ``invalid_terms`` policy)."""
-    import contextlib
-
+def _normalise(data: Any, shapes: Any, ont: Any) -> tuple[Any, Any, Any]:
+    """The three graphs as Oxigraph-backed graphs (an rdflib graph is a ``TypeError``)."""
     from starlayer.shacl.normalization import normalize_graph_inputs
 
-    with term_policy(invalid_terms) if invalid_terms else contextlib.nullcontext():
-        return normalize_graph_inputs(data, shapes, ont)
+    return normalize_graph_inputs(data, shapes, ont)
 
 
 def _meta_preflight(shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
@@ -189,7 +180,7 @@ def validate(
     engine_kwargs = translate_validate_options(resolved)
 
     original = data_graph
-    data, shapes, ont = _normalise(data_graph, shacl_graph, ont_graph, options.get("invalid_terms"))
+    data, shapes, ont = _normalise(data_graph, shacl_graph, ont_graph)
     cache = _PLAN_CACHE.get()
     if cache is not None and shacl_graph is not None:
         # keep the caller's shapes object alive next to its normalised form, so the (id-keyed) Plan cache stays valid and
@@ -289,7 +280,7 @@ def apply_rules(
     engine_kwargs["rules"] = False  # the rules have run: the final pass validates the evaluation graph only
     inference = options.get("inference")
     data, shapes, ont = _normalise(
-        data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph, options.get("invalid_terms")
+        data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph
     )
     meta_shacl = engine_kwargs.pop("meta_shacl", None)
     if meta_shacl:  # the same preflight as validate(), on the shapes graph as given

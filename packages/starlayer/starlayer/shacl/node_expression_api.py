@@ -38,13 +38,11 @@ def evaluate_expression(
     from starlayer.shacl_engine.executor import Context
     from starlayer.shacl_engine.plan import Plan
     from starlayer.shacl_engine.terms import (
-        check_graphs,
         engine_view,
         from_engine,
         to_engine,
     )
 
-    check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"))
     plan = Plan(shapes_graph=engine_view(shapes_graph, "shapes graph"))
     ctx = Context(data=engine_view(data_graph, "data graph"), plan=plan)
 

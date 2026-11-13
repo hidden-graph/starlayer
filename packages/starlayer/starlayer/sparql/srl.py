@@ -269,11 +269,10 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None) -> tuple[Any, A
 
     Args:
         ruleset: The RuleSet to encode.
-        graph: Graph to add the encoding to (an ``StarLayerGraph``, which gets pyoxigraph terms, or an rdflib graph, which
-            gets rdflib terms and needs rdflib); a fresh ``StarLayerGraph`` if not given.
+        graph: The ``StarLayerGraph`` to add the encoding to; a fresh one if not given.
 
     Returns:
-        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node (a pyoxigraph term for a ``StarLayerGraph``).
+        A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node .
     """
     sink = _Sink()
     root = _Writer(sink).ruleset(ruleset)
@@ -281,17 +280,8 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None) -> tuple[Any, A
         from starlayer.graph.oxgraph.core import StarLayerGraph
 
         graph = StarLayerGraph(prefixes={})
-    from starlayer.graph.oxgraph import _rdflib_bridge as _ox
-
-    if _ox.is_oxigraph_input(graph):
-        graph.extend(list(sink))
-        return graph, root
-    from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
-
-    for row in _ox.to_rdflib_triples(sink):
-        # a plain rdflib graph holds a direction-tagged literal in its datatype-IRI form
-        graph.add(tuple(encode_dirlangstring(t) if isinstance(t, DirLangString) else t for t in row))
-    return graph, _ox.to_rdflib_term(root)
+    graph.extend(list(sink))
+    return graph, root
 
 
 class _Writer:
@@ -839,7 +829,6 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
     result = starlayer.shacl.validate(
         rdfs_entailed_copy(data_graph, schema),  # the RDFS closure the shapes rely on, done natively
         shacl_graph=shapes,
-        invalid_terms="lenient",  # query / ontology trees hold relative IRIs: opaque terms to the shapes
         advanced=True,
         max_validation_depth=100,
     )

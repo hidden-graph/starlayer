@@ -417,16 +417,16 @@ def test_srl_and_the_embedded_query_check_load_no_rdflib_module():
     assert result.stdout.strip() == "[]", f"SRL loaded rdflib: {result.stdout.strip()}"
 
 
-def test_srl_on_an_rdflib_graph_needs_rdflib_and_says_so():
+def test_srl_on_a_graph_that_is_not_a_starlayer_graph_says_how_to_convert():
     result = run_blocked("""
         from starlayer.sparql import srl
-        class Foreign:  # not an Oxigraph graph, so the rdflib bridge is asked to copy it
+        class Foreign:  # not an Oxigraph graph
             def __iter__(self):
                 return iter(())
         srl.parse_ruleset("RULE { ?x <http://e/p> ?y } WHERE { ?x <http://e/q> ?y }").infer(Foreign())
     """)
     assert result.returncode != 0
-    assert "starlayer[rdflib]" in result.stderr
+    assert "from_rdflib" in result.stderr
 
 
 def test_the_sqe_text_path_loads_no_rdflib_module():

@@ -1,8 +1,9 @@
 """``ruleset_to_text`` keeps what the expressions mean (GitHub issue #80): parentheses, REGEX/REPLACE flags,
 unary minus, function calls by IRI, IF, BNODE and the RDF 1.2 builtins."""
 
+import pyoxigraph as ox
 import pytest
-from rdflib import Graph, Literal, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.expr_text import render_expression
 from starlayer.sparql.srl import parse_ruleset, ruleset_to_text
 
@@ -12,13 +13,13 @@ PREFIXES = f"PREFIX : <{E}> PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
 
 def _data():
     g = Graph()
-    g.add((URIRef(E + "a"), URIRef(E + "p"), Literal(5)))
-    g.add((URIRef(E + "a"), URIRef(E + "p"), Literal("ABC")))
+    g.add((ox.NamedNode(E + "a"), ox.NamedNode(E + "p"), ox.Literal("5", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))))
+    g.add((ox.NamedNode(E + "a"), ox.NamedNode(E + "p"), ox.Literal("ABC")))
     return g
 
 
 def _inferred(ruleset):
-    return sorted(str(o) for _s, _p, o in ruleset.infer(_data()))
+    return sorted(o.value for _s, _p, o in ruleset.infer(_data()))
 
 
 @pytest.mark.parametrize(
@@ -49,7 +50,7 @@ def test_assignment_expression_means_the_same_after_a_text_round_trip(expr, expe
 def test_arithmetic_keeps_its_parentheses():
     ruleset = parse_ruleset(f"{PREFIXES}RULE {{ ?x :q ?z }} WHERE {{ ?x :p ?y SET(?z := (?y - 1) * 2) }}")
     again = parse_ruleset(ruleset_to_text(ruleset))
-    assert [str(o) for _s, _p, o in again.infer(_data()) if str(o).isdigit()] == ["8"]
+    assert [o.value for _s, _p, o in again.infer(_data()) if o.value.isdigit()] == ["8"]
 
 
 def test_regex_flags_are_kept():

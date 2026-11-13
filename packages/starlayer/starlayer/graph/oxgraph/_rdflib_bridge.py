@@ -511,47 +511,40 @@ def show(term: Any) -> str:
 
 def foreign_to_engine(term: Any) -> Any:
     """rdflib / StarLayer term (or a 3-tuple, a triple term) -> pyoxigraph term; a pyoxigraph term is returned as it is.
-    ``shacl_engine.terms.to_engine`` calls this for the StarLayer value classes. A term pyoxigraph rejects raises ``TermError`` (a ``ValueError``), or under
-    ``term_policy("lenient")`` becomes an opaque stand-in that ``engine_to_foreign`` maps back (see ``TermError``)."""
+    ``shacl_engine.terms.to_engine`` calls this for the StarLayer value classes. A term pyoxigraph rejects (a relative IRI, a
+    blank node id or language tag it does not accept) raises ``ValueError``."""
+    if isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
+        return term
     from rdflib import BNode, URIRef, Variable
     from rdflib import Literal as RLiteral
 
     from starlayer.graph.model.dirlangstring import DirLangString
     from starlayer.graph.model.triple import TripleTerm
 
-    if isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
-        return term
     T = _T()
     cls = type(term)
     if cls is URIRef or cls is BNode:
         out = _TO_ENGINE.get(term)
         if out is None:
-            out = T._iri_or_stand_in(_rdflib_text(term), term) if cls is URIRef else T._bnode_or_stand_in(_rdflib_text(term), term)
-            if out.value.startswith((T._INVALID_IRI_PREFIX, T._INVALID_BNODE_PREFIX)) and T._POLICY.get() == "lenient":
-                return out  # a stand-in is not cached: the strict policy must still reject the original
+            out = ox.NamedNode(_rdflib_text(term)) if cls is URIRef else ox.BlankNode(_rdflib_text(term))
             if len(_TO_ENGINE) >= _CACHE_MAX:
                 _TO_ENGINE.clear()
             _TO_ENGINE[term] = out
         return out
     if isinstance(term, URIRef):
-        return T._iri_or_stand_in(_rdflib_text(term), term)
+        return ox.NamedNode(_rdflib_text(term))
     if isinstance(term, BNode):
-        return T._bnode_or_stand_in(_rdflib_text(term), term)
+        return ox.BlankNode(_rdflib_text(term))
     if isinstance(term, DirLangString):
-        if T.has_lone_surrogate(term.value):
-            return T._surrogate_literal_stand_in(term.value, term, lang=term.language)
-        return T._lang_literal_or_stand_in(term.value, term.language, term, T._DIRECTIONS[term.direction])
+        return ox.Literal(term.value, language=term.language, direction=T._DIRECTIONS[term.direction])
     if isinstance(term, RLiteral):
         lexical = _rdflib_text(term)
         if term.language:
-            if T.has_lone_surrogate(lexical):
-                return T._surrogate_literal_stand_in(lexical, term, lang=term.language)
-            return T._lang_literal_or_stand_in(lexical, term.language, term)
-        datatype = T._iri_or_stand_in(_rdflib_text(term.datatype), term.datatype) if term.datatype is not None else None
-        if T.has_lone_surrogate(lexical):
-            return T._surrogate_literal_stand_in(lexical, term, datatype=datatype)
-        return ox.Literal(lexical, datatype=datatype) if datatype is not None else ox.Literal(lexical)
-    if isinstance(term, Variable):  # SPARQL-algebra graphs (salg) store query variables as terms: no oxrdf equivalent
+            return ox.Literal(lexical, language=term.language)
+        if term.datatype is not None:
+            return ox.Literal(lexical, datatype=ox.NamedNode(_rdflib_text(term.datatype)))
+        return ox.Literal(lexical)
+    if isinstance(term, Variable):  # SPARQL-algebra graphs store query variables as terms: no oxrdf equivalent
         return ox.NamedNode(T._VARIABLE_PREFIX + _rdflib_text(term))
     if isinstance(term, TripleTerm):
         return ox.Triple(foreign_to_engine(term.subject), foreign_to_engine(term.predicate), foreign_to_engine(term.object))
@@ -602,14 +595,6 @@ def _engine_to_foreign(term: Any) -> Any:
             return DirLangString(term.value, term.language, str(term.direction))
         return RLiteral(term.value, lang=term.language)
     dt = term.datatype.value
-    if dt.startswith(T._INVALID_LITERAL_PREFIX):
-        payload, _, spec = dt[len(T._INVALID_LITERAL_PREFIX) :].partition("-")
-        lexical = bytes.fromhex(payload).decode("utf-8", "surrogatepass")
-        if spec.startswith("l"):
-            return RLiteral(lexical, lang=unquote(spec[1:], errors="surrogatepass"))
-        if spec.startswith("d"):
-            return RLiteral(lexical, datatype=URIRef(unquote(spec[1:], errors="surrogatepass")), normalize=False)
-        return RLiteral(lexical)
     if dt.startswith(T._INVALID_LANG_PREFIX):
         return RLiteral(term.value, lang=unquote(dt[len(T._INVALID_LANG_PREFIX) :], errors="surrogatepass"))
     if dt.startswith(T._INVALID_IRI_PREFIX):
@@ -617,90 +602,33 @@ def _engine_to_foreign(term: Any) -> Any:
     return RLiteral(term.value) if dt == T._XSD + "string" else RLiteral(term.value, datatype=URIRef(dt), normalize=False)
 
 
-def _ill_formed(term: Any) -> Any:
-    """The ``TermError`` ``to_engine`` raises for ``term`` under the strict policy, or None if it converts."""
-    T = _T()
-    with T.term_policy("error"):
-        try:
-            foreign_to_engine(term)
-        except T.TermError as exc:
-            return exc
-    return None
-
-
-_MAX_ERRORS = 100
-
-
-def _position_error(position: str, term: Any) -> Any:
-    """The ``TermError`` for a term that is well-formed but cannot sit in ``position`` of an RDF triple (rdflib allows a literal
-    subject and a non-IRI predicate; owlrl's closure makes them), or None."""
+def is_rdf_triple(triple: tuple[Any, Any, Any]) -> bool:
+    """False for a generalized triple (a literal subject, a predicate that is not an IRI): Oxigraph cannot hold it. owlrl's closure
+    makes such triples."""
     from rdflib import Literal, URIRef, Variable
 
-    T = _T()
-    if position == "subject" and isinstance(term, Literal):
-        return T.TermError(term, "term", "a literal cannot be the subject of an RDF triple")
-    if position == "predicate" and not isinstance(term, (URIRef, Variable)):  # a Variable crosses as an IRI
-        return T.TermError(term, "term", "the predicate of an RDF triple must be an IRI")
-    return None
+    return not isinstance(triple[0], Literal) and isinstance(triple[1], (URIRef, Variable))
 
 
-def is_rdf_triple(triple: tuple[Any, Any, Any]) -> bool:
-    """False for a generalized triple (a literal subject, a predicate that is not an IRI): Oxigraph cannot hold it."""
-    return _position_error("subject", triple[0]) is None and _position_error("predicate", triple[1]) is None
+def _refuse_rdflib(value: Any, where: str, explicit: bool) -> None:
+    """An rdflib graph is converted only by the explicit ``from_rdflib`` calls: anywhere else it is a ``TypeError``."""
+    import sys
+
+    rdflib = sys.modules.get("rdflib")
+    if not explicit and rdflib is not None and isinstance(value, rdflib.Graph):
+        raise TypeError(
+            f"an rdflib graph ({type(value).__name__}) is not accepted as the {where}: convert it with StarLayerGraph.from_rdflib(graph) "
+            "(StarLayerDataset.from_rdflib for a Dataset)"
+        )
 
 
-def scan_graph(graph: Any, where: str = "graph") -> tuple[Any, ...]:
-    """Every ill-formed term of an rdflib / StarLayer graph (first ``_MAX_ERRORS``), each located by ``where``, position and the
-    first triple it occurs in: an IRI, blank node id or language tag Oxigraph rejects, and a term in a position RDF does not allow
-    (a literal subject, a predicate that is not an IRI). Distinct terms are checked once. Not cached: an rdflib graph has no
-    version, and a graph edited between runs (to the same size) must be scanned again."""
-    seen: set = set()
-    errors: list = []
-    for triple in graph.triples((None, None, None)):
-        for position, term in zip(("subject", "predicate", "object"), triple, strict=True):
-            bad = _position_error(position, term)
-            if bad is not None:
-                errors.append(bad.located(where, position, triple))
-                continue
-            if term in seen:
-                continue
-            seen.add(term)
-            err = _ill_formed(term)
-            if err is None:
-                continue
-            if err.kind == "iri" and err.term != term and getattr(term, "datatype", None) == err.term:
-                position = "datatype of the object"  # noqa: PLW2901
-            errors.append(err.located(where, position, triple))
-        if len(errors) >= _MAX_ERRORS:
-            break
-    return tuple(errors[:_MAX_ERRORS])
-
-
-def check_graphs(*labelled: tuple[Any, str]) -> tuple[Any, ...]:
-    """The single up-front check of a run: scan each ``(graph, label)`` that is an rdflib / StarLayer graph (Oxigraph-backed
-    graphs and ``None`` hold only well-formed terms) and, under the strict policy, raise one aggregate ``TermError`` naming every
-    offender with its graph label. Under ``term_policy("lenient")`` return the offenders instead."""
-    T = _T()
-    errors: list = []
-    done: set[int] = set()
-    for graph, where in labelled:
-        if graph is None or getattr(graph, "engine_terms", False) or isinstance(graph, ox.Store) or id(graph) in done:
-            continue
-        done.add(id(graph))
-        errors.extend(scan_graph(graph, where))
-    if errors and T._POLICY.get() != "lenient":
-        raise T.TermError(errors[0].term, errors[0].kind, errors[0].reason, errors=tuple(errors))
-    return tuple(errors)
-
-
-def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = False) -> Any:
+def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = False, explicit: bool = False) -> Any:
     """An Oxigraph-backed graph for any graph a caller may pass: an ``StarLayerGraph`` / ``StarLayerDataset`` as it is, a bare ``pyoxigraph.Store``
     as an ``StarLayerDataset``, and a plain rdflib graph or an old-style ``StarLayerGraph`` (``from_rdflib``: a supported public input)
     as an ``StarLayerGraph`` copy with its prefixes and, when it has an IRI identifier, that identifier. ``None`` stays ``None``.
 
-    A term that is not an RDF term (a relative IRI ...) raises ``TermError`` naming every offender (``where`` labels the graph),
-    or, under ``term_policy("lenient")``, is stored as the opaque stand-in (``Outcome.invalid_terms`` lists it; the stand-in, not
-    the original, is what an Oxigraph result holds). Oxigraph normalises some literals on insert (``"04"^^xsd:integer`` becomes
+    A term that is not an RDF term (a relative IRI ...) raises ``ValueError``; a generalized triple (a literal subject, a predicate
+    that is not an IRI, as owlrl makes) is left out. Oxigraph normalises some literals on insert (``"04"^^xsd:integer`` becomes
     ``"4"``): ``preserves_lexical_forms`` is False on the result, as for any ``StarLayerGraph``. ``restore_directions=True`` turns a
     directional literal decomposed to its datatype-IRI form (``interop.encode_directions``) back into a real one."""
     if value is None:
@@ -712,10 +640,8 @@ def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = F
     if isinstance(value, ox.Store):
         return StarLayerDataset(store=value)
     if not hasattr(value, "triples") or not hasattr(value, "namespaces"):
-        raise TypeError(
-            f"{where} must be an StarLayerGraph, StarLayerDataset, pyoxigraph Store, StarLayerGraph or rdflib Graph; got {type(value).__name__}"
-        )
-    check_graphs((value, where))
+        raise TypeError(f"{where} must be a StarLayerGraph, StarLayerDataset or pyoxigraph Store; got {type(value).__name__}")
+    _refuse_rdflib(value, where, explicit)
     from rdflib import URIRef
 
     ident = getattr(value, "identifier", None)
@@ -723,19 +649,19 @@ def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = F
     for prefix, ns in value.namespaces():
         out.bind(prefix, str(ns))
     to_engine = from_rdflib_term if restore_directions else foreign_to_engine
-    # under the lenient policy a generalized triple (a literal subject, a non-IRI predicate) is left out; Outcome.invalid_terms lists it
     out.extend([(to_engine(s), to_engine(p), to_engine(o)) for s, p, o in value.triples((None, None, None)) if is_rdf_triple((s, p, o))])
     return out
 
 
-def to_oxdataset(value: Any, where: str = "dataset") -> Any:
+def to_oxdataset(value: Any, where: str = "dataset", *, explicit: bool = False) -> Any:
     """A new ``StarLayerDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / StarLayer dataset (every graph, empty named graphs
     too, ``default_union`` kept) or from a plain graph (its triples go to the default graph, whatever its identifier). Terms are
     converted and checked as in ``to_oxgraph``, and a decomposed directional literal is restored. Prefixes are copied."""
     from starlayer.graph.oxgraph.core import StarLayerDataset
 
     if isinstance(value, (StarLayerDataset, ox.Store)) or not hasattr(value, "namespaces"):
-        raise TypeError(f"{where} must be an rdflib Dataset, ConjunctiveGraph, Graph or StarLayerDataset; got {type(value).__name__}")
+        raise TypeError(f"{where} must be an rdflib Dataset, ConjunctiveGraph or Graph; got {type(value).__name__}")
+    _refuse_rdflib(value, where, explicit)
     if hasattr(value, "graphs") or hasattr(value, "contexts"):
         import warnings
 
@@ -749,7 +675,6 @@ def to_oxdataset(value: Any, where: str = "dataset") -> Any:
         union = bool(getattr(value, "default_union", True))
     else:
         graphs, default_id, union = [value], value.identifier, True
-    check_graphs(*((g, f"{where} graph {g.identifier}") for g in graphs))
     out = StarLayerDataset(default_union=union)
     for prefix, ns in value.namespaces():
         out.bind(prefix, str(ns))

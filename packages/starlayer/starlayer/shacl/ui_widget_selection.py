@@ -36,8 +36,7 @@ from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
 from starlayer.shacl_engine.terms import NS, RDF, SH
 
 # The terms are pyoxigraph terms. The graphs are read as they are (``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store``), with
-# no copy. An rdflib graph or term (an optional extra; a caller holding one has rdflib) is converted at the public functions only
-# (``_Boundary``), and the answer is converted back.
+# no copy; an rdflib graph or term is a ``TypeError``.
 SHUI = NS("http://www.w3.org/ns/shacl-ui/")
 
 Role = Literal["editor", "viewer"]
@@ -94,12 +93,12 @@ _OWL_IMPORTS = ox.NamedNode("http://www.w3.org/2002/07/owl#imports")
 _OX_TERMS = (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)
 
 
-# ---- the boundary with rdflib ------------------------------------------------------------------------------------------
+# ---- the boundary ------------------------------------------------------------------------------------------------------
 
 
 def _as_ox_graph(value: Any) -> Any:
     """``value`` as something this module reads: ``StarLayerGraph`` / ``StarLayerDataset`` as they are, a ``pyoxigraph.Store`` as a
-    dataset, ``None`` as an empty graph, an rdflib graph as a converted copy."""
+    dataset, ``None`` as an empty graph. An rdflib graph is a ``TypeError``."""
     if value is None:
         return StarLayerGraph()
     if isinstance(value, (StarLayerGraph, StarLayerDataset)):
@@ -108,57 +107,32 @@ def _as_ox_graph(value: Any) -> Any:
         return StarLayerDataset(store=value)
     from starlayer.graph.oxgraph._rdflib_bridge import to_oxgraph
 
-    return to_oxgraph(value, "graph")
+    return to_oxgraph(value, "graph")  # raises the TypeError that points to from_rdflib
 
 
 def _term_in(term: Any) -> Any:
-    """A caller's node as a pyoxigraph term (an rdflib term is converted; ``None`` stays)."""
+    """A caller's node, which must be a pyoxigraph term (``None`` stays)."""
     if term is None or isinstance(term, _OX_TERMS):
         return term
-    from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
-
-    return from_rdflib_term(term)
-
-
-def _term_out(term: Any, as_ox: bool) -> Any:
-    if term is None or as_ox:
-        return term
-    from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term
-
-    return to_rdflib_term(term)
+    raise TypeError(f"a node must be a pyoxigraph term (NamedNode, BlankNode, Literal or Triple), not {type(term).__name__}")
 
 
 class _Boundary:
-    """What the public functions do with their arguments: graphs and nodes in as pyoxigraph, the answer out in the caller's term family.
-
-    The answer is in pyoxigraph terms when ``shape_node`` or ``focus_node`` is a pyoxigraph term, else in rdflib terms (the family of
-    the nodes the caller wrote, whatever the graphs are)."""
+    """What the public functions do with their arguments: nodes and graphs are pyoxigraph / StarLayer objects, and the answer is in pyoxigraph terms."""
 
     def __init__(self, shape_node: Any, focus_node: Any, shapes_graph: Any, scoring_graph: Any) -> None:
-        self.as_ox = isinstance(shape_node, _OX_TERMS) or isinstance(focus_node, _OX_TERMS)
         self.shape_node = _term_in(shape_node)
         self.focus_node = _term_in(focus_node)
         self.shapes_graph = _as_ox_graph(shapes_graph)
         self.scoring_graph = self.shapes_graph if scoring_graph is shapes_graph and scoring_graph is not None else _as_ox_graph(scoring_graph)
 
-    def out(self, term: Any) -> Any:
-        return _term_out(term, self.as_ox)
+    @staticmethod
+    def out(term: Any) -> Any:
+        return term
 
-    def choice_out(self, choice: WidgetChoice) -> WidgetChoice:
-        if self.as_ox:
-            return choice
-        candidates = tuple(
-            WidgetCandidate(
-                widget=self.out(c.widget), score=c.score, data_checks=tuple((self.out(node), flag) for node, flag in c.data_checks),
-                implemented=c.implemented,
-            )
-            for c in choice.candidates
-        )
-        return WidgetChoice(
-            property_shape=self.out(choice.property_shape), candidates=candidates,
-            _shapes_graph=choice._shapes_graph, _scoring_graph=choice._scoring_graph,
-            _role=choice._role, _report=choice._report,
-        )
+    @staticmethod
+    def choice_out(choice: WidgetChoice) -> WidgetChoice:
+        return choice
 
 
 def _conformance_context(base_graph: Any, shapes_graph: Any) -> Any:

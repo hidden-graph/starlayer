@@ -211,11 +211,10 @@ class TestFromRdflib:
     def test_an_illegal_term_is_an_error(self):
         import rdflib
         from rdflib import URIRef
-        from starlayer.shacl_engine.terms import TermError
 
         r = rdflib.Graph()
         r.add((URIRef("not an iri"), URIRef(EX + "p"), URIRef(EX + "b")))
-        with pytest.raises(TermError):
+        with pytest.raises(ValueError):
             StarLayerGraph.from_rdflib(r)
 
 

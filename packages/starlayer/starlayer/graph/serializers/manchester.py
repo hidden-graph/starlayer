@@ -893,7 +893,7 @@ def serialize_manchester(graph) -> str:
     """
     from starlayer.graph.oxgraph import _rdflib_bridge
 
-    graph = _rdflib_bridge.to_oxgraph(graph)  # an rdflib graph is converted (imports rdflib); an Oxigraph one is read as it is
+    graph = _rdflib_bridge.to_oxgraph(graph)  # an rdflib graph is a TypeError
     if hasattr(graph, 'to_graph'):
         graph = graph.to_graph()
     ctx = _Ctx(graph)

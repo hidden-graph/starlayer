@@ -46,11 +46,9 @@ from starlayer.shacl_engine.terms import (
     RDF,
     RDFS,
     Literal,
-    check_graphs,
     engine_view,
     text,
     to_engine,
-    with_term_policy,
 )
 from starlayer.shacl_engine.terms import BlankNode as BNode
 from starlayer.shacl_engine.terms import NamedNode as URIRef
@@ -642,7 +640,6 @@ def _groups(rules: list[Rule]) -> list[list[Rule]]:
     return [by[o] for o in sorted(by)]
 
 
-@with_term_policy
 def apply_rules(
     data_graph: Any,
     shapes_graph: Any = None,
@@ -658,7 +655,6 @@ def apply_rules(
     ``rule_sets``: IRIs of ``sh:RuleSet`` instances to run (with the sets they include); ``None`` runs the default rule set,
     every rule of the shapes graph. A failing rule fails the whole rule set: ``RuleError`` is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
-    check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"))
     data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, an StarLayerGraph copy inside
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
     rule_sets = None if rule_sets is None else [to_engine(s) for s in rule_sets]

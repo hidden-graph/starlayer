@@ -21,7 +21,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.shacl.ui_widget_selection import SHUI, _as_ox_graph, _term_in, _term_out
+from starlayer.shacl.ui_widget_selection import SHUI, _as_ox_graph, _term_in
 from starlayer.shacl_engine.terms import SH
 
 _REIFIES = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
@@ -51,7 +51,6 @@ def property_shapes_for_role(*, shape_node: Any, role: Any, shapes_graph: Any) -
 
     ``role`` is the role's IRI (``shui:LabelRole`` or one of your own). ``shape_node`` and the returned shapes are in the term family
     of ``shape_node`` (pyoxigraph or rdflib)."""
-    as_ox = isinstance(shape_node, (ox.NamedNode, ox.BlankNode))
     graph = _as_ox_graph(shapes_graph)
     shape = _term_in(shape_node)
     wanted = _term_in(role) if not isinstance(role, str) else ox.NamedNode(role)
@@ -75,4 +74,4 @@ def property_shapes_for_role(*, shape_node: Any, role: Any, shapes_graph: Any) -
         if best is not None:
             found.append((best, prop))
     found.sort(key=lambda item: item[0])
-    return [_term_out(prop, as_ox) for _key, prop in found]
+    return [prop for _key, prop in found]

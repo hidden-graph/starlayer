@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Graph, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLImportError, parse_ruleset, resolve_imports
 from starlayer.sparql.srl_eval import SRLImportsNotSupportedError
@@ -24,7 +24,7 @@ DOCS = {
 
 
 def _u(local):
-    return URIRef(EX + local)
+    return ox.NamedNode(EX + local)
 
 
 class _Loader:

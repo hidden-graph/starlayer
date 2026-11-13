@@ -1,7 +1,7 @@
 """RDF Dataset Canonicalization (RDFC-1.0): the canonical N-Quads text and the hash of a graph or dataset.
 
 A thin front over ``starlayer.graph.rdfc_native`` (Oxigraph's RDFC-1.0), kept as the public entry point of the guides. It takes a
-``StarLayerGraph``, ``StarLayerDataset``, ``pyoxigraph.Store`` or an rdflib ``Graph`` / ``Dataset`` (copied into Oxigraph first).
+``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``.
 RDFC-1.0 has no triple-term rule, so a triple term is rewritten first with the RDF 1.2 Interoperability basic encoding
 (``starlayer.graph.interop.to_basic``); the result is RDFC-1.0 of that RDF 1.1-shaped dataset. A graph without triple terms
 gets the plain RDFC-1.0 form and hash that any other implementation computes.

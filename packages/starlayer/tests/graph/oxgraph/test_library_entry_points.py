@@ -267,7 +267,7 @@ BASE = "@prefix ex: <http://example.org/> . ex:a ex:p ex:b . ex:b ex:p ex:c ."
 
 @pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_srl_infer_and_query_on_oxigraph(cls):
-    from rdflib import Variable
+    Variable = ox.Variable
     from starlayer.sparql import srl
     from tests.terms import NamedNode
 

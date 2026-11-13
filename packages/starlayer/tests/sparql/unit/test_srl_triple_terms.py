@@ -6,8 +6,6 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Variable
-from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
@@ -142,12 +140,6 @@ def test_a_data_block_triple_term_is_in_the_output_and_matched_by_rules():
     assert (_u("erin"), _u("thinksAbout"), _u("bob")) in inferred
 
 
-def test_a_plain_rdflib_base_graph_works_when_the_rules_use_triple_terms():
-    rules = parse_ruleset(P + "DATA { ex:erin ex:believes <<( ex:bob ex:age 7 )>> . }")
-    plain = Graph()
-    assert len(rules.infer(plain)) == 1
-
-
 def test_a_starlayer_base_graph_with_triple_terms_works_with_rules_that_do_not_use_them():
     """Before triple-term support this raised ``AssertionError: ... must be an rdflib term``."""
     rules = parse_ruleset(P + "RULE { ?x ex:known ex:yes } WHERE { ?x ex:name ?n }")
@@ -167,9 +159,9 @@ def test_a_head_triple_term_that_would_be_invalid_rdf_is_skipped():
 def test_query_with_a_goal_pattern_containing_a_triple_term():
     rules = parse_ruleset(P + "RULE { ?w ex:flag ex:yes } WHERE { ?w ex:name ?n }")
     goal = srl.TriplePattern(
-        subject=Variable("w"),
+        subject=ox.Variable("w"),
         predicate=_u("believes"),
-        object=_triple_term_node(Variable("p"), _u("age"), Variable("n")),
+        object=_triple_term_node(ox.Variable("p"), _u("age"), ox.Variable("n")),
     )
     rows = rules.query(_base(), goal)
     assert {

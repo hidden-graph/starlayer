@@ -1,9 +1,8 @@
 """The pyoxigraph terms StarLayer's own SPARQL parser (``parse_sparql``) and the ``sqe:`` tree are built from.
 
 A query may hold what an RDF graph cannot: a relative IRI (``<s>`` with no ``BASE``), a blank node label or language tag
-pyoxigraph rejects. ``sqe:`` trees keep such text as the opaque, reversible stand-ins the SHACL engine uses under
-``term_policy("lenient")`` (``urn:starlayer:invalid-iri:<percent-encoded text>`` and so on, see
-``shacl_engine.terms.TermError``), so the tree is a valid ``StarLayerGraph`` and the text comes back unchanged. The
+pyoxigraph rejects. ``sqe:`` trees keep such text as opaque, reversible stand-ins
+(``urn:starlayer:invalid-iri:<percent-encoded text>`` and so on; the prefixes are in ``shacl_engine.terms``), so the tree is a valid ``StarLayerGraph`` and the text comes back unchanged. The
 functions here make the stand-in and take it apart again; nothing else in the sparql package needs to know the format.
 """
 

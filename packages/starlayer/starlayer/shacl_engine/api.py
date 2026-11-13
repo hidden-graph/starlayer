@@ -16,10 +16,8 @@ from starlayer.shacl_engine.plan import Plan
 from starlayer.shacl_engine.report import annotate_provenance, build_report, conforms
 from starlayer.shacl_engine.terms import (
     StarLayerFidelityWarning,
-    check_graphs,
     engine_view,
     to_engine,
-    with_term_policy,
 )
 from starlayer.shacl_engine.text import result_messages
 
@@ -35,7 +33,6 @@ class Outcome:
     results: list[Result]
     rule_result: Any = None
     data_graph: Any = None  # the caller's data graph with the inferred triples added, when ``inplace=True``
-    invalid_terms: tuple = ()  # ill-formed terms processed as opaque stand-ins (``invalid_terms="lenient"``); else empty
     recursion_revisits: int = 0  # recursive (shape, node) re-entries during the run (diagnostics)
     warnings: tuple[str, ...] = ()  # diagnostics of this run, e.g. the lexical-fidelity warning (``fidelity.py``)
     _text_inputs: Any = field(default=None, repr=False, compare=False)  # (shapes, data view, data_graph_iri) for report_text
@@ -99,7 +96,6 @@ def _write_back(view: Any, original: Any) -> None:
             original.add(triple)
 
 
-@with_term_policy
 def validate(
     data_graph: Any,
     shapes_graph: Any = None,
@@ -155,18 +151,11 @@ def validate(
     ``shapes_graph`` is stored under ``(id(shapes_graph), shapes_graph_resource)`` and reused by later calls with the same
     shapes graph object (the caller must keep that object alive and unchanged).
 
-    ``invalid_terms``: what to do with terms that are not RDF terms (a relative IRI, a blank node id or language tag
-    Oxigraph rejects): ``"error"`` (default) raises ``terms.TermError`` before validating; ``"lenient"`` processes them as
-    opaque terms and lists them on ``Outcome.invalid_terms``. See ``terms.TermError`` for the policy and its reasoning.
-
     Not offered: the old validator's ``decode_report`` (it undoes the triple-term encoding it applies for pySHACL; this
     engine handles triple terms natively and never encodes, so there is nothing to decode) and ``iterate_rules``.
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 
-    # One up-front check of the caller's graphs for terms that are not RDF terms (``terms.TermError``): raises, or under
-    # ``invalid_terms="lenient"`` lists them on ``Outcome.invalid_terms``.
-    invalid = check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
     cache_key = (id(shapes_graph), shapes_graph_resource) if plan_cache is not None and shapes_graph is not None else None
     if plan is None and cache_key is not None:
         plan = plan_cache.get(cache_key)
@@ -264,7 +253,6 @@ def validate(
         report_graph=report,
         results=results,
         rule_result=rule_result,
-        invalid_terms=invalid,
         warnings=tuple(run_warnings),
         data_graph=original_data if inplace else None,
         recursion_revisits=stats.get("recursion_revisits", 0),
@@ -272,7 +260,6 @@ def validate(
     )
 
 
-@with_term_policy
 def validate_each(
     data_graphs: Iterable[Any],
     shapes_graph: Any = None,
@@ -317,7 +304,6 @@ def validate_each(
     }
 
 
-@with_term_policy
 def target_nodes(
     data_graph: Any, shapes_graph: Any, shape_node: Any, *, ont_graph: Any = None, inference: Any = None
 ) -> list:
@@ -326,7 +312,6 @@ def target_nodes(
     of the shapes graph's own ``sh:entailment`` is applied first, over the data and ``ont_graph``, without changing either."""
     from starlayer.shacl_engine.entailment import resolve_data_view
 
-    check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
     data_graph = engine_view(data_graph, "data graph")
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
     data = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)

@@ -558,8 +558,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
         text: The Manchester Syntax document text to parse.
         base: Base IRI for resolving relative IRIs, if any.
         graph: Write the tree into this graph instead of a fresh one - an ``StarLayerGraph`` (or ``StarLayerDataset`` / ``pyoxigraph.Store``)
-            gets pyoxigraph terms and the ``manch:`` prefix; an rdflib graph gets rdflib terms. ``None`` (the default) builds
-            a fresh ``StarLayerGraph``.
+            gets pyoxigraph terms and the ``manch:`` prefix. ``None`` (the default) builds a fresh ``StarLayerGraph``.
 
     Returns:
         ``graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:Document`` tree.
@@ -579,7 +578,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
 
 
 def _holds_document(graph: Any) -> bool:
-    """True if ``graph`` (an rdflib graph, ``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``) has a ``manch:Document``."""
+    """True if ``graph`` (a ``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``) has a ``manch:Document``."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
     from starlayer.graph.oxgraph.core import as_store
 
@@ -588,9 +587,7 @@ def _holds_document(graph: Any) -> bool:
             None, RDF.type, MANCH.Document, None))
     if _ox.is_oxigraph_input(graph):
         return next(iter(graph.subjects(RDF.type, MANCH.Document)), None) is not None
-    import rdflib
-
-    return (None, rdflib.RDF.type, rdflib.URIRef(MANCH.Document.value)) in graph
+    raise TypeError(f"expected a StarLayerGraph, StarLayerDataset or pyoxigraph Store, not {type(graph).__name__}")
 
 
 def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
@@ -1167,8 +1164,7 @@ def manchester_tree_to_owl(graph: Any) -> Any:
 
 
 def _as_graph(graph: Any) -> Any:
-    """A ``StarLayerGraph`` for any graph a caller may pass (a dataset gives its default graph; an rdflib graph is converted,
-    which imports rdflib)."""
+    """A ``StarLayerGraph`` for any graph a caller may pass (a dataset gives its default graph; an rdflib graph is a ``TypeError``)."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
 
     graph = _ox.to_oxgraph(graph)
@@ -1304,7 +1300,6 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
         shacl_graph=get_ontology_graph("manchester_shacl"),
         ont_graph=get_ontology_graph("manchester_owl"),
         inference=ENTAILMENT.RDFS,
-        invalid_terms="lenient",  # query / ontology trees hold relative IRIs: opaque terms to the shapes
         advanced=True,
         max_validation_depth=100,
     )

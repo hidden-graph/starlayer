@@ -86,7 +86,6 @@ def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
     result = starlayer.shacl.validate(
         _entailed_copy(data_graph),
         shacl_graph=_shapes_graph(),
-        invalid_terms="lenient",  # query / ontology trees hold relative IRIs: opaque terms to the shapes
         advanced=True,
         max_validation_depth=100,
     )

@@ -27,7 +27,6 @@ import pyoxigraph as ox
 
 from starlayer.graph.oxgraph._detached import detached
 from starlayer.shacl_engine.terms import (
-    check_graphs,
     from_engine,
     to_engine,
 )
@@ -40,13 +39,6 @@ DEFAULT = object()
 # Terms handed to and from the engine are pyoxigraph terms: the view returns store terms as they are. ``to_ox`` /
 # ``from_ox`` convert the tuples and StarLayer value classes a caller may pass (graph names, ``add``, pre-bindings); rdflib terms are refused.
 to_ox = to_engine
-
-
-def _foreign(term: Any) -> Any:
-    """A term of a source graph, which may be an rdflib graph's (converted, with the term policy), as a pyoxigraph term."""
-    from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
-
-    return foreign_to_engine(term)
 from_ox = from_engine
 
 
@@ -194,15 +186,11 @@ class OxigraphGraph:
 
     @classmethod
     def from_graph(cls, graph: Any, *, graph_name: Any = UNION) -> OxigraphGraph:
-        """Copy the triples of an rdflib / StarLayerGraph (anything with ``.triples((None, None, None))``) in. A term that is
-        not an RDF term (relative IRI ...) raises ``TermError`` naming every offender (or, under ``term_policy("lenient")``,
-        is stored as the opaque stand-in ``from_engine`` maps back); a store cannot hold it. ``add`` and pattern lookups
-        raise ``TermError`` for such a term too."""
-        check_graphs((graph, "graph"))
+        """Copy the triples of an Oxigraph-backed graph (anything with ``.triples((None, None, None))`` that yields pyoxigraph terms) in."""
         store = ox.Store()
         target = ox.DefaultGraph() if graph_name in (UNION, DEFAULT) else to_ox(graph_name)
         store.bulk_extend(
-            ox.Quad(_foreign(s), _foreign(p), _foreign(o), target) for s, p, o in graph.triples((None, None, None))
+            ox.Quad(s, p, o, target) for s, p, o in graph.triples((None, None, None))
         )
         return cls(store, graph_name)
 

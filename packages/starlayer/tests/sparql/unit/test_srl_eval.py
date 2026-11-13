@@ -11,7 +11,6 @@ independent reference implementation.
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Variable
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import parse_ruleset
 from starlayer.sparql.srl_eval import (
@@ -478,29 +477,28 @@ def test_triple_term_in_a_pattern_depends_on_a_triple_term_template_with_variabl
     import pyoxigraph as ox
     from starlayer.sparql.triple_term import TripleTermNode
 
-    Variable = ox.Variable
     _p = lambda local: ox.NamedNode(EX + local)  # noqa: E731
 
     q = _p("q")
     producer = _ast_rule(
         head=[
             _tp(
-                Variable("x"),
+                ox.Variable("x"),
                 _p("r"),
                 TripleTermNode(
                     "TripleTerm",
-                    subject=Variable("a"),
+                    subject=ox.Variable("a"),
                     predicate=q,
-                    object=Variable("b"),
+                    object=ox.Variable("b"),
                 ),
             )
         ]
     )
     consumer = _ast_rule(
-        head=[_tp(Variable("x"), _p("s"), Variable("y"))],
+        head=[_tp(ox.Variable("x"), _p("s"), ox.Variable("y"))],
         body=[
             _tp(
-                Variable("x"),
+                ox.Variable("x"),
                 _p("r"),
                 TripleTermNode(
                     "TripleTerm", subject=_p("s1"), predicate=q, object=_p("o1")
@@ -516,17 +514,16 @@ def test_head_with_a_triple_term_containing_a_variable_makes_a_run_once_rule():
     import pyoxigraph as ox
     from starlayer.sparql.triple_term import TripleTermNode
 
-    Variable = ox.Variable
     _p = lambda local: ox.NamedNode(EX + local)  # noqa: E731
 
     with_var = TripleTermNode(
-        "TripleTerm", subject=Variable("a"), predicate=_p("q"), object=_p("o")
+        "TripleTerm", subject=ox.Variable("a"), predicate=_p("q"), object=_p("o")
     )
     ground = TripleTermNode(
         "TripleTerm", subject=_p("s"), predicate=_p("q"), object=_p("o")
     )
-    assert _ast_rule(head=[_tp(Variable("x"), _p("r"), with_var)])._is_run_once is True
-    assert _ast_rule(head=[_tp(Variable("x"), _p("r"), ground)])._is_run_once is False
+    assert _ast_rule(head=[_tp(ox.Variable("x"), _p("r"), with_var)])._is_run_once is True
+    assert _ast_rule(head=[_tp(ox.Variable("x"), _p("r"), ground)])._is_run_once is False
 
 
 def _tp(s, p, o):
@@ -542,7 +539,7 @@ def _ast_rule(head, body=None):
         head=head,
         body=body
         if body is not None
-        else [_tp(Variable("x"), _p("src"), Variable("y"))],
+        else [_tp(ox.Variable("x"), _p("src"), ox.Variable("y"))],
     )
 
 

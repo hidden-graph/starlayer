@@ -2,9 +2,8 @@
 
 Two graphs or datasets are isomorphic when they are equal up to blank-node relabelling. Both sides are canonicalised
 with Oxigraph's native RDFC-1.0 (``starlayer.graph.rdfc_native``), so graph names count and triple terms are compared
-by structure, a blank node inside a triple term included. An rdflib ``Graph`` or ``Dataset`` is first copied into an
-Oxigraph-backed graph (``to_oxgraph`` / ``to_oxdataset`` of the rdflib bridge, which needs rdflib; a caller holding one
-has it installed). Oxigraph reads a simple literal and its ``xsd:string`` form as one term and lower-cases language tags,
+by structure, a blank node inside a triple term included. An rdflib ``Graph`` is a ``TypeError``: convert it with
+``StarLayerGraph.from_rdflib``. Oxigraph reads a simple literal and its ``xsd:string`` form as one term and lower-cases language tags,
 so those differences never make two graphs unequal.
 """
 
@@ -17,25 +16,15 @@ __all__ = ["isomorphic"]
 
 def as_quads(graph: Any) -> list:
     """The quads of an Oxigraph-backed graph / dataset / ``pyoxigraph.Store`` as pyoxigraph quads (a graph's triples go into the
-    default graph); an rdflib graph or dataset is converted first."""
+    default graph), or of a plain collection of pyoxigraph ``(s, p, o)`` triples. An rdflib graph is a ``TypeError``."""
     import pyoxigraph as ox
 
-    from starlayer.graph.oxgraph._rdflib_bridge import (
-        is_oxigraph_input,
-        to_oxdataset,
-        to_oxgraph,
-    )
+    from starlayer.graph.oxgraph._rdflib_bridge import is_oxigraph_input, to_oxgraph
 
     if not is_oxigraph_input(graph) and not hasattr(graph, "triples") and not hasattr(graph, "namespaces"):
-        # a plain collection of (s, p, o) triples, in pyoxigraph or rdflib terms
-        from starlayer.graph.oxgraph._rdflib_bridge import from_rdflib_term
-
-        def term(t):
-            return t if isinstance(t, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)) else from_rdflib_term(t)
-
-        return [ox.Quad(term(s), term(p), term(o), ox.DefaultGraph()) for s, p, o in graph]
+        return [ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in graph]  # a plain collection of pyoxigraph triples
     if not is_oxigraph_input(graph):
-        graph =to_oxdataset(graph, "graph") if hasattr(graph, "graphs") or hasattr(graph, "contexts") else to_oxgraph(graph, "graph")
+        to_oxgraph(graph, "graph")  # raises the TypeError that points to from_rdflib
     if isinstance(graph, ox.Store):
         return list(graph)
     from starlayer.graph.oxgraph.core import StarLayerDataset
@@ -46,8 +35,7 @@ def as_quads(graph: Any) -> list:
 
 
 def isomorphic(graph1: Any, graph2: Any) -> bool:
-    """True if the two graphs or datasets (``StarLayerGraph``, ``StarLayerDataset``, ``pyoxigraph.Store``, or rdflib ``Graph`` /
-    ``Dataset``) are equal up to blank-node relabelling: equal canonical N-Quads (RDFC-1.0). Datasets are compared as datasets,
+    """True if the two graphs or datasets (``StarLayerGraph``, ``StarLayerDataset``, ``pyoxigraph.Store``) are equal up to blank-node relabelling: equal canonical N-Quads (RDFC-1.0). Datasets are compared as datasets,
     graph names included; a dataset against a plain graph compares the dataset's quads with the graph's triples in the default
     graph.
 

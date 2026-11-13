@@ -49,14 +49,6 @@ def test_a_dataset_hash_counts_graph_names():
     assert rdfc10_hash(a) != rdfc10_hash(b)
 
 
-def test_an_rdflib_graph_gives_the_same_text():
-    import rdflib
-
-    g = rdflib.Graph()
-    g.parse(data=EX + 'ex:a ex:p [ ex:q "x" ] .', format="turtle")
-    assert to_canonical_nquads(g) == to_canonical_nquads(_graph('ex:a ex:p [ ex:q "x" ] .'))
-
-
 def test_a_symmetric_blank_node_graph_raises_the_complexity_error():
     ring = "".join(f"_:b{i} ex:p _:b{j} . " for i in range(10) for j in range(10) if i != j)
     g = _graph(ring)

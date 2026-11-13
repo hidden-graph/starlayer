@@ -38,11 +38,9 @@ from starlayer.shacl_engine.terms import (
     RDFS,
     Literal,
     Triple,
-    check_graphs,
     engine_view,
     text,
     to_engine,
-    with_term_policy,
 )
 
 _Triple = tuple[Any, Any, Any]
@@ -463,7 +461,6 @@ def _is_target_of(extractor: _Extractor, shape: Shape, node: Term) -> bool:
     return node in extractor.ctx.shape_focus(shape)
 
 
-@with_term_policy
 def extract_subgraph(
     data_graph: Any,
     shacl_graph: Any | None = None,
@@ -488,7 +485,6 @@ def extract_subgraph(
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and type(value) is str:  # a bare str is not a term (an rdflib ``URIRef`` is a str subclass)
             raise TypeError(f"{argument} must be an RDF term such as a NamedNode or URIRef, not {type(value).__name__}: {value!r}")
-    check_graphs((data_graph, "data graph"), (shacl_graph, "shapes graph"), (ont_graph, "ontology graph"))
     data_graph = engine_view(data_graph, "data graph")
     from starlayer.graph.oxgraph import StarLayerDataset
 

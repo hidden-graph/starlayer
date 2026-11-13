@@ -5,8 +5,6 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Literal as RLiteral
-from rdflib import URIRef as RURIRef
 from starlayer.sparql._oxterms import RDF, XSD
 from starlayer.sparql.srl import parse_ruleset
 
@@ -62,12 +60,12 @@ def test_bare_tilde_in_a_reified_triple_names_a_fresh_reifier():
 
 
 def test_evaluation_compares_values_not_lexical_forms():
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
 
     rs = parse_ruleset(
         PRE + "RULE { ?s :neg true } WHERE { ?s :v ?n FILTER(?n < 0 && ?n = -0.5) }\nDATA { :a :v -.5 . :b :v .5 }",
         validate=False,
     )
     out = rs.infer(Graph())
-    assert (RURIRef("http://e/a"), RURIRef("http://e/neg"), RLiteral(True)) in out
-    assert (RURIRef("http://e/b"), RURIRef("http://e/neg"), RLiteral(True)) not in out
+    assert (ox.NamedNode("http://e/a"), ox.NamedNode("http://e/neg"), ox.Literal("true", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))) in out
+    assert (ox.NamedNode("http://e/b"), ox.NamedNode("http://e/neg"), ox.Literal("true", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))) not in out

@@ -116,23 +116,15 @@ def sqe_parse_to_tree(
     if root is not None:
         from starlayer.shacl_engine.terms import to_engine
 
-        root = to_engine(root)  # an rdflib term is converted (rdflib installed); a pyoxigraph term passes
+        root = to_engine(root)
         if not isinstance(root, (ox.NamedNode, ox.BlankNode)):
             raise TypeError(f"root must be an IRI or a blank node, not {type(root).__name__}")
     triples, root = ast_to_triples(ast, root)
     from starlayer.graph.oxgraph.core import StarLayerGraph
 
-    foreign = graph if graph is not None and not getattr(graph, "engine_terms", False) else None
-    tree = StarLayerGraph(prefixes={}) if graph is None or foreign is not None else graph
+    tree = StarLayerGraph(prefixes={}) if graph is None else graph
     tree.extend(triples)
     conforms, report_graph, report_text = sqe_validate(tree)
     if not conforms:
         raise SQEValidationError(report_text, report_graph)
-    if foreign is not None:  # an rdflib graph is filled with the tree (needs rdflib, which it already is)
-        from ._memtree import fill_foreign
-
-        fill_foreign(foreign, tree)
-        from starlayer.shacl_engine.terms import from_engine
-
-        return foreign, from_engine(root)
     return tree, root

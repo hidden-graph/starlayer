@@ -2,7 +2,6 @@
 
 import pyoxigraph as ox
 import pytest
-import rdflib
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.sparql import srl
 
@@ -27,7 +26,7 @@ def ruleset():
 
 
 def test_query_with_pyoxigraph_goal_terms(ruleset):
-    goal = srl.TriplePattern(subject=rdflib.Variable("x"), predicate=_ex("exposedTo"), object=_ex("v1"))
+    goal = srl.TriplePattern(subject=ox.Variable("x"), predicate=_ex("exposedTo"), object=_ex("v1"))
     assert list(ruleset.query(_graph(), goal)) == [{ox.Variable("x"): _ex("db")}]
 
 
@@ -35,20 +34,6 @@ def test_query_with_pyoxigraph_goal_terms(ruleset):
 def test_query_with_pyoxigraph_variables(ruleset, cls):
     goal = srl.TriplePattern(subject=ox.Variable("x"), predicate=_ex("exposedTo"), object=ox.Variable("v"))
     assert ruleset.query(_graph(cls), goal) == [{ox.Variable("x"): _ex("db"), ox.Variable("v"): _ex("v1")}]
-
-
-def test_query_with_rdflib_goal_terms_on_oxigraph_gives_ox_variable_keys(ruleset):
-    goal = srl.TriplePattern(
-        subject=rdflib.Variable("x"), predicate=rdflib.URIRef(EX + "exposedTo"), object=rdflib.URIRef(EX + "v1")
-    )
-    assert ruleset.query(_graph(), goal) == [{ox.Variable("x"): _ex("db")}]
-
-
-def test_query_on_an_rdflib_graph_keeps_rdflib_rows_and_takes_pyoxigraph_goal(ruleset):
-    g = rdflib.Graph()
-    g.parse(data=DATA, format="turtle")
-    goal = srl.TriplePattern(subject=ox.Variable("x"), predicate=_ex("exposedTo"), object=_ex("v1"))
-    assert ruleset.query(g, goal) == [{rdflib.Variable("x"): rdflib.URIRef(EX + "db")}]
 
 
 def test_query_with_pyoxigraph_literal_goals():
@@ -96,7 +81,7 @@ def test_goal_that_is_not_a_triple_pattern_raises(ruleset):
 
 
 def test_triple_pattern_stores_pyoxigraph_terms():
-    pattern = srl.TriplePattern(subject=rdflib.Variable("x"), predicate=rdflib.URIRef(EX + "p"), object=rdflib.Literal("a"))
+    pattern = srl.TriplePattern(subject=ox.Variable("x"), predicate=ox.NamedNode(EX + "p"), object=ox.Literal("a"))
     assert pattern.subject == ox.Variable("x")
     assert pattern.predicate == ox.NamedNode(EX + "p")
     assert pattern.object == ox.Literal("a")

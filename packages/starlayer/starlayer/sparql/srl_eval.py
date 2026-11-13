@@ -6,8 +6,7 @@ from the spec's own verbatim pseudocode rather than an approximation of it.
 
 **Reuses Oxigraph's SPARQL engine for triple-pattern matching and expression
 evaluation, rather than reimplementing SPARQL semantics a second time.** The
-evaluation graphs are ``StarLayerGraph`` s (pyoxigraph terms; an rdflib or old-style
-graph argument is copied in, the result converted back):
+evaluation graphs are ``StarLayerGraph`` s (pyoxigraph terms):
 
 - The spec's own §6.1 ``graphMatch``/``compatible``/``merge`` definitions
   are, term for term, SPARQL's basic-graph-pattern join. §6.4's
@@ -769,56 +768,19 @@ _NOW: ContextVar = ContextVar("srl_now", default=None)
 
 def flatten_dataset(graph):
     """``graph`` as an ``StarLayerGraph`` the rules are evaluated on: an ``StarLayerGraph`` as it is; an ``StarLayerDataset`` / ``Store`` as the
-    union of its graphs; an rdflib graph (or, for a dataset, its default graph or the union of all graphs) copied in by the
-    rdflib bridge (rdflib is then needed). Nothing here changes ``graph``."""
+    union of its graphs. An rdflib graph is a ``TypeError`` (convert it with ``StarLayerGraph.from_rdflib``). Nothing here changes ``graph``."""
     from starlayer.graph.oxgraph import _rdflib_bridge as _ox
     from starlayer.graph.oxgraph.core import StarLayerGraph
     from starlayer.shacl_engine.graphs import new_graph
 
     if isinstance(graph, StarLayerGraph):
         return graph
+    if not _ox.is_oxigraph_input(graph):
+        raise TypeError(f"an SRL rule set runs on a StarLayerGraph, StarLayerDataset or Store, not {type(graph).__name__} (convert an rdflib graph with StarLayerGraph.from_rdflib)")
     flat = new_graph()
-    if _ox.is_oxigraph_input(graph):
-        # a Store yields quads; the union of its graphs keeps each triple once, whatever graph it is in
-        flat.extend({(item[0], item[1], item[2]) for item in graph})
-        return flat
-    from starlayer._optional import require_rdflib
-
-    require_rdflib("Running SRL rules on an rdflib graph")
-    from rdflib import ConjunctiveGraph, Dataset
-
-    triples = graph.triples((None, None, None)) if isinstance(graph, (Dataset, ConjunctiveGraph)) else iter(graph)
-    flat.extend((_ox.from_rdflib_term(s), _ox.from_rdflib_term(p), _ox.from_rdflib_term(o)) for s, p, o in triples)
+    # a Store yields quads; the union of its graphs keeps each triple once, whatever graph it is in
+    flat.extend({(item[0], item[1], item[2]) for item in graph})
     return flat
-
-
-def to_foreign(inferred, original):
-    """The inferred graph for a caller that did not pass an Oxigraph graph: rdflib terms in a graph of the caller's own class
-    when that is an rdflib ``Graph`` subclass (the old-style graph, which can hold triple terms), otherwise a plain
-    ``rdflib.Graph``. A result that holds a triple term, which a plain ``rdflib.Graph`` cannot hold, is returned as the
-    ``StarLayerGraph`` it is."""
-    from starlayer._optional import require_rdflib
-
-    require_rdflib("Returning the inferred triples as an rdflib graph")
-    from rdflib import ConjunctiveGraph, Dataset, Graph
-
-    from starlayer.graph.model.dirlangstring import DirLangString, encode_dirlangstring
-    from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_term
-
-    triples = list(inferred)
-    cls = type(original)
-    holds_triple_terms = cls not in (Graph, Dataset, ConjunctiveGraph) and isinstance(original, Graph) and not isinstance(
-        original, (Dataset, ConjunctiveGraph)
-    )
-    if not holds_triple_terms and any(isinstance(t, ox.Triple) for triple in triples for t in triple):
-        return inferred
-    out = cls() if holds_triple_terms else Graph()
-    for s, p, o in triples:
-        row = (to_rdflib_term(s), to_rdflib_term(p), to_rdflib_term(o))
-        if not holds_triple_terms:  # a plain rdflib graph holds a direction-tagged literal in its datatype-IRI form
-            row = tuple(encode_dirlangstring(t) if isinstance(t, DirLangString) else t for t in row)
-        out.add(row)
-    return out
 
 
 def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):

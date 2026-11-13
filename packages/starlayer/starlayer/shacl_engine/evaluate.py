@@ -27,14 +27,11 @@ from starlayer.shacl_engine.deactivation import deactivated_at
 from starlayer.shacl_engine.executor import Context, _deactivated
 from starlayer.shacl_engine.plan import SH, Plan
 from starlayer.shacl_engine.terms import (
-    check_graphs,
     engine_view,
     to_engine,
-    with_term_policy,
 )
 
 
-@with_term_policy
 def evaluate(
     data_graph: Any,
     shapes_graph: Any = None,
@@ -58,7 +55,6 @@ def evaluate(
     """
     from starlayer.shacl_engine.entailment import resolve_data_view
 
-    check_graphs((data_graph, "data graph"), (shapes_graph, "shapes graph"), (ont_graph, "ontology graph"))
     data_graph = engine_view(data_graph, "data graph")
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
     view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)

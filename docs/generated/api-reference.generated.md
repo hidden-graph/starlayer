@@ -372,7 +372,7 @@ def from_rdflib(cls, graph: Any) -> StarLayerGraph
 A new in-memory ``StarLayerGraph`` with the triples, prefixes and (when it is an IRI) identifier of an rdflib ``Graph`` or an
 old-style ``StarLayerGraph``; a ``TripleTerm`` becomes a triple term, a directional literal in its datatype-IRI form
 (what ``to_rdflib`` writes) is restored, and the basic encoding is left as triples (``interop.from_basic`` decodes it).
-A term RDF does not allow raises ``TermError`` (``term_policy("lenient")`` stores a stand-in). An ``StarLayerGraph`` is copied.
+A term RDF does not allow raises ``ValueError``. An ``StarLayerGraph`` is copied.
 For an rdflib dataset's named graphs use ``StarLayerDataset.from_rdflib``.
 
 **Parameters:**
@@ -448,7 +448,7 @@ from the shapes graph alone. Shape-driven subgraph extraction is the plain funct
 ``inference`` is an entailment regime IRI (``ENTAILMENT.RDFS``) or an iterable of them, applied to the data graph of every call
 together with the shapes graph's own ``sh:entailment``.
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L252-L550)
+**Source:** [starlayer.shacl.validator.StarShaclSchema](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L251-L549)
 
 ---
 
@@ -472,7 +472,7 @@ Runs the rules of the bound shapes graph over ``data_graph`` (default: the bound
 
 **Returns:** `RulesResult`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.apply_rules](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L430-L449)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.apply_rules](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L429-L448)
 
 ---
 
@@ -495,7 +495,7 @@ they are; nothing is removed. See ``shacl_engine.shapes_graphs.close_shape`` for
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L527-L537)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.close_shape](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L526-L536)
 
 ---
 
@@ -510,7 +510,7 @@ The default data graph, as an Oxigraph-backed graph (``StarLayerGraph`` / ``Star
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.data_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L321-L323)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.data_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L320-L322)
 
 ---
 
@@ -535,7 +535,7 @@ Computes the ``sh:values`` / ``sh:defaultValue`` virtual properties of the bound
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L451-L473)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.evaluate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L450-L472)
 
 ---
 
@@ -560,7 +560,7 @@ dangling.
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L539-L550)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L538-L549)
 
 ---
 
@@ -575,7 +575,7 @@ The ontology graph, as an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLaye
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.ont_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L311-L313)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.ont_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L310-L312)
 
 ---
 
@@ -590,7 +590,7 @@ The scoring graph of ``shui:WidgetScore`` entries, as an Oxigraph-backed graph (
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.scoring_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L331-L333)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.scoring_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L330-L332)
 
 ---
 
@@ -618,7 +618,7 @@ Delegates to :func:`starlayer.shacl.select_widgets`; this method supplies the bo
 
 **Returns:** `dict[Any, Any]` - ``{property_shape: widget}``, with ``None`` for a property that has no widget (or ``{property_shape: WidgetChoice}``).
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L475-L525)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.select_widgets](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L474-L524)
 
 ---
 
@@ -633,7 +633,7 @@ The shapes graph, as an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerD
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.shacl_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L301-L303)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.shacl_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L300-L302)
 
 ---
 
@@ -654,7 +654,7 @@ The nodes ``shape_node`` targets in ``data_graph`` (default: the bound one), as 
 
 **Returns:** `tuple[Any, ...]`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.target_nodes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L366-L376)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.target_nodes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L365-L375)
 
 ---
 
@@ -686,7 +686,7 @@ named ``sh:ShapesGraph`` module of the bound shapes graph.
 
 **Returns:** `ValidationResult`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.validate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L378-L419)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.validate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L377-L418)
 
 ---
 
@@ -708,7 +708,7 @@ once for the whole batch. ``data_graphs`` is as for the module function :func:`v
 
 **Returns:** `dict[Any, ValidationResult]`
 
-**Source:** [starlayer.shacl.validator.StarShaclSchema.validate_each](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L421-L428)
+**Source:** [starlayer.shacl.validator.StarShaclSchema.validate_each](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L420-L427)
 
 ---
 
@@ -976,8 +976,7 @@ Whether ``loader(iri)`` returns a graph (it is called once; there is no cheaper 
 def isomorphic(graph1: Any, graph2: Any) -> bool
 ```
 
-True if the two graphs or datasets (``StarLayerGraph``, ``StarLayerDataset``, ``pyoxigraph.Store``, or rdflib ``Graph`` /
-``Dataset``) are equal up to blank-node relabelling: equal canonical N-Quads (RDFC-1.0). Datasets are compared as datasets,
+True if the two graphs or datasets (``StarLayerGraph``, ``StarLayerDataset``, ``pyoxigraph.Store``) are equal up to blank-node relabelling: equal canonical N-Quads (RDFC-1.0). Datasets are compared as datasets,
 graph names included; a dataset against a plain graph compares the dataset's quads with the graph's triples in the default
 graph.
 
@@ -992,7 +991,7 @@ Raises:
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/compare.py#L48-L60)
+**Source:** [starlayer.graph.compare.isomorphic](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/compare.py#L37-L48)
 
 ---
 
@@ -1188,7 +1187,7 @@ graph.
 
 A rule failed, or the rules graph is ill-formed or needs something unsupported (the rule set fails as a whole).
 
-**Source:** [starlayer.shacl_engine.rules.RuleError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl_engine/rules.py#L62-L63)
+**Source:** [starlayer.shacl_engine.rules.RuleError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl_engine/rules.py#L60-L61)
 
 ---
 
@@ -1286,7 +1285,7 @@ the application implements matched). ``shape_node`` is the property shape, ``rol
 unimplemented widget's score, ``focus_node`` the node when the choice was for one. How the report is handled or presented is left
 to the application.
 
-**Source:** [starlayer.shacl.ui_widget_selection.WidgetReport](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L345-L359)
+**Source:** [starlayer.shacl.ui_widget_selection.WidgetReport](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L319-L333)
 
 ---
 
@@ -1313,7 +1312,7 @@ Covers ``sh:TripleRule`` and ``sh:SPARQLRule`` (shape-attached, in rule sets, or
 
 **Returns:** `RulesResult` - A ``RulesResult``: ``inferred_graph`` holds only the triples the rules produced (and the ``sh:sourceRule`` reifiers); ``validation`` is the ``ValidationResult`` over the complete evaluation graph: base, inferred and entailed triples.
 
-**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L161-L196)
+**Source:** [starlayer.shacl.validator.apply_rules](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L160-L195)
 
 ---
 
@@ -1404,7 +1403,7 @@ demand.
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L115-L158)
+**Source:** [starlayer.shacl.validator.evaluate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L114-L157)
 
 ---
 
@@ -1434,7 +1433,7 @@ are all pyoxigraph terms (no rdflib needed), and as rdflib / StarLayer terms as 
 
 **Returns:** `list`
 
-**Source:** [starlayer.shacl.node_expression_api.evaluate_expression](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L19-L63)
+**Source:** [starlayer.shacl.node_expression_api.evaluate_expression](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L19-L61)
 
 ---
 
@@ -1534,7 +1533,7 @@ The SPARQL functions and operators a node expression can call (``[ sparql:concat
 
 **Returns:** `list[str]`
 
-**Source:** [starlayer.shacl.node_expression_api.node_expression_functions](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L66-L70)
+**Source:** [starlayer.shacl.node_expression_api.node_expression_functions](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L64-L68)
 
 ---
 
@@ -1549,7 +1548,7 @@ The SHACL node expression operators (``shnex:filterShape``, ``shnex:pathValues``
 
 **Returns:** `list[str]`
 
-**Source:** [starlayer.shacl.node_expression_api.node_expression_operators](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L73-L77)
+**Source:** [starlayer.shacl.node_expression_api.node_expression_operators](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L71-L75)
 
 ---
 
@@ -1676,7 +1675,7 @@ of ``shape_node`` (pyoxigraph or rdflib).
 
 **Returns:** `list[Any]`
 
-**Source:** [starlayer.shacl.ui_property_roles.property_shapes_for_role](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_property_roles.py#L47-L78)
+**Source:** [starlayer.shacl.ui_property_roles.property_shapes_for_role](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_property_roles.py#L47-L77)
 
 ---
 
@@ -1747,7 +1746,7 @@ implementation MUST report this to the application". Without it nothing is repor
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L384-L448)
+**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L358-L422)
 
 ---
 
@@ -1800,7 +1799,7 @@ when the choice is made.
 
 **Returns:** `dict[Any, Any]`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L611-L679)
+**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L585-L653)
 
 ---
 
@@ -1875,7 +1874,7 @@ either.
 
 **Returns:** `tuple[Any, ...]`
 
-**Source:** [starlayer.shacl.validator.target_nodes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L199-L216)
+**Source:** [starlayer.shacl.validator.target_nodes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L198-L215)
 
 ---
 
@@ -1901,12 +1900,12 @@ Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``V
 - `shapes_graph_resource: Any | None = None` - Validate against a named ``sh:ShapesGraph`` module of ``shacl_graph`` (its IRI becomes ``sh:usedShapesGraph``), or, for an IRI that is not a module of it, only tag the report with that IRI.
 - `shapes_graph_iri: Any | None = None`
 - `specification_graph: Any | None = None` - Lets Profiling derive ``dcterms:conformsTo`` from the derived ``sh:conformsTo``.
-- `include_used_configuration: bool = False` - Also record the options in effect on the report. ``inplace``, ``meta_shacl``, ``advanced`` (False: do not run rules), ``allow_warnings``, ``allow_infos``, ``abort_on_first``, ``max_validation_depth``, ``invalid_terms`` (``"lenient"``: process terms that are not RDF terms, such as a relative IRI, as opaque stand-ins instead of raising ``TermError``). An unknown option is a ``TypeError``.
+- `include_used_configuration: bool = False` - Also record the options in effect on the report. ``inplace``, ``meta_shacl``, ``advanced`` (False: do not run rules), ``allow_warnings``, ``allow_infos``, ``abort_on_first``, ``max_validation_depth``. An unknown option is a ``TypeError``.
 - `kwargs: Any`
 
 **Returns:** `ValidationResult` - A ``ValidationResult``: ``conforms``, ``report_graph`` (an ``StarLayerGraph``) and ``report_text``, ``data_graph`` (the caller's graph when ``inplace=True``, else ``None``) and ``diagnostics``.
 
-**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L20-L80)
+**Source:** [starlayer.shacl.validator.validate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L20-L79)
 
 ---
 
@@ -1933,6 +1932,6 @@ triples. Validating a dataset *as a whole* is :func:`validate`, which sees the u
 
 **Returns:** `dict[Any, ValidationResult]`
 
-**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L98-L112)
+**Source:** [starlayer.shacl.validator.validate_each](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/validator.py#L97-L111)
 
 ---
