@@ -12,22 +12,21 @@ see ``tests/integration/test_global_sparql_rules.py`` for the base behavior
 these build on.
 """
 
-from rdflib import Literal, Namespace, URIRef
-from starlayer.graph.model.triple import TripleTerm
+import pyoxigraph as ox
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from starlayer.shacl_engine.terms import from_engine
+from tests.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 def _source_rule_for(graph, triple_term) -> set:
     """Every ``sh:sourceRule`` value linked to ``triple_term`` via a reifier
     in ``graph`` - empty if none."""
-    reifiers = {s for s, _, o in graph.triples((None, REIFIES, None)) if from_engine(o) == triple_term}
+    reifiers = {s for s, _, o in graph.triples((None, REIFIES, None)) if o == triple_term}
     values = set()
     for reifier in reifiers:
-        values.update(from_engine(v) for v in graph.objects(reifier, SH.sourceRule))
+        values.update(v for v in graph.objects(reifier, SH.sourceRule))
     return values
 
 
@@ -79,8 +78,8 @@ def test_source_rule_provenance_off_by_default_adds_nothing() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.Alice, EX.isAdult, Literal(True)) in result.inferred_graph
-    assert (EX.Alice, EX.hasName, Literal(True)) in result.inferred_graph
+    assert (EX.Alice, EX.isAdult, lit(True)) in result.inferred_graph
+    assert (EX.Alice, EX.hasName, lit(True)) in result.inferred_graph
     assert next(result.inferred_graph.triples((None, REIFIES, None)), None) is None
     assert next(result.inferred_graph.triples((None, SH.sourceRule, None)), None) is None
 
@@ -95,8 +94,8 @@ def test_source_rule_provenance_attributes_each_triple_to_its_own_rule() -> None
         include_source_rule_provenance=True,
     )
 
-    age_triple = TripleTerm(EX.Alice, EX.isAdult, Literal(True))
-    name_triple = TripleTerm(EX.Alice, EX.hasName, Literal(True))
+    age_triple = ox.Triple(EX.Alice, EX.isAdult, lit(True))
+    name_triple = ox.Triple(EX.Alice, EX.hasName, lit(True))
 
     assert _source_rule_for(result.inferred_graph, age_triple) == {EX.AgeRule}
     assert _source_rule_for(result.inferred_graph, name_triple) == {EX.NameRule}
@@ -136,7 +135,7 @@ def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
         include_source_rule_provenance=True,
     )
 
-    inferred = TripleTerm(EX.Caren, EX.friend, EX.Bob)
+    inferred = ox.Triple(EX.Caren, EX.friend, EX.Bob)
     assert (EX.Caren, EX.friend, EX.Bob) in result.inferred_graph
     assert _source_rule_for(result.inferred_graph, inferred) == {EX.SymmetricPropertyRule}
 
@@ -189,8 +188,8 @@ def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
         include_source_rule_provenance=True,
     )
 
-    assert (EX.Alice, EX.hasName, Literal(True)) in result.inferred_graph
-    assert (EX.Leak, EX.detected, Literal(True)) not in result.inferred_graph
+    assert (EX.Alice, EX.hasName, lit(True)) in result.inferred_graph
+    assert (EX.Leak, EX.detected, lit(True)) not in result.inferred_graph
     # And provenance was still correctly added after execution finished.
-    name_triple = TripleTerm(EX.Alice, EX.hasName, Literal(True))
+    name_triple = ox.Triple(EX.Alice, EX.hasName, lit(True))
     assert _source_rule_for(result.inferred_graph, name_triple) == {EX.NameRule}

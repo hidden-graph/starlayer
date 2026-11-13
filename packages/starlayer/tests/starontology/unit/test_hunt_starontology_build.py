@@ -98,8 +98,8 @@ def test_field_name_fallback_is_stable_across_processes():
     code = (
         f"import sys; sys.path.insert(0, {str(_SCRIPTS)!r}); sys.path.insert(0, {str(_ROOT / 'packages' / 'starlayer')!r})\n"
         "import build_shacl_ui as b\n"
-        "from rdflib import URIRef\n"
-        "print(b._field_name('NodeShapeForm', URIRef('http://example.org/ns#unknownPredicate'), {'sh': 'http://www.w3.org/ns/shacl#'}))\n"
+        "import pyoxigraph\n"
+        "print(b._field_name('NodeShapeForm', pyoxigraph.NamedNode('http://example.org/ns#unknownPredicate'), {'sh': 'http://www.w3.org/ns/shacl#'}))\n"
     )
     outs = set()
     for seed in ("1", "2", "3"):
@@ -170,13 +170,14 @@ def test_registry_descriptions_carry_no_stale_counts():
 
 
 def test_turtle_parts_keeps_a_literal_line_starting_with_at_prefix():
-    from rdflib import Graph, Literal, URIRef
-    from rdflib.compare import isomorphic
+    from starlayer.graph import StarLayerGraph as Graph
+    from starlayer.graph import isomorphic
+    from tests.terms import NamedNode, lit
 
     b = _script("build_starontology")
     g = Graph()
-    g.add((URIRef("http://example.org/a"), URIRef("http://www.w3.org/2000/01/rdf-schema#comment"),
-           Literal("Example:\n@prefix ex: <http://example.org/> .\nex:a a ex:B .")))
+    g.add((NamedNode("http://example.org/a"), NamedNode("http://www.w3.org/2000/01/rdf-schema#comment"),
+           lit("Example:\n@prefix ex: <http://example.org/> .\nex:a a ex:B .")))
     extra, body = b._turtle_parts(g)
     h = Graph()
     h.parse(data=b._prefix_lines() + extra + "\n" + body + "\n", format="turtle")

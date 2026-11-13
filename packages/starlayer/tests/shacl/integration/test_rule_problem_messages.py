@@ -2,7 +2,7 @@
 (GitHub: the workbench audit of rule validation)."""
 
 import pytest
-from rdflib import Graph, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import MetaShaclError, ShapeError, meta_shapes
 from starlayer.shacl.meta_shapes import (
     meta_validate,
@@ -10,6 +10,7 @@ from starlayer.shacl.meta_shapes import (
     sparql_query_problems,
 )
 from starlayer.shacl_engine.terms import text
+from tests.terms import NamedNode
 
 PRE = """@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:rule ex:R .
@@ -84,13 +85,13 @@ def test_check_sparql_query_text_still_raises_the_first_problem():
 
 
 def test_a_node_that_holds_prefix_declarations_is_inferred_to_be_a_prefix_set():
-    from rdflib import RDF
     from starlayer.shacl.shape_types import infer_types
+    from tests.terms import RDF
 
     shapes = Graph().parse(data=PRE + 'ex:Prefixes sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/" ] .', format="turtle")
     inferred = infer_types(shapes)
-    assert (URIRef("http://example.org/Prefixes"), RDF.type, URIRef("https://github.com/hidden-graph/starlayer/ns/shacl#PrefixSet")) in inferred
-    assert (URIRef("http://example.org/Prefixes"), RDF.type, URIRef("https://github.com/hidden-graph/starlayer/ns/shacl#PrefixSet")) not in shapes, "inferred, not written"
+    assert (NamedNode("http://example.org/Prefixes"), RDF.type, NamedNode("https://github.com/hidden-graph/starlayer/ns/shacl#PrefixSet")) in inferred
+    assert (NamedNode("http://example.org/Prefixes"), RDF.type, NamedNode("https://github.com/hidden-graph/starlayer/ns/shacl#PrefixSet")) not in shapes, "inferred, not written"
 
 
 def test_an_entailment_nothing_provides_is_a_warning_and_the_regimes_it_provides_are_not():

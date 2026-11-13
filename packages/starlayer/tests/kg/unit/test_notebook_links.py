@@ -9,7 +9,8 @@ from pathlib import Path
 
 import pytest
 from codekg import CODEKG_NS, CURATED_DIR, notebook_links
-from rdflib import RDF, Graph, Literal
+from starlayer.graph import StarLayerGraph as Graph
+from tests.terms import RDF, lit, set_triple
 
 SHAPES_TTL = CURATED_DIR.parent / "notebook-links-shapes.ttl"
 
@@ -39,8 +40,8 @@ def test_the_links_conform_to_their_shapes():
     "corrupt",
     [
         lambda g, n: g.remove((n, CODEKG_NS.cellId, None)),
-        lambda g, n: g.set((n, CODEKG_NS.cellHash, Literal("not-a-hash"))),
-        lambda g, n: g.set((n, CODEKG_NS.notebookPath, Literal("somewhere/else.ipynb"))),
+        lambda g, n: set_triple(g, (n, CODEKG_NS.cellHash, lit("not-a-hash"))),
+        lambda g, n: set_triple(g, (n, CODEKG_NS.notebookPath, lit("somewhere/else.ipynb"))),
         lambda g, n: g.remove((n, CODEKG_NS.demonstratesIdentifier, None)),
         lambda g, n: g.remove((n, CODEKG_NS.reviewedOn, None)),
     ],

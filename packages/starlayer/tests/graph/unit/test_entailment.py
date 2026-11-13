@@ -38,9 +38,9 @@ every test.
 """
 
 import pytest
-from rdflib import RDF, RDFS, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
+from tests.terms import RDF, RDFS, Namespace
 
 EX = Namespace("http://example.org/")
 
@@ -73,8 +73,8 @@ class TestEntailmentIsPerQueryNotPerGraph:
     def test_one_graph_answers_different_entailment_per_call(self):
         g = _graph()
         assert list(g.query(_QUERY)) == []
-        assert [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)] == [str(EX.alice)]
-        assert [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])] == [str(EX.alice)]
+        assert [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)] == [EX.alice.value]
+        assert [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])] == [EX.alice.value]
         # plain again - not left in a rewritten/materialized state by the
         # earlier calls, since entailment is per-call, not sticky
         assert list(g.query(_QUERY)) == []
@@ -86,7 +86,7 @@ class TestQueryTimeRdfsRewrite:
 
     def test_entailment_rdfs_finds_the_subclass_fact(self):
         rows = _graph().query(_QUERY, entailment=ENTAILMENT.RDFS)
-        assert [r.x.value for r in rows] == [str(EX.alice)]
+        assert [r.x.value for r in rows] == [EX.alice.value]
 
     def test_no_data_is_copied_or_added(self):
         g = _graph()
@@ -98,7 +98,7 @@ class TestQueryTimeRdfsRewrite:
         g = _graph()
         first = [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)]
         second = [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)]
-        assert first == second == [str(EX.alice)]
+        assert first == second == [EX.alice.value]
 
     def test_matches_infer_oracle_for_a_richer_hierarchy(self):
         g = _graph()
@@ -110,7 +110,7 @@ class TestQueryTimeRdfsRewrite:
         oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {s.value for s in oracle.subjects(RDF.type, EX.Person)}
 
-        assert rewritten == materialized == {str(EX.alice)}
+        assert rewritten == materialized == {EX.alice.value}
 
     def test_domain_entailment(self):
         g = StarLayerGraph()
@@ -128,7 +128,7 @@ class TestQueryTimeRdfsRewrite:
         oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {s.value for s in oracle.subjects(RDF.type, EX.Person)}
 
-        assert rewritten == materialized == {str(EX.alice)}
+        assert rewritten == materialized == {EX.alice.value}
 
     def test_range_entailment(self):
         g = StarLayerGraph()
@@ -146,7 +146,7 @@ class TestQueryTimeRdfsRewrite:
         oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {s.value for s in oracle.subjects(RDF.type, EX.Organization)}
 
-        assert rewritten == materialized == {str(EX.Acme)}
+        assert rewritten == materialized == {EX.Acme.value}
 
     def test_subproperty_entailment(self):
         g = StarLayerGraph()
@@ -164,7 +164,7 @@ class TestQueryTimeRdfsRewrite:
         oracle = g.infer(entailment=ENTAILMENT.RDFS)
         materialized = {o.value for o in oracle.objects(EX.alice, EX.hasRelative)}
 
-        assert rewritten == materialized == {str(EX.bob)}
+        assert rewritten == materialized == {EX.bob.value}
 
 
 class TestQueryTimeRdfEntailment:
@@ -186,7 +186,7 @@ class TestQueryTimeRdfEntailment:
         q = "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> SELECT ?p WHERE { ?p a rdf:Property }"
         rows = {r.p.value for r in g.query(q, entailment=ENTAILMENT.RDF)}
         # _DATA uses rdfs:subClassOf and rdf:type (via "a") as predicates
-        assert rows == {str(RDFS.subClassOf), str(RDF.type)}
+        assert rows == {RDFS.subClassOf.value, RDF.type.value}
 
     def test_no_data_is_copied_or_added(self):
         g = _graph()
@@ -203,7 +203,7 @@ class TestQueryTimeRdfEntailment:
         q = "SELECT ?x ?c WHERE { ?x a ?c }"
         plain = {(r.x.value, r.c.value) for r in g.query(q)}
         rewritten = {(r.x.value, r.c.value) for r in g.query(q, entailment=ENTAILMENT.RDF)}
-        assert plain == rewritten == {(str(EX.alice), str(EX.Manager))}
+        assert plain == rewritten == {(EX.alice.value, EX.Manager.value)}
 
 
 class TestEntailmentOwlRl:
@@ -217,7 +217,7 @@ class TestEntailmentOwlRl:
         g = _graph()
         via_rewrite = [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT.RDFS)]
         via_materialization = [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])]
-        assert via_rewrite == via_materialization == [str(EX.alice)]
+        assert via_rewrite == via_materialization == [EX.alice.value]
 
     def test_covers_owl_constructs_rdfs_rewrite_cannot(self):
         g = StarLayerGraph()
@@ -231,17 +231,17 @@ class TestEntailmentOwlRl:
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:TeamLead }"
 
         assert list(g.query(q, entailment=ENTAILMENT.RDFS)) == []
-        assert [r.x.value for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"])] == [str(EX.alice)]
+        assert [r.x.value for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"])] == [EX.alice.value]
 
     def test_default_infer_changed_mode_reflects_a_mutation_in_between(self):
         # the default infer="changed" mode recomputes after a real mutation
         # - no explicit "re-run reasoning" step needed after a graph edit.
         g = _graph()
-        assert [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])] == [str(EX.alice)]
+        assert [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])] == [EX.alice.value]
 
         g.add((EX.bob, RDF.type, EX.Manager))
         rows = sorted(r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"]))
-        assert rows == [str(EX.alice), str(EX.bob)]
+        assert rows == [EX.alice.value, EX.bob.value]
 
 
 class TestEntailmentOwlRlCaching:
@@ -291,9 +291,9 @@ class TestEntailmentOwlRlUnionDesign:
         via_union = sorted((r.x.value, r.y.value) for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"]))
 
         closure = g.infer(entailment=ENTAILMENT["OWL-RDF-Based"])
-        oracle = closure.to_rdflib()
+        oracle = closure
         via_flattened = sorted(
-            (str(x), str(y)) for x, y in oracle.query(q)
+            (x.value, y.value) for x, y in oracle.query(q)
         )
 
         assert via_union == via_flattened
@@ -322,8 +322,10 @@ class TestEntailmentOwlRlCorrectness:
 
         via_query = {r.x.value for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"])}
 
-        oracle = g.to_rdflib()
-        owlrl.DeductiveClosure(owlrl.OWLRL_Semantics).expand(oracle)
-        expected = {str(o) for o in oracle.objects(EX.SalesTeam, EX.partOf)}
+        import rdflib
 
-        assert via_query == expected == {str(EX.SalesDept), str(EX.AcmeCorp)}
+        oracle = g.to_rdflib()  # owlrl runs on rdflib graphs
+        owlrl.DeductiveClosure(owlrl.OWLRL_Semantics).expand(oracle)
+        expected = {str(o) for o in oracle.objects(rdflib.URIRef(EX.SalesTeam.value), rdflib.URIRef(EX.partOf.value))}
+
+        assert via_query == expected == {EX.SalesDept.value, EX.AcmeCorp.value}

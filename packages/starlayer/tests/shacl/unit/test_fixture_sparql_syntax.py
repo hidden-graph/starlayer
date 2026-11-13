@@ -20,9 +20,10 @@ import glob
 import os
 
 import pytest
-from rdflib import Graph, Namespace
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
+from tests.terms import Namespace
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
@@ -62,7 +63,7 @@ def _collect_embedded_queries() -> list[tuple[str, str]]:
         rel = os.path.relpath(path, os.path.join(_HERE, "..", ".."))
         for pred in (SH.select, SH.ask, SH.construct):
             for _, _, text in g.triples((None, pred, None)):
-                found.append((rel, str(text)))
+                found.append((rel, text.value))
     return found
 
 

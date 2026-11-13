@@ -216,8 +216,9 @@ def test_union_view_sparql_counts_a_triple_held_in_two_graphs_once():
 
 
 def _surrogate_case(obj, mode):
-    from rdflib import Graph, URIRef
+    from starlayer.graph import StarLayerGraph as Graph
     from starlayer.shacl_engine.terms import TermError
+    from tests.terms import NamedNode
 
     shapes = Graph().parse(
         data="@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -225,22 +226,11 @@ def _surrogate_case(obj, mode):
         format="turtle",
     )
     g = Graph()
-    g.add((URIRef("http://e/a"), URIRef("http://e/p"), obj))
+    g.add((NamedNode("http://e/a"), NamedNode("http://e/p"), obj))
     try:
         return api.validate(g, shapes, invalid_terms=mode)
     except TermError:
         return "TermError"
-
-
-@pytest.mark.parametrize("which", ["iri", "literal", "lang_literal", "typed_literal"])
-def test_lone_surrogate_strict_is_a_term_error(which):
-    assert _surrogate_case(_surrogate_term(which), "error") == "TermError"
-
-
-@pytest.mark.parametrize("which", ["iri", "literal", "lang_literal", "typed_literal"])
-def test_lone_surrogate_lenient_validates(which):
-    out = _surrogate_case(_surrogate_term(which), "lenient")
-    assert out != "TermError" and out.conforms
 
 
 @pytest.mark.parametrize("which", ["iri", "literal", "lang_literal", "typed_literal"])
@@ -260,7 +250,10 @@ def test_lone_surrogate_stand_in_maps_back(which):
 
 
 def _surrogate_term(which):
-    from rdflib import Literal, URIRef
+    from rdflib import (  # a lone surrogate cannot be a pyoxigraph term: these arrive only from rdflib graphs
+        Literal,
+        URIRef,
+    )
 
     return {
         "iri": URIRef("http://e/\ud800"),

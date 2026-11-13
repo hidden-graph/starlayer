@@ -9,8 +9,10 @@ correctness oracle as is available for a pre-Recommendation spec with no
 independent reference implementation.
 """
 
+import pyoxigraph as ox
 import pytest
-from rdflib import RDF, BNode, Graph, URIRef, Variable
+from rdflib import Variable
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import parse_ruleset
 from starlayer.sparql.srl_eval import (
     SRLImportsNotSupportedError,
@@ -18,12 +20,13 @@ from starlayer.sparql.srl_eval import (
     _build_dependency_graph,
     _stratify,
 )
+from tests.terms import RDF, BlankNode, NamedNode, py
 
 EX = "http://example.org/"
 
 
 def _p(local):
-    return URIRef(EX + local)
+    return NamedNode(EX + local)
 
 
 WORKED_EXAMPLE_BASE_TTL = f"""
@@ -133,7 +136,7 @@ def test_worked_example_end_to_end():
 
     notifications = list(gi.subjects(RDF.type, _p("Notification")))
     assert len(notifications) == 3
-    assert all(isinstance(n, BNode) for n in notifications)
+    assert all(isinstance(n, BlankNode) for n in notifications)
     assert len(set(notifications)) == 3  # a distinct fresh blank node per solution
     concerns = {gi.value(n, _p("concerns")) for n in notifications}
     assert concerns == {_p("db"), _p("app"), _p("frontend")}
@@ -207,14 +210,14 @@ def test_filter_and_assignment_evaluate_correctly():
     gi = ruleset.infer(base)
     (triple,) = gi
     assert triple[0] == _p("a")
-    assert float(triple[2].toPython()) == pytest.approx(10.1)
+    assert float(py(triple[2])) == pytest.approx(10.1)
 
 
 def test_query_matches_goal_pattern_against_base_and_inferred():
     base, ruleset = _worked_example()
     goal = ruleset.rules[2].head[0]  # ?x :status :criticallyExposed
     results = ruleset.query(base, goal)
-    solutions = {r[Variable("x")] for r in results}
+    solutions = {r[ox.Variable("x")] for r in results}
     assert solutions == {_p("db"), _p("app"), _p("frontend")}
 
 
@@ -262,7 +265,7 @@ class TestInferAndQueryInferenceParameter:
         gi = ruleset.infer(base, inference=ENTAILMENT.RDFS)
         assert len(gi) == 1
         ((s, p, o),) = gi
-        assert s.value == str(_p("bob")) and p.value == str(_p("flagged")) and o.value == "true"
+        assert s == _p("bob") and p == _p("flagged") and o.value == "true"
 
     def test_infer_entailment_does_not_mutate_the_callers_base_graph(self):
         from starlayer.graph.graph.entailment_regimes import ENTAILMENT
@@ -283,7 +286,7 @@ class TestInferAndQueryInferenceParameter:
         ruleset = parse_ruleset(f"PREFIX rdf: <{RDF}>\n" + self.RULES)
         goal = ruleset.rules[0].head[0]  # ?x :flagged true
         rows = ruleset.query(base, goal, inference=ENTAILMENT.RDFS)
-        assert {r[ox.Variable("x")].value for r in rows} == {str(_p("bob"))}
+        assert {r[ox.Variable("x")].value for r in rows} == {_p("bob").value}
 
 
 class TestInferSchemaParameter:
@@ -410,7 +413,7 @@ def _default_value_base():
 
 def _km_triples(graph):
     return {
-        (str(s).rsplit("/", 1)[-1], int(o))
+        (s.value.rsplit("/", 1)[-1], int(o.value))
         for s, _p, o in graph.triples((None, _p("km"), None))
     }
 

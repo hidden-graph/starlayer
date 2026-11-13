@@ -896,6 +896,15 @@ no answer).
 
 ---
 
+<a id="entity-starlayer-graph-namespaces-Namespace"></a>
+### `Namespace`  _(class)_
+
+A namespace of pyoxigraph ``NamedNode`` constants: ``SH.minCount``, ``SH["class"]``. Terms are created once.
+
+**Source:** [starlayer.graph.namespaces.Namespace](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/namespaces.py#L12-L37)
+
+---
+
 <a id="entity-starlayer-graph-model-triple-TripleTerm"></a>
 ### `TripleTerm`  _(class)_
 

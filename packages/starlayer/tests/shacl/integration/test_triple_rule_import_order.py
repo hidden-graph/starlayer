@@ -11,7 +11,7 @@ import textwrap
 SCRIPT = textwrap.dedent(
     """
     import warnings; warnings.simplefilter('ignore')
-    from rdflib import URIRef
+    from tests.terms import NamedNode
     from starlayer.shacl_engine.terms import iri_text
     from starlayer.graph.oxgraph import StarLayerGraph
     from starlayer.shacl import StarShaclSchema
@@ -23,7 +23,7 @@ SCRIPT = textwrap.dedent(
     d = StarLayerGraph()
     d.parse(data=P + 'ex:a ex:z 0 .', format='turtle12')
     r = StarShaclSchema(shacl_graph=s).apply_rules(
-        data_graph=d, meta_shacl=False, rule_set=URIRef('http://ex/RuleSetA'), include_source_rule_provenance=True)
+        data_graph=d, meta_shacl=False, rule_set=NamedNode('http://ex/RuleSetA'), include_source_rule_provenance=True)
     preds = sorted(iri_text(p).rsplit('/', 1)[-1] for _s, p, _o in r.inferred_graph)
     print(preds)
     """

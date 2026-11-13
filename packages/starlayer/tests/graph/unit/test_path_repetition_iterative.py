@@ -4,15 +4,16 @@ import itertools
 import random
 
 import pytest
-from rdflib import Graph, URIRef
 from rdflib.paths import MulPath
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
+from tests.terms import NamedNode
 
 E = "http://e/"
 
 
 def _u(x):
-    return URIRef(f"{E}{x}")
+    return NamedNode(f"{E}{x}")
 
 
 def _chain(n):
@@ -62,7 +63,7 @@ def test_pairs_match_a_naive_closure_on_random_graphs_with_cycles(modifier):
         if modifier != "+":
             pairs |= {(x, x) for x in nodes}
         for subj, obj in itertools.product([None, 0, n - 1], repeat=2):
-            got = {(int(str(s)[len(E):]), int(str(o)[len(E):])) for s, o in path.eval(g, None if subj is None else _u(subj), None if obj is None else _u(obj))}
+            got = {(int(s.value[len(E):]), int(o.value[len(E):])) for s, o in path.eval(g, None if subj is None else _u(subj), None if obj is None else _u(obj))}
             want = {(a, b) for (a, b) in pairs if (subj is None or a == subj) and (obj is None or b == obj)}
             if modifier != "+" and subj is not None and (subj not in nodes) and (obj is None or obj == subj):
                 want.add((subj, subj))  # a zero-length match for a bound node that is not in the graph

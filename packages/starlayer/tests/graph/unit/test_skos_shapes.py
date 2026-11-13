@@ -15,12 +15,11 @@ above).
 """
 
 import owlrl
-from rdflib import RDF, BNode, Graph, Literal, Namespace
-from rdflib.collection import Collection
-from rdflib.namespace import SKOS
 from starlayer import starontology
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl_engine.terms import NS
 from starlayer.starontology import skos as ss
+from tests.terms import RDF, SKOS, BlankNode, Namespace, lit, rdf_list
 
 
 def skos_ontology_graph():
@@ -42,16 +41,15 @@ def test_ordered_collection_entails_collection_via_rdfs():
     from starlayer.graph.oxgraph import _rdflib_bridge
 
     (ontology,) = _rdflib_bridge.read_boundary(skos_ontology_graph())  # owlrl runs on an rdflib copy
-    data = Graph()
-    data.add((EX.oc, RDF.type, SKOS.OrderedCollection))
+    import rdflib
 
-    merged = Graph()
-    merged += data
+    merged = rdflib.Graph()  # owlrl is the oracle and speaks rdflib
+    merged.add((rdflib.URIRef(EX.oc.value), rdflib.RDF.type, rdflib.URIRef(SKOS.OrderedCollection.value)))
     merged += ontology
     owlrl.DeductiveClosure(owlrl.RDFS_Semantics).expand(merged)
 
-    entailed_types = set(merged.objects(EX.oc, RDF.type))
-    assert SKOS.Collection in entailed_types
+    entailed_types = {str(t) for t in merged.objects(rdflib.URIRef(EX.oc.value), rdflib.RDF.type)}
+    assert SKOS.Collection.value in entailed_types
 
 
 def _valid_thesaurus():
@@ -64,8 +62,8 @@ def _valid_thesaurus():
     g.add((EX.cat, SKOS.inScheme, EX.scheme))
     g.add((EX.animal, SKOS.inScheme, EX.scheme))
     g.add((EX.scheme, SKOS.hasTopConcept, EX.animal))
-    g.add((EX.cat, SKOS.prefLabel, Literal("Cat", lang="en")))
-    g.add((EX.cat, SKOS.altLabel, Literal("Kitty", lang="en")))
+    g.add((EX.cat, SKOS.prefLabel, lit("Cat", lang="en")))
+    g.add((EX.cat, SKOS.altLabel, lit("Kitty", lang="en")))
     g.add((EX.coll, RDF.type, SKOS.Collection))
     g.add((EX.coll, SKOS.member, EX.cat))
     g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
@@ -97,9 +95,9 @@ def test_concept_and_conceptscheme_same_node_fails():
 def test_preflabel_and_altlabel_sharing_a_literal_fails():
     """S13: skos:prefLabel/altLabel/hiddenLabel must be pairwise disjoint."""
     g = _base_two_concepts()
-    lit = Literal("Cat", lang="en")
-    g.add((EX.cat, SKOS.prefLabel, lit))
-    g.add((EX.cat, SKOS.altLabel, lit))
+    label = lit("Cat", lang="en")
+    g.add((EX.cat, SKOS.prefLabel, label))
+    g.add((EX.cat, SKOS.altLabel, label))
     conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
     assert "S13" in results_text
@@ -108,8 +106,8 @@ def test_preflabel_and_altlabel_sharing_a_literal_fails():
 def test_two_preflabels_same_language_fails():
     """S14: no more than one skos:prefLabel per language tag."""
     g = _base_two_concepts()
-    g.add((EX.cat, SKOS.prefLabel, Literal("Cat", lang="en")))
-    g.add((EX.cat, SKOS.prefLabel, Literal("Kitty", lang="en")))
+    g.add((EX.cat, SKOS.prefLabel, lit("Cat", lang="en")))
+    g.add((EX.cat, SKOS.prefLabel, lit("Kitty", lang="en")))
     conforms, _, results_text = ss.skos_validate(g)
     assert not conforms
 
@@ -174,8 +172,8 @@ def test_ordered_collection_memberlist_and_member_agree_conforms():
     g.add((EX.cat, RDF.type, SKOS.Concept))
     g.add((EX.dog, RDF.type, SKOS.Concept))
     g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
-    list_node = BNode()
-    Collection(g, list_node, [EX.cat, EX.dog])
+    list_node = BlankNode()
+    rdf_list(g, [EX.cat, EX.dog], list_node)
     g.add((EX.oc, SKOS.memberList, list_node))
     g.add((EX.oc, SKOS.member, EX.cat))
     g.add((EX.oc, SKOS.member, EX.dog))
@@ -189,8 +187,8 @@ def test_ordered_collection_member_missing_from_memberlist_fails():
     g.add((EX.cat, RDF.type, SKOS.Concept))
     g.add((EX.dog, RDF.type, SKOS.Concept))
     g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
-    list_node = BNode()
-    Collection(g, list_node, [EX.cat, EX.dog])
+    list_node = BlankNode()
+    rdf_list(g, [EX.cat, EX.dog], list_node)
     g.add((EX.oc, SKOS.memberList, list_node))
     g.add((EX.oc, SKOS.member, EX.cat))  # dog missing as a plain member
     conforms, _, results_text = ss.skos_validate(g)
@@ -204,8 +202,8 @@ def test_ordered_collection_memberlist_missing_a_real_member_fails():
     g.add((EX.cat, RDF.type, SKOS.Concept))
     g.add((EX.dog, RDF.type, SKOS.Concept))
     g.add((EX.oc, RDF.type, SKOS.OrderedCollection))
-    list_node = BNode()
-    Collection(g, list_node, [EX.cat])
+    list_node = BlankNode()
+    rdf_list(g, [EX.cat], list_node)
     g.add((EX.oc, SKOS.memberList, list_node))
     g.add((EX.oc, SKOS.member, EX.cat))
     g.add((EX.oc, SKOS.member, EX.dog))  # not in memberList
@@ -240,7 +238,7 @@ def test_concept_missing_preflabel_still_conforms_but_is_reported():
 def test_concept_with_preflabel_has_no_recommendation_in_report():
     g = Graph()
     g.add((EX.cat, RDF.type, SKOS.Concept))
-    g.add((EX.cat, SKOS.prefLabel, Literal('Cat', lang='en')))
+    g.add((EX.cat, SKOS.prefLabel, lit('Cat', lang='en')))
     conforms, _, results_text = ss.skos_validate(g)
     assert conforms, results_text
     assert 'Recommended' not in results_text

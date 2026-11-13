@@ -33,7 +33,7 @@ def _ox(cls, text):
 
 
 def _rdflib(text):
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
 
     g = Graph()
     g.parse(data=text, format="turtle")
@@ -182,8 +182,8 @@ def test_unsupported_input_still_names_the_argument():
 
 
 def test_select_widgets_with_oxigraph_graphs():
-    from rdflib import URIRef
     from starlayer.shacl.ui_widget_selection import select_widgets
+    from tests.terms import NamedNode
 
     shapes = """
     @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
@@ -191,8 +191,8 @@ def test_select_widgets_with_oxigraph_graphs():
     ex:NameProp sh:path ex:name ; shui:editor shui:TextFieldEditor .
     """
     g = _ox(StarLayerGraph, shapes)
-    rdflib_style = select_widgets(shape_node=URIRef(EX + "PersonShape"), shapes_graph=g, role="editor")
-    assert list(rdflib_style) == [URIRef(EX + "NameProp")]
+    rdflib_style = select_widgets(shape_node=NamedNode(EX + "PersonShape"), shapes_graph=g, role="editor")
+    assert list(rdflib_style) == [NamedNode(EX + "NameProp")]
     ox_style = select_widgets(shape_node=ox.NamedNode(EX + "PersonShape"), shapes_graph=g, role="editor")
     assert list(ox_style) == [ox.NamedNode(EX + "NameProp")]
     assert str(next(iter(ox_style.values())).value).endswith("TextFieldEditor")
@@ -249,13 +249,13 @@ def test_sqe_validate_takes_an_oxigraph_tree():
 
 
 def test_sqe_root_may_be_given_as_an_rdflib_term():
-    from rdflib import URIRef
     from starlayer.sparql import sqe
+    from tests.terms import NamedNode
 
     tree = StarLayerGraph()
-    _, root = sqe.sqe_parse_to_tree(QUERY, tree, URIRef(EX + "q"))
+    _, root = sqe.sqe_parse_to_tree(QUERY, tree, NamedNode(EX + "q"))
     assert root == ox.NamedNode(EX + "q")
-    assert "SELECT" in sqe.sqe_tree_to_text(tree, URIRef(EX + "q"))
+    assert "SELECT" in sqe.sqe_tree_to_text(tree, NamedNode(EX + "q"))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -267,8 +267,9 @@ BASE = "@prefix ex: <http://example.org/> . ex:a ex:p ex:b . ex:b ex:p ex:c ."
 
 @pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_srl_infer_and_query_on_oxigraph(cls):
-    from rdflib import URIRef, Variable
+    from rdflib import Variable
     from starlayer.sparql import srl
+    from tests.terms import NamedNode
 
     ruleset = srl.parse_ruleset(RULES)
     inferred = ruleset.infer(_ox(cls, BASE))
@@ -277,7 +278,7 @@ def test_srl_infer_and_query_on_oxigraph(cls):
         (ox.NamedNode(EX + "a"), ox.NamedNode(EX + "q"), ox.NamedNode(EX + "b")),
         (ox.NamedNode(EX + "b"), ox.NamedNode(EX + "q"), ox.NamedNode(EX + "c")),
     }
-    goal = srl.TriplePattern(subject=Variable("x"), predicate=URIRef(EX + "q"), object=Variable("y"))
+    goal = srl.TriplePattern(subject=Variable("x"), predicate=NamedNode(EX + "q"), object=Variable("y"))
     rows = ruleset.query(_ox(cls, BASE), goal)
     assert len(rows) == 2
     assert all(isinstance(v, ox.NamedNode) for row in rows for v in row.values())

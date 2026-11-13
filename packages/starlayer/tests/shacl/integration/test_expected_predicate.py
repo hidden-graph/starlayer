@@ -25,11 +25,9 @@ implementation; the rule engine (starlayer.shacl.rule_engine) calls it once
 per layer and removes the triples again when the layer ends.
 """
 
-from rdflib import RDF, Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-
-from ._rdflib_view import rd
+from tests.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
 def _rectangle_shapes(*, with_expected_predicate: bool) -> str:
@@ -73,8 +71,8 @@ def test_expected_predicate_materializes_default_value_before_rule_runs() -> Non
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.rect1, EX.area, Literal(1)) not in result.inferred_graph
-    assert (EX.rect1, EX.isSmall, Literal(True)) in result.inferred_graph
+    assert (EX.rect1, EX.area, lit(1)) not in result.inferred_graph
+    assert (EX.rect1, EX.isSmall, lit(True)) in result.inferred_graph
 
 
 def test_without_expected_predicate_default_value_is_never_materialized() -> None:
@@ -88,8 +86,8 @@ def test_without_expected_predicate_default_value_is_never_materialized() -> Non
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.rect1, EX.area, Literal(1)) not in result.inferred_graph
-    assert (EX.rect1, EX.isSmall, Literal(True)) not in result.inferred_graph
+    assert (EX.rect1, EX.area, lit(1)) not in result.inferred_graph
+    assert (EX.rect1, EX.isSmall, lit(True)) not in result.inferred_graph
 
 
 def test_expected_predicate_does_not_override_an_existing_value() -> None:
@@ -101,7 +99,7 @@ def test_expected_predicate_does_not_override_an_existing_value() -> None:
     shapes.parse(data=_rectangle_shapes(with_expected_predicate=True), format="turtle")
     data = StarLayerGraph()
     data.add((EX.rect2, RDF.type, EX.Rectangle))
-    data.add((EX.rect2, EX.area, Literal(500)))
+    data.add((EX.rect2, EX.area, lit(500)))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
@@ -109,9 +107,9 @@ def test_expected_predicate_does_not_override_an_existing_value() -> None:
     # (not duplicated, not overridden) in the caller's own graph; apply_rules()
     # never mutates it. result.inferred_graph (rule output only) correctly has
     # no ex:area triple for rect2 at all - the rule never fired for it.
-    area_values = set(rd(data).objects(EX.rect2, EX.area))
-    assert area_values == {Literal(500)}
-    assert (EX.rect2, EX.isSmall, Literal(True)) not in result.inferred_graph
+    area_values = set(data.objects(EX.rect2, EX.area))
+    assert area_values == {lit(500)}
+    assert (EX.rect2, EX.isSmall, lit(True)) not in result.inferred_graph
 
 
 def test_shapes_graph_without_expected_predicate_uses_original_pyshacl_loop() -> None:
@@ -143,7 +141,7 @@ def test_shapes_graph_without_expected_predicate_uses_original_pyshacl_loop() ->
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.alice, EX.greeted, Literal(True)) in result.inferred_graph
+    assert (EX.alice, EX.greeted, lit(True)) in result.inferred_graph
 
 
 def test_expected_predicate_prefers_sh_values_over_default_value() -> None:
@@ -196,6 +194,6 @@ def test_expected_predicate_prefers_sh_values_over_default_value() -> None:
     # The rule saw sh:values' computed 999, not sh:defaultValue's 1 - proves
     # priority, not just "some value was present." Neither the transient
     # sh:values-computed nor sh:defaultValue's own ex:area triple survives.
-    assert (EX.rect1, EX.computedArea, Literal(999)) in result.inferred_graph
-    assert (EX.rect1, EX.area, Literal(1)) not in result.inferred_graph
-    assert (EX.rect1, EX.area, Literal(999)) not in result.inferred_graph
+    assert (EX.rect1, EX.computedArea, lit(999)) in result.inferred_graph
+    assert (EX.rect1, EX.area, lit(1)) not in result.inferred_graph
+    assert (EX.rect1, EX.area, lit(999)) not in result.inferred_graph

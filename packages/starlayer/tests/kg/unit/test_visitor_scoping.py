@@ -10,8 +10,7 @@ from __future__ import annotations
 from collections import Counter
 
 from codekg import CODEKG_NS
-from rdflib import Literal
-from rdflib.namespace import DCTERMS, RDF, RDFS
+from tests.terms import DCTERMS, RDF, RDFS, lit, text
 
 from .test_visitor import _extract, _extract_multi, _objects
 
@@ -19,13 +18,13 @@ SLKG = CODEKG_NS
 
 
 def _iri(triples, dotted_suffix):
-    matches = {s for s, p, o in triples if p == DCTERMS.identifier and o == Literal(f"starlayer.fixture.{dotted_suffix}")}
+    matches = {s for s, p, o in triples if p == DCTERMS.identifier and o == lit(f"starlayer.fixture.{dotted_suffix}")}
     assert len(matches) == 1, f"expected exactly one {dotted_suffix!r}, found {len(matches)}"
     return next(iter(matches))
 
 
 def _called(triples, caller: str) -> set[str]:
-    names = {s: str(o) for s, p, o in triples if p == DCTERMS.identifier}
+    names = {s: text(o) for s, p, o in triples if p == DCTERMS.identifier}
     return {names[o].removeprefix("starlayer.fixture.") for o in _objects(triples, _iri(triples, caller), SLKG.calls)}
 
 
@@ -125,8 +124,8 @@ def test_a_property_and_its_setter_share_one_iri_without_conflicting_facts(tmp_p
     counts = Counter(p for p, _ in set(facts))
     for single in (RDF.type, RDFS.label, RDFS.comment, SLKG.lineStart, SLKG.lineEnd, SLKG.signature, DCTERMS.identifier):
         assert counts[single] <= 1, f"{single} has conflicting values: {[o for p, o in set(facts) if p == single]}"
-    assert (SLKG.isProperty, Literal(True)) in facts
-    assert (RDFS.comment, Literal("The value.")) in facts  # the getter describes the property
+    assert (SLKG.isProperty, lit(True)) in facts
+    assert (RDFS.comment, lit("The value.")) in facts  # the getter describes the property
     assert len([1 for s, p, o in triples if s == iri and p == SLKG.hasDecorator]) == 1
 
 
@@ -157,15 +156,15 @@ def test_overload_stubs_do_not_write_facts_about_the_implementation(tmp_path) ->
     counts = Counter(p for p, _ in set(facts))
     for single in (SLKG.lineStart, SLKG.signature, RDFS.comment):
         assert counts[single] <= 1, f"{single} has conflicting values"
-    assert (RDFS.comment, Literal("Implementation.")) in facts
-    assert (SLKG.signature, Literal("def f(x)")) in facts
+    assert (RDFS.comment, lit("Implementation.")) in facts
+    assert (SLKG.signature, lit("def f(x)")) in facts
     assert _called(triples, "f") == {"helper"}
 
 
 def test_a_series_of_only_overload_stubs_is_described_by_the_last_one(tmp_path) -> None:
     source = "from typing import overload\n\n@overload\ndef f(x: int) -> int: ...\n@overload\ndef f(x: str) -> str: ...\n"
     iri, facts = _facts(_extract(tmp_path, source), "f")
-    assert (SLKG.signature, Literal("def f(x: str) -> str")) in facts
+    assert (SLKG.signature, lit("def f(x: str) -> str")) in facts
     assert Counter(p for p, _ in set(facts))[SLKG.signature] == 1
 
 

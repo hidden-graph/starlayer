@@ -5,8 +5,9 @@ node look non-conforming to the where-shape, and it silently stopped being a tar
 """
 
 import pytest
-from rdflib import Graph, Namespace
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema, validate
+from tests.terms import Namespace
 
 from ._rdflib_view import rd
 
@@ -23,7 +24,7 @@ def _reported(shapes: str, data: str, *, method: bool) -> set[tuple[str, str]]:
     d, s = _g(data), _g(shapes)
     result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
     g = rd(result.report_graph)
-    return {(str(g.value(r, SH.focusNode)).rsplit("/", 1)[-1], str(g.value(r, SH.sourceShape)).rsplit("/", 1)[-1]) for r in g.subjects(SH.focusNode)}
+    return {(g.value(r, SH.focusNode).value.rsplit("/", 1)[-1], g.value(r, SH.sourceShape).value.rsplit("/", 1)[-1]) for r in g.subjects(SH.focusNode)}
 
 
 BOTH = pytest.mark.parametrize("method", [False, True], ids=["function", "method"])
@@ -36,7 +37,7 @@ def _s_foci(shapes: str, data: str, method: bool) -> set[str]:
     d, s = _g(data), _g(shapes)
     result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
     g = rd(result.report_graph)
-    return {str(g.value(r, SH.focusNode)).rsplit("/", 1)[-1] for r in g.subjects(SH.focusNode) if "S needs a name" in {str(m) for m in g.objects(r, SH.resultMessage)}}
+    return {g.value(r, SH.focusNode).value.rsplit("/", 1)[-1] for r in g.subjects(SH.focusNode) if "S needs a name" in {m.value for m in g.objects(r, SH.resultMessage)}}
 
 
 @BOTH

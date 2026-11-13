@@ -7,7 +7,7 @@ disjoint with broadMatch and relatedMatch), S13/S14 (labels), S36 (every memberL
 """
 
 import pytest
-from rdflib import Graph
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.starontology.skos import skos_validate
 
 HEAD = (

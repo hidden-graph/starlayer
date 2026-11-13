@@ -14,11 +14,11 @@ import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 
 # StarLayerGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
-URIRef = ox.NamedNode
+NamedNode = ox.NamedNode
 TripleTerm = ox.Triple
 
 EX = 'http://example.org/'
-RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
+RDF_REIFIES = NamedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 DATASET = """
 @prefix :    <http://example.org/> .
@@ -47,7 +47,7 @@ def g():
 class TestU1:
     def test_delete_confidence_of_known_triple(self, g):
         # Confirm it exists before
-        assert any(True for _ in g.triples((URIRef(EX + 'stmt1'), URIRef(EX + 'confidence'), None)))
+        assert any(True for _ in g.triples((NamedNode(EX + 'stmt1'), NamedNode(EX + 'confidence'), None)))
 
         g.update("""
             PREFIX :   <http://example.org/>
@@ -57,7 +57,7 @@ class TestU1:
                         :confidence ?c }
         """)
 
-        triples = list(g.triples((URIRef(EX + 'stmt1'), URIRef(EX + 'confidence'), None)))
+        triples = list(g.triples((NamedNode(EX + 'stmt1'), NamedNode(EX + 'confidence'), None)))
         assert triples == []
 
     def test_other_properties_unaffected(self, g):
@@ -69,7 +69,7 @@ class TestU1:
                         :confidence ?c }
         """)
         # :source should still be there
-        source_triples = list(g.triples((URIRef(EX + 'stmt1'), URIRef(EX + 'source'), None)))
+        source_triples = list(g.triples((NamedNode(EX + 'stmt1'), NamedNode(EX + 'source'), None)))
         assert source_triples != []
 
     def test_delete_where_wrong_triple_term_is_noop(self, g):
@@ -81,7 +81,7 @@ class TestU1:
                         :confidence ?c }
         """)
         # Nothing should be deleted
-        triples = list(g.triples((URIRef(EX + 'stmt1'), URIRef(EX + 'confidence'), None)))
+        triples = list(g.triples((NamedNode(EX + 'stmt1'), NamedNode(EX + 'confidence'), None)))
         assert triples != []
 
 
@@ -97,9 +97,9 @@ class TestU2:
             INSERT { ?r :verified :true }
             WHERE  { ?r rdf:reifies <<( :bob :knows :carol )>> }
         """)
-        verified = list(g.triples((URIRef(EX + 'stmt1'), URIRef(EX + 'verified'), None)))
+        verified = list(g.triples((NamedNode(EX + 'stmt1'), NamedNode(EX + 'verified'), None)))
         assert len(verified) == 1
-        assert verified[0][2] == URIRef(EX + 'true')
+        assert verified[0][2] == NamedNode(EX + 'true')
 
     def test_insert_where_only_affects_matching_reifier(self, g):
         g.update("""
@@ -109,7 +109,7 @@ class TestU2:
             WHERE  { ?r rdf:reifies <<( :bob :knows :carol )>> }
         """)
         # stmt2 reifies a different triple — should NOT be tagged
-        verified2 = list(g.triples((URIRef(EX + 'stmt2'), URIRef(EX + 'verified'), None)))
+        verified2 = list(g.triples((NamedNode(EX + 'stmt2'), NamedNode(EX + 'verified'), None)))
         assert verified2 == []
 
 
@@ -127,15 +127,15 @@ class TestU3:
                 :stmt3 :confidence "0.5" .
             }
         """)
-        stmt3 = URIRef(EX + 'stmt3')
+        stmt3 = NamedNode(EX + 'stmt3')
         # rdf:reifies triple exists
         reifies = list(g.triples((stmt3, RDF_REIFIES, None)))
         assert len(reifies) == 1
         tt = reifies[0][2]
         assert isinstance(tt, TripleTerm)
-        assert tt.subject   == URIRef(EX + 'carol')
-        assert tt.predicate == URIRef(EX + 'knows')
-        assert tt.object    == URIRef(EX + 'dave')
+        assert tt.subject   == NamedNode(EX + 'carol')
+        assert tt.predicate == NamedNode(EX + 'knows')
+        assert tt.object    == NamedNode(EX + 'dave')
 
     def test_insert_data_triple_term_registered(self, g):
         g.update("""
@@ -146,7 +146,7 @@ class TestU3:
             }
         """)
         assert g.has_triple_term(
-            URIRef(EX + 'carol'), URIRef(EX + 'knows'), URIRef(EX + 'dave')
+            NamedNode(EX + 'carol'), NamedNode(EX + 'knows'), NamedNode(EX + 'dave')
         )
 
     def test_insert_data_queryable_after_insert(self, g):
@@ -163,7 +163,7 @@ class TestU3:
             SELECT ?r WHERE { ?r rdf:reifies <<( :carol :knows :dave )>> }
         """)
         stmts = {row[0] for row in r}
-        assert URIRef(EX + 'stmt3') in stmts
+        assert NamedNode(EX + 'stmt3') in stmts
 
 
 # ---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ class TestU4:
                 :stmt2 rdf:reifies <<( :alice :knows :bob )>> .
             }
         """)
-        stmt2 = URIRef(EX + 'stmt2')
+        stmt2 = NamedNode(EX + 'stmt2')
         reifies = list(g.triples((stmt2, RDF_REIFIES, None)))
         assert reifies == []
 
@@ -194,9 +194,9 @@ class TestU4:
         """)
         # DELETE DATA removes exactly the one triple it names: there is no encoding left behind (the old class kept
         # rdf:subject/predicate/object triples and a registry entry), and the other statements of the graph stay.
-        assert len(list(g.triples((URIRef(EX + "stmt2"), None, None)))) == 1  # only :confidence is left
-        assert (URIRef(EX + "stmt1"), RDF_REIFIES, TripleTerm(URIRef(EX + "bob"), URIRef(EX + "knows"), URIRef(EX + "carol"))) in g
-        assert list(g.triple_terms(URIRef(EX + "alice"), URIRef(EX + "knows"), URIRef(EX + "bob"))) == []
+        assert len(list(g.triples((NamedNode(EX + "stmt2"), None, None)))) == 1  # only :confidence is left
+        assert (NamedNode(EX + "stmt1"), RDF_REIFIES, TripleTerm(NamedNode(EX + "bob"), NamedNode(EX + "knows"), NamedNode(EX + "carol"))) in g
+        assert list(g.triple_terms(NamedNode(EX + "alice"), NamedNode(EX + "knows"), NamedNode(EX + "bob"))) == []
 
     def test_delete_data_other_reifier_unaffected(self, g):
         g.update("""
@@ -207,7 +207,7 @@ class TestU4:
             }
         """)
         # stmt1 reifies a different TT, should be untouched
-        reifies1 = list(g.triples((URIRef(EX + 'stmt1'), RDF_REIFIES, None)))
+        reifies1 = list(g.triples((NamedNode(EX + 'stmt1'), RDF_REIFIES, None)))
         assert len(reifies1) == 1
 
 
@@ -235,7 +235,7 @@ class TestU4DeletingOneReifierLeavesTheOthers:
 
     @staticmethod
     def _tt(s, p, o):
-        return TripleTerm(URIRef(EX + s), URIRef(EX + p), URIRef(EX + o))
+        return TripleTerm(NamedNode(EX + s), NamedNode(EX + p), NamedNode(EX + o))
 
     def _reifiers(self, g, tt):
         return {t[0] for t in g.triples((None, RDF_REIFIES, tt))}
@@ -243,39 +243,39 @@ class TestU4DeletingOneReifierLeavesTheOthers:
     def test_other_reifier_of_the_same_triple_term_stays_with_its_properties(self, shared):
         shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
                       "DELETE DATA { :r1 rdf:reifies <<( :alice :knows :bob )>> }")
-        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {URIRef(EX + 'r2')}
-        assert len(list(shared.triples((URIRef(EX + 'r2'), URIRef(EX + 'confidence'), None)))) == 1
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {NamedNode(EX + 'r2')}
+        assert len(list(shared.triples((NamedNode(EX + 'r2'), NamedNode(EX + 'confidence'), None)))) == 1
         # r1 lost only the one triple
-        assert len(list(shared.triples((URIRef(EX + 'r1'), None, None)))) == 1
+        assert len(list(shared.triples((NamedNode(EX + 'r1'), None, None)))) == 1
 
     def test_reifiers_of_other_triple_terms_are_unaffected(self, shared):
         shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
                       "DELETE DATA { :r1 rdf:reifies <<( :alice :knows :bob )>> }")
-        assert self._reifiers(shared, self._tt('bob', 'knows', 'carol')) == {URIRef(EX + 'r3')}
-        assert self._reifiers(shared, self._tt('alice', 'knows', 'carol')) == {URIRef(EX + 'r4')}
+        assert self._reifiers(shared, self._tt('bob', 'knows', 'carol')) == {NamedNode(EX + 'r3')}
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'carol')) == {NamedNode(EX + 'r4')}
 
     def test_the_asserted_triple_stays(self, shared):
         shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
                       "DELETE DATA { :r1 rdf:reifies <<( :alice :knows :bob )>> . :r2 rdf:reifies <<( :alice :knows :bob )>> }")
-        assert (URIRef(EX + 'alice'), URIRef(EX + 'knows'), URIRef(EX + 'bob')) in shared
+        assert (NamedNode(EX + 'alice'), NamedNode(EX + 'knows'), NamedNode(EX + 'bob')) in shared
         assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == set()
 
     def test_deleting_the_asserted_triple_leaves_every_reifier(self, shared):
         shared.update("PREFIX : <http://example.org/> DELETE DATA { :alice :knows :bob }")
-        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {URIRef(EX + 'r1'), URIRef(EX + 'r2')}
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {NamedNode(EX + 'r1'), NamedNode(EX + 'r2')}
 
     def test_delete_where_by_triple_term_removes_only_the_matching_reifiers(self, shared):
         shared.update("PREFIX : <http://example.org/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> "
                       "DELETE WHERE { ?r rdf:reifies <<( :alice :knows :bob )>> }")
         assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == set()
-        assert self._reifiers(shared, self._tt('bob', 'knows', 'carol')) == {URIRef(EX + 'r3')}
-        assert self._reifiers(shared, self._tt('alice', 'knows', 'carol')) == {URIRef(EX + 'r4')}
-        assert len(list(shared.triples((URIRef(EX + 'r1'), URIRef(EX + 'confidence'), None)))) == 1
+        assert self._reifiers(shared, self._tt('bob', 'knows', 'carol')) == {NamedNode(EX + 'r3')}
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'carol')) == {NamedNode(EX + 'r4')}
+        assert len(list(shared.triples((NamedNode(EX + 'r1'), NamedNode(EX + 'confidence'), None)))) == 1
 
     def test_deleting_a_property_of_one_reifier_leaves_the_other(self, shared):
         shared.update("PREFIX : <http://example.org/> DELETE DATA { :r1 :confidence \"0.9\" }")
-        assert len(list(shared.triples((URIRef(EX + 'r2'), URIRef(EX + 'confidence'), None)))) == 1
-        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {URIRef(EX + 'r1'), URIRef(EX + 'r2')}
+        assert len(list(shared.triples((NamedNode(EX + 'r2'), NamedNode(EX + 'confidence'), None)))) == 1
+        assert self._reifiers(shared, self._tt('alice', 'knows', 'bob')) == {NamedNode(EX + 'r1'), NamedNode(EX + 'r2')}
 
 
 # ---------------------------------------------------------------------------
@@ -299,14 +299,14 @@ class TestU7:
             INSERT { :newStmt rdf:reifies <<( ?s ?p ?o )>> }
             WHERE  { :stmt1 rdf:reifies <<( ?s ?p ?o )>> }
         """)
-        new_stmt = URIRef(EX + 'newStmt')
+        new_stmt = NamedNode(EX + 'newStmt')
         reifies = list(g.triples((new_stmt, RDF_REIFIES, None)))
         assert len(reifies) == 1
         tt = reifies[0][2]
         assert isinstance(tt, TripleTerm)
-        assert tt.subject   == URIRef(EX + 'bob')
-        assert tt.predicate == URIRef(EX + 'knows')
-        assert tt.object    == URIRef(EX + 'carol')
+        assert tt.subject   == NamedNode(EX + 'bob')
+        assert tt.predicate == NamedNode(EX + 'knows')
+        assert tt.object    == NamedNode(EX + 'carol')
 
     def test_insert_template_tt_object_registered(self, g):
         """TT created via object-position template INSERT is registered."""
@@ -317,7 +317,7 @@ class TestU7:
             WHERE  { :stmt1 rdf:reifies <<( ?s ?p ?o )>> }
         """)
         assert g.has_triple_term(
-            URIRef(EX + 'bob'), URIRef(EX + 'knows'), URIRef(EX + 'carol')
+            NamedNode(EX + 'bob'), NamedNode(EX + 'knows'), NamedNode(EX + 'carol')
         )
 
     def test_insert_template_variable_subject_and_tt_object(self, g):
@@ -329,13 +329,13 @@ class TestU7:
             WHERE  { :stmt2 rdf:reifies <<( ?s ?p ?o )>> .
                      BIND(:cloneOfStmt2 AS ?r2) }
         """)
-        clone = URIRef(EX + 'cloneOfStmt2')
+        clone = NamedNode(EX + 'cloneOfStmt2')
         reifies = list(g.triples((clone, RDF_REIFIES, None)))
         assert len(reifies) == 1
         tt = reifies[0][2]
-        assert tt.subject   == URIRef(EX + 'alice')
-        assert tt.predicate == URIRef(EX + 'knows')
-        assert tt.object    == URIRef(EX + 'bob')
+        assert tt.subject   == NamedNode(EX + 'alice')
+        assert tt.predicate == NamedNode(EX + 'knows')
+        assert tt.object    == NamedNode(EX + 'bob')
 
     def test_delete_template_tt_object_removes_reification(self, g):
         """DELETE template with TT in object position removes the reification triple."""
@@ -345,7 +345,7 @@ class TestU7:
             DELETE { ?r rdf:reifies <<( ?s ?p ?o )>> }
             WHERE  { ?r rdf:reifies <<( ?s ?p ?o )>> . ?r :confidence "0.9" }
         """)
-        stmt1 = URIRef(EX + 'stmt1')
+        stmt1 = NamedNode(EX + 'stmt1')
         reifies = list(g.triples((stmt1, RDF_REIFIES, None)))
         assert reifies == []
 
@@ -358,7 +358,7 @@ class TestU7:
             WHERE  { ?r rdf:reifies <<( ?s ?p ?o )>> . ?r :confidence "0.9" }
         """)
         # stmt2 has confidence "0.7" — should be untouched
-        stmt2 = URIRef(EX + 'stmt2')
+        stmt2 = NamedNode(EX + 'stmt2')
         reifies = list(g.triples((stmt2, RDF_REIFIES, None)))
         assert len(reifies) == 1
 
@@ -380,9 +380,9 @@ class TestU6:
             INSERT { <<:alice :knows :bob ~ :myReifier>> :note :x }
             WHERE  { :alice :knows :bob }
         """)
-        from rdflib import URIRef
+        from tests.terms import NamedNode
         assert g.has_triple_term(
-            URIRef(EX + 'alice'), URIRef(EX + 'knows'), URIRef(EX + 'bob')
+            NamedNode(EX + 'alice'), NamedNode(EX + 'knows'), NamedNode(EX + 'bob')
         )
 
 
@@ -400,6 +400,6 @@ class TestU5:
             WHERE  { ?r rdf:reifies <<( :bob :knows :carol )>> ;
                         :source ?old }
         """)
-        sources = list(g.triples((URIRef(EX + 'stmt1'), URIRef(EX + 'source'), None)))
+        sources = list(g.triples((NamedNode(EX + 'stmt1'), NamedNode(EX + 'source'), None)))
         assert len(sources) == 1
-        assert sources[0][2] == URIRef(EX + 'NewSource')
+        assert sources[0][2] == NamedNode(EX + 'NewSource')

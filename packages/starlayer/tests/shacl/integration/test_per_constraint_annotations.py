@@ -9,9 +9,9 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from rdflib import RDF, Literal, Namespace
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -36,7 +36,7 @@ def test_datatype_annotation_severity_overrides_shape_default() -> None:
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    severities = {o for _, _, o in result.report_graph.to_rdflib().triples((None, SH.resultSeverity, None))}
+    severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
     assert severities == {SH.Warning}
 
 
@@ -109,7 +109,7 @@ def test_property_reference_without_annotation_still_conforms_normally() -> None
 
     assert result.conforms is False
     assert SH.MinCountConstraintComponent in {
-        o for _, _, o in result.report_graph.to_rdflib().triples((None, SH.sourceConstraintComponent, None))
+        o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     }
 
 
@@ -213,10 +213,14 @@ def _run(shapes: str, data: str = BASE_DATA, extra_data: str = "") -> Any:
     return StarShaclSchema(shacl_graph=sg).validate(data_graph=dg, meta_shacl=False)
 
 
+def _text(term: Any) -> str:
+    return str(getattr(term, "value", term))
+
+
 def _values(result: Any, predicate: Any) -> list[Any]:
     """The values of ``predicate`` on the top-level results (a nested sh:detail result belongs to the referenced shape)."""
-    nested = set(result.report_graph.to_rdflib().objects(None, SH.detail))
-    return sorted(o for s, _, o in result.report_graph.to_rdflib().triples((None, predicate, None)) if s not in nested)
+    nested = set(result.report_graph.objects(None, SH.detail))
+    return sorted((o for s, _, o in result.report_graph.triples((None, predicate, None)) if s not in nested), key=str)
 
 
 def _case_run(case: str, annotation: str, shape_extra: str = "") -> Any:
@@ -241,7 +245,7 @@ def test_annotation_severity_applies_to_that_constraint(case: str) -> None:
 @pytest.mark.parametrize("case", CASES)
 def test_annotation_message_replaces_default_and_shape_message(case: str) -> None:
     result = _case_run(case, '{| sh:message "custom message" |}', shape_extra='; sh:message "shape message"')
-    assert set(_values(result, SH.resultMessage)) == {Literal("custom message")}, case
+    assert set(_values(result, SH.resultMessage)) == {lit("custom message")}, case
     assert "custom message" in result.report_text
     assert "shape message" not in result.report_text
 
@@ -266,7 +270,7 @@ def test_unannotated_constraint_keeps_shape_level_severity_and_message(case: str
     """The shape's own sh:severity / sh:message still apply when the constraint has no annotation."""
     result = _case_run(case, "", shape_extra="; sh:severity sh:Info ; sh:message \"shape message\"")
     assert set(_values(result, SH.resultSeverity)) == {SH.Info}
-    assert set(_values(result, SH.resultMessage)) == {Literal("shape message")}
+    assert set(_values(result, SH.resultMessage)) == {lit("shape message")}
 
 
 def test_annotation_changes_only_its_own_constraint() -> None:
@@ -279,10 +283,10 @@ def test_annotation_changes_only_its_own_constraint() -> None:
     """
     result = _run(shapes)
     by_component = {}
-    for r in result.report_graph.to_rdflib().subjects(RDF.type, SH.ValidationResult):
-        component = result.report_graph.to_rdflib().value(r, SH.sourceConstraintComponent)
+    for r in result.report_graph.subjects(RDF.type, SH.ValidationResult):
+        component = result.report_graph.value(r, SH.sourceConstraintComponent)
         by_component.setdefault(component, set()).add(
-            (result.report_graph.to_rdflib().value(r, SH.resultSeverity), str(result.report_graph.to_rdflib().value(r, SH.resultMessage)))
+            (result.report_graph.value(r, SH.resultSeverity), _text(result.report_graph.value(r, SH.resultMessage)))
         )
     assert by_component == {
         SH.ClassConstraintComponent: {(SH.Warning, "cat message")},
@@ -297,9 +301,9 @@ def test_each_value_of_one_parameter_has_its_own_annotation() -> None:
           sh:class ex:Cat {| sh:severity sh:Warning ; sh:message "cat" |} , ex:Dog {| sh:severity sh:Info ; sh:message "dog" |} .
     """
     result = _run(shapes)
-    graph = result.report_graph.to_rdflib()
+    graph = result.report_graph
     seen = sorted(
-        (str(graph.value(r, SH.resultMessage)), graph.value(r, SH.resultSeverity), str(graph.value(r, SH.value)))
+        (_text(graph.value(r, SH.resultMessage)), graph.value(r, SH.resultSeverity), _text(graph.value(r, SH.value)))
         for r in graph.subjects(RDF.type, SH.ValidationResult)
     )
     assert seen == [
@@ -316,8 +320,8 @@ def test_deactivating_one_value_leaves_the_other_value_running() -> None:
           sh:class ex:Cat {| sh:deactivated true |} , ex:Dog .
     """
     result = _run(shapes)
-    graph = result.report_graph.to_rdflib()
-    values = [str(graph.value(r, SH.value)) for r in graph.subjects(RDF.type, SH.ValidationResult)]
+    graph = result.report_graph
+    values = [_text(graph.value(r, SH.value)) for r in graph.subjects(RDF.type, SH.ValidationResult)]
     assert values == ["text"]  # only ex:Dog is checked, and only "text" is not a Dog
 
 
@@ -328,7 +332,7 @@ def test_language_tagged_annotation_messages_are_all_carried() -> None:
           sh:minCount 3 {| sh:message "too few"@en , "zu wenige"@de |} .
     """
     result = _run(shapes)
-    assert set(_values(result, SH.resultMessage)) == {Literal("too few", lang="en"), Literal("zu wenige", lang="de")}
+    assert set(_values(result, SH.resultMessage)) == {lit("too few", lang="en"), lit("zu wenige", lang="de")}
 
 
 def test_qualified_counts_are_attributed_by_result_component() -> None:
@@ -340,7 +344,7 @@ def test_qualified_counts_are_attributed_by_result_component() -> None:
           sh:qualifiedMaxCount 0 {| sh:severity sh:Warning |} .
     """
     result = _run(shapes)
-    graph = result.report_graph.to_rdflib()
+    graph = result.report_graph
     seen = {
         graph.value(r, SH.sourceConstraintComponent): graph.value(r, SH.resultSeverity)
         for r in graph.subjects(RDF.type, SH.ValidationResult)
@@ -365,7 +369,7 @@ def test_user_defined_sparql_component_parameter_annotation() -> None:
     result = _run(shapes)
     assert result.conforms is False
     assert set(_values(result, SH.resultSeverity)) == {SH.Warning}
-    assert set(_values(result, SH.resultMessage)) == {Literal("custom")}
+    assert set(_values(result, SH.resultMessage)) == {lit("custom")}
 
 
 FIXTURES = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite" / "tests" / "core" / "misc"
@@ -386,7 +390,7 @@ def test_w3c_severity_003() -> None:
 def test_w3c_message_002() -> None:
     result = _fixture_result("message-002")
     assert result.conforms is False
-    assert set(_values(result, SH.resultMessage)) == {Literal("Test message", lang="en")}
+    assert set(_values(result, SH.resultMessage)) == {lit("Test message", lang="en")}
     assert set(_values(result, SH.resultSeverity)) == {SH.Violation}
 
 
@@ -398,13 +402,13 @@ def test_w3c_deactivated_003() -> None:
 
 def _rows(result: Any) -> list[tuple[str, str, str, str]]:
     """``(component, severity, message, value)`` of each result, sorted."""
-    graph = result.report_graph.to_rdflib()
-    local = lambda term: str(term).rsplit("#", 1)[-1].rsplit("/", 1)[-1]  # noqa: E731
+    graph = result.report_graph
+    local = lambda term: _text(term).rsplit("#", 1)[-1].rsplit("/", 1)[-1]  # noqa: E731
     return sorted(
         (
             local(graph.value(r, SH.sourceConstraintComponent)),
             local(graph.value(r, SH.resultSeverity)),
-            str(graph.value(r, SH.resultMessage)),
+            _text(graph.value(r, SH.resultMessage)),
             local(graph.value(r, SH.value)),
         )
         for r in graph.subjects(RDF.type, SH.ValidationResult)
@@ -497,7 +501,7 @@ def test_pattern_deactivated_on_pattern_or_flags_triple(body: str) -> None:
 
 def test_pattern_message_on_flags_triple() -> None:
     result = _ps('sh:pattern "^[0-9]+$" ; sh:flags "i" {| sh:message "flags note" |}')
-    assert set(_values(result, SH.resultMessage)) == {Literal("flags note")}
+    assert set(_values(result, SH.resultMessage)) == {lit("flags note")}
 
 
 QUALIFIED = "sh:qualifiedValueShape [ sh:class ex:Dog ] ; "
@@ -550,7 +554,7 @@ def test_closed_annotation_on_ignored_properties_triple() -> None:
     result = _run(shapes)
     assert result.conforms is False
     assert set(_values(result, SH.resultSeverity)) == {SH.Info}
-    assert set(_values(result, SH.resultMessage)) == {Literal("closed note")}
+    assert set(_values(result, SH.resultMessage)) == {lit("closed note")}
 
 
 def test_closed_deactivated_on_ignored_properties_triple() -> None:
@@ -587,7 +591,7 @@ def test_user_defined_multi_parameter_deactivated_on_either_triple() -> None:
 
 def test_user_defined_multi_parameter_messages_are_united() -> None:
     result = _run(USER_TWO_PARAMS + 'ex:lo 10 {| sh:message "from lo" |} ; ex:hi 20 {| sh:message "from hi" |} .')
-    assert set(_values(result, SH.resultMessage)) == {Literal("from lo"), Literal("from hi")}
+    assert set(_values(result, SH.resultMessage)) == {lit("from lo"), lit("from hi")}
 
 
 @pytest.mark.parametrize(
@@ -647,7 +651,7 @@ def test_deactivated_expression_depends_on_the_focus_node() -> None:
           sh:minCount 1 {| sh:deactivated [ sparql:equals ( [ shnex:var "focusNode" ] ex:a ) ] |} .
     """
     result = _run(shapes, data)
-    assert {o for _, _, o in result.report_graph.to_rdflib().triples((None, SH.focusNode, None))} == {EX.b}
+    assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.b}
 
 
 def test_deactivated_expression_on_one_value_of_a_parameter() -> None:
@@ -657,7 +661,7 @@ def test_deactivated_expression_on_one_value_of_a_parameter() -> None:
           sh:class ex:Cat {{| sh:deactivated [ {EXPR_ONE_ONE} ] |}} , ex:Dog .
     """
     result = _run(shapes)
-    assert [str(result.report_graph.to_rdflib().value(r, SH.value)) for r in result.report_graph.to_rdflib().subjects(RDF.type, SH.ValidationResult)] == ["text"]
+    assert [_text(result.report_graph.value(r, SH.value)) for r in result.report_graph.subjects(RDF.type, SH.ValidationResult)] == ["text"]
 
 
 def test_deactivated_expression_with_severity_on_another_constraint() -> None:
@@ -672,7 +676,7 @@ def test_deactivated_expression_on_qualified_count_by_focus_node() -> None:
           sh:qualifiedMinCount 2 {| sh:deactivated [ sparql:equals ( [ shnex:var "focusNode" ] ex:a ) ] |} .
     """
     result = _run(shapes, PREFIXES + "ex:a a ex:P . ex:b a ex:P .")
-    assert {o for _, _, o in result.report_graph.to_rdflib().triples((None, SH.focusNode, None))} == {EX.b}
+    assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.b}
 
 
 def test_deactivated_expression_in_a_user_defined_component() -> None:

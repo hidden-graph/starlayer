@@ -10,7 +10,6 @@ import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import from_engine
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -191,10 +190,10 @@ def test_owl_imports_to_a_module_absent_entirely_raises() -> None:
     target with zero triples describing it anywhere in shacl_graph raises -
     call resolve_imports(loader=...) first if it genuinely needs fetching
     from elsewhere."""
-    from rdflib.namespace import OWL
+    from tests.terms import OWL
 
     g = _two_module_graph()
-    g.add((from_engine(EX.ModuleB), OWL.imports, from_engine(EX.SomeOtherModule)))
+    g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
 
     schema = StarShaclSchema(shacl_graph=g)
     with pytest.raises(ValueError, match="SomeOtherModule"):
@@ -206,12 +205,12 @@ def test_owl_imports_to_a_module_present_but_not_typed_shapesgraph_raises() -> N
     content in shacl_graph - just not a sh:ShapesGraph type declaration -
     not only when it's entirely absent. Presence alone isn't enough; it
     has to actually be typed a sh:ShapesGraph to count."""
-    from rdflib.namespace import OWL, RDF
+    from tests.terms import OWL, RDF
 
     g = _two_module_graph()
-    g.add((from_engine(EX.ModuleB), OWL.imports, from_engine(EX.SomeOtherModule)))
-    g.add((from_engine(EX.SomeOtherModule), from_engine(RDFS.member), from_engine(EX.SomeShape)))
-    g.add((from_engine(EX.SomeShape), from_engine(RDF.type), from_engine(SH.NodeShape)))
+    g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
+    g.add((EX.SomeOtherModule, RDFS.member, EX.SomeShape))
+    g.add((EX.SomeShape, RDF.type, SH.NodeShape))
 
     schema = StarShaclSchema(shacl_graph=g)
     with pytest.raises(ValueError, match="SomeOtherModule"):
@@ -254,10 +253,10 @@ def test_owl_imports_transitively_pulls_in_another_locally_present_modules_membe
     """If ModuleA owl:imports ModuleB, and both are already co-located in
     the same shacl_graph, ModuleB's own members count as part of
     ModuleA's extracted module too - the third documented mechanism."""
-    from rdflib.namespace import OWL
+    from tests.terms import OWL
 
     g = _two_module_graph()
-    g.add((from_engine(EX.ModuleA), OWL.imports, from_engine(EX.ModuleB)))
+    g.add((EX.ModuleA, OWL.imports, EX.ModuleB))
 
     schema = StarShaclSchema(shacl_graph=g)
     extracted = schema.extract_shapes_graph(EX.ModuleA)
@@ -272,11 +271,11 @@ def test_owl_imports_transitively_pulls_in_another_locally_present_modules_membe
 def test_owl_imports_cycle_does_not_hang() -> None:
     """ModuleA and ModuleB importing each other must terminate, not loop
     forever chasing the same pair of nodes back and forth."""
-    from rdflib.namespace import OWL
+    from tests.terms import OWL
 
     g = _two_module_graph()
-    g.add((from_engine(EX.ModuleA), OWL.imports, from_engine(EX.ModuleB)))
-    g.add((from_engine(EX.ModuleB), OWL.imports, from_engine(EX.ModuleA)))
+    g.add((EX.ModuleA, OWL.imports, EX.ModuleB))
+    g.add((EX.ModuleB, OWL.imports, EX.ModuleA))
 
     schema = StarShaclSchema(shacl_graph=g)
     extracted = schema.extract_shapes_graph(EX.ModuleA)

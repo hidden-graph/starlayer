@@ -6,10 +6,10 @@ a case where rdflib is lenient is marked, and the grammar (Turtle 1.2 / N-Triple
 
 import pytest
 import rdflib
-from rdflib import URIRef
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from tests.terms import NamedNode
 
-REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
+REIFIES = NamedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 
 def _turtle(text):
@@ -139,13 +139,13 @@ def test_several_directives_on_one_line(text):
 
 def test_stacked_directives_resolve_in_order():
     g = _turtle('BASE <http://x/> BASE <http://y/> <a> <p> <o> .')
-    assert (URIRef('http://y/a'), URIRef('http://y/p'), URIRef('http://y/o')) in g
+    assert (NamedNode('http://y/a'), NamedNode('http://y/p'), NamedNode('http://y/o')) in g
 
 
 @pytest.mark.parametrize('keyword', ['base', 'prefix', 'version', 'BASE', 'Version'])
 def test_a_prefix_named_like_a_directive_is_not_a_directive(keyword):
     text = f'@prefix {keyword}: <urn:k:> .\n{keyword}:x {keyword}:p {keyword}:o .\n'
-    assert (URIRef('urn:k:x'), URIRef('urn:k:p'), URIRef('urn:k:o')) in _turtle(text)
+    assert (NamedNode('urn:k:x'), NamedNode('urn:k:p'), NamedNode('urn:k:o')) in _turtle(text)
     assert len(_turtle_ds(text)) == 1
 
 

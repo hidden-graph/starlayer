@@ -28,10 +28,13 @@ import pathlib
 import sys
 from collections import defaultdict
 
-from docs_ref import REPO_BLOB
-from rdflib import RDF, RDFS, Dataset, Namespace
-
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path[:0] = [str(REPO_ROOT / "packages/starlayer"), str(REPO_ROOT / "tools/kg")]
+
+from docs_ref import REPO_BLOB  # noqa: E402
+from starlayer.graph import RDF, RDFS, Namespace  # noqa: E402
+from starlayer.graph.oxgraph import StarLayerDataset as Dataset  # noqa: E402
+
 CODEKG_PATH = REPO_ROOT / "tools/kg/codekg/codekg.trig"
 OUT_DIR = REPO_ROOT / "docs/generated"
 OVERVIEW_PATH = OUT_DIR / "api-overview.generated.md"
@@ -63,23 +66,32 @@ _BUCKET_ORDER = ["starlayer", "starlayer.graph", "starlayer.sparql", "starlayer.
 
 def _load_dataset() -> Dataset:
     # The graph is not committed; build it if this checkout has none.
-    sys.path[:0] = [str(REPO_ROOT / "packages/starlayer"), str(REPO_ROOT / "tools/kg")]
     from codekg import ensure_built
 
     ensure_built()
     ds = Dataset()
-    ds.parse(CODEKG_PATH, format="trig")
+    ds.parse(str(CODEKG_PATH), format="trig")
     return ds
+
+
+def _t(term) -> str:
+    """The text of a literal or IRI (``str()`` of a pyoxigraph term adds quotes or brackets)."""
+    return term.value if hasattr(term, "value") else str(term)
+
+
+def _plain(term):
+    """A literal as its text (the generator formats it as text everywhere); an IRI or blank node stays a term."""
+    return term.value if hasattr(term, "datatype") else term
 
 
 def _val(ds, ent, pred):
     for _s, _p, o, _c in ds.quads((ent, pred, None, None)):
-        return o
+        return _plain(o)
     return None
 
 
 def _vals(ds, ent, pred):
-    return [o for _s, _p, o, _c in ds.quads((ent, pred, None, None))]
+    return [_plain(o) for _s, _p, o, _c in ds.quads((ent, pred, None, None))]
 
 
 def _is_external_type(ds, ent) -> bool:
@@ -180,7 +192,7 @@ def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
 
     identifier_index: dict[str, list] = defaultdict(list)
     for s, _p, o, _c in ds.quads((None, DCTERMS.identifier, None, None)):
-        identifier_index[str(o)].append(s)
+        identifier_index[_t(o)].append(s)
 
     entities: list[tuple[str, str]] = []
     seen: set[str] = set()
@@ -194,7 +206,7 @@ def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
                 ident = _val(ds, ent, DCTERMS.identifier)
                 if ident is None:
                     continue
-                ident = str(ident)
+                ident = _t(ident)
                 if ident not in seen:
                     seen.add(ident)
                     entities.append((ident, bucket))
@@ -203,13 +215,13 @@ def collect_public_entities(ds: Dataset) -> list[tuple[str, str]]:
                     for method_ent in methods:
                         if not _is_method(ds, method_ent):
                             continue
-                        m_label = str(_val(ds, method_ent, RDFS.label) or "")
+                        m_label = _t(_val(ds, method_ent, RDFS.label) or "")
                         if m_label.startswith("_"):
                             continue
                         m_ident = _val(ds, method_ent, DCTERMS.identifier)
                         if m_ident is None:
                             continue
-                        m_ident = str(m_ident)
+                        m_ident = _t(m_ident)
                         if m_ident not in seen:
                             seen.add(m_ident)
                             entities.append((m_ident, bucket))
@@ -237,7 +249,7 @@ def _source_link(ds: Dataset, ent) -> str | None:
     # what follows the package directory instead of requiring the same checkout path
     # (otherwise every link disappears when this runs anywhere else, e.g. in CI).
     marker = "packages/starlayer/starlayer/"
-    text = str(file_path).replace("\\", "/")
+    text = _t(file_path).replace("\\", "/")
     if marker not in text:
         return None
     url = BLOB_BASE + text.split(marker, 1)[1]
@@ -333,7 +345,7 @@ def render_reference(ds: Dataset, entities: list[tuple[str, dict]]) -> str:
 
 def build_entity_info(ds: Dataset, ident: str, ent, bucket: str) -> dict:
     comment = _val(ds, ent, RDFS.comment)
-    comment = str(comment) if comment is not None else None
+    comment = _t(comment) if comment is not None else None
     headline = first_paragraph(comment) if comment else None
 
     param_nodes = _vals(ds, ent, SLKG.hasParameter)
@@ -376,7 +388,7 @@ def main() -> None:
     ds = _load_dataset()
     label_index: dict[str, list] = defaultdict(list)
     for s, _p, o, _c in ds.quads((None, DCTERMS.identifier, None, None)):
-        label_index[str(o)].append(s)
+        label_index[_t(o)].append(s)
 
     raw_entities = collect_public_entities(ds)
     entities: list[tuple[str, dict]] = []

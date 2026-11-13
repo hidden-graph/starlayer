@@ -14,6 +14,7 @@ from pyoxigraph import Literal
 from starlayer.graph.model.dirlangstring import DirLangString
 from starlayer.graph.model.triple import TripleTerm as RdflibTripleTerm
 from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
 from starlayer.shacl_engine.interface import GraphView
 from starlayer.shacl_engine.oxigraph_view import (
     DEFAULT,
@@ -195,7 +196,8 @@ def test_flags():
     assert OxigraphGraph.native_sparql is True
 
 
-# the boundary: ``to_ox`` / ``from_ox`` convert the rdflib / StarLayer terms a caller may still pass (rdflib input is supported)
+# the rdflib boundary: ``foreign_to_engine`` / ``from_ox`` convert whole-graph rdflib terms (``from_rdflib`` / ``to_rdflib``); ``to_ox`` itself
+# takes only pyoxigraph terms, tuples and StarLayer's own value classes
 RDFLIB_EX = rdflib.Namespace("http://example.com/ns#")
 
 
@@ -217,15 +219,17 @@ RDFLIB_EX = rdflib.Namespace("http://example.com/ns#")
     ],
 )
 def test_conversion_round_trip(term):
-    assert from_ox(to_ox(term)) == term
-    assert type(from_ox(to_ox(term))) is type(term)
+    assert from_ox(foreign_to_engine(term)) == term
+    assert type(from_ox(foreign_to_engine(term))) is type(term)
 
 
 def test_conversion_wildcard_and_errors():
     assert to_ox(None) is None and from_ox(None) is None
-    assert from_ox(to_ox((RDFLIB_EX.a, RDFLIB_EX.p, RDFLIB_EX.b))) == RdflibTripleTerm(RDFLIB_EX.a, RDFLIB_EX.p, RDFLIB_EX.b)
+    assert from_ox(foreign_to_engine((RDFLIB_EX.a, RDFLIB_EX.p, RDFLIB_EX.b))) == RdflibTripleTerm(RDFLIB_EX.a, RDFLIB_EX.p, RDFLIB_EX.b)
     with pytest.raises(TypeError):
         to_ox(42)
+    with pytest.raises(TypeError, match="rdflib term"):
+        to_ox(RDFLIB_EX.a)
 
 
 def test_from_file_trig_and_turtle(tmp_path):

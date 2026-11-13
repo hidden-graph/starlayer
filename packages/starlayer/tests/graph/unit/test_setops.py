@@ -6,9 +6,10 @@ import time
 
 import pyoxigraph as ox
 import pytest
-from rdflib import BNode, Graph, Literal, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph import setops
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from tests.terms import BlankNode, NamedNode, lit
 
 union, intersection, difference, symmetric_difference = (
     getattr(setops, n) for n in ("union", "intersection", "difference", "symmetric_difference")
@@ -21,14 +22,14 @@ def TripleTerm(s, p, o):  # noqa: N802
 E = "http://example.org/"
 
 
-def _u(n: str) -> URIRef:
-    return URIRef(E + n)
+def _u(n: str) -> NamedNode:
+    return NamedNode(E + n)
 
 
 def _triples(*names: str, cls=Graph):
     g = cls()
     for n in names:
-        g.add((_u(n), _u("p"), Literal(n)))
+        g.add((_u(n), _u("p"), lit(n)))
     return g
 
 
@@ -104,7 +105,7 @@ def test_into_accumulates_and_may_be_an_operand(make) -> None:
 def test_blank_nodes_compare_by_label_not_by_isomorphism() -> None:
     def one(label: str) -> Graph:
         g = Graph()
-        g.add((BNode(label), _u("p"), Literal("x")))
+        g.add((BlankNode(label), _u("p"), lit("x")))
         return g
 
     same_label = one("b1")
@@ -116,7 +117,7 @@ def test_blank_nodes_compare_by_label_not_by_isomorphism() -> None:
 def test_triple_terms_compare_by_structure() -> None:
     def tt(o: str) -> StarLayerGraph:
         g = StarLayerGraph()
-        g.add((_u("r"), URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"), TripleTerm(ox.NamedNode(E + "s"), ox.NamedNode(E + "p"), ox.NamedNode(E + o))))
+        g.add((_u("r"), NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies"), ox.Triple(ox.NamedNode(E + "s"), ox.NamedNode(E + "p"), ox.NamedNode(E + o))))
         return g
 
     assert len(intersection(tt("o"), tt("o"))) == 1
@@ -137,7 +138,7 @@ def test_datasets_compare_quads_with_their_graph_names() -> None:
     def ds(*graphs: str) -> StarLayerDataset:
         d = StarLayerDataset()
         for g in graphs:
-            d.graph(_u(g)).add((_u("s"), _u("p"), Literal("x")))
+            d.graph(_u(g)).add((_u("s"), _u("p"), lit("x")))
         return d
 
     a, b = ds("g1", "g2"), ds("g2", "g3")
@@ -155,23 +156,6 @@ def test_datasets_compare_quads_with_their_graph_names() -> None:
 
     got = {q.graph_name.value for q in difference(oxds("g1", "g2"), oxds("g2", "g3"))}
     assert got == {E + "g1"}
-
-
-def test_prefixes_of_both_rdflib_operands_are_carried() -> None:
-    a, b = Graph(), Graph()
-    a.bind("aa", "http://a.example/")
-    b.bind("bb", "http://b.example/")
-    bound = dict(union(a, b).namespaces())
-    assert bound["aa"].toPython() == "http://a.example/" and bound["bb"].toPython() == "http://b.example/"
-
-
-def test_mixed_families_are_refused_with_a_clear_message() -> None:
-    with pytest.raises(TypeError, match="different families"):
-        union(_triples("1"), _ox("1"))
-    with pytest.raises(TypeError, match="not in the same family"):
-        union(_triples("1"), _triples("2"), into=_ox())
-    with pytest.raises(TypeError, match="rdflib Graph/Dataset or a pyoxigraph"):
-        union([1], [2])
 
 
 def test_large_graphs_stream() -> None:

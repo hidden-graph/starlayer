@@ -3,10 +3,10 @@
 the original are listed in the module docstring of ``tests/graph/oxgraph/test_entailment_query.py``.
 """
 
-from rdflib import RDF, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
 from starlayer.sparql.sqe.entailment import rewrite_for_entailment
+from tests.terms import RDF, Namespace
 
 _REGIME = ENTAILMENT.RDF
 
@@ -72,14 +72,14 @@ class TestPredicateIsProperty:
         g = Graph()
         g.add((EX.alice, EX.worksAt, EX.Acme))
         rows = _query(g, "SELECT ?p WHERE { ?p a rdf:Property }")
-        assert [str(r.p) for r in rows] == [str(EX.worksAt)]
+        assert [str(r.p) for r in rows] == [EX.worksAt.value]
 
     def test_multiple_distinct_predicates(self):
         g = Graph()
         g.add((EX.alice, EX.worksAt, EX.Acme))
         g.add((EX.alice, EX.knows, EX.bob))
         rows = _query(g, "SELECT ?p WHERE { ?p a rdf:Property }")
-        assert {str(r.p) for r in rows} == {str(EX.worksAt), str(EX.knows)}
+        assert {str(r.p) for r in rows} == {EX.worksAt.value, EX.knows.value}
 
     def test_bound_subject_as_boolean_style_check(self):
         g = Graph()
@@ -97,7 +97,7 @@ class TestPredicateIsProperty:
         g = Graph()
         g.add((EX.worksAt, RDF.type, RDF.Property))
         rows = _query(g, "SELECT ?p WHERE { ?p a rdf:Property }")
-        assert {str(r.p) for r in rows} == {str(EX.worksAt), str(RDF.type)}
+        assert {str(r.p) for r in rows} == {EX.worksAt.value, RDF.type.value}
 
     def test_composes_correctly_with_an_unrelated_join(self):
         # ex:name is itself a valid ?p binding too (it's used as a
@@ -112,8 +112,8 @@ class TestPredicateIsProperty:
             "SELECT ?p ?n WHERE { ?p a rdf:Property . ex:alice ex:name ?n }",
         )
         assert {(str(r.p), str(r.n)) for r in rows} == {
-            (str(EX.worksAt), str(EX.Alice)),
-            (str(EX.name), str(EX.Alice)),
+            (EX.worksAt.value, EX.Alice.value),
+            (EX.name.value, EX.Alice.value),
         }
 
     def test_matches_the_direct_definition_of_rdfD2(self):
@@ -136,7 +136,7 @@ class TestPredicateIsProperty:
         rewritten = {str(r.p) for r in _query(g, "SELECT ?p WHERE { ?p a rdf:Property }")}
         ground_truth = {p.value for _, p, _ in g}
 
-        assert rewritten == ground_truth == {str(EX.worksAt), str(EX.knows)}
+        assert rewritten == ground_truth == {EX.worksAt.value, EX.knows.value}
 
 
 class TestScopingBoundary:
@@ -164,4 +164,4 @@ class TestScopingBoundary:
         # A second pass nests the first pass's union once more, which is the same answer set. The row count used to be
         # one only because rdflib's non-lazy join de-duplicated its right side (see upstream-issues 33), so compare
         # the set of answers.
-        assert {str(r.p) for r in rows} == {str(EX.worksAt)}
+        assert {str(r.p) for r in rows} == {EX.worksAt.value}

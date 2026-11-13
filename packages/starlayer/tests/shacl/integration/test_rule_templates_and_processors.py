@@ -7,9 +7,9 @@ named after the local name of its ``sh:path``. A required parameter without a va
 """
 
 import pytest
-from rdflib import Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
+from tests.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 
@@ -64,7 +64,7 @@ class TestTemplates:
         """
         result = _apply(shapes, "ex:M1 a ex:Measurement ; ex:meters 3 .")
 
-        assert (EX.M1, EX.feet, Literal(6)) in result.inferred_graph
+        assert (EX.M1, EX.feet, lit(6)) in result.inferred_graph
 
     def test_a_subclass_of_a_template_has_instances_too(self) -> None:
         shapes = SYMMETRIC + """
@@ -97,7 +97,7 @@ class TestTemplates:
         """
         result = _apply(shapes, "ex:a ex:knows ex:b .")
 
-        assert (EX.a, EX.seen, Literal(True)) in result.inferred_graph
+        assert (EX.a, EX.seen, lit(True)) in result.inferred_graph
 
     def test_a_required_parameter_without_a_value_is_a_failure(self) -> None:
         shapes = SYMMETRIC + "ex:R a ex:SymmetricPropertyRule ."

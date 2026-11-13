@@ -5,10 +5,10 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from rdflib.namespace import OWL, RDF
 from starlayer.graph import isomorphic
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
+from tests.terms import OWL, RDF
 
 warnings.simplefilter("ignore")
 E = lambda n: ox.NamedNode("http://e/" + n)  # noqa: E731
@@ -38,7 +38,7 @@ def native():
 # --- #72 ---
 
 def test_remove_of_last_use_drops_the_triple_term_and_its_encoding():
-    tt = TripleTerm(E("a"), E("p"), E("b"))
+    tt = ox.Triple(E("a"), E("p"), E("b"))
     g = StarLayerGraph()
     g.add((E("s"), E("q"), tt))
     g.remove((E("s"), E("q"), tt))
@@ -51,8 +51,8 @@ def test_remove_of_last_use_drops_the_triple_term_and_its_encoding():
 
 
 def test_remove_keeps_a_triple_term_still_used_and_cascades_to_nested_terms():
-    inner = TripleTerm(E("a"), E("p"), E("b"))
-    outer = TripleTerm(E("x"), E("r"), inner)
+    inner = ox.Triple(E("a"), E("p"), E("b"))
+    outer = ox.Triple(E("x"), E("r"), inner)
     g = StarLayerGraph()
     g.add((E("s1"), E("q"), outer))
     g.add((E("s2"), E("q"), outer))
@@ -69,8 +69,8 @@ def test_isomorphic_ignores_language_tag_case():
     h.add((E("s"), E("p"), Literal("a", lang="EN")))
     assert isomorphic(g, h)
     g, h = StarLayerGraph(), StarLayerGraph()
-    g.add((E("s"), E("p"), TripleTerm(E("a"), E("b"), Literal("a", lang="en"))))
-    h.add((E("s"), E("p"), TripleTerm(E("a"), E("b"), Literal("a", lang="EN"))))
+    g.add((E("s"), E("p"), ox.Triple(E("a"), E("b"), Literal("a", lang="en"))))
+    h.add((E("s"), E("p"), ox.Triple(E("a"), E("b"), Literal("a", lang="EN"))))
     assert isomorphic(g, h)
 
 
@@ -78,35 +78,23 @@ def test_skolemize_replaces_blank_nodes_inside_triple_terms_consistently():
     b = BNode("x1")
     g = StarLayerGraph()
     g.add((E("x"), E("s"), b))
-    g.add((E("y"), E("s"), TripleTerm(E("q"), E("r"), b)))
+    g.add((E("y"), E("s"), ox.Triple(E("q"), E("r"), b)))
     sk = g.skolemize()
     (skolem,) = [o for _, _, o in sk.triples((E("x"), E("s"), None))]
     assert isinstance(skolem, ox.NamedNode)
     (tt,) = [o for _, _, o in sk.triples((E("y"), E("s"), None))]
-    assert tt == TripleTerm(E("q"), E("r"), skolem)
+    assert tt == ox.Triple(E("q"), E("r"), skolem)
     assert isomorphic(sk.de_skolemize(), g)
 
 
 def test_skolemize_triple_term_subject_position():
     g = StarLayerGraph()
-    g.add((E("x"), E("s"), TripleTerm(BNode("x1"), E("b"), E("c"))))
+    g.add((E("x"), E("s"), ox.Triple(BNode("x1"), E("b"), E("c"))))
     (tt,) = [o for _, _, o in g.skolemize().triples((None, None, None))]
     assert isinstance(tt.subject, ox.NamedNode)
 
 
 # --- #75 ---
-
-def test_a_blank_node_label_that_is_not_a_valid_id_is_refused():
-    # The old native store accepted any label (spaces, quotes, ...); an Oxigraph blank node id is restricted, and an ill-formed
-    # one raises TermError when it is added (term_policy("lenient") stores a stand-in). Its old round-trip tests are in
-    # test_leftovers_72_75_83_oldclass.py.
-    from rdflib import BNode as RdBNode
-    from starlayer.shacl_engine.terms import TermError
-
-    g = StarLayerGraph()
-    with pytest.raises(TermError):
-        g.add((E("s"), E("p"), RdBNode("a b")))
-    assert len(g) == 0
 
 def test_dirlangstring_with_uppercase_tag_in_a_query_pattern_matches():
     g = StarLayerGraph()

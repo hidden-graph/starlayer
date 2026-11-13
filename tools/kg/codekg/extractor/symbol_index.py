@@ -36,7 +36,7 @@ from pathlib import Path
 
 from codekg import BLOB_BASE, TESTS_BLOB_BASE
 from codekg.extractor import imports, nesting, types
-from rdflib import URIRef
+from codekg.terms import URIRef
 
 logger = logging.getLogger(__name__)
 
@@ -234,7 +234,7 @@ def _index_body(
             if isinstance(node, ast.ClassDef):
                 dotted = nesting.dotted_nesting(nesting_prefix, node.name)
                 full_dotted = f"{module_dotted_path}.{dotted}"
-                class_iri = URIRef(f"{module_iri}#{dotted}")
+                class_iri = URIRef(f"{module_iri.value}#{dotted}")
 
                 info = ClassInfo(iri=class_iri)
                 for base in node.bases:
@@ -244,17 +244,17 @@ def _index_body(
                 for child in node.body:
                     if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef)):
                         method_dotted = nesting.dotted_nesting(dotted, child.name)
-                        info.methods[child.name] = URIRef(f"{module_iri}#{method_dotted}")
+                        info.methods[child.name] = URIRef(f"{module_iri.value}#{method_dotted}")
                 index.classes_by_dotted_path[full_dotted] = info
 
                 _index_body(node.body, module_iri, module_dotted_path, dotted, import_table, local_classes, class_path_by_name, index)
             elif (named := nesting.namedtuple_definition(node)) is not None:
                 dotted = nesting.dotted_nesting(nesting_prefix, named[0])
-                index.classes_by_dotted_path[f"{module_dotted_path}.{dotted}"] = ClassInfo(iri=URIRef(f"{module_iri}#{dotted}"))
+                index.classes_by_dotted_path[f"{module_dotted_path}.{dotted}"] = ClassInfo(iri=URIRef(f"{module_iri.value}#{dotted}"))
             elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                 dotted = nesting.dotted_nesting(nesting_prefix, node.name)
                 full_dotted = f"{module_dotted_path}.{dotted}"
-                index.functions_by_dotted_path[full_dotted] = URIRef(f"{module_iri}#{dotted}")
+                index.functions_by_dotted_path[full_dotted] = URIRef(f"{module_iri.value}#{dotted}")
 
                 _index_body(node.body, module_iri, module_dotted_path, dotted, import_table, local_classes, class_path_by_name, index)
         except Exception as exc:

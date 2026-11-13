@@ -5,10 +5,9 @@ sh:targetObjectsOf can yield them.
 """
 
 import pytest
-from rdflib import Graph, Literal, Namespace
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema, validate
-
-from ._rdflib_view import rd, rdn
+from tests.terms import Namespace, lit
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 P = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
@@ -22,7 +21,7 @@ def _g(ttl: str) -> Graph:
 def _focus(data: str, method: bool) -> set:
     d, s = _g(data), _g(SHAPES)
     result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
-    return set(rd(result.report_graph).objects(None, SH.focusNode)), result.conforms
+    return set(result.report_graph.objects(None, SH.focusNode)), result.conforms
 
 
 BOTH = pytest.mark.parametrize("method", [False, True], ids=["function", "method"])
@@ -32,7 +31,7 @@ BOTH = pytest.mark.parametrize("method", [False, True], ids=["function", "method
 def test_conforming_literal_is_a_target(method):
     focus, conforms = _focus("ex:a ex:q 5 .", method)
     assert not conforms
-    assert focus == {Literal(5)}
+    assert focus == {lit(5)}
 
 
 @BOTH
@@ -45,11 +44,11 @@ def test_non_conforming_literal_is_not_a_target(method):
 @BOTH
 def test_iris_and_literals_are_both_candidates(method):
     focus, _ = _focus("ex:a ex:q 5 . ex:b ex:q 6 .", method)
-    assert focus == {Literal(5), Literal(6)}
+    assert focus == {lit(5), lit(6)}
 
 
 def test_target_nodes_agrees_with_validate():
     d, s = _g("ex:a ex:q 5 ."), _g(SHAPES)
     schema = StarShaclSchema(shacl_graph=s)
     shape = next(s.subjects(SH.targetWhere, None))
-    assert Literal(5) in rdn(set(schema.target_nodes(data_graph=d, shape_node=shape)))
+    assert lit(5) in set(schema.target_nodes(data_graph=d, shape_node=shape))

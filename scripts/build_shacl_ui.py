@@ -38,8 +38,13 @@ _PACKAGES_STARLAYER = Path(__file__).resolve().parents[1] / "packages" / "starla
 if str(_PACKAGES_STARLAYER) not in sys.path:
     sys.path.insert(0, str(_PACKAGES_STARLAYER))
 
-from rdflib import BNode, Graph, Literal, Namespace, URIRef  # noqa: E402
-from rdflib.namespace import RDF, RDFS  # noqa: E402
+import pyoxigraph as ox  # noqa: E402
+from starlayer.graph import RDF, RDFS, Namespace  # noqa: E402
+from starlayer.graph import StarLayerGraph as Graph  # noqa: E402
+from starlayer.shacl_engine.terms import boolean, integer, literal  # noqa: E402
+
+BNode = ox.BlankNode
+URIRef = ox.NamedNode
 
 OVERLAY_PATH = Path(__file__).resolve().parent / "assets" / "shacl12-shacl-ui-overlay.ttl"
 
@@ -71,14 +76,14 @@ EXCLUDED_NAMESPACES: dict[str, str] = {str(SHNEX): "a field of a node expression
 
 
 def is_excluded(predicate: URIRef) -> bool:
-    return predicate in EXCLUDED or any(str(predicate).startswith(ns) for ns in EXCLUDED_NAMESPACES)
+    return predicate in EXCLUDED or any(predicate.value.startswith(ns) for ns in EXCLUDED_NAMESPACES)
 
 
 def _field_name(form: str, predicate: URIRef, prefixes: dict[str, str]) -> URIRef:
     for prefix, namespace in sorted(prefixes.items(), key=lambda item: -len(item[1])):
-        if str(predicate).startswith(namespace):
-            return STSH[f"{form}_{prefix}_{str(predicate)[len(namespace):]}"]
-    return STSH[f"{form}_{hashlib.sha1(str(predicate).encode()).hexdigest()[:12]}"]  # hash() is salted per process
+        if predicate.value.startswith(namespace):
+            return STSH[f"{form}_{prefix}_{predicate.value[len(namespace):]}"]
+    return STSH[f"{form}_{hashlib.sha1(predicate.value.encode()).hexdigest()[:12]}"]  # hash() is salted per process
 
 
 def _copy(graph: Graph, node, out: Graph) -> None:
@@ -125,7 +130,7 @@ def _owners(shacl_shacl: Graph, predicate: URIRef, kind) -> list:
         roots = _roots(shacl_shacl, owner)
         if other is not None and roots == {other}:
             continue  # a rule for the other kind of shape (NodeShapeShape forbids sh:path; PropertyShapeShape requires it)
-        content = tuple(sorted((str(p), "_" if isinstance(v, BNode) else str(v)) for p, v in shacl_shacl.predicate_objects(owner)))
+        content = tuple(sorted((p.value, "_" if isinstance(v, BNode) else v.value) for p, v in shacl_shacl.predicate_objects(owner)))
         found.append((sorted(map(str, roots)), content, owner))
     return [owner for _roots_, _content, owner in sorted(found, key=lambda item: (item[0], item[1]))]
 
@@ -139,7 +144,7 @@ def _constraints_in_shacl_shacl(shacl_shacl: Graph, predicate: URIRef, kind):
     terms = (SH.datatype, SH.nodeKind, SH["class"], SH["in"], SH.minCount, SH.maxCount) if kind in _KIND_SPECIFIC else (SH.datatype, SH.nodeKind, SH["class"], SH["in"], SH.maxCount)
     for term in terms:
         for owner in owners:
-            values = [v for v in shacl_shacl.objects(owner, term) if not (term == SH.maxCount and v == Literal(0))]
+            values = [v for v in shacl_shacl.objects(owner, term) if not (term == SH.maxCount and v == integer(0))]
             if values:
                 yield term, values
                 break
@@ -176,13 +181,13 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
             for value in overlay.objects(predicate, STSH.formMaxCount):  # the form's own limit where shacl_shacl has none
                 out.add((field, SH.maxCount, value))
         if required:
-            out.add((field, SH.minCount, Literal(1)))
+            out.add((field, SH.minCount, integer(1)))
         for holder in overlay.objects(predicate, STSH.formHeldBy):
             out.add((field, STSH.formHeldBy, holder))  # (the field is for a node held by a node of this class)
         for kind_of in overlay.objects(predicate, STSH.formOnlyFor):
             out.add((field, STSH.formOnlyFor, kind_of))  # (the field is for a node of this class)
-        if kind == SH.NodeShape and (predicate, STSH.nodePrimary, Literal(False)) in overlay:
-            out.add((field, STSH.secondary, Literal(True)))  # allowed, but not commonly expected on a node shape
+        if kind == SH.NodeShape and (predicate, STSH.nodePrimary, boolean(False)) in overlay:
+            out.add((field, STSH.secondary, boolean(True)))  # allowed, but not commonly expected on a node shape
         found = dict(_constraints_in_shacl_shacl(shacl_shacl, predicate, kind))
         for term in (SH.datatype, SH.nodeKind, SH["class"]):
             if list(overlay.objects(predicate, term)):
@@ -197,23 +202,23 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
         form = STSH[name]
         out.add((form, RDF.type, SH.NodeShape))
         out.add((form, STSH.formFor, kind))
-        out.add((form, RDFS.label, Literal(f"Form for a {str(kind).rsplit('#', 1)[-1]}", lang="en")))
-        for predicate in sorted((s for s in set(overlay.subjects(flag, Literal(True))) if isinstance(s, URIRef)), key=str):
+        out.add((form, RDFS.label, literal(f"Form for a {kind.value.rsplit('#', 1)[-1]}", lang="en")))
+        for predicate in sorted((s for s in set(overlay.subjects(flag, boolean(True))) if isinstance(s, URIRef)), key=lambda t: t.value):
             add_field(form, name, predicate, kind)
     # The forms of the other kinds of element: a form lists its fields (stsh:formFields) and what it requires (stsh:formRequired).
-    for form in sorted(overlay.subjects(STSH.formFields, None), key=str):
+    for form in sorted(overlay.subjects(STSH.formFields, None), key=lambda t: t.value):
         kind = overlay.value(form, STSH.formFor)
-        name = str(form).rsplit("#", 1)[-1]
+        name = form.value.rsplit("#", 1)[-1]
         out.add((form, RDF.type, SH.NodeShape))
         if not list(overlay.objects(form, RDFS.label)):
-            out.add((form, RDFS.label, Literal(f"Form for a {str(kind).rsplit('#', 1)[-1].rsplit('/', 1)[-1]}", lang="en")))
+            out.add((form, RDFS.label, literal(f"Form for a {kind.value.rsplit('#', 1)[-1].rsplit('/', 1)[-1]}", lang="en")))
         required = {p for lst in overlay.objects(form, STSH.formRequired) for p in overlay.items(lst)}
         listed = [predicate for lst in overlay.objects(form, STSH.formFields) for predicate in overlay.items(lst)]
         inherited: list = []
         for base in overlay.objects(form, STSH.formFieldsOf):  # the fields of another kind's form (a parameter is a property shape), less the ones left out
             flag = next(flag for _name, base_kind, flag in FORMS if base_kind == base)
             left_out = {p for lst in overlay.objects(form, STSH.formFieldsExcept) for p in overlay.items(lst)}
-            inherited += [(p, base) for p in sorted((s for s in set(overlay.subjects(flag, Literal(True))) if isinstance(s, URIRef)), key=str) if p not in left_out]
+            inherited += [(p, base) for p in sorted((s for s in set(overlay.subjects(flag, boolean(True))) if isinstance(s, URIRef)), key=lambda t: t.value) if p not in left_out]
         for predicate, base in inherited:
             add_field(form, name, predicate, base, required=predicate in required)
         for predicate in listed:

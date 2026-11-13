@@ -15,8 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from codekg import BUILD_GRAPH_IRI, BUILD_NODE_IRI, CODEKG_NS
-from rdflib import RDF, Literal
-from rdflib.namespace import XSD
+from codekg.terms import RDF, XSD, Literal
 
 # The Python files the extractor reads. Pathspecs, relative to the repository root.
 SOURCE_PATHSPECS = ["packages/starlayer/starlayer/*.py", "packages/starlayer/tests/*.py"]

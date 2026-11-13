@@ -2,12 +2,11 @@
 a malformed score or an ``owl:imports`` in the catalog does not stop the selection; ``StarShaclSchema`` sees edits
 made to the graphs it was given."""
 
-from rdflib import RDF, XSD, Graph, Literal, Namespace
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, validate
+from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
-
-from ._rdflib_view import rd
+from tests.terms import RDF, XSD, Namespace
 
 EX = Namespace("http://ex/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -127,21 +126,6 @@ def _plain(text):
     return g
 
 
-def test_schema_sees_edits_to_plain_rdflib_graphs():
-    sg = _plain("ex:S a sh:NodeShape ; sh:targetClass ex:C ; sh:property ex:P . ex:P sh:path ex:p ; sh:minCount 1 .")
-    dg = _plain("ex:a a ex:C .")
-    schema = StarShaclSchema(shacl_graph=sg, data_graph=dg)
-    assert schema.validate().conforms is False
-    dg.add((EX.a, EX.p, Literal(1)))
-    assert schema.validate().conforms is True
-    assert validate(dg, shacl_graph=sg).conforms is True
-    dg.remove((EX.a, EX.p, None))
-    sg.set((EX.P, SH.minCount, Literal(0)))
-    assert schema.validate().conforms is True
-    sg.set((EX.P, SH.minCount, Literal(1)))
-    assert schema.validate().conforms is False
-
-
 def test_schema_sees_removed_constraint():
     sg = _plain("ex:S a sh:NodeShape ; sh:targetClass ex:C ; sh:property ex:P . ex:P sh:path ex:p ; sh:datatype xsd:string .")
     dg = _plain("ex:a a ex:C ; ex:p 1 .")
@@ -165,7 +149,7 @@ def test_extract_subgraph_with_unknown_shape_is_a_value_error():
 def test_shacl_shacl_ui_scores_languagein_and_path_are_not_iri_editors():
     from starlayer.starontology import get_ontology_graph
 
-    ui = rd(get_ontology_graph("shacl_shacl_ui"))
+    ui = get_ontology_graph("shacl_shacl_ui")
     catalog = StarLayerGraph()
     catalog += get_ontology_graph("shacl_ui_baseline")
     catalog += get_ontology_graph("shacl_shacl_ui_scores")

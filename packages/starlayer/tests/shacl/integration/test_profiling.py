@@ -1,10 +1,8 @@
 import pytest
-from rdflib import Graph, Literal, Namespace, URIRef
-from rdflib.namespace import RDF, RDFS
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, shacl_profiling
-
-from ._rdflib_view import rd
+from tests.terms import RDF, RDFS, NamedNode, Namespace, lit
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 PROF = Namespace("http://www.w3.org/ns/dx/prof/")
@@ -14,30 +12,30 @@ EX = Namespace("http://example.org/")
 
 def declared_conformance_profile():
     """The profile graph in rdflib terms, for asserting with rdflib vocabulary."""
-    return rd(shacl_profiling.declared_conformance_profile())
+    return shacl_profiling.declared_conformance_profile()
 
 
 def derive_conforms_to(*args, **kwargs):
     """The derived triples in rdflib terms, for asserting with rdflib vocabulary."""
-    return rd(shacl_profiling.derive_conforms_to(*args, **kwargs))
+    return shacl_profiling.derive_conforms_to(*args, **kwargs)
 
 
-_LIBRARY_IRI = URIRef("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
+_LIBRARY_IRI = NamedNode("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
 _DECLARED_PROFILES = (
-    URIRef("http://www.w3.org/ns/shacl/profile/core"),
-    URIRef("http://www.w3.org/ns/shacl/profile/sparql"),
-    URIRef("http://www.w3.org/ns/shacl/profile/node-expr"),
-    URIRef("http://www.w3.org/ns/shacl/profile/rules"),
-    URIRef("http://www.w3.org/ns/shacl/profile/profiling"),
+    NamedNode("http://www.w3.org/ns/shacl/profile/core"),
+    NamedNode("http://www.w3.org/ns/shacl/profile/sparql"),
+    NamedNode("http://www.w3.org/ns/shacl/profile/node-expr"),
+    NamedNode("http://www.w3.org/ns/shacl/profile/rules"),
+    NamedNode("http://www.w3.org/ns/shacl/profile/profiling"),
 )
 _UNDECLARED_PROFILES = (
-    URIRef("http://www.w3.org/ns/shacl/profile/ui"),
+    NamedNode("http://www.w3.org/ns/shacl/profile/ui"),
 )
 
 
 def _valid_data() -> StarLayerGraph:
     data = StarLayerGraph()
-    data.add((EX.alice, EX.age, Literal(30)))
+    data.add((EX.alice, EX.age, lit(30)))
     return data
 
 
@@ -59,9 +57,9 @@ def _shapes() -> StarLayerGraph:
 
 def _conformant_report(*, conforms: bool = True) -> Graph:
     graph = Graph()
-    report_node = URIRef("urn:test:report")
+    report_node = NamedNode("urn:test:report")
     graph.add((report_node, RDF.type, SH.ValidationReport))
-    graph.add((report_node, SH.conforms, Literal(conforms)))
+    graph.add((report_node, SH.conforms, lit(conforms)))
     return graph
 
 
@@ -86,7 +84,7 @@ def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -
     from starlayer import conformance
 
     graph = declared_conformance_profile()
-    ui = URIRef("http://www.w3.org/ns/shacl/profile/ui")
+    ui = NamedNode("http://www.w3.org/ns/shacl/profile/ui")
     assert (_LIBRARY_IRI, conformance.DOES_NOT_CONFORM_TO, ui) not in graph
     comments = " ".join(str(c) for c in graph.objects(_LIBRARY_IRI, RDFS.comment))
     assert "Not claimed: the UI Profile" in comments
@@ -94,18 +92,18 @@ def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -
 
 def test_declared_conformance_profile_returns_independent_copies() -> None:
     first = shacl_profiling.declared_conformance_profile()  # the StarLayerGraph itself: adding to it must not reach the next call
-    first.add((_LIBRARY_IRI, DCTERMS.conformsTo, URIRef("http://www.w3.org/ns/shacl/profile/ui")))
+    first.add((_LIBRARY_IRI, DCTERMS.conformsTo, NamedNode("http://www.w3.org/ns/shacl/profile/ui")))
 
     second = shacl_profiling.declared_conformance_profile()
 
-    assert (_LIBRARY_IRI, DCTERMS.conformsTo, URIRef("http://www.w3.org/ns/shacl/profile/ui")) in first
-    assert (_LIBRARY_IRI, DCTERMS.conformsTo, URIRef("http://www.w3.org/ns/shacl/profile/ui")) not in second
+    assert (_LIBRARY_IRI, DCTERMS.conformsTo, NamedNode("http://www.w3.org/ns/shacl/profile/ui")) in first
+    assert (_LIBRARY_IRI, DCTERMS.conformsTo, NamedNode("http://www.w3.org/ns/shacl/profile/ui")) not in second
 
 
 def test_derive_conforms_to_from_conformant_report_produces_the_triple() -> None:
     report = _conformant_report(conforms=True)
-    data_graph = URIRef("urn:test:data")
-    shapes_graph = URIRef("urn:test:shapes")
+    data_graph = NamedNode("urn:test:data")
+    shapes_graph = NamedNode("urn:test:shapes")
 
     # Adversarial check per this repo's testing discipline: the triple must
     # not already be sitting in the input report, otherwise the assertion
@@ -127,8 +125,8 @@ def test_derive_conforms_to_from_non_conformant_report_derives_no_conforms_to() 
 
     derived = derive_conforms_to(report, data_graph="urn:test:data", shapes_graph="urn:test:shapes")
 
-    assert list(derived.objects(URIRef("urn:test:data"), SH.conformsTo)) == []
-    assert list(derived.objects(URIRef("urn:test:data"), SH.validationReport))
+    assert list(derived.objects(NamedNode("urn:test:data"), SH.conformsTo)) == []
+    assert list(derived.objects(NamedNode("urn:test:data"), SH.validationReport))
 
 
 def test_derive_conforms_to_raises_without_validation_report_node() -> None:
@@ -162,17 +160,17 @@ def test_derive_conforms_to_reads_graph_iris_from_report_when_omitted() -> None:
     derived = derive_conforms_to(result.report_graph)
 
     assert (
-        URIRef("http://example.org/graphs/data1"),
+        NamedNode("http://example.org/graphs/data1"),
         SH.conformsTo,
-        URIRef("http://example.org/graphs/shapes1"),
+        NamedNode("http://example.org/graphs/shapes1"),
     ) in derived
 
 
 def test_derive_conforms_to_with_specification_graph_derives_dcterms_conforms_to() -> None:
     report = _conformant_report(conforms=True)
-    data_graph = URIRef("urn:test:data")
-    shapes_graph = URIRef("urn:test:shapes")
-    specification = URIRef("urn:test:some-specification")
+    data_graph = NamedNode("urn:test:data")
+    shapes_graph = NamedNode("urn:test:shapes")
+    specification = NamedNode("urn:test:some-specification")
 
     spec_graph = Graph()
     spec_graph.add((shapes_graph, PROF.isProfileOf, specification))
@@ -193,15 +191,15 @@ def test_derive_conforms_to_with_specification_graph_derives_dcterms_conforms_to
 
 def test_default_result_is_report_graph_merged_with_new_triples() -> None:
     report = _conformant_report(conforms=True)
-    report_node = URIRef("urn:test:report")
-    data_graph = URIRef("urn:test:data")
-    shapes_graph = URIRef("urn:test:shapes")
+    report_node = NamedNode("urn:test:report")
+    data_graph = NamedNode("urn:test:data")
+    shapes_graph = NamedNode("urn:test:shapes")
 
     merged = derive_conforms_to(report, data_graph=data_graph, shapes_graph=shapes_graph)
 
     # Everything report_graph already had is still there...
     assert (report_node, RDF.type, SH.ValidationReport) in merged
-    assert (report_node, SH.conforms, Literal(True)) in merged
+    assert (report_node, SH.conforms, lit(True)) in merged
     # ...plus the newly derived triples, including the sh:validationReport
     # link - which now resolves to a real, fully-described node, not a
     # dangling blank-node reference, since report_node's own triples are
@@ -215,9 +213,9 @@ def test_default_result_is_report_graph_merged_with_new_triples() -> None:
 
 def test_conforms_only_true_returns_only_the_conformsto_triples() -> None:
     report = _conformant_report(conforms=True)
-    data_graph = URIRef("urn:test:data")
-    shapes_graph = URIRef("urn:test:shapes")
-    specification = URIRef("urn:test:some-specification")
+    data_graph = NamedNode("urn:test:data")
+    shapes_graph = NamedNode("urn:test:shapes")
+    specification = NamedNode("urn:test:some-specification")
 
     spec_graph = Graph()
     spec_graph.add((shapes_graph, PROF.isProfileOf, specification))

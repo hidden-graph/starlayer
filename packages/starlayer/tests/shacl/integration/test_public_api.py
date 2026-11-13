@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import RDF, Literal, Namespace
 from starlayer.graph import isomorphic
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import (
@@ -19,8 +18,9 @@ from starlayer.shacl import (
     shapes_graph_members,
     sparql_query_problems,
 )
-from starlayer.shacl_engine.terms import from_engine, to_engine
+from starlayer.shacl_engine.terms import to_engine
 from starlayer.sparql import check_query
+from tests.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -44,16 +44,16 @@ def expr(turtle: str):
 
 def test_evaluate_expression_calls_a_sparql_function_and_follows_a_path():
     shapes, concat = expr('[ sparql:concat ( "a" "b" ) ]')
-    assert evaluate_expression(shapes, graph(""), concat, EX.a) == [Literal("ab")]
+    assert evaluate_expression(shapes, graph(""), concat, EX.a) == [lit("ab")]
 
     shapes, via = expr("[ shnex:pathValues ex:p ]")
-    assert set(evaluate_expression(shapes, graph("ex:a ex:p 1, 2 ."), via, EX.a)) == {Literal(1), Literal(2)}
+    assert set(evaluate_expression(shapes, graph("ex:a ex:p 1, 2 ."), via, EX.a)) == {lit(1), lit(2)}
 
 
 def test_evaluate_expression_binds_variables_from_the_scope():
     shapes, var = expr('[ shnex:var "x" ]')
-    assert evaluate_expression(shapes, graph(""), var, EX.a, scope={"x": Literal("v")}) == [Literal("v")]
-    assert evaluate_expression(shapes, graph(""), var, EX.a, scope={"x": [Literal(1), Literal(2)]}) == [Literal(1), Literal(2)]
+    assert evaluate_expression(shapes, graph(""), var, EX.a, scope={"x": lit("v")}) == [lit("v")]
+    assert evaluate_expression(shapes, graph(""), var, EX.a, scope={"x": [lit(1), lit(2)]}) == [lit(1), lit(2)]
 
 
 def test_the_function_and_operator_lists_name_iris():
@@ -66,14 +66,14 @@ def test_the_function_and_operator_lists_name_iris():
 def test_infer_types_and_paths_and_members_are_public():
     g = graph("ex:S sh:property ex:P . ex:P sh:path ex:p . ex:a ex:p 1 .")
     assert (EX.P, RDF.type, SH.PropertyShape) in infer_types(g)
-    assert path_values(g, EX.a, EX.p) == frozenset({to_engine(Literal(1))})
+    assert path_values(g, EX.a, EX.p) == frozenset({to_engine(lit(1))})
     assert is_inverse(g, EX.p) is False
 
 
 def test_the_other_helpers_are_importable_and_callable():
     assert callable(select_widgets) and callable(shapes_graph_members) and callable(parameter_value_shapes)
     problems = list(sparql_query_problems(graph('ex:S sh:select "not sparql" .')))
-    assert [(from_engine(node), from_engine(predicate)) for node, predicate, _message in problems] == [(EX.S, SH.select)]
+    assert [(node, predicate) for node, predicate, _message in problems] == [(EX.S, SH.select)]
     assert isomorphic(graph("ex:a ex:p [ ex:q 1 ] ."), graph("ex:a ex:p [ ex:q 1 ] ."))
 
 

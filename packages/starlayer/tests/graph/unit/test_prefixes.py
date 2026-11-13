@@ -1,10 +1,10 @@
 """used_prefixes() and the namespace handling around it (GitHub issue #29). The graph and dataset methods are the API.
 reduce_prefixes() is not ported: ``_reduced`` below is its documented replacement (used_prefixes + unbind on a copy)."""
 
-import pyoxigraph as ox
 import pytest
-from rdflib import Graph, Namespace
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
+from tests.terms import Namespace
 
 EX = Namespace("http://e/")
 TTL = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix unused: <http://unused/> . ex:S a sh:NodeShape ; sh:name 'x' ."
@@ -188,7 +188,7 @@ def test_trig_prefix_declarations_work_with_or_without_a_space_before_the_iri(de
 
 
 # --- #63 a reduced copy behaves like its source: the same union setting, and a named graph keeps its name
-from rdflib import Namespace as _Namespace  # noqa: E402
+from tests.terms import Namespace as _Namespace  # noqa: E402
 
 _EX = _Namespace("http://ex.org/")
 
@@ -215,4 +215,4 @@ def test_a_reduced_copy_of_a_named_graph_keeps_its_name() -> None:
     d = StarLayerDataset()
     named = d.graph(_EX.g)
     named.add((_EX.a, _EX.p, _EX.b))
-    assert _reduced(named).identifier == ox.NamedNode(str(_EX.g))
+    assert _reduced(named).identifier == _EX.g

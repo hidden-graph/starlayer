@@ -13,39 +13,28 @@ from __future__ import annotations
 
 from collections import Counter
 
-from rdflib import BNode, Graph, Literal
-from rdflib.namespace import RDF
-from rdflib.term import Node
+import pyoxigraph as ox
+from starlayer.graph import RDF
 
-from ..integration._rdflib_view import rd
 from .namespaces import SH
 
 TermKey = tuple
 
 
-def as_rdflib(graph, *nodes):
-    """``graph`` (and the ``nodes`` of it) in rdflib terms: the engine's reports are OxGraphs of pyoxigraph terms, the vendored
-    expected reports are rdflib graphs. Blank node ids are kept, so a node of the one is a node of the other."""
-    if not getattr(graph, "engine_terms", False):
-        return (graph, *nodes)
-    from starlayer.shacl_engine.terms import from_engine
-
-    out = rd(graph)
-    return (out, *(from_engine(n) for n in nodes))
-
-
-def term_key(graph: Graph, term: Node | None) -> TermKey | None:
+def term_key(graph, term) -> TermKey | None:
     if term is None:
         return None
-    if isinstance(term, BNode):
-        children = tuple(sorted((str(p), term_key(graph, o)) for p, o in graph.predicate_objects(term)))
+    if isinstance(term, ox.BlankNode):
+        children = tuple(sorted((p.value, term_key(graph, o)) for p, o in graph.predicate_objects(term)))
         return ("BNODE", children)
-    if isinstance(term, Literal):
-        return ("LITERAL", str(term), str(term.datatype) if term.datatype else None, term.language)
-    return ("URI", str(term))
+    if isinstance(term, ox.Literal):
+        return ("LITERAL", term.value, term.datatype.value if term.language is None else None, term.language)
+    if isinstance(term, ox.Triple):
+        return ("TRIPLE", term_key(graph, term.subject), term_key(graph, term.predicate), term_key(graph, term.object))
+    return ("URI", term.value)
 
 
-def find_report_node(graph: Graph) -> Node:
+def find_report_node(graph):
     """Find the real, top-level sh:ValidationReport node.
 
     Usually there's exactly one. But for a self-referential W3C-suite
@@ -61,7 +50,6 @@ def find_report_node(graph: Graph) -> Node:
     an incidental one was pulled in specifically because something else
     references it.
     """
-    graph, = as_rdflib(graph)
     nodes = list(graph.subjects(RDF.type, SH.ValidationReport))
     if len(nodes) == 1:
         return nodes[0]
@@ -72,15 +60,14 @@ def find_report_node(graph: Graph) -> Node:
     raise AssertionError(f"expected exactly one sh:ValidationReport node, found {len(nodes)}: {nodes}")
 
 
-def conforms_of(graph: Graph, report_node: Node) -> bool:
-    graph, report_node = as_rdflib(graph, report_node)
+def conforms_of(graph, report_node) -> bool:
     values = list(graph.objects(report_node, SH.conforms))
     if len(values) != 1:
         raise AssertionError(f"expected exactly one sh:conforms value, found {len(values)}: {values}")
-    return bool(values[0].toPython())
+    return values[0].value in ("true", "1")
 
 
-def result_multiset(graph: Graph, report_node: Node) -> Counter:
+def result_multiset(graph, report_node) -> Counter:
     """Fingerprint each sh:result as (focusNode, resultPath, sourceConstraintComponent, value, severity).
 
     sh:sourceShape is deliberately excluded - see
@@ -91,7 +78,6 @@ def result_multiset(graph: Graph, report_node: Node) -> Counter:
     two different shapes can be structurally different yet both correctly
     produce a given violation.
     """
-    graph, report_node = as_rdflib(graph, report_node)
     counter: Counter = Counter()
     for result_node in graph.objects(report_node, SH.result):
         focus = next(graph.objects(result_node, SH.focusNode), None)

@@ -2,22 +2,21 @@
 
 import warnings
 
+import pyoxigraph as ox
 import pytest
 import starlayer.shacl as shacl
-from rdflib import Graph, URIRef
-from starlayer.graph import TripleTerm
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.paths import path_values
-
-from ._rdflib_view import rd, rdn
+from tests.terms import NamedNode
 
 warnings.simplefilter("ignore")
 PREFIXES = (
     "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . "
     "@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . "
 )
-EX = lambda name: URIRef("http://ex/" + name)  # noqa: E731
+EX = lambda name: NamedNode("http://ex/" + name)  # noqa: E731
 
 
 def _graph(ttl):
@@ -28,13 +27,13 @@ def _graph(ttl):
 
 def _infer(shapes, data):
     result = shacl.apply_rules(_graph(data), _graph(shapes), meta_shacl=False)
-    return set(rd(result.inferred_graph))
+    return set(result.inferred_graph)
 
 
 def test_close_shape_works_on_a_shape_without_a_class():
     shapes = _graph("ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .")
     closed = StarShaclSchema(shacl_graph=shapes).close_shape(EX("S"))
-    assert (EX("S"), URIRef("http://www.w3.org/ns/shacl#closed"), None) in closed
+    assert (EX("S"), NamedNode("http://www.w3.org/ns/shacl#closed"), None) in closed
 
 
 def test_triple_rule_without_sh_subject_uses_the_focus_node():
@@ -44,7 +43,7 @@ def test_triple_rule_without_sh_subject_uses_the_focus_node():
         "ex:Dad a ex:Person ; ex:child ex:D, ex:S .",
     )
     assert [(s, p) for s, p, _o in inferred] == [(EX("Dad"), EX("childCount"))]
-    assert [str(o) for _s, _p, o in inferred] == ["2"]
+    assert [o.value for _s, _p, o in inferred] == ["2"]
 
 
 def test_triple_rule_example_without_subject_and_with_a_constant_object():
@@ -53,7 +52,7 @@ def test_triple_rule_example_without_subject_and_with_a_constant_object():
         "ex:R a sh:TripleRule ; sh:predicate rdf:type ; sh:object ex:Square .",
         "ex:Dad a ex:Person .",
     )
-    assert inferred == {(EX("Dad"), URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), EX("Square"))}
+    assert inferred == {(EX("Dad"), NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), EX("Square"))}
 
 
 @pytest.mark.parametrize(
@@ -88,7 +87,7 @@ def test_rule_set_accepts_an_iterable_of_rule_sets():
         ((EX("RS2"),), {EX("q2")}),
     ]:
         result = shacl.apply_rules(_graph("ex:a ex:z 0 ."), shapes_graph, rule_set=rule_set, meta_shacl=False)
-        assert {p for _s, p, _o in rd(result.inferred_graph)} == predicates
+        assert {p for _s, p, _o in result.inferred_graph} == predicates
 
 
 def _conforms(shapes, data=None, setup=None):
@@ -99,7 +98,7 @@ def _conforms(shapes, data=None, setup=None):
 
 
 def _with_triple_term(d):
-    d.add((EX("a"), EX("p"), TripleTerm(EX("x"), EX("y"), EX("z"))))
+    d.add((EX("a"), EX("p"), ox.Triple(EX("x"), EX("y"), EX("z"))))
 
 
 @pytest.mark.parametrize(
@@ -164,7 +163,7 @@ def test_inverse_of_a_composite_path_matches_sparql(sparql_path, shacl_path, foc
         data="@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix : <http://e/> . :S sh:path " + shacl_path + " .",
         format="turtle12",
     )
-    root = next(shapes.objects(URIRef("http://e/S"), URIRef("http://www.w3.org/ns/shacl#path")))
-    got = {str(v) for v in rdn(path_values(data, URIRef("http://e/" + focus), root, shapes))}
+    root = next(shapes.objects(NamedNode("http://e/S"), NamedNode("http://www.w3.org/ns/shacl#path")))
+    got = {str(v) for v in path_values(data, NamedNode("http://e/" + focus), root, shapes)}
     expected = {str(r[0]) for r in oracle.query(f"PREFIX : <http://e/> SELECT ?v {{ :{focus} {sparql_path} ?v }}")}
     assert got == expected

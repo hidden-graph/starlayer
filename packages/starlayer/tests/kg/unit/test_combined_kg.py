@@ -17,8 +17,8 @@ from codekg import (
     ONTOLOGY_GRAPH_IRI,
     queries,
 )
-from rdflib import RDF, BNode, Literal, URIRef
 from starlayer.graph.oxgraph import StarLayerDataset
+from tests.terms import RDF, BlankNode, NamedNode, lit
 
 # ---------------------------------------------------------------------------
 # the comparison helper (no KG needed)
@@ -27,13 +27,13 @@ from starlayer.graph.oxgraph import StarLayerDataset
 def _dataset(*graphs: tuple[str, list[tuple]]) -> StarLayerDataset:
     ds = StarLayerDataset()
     for name, triples in graphs:
-        g = ds.graph(URIRef(name))
+        g = ds.graph(NamedNode(name))
         for t in triples:
             g.add(t)
     return ds
 
 
-A, B = URIRef("http://e/a"), URIRef("http://e/b")
+A, B = NamedNode("http://e/a"), NamedNode("http://e/b")
 
 
 def test_the_comparison_notices_a_missing_extra_or_changed_graph():
@@ -45,8 +45,8 @@ def test_the_comparison_notices_a_missing_extra_or_changed_graph():
 
 
 def test_the_comparison_treats_renamed_blank_nodes_as_the_same():
-    one = _dataset(("http://g/1", [(A, A, BNode("x")), (BNode("x"), A, Literal("v"))]))
-    two = _dataset(("http://g/1", [(A, A, BNode("y")), (BNode("y"), A, Literal("v"))]))
+    one = _dataset(("http://g/1", [(A, A, BlankNode("x")), (BlankNode("x"), A, lit("v"))]))
+    two = _dataset(("http://g/1", [(A, A, BlankNode("y")), (BlankNode("y"), A, lit("v"))]))
     assert build_kg.same_dataset(one, two) == []
 
 
@@ -64,7 +64,7 @@ def kg(built_kg_files) -> StarLayerDataset:
 
 @pytest.mark.deferred
 def test_the_file_holds_every_layer(kg):
-    graphs = {URIRef(n.value) for n in kg.graph_names() if len(kg.graph(n))}
+    graphs = {NamedNode(n.value) for n in kg.graph_names() if len(kg.graph(n))}
     assert {ONTOLOGY_GRAPH_IRI, CURATED_GRAPH_IRI, DERIVED_GRAPH_IRI, BUILD_GRAPH_IRI} <= graphs
     assert len(graphs) > 300, "the module graphs are there too"
     counts = {cls: len(set(kg.subjects(RDF.type, CODEKG_NS[cls]))) for cls in ("Function", "Class", "NamedQuery", "Capability", "NotebookExample", "UpstreamIssue", "KGBuild")}
@@ -86,7 +86,7 @@ def test_an_agent_can_read_a_query_from_the_graph_and_run_it(kg):
     """The documented flow: find the query's text in the graph, bind its parameter, run it."""
     find = f"SELECT ?t WHERE {{ ?q a <{CODEKG_NS}NamedQuery> ; <{CODEKG_NS}queryText> ?t . FILTER(STRENDS(STR(?q), '#find-symbol')) }}"
     text = next(iter(kg.query(find)))[0].value
-    rows = list(kg.query(text, initBindings={"text": Literal("to_basic")}))
+    rows = list(kg.query(text, initBindings={"text": lit("to_basic")}))
     assert any("interop.to_basic" in row[0].value for row in rows)
 
 
@@ -98,7 +98,7 @@ def test_every_query_in_the_graph_gives_the_answer_the_query_tool_gives(kg):
         required = {p.name: p.example for p in described.parameters if p.required}
         optional = {p.name: p.example for p in described.parameters if not p.required}
         for given in ([required] + ([{**required, **optional}] if optional else [])):
-            from_graph = [tuple(row) for row in kg.query(texts[described.name], initBindings={k: Literal(v) for k, v in given.items()})]
+            from_graph = [tuple(row) for row in kg.query(texts[described.name], initBindings={k: lit(v) for k, v in given.items()})]
             from_tool = queries.run_query(described.name, limit=500, **given)
             assert len(from_graph) == from_tool.total, f"{described.name} with {sorted(given)}: {len(from_graph)} rows from the graph's text, {from_tool.total} from the tool"
             assert len(from_graph) > 0, f"{described.name} returned nothing for its own examples"

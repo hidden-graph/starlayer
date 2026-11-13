@@ -1,6 +1,6 @@
 """A constraint component is built once per shape, not once per focus node (slow parts hunt, sh:in over many nodes)."""
 
-import rdflib
+import pyoxigraph as ox
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import validate
 from starlayer.shacl_engine.terms import text
@@ -31,7 +31,7 @@ def _data(bad_every=None):
 def test_results_are_unchanged_by_reusing_the_component():
     result = validate(_data(bad_every=4), _shapes(30), meta_shacl=False)
     assert not result.conforms
-    focus_nodes = {text(o) for o in result.report_graph.objects(None, rdflib.URIRef("http://www.w3.org/ns/shacl#focusNode"))}
+    focus_nodes = {text(o) for o in result.report_graph.objects(None, ox.NamedNode("http://www.w3.org/ns/shacl#focusNode"))}
     assert focus_nodes == {f"http://example.org/n{i}" for i in range(0, N, 4)}
 
 

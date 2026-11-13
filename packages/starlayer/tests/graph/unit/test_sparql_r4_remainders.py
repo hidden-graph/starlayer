@@ -3,10 +3,10 @@
 import warnings
 
 import pytest
-from rdflib import BNode, Namespace
 from starlayer.graph.model.triple import TripleTerm
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
+from tests.terms import BlankNode, Namespace
 
 warnings.simplefilter("ignore")
 E = Namespace("http://e/")
@@ -21,7 +21,7 @@ def test_str_of_a_blank_node_is_an_error_so_unbound():
 
 def test_group_concat_of_str_over_a_blank_node_is_unbound_like_oxigraph():
     g = StarLayerGraph()
-    g.add((E.a, E.p, BNode("b1")))
+    g.add((E.a, E.p, BlankNode("b1")))
     g.add((E.a, E.p, E.o))
     rows = list(g.query(P + "SELECT (GROUP_CONCAT(STR(?o)) AS ?x) WHERE { :a :p ?o }"))
     assert [r[0] for r in rows] == [None]
@@ -55,4 +55,4 @@ def test_negated_set_and_zero_length_paths_do_not_expose_triple_term_encoding():
     assert len(negated) == 2  # (:b :c) and (:r, the triple term); never the term's own components
     assert not any(isinstance(row["s"], TripleTerm) for row in negated)
     for row in g.query(P + "SELECT * WHERE { ?s :p* ?o }"):
-        assert not any("PropositionForm" in str(term) or str(term) == str(E.p) for term in row)
+        assert not any("PropositionForm" in str(term) or str(term) == E.p.value for term in row)

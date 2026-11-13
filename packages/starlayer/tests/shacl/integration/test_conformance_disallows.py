@@ -1,9 +1,7 @@
 import pytest
-from rdflib import Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-
-from ._rdflib_view import rd
+from tests.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -38,7 +36,7 @@ def _shapes_with_warning_severity() -> StarLayerGraph:
 
 def _data_with_bad_age() -> StarLayerGraph:
     data = StarLayerGraph()
-    data.add((EX.alice, EX.age, Literal("not a number")))
+    data.add((EX.alice, EX.age, lit("not a number")))
     return data
 
 
@@ -48,7 +46,7 @@ def test_default_conformance_disallows_includes_all_three_severities() -> None:
         data_graph=_data_with_bad_age(), meta_shacl=False
     )
 
-    disallowed = {o for _, _, o in rd(result.report_graph).triples((None, SH.conformanceDisallows, None))}
+    disallowed = {o for _, _, o in result.report_graph.triples((None, SH.conformanceDisallows, None))}
     assert disallowed == {SH.Violation, SH.Warning, SH.Info}
 
 
@@ -71,7 +69,7 @@ def test_allow_warnings_removes_warning_from_disallowed_set_and_conforms() -> No
         allow_warnings=True,
     )
 
-    disallowed = {o for _, _, o in rd(result.report_graph).triples((None, SH.conformanceDisallows, None))}
+    disallowed = {o for _, _, o in result.report_graph.triples((None, SH.conformanceDisallows, None))}
     # pySHACL treats allowing warnings as allowing infos too (Info is below Warning), so only Violation still blocks
     # conformance (GitHub issue #51; this used to expect {Violation, Info}, which was the difference being fixed)
     assert disallowed == {SH.Violation}
@@ -117,5 +115,5 @@ def test_debug_and_trace_severities_never_block_conforms(severity: str) -> None:
     )
 
     assert result.conforms is True
-    severities = {o for _, _, o in rd(result.report_graph).triples((None, SH.resultSeverity, None))}
+    severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
     assert severities == {SH[severity]}

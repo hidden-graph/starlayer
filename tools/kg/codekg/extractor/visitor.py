@@ -1,5 +1,5 @@
 """codekg.extractor.visitor - the AST walker that turns one
-Python module into a flat list of plain rdflib triples.
+Python module into a flat list of pyoxigraph triples.
 
 One public entry point, ``extract_module()``. Everything else here is
 private plumbing shared between the class/function visiting branches
@@ -24,8 +24,7 @@ from pathlib import Path
 from codekg import CODEKG_NS, EXTERNALTYPE_NS
 from codekg.extractor import docstrings, imports, nesting, types
 from codekg.extractor.symbol_index import SymbolIndex
-from rdflib import Literal, URIRef
-from rdflib.namespace import DCTERMS, RDF, RDFS
+from codekg.terms import DCTERMS, RDF, RDFS, Literal, URIRef
 
 logger = logging.getLogger(__name__)
 
@@ -114,7 +113,7 @@ def _repo_relative_path(module_iri, path) -> str:
     URL of the file). ``slkg:filePath`` used to hold the absolute path on whichever machine ran the
     extractor, which is wrong for anyone else reading the committed graph."""
     marker = "/blob/main/"
-    text = str(module_iri)
+    text = module_iri.value
     return text.split(marker, 1)[1] if marker in text else str(path)
 
 
@@ -125,7 +124,7 @@ def extract_module(
     symbol_index: SymbolIndex | None = None,
 ) -> list[tuple]:
     """Extract one Python module's structure into a flat list of plain
-    rdflib ``(subject, predicate, object)`` triples - not yet attached to
+    pyoxigraph ``(subject, predicate, object)`` triples - not yet attached to
     any graph/context. The module's own top-of-file docstring (if any) is
     captured as ``rdfs:comment`` on the module node itself, the same
     predicate every class/function/method docstring already uses.
@@ -135,7 +134,7 @@ def extract_module(
         module_iri: This module's own named-graph-shaped identity (e.g.
             ``BLOB_BASE + "graph/model/encoding.py"``) - also used as the
             base for every class/function IRI minted below
-            (``f"{module_iri}#{dotted_nesting_path}"``).
+            (``f"{module_iri.value}#{dotted_nesting_path}"``).
         module_dotted_path: This module's fully dotted import path (e.g.
             ``"starlayer.graph.model.encoding"``), used both for
             ``dcterms:identifier`` and to resolve relative imports via
@@ -393,7 +392,7 @@ def _visit_further_definition(
     """A second definition of a name (a property setter, an overload stub): no facts of its own, but what its body calls
     is added to the one entity, and anything nested inside it is still extracted."""
     dotted_nesting = _dotted_nesting(nesting_prefix, node.name)
-    fn_iri = URIRef(f"{ctx.module_iri}#{dotted_nesting}")
+    fn_iri = URIRef(f"{ctx.module_iri.value}#{dotted_nesting}")
     enclosing_class_dotted_path = f"{ctx.module_dotted_path}.{nesting_prefix}" if enclosing_kind == "class" else None
     ctx.local_name_scopes.append(_local_names(node))
     try:
@@ -405,7 +404,7 @@ def _visit_further_definition(
 
 def _visit_class(node: ast.ClassDef, enclosing_iri: URIRef, nesting_prefix: str, ctx: _ExtractionContext) -> None:
     dotted_nesting = _dotted_nesting(nesting_prefix, node.name)
-    class_iri = URIRef(f"{ctx.module_iri}#{dotted_nesting}")
+    class_iri = URIRef(f"{ctx.module_iri.value}#{dotted_nesting}")
 
     ctx.class_nesting_paths.add(dotted_nesting)
     ctx.triples.append((class_iri, RDF.type, SLKG.Class))
@@ -450,7 +449,7 @@ def _visit_function(
     ctx: _ExtractionContext,
 ) -> None:
     dotted_nesting = _dotted_nesting(nesting_prefix, node.name)
-    fn_iri = URIRef(f"{ctx.module_iri}#{dotted_nesting}")
+    fn_iri = URIRef(f"{ctx.module_iri.value}#{dotted_nesting}")
     is_async = isinstance(node, ast.AsyncFunctionDef)
     fn_type = SLKG.Method if enclosing_kind == "class" else SLKG.Function
 
@@ -533,7 +532,7 @@ def _visit_function(
 def _emit_decorators(decorator_list: list[ast.expr], entity_iri: URIRef, ctx: _ExtractionContext) -> None:
     for index, dec in enumerate(decorator_list):
         try:
-            dec_iri = URIRef(f"{entity_iri}.decorator.{index}")
+            dec_iri = URIRef(f"{entity_iri.value}.decorator.{index}")
             ctx.triples.append((dec_iri, RDF.type, SLKG.Decorator))
             ctx.triples.append((dec_iri, SLKG.decoratorText, Literal(ast.unparse(dec))))
             ctx.triples.append((dec_iri, SLKG.position, Literal(index)))
@@ -560,7 +559,7 @@ def _visit_namedtuple(node: ast.Assign, enclosing_iri: URIRef, nesting_prefix: s
     (``manchester.py`` defines eight), but the assignment has no ``ClassDef`` for the walk to find."""
     name, fields, defaults = nesting.namedtuple_definition(node)
     dotted_nesting = _dotted_nesting(nesting_prefix, name)
-    class_iri = URIRef(f"{ctx.module_iri}#{dotted_nesting}")
+    class_iri = URIRef(f"{ctx.module_iri.value}#{dotted_nesting}")
 
     ctx.triples.append((class_iri, RDF.type, SLKG.Class))
     ctx.triples.append((class_iri, RDFS.label, Literal(name)))
@@ -574,7 +573,7 @@ def _visit_namedtuple(node: ast.Assign, enclosing_iri: URIRef, nesting_prefix: s
     ctx.triples.append((class_iri, RDFS.subClassOf, _resolve_type_target("tuple", ctx)))
 
     for position, field_name in enumerate(fields):
-        attr_iri = URIRef(f"{class_iri}.attr.{field_name}")
+        attr_iri = URIRef(f"{class_iri.value}.attr.{field_name}")
         ctx.triples.append((attr_iri, RDF.type, SLKG.Attribute))
         ctx.triples.append((attr_iri, RDFS.label, Literal(field_name)))
         ctx.triples.append((attr_iri, SLKG.position, Literal(position)))
@@ -602,7 +601,7 @@ def _emit_class_attributes(body: list[ast.stmt], class_iri: URIRef, ctx: _Extrac
 
 def _emit_one_attribute(node: ast.AnnAssign, position: int, class_iri: URIRef, ctx: _ExtractionContext) -> None:
     name = node.target.id
-    attr_iri = URIRef(f"{class_iri}.attr.{name}")
+    attr_iri = URIRef(f"{class_iri.value}.attr.{name}")
     ctx.triples.append((attr_iri, RDF.type, SLKG.Attribute))
     ctx.triples.append((attr_iri, RDFS.label, Literal(name)))
     ctx.triples.append((attr_iri, SLKG.position, Literal(position)))
@@ -683,7 +682,7 @@ def _emit_one_parameter(
     documented_params: dict[str, str],
 ) -> None:
     try:
-        param_iri = URIRef(f"{fn_iri}.param.{arg.arg}")
+        param_iri = URIRef(f"{fn_iri.value}.param.{arg.arg}")
         ctx.triples.append((param_iri, RDF.type, SLKG.Parameter))
         ctx.triples.append((param_iri, RDFS.label, Literal(arg.arg)))
         ctx.triples.append((param_iri, SLKG.parameterKind, Literal(kind)))
@@ -730,7 +729,7 @@ def _emit_return_value(
     if node.returns is None and not returns_text:
         return
     try:
-        ret_iri = URIRef(f"{fn_iri}.returns")
+        ret_iri = URIRef(f"{fn_iri.value}.returns")
         ctx.triples.append((ret_iri, RDF.type, SLKG.ReturnValue))
         ctx.triples.append((fn_iri, SLKG.hasReturnValue, ret_iri))
 
@@ -797,7 +796,7 @@ def _resolve_type_target(name: str, ctx: _ExtractionContext) -> URIRef:
 
     if is_local:
         full_path = ctx.class_path_by_name.get(canonical, canonical)
-        return URIRef(f"{ctx.module_iri}#{full_path}")
+        return URIRef(f"{ctx.module_iri.value}#{full_path}")
 
     ext_iri = EXT[canonical]
     if canonical not in ctx.emitted_external_types:

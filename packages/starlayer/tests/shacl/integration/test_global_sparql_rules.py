@@ -7,9 +7,9 @@ some shape's sh:rule, so a standalone rule node is invisible to it and
 silently never executes.
 """
 
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 def test_global_rule_runs_once_against_whole_graph() -> None:
@@ -148,6 +148,5 @@ def test_shape_attached_rule_still_works_alongside_a_global_one() -> None:
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.Bob, EX.reverseFriend, EX.Alice) in result.inferred_graph
-    from rdflib import Literal
 
-    assert (EX.Alice, EX.greeted, Literal("hi")) in result.inferred_graph
+    assert (EX.Alice, EX.greeted, lit("hi")) in result.inferred_graph

@@ -13,7 +13,8 @@ from pathlib import Path
 
 import pytest
 from codekg import CODEKG_NS, queries
-from rdflib import RDF, RDFS, Graph, Literal, URIRef
+from starlayer.graph import StarLayerGraph as Graph
+from tests.terms import RDF, RDFS, NamedNode, lit, set_triple
 
 CODEKG_DIR = Path(queries.__file__).parent
 SHAPES_TTL = CODEKG_DIR / "query-library-shapes.ttl"
@@ -40,9 +41,9 @@ def test_validate_library_notices_a_damaged_tree():
     library = Graph()
     for triple in queries._library():
         library.add(triple)
-    root = library.value(next(n for n in library.subjects(RDF.type, CODEKG_NS.NamedQuery) if str(n).endswith("#callers-of")), CODEKG_NS.queryRoot)
+    root = library.value(next(n for n in library.subjects(RDF.type, CODEKG_NS.NamedQuery) if n.value.endswith("#callers-of")), CODEKG_NS.queryRoot)
     library.remove((root, RDF.type, None))
-    library.add((root, RDF.type, URIRef(vocab.SQE.Query.value)))  # the library is an rdflib graph
+    library.add((root, RDF.type, NamedNode(vocab.SQE.Query.value)))  # the library is an rdflib graph
     original = queries._library
     queries._library = lambda: library
     try:
@@ -86,8 +87,8 @@ def test_queries_can_be_found_by_topic_id_label_and_iri():
     by_id = {q.name for q in queries.queries_for_topic("call-graph")}
     assert by_id and by_id == {q.name for q in queries.queries_for_topic("Relationships and the call graph")}
     library = queries._library()
-    iri = next(t for t in library.subjects(RDF.type, CODEKG_NS.Topic) if str(t).endswith("topic-call-graph"))
-    assert {q.name for q in queries.queries_for_topic(str(iri))} == by_id
+    iri = next(t for t in library.subjects(RDF.type, CODEKG_NS.Topic) if t.value.endswith("topic-call-graph"))
+    assert {q.name for q in queries.queries_for_topic(iri.value)} == by_id
 
 
 def test_unknown_names_suggest_a_close_match():
@@ -207,9 +208,9 @@ def _shapes_conform(library: Graph) -> bool:
         lambda g, q: g.remove((q, RDFS.label, None)),
         lambda g, q: g.remove((q, CODEKG_NS.aboutTopic, None)),
         lambda g, q: g.remove((q, CODEKG_NS.queryRoot, None)),
-        lambda g, q: g.set((q, CODEKG_NS.queryRoot, Literal("not a tree"))),
-        lambda g, q: g.set((q, CODEKG_NS.aboutTopic, URIRef("http://example/no-such-topic"))),
-        lambda g, q: g.set((next(g.objects(q, CODEKG_NS.queryParameter)), CODEKG_NS.paramName, Literal("1 bad name"))),
+        lambda g, q: set_triple(g, (q, CODEKG_NS.queryRoot, lit("not a tree"))),
+        lambda g, q: set_triple(g, (q, CODEKG_NS.aboutTopic, NamedNode("http://example/no-such-topic"))),
+        lambda g, q: set_triple(g, (next(g.objects(q, CODEKG_NS.queryParameter)), CODEKG_NS.paramName, lit("1 bad name"))),
         lambda g, q: g.remove((next(g.objects(q, CODEKG_NS.queryParameter)), CODEKG_NS.paramRequired, None)),
     ],
     ids=["no-label", "no-topic", "no-root", "root-not-a-tree", "unknown-topic", "bad-param-name", "no-required-flag"],
@@ -219,7 +220,7 @@ def test_the_shapes_notice_a_corrupted_library(corrupt):
     library = Graph()
     for triple in queries._library():
         library.add(triple)
-    node = next(n for n in library.subjects(RDF.type, CODEKG_NS.NamedQuery) if str(n).endswith("#callers-of"))
+    node = next(n for n in library.subjects(RDF.type, CODEKG_NS.NamedQuery) if n.value.endswith("#callers-of"))
     assert _shapes_conform(library)
     corrupt(library, node)
     assert not _shapes_conform(library)

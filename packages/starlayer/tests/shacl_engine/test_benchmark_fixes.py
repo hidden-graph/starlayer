@@ -6,7 +6,7 @@ from __future__ import annotations
 import time
 
 import pytest
-from rdflib import Graph
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.terms import text
 

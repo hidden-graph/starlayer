@@ -3,11 +3,9 @@
 import warnings
 
 import pytest
-from rdflib import XSD, Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, evaluate
-
-from ._rdflib_view import rdn
+from tests.terms import XSD, Namespace, lit
 
 warnings.simplefilter("ignore")
 EX = Namespace("http://ex/")
@@ -26,23 +24,23 @@ def _values(expression: str, data: str = "ex:a ex:in 0 ."):
     graph = StarLayerGraph()
     graph.parse(data=PREFIXES + data, format="turtle12")
     result = evaluate(graph, shapes)
-    return sorted(rdn(result.objects(EX.a, EX.out)), key=str)
+    return sorted(result.objects(EX.a, EX.out), key=str)
 
 
 @pytest.mark.parametrize(
     ("items", "expected"),
     [
-        ("1.5 2e0", Literal(3.5, datatype=XSD.double)),
-        ('1.5 "2.5"^^xsd:float', Literal(4.0, datatype=XSD.float)),
-        ("1 2 3", Literal(6, datatype=XSD.integer)),
-        ("1.5 2.5", Literal(4, datatype=XSD.decimal)),
-        ("1 2.5", Literal(3.5, datatype=XSD.decimal)),
+        ("1.5 2e0", lit(3.5, datatype=XSD.double)),
+        ('1.5 "2.5"^^xsd:float', lit(4.0, datatype=XSD.float)),
+        ("1 2 3", lit(6, datatype=XSD.integer)),
+        ("1.5 2.5", lit(4, datatype=XSD.decimal)),
+        ("1 2.5", lit(3.5, datatype=XSD.decimal)),
     ],
 )
 def test_sum_promotes_across_numeric_types(items, expected):
     [value] = _values(f"[ shnex:sum ( {items} ) ]")
     assert value.datatype == expected.datatype
-    assert float(value) == float(expected)
+    assert float(value.value) == float(expected.value)
 
 
 @pytest.mark.parametrize("items", ['"a" 1', '"x"^^xsd:integer 2'])
@@ -54,9 +52,9 @@ def test_sum_of_a_non_numeric_value_is_an_evaluation_failure_not_a_crash(items):
 @pytest.mark.parametrize(
     ("expression", "expected"),
     [
-        ('[ shnex:min ( 1 "a" ) ]', [Literal(1)]),  # numbers before strings
-        ('[ shnex:max ( 1 "a" ) ]', [Literal("a")]),
-        ("[ shnex:max ( ex:a 1 ) ]", [Literal(1)]),  # an IRI is below every literal
+        ('[ shnex:min ( 1 "a" ) ]', [lit(1)]),  # numbers before strings
+        ('[ shnex:max ( 1 "a" ) ]', [lit("a")]),
+        ("[ shnex:max ( ex:a 1 ) ]", [lit(1)]),  # an IRI is below every literal
         ("[ shnex:min ( ex:a 1 ) ]", [EX.a]),
         ('[ shnex:min ( "2020-01-01T00:00:00Z"^^xsd:dateTime "2020-01-01T00:00:00"^^xsd:dateTime ) ]', None),
         ('[ shnex:max ( "2020-01-01"^^xsd:date "2020-01-01T00:00:00"^^xsd:dateTime ) ]', None),
@@ -72,7 +70,7 @@ def test_min_and_max_have_a_total_order(expression, expected):
 def test_order_by_over_mixed_types_does_not_crash_and_sorts_numbers_first():
     shapes_expr = '[ shnex:orderBy [ shnex:var "focusNode" ] ; shnex:nodes ( 3 "a" 1 ex:b ) ]'
     values = _values(shapes_expr)
-    assert set(values) == {Literal(3), Literal("a"), Literal(1), EX.b}
+    assert set(values) == {lit(3), lit("a"), lit(1), EX.b}
 
 
 def _conforms(shapes_ttl, data_ttl):

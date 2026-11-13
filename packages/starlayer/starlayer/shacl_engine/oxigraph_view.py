@@ -1,7 +1,7 @@
 """``OxigraphGraph``: a ``GraphView`` straight over a ``pyoxigraph.Store`` (no rdflib graph in between).
 
 Terms handed to and from the engine are pyoxigraph terms (``engine_terms = True``): the view returns the store's terms
-as they are, with no conversion. ``to_ox`` / ``from_ox`` only convert rdflib / StarLayer terms a caller passes in.
+as they are, with no conversion. ``to_ox`` / ``from_ox`` only convert tuples and StarLayer's own term classes a caller passes in, and the reverse.
 
 Known, parked limitations (oxigraph/oxigraph#526): Oxigraph normalizes literals on storage ("04"^^xsd:integer becomes
 "4", "1"^^xsd:boolean becomes "true", some ill-formed literals are rewritten or dropped), so ``preserves_lexical_forms``
@@ -38,8 +38,15 @@ DEFAULT = object()
 
 
 # Terms handed to and from the engine are pyoxigraph terms: the view returns store terms as they are. ``to_ox`` /
-# ``from_ox`` convert the rdflib / StarLayer terms a caller may still pass (graph names, ``add``, pre-bindings).
+# ``from_ox`` convert the tuples and StarLayer value classes a caller may pass (graph names, ``add``, pre-bindings); rdflib terms are refused.
 to_ox = to_engine
+
+
+def _foreign(term: Any) -> Any:
+    """A term of a source graph, which may be an rdflib graph's (converted, with the term policy), as a pyoxigraph term."""
+    from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
+
+    return foreign_to_engine(term)
 from_ox = from_engine
 
 
@@ -195,7 +202,7 @@ class OxigraphGraph:
         store = ox.Store()
         target = ox.DefaultGraph() if graph_name in (UNION, DEFAULT) else to_ox(graph_name)
         store.bulk_extend(
-            ox.Quad(to_ox(s), to_ox(p), to_ox(o), target) for s, p, o in graph.triples((None, None, None))
+            ox.Quad(_foreign(s), _foreign(p), _foreign(o), target) for s, p, o in graph.triples((None, None, None))
         )
         return cls(store, graph_name)
 

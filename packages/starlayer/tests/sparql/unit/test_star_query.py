@@ -3,10 +3,10 @@ once) plus StarLayerGraph.query()'s own per-call options, so the same
 query can run against several different graphs without repeating them.
 """
 
-from rdflib import Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql import StarQuery
+from tests.terms import Namespace
 
 EX = Namespace("http://example.org/")
 
@@ -24,8 +24,8 @@ class TestRunsAgainstDifferentGraphs:
         g2 = _graph("@prefix ex: <http://example.org/> . ex:bob ex:worksFor ex:Globex .")
 
         q = StarQuery("SELECT ?s WHERE { ?s ex:worksFor ?o }", initNs={"ex": EX})
-        assert {r.s.value for r in q.run(g1)} == {str(EX.alice)}
-        assert {r.s.value for r in q.run(g2)} == {str(EX.bob)}
+        assert {r.s.value for r in q.run(g1)} == {EX.alice.value}
+        assert {r.s.value for r in q.run(g2)} == {EX.bob.value}
 
     def test_prepares_only_once(self):
         """The whole point - the query is parsed at construction, not on
@@ -64,14 +64,14 @@ class TestEntailmentBinding:
     def test_bound_entailment_used_by_default(self):
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
-        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
+        assert {r.s.value for r in q.run(g)} == {EX.carol.value}
 
     def test_per_call_override_does_not_disturb_the_bound_value(self):
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
         assert list(q.run(g, entailment=None)) == []
         # bound value still intact for the next call with no override
-        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
+        assert {r.s.value for r in q.run(g)} == {EX.carol.value}
 
     def test_repeated_calls_with_bound_entailment_stay_correct(self):
         """Regression guard for the real bug this class works around (see
@@ -85,14 +85,14 @@ class TestEntailmentBinding:
         once-only accidental pass too."""
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
-        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
-        assert {r.s.value for r in q.run(g)} == {str(EX.carol)}
+        assert {r.s.value for r in q.run(g)} == {EX.carol.value}
+        assert {r.s.value for r in q.run(g)} == {EX.carol.value}
 
     def test_entailment_override_to_a_different_regime(self):
         g = self._graph_with_subclass()
         q = StarQuery("SELECT ?s WHERE { ?s a ex:Employee }", initNs={"ex": EX}, entailment=ENTAILMENT.RDFS)
         rows = q.run(g, entailment=ENTAILMENT["OWL-RDF-Based"])
-        assert {r.s.value for r in rows} == {str(EX.carol)}
+        assert {r.s.value for r in rows} == {EX.carol.value}
 
 
 class TestRunsAgainstAnOxGraph:
@@ -108,12 +108,12 @@ class TestRunsAgainstAnOxGraph:
     def test_runs_the_bound_query_with_its_namespaces_and_bindings(self):
         g = self._ox("@prefix ex: <http://example.org/> . ex:alice ex:worksFor ex:Acme . ex:bob ex:worksFor ex:Globex .")
         q = StarQuery("SELECT ?o WHERE { ?s ex:worksFor ?o }", initNs={"ex": str(EX)}, initBindings={"s": EX.bob})
-        assert {r.o.value for r in q.run(g)} == {str(EX.Globex)}
+        assert {r.o.value for r in q.run(g)} == {EX.Globex.value}
 
     def test_entailment_is_applied_by_the_wrapper(self):
         g = self._ox("@prefix ex: <http://example.org/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . ex:M rdfs:subClassOf ex:E . ex:alice a ex:M .")
         q = StarQuery("SELECT ?s WHERE { ?s a ex:E }", initNs={"ex": str(EX)}, entailment=ENTAILMENT.RDFS)
-        assert {r.s.value for r in q.run(g)} == {str(EX.alice)}
+        assert {r.s.value for r in q.run(g)} == {EX.alice.value}
         assert list(q.run(g, entailment=None)) == []
 
     def test_a_timeout_is_only_meaningful_for_owl_direct(self):

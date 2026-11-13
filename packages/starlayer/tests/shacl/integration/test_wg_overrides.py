@@ -15,8 +15,9 @@ from build_meta_shapes import (
     load_wg_shapes,
     wg_file_sha256,
 )
-from rdflib import Graph, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import validate
+from tests.terms import NamedNode
 
 SH = "http://www.w3.org/ns/shacl#"
 _PREFIXES = (
@@ -66,7 +67,7 @@ def test_the_pinned_file_matches_its_provenance_record() -> None:
 
 
 def test_the_overrides_cover_every_relaxed_path() -> None:
-    assert {str(p).removeprefix(SH) for p in RELAXED_PATHS} == set(STILL_TOO_STRICT)
+    assert {p.value.removeprefix(str(SH)) for p in RELAXED_PATHS} == set(STILL_TOO_STRICT)
 
 
 @pytest.mark.parametrize("name", sorted(STILL_TOO_STRICT))
@@ -96,10 +97,10 @@ def test_the_working_group_file_accepts_sh_expression_on_a_node_shape_so_nothing
 
 
 def test_every_predicate_the_working_group_file_constrains_is_constrained_by_the_assembled_graph(wg_alone, assembled) -> None:
-    def constrained(graph: Graph) -> set[URIRef]:
-        out = {p for ps in graph.subjects(URIRef(SH + "path"), None) for p in graph.objects(ps, URIRef(SH + "path"))}
-        out |= set(graph.objects(None, URIRef(SH + "targetSubjectsOf")))
-        return {p for p in out if isinstance(p, URIRef) and str(p).startswith(SH)}
+    def constrained(graph: Graph) -> set[NamedNode]:
+        out = {p for ps in graph.subjects(NamedNode(SH + "path"), None) for p in graph.objects(ps, NamedNode(SH + "path"))}
+        out |= set(graph.objects(None, NamedNode(SH + "targetSubjectsOf")))
+        return {p for p in out if isinstance(p, NamedNode) and str(p).startswith(SH)}
 
     assert constrained(wg_alone) <= constrained(assembled)
 
@@ -130,5 +131,5 @@ def test_meta_validate_works_as_the_first_call_in_a_fresh_process() -> None:
 def test_the_working_group_still_has_the_rules_our_asset_does_not_repeat(name, wg_alone) -> None:
     """These rules were removed from shacl12-validation-shapes.ttl because the Working Group's file has the same rule
     (2026-10-21). If a later copy of that file drops one, put it back in the asset."""
-    sh_path = URIRef(SH + "path")
-    assert any(wg_alone.subjects(sh_path, URIRef(SH + name))), f"the Working Group file has no rule for sh:{name}"
+    sh_path = NamedNode(SH + "path")
+    assert any(wg_alone.subjects(sh_path, NamedNode(SH + name))), f"the Working Group file has no rule for sh:{name}"

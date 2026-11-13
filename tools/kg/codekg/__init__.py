@@ -26,7 +26,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from rdflib import Namespace, URIRef
+from codekg.terms import DCTERMS, Namespace, URIRef
 
 if TYPE_CHECKING:
     from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
@@ -112,10 +112,9 @@ def get_ontology_graph() -> StarLayerGraph:
     # Lazy, not top-level: a top-level `from starlayer.graph.oxgraph import StarLayerGraph` pulls in the whole starlayer package before
     # this subpackage finishes its own import (Python always fully executes a parent package's __init__.py before any of its
     # submodules) - the same circular-import discipline starlayer.starontology's own loaders follow.
-    import pyoxigraph as ox
     from starlayer.graph.oxgraph import StarLayerGraph
 
-    graph = StarLayerGraph(identifier=ox.NamedNode(str(ONTOLOGY_GRAPH_IRI)))
+    graph = StarLayerGraph(identifier=ONTOLOGY_GRAPH_IRI)
     graph.parse(str(_ONTOLOGY_TTL_PATH), format="turtle")
     return graph
 
@@ -150,15 +149,13 @@ def _derive_demonstrated_by(dataset: StarLayerDataset, curated: StarLayerGraph) 
     The curated files name code by dotted identifier (stable across refactors); this resolves them to the entities'
     IRIs once the module graphs are loaded, the same way ``slkg:implementedByIdentifier`` is resolved at query time.
     """
-    from rdflib.namespace import DCTERMS
-
     wanted: dict[str, list] = {}
     for example, identifier in curated.subject_objects(CODEKG_NS.demonstratesIdentifier):
         wanted.setdefault(identifier.value, []).append(example)
     if not wanted:
         return
     for name in dataset.graph_names():
-        if name.value == str(CURATED_GRAPH_IRI):
+        if name.value == CURATED_GRAPH_IRI.value:
             continue
         ctx = dataset.graph(name)
         for entity, identifier in ctx.subject_objects(DCTERMS.identifier):

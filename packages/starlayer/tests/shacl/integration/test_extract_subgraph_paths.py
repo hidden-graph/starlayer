@@ -9,10 +9,10 @@ import warnings
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
-from starlayer.shacl_engine.terms import from_engine, iri_text
+from starlayer.shacl_engine.terms import iri_text
+from tests.terms import Namespace
 
 E = Namespace("http://e/")
 PRE = "@prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -116,18 +116,18 @@ def test_if_the_data_conforms_so_does_its_fragment_for_any_property_path(case) -
 @settings(max_examples=150, deadline=None, suppress_health_check=[HealthCheck.filter_too_much, HealthCheck.too_slow])
 @given(_case())
 def test_path_values_agree_with_sparql_property_paths(case) -> None:
-    from rdflib import Graph
     from starlayer.shacl.paths import path_values
 
     path, sparql, _extra, data = case
     shapes, graph = _shape(path), _g(data)
     path_node = shapes.value(E.A, Namespace("http://www.w3.org/ns/shacl#").property)
     path_node = shapes.value(path_node, Namespace("http://www.w3.org/ns/shacl#").path)
-    plain = Graph()  # rdflib is the oracle: Oxigraph misses the zero-length path from a node that is not in the graph
-    for s, p, o in graph:
-        plain.add((from_engine(s), from_engine(p), from_engine(o)))
-    expected = {row[0] for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}
-    assert {from_engine(t) for t in path_values(graph, E.n0, path_node, shapes)} == expected, (path, sparql, data)
+    # rdflib is the independent oracle (a test-only dependency): Oxigraph misses the zero-length path from a node that is not in the graph
+    from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
+
+    plain = graph.to_rdflib()
+    expected = {foreign_to_engine(row[0]) for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}
+    assert {t for t in path_values(graph, E.n0, path_node, shapes)} == expected, (path, sparql, data)
 
 
 @pytest.mark.parametrize(
@@ -141,15 +141,15 @@ def test_path_values_agree_with_sparql_property_paths(case) -> None:
     ],
 )
 def test_a_repeated_complex_path_is_followed(path, sparql, data) -> None:
-    from rdflib import Graph
     from starlayer.shacl.paths import path_values
 
     shapes, graph = _shape(path), _g(data)
     prop = shapes.value(E.A, Namespace("http://www.w3.org/ns/shacl#").property)
     path_node = shapes.value(prop, Namespace("http://www.w3.org/ns/shacl#").path)
-    plain = Graph()  # rdflib is the oracle: Oxigraph misses the zero-length path from a node that is not in the graph
-    for s, p, o in graph:
-        plain.add((from_engine(s), from_engine(p), from_engine(o)))
-    expected = {row[0] for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}
+    # rdflib is the independent oracle (a test-only dependency): Oxigraph misses the zero-length path from a node that is not in the graph
+    from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
+
+    plain = graph.to_rdflib()
+    expected = {foreign_to_engine(row[0]) for row in plain.query(f"PREFIX : <http://e/> SELECT DISTINCT ?o WHERE {{ :n0 {sparql} ?o }}")}
     assert len(expected) >= 1
-    assert {from_engine(t) for t in path_values(graph, E.n0, path_node, shapes)} == expected
+    assert {t for t in path_values(graph, E.n0, path_node, shapes)} == expected

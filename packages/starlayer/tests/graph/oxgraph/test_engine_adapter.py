@@ -31,7 +31,7 @@ def _load(entry, predicate, cls=StarLayerDataset):
     action = next(entry.graph.objects(entry.iri, MF.action))
     path = uri_to_path(next(entry.graph.objects(action, predicate))).resolve()
     g = cls()
-    g.parse(file=str(path), format="turtle", base=str(file_uri(path)))
+    g.parse(file=str(path), format="turtle", base=file_uri(path).value)
     return g
 
 

@@ -1,11 +1,10 @@
 import pyoxigraph as ox
 import pytest
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import to_engine
+from tests.terms import Namespace
 
-from ._rdflib_view import rd
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
@@ -87,7 +86,7 @@ def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
         data_graph=data, mode="rules", meta_shacl=False
     )
 
-    a_reaches = {o for _, _, o in rd(data).triples((EX.a, EX.reach, None))}
+    a_reaches = {o for _, _, o in data.triples((EX.a, EX.reach, None))}
     assert a_reaches == {EX.b, EX.c, EX.d}
     assert len(list(data.triples((EX.a, EX.reach, EX.d)))) == 1
 

@@ -5,9 +5,9 @@ fixtures (at both node-shape and property-shape level) - pySHACL has no
 notion of this predicate at all.
 """
 
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import Namespace
 
 from ._rdflib_view import rd
 

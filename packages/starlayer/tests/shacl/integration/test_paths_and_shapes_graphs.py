@@ -1,12 +1,12 @@
 """path_values()/is_inverse() (GitHub issue #30) and shapes_graphs()/shapes_graph_members() (GitHub issue #17)."""
 
 import pytest
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema
 from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.shapes_graphs import shapes_graph_members, shapes_graphs
-from starlayer.shacl_engine.terms import NS, from_engine
+from starlayer.shacl_engine.terms import NS
+from tests.terms import Namespace
 
 EX = Namespace("http://e/")
 OX = NS("http://e/")  # engine terms, for what the public API returns
@@ -48,18 +48,18 @@ def _path(ttl: str):
 )
 def test_each_path_form_from_a_path_written_in_another_graph(path, expected) -> None:
     shapes, root = _path(path)
-    assert {from_engine(t) for t in path_values(DATA, EX.a, root, shapes)} == frozenset(expected)
+    assert {t for t in path_values(DATA, EX.a, root, shapes)} == frozenset(expected)
 
 
 def test_a_path_in_the_data_graph_itself_needs_no_shapes_graph() -> None:
     graph = _graph("ex:a ex:p ex:b . ex:S sh:path [ sh:inversePath ex:p ] .")
     root = graph.value(EX.S, SH_PATH)
-    assert {from_engine(t) for t in path_values(graph, EX.b, root)} == frozenset({EX.a})
+    assert {t for t in path_values(graph, EX.b, root)} == frozenset({EX.a})
 
 
 def test_a_repetition_path_stops_on_a_cycle() -> None:
     shapes, root = _path("[ sh:oneOrMorePath ex:p ]")
-    assert {from_engine(t) for t in path_values(DATA, EX.b, root, shapes)} == frozenset({EX.a, EX.b, EX.c})
+    assert {t for t in path_values(DATA, EX.b, root, shapes)} == frozenset({EX.a, EX.b, EX.c})
 
 
 def test_an_unrecognized_blank_node_path_raises() -> None:

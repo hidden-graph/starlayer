@@ -7,13 +7,13 @@ adversarially, not just by existence.
 """
 
 import pytest
-from rdflib import RDF, Graph, Literal, Namespace, URIRef
-from rdflib.collection import Collection
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import (  # noqa: E402
     parse_ruleset,
     ruleset_to_tree,
     srl_validate,
 )
+from tests.terms import RDF, NamedNode, Namespace, lit, rdf_list, set_triple
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
@@ -52,7 +52,7 @@ def test_assignment_and_filter_roundtrip_conforms():
 
 def _minimal_ruleset_graph():
     g = Graph()
-    root = URIRef("urn:x")
+    root = NamedNode("urn:x")
     g.add((root, RDF.type, SRL.RuleSet))
     g.add((root, SRL.rules, RDF.nil))
     g.add((root, SRL.data, RDF.nil))
@@ -66,14 +66,14 @@ def test_rule_missing_body_is_rejected():
     complete graph happens to pass (packages/shacl/CLAUDE.md's own
     adversarial-verification discipline)."""
     g, root = _minimal_ruleset_graph()
-    rule = URIRef("urn:rule1")
+    rule = NamedNode("urn:rule1")
     g.add((rule, RDF.type, SRL.Rule))
     g.add((rule, SRL.head, RDF.nil))
-    g.add((rule, SRL.ruleEvaldata, Literal(True)))
+    g.add((rule, SRL.ruleEvaldata, lit(True)))
     # srl:body deliberately omitted.
-    rules_list = URIRef("urn:list")
-    Collection(g, rules_list, [rule])
-    g.set((root, SRL.rules, rules_list))
+    rules_list = NamedNode("urn:list")
+    rdf_list(g, [rule], rules_list)
+    set_triple(g, (root, SRL.rules, rules_list))
 
     conforms, _report_graph, _report_text = srl_validate(g)
     assert conforms is False
@@ -83,23 +83,23 @@ def test_triple_pattern_with_literal_predicate_is_rejected():
     """srl:predicate must be an IRI or Variable, never a Literal - a real
     RDF-1.2-shape correctness check, not just cardinality."""
     g, root = _minimal_ruleset_graph()
-    rule = URIRef("urn:rule1")
+    rule = NamedNode("urn:rule1")
     g.add((rule, RDF.type, SRL.Rule))
-    g.add((rule, SRL.ruleEvaldata, Literal(True)))
+    g.add((rule, SRL.ruleEvaldata, lit(True)))
     g.add((rule, SRL.head, RDF.nil))
 
-    tp = URIRef("urn:tp1")
+    tp = NamedNode("urn:tp1")
     g.add((tp, RDF.type, SRL.TriplePattern))
-    g.add((tp, SRL.subject, URIRef("http://example.org/a")))
-    g.add((tp, SRL.predicate, Literal("not-a-predicate")))  # invalid
-    g.add((tp, SRL.object, Literal("x")))
-    body_list = URIRef("urn:body")
-    Collection(g, body_list, [tp])
-    g.set((rule, SRL.body, body_list))
+    g.add((tp, SRL.subject, NamedNode("http://example.org/a")))
+    g.add((tp, SRL.predicate, lit("not-a-predicate")))  # invalid
+    g.add((tp, SRL.object, lit("x")))
+    body_list = NamedNode("urn:body")
+    rdf_list(g, [tp], body_list)
+    set_triple(g, (rule, SRL.body, body_list))
 
-    rules_list = URIRef("urn:list")
-    Collection(g, rules_list, [rule])
-    g.set((root, SRL.rules, rules_list))
+    rules_list = NamedNode("urn:list")
+    rdf_list(g, [rule], rules_list)
+    set_triple(g, (root, SRL.rules, rules_list))
 
     conforms, _report_graph, _report_text = srl_validate(g)
     assert conforms is False
@@ -109,19 +109,19 @@ def test_body_list_rejects_a_non_body_element_member():
     """srl:BodyListShape's sh:sparql check should reject a list member
     that isn't typed as any recognized srl:BodyElement subclass."""
     g, root = _minimal_ruleset_graph()
-    rule = URIRef("urn:rule1")
+    rule = NamedNode("urn:rule1")
     g.add((rule, RDF.type, SRL.Rule))
-    g.add((rule, SRL.ruleEvaldata, Literal(True)))
+    g.add((rule, SRL.ruleEvaldata, lit(True)))
     g.add((rule, SRL.head, RDF.nil))
 
-    not_a_body_element = URIRef("urn:bogus")
-    body_list = URIRef("urn:body")
-    Collection(g, body_list, [not_a_body_element])
-    g.set((rule, SRL.body, body_list))
+    not_a_body_element = NamedNode("urn:bogus")
+    body_list = NamedNode("urn:body")
+    rdf_list(g, [not_a_body_element], body_list)
+    set_triple(g, (rule, SRL.body, body_list))
 
-    rules_list = URIRef("urn:list")
-    Collection(g, rules_list, [rule])
-    g.set((root, SRL.rules, rules_list))
+    rules_list = NamedNode("urn:list")
+    rdf_list(g, [rule], rules_list)
+    set_triple(g, (root, SRL.rules, rules_list))
 
     conforms, _report_graph, _report_text = srl_validate(g)
     assert conforms is False

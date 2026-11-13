@@ -57,7 +57,7 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
     for target_path in target_paths:
         module_iri, module_dotted_path = symbol_index.module_identity(target_path, repo_root)
         triples = visitor.extract_module(target_path, module_iri, module_dotted_path, index)
-        target = tests_ds if str(module_iri).startswith(TESTS_BLOB_BASE) else ds
+        target = tests_ds if module_iri.value.startswith(TESTS_BLOB_BASE) else ds
         target.addN((s, p, o, target.graph(module_iri)) for (s, p, o) in triples)
 
     stamp.write_stamp(ds, repo_root, len(target_paths))

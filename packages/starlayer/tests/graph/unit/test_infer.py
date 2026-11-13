@@ -13,11 +13,11 @@ Requires the `reasoning` extra: pip install -e ".[reasoning]"
 """
 
 import pytest
-from rdflib import RDF, RDFS, Graph, Namespace, URIRef
-from rdflib.namespace import OWL
+from rdflib import Graph
 from starlayer.graph import TripleTerm
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
+from tests.terms import OWL, RDF, RDFS, NamedNode, Namespace
 
 try:
     import owlrl
@@ -31,18 +31,24 @@ owlrl_extra = pytest.mark.skipif(
 )
 
 EX = Namespace("http://example.org/")
-REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
+
+
+from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine  # noqa: E402
 
 
 def _expand_to_fixpoint(semantics, graph):
     """owlrl to a fixpoint. One pass is not a closure (its axiomatic triples are typed rdfs:Resource only on the next
     pass), and infer() repeats it until nothing changes (GitHub issue #97)."""
+    expanded = graph if isinstance(graph, Graph) else graph.to_rdflib()  # owlrl speaks rdflib; a StarLayerGraph gets the closure copied back
     for _ in range(8):
-        size = len(graph)
-        owlrl.DeductiveClosure(semantics).expand(graph)
-        if len(graph) == size:
+        size = len(expanded)
+        owlrl.DeductiveClosure(semantics).expand(expanded)
+        if len(expanded) == size:
             break
+    if expanded is not graph:
+        graph.extend([tuple(foreign_to_engine(term) for term in triple) for triple in expanded])
 
 
 def _rdfs_graph() -> StarLayerGraph:
@@ -60,10 +66,10 @@ class TestInferRdfs:
 
         closed = g.infer()
 
-        oracle = g.to_rdflib()
+        oracle = g
         _expand_to_fixpoint(owlrl.RDFS_Semantics, oracle)
 
-        assert set(closed.to_rdflib()) == set(oracle)
+        assert set(closed) == set(oracle)
 
     def test_entails_the_subclass_type(self) -> None:
         closed = _rdfs_graph().infer()
@@ -125,7 +131,7 @@ class TestInferRdf:
         g.add((EX.alice, EX.knows, EX.bob))
         g.add((EX.knows, RDF.type, RDF.Property))
 
-        delta = set(g.infer(entailment=ENTAILMENT.RDF, mode="delta").to_rdflib())
+        delta = set(g.infer(entailment=ENTAILMENT.RDF, mode="delta"))
 
         # The already-asserted fact itself isn't re-derived as "new" -
         # but using rdf:type as a predicate here (to assert it) is itself
@@ -144,7 +150,7 @@ class TestInferRdf:
         g.add((EX.list1, RDF.rest, RDF.nil))
         g.add((EX.x, RDF._1, EX.y))
 
-        delta = set(g.infer(entailment=ENTAILMENT.RDF, mode="delta").to_rdflib())
+        delta = set(g.infer(entailment=ENTAILMENT.RDF, mode="delta"))
 
         assert delta == {
             (RDF.first, RDF.type, RDF.Property),
@@ -207,10 +213,10 @@ class TestInferOwlRl:
 
         closed = g.infer(entailment=ENTAILMENT["OWL-RDF-Based"])
 
-        oracle = g.to_rdflib()
+        oracle = g
         _expand_to_fixpoint(owlrl.OWLRL_Semantics, oracle)
 
-        assert set(closed.to_rdflib()) == set(oracle)
+        assert set(closed) == set(oracle)
 
 
 @owlrl_extra
@@ -233,7 +239,7 @@ class TestInferDelta:
         delta = g.infer(mode="delta")
         original_decomposed = _decompose(g)
 
-        assert set(closure.to_rdflib()) == set(original_decomposed) | set(delta.to_rdflib())
+        assert set(closure) == {tuple(foreign_to_engine(term) for term in t) for t in original_decomposed} | set(delta)
 
     def test_target_graph_receives_only_delta_without_being_cleared(self) -> None:
         g = _rdfs_graph()
@@ -273,7 +279,7 @@ class TestInferDelta:
         oracle_delta = StarLayerGraph()
         # entailments about the synthetic triple-term placeholders are not entailments about the user's graph
         for t in drop_decomposition((t for t in oracle_after if t not in oracle_before_set), decomposition_nodes(oracle_before)):
-            oracle_delta.add(t)
+            oracle_delta.add(tuple(foreign_to_engine(term) for term in t))
 
         assert isomorphic(delta, oracle_delta)
         assert len(delta) == len(oracle_delta)
@@ -345,7 +351,7 @@ class TestInferWithTripleTerms:
         oracle_delta = StarLayerGraph()
         # entailments about the synthetic triple-term placeholders are not entailments about the user's graph
         for t in drop_decomposition((t for t in oracle_after if t not in oracle_before_set), decomposition_nodes(oracle_before)):
-            oracle_delta.add(t)
+            oracle_delta.add(tuple(foreign_to_engine(term) for term in t))
 
         assert isomorphic(delta, oracle_delta)
         assert len(delta) == len(oracle_delta)
@@ -397,10 +403,10 @@ class TestInferCombinedRegime:
 
         closed = g.infer(entailment={ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]})
 
-        oracle = g.to_rdflib()
+        oracle = g
         _expand_to_fixpoint(owlrl.RDFS_OWLRL_Semantics, oracle)
 
-        assert set(closed.to_rdflib()) == set(oracle)
+        assert set(closed) == set(oracle)
 
 
 @owlrl_extra
@@ -428,7 +434,7 @@ class TestInferCombinedWithRdf:
     def test_rdf_plus_rdfs_unions_both_deltas(self) -> None:
         g = self._list_and_subclass_graph()
 
-        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT.RDFS}, mode="delta").to_rdflib())
+        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT.RDFS}, mode="delta"))
 
         # Present only via the native RDF side:
         assert (RDF.nil, RDF.type, RDF.List) in combined
@@ -439,7 +445,7 @@ class TestInferCombinedWithRdf:
         g = self._list_and_subclass_graph()
         g.add((EX.Dog, OWL.disjointWith, EX.Cat))
 
-        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT["OWL-RDF-Based"]}, mode="delta").to_rdflib())
+        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT["OWL-RDF-Based"]}, mode="delta"))
 
         assert (RDF.nil, RDF.type, RDF.List) in combined
         # OWL-RL-only entailment (owl:sameAs reflexivity over named
@@ -454,7 +460,7 @@ class TestInferCombinedWithRdf:
         g = self._list_and_subclass_graph()
         g.add((EX.Dog, OWL.disjointWith, EX.Cat))
 
-        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}, mode="delta").to_rdflib())
+        combined = set(g.infer(entailment={ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}, mode="delta"))
 
         assert (RDF.nil, RDF.type, RDF.List) in combined
         assert (EX.fido, RDF.type, EX.Animal) in combined
@@ -468,7 +474,7 @@ class TestInferCombinedWithRdf:
         g.bind("ex", EX)
         g.add((EX.alice, EX.knows, EX.bob))
 
-        delta = set(g.infer(entailment={ENTAILMENT.RDF}, mode="delta").to_rdflib())
+        delta = set(g.infer(entailment={ENTAILMENT.RDF}, mode="delta"))
 
         # rdf:type, the predicate of the entailed triple, is typed too (closure, issue #83).
         assert delta == {(EX.knows, RDF.type, RDF.Property), (RDF.type, RDF.type, RDF.Property)}

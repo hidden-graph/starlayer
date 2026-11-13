@@ -5,13 +5,12 @@ sh:path). The meta-shapes used to forbid sh:expression on a node shape; the W3C 
 node-expr/constraints/expression-001 uses `sh:expression false` on a node shape."""
 
 import pytest
-from rdflib import Graph, Namespace
 from starlayer import starontology
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
-
-from ._rdflib_view import rd
+from tests.terms import Namespace
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 _PREFIXES = (
@@ -35,9 +34,9 @@ def _validate(shapes_ttl: str, data_ttl: str = _PEOPLE, **kwargs):
 
 def _failures(result) -> dict[str, str]:
     """focus node -> source constraint component, for every violation."""
-    report = rd(result.report_graph) if hasattr(result, "report_graph") else result.results_graph
+    report = result.report_graph if hasattr(result, "report_graph") else result.results_graph
     return {
-        str(report.value(r, SH.focusNode)): str(report.value(r, SH.sourceConstraintComponent))
+        report.value(r, SH.focusNode).value: report.value(r, SH.sourceConstraintComponent).value
         for r in report.subjects(SH.resultSeverity, SH.Violation)
     }
 
@@ -50,7 +49,7 @@ def _meta(shapes_ttl: str) -> tuple[bool, str]:
     return conforms, text
 
 
-EXPR = str(SH.ExpressionConstraintComponent)
+EXPR = SH.ExpressionConstraintComponent.value
 
 
 def test_a_constant_false_expression_on_a_node_shape_fails_every_person() -> None:

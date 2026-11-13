@@ -28,17 +28,17 @@ def test_update_text_round_trips_through_the_tree(text: str) -> None:
 
 
 def test_the_root_of_an_update_tree_is_an_update_request() -> None:
-    from rdflib import RDF, URIRef
+    from tests.terms import RDF, NamedNode
 
     graph, root = sqe_parse_to_tree("CLEAR ALL")
-    assert (root, RDF.type, URIRef(SQE + "UpdateRequest")) in graph
+    assert (root, RDF.type, NamedNode(SQE + "UpdateRequest")) in graph
 
 
 def test_a_query_still_gives_a_query_tree() -> None:
-    from rdflib import RDF, URIRef
+    from tests.terms import RDF, NamedNode
 
     graph, root = sqe_parse_to_tree("SELECT * { ?s ?p ?o }")
-    assert (root, RDF.type, URIRef(SQE + "UpdateRequest")) not in graph
+    assert (root, RDF.type, NamedNode(SQE + "UpdateRequest")) not in graph
     assert "SELECT" in sqe_tree_to_text(graph, root)
 
 

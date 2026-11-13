@@ -27,6 +27,7 @@ from urllib.parse import quote, unquote
 import pyoxigraph as ox
 
 from starlayer.graph.backends._versions import require_supported_pyoxigraph
+from starlayer.graph.namespaces import Namespace as NS  # the public namespace class
 
 require_supported_pyoxigraph()
 
@@ -34,34 +35,6 @@ NamedNode, BlankNode, Literal, Triple = ox.NamedNode, ox.BlankNode, ox.Literal, 
 
 _DIRECTIONS = {"ltr": ox.BaseDirection.LTR, "rtl": ox.BaseDirection.RTL}
 _XSD = "http://www.w3.org/2001/XMLSchema#"
-
-
-class NS:
-    """A namespace of pyoxigraph ``NamedNode`` constants: ``SH.minCount``, ``SH["class"]``. Terms are created once."""
-
-    __slots__ = ("_base", "_cache")
-
-    def __init__(self, base: str) -> None:
-        """Create a namespace rooted at the IRI prefix ``base``."""
-        object.__setattr__(self, "_base", base)
-        object.__setattr__(self, "_cache", {})
-
-    def __getitem__(self, name: str) -> ox.NamedNode:
-        """The term for ``name`` in this namespace, built on first use and then reused; use it for names that are not identifiers."""
-        node = self._cache.get(name)
-        if node is None:
-            node = self._cache[name] = ox.NamedNode(self._base + name)
-        return node
-
-    def __getattr__(self, name: str) -> ox.NamedNode:
-        """Attribute access as ``__getitem__``; dunder names raise ``AttributeError`` so copy and pickle probes do not mint terms."""
-        if name.startswith("__"):
-            raise AttributeError(name)
-        return self[name]
-
-    def __str__(self) -> str:
-        """The base IRI text, so a namespace can be concatenated into IRI strings."""
-        return self._base
 
 
 RDF = NS("http://www.w3.org/1999/02/22-rdf-syntax-ns#")
@@ -318,12 +291,27 @@ def _bridge() -> Any:
 
 
 def to_engine(term: Any) -> Any:
-    """A term as a pyoxigraph term. ``None`` stays ``None``; a pyoxigraph term is returned as it is. An rdflib / StarLayer term
-    (or a 3-tuple, a triple term) is converted by the rdflib bridge (``graph/oxgraph/_rdflib_bridge.py``): a term pyoxigraph rejects
-    raises ``TermError`` (a ``ValueError``), or under ``term_policy("lenient")`` becomes an opaque stand-in (see ``TermError``)."""
+    """A term as a pyoxigraph term. ``None`` stays ``None``; a pyoxigraph term is returned as it is; a 3-tuple is a triple term. A
+    ``TripleTerm`` or ``DirLangString`` (StarLayer's own value classes, which ``to_rdflib`` produces) is converted. Anything else,
+    an rdflib term above all, is a ``TypeError``: StarLayer takes pyoxigraph terms (``pyoxigraph.NamedNode``, ``Namespace`` from
+    ``starlayer.graph``); a whole rdflib graph is converted explicitly with ``StarLayerGraph.from_rdflib()``."""
     if term is None or isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
         return term
-    return _bridge().foreign_to_engine(term)
+    if type(term) is tuple and len(term) == 3:
+        return ox.Triple(*(to_engine(t) for t in term))
+    from starlayer.graph.model.dirlangstring import DirLangString
+    from starlayer.graph.model.triple import TripleTerm
+
+    if isinstance(term, (TripleTerm, DirLangString)):
+        return _bridge().foreign_to_engine(term)
+    module = type(term).__module__.split(".")[0]
+    hint = (
+        f"an rdflib term ({type(term).__name__}) is not accepted: use a pyoxigraph term (pyoxigraph.NamedNode(...), "
+        "pyoxigraph.Literal(...)) or starlayer.graph.Namespace; convert a whole rdflib graph with StarLayerGraph.from_rdflib(graph)"
+        if module == "rdflib"
+        else f"expected a pyoxigraph term (NamedNode, BlankNode, Literal or Triple), not {type(term).__name__}: {term!r}"
+    )
+    raise TypeError(hint)
 
 
 def from_engine(term: Any) -> Any:
@@ -369,13 +357,26 @@ def check_graphs(*labelled: tuple[Any, str]) -> tuple[TermError, ...]:
 
 def engine_view(graph: Any, where: str = "graph") -> Any:
     """The engine's term view of ``graph``: an Oxigraph-backed graph (``StarLayerGraph``, ``StarLayerDataset``, ``OxigraphGraph``) as it
-    is; a bare ``pyoxigraph.Store`` as an ``StarLayerDataset``; an rdflib / StarLayer graph as an ``StarLayerGraph`` copy made by the rdflib
-    bridge, which raises ``TermError`` for a term that is not an RDF term (see there). A dataset is its union (``_union_view``)."""
+    is; a bare ``pyoxigraph.Store`` as an ``StarLayerDataset``. An rdflib graph is a ``TypeError``: convert it first with
+    ``StarLayerGraph.from_rdflib``. A dataset is its union (``_union_view``)."""
     if graph is None:
         return graph
     if getattr(graph, "engine_terms", False):
         return _union_view(graph)
+    if _is_rdflib_graph(graph):
+        raise TypeError(
+            f"an rdflib graph ({type(graph).__name__}) is not accepted as the {where}: convert it with StarLayerGraph.from_rdflib(graph) "
+            "(StarLayerDataset.from_rdflib for a Dataset)"
+        )
     return _bridge().to_oxgraph(graph, where)
+
+
+def _is_rdflib_graph(graph: Any) -> bool:
+    """True for an rdflib ``Graph`` / ``Dataset`` (or a subclass), without importing rdflib when nothing has."""
+    import sys
+
+    rdflib = sys.modules.get("rdflib")
+    return rdflib is not None and isinstance(graph, rdflib.Graph)
 
 
 def _union_view(graph: Any) -> Any:

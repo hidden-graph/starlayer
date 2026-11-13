@@ -8,17 +8,17 @@ checked as validate() does (computed sh:values included, #202).
 from __future__ import annotations
 
 import pytest
-from rdflib import Literal, Namespace
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate
 from starlayer.shacl import evaluate as _evaluate
+from tests.terms import Namespace, lit, py
 
 EX = Namespace("http://example.org/")
 
 
 def evaluate(*args, **kwargs):
     """the result as an rdflib graph, so the comparisons below are on rdflib terms (the engine returns pyoxigraph terms)"""
-    return _evaluate(*args, **kwargs).to_rdflib()
+    return _evaluate(*args, **kwargs)
 
 PREFIXES = """
 @prefix ex: <http://example.org/> .
@@ -38,7 +38,7 @@ def _g(ttl: str) -> StarLayerGraph:
 
 
 def _counts(result, predicate=EX.friendCount) -> dict:
-    return {s: o.toPython() for s, _, o in result.triples((None, predicate, None))}
+    return {s: py(o) for s, _, o in result.triples((None, predicate, None))}
 
 
 # ex:ok has a name, ex:bad has none (fails the minCount of the same shape)
@@ -67,14 +67,14 @@ class TestGate:
 
     def test_method_matches_function(self) -> None:
         data, shapes = _g(DATA), _g(SHAPES)
-        by_method = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, validate=True).to_rdflib()
+        by_method = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, validate=True)
         assert set(by_method) == set(evaluate(data, shapes, validate=True))
 
     def test_focus_nodes_and_properties_still_restrict(self) -> None:
         result = evaluate(_g(DATA), _g(SHAPES), validate=True, focus_nodes=[EX.bad])
         assert len(result) == 0
         result = evaluate(_g(DATA), _g(SHAPES), validate=True, properties=[EX.name])
-        assert set(result) == {(EX.ok, EX.name, Literal("Ok"))}
+        assert set(result) == {(EX.ok, EX.name, lit("Ok"))}
 
     def test_every_node_conforms_gives_the_same_graph(self) -> None:
         data = _g('ex:a a ex:Person ; ex:name "A" ; ex:friend ex:x . ex:b a ex:Person ; ex:name "B" .')
@@ -103,7 +103,7 @@ class TestSeveralShapes:
         assert set(both.objects(EX.n, EX.fromA)) and set(both.objects(EX.n, EX.fromB))
         gated = evaluate(data, shapes, validate=True)
         assert not set(gated.objects(EX.n, EX.fromA))
-        assert {o.toPython() for o in gated.objects(EX.n, EX.fromB)} == {"b"}
+        assert {py(o) for o in gated.objects(EX.n, EX.fromB)} == {"b"}
 
     def test_same_value_from_two_conforming_shapes_appears_once(self) -> None:
         data = _g("ex:n ex:friend ex:x .")
@@ -112,7 +112,7 @@ class TestSeveralShapes:
             ex:B a sh:NodeShape ; sh:targetNode ex:n ; sh:property [ sh:path ex:friendCount ; {COUNT} ] .
             """)
         assert set(evaluate(data, shapes, validate=True).triples((EX.n, EX.friendCount, None))) == {
-            (EX.n, EX.friendCount, Literal(1))
+            (EX.n, EX.friendCount, lit(1))
         }
 
 
@@ -127,7 +127,7 @@ class TestComputedValueDecidesConformance:
         data = _g('ex:a a ex:Person ; ex:first "Ada" ; ex:last "Lovelace" .')
         assert validate(data, shapes).conforms
         result = evaluate(data, shapes, validate=True)
-        assert {o.toPython() for o in result.objects(EX.a, EX.fullName)} == {"Ada Lovelace"}
+        assert {py(o) for o in result.objects(EX.a, EX.fullName)} == {"Ada Lovelace"}
 
     def test_fresh_process_does_not_depend_on_validate_having_run(self) -> None:
         import subprocess

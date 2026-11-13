@@ -13,7 +13,6 @@ import importlib.util
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine.rules import apply_rules
-from starlayer.shacl_engine.terms import LegacyTermView, from_engine
 
 from .ids import portable_id
 from .manifest import (
@@ -58,12 +57,12 @@ def test_engine_rules(entry: ManifestEntry) -> None:
     data = _graph(entry, SHT.dataGraph)
     shapes = _graph(entry, SHT.shapesGraph)
     expected = _expected_triples(entry)
-    def _triples():  # the data graph holds pyoxigraph terms; the expected triples are in rdflib terms
-        return {tuple(from_engine(t) for t in triple) for triple in data.triples((None, None, None))}
+    def _triples():
+        return set(data.triples((None, None, None)))
 
     before = _triples()
     result = apply_rules(data, shapes)
     assert _triples() == before, "the caller's data graph was modified"
-    added = set(LegacyTermView(result.view).triples((None, None, None))) - before
-    assert added == {tuple(from_engine(t) for t in triple) for triple in result.inferred}  # the engine speaks pyoxigraph terms
+    added = set(result.view.triples((None, None, None))) - before
+    assert added == set(result.inferred)
     assert _same_triples(added, expected), f"expected added: {expected}\nactual added: {added}"

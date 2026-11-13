@@ -17,11 +17,11 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
-from rdflib import RDF, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.graph.owl_dl import InconsistentOntologyError
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.helpers import entailment as ent
+from tests.terms import RDF, Namespace
 
 try:
     import owlready2  # noqa: F401
@@ -83,7 +83,7 @@ class TestEntailmentDirect:
     def test_direct_entailment_answers_disjunctive_query(self):
         g = _disjunctive_graph()
         rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct']))
-        assert [r.x.value for r in rows] == [str(EX.alice)]
+        assert [r.x.value for r in rows] == [EX.alice.value]
 
     def test_engine_kwarg_rejected_for_other_entailment(self):
         g = _disjunctive_graph()
@@ -125,7 +125,7 @@ class TestEntailmentDirectRustdl:
     def test_engine_rustdl_selectable_via_query(self):
         g = _disjunctive_graph()
         rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], engine="rustdl"))
-        assert [r.x.value for r in rows] == [str(EX.alice)]
+        assert [r.x.value for r in rows] == [EX.alice.value]
 
 
 @owl_dl_extra
@@ -137,14 +137,14 @@ class TestEntailmentDirectInferArgumentWithHermit:
     def test_every_documented_value_gives_the_same_answer(self, infer):
         g = _disjunctive_graph()
         rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer=infer))
-        assert [r.x.value for r in rows] == [str(EX.alice)]
+        assert [r.x.value for r in rows] == [EX.alice.value]
 
     def test_a_mutation_is_seen_by_the_next_query(self):
         g = _disjunctive_graph()
         list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
         g.add((EX.carol, RDF.type, EX.Person))
         rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
-        assert [r.x.value for r in rows] == [str(EX.alice)]
+        assert [r.x.value for r in rows] == [EX.alice.value]
 
     def test_an_unknown_value_is_rejected(self):
         g = _disjunctive_graph()
@@ -155,11 +155,11 @@ class TestEntailmentDirectInferArgumentWithHermit:
         g = _disjunctive_graph()
         with g.entailment_session(ENTAILMENT['OWL-Direct']) as session:
             for _ in range(2):
-                assert [r.x.value for r in session.query(_Q_WOMAN)] == [str(EX.alice)]
+                assert [r.x.value for r in session.query(_Q_WOMAN)] == [EX.alice.value]
         assert session.closed
 
 
-_ALICE, _WOMAN = ox.NamedNode(str(EX.alice)), ox.NamedNode(str(EX.Woman))
+_ALICE, _WOMAN = ox.NamedNode(EX.alice.value), ox.NamedNode(EX.Woman.value)
 _REGIMES = [ENTAILMENT["OWL-Direct"], ENTAILMENT["OWL-RDF-Based"]]
 
 
@@ -170,7 +170,7 @@ def calls(monkeypatch):
 
     def fake(g, regimes, engine, timeout):
         asked.append((next(iter(regimes)), engine))
-        return {(_ALICE, ox.NamedNode(str(RDF.type)), _WOMAN)}
+        return {(_ALICE, ox.NamedNode(RDF.type.value), _WOMAN)}
 
     monkeypatch.setattr(ent, "_delta_for", fake)
     return asked
@@ -190,8 +190,8 @@ class TestEntailedTriplesAreKept:
     @pytest.mark.parametrize("regime", _REGIMES)
     def test_an_unchanged_graph_is_reasoned_about_once(self, calls, regime):
         g = self._graph()
-        assert self._who(g, entailment=regime) == [str(EX.alice)]
-        assert self._who(g, entailment=regime) == [str(EX.alice)]
+        assert self._who(g, entailment=regime) == [EX.alice.value]
+        assert self._who(g, entailment=regime) == [EX.alice.value]
         assert len(calls) == 1
 
     @pytest.mark.parametrize("regime", _REGIMES)
@@ -214,7 +214,7 @@ class TestEntailedTriplesAreKept:
         regime = ENTAILMENT["OWL-Direct"]
         self._who(g, entailment=regime, infer="cached")
         g.add((EX.carol, RDF.type, EX.Woman))
-        assert self._who(g, entailment=regime, infer="cached") == [str(EX.alice), str(EX.carol)]
+        assert self._who(g, entailment=regime, infer="cached") == [EX.alice.value, EX.carol.value]
         assert len(calls) == 1
 
     def test_each_engine_and_regime_has_its_own_kept_triples(self, calls):
@@ -244,8 +244,8 @@ class TestEntailedTriplesAreKept:
         d = StarLayerDataset()
         d.add((EX.bob, RDF.type, EX.Person))
         regime = ENTAILMENT["OWL-Direct"]
-        assert self._who(d, entailment=regime) == [str(EX.alice)]
-        assert self._who(d, entailment=regime) == [str(EX.alice)]
+        assert self._who(d, entailment=regime) == [EX.alice.value]
+        assert self._who(d, entailment=regime) == [EX.alice.value]
         assert len(calls) == 1
 
 
@@ -267,7 +267,7 @@ class TestEntailmentSession:
     def test_queries_run_on_one_copy_and_ask_the_reasoner_once(self, calls, regime):
         g = self._graph()
         with g.entailment_session(regime) as session:
-            assert [self._who(session) for _ in range(3)] == [[str(EX.alice)]] * 3
+            assert [self._who(session) for _ in range(3)] == [[EX.alice.value]] * 3
         assert len(calls) == 1
 
     def test_the_session_is_open_and_not_stale_when_made(self, calls):
@@ -280,8 +280,8 @@ class TestEntailmentSession:
         with g.entailment_session(self.DIRECT) as session:
             g.add((EX.carol, RDF.type, EX.Woman))
             assert session.stale
-            assert self._who(session) == [str(EX.alice)]
-            assert self._who(g) == [str(EX.carol)]  # the graph has the new fact, and none of the entailed ones
+            assert self._who(session) == [EX.alice.value]
+            assert self._who(g) == [EX.carol.value]  # the graph has the new fact, and none of the entailed ones
 
     def test_refresh_reads_the_current_data_and_reasons_again_only_if_the_graph_changed(self, calls):
         g = self._graph()
@@ -291,7 +291,7 @@ class TestEntailmentSession:
             g.add((EX.carol, RDF.type, EX.Woman))
             session.refresh()
             assert len(calls) == 2 and not session.stale
-            assert self._who(session) == [str(EX.alice), str(EX.carol)]
+            assert self._who(session) == [EX.alice.value, EX.carol.value]
 
     def test_refresh_cached_keeps_the_entailed_triples_but_reads_new_data(self, calls):
         g = self._graph()
@@ -299,7 +299,7 @@ class TestEntailmentSession:
             g.add((EX.carol, RDF.type, EX.Woman))
             session.refresh("cached")
             assert len(calls) == 1
-            assert self._who(session) == [str(EX.alice), str(EX.carol)]
+            assert self._who(session) == [EX.alice.value, EX.carol.value]
 
     def test_close_empties_the_copy_and_later_use_raises(self, calls):
         g = self._graph()
@@ -312,7 +312,7 @@ class TestEntailmentSession:
         for use in (lambda: session.query(_Q_WOMAN), lambda: session.refresh(), lambda: session.stale):
             with pytest.raises(RuntimeError, match="closed"):
                 use()
-        assert set(g.triples()) == {(ox.NamedNode(str(EX.bob)), ox.NamedNode(str(RDF.type)), ox.NamedNode(str(EX.Person)))}
+        assert set(g.triples()) == {(ox.NamedNode(EX.bob.value), ox.NamedNode(RDF.type.value), ox.NamedNode(EX.Person.value))}
 
     def test_leaving_the_with_block_closes_it_even_after_an_error(self, calls):
         g = self._graph()
@@ -336,13 +336,13 @@ class TestEntailmentSession:
         d = StarLayerDataset()
         d.add((EX.bob, RDF.type, EX.Person))
         with d.entailment_session(self.DIRECT) as session:
-            assert self._who(session) == [str(EX.alice)]
+            assert self._who(session) == [EX.alice.value]
 
     def test_a_star_query_runs_on_a_session(self, calls):
         from starlayer.sparql import StarQuery
 
         g = self._graph()
         with g.entailment_session(self.DIRECT) as session:
-            assert [r.x.value for r in StarQuery(_Q_WOMAN).run(session)] == [str(EX.alice)]
+            assert [r.x.value for r in StarQuery(_Q_WOMAN).run(session)] == [EX.alice.value]
             with pytest.raises(ValueError, match="already applies"):
                 StarQuery(_Q_WOMAN, entailment=self.DIRECT).run(session)

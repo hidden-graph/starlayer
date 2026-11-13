@@ -10,9 +10,10 @@ import pytest
 import rdflib
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph.oxgraph._rdflib_bridge import foreign_to_engine
 from starlayer.shacl_engine import executor
 from starlayer.shacl_engine.api import validate
-from starlayer.shacl_engine.oxigraph_view import OxigraphGraph, from_ox, to_ox
+from starlayer.shacl_engine.oxigraph_view import OxigraphGraph, from_ox
 from starlayer.shacl_engine.paths import _dedupe
 from starlayer.shacl_engine.plan import ShapeError
 from starlayer.shacl_engine.terms import text
@@ -121,14 +122,14 @@ def test_dedupe_keeps_order_and_skips_trivial_lists():
 
 
 def test_ox_term_caches_are_identity_stable_and_correct():
-    """``to_ox`` / ``from_ox`` are the boundary with rdflib terms (rdflib graphs and terms are still accepted as input)."""
+    """The rdflib bridge (``foreign_to_engine`` / ``from_ox``) caches converted terms: identical rdflib terms give the identical engine term."""
     iri, bn = rdflib.URIRef("http://example.org/x"), rdflib.BNode("b1")
-    assert to_ox(iri) is to_ox(rdflib.URIRef("http://example.org/x"))
-    assert to_ox(iri) == ox.NamedNode("http://example.org/x")
-    assert to_ox(bn) == ox.BlankNode("b1")
-    assert to_ox(rdflib.URIRef("urn:same")) != to_ox(rdflib.BNode("same")) and to_ox(rdflib.BNode("same")) == ox.BlankNode("same")
+    assert foreign_to_engine(iri) is foreign_to_engine(rdflib.URIRef("http://example.org/x"))
+    assert foreign_to_engine(iri) == ox.NamedNode("http://example.org/x")
+    assert foreign_to_engine(bn) == ox.BlankNode("b1")
+    assert foreign_to_engine(rdflib.URIRef("urn:same")) != foreign_to_engine(rdflib.BNode("same")) and foreign_to_engine(rdflib.BNode("same")) == ox.BlankNode("same")
     for lit in (rdflib.Literal("x"), rdflib.Literal("1", datatype=rdflib.XSD.integer), rdflib.Literal("a", lang="en")):
-        assert from_ox(to_ox(lit)) == lit
+        assert from_ox(foreign_to_engine(lit)) == lit
     node = ox.NamedNode("http://example.org/y")
     assert from_ox(node) is from_ox(ox.NamedNode("http://example.org/y"))
     assert type(from_ox(node)) is rdflib.URIRef

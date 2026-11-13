@@ -10,8 +10,7 @@ from codekg import (
     CURATED_GRAPH_IRI,
     get_codekg_dataset,
 )
-from rdflib import RDF, Literal, URIRef
-from rdflib.namespace import DCTERMS
+from tests.terms import DCTERMS, RDF, NamedNode, lit, set_triple, text
 
 
 def test_the_curated_graph_is_left_out_unless_asked_for(monkeypatch, tmp_path):
@@ -48,13 +47,13 @@ SHAPES_TTL = CURATED_DIR.parent / "functionality-shapes.ttl"
 
 def _conforms(graph) -> bool:
     import starlayer.shacl
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
 
     return starlayer.shacl.validate(graph, shacl_graph=Graph().parse(SHAPES_TTL, format="turtle")).conforms
 
 
 def test_the_capability_list_conforms_to_its_shapes():
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
 
     assert _conforms(Graph().parse(FUNCTIONALITY_TTL, format="turtle"))
 
@@ -63,15 +62,15 @@ def test_the_capability_list_conforms_to_its_shapes():
     "corrupt",
     [
         lambda g, c: g.remove((c, CODEKG_NS.appRole, None)),
-        lambda g, c: g.set((c, CODEKG_NS.appRole, Literal("make-coffee"))),
-        lambda g, c: g.set((c, CODEKG_NS.hasStatus, Literal("done"))),
+        lambda g, c: set_triple(g, (c, CODEKG_NS.appRole, lit("make-coffee"))),
+        lambda g, c: set_triple(g, (c, CODEKG_NS.hasStatus, lit("done"))),
         lambda g, c: g.remove((c, CODEKG_NS.inCapabilityArea, None)),
-        lambda g, c: g.add((c, CODEKG_NS.implementsSpecification, URIRef("http://example.org/not-a-w3c-spec"))),
+        lambda g, c: g.add((c, CODEKG_NS.implementsSpecification, NamedNode("http://example.org/not-a-w3c-spec"))),
     ],
     ids=["no-role", "unknown-role", "unknown-status", "no-area", "spec-not-w3c"],
 )
 def test_the_capability_shapes_notice_a_damaged_capability(corrupt):
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
 
     graph = Graph().parse(FUNCTIONALITY_TTL, format="turtle")
     capability = next(graph.subjects(RDF.type, CODEKG_NS.Capability))
@@ -81,9 +80,9 @@ def test_the_capability_shapes_notice_a_damaged_capability(corrupt):
 
 
 def test_every_app_role_is_used():
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
 
-    used = {str(o) for o in Graph().parse(FUNCTIONALITY_TTL, format="turtle").objects(None, CODEKG_NS.appRole)}
+    used = {text(o) for o in Graph().parse(FUNCTIONALITY_TTL, format="turtle").objects(None, CODEKG_NS.appRole)}
     assert used == {"storage", "interchange", "query", "validate", "infer", "ui-generate", "reference"}
 
 
@@ -101,10 +100,10 @@ def test_every_notebook_link_names_symbols_the_code_graph_has_and_demonstratedby
 
 
 def test_capabilities_name_the_specifications_they_implement():
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
 
     graph = Graph().parse(FUNCTIONALITY_TTL, format="turtle")
-    specs = {str(o) for o in graph.objects(None, CODEKG_NS.implementsSpecification)}
+    specs = {text(o) for o in graph.objects(None, CODEKG_NS.implementsSpecification)}
     assert len(specs) >= 12
     assert "https://www.w3.org/TR/shacl12-core" in specs and "https://www.w3.org/TR/sparql12-update" in specs
     assert all(s.startswith("https://www.w3.org/TR/") for s in specs)

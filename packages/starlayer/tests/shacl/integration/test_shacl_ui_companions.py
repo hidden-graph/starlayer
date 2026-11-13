@@ -5,15 +5,16 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from rdflib import RDF, Graph, Namespace, URIRef
 from rdflib.collection import Collection
 from starlayer import starontology
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import ui_widget_selection as uws
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
+from tests.terms import RDF, NamedNode, Namespace
 
 from ._rdflib_view import rd
 
@@ -30,7 +31,7 @@ EX = Namespace("http://example.org/")
 
 def _ox(term):
     """An rdflib IRI as the pyoxigraph term the module's own widget lists hold."""
-    return ox.NamedNode(str(term))
+    return term if isinstance(term, ox.NamedNode) else ox.NamedNode(str(term))
 
 
 @pytest.fixture(scope="module")
@@ -132,7 +133,7 @@ def _paths_by_widget(scores) -> dict:
 def test_the_scores_layer_is_nine_editor_scores_at_forty(scores) -> None:
     entries = list(scores.subjects(RDF.type, SHUI.WidgetScore))
     assert len(entries) == 9
-    assert {int(next(scores.objects(score, SHUI.score))) for score in entries} == {40}
+    assert {int(next(scores.objects(score, SHUI.score)).value) for score in entries} == {40}
     widgets = {next(scores.objects(score, SHUI.widget)) for score in entries}
     assert {_ox(w) for w in widgets} <= uws._BUILTIN_EDITORS and len(widgets) == 9, "an application layer uses standard shui widgets only"
     assert not list(scores.subjects(RDF.type, SHUI.WidgetAcceptMatcher))
@@ -146,7 +147,7 @@ def test_no_predicate_is_scored_by_two_widgets(scores) -> None:
 
 
 def test_the_layer_gives_a_form_for_editing_a_shape(shacl_shacl, baseline, stacked) -> None:
-    shape = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
+    shape = NamedNode("http://www.w3.org/ns/shacl-shacl#ShapeShape")
 
     def by_path(scoring):
         widgets = select_widgets(shape_node=shape, shapes_graph=shacl_shacl, scoring_graph=scoring, role="editor")
@@ -171,7 +172,7 @@ def test_the_layer_does_not_touch_other_shapes_or_viewers(shapes, baseline, stac
         assert select_widgets(shape_node=EX.S, shapes_graph=shapes, scoring_graph=stacked, role=role) == select_widgets(
             shape_node=EX.S, shapes_graph=shapes, scoring_graph=baseline, role=role
         )
-    shacl_shape = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
+    shacl_shape = NamedNode("http://www.w3.org/ns/shacl-shacl#ShapeShape")
     viewers = select_widgets(shape_node=shacl_shape, shapes_graph=_onto("shacl_shacl"), scoring_graph=stacked, role="viewer")
     assert all(widget is None or _ox(widget) in uws._BUILTIN_VIEWERS for widget in viewers.values())
 
@@ -201,7 +202,7 @@ def test_the_baseline_has_four_tiers_and_no_per_widget_matchers(baseline) -> Non
     assert not list(baseline.subjects(RDF.type, SHUI.WidgetAcceptMatcher))
     by_tier = {1: [], 2: [], 3: [], 4: []}
     for score in baseline.subjects(RDF.type, SHUI.WidgetScore):
-        by_tier[int(next(baseline.objects(score, SHUI.score)))].append(score)
+        by_tier[int(next(baseline.objects(score, SHUI.score)).value)].append(score)
     assert {tier: len(scores) for tier, scores in by_tier.items()} == {1: 2, 2: 6, 3: 4, 4: 1}
     assert all(not list(baseline.objects(score, SHUI.shapesGraphShape)) for score in by_tier[1])
     assert all(len(list(baseline.objects(score, SHUI.shapesGraphShape))) == 1 for score in by_tier[2] + by_tier[3] + by_tier[4])

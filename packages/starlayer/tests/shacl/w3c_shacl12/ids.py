@@ -25,5 +25,5 @@ def portable_id(entry: ManifestEntry, vendor_root: Path) -> str:
     if entry.parse_error is not None:
         return str(relative)
 
-    local_name = str(entry.iri).rsplit("/", 1)[-1]
+    local_name = entry.iri.value.rsplit("/", 1)[-1]
     return f"{relative.with_suffix('')}::{local_name}"

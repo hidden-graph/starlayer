@@ -1,14 +1,13 @@
-from rdflib import Literal, Namespace, URIRef
-from starlayer.graph.model.triple import TripleTerm
+import pyoxigraph as ox
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import NamedNode, Namespace, lit
 
-from ._rdflib_view import rd
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-RDF_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+RDF_REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 def test_sparql_constraint_conforms_when_triple_term_present() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
@@ -24,7 +23,7 @@ def test_sparql_constraint_conforms_when_triple_term_present() -> None:
 
 def test_sparql_constraint_violates_when_triple_term_absent() -> None:
     data = StarLayerGraph()
-    data.add((EX.alice, EX.says, Literal("something else")))
+    data.add((EX.alice, EX.says, lit("something else")))
 
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_says_triple_term.ttl"), format="turtle12")
@@ -35,7 +34,7 @@ def test_sparql_constraint_violates_when_triple_term_absent() -> None:
     assert result.conforms is False
     assert any(
         o == SH.SPARQLConstraintComponent
-        for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
+        for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )
 
 
@@ -80,7 +79,7 @@ def test_sparql_constraint_own_severity_overrides_shape_severity() -> None:
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    severities = {o for _, _, o in rd(result.report_graph).triples((None, SH.resultSeverity, None))}
+    severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
     assert severities == {SH.Warning}
 
 
@@ -127,7 +126,7 @@ def test_sparql_constraint_resolves_prefix_via_its_sh_prefixes_declare() -> None
 
     assert result.conforms is False
     assert SH.SPARQLConstraintComponent in {
-        o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
+        o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     }
 
 
@@ -156,7 +155,7 @@ def test_sparql_constraint_binds_value_per_property_value_node() -> None:
     assert result.conforms is False
     violations = [
         s
-        for s, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
+        for s, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
         if o == SH.SPARQLConstraintComponent
     ]
     assert len(violations) == 1
@@ -183,7 +182,7 @@ def test_sparql_constraint_conforms_with_nested_multi_pattern_join() -> None:
     # multi-pattern nested join, not only the simplest single-pattern case.
     data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
-    data.add((EX.carol, EX.age, Literal(30)))
+    data.add((EX.carol, EX.age, lit(30)))
 
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_nested_join.ttl"), format="turtle12")
@@ -197,7 +196,7 @@ def test_sparql_constraint_conforms_with_nested_multi_pattern_join() -> None:
 def test_sparql_constraint_violates_with_nested_multi_pattern_join() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)))
-    data.add((EX.carol, EX.age, Literal(10)))
+    data.add((EX.carol, EX.age, lit(10)))
 
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_sparql_nested_join.ttl"), format="turtle12")
@@ -208,7 +207,7 @@ def test_sparql_constraint_violates_with_nested_multi_pattern_join() -> None:
     assert result.conforms is False
     assert any(
         o == SH.SPARQLConstraintComponent
-        for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
+        for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )
 
 
@@ -223,11 +222,11 @@ def test_construct_rule_mints_new_triple_term_reification() -> None:
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
-    reifies_triples = list(rd(result.inferred_graph).triples((EX.stmt1, RDF_REIFIES, None)))
+    reifies_triples = list(result.inferred_graph.triples((EX.stmt1, RDF_REIFIES, None)))
     assert len(reifies_triples) == 1
     _, _, obj = reifies_triples[0]
-    assert isinstance(obj, TripleTerm)
-    assert obj == TripleTerm(EX.bob, EX.knows, EX.carol)
+    assert isinstance(obj, ox.Triple)
+    assert obj == ox.Triple(EX.bob, EX.knows, EX.carol)
 
 
 def test_sparql_constraint_resolves_prefix_via_sh_declare_not_turtle_prefix() -> None:
@@ -275,8 +274,8 @@ def test_sh_result_annotation_from_select_bound_var() -> None:
     native_components.py::_build_sparql_constraint_component's
     make_v_result override and _result_annotation_triples."""
     data = StarLayerGraph()
-    data.add((EX.alice, EX.score, Literal(20)))
-    data.add((EX.bob, EX.score, Literal(80)))
+    data.add((EX.alice, EX.score, lit(20)))
+    data.add((EX.bob, EX.score, lit(80)))
 
     shapes = StarLayerGraph()
     shapes.parse(data="""
@@ -294,17 +293,17 @@ def test_sh_result_annotation_from_select_bound_var() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
-    annotated = list(rd(result.report_graph).triples((None, EX.reportedScore, None)))
+    annotated = list(result.report_graph.triples((None, EX.reportedScore, None)))
     assert len(annotated) == 1
     _, _, value = annotated[0]
-    assert value == Literal(20)
+    assert value == lit(20)
 
 
 def test_sh_result_annotation_fixed_value() -> None:
     """sh:annotationValue attaches the same fixed value to every result the
     constraint produces, no SELECT-row lookup involved."""
     data = StarLayerGraph()
-    data.add((EX.alice, EX.score, Literal(20)))
+    data.add((EX.alice, EX.score, lit(20)))
 
     shapes = StarLayerGraph()
     shapes.parse(data="""
@@ -322,15 +321,15 @@ def test_sh_result_annotation_fixed_value() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
-    annotated = list(rd(result.report_graph).triples((None, EX.origin, None)))
-    assert annotated == [(annotated[0][0], EX.origin, Literal("score-check"))]
+    annotated = list(result.report_graph.triples((None, EX.origin, None)))
+    assert annotated == [(annotated[0][0], EX.origin, lit("score-check"))]
 
 
 def test_no_result_annotation_is_a_pure_noop() -> None:
     """A sh:sparql constraint with no sh:resultAnnotation at all must behave
     exactly as before - no stray triples, no change to conforms/report."""
     data = StarLayerGraph()
-    data.add((EX.alice, EX.score, Literal(20)))
+    data.add((EX.alice, EX.score, lit(20)))
 
     shapes = StarLayerGraph()
     shapes.parse(data="""
@@ -344,4 +343,4 @@ def test_no_result_annotation_is_a_pure_noop() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
-    assert len(list(rd(result.report_graph).triples((None, SH.resultSeverity, None)))) == 1
+    assert len(list(result.report_graph.triples((None, SH.resultSeverity, None)))) == 1

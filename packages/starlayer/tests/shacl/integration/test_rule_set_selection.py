@@ -10,9 +10,9 @@ Covers both kinds of rule the rule engine runs: global (shape-independent)
 rules, and shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule).
 """
 
-from rdflib import RDF, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import RDF, Namespace
 
 EX = Namespace("http://example.org/")
 
@@ -161,10 +161,9 @@ class TestShapeAttachedRulesPath:
         assert (EX.alice, EX.taggedByA, None) in result.inferred_graph
         assert (EX.alice, EX.taggedByB, None) not in result.inferred_graph
         # Only RuleA actually ran, so only RuleA should have provenance.
-        from rdflib import Namespace as _NS
-        from starlayer.shacl_engine.terms import from_engine
+        from tests.terms import Namespace as _NS
 
         SH = _NS("http://www.w3.org/ns/shacl#")
-        source_rules = {from_engine(o) for _, _, o in result.inferred_graph.triples((None, SH.sourceRule, None))}
+        source_rules = {o for _, _, o in result.inferred_graph.triples((None, SH.sourceRule, None))}
         assert EX.TripleRuleA in source_rules
         assert EX.TripleRuleB not in source_rules

@@ -44,6 +44,7 @@ from starlayer.shacl.validator import (
     validate,
     validate_each,
 )
+from starlayer.shacl_engine.terms import SH
 
 # Everything an application needs is importable from here: apps do not reach into submodules (a need to is a missing
 # public component). Processing modes: validate / validate_each / apply_rules / evaluate / extract_subgraph, with the
@@ -58,6 +59,7 @@ from starlayer.shacl.validator import (
 # `StarShaclSchema.close_shape(shape)`, a method.
 
 __all__ = [
+    "SH",
     "StarShaclSchema",
     "validate",
     "validate_each",

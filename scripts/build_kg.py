@@ -62,7 +62,7 @@ def build_dataset():
         get_ontology_graph,
         queries,
     )
-    from rdflib import RDF, Literal
+    from codekg.terms import RDF, Literal
     from starlayer.graph.oxgraph import StarLayerDataset
 
     out: StarLayerDataset = get_codekg_dataset(include_curated=True)

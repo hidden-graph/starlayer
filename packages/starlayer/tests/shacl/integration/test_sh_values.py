@@ -14,11 +14,9 @@ coincidentally both named sh:values but serve entirely different purposes.
 """
 
 import pytest
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
-
-from ._rdflib_view import rd
+from tests.terms import Namespace
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -90,7 +88,7 @@ def test_values_select_violates_when_computed_value_does_not_match() -> None:
 
     assert result.conforms is False
     assert SH.HasValueConstraintComponent in {
-        o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
+        o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     }
 
 
@@ -121,7 +119,7 @@ def test_values_sparql_expr_computes_a_single_scalar_value() -> None:
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
-    assert {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))} == {EX.Big}
+    assert {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))} == {EX.Big}
 
 
 class TestDefaultValueFallback:

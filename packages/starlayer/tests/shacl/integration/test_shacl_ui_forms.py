@@ -15,11 +15,11 @@ from build_shacl_ui import (
     is_excluded,
     missing_fields,
 )
-from rdflib import RDF, Graph, Literal, URIRef
 from rdflib.compare import to_isomorphic
-from rdflib.namespace import XSD
 from starlayer import starontology
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl.ui_widget_selection import select_widgets
+from tests.terms import RDF, XSD, NamedNode, lit
 
 from ._rdflib_view import rd
 
@@ -32,8 +32,8 @@ _SH = "http://www.w3.org/ns/shacl#"
 SHUI = "http://www.w3.org/ns/shacl-ui/"
 
 
-def sh(local: str) -> URIRef:
-    return URIRef(_SH + local)
+def sh(local: str) -> NamedNode:
+    return NamedNode(_SH + local)
 
 
 @pytest.fixture(scope="module")
@@ -46,7 +46,7 @@ def shacl_shacl() -> Graph:
     return _onto("shacl_shacl")
 
 
-def fields_of(ui: Graph, form: URIRef) -> dict[URIRef, URIRef]:
+def fields_of(ui: Graph, form: NamedNode) -> dict[NamedNode, NamedNode]:
     return {next(ui.objects(prop, sh("path"))): prop for prop in ui.objects(form, sh("property"))}
 
 
@@ -86,7 +86,7 @@ def test_each_field_has_a_group_and_an_order_from_the_overlay(ui) -> None:
         fields = fields_of(ui, STSH[name])
         assert len(fields) > 30, name
         for predicate, field in fields.items():
-            assert (predicate, flag, Literal(True)) in ui, (name, predicate)
+            assert (predicate, flag, lit(True)) in ui, (name, predicate)
             if predicate not in (sh("path"),):
                 assert list(ui.objects(field, sh("group"))) and len(list(ui.objects(field, sh("order")))) == 1, (name, predicate)
 
@@ -97,7 +97,7 @@ def test_a_property_shape_form_has_the_fields_a_form_was_missing(ui) -> None:
     prop_form, node_form = fields_of(ui, STSH.PropertyShapeForm), fields_of(ui, STSH.NodeShapeForm)
     for local in ("path", "name", "order", "group", "minCount", "maxCount", "datatype", "property"):
         assert sh(local) in prop_form, local
-    assert URIRef(SHUI + "editor") in prop_form and URIRef(SHUI + "viewer") in prop_form, "a property shape's own widget fields"
+    assert NamedNode(SHUI + "editor") in prop_form and NamedNode(SHUI + "viewer") in prop_form, "a property shape's own widget fields"
     assert sh("path") not in node_form and sh("minCount") not in node_form, "path and cardinality belong to property shapes"
     assert sh("closed") in node_form and sh("property") in node_form
 
@@ -106,15 +106,15 @@ def test_a_field_takes_the_datatype_and_the_values_its_predicate_has_in_shacl_sh
     fields = fields_of(ui, STSH.PropertyShapeForm)
     assert (fields[sh("minCount")], sh("datatype"), XSD.integer) in ui, "a minimum count is stored as an integer"
     node_kind = fields[sh("nodeKind")]
-    listed = {str(o) for lst in ui.objects(node_kind, sh("in")) for o in ui.items(lst)}
+    listed = {o.value for lst in ui.objects(node_kind, sh("in")) for o in ui.items(lst)}
     assert {_SH + "IRI", _SH + "Literal", _SH + "BlankNode"} <= listed, "an enumeration lists its values"
-    assert (fields[sh("order")], sh("maxCount"), Literal(1)) in ui, "the form allows one value where the overlay says so"
+    assert (fields[sh("order")], sh("maxCount"), lit(1)) in ui, "the form allows one value where the overlay says so"
 
 
 def test_the_hand_written_forms_for_a_group_and_a_shapes_graph_are_there(ui) -> None:
     group, graph = fields_of(ui, STSH.PropertyGroupForm), fields_of(ui, STSH.ShapesGraphForm)
-    assert {sh("name"), URIRef("http://www.w3.org/2000/01/rdf-schema#label"), sh("order")} <= set(group)
-    assert {URIRef("http://www.w3.org/2000/01/rdf-schema#member"), URIRef("http://www.w3.org/2002/07/owl#imports")} <= set(graph)
+    assert {sh("name"), NamedNode("http://www.w3.org/2000/01/rdf-schema#label"), sh("order")} <= set(group)
+    assert {NamedNode("http://www.w3.org/2000/01/rdf-schema#member"), NamedNode("http://www.w3.org/2002/07/owl#imports")} <= set(graph)
     assert (STSH.PropertyGroupForm, STSH.formFor, sh("PropertyGroup")) in ui and (STSH.ShapesGraphForm, STSH.formFor, sh("ShapesGraph")) in ui
 
 
@@ -125,7 +125,7 @@ def test_select_widgets_gives_a_property_shape_form_its_widgets(ui) -> None:
         for triple in _onto(name):
             scoring.add(triple)
     widgets = select_widgets(shape_node=STSH.PropertyShapeForm, shapes_graph=ui, scoring_graph=scoring, role="editor")
-    by_path = {next(ui.objects(prop, sh("path"))): str(widget).rsplit("/", 1)[-1] for prop, widget in widgets.items()}
+    by_path = {next(ui.objects(prop, sh("path"))): widget.value.rsplit("/", 1)[-1] for prop, widget in widgets.items()}
     assert by_path[sh("minCount")] == "NumberFieldEditor"
     assert by_path[sh("nodeKind")] == "EnumSelectEditor"
     assert by_path[sh("deactivated")] == "BooleanEditor"
@@ -144,7 +144,7 @@ def test_sh_expression_is_a_field_of_both_shape_forms_with_the_details_editor(ui
         assert (field, sh("maxCount"), None) not in ui
         assert (field, sh("group"), STSH.CompositionGroup) in ui
         widgets = select_widgets(shape_node=form, shapes_graph=ui, scoring_graph=scoring, role="editor")
-        assert str(widgets[field]).rsplit("/", 1)[-1] == "DetailsEditor"
+        assert widgets[field].value.rsplit("/", 1)[-1] == "DetailsEditor"
 
 
 def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
@@ -164,9 +164,9 @@ def test_uncommon_predicates_are_marked_secondary_on_the_node_shape_form_only(ui
     """stsh:nodePrimary false in the overlay (a predicate allowed on a node shape but not commonly expected) becomes
     stsh:secondary true on that field of the node shape form; the property shape form has no such mark."""
     node_fields, prop_fields = fields_of(ui, STSH.NodeShapeForm), fields_of(ui, STSH.PropertyShapeForm)
-    flagged = {p for p in node_fields if (p, STSH.nodePrimary, Literal(False)) in ui}
+    flagged = {p for p in node_fields if (p, STSH.nodePrimary, lit(False)) in ui}
     assert len(flagged) == 23 and sh("datatype") in flagged and sh("pattern") in flagged
-    assert {p for p, f in node_fields.items() if (f, STSH.secondary, Literal(True)) in ui} == flagged
+    assert {p for p, f in node_fields.items() if (f, STSH.secondary, lit(True)) in ui} == flagged
     assert not list(ui.triples((None, STSH.secondary, None)) ) or all(f in node_fields.values() for f, _, _ in ui.triples((None, STSH.secondary, None)))
     assert not any((f, STSH.secondary, None) in ui for f in prop_fields.values())
 
@@ -190,23 +190,23 @@ NOT_SAMPLED = {sh(x) for x in ("and", "or", "xone", "not", "node", "property", "
 # What a user would reasonably enter, for the fields whose own constraints do not say (shacl_shacl gives them no datatype or node kind).
 SAMPLES = {
     **{sh(x): ['"x"'] for x in ("name", "description", "message", "flags", "defaultValue", "pattern")},
-    sh("order"): ["1"], sh("group"): ["ex:G"], URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"): ["ex:T"], sh("datatype"): ["xsd:string"], sh("class"): ["ex:C"], sh("rootClass"): ["ex:C"],
+    sh("order"): ["1"], sh("group"): ["ex:G"], NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"): ["ex:T"], sh("datatype"): ["xsd:string"], sh("class"): ["ex:C"], sh("rootClass"): ["ex:C"],
     sh("closed"): ["true"], sh("hasValue"): ["ex:x"], sh("uniqueValuesFor"): ["ex:p"], sh("targetClass"): ["ex:C"], sh("targetNode"): ["ex:x"],
     sh("targetSubjectsOf"): ["ex:p"], sh("targetObjectsOf"): ["ex:p"], sh("subsetOf"): ["ex:p"],
-    URIRef("http://www.w3.org/2000/01/rdf-schema#isDefinedBy"): ["ex:G"],
+    NamedNode("http://www.w3.org/2000/01/rdf-schema#isDefinedBy"): ["ex:G"],
 }
 
 # Triples a sample needs besides the value: a sh:group must name an sh:PropertyGroup, so the form offers the groups that exist.
 EXTRA = {sh("group"): "ex:G a sh:PropertyGroup ."}
 
 
-def forbidden_on_node_shapes(shacl_shacl: Graph) -> set[URIRef]:
+def forbidden_on_node_shapes(shacl_shacl: Graph) -> set[NamedNode]:
     """What shacl_shacl says a node shape must not have: the paths of NodeShapeShape's property shapes with sh:maxCount 0."""
-    node_shape_shape = URIRef("http://www.w3.org/ns/shacl-shacl#NodeShapeShape")
+    node_shape_shape = NamedNode("http://www.w3.org/ns/shacl-shacl#NodeShapeShape")
     return {
         next(shacl_shacl.objects(prop, sh("path")))
         for prop in shacl_shacl.objects(node_shape_shape, sh("property"))
-        if (prop, sh("maxCount"), Literal(0)) in shacl_shacl
+        if (prop, sh("maxCount"), lit(0)) in shacl_shacl
     }
 
 
@@ -218,15 +218,15 @@ def test_what_shacl_shacl_forbids_on_a_node_shape_is_not_a_field_of_the_node_sha
 
 def test_the_property_shape_form_requires_the_path_the_validation_requires(ui) -> None:
     path = fields_of(ui, STSH.PropertyShapeForm)[sh("path")]
-    assert (path, sh("minCount"), Literal(1)) in ui and (path, sh("maxCount"), Literal(1)) in ui
+    assert (path, sh("minCount"), lit(1)) in ui and (path, sh("maxCount"), lit(1)) in ui
 
 
 def test_a_form_never_allows_more_values_than_shacl_shacl_does(ui, shacl_shacl) -> None:
     for name in ("NodeShapeForm", "PropertyShapeForm"):
         for predicate, field in fields_of(ui, STSH[name]).items():
-            limits = [int(o) for owner in shacl_shacl.subjects(sh("path"), predicate) for o in shacl_shacl.objects(owner, sh("maxCount"))]
+            limits = [int(o.value) for owner in shacl_shacl.subjects(sh("path"), predicate) for o in shacl_shacl.objects(owner, sh("maxCount"))]
             if limits and min(limits) > 0:
-                allowed = [int(o) for o in ui.objects(field, sh("maxCount"))]
+                allowed = [int(o.value) for o in ui.objects(field, sh("maxCount"))]
                 assert allowed and min(allowed) <= min(limits), (name, predicate, limits, allowed)
 
 
@@ -234,7 +234,7 @@ def _samples(ui: Graph, field) -> list[str]:
     """Turtle values the field's own constraints allow (empty when a single sample cannot stand for it)."""
     in_lists = list(ui.objects(field, sh("in")))
     if in_lists:
-        return [o.n3() if isinstance(o, URIRef) and False else (f"<{o}>" if isinstance(o, URIRef) else o.n3()) for o in ui.items(in_lists[0])]
+        return [str(o) for o in ui.items(in_lists[0])]  # a pyoxigraph term prints as N-Triples
     datatype = next(ui.objects(field, sh("datatype")), None)
     node_kind = next(ui.objects(field, sh("nodeKind")), None)
     if datatype == XSD.integer:
@@ -269,7 +269,7 @@ def test_every_field_set_to_a_value_its_constraints_allow_still_validates(ui, fo
             continue
         for value in samples:
             graph = Graph()
-            graph.parse(data=_PREFIXES + f"{base} {EXTRA.get(predicate, '')} {subject} <{predicate}> {value} .", format="turtle")
+            graph.parse(data=_PREFIXES + f"{base} {EXTRA.get(predicate, '')} {subject} {predicate} {value} .", format="turtle")
             try:
                 meta_validate(graph)
             except ReportableRuntimeError as error:
@@ -287,12 +287,12 @@ def test_the_group_field_offers_only_property_groups(ui) -> None:
 
 
 def test_rdf_type_is_a_simple_multi_valued_iri_field_of_both_forms_in_its_own_first_group(ui) -> None:
-    rdf_type = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
+    rdf_type = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
     for name in ("NodeShapeForm", "PropertyShapeForm"):
         field = fields_of(ui, STSH[name])[rdf_type]
         assert (field, sh("nodeKind"), sh("IRI")) in ui and not list(ui.objects(field, sh("maxCount"))), "an IRI, many allowed"
         assert (field, sh("group"), STSH.TypeGroup) in ui
-    assert (STSH.TypeGroup, sh("order"), Literal(0)) in ui, "the type comes first"
+    assert (STSH.TypeGroup, sh("order"), lit(0)) in ui, "the type comes first"
 
 
 class TestWhatAFieldsValuesCanBe:
@@ -300,7 +300,7 @@ class TestWhatAFieldsValuesCanBe:
 
     @staticmethod
     def _node_kind(form, predicate):
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         ui = _onto("shacl_shacl_ui")
@@ -310,7 +310,7 @@ class TestWhatAFieldsValuesCanBe:
         raise AssertionError(f"no field for {predicate}")
 
     def test_shapes_and_rules_take_blank_nodes_and_classes_names_and_groups_do_not(self):
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")

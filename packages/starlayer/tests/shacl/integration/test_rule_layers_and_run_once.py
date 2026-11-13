@@ -9,9 +9,9 @@ which shape it's attached to, which that per-shape loop cannot express.
 ``validator.py::_patch_rules_for_native_engine``) - see that module's docstring.
 """
 
-from rdflib import RDF, Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import RDF, Namespace, lit
 
 from ._shape_loader import load_shape
 
@@ -61,12 +61,12 @@ def test_cross_shape_layering_orders_by_layer_not_by_shape_order() -> None:
         format="turtle",
     )
     data = StarLayerGraph()
-    data.add((EX.start, EX.marker, Literal(True)))
+    data.add((EX.start, EX.marker, lit(True)))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.start, EX.stage1, Literal(True)) in result.inferred_graph
-    assert (EX.start, EX.stage2, Literal(True)) in result.inferred_graph
+    assert (EX.start, EX.stage1, lit(True)) in result.inferred_graph
+    assert (EX.start, EX.stage2, lit(True)) in result.inferred_graph
 
 
 def test_run_once_rule_fires_exactly_once_despite_minting_fresh_blank_nodes() -> None:
@@ -98,7 +98,7 @@ def test_run_once_rule_fires_exactly_once_despite_minting_fresh_blank_nodes() ->
         format="turtle",
     )
     data = StarLayerGraph()
-    data.add((EX.start, EX.marker, Literal(True)))
+    data.add((EX.start, EX.marker, lit(True)))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
@@ -155,11 +155,11 @@ def test_sh_order_within_a_layer_is_compared_globally_not_per_shape() -> None:
         format="turtle",
     )
     data = StarLayerGraph()
-    data.add((EX.start, EX.marker, Literal(True)))
+    data.add((EX.start, EX.marker, lit(True)))
 
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
-    assert (EX.start, EX.dependent, Literal(True)) in result.inferred_graph
+    assert (EX.start, EX.dependent, lit(True)) in result.inferred_graph
 
 
 def test_shapes_graph_without_layer_or_run_once_uses_original_pyshacl_loop() -> None:

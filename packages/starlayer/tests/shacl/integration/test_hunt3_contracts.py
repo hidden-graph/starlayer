@@ -2,9 +2,9 @@
 ``extract_subgraph`` refuses a ``str`` where it needs a term (it was a bare KeyError, or a silently empty result)."""
 
 import pytest
-from rdflib import Namespace, URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
+from tests.terms import NamedNode, Namespace
 
 EX = Namespace("http://example.org/")
 
@@ -38,4 +38,4 @@ def test_extract_subgraph_rejects_str_shape_and_focus_node():
         extract_subgraph(graph, graph, shape="http://example.org/S")
     with pytest.raises(TypeError, match="focus_node"):
         extract_subgraph(graph, graph, focus_node="http://example.org/a")
-    assert len(extract_subgraph(graph, graph, shape=URIRef("http://example.org/S"), focus_node=EX.a)) > 0
+    assert len(extract_subgraph(graph, graph, shape=NamedNode("http://example.org/S"), focus_node=EX.a)) > 0

@@ -36,7 +36,12 @@ import os
 from collections.abc import Iterable
 from typing import Any
 
-from rdflib import RDF, Graph, Literal, Namespace, URIRef
+import pyoxigraph as ox
+from starlayer.graph import RDF, XSD, Namespace
+from starlayer.graph import StarLayerGraph as Graph
+
+URIRef = ox.NamedNode
+TRUE = ox.Literal("true", datatype=XSD.boolean)
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHSH = Namespace("http://www.w3.org/ns/shacl-shacl#")
@@ -82,7 +87,7 @@ def _add_overrides(graph: Graph) -> Graph:
     """Add (never remove) the deactivations described in the module docstring."""
     for path in RELAXED_PATHS:
         for property_shape in _property_shapes_of(graph, SHSH.ShapeShape, path):
-            graph.add((property_shape, SH.deactivated, Literal(True)))
+            graph.add((property_shape, SH.deactivated, TRUE))
     return graph
 
 
@@ -105,7 +110,7 @@ def _type_shape_values(graph: Graph) -> Graph:
         for _s, _p, value in graph.triples((None, predicate, None)):
             references = list(graph.items(value)) if (value, RDF.first, None) in graph else [value]
             for node in references:
-                if isinstance(node, Literal):
+                if isinstance(node, ox.Literal):
                     continue  # a malformed value: left for the meta-shapes to report
                 if {SH.NodeShape, SH.PropertyShape} & set(graph.objects(node, RDF.type)):
                     continue

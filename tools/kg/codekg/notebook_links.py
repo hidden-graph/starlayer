@@ -26,9 +26,11 @@ from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
 
-from rdflib import RDF, RDFS, Graph, Namespace
+from starlayer.graph import StarLayerGraph as Graph
 
 from . import CODEKG_NS, CURATED_DIR
+from .terms import RDF, RDFS, Namespace
+from .terms import text as _text
 
 LINKS_TTL = CURATED_DIR / "notebook-links.ttl"
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -72,18 +74,18 @@ def cell_hash(source: str) -> str:
 
 
 def load_links(path: Path = LINKS_TTL) -> list[Link]:
-    graph = Graph().parse(path, format="turtle")
+    graph = Graph().parse(_text(path), format="turtle")
     links = []
     for node in graph.subjects(RDF.type, CODEKG_NS.NotebookExample):
         links.append(
             Link(
-                name=str(node).rsplit("#", 1)[-1],
-                notebook=str(graph.value(node, CODEKG_NS.notebookPath)),
-                cell_id=str(graph.value(node, CODEKG_NS.cellId)),
-                cell_hash=str(graph.value(node, CODEKG_NS.cellHash)),
-                reviewed_on=str(graph.value(node, CODEKG_NS.reviewedOn)),
-                why=str(graph.value(node, RDFS.comment)),
-                identifiers=tuple(sorted(str(o) for o in graph.objects(node, CODEKG_NS.demonstratesIdentifier))),
+                name=_text(node).rsplit("#", 1)[-1],
+                notebook=_text(graph.value(node, CODEKG_NS.notebookPath)),
+                cell_id=_text(graph.value(node, CODEKG_NS.cellId)),
+                cell_hash=_text(graph.value(node, CODEKG_NS.cellHash)),
+                reviewed_on=_text(graph.value(node, CODEKG_NS.reviewedOn)),
+                why=_text(graph.value(node, RDFS.comment)),
+                identifiers=tuple(sorted(_text(o) for o in graph.objects(node, CODEKG_NS.demonstratesIdentifier))),
             )
         )
     return sorted(links, key=lambda link: link.name)

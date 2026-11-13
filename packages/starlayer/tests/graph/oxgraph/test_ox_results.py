@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Graph as RdflibGraph
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 SHAPES = """
@@ -39,9 +38,6 @@ def _ox(text, cls=StarLayerGraph):
     return _load(cls, text)
 
 
-def _rdflib(text):
-    """The same document in a plain rdflib graph: the input a caller who has not moved to StarLayerGraph still passes."""
-    return _load(RdflibGraph, text)
 
 
 def assert_ox(graph, *, max_prefixes=8):
@@ -76,13 +72,6 @@ def test_validate_with_a_bare_store():
     assert_ox(validate(store, shacl_graph=_ox(SHAPES)).report_graph)
 
 
-def test_validate_old_class_in_ox_out():
-    from starlayer.shacl import validate
-
-    result = validate(_rdflib(DATA), shacl_graph=_rdflib(SHAPES))
-    assert_ox(result.report_graph, max_prefixes=40)  # the old shapes graph's 29 default prefixes come along
-
-
 def test_validate_inplace_keeps_the_callers_graph():
     from starlayer.shacl import validate
 
@@ -100,21 +89,6 @@ def test_schema_validate_and_validate_each():
     assert all(isinstance(r.report_graph, StarLayerGraph) for r in schema.validate_each([_ox(DATA)]).values())
 
 
-def test_schema_with_old_shapes_and_ox_data_returns_ox():
-    from starlayer.shacl import StarShaclSchema
-
-    result = StarShaclSchema(shacl_graph=_rdflib(SHAPES)).validate(data_graph=_ox(DATA))
-    assert_ox(result.report_graph, max_prefixes=40)  # the old shapes graph's 29 default prefixes come along
-
-
-def test_schema_old_in_ox_out():
-    from starlayer.shacl import StarShaclSchema
-
-    schema = StarShaclSchema(shacl_graph=_rdflib(SHAPES))
-    assert_ox(schema.validate(data_graph=_rdflib(DATA)).report_graph, max_prefixes=40)
-    assert_ox(schema.apply_rules(data_graph=_rdflib(DATA)).inferred_graph, max_prefixes=40)
-
-
 @pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_apply_rules_inferred_and_report_graphs(cls):
     from starlayer.shacl import StarShaclSchema, apply_rules
@@ -129,15 +103,6 @@ def test_apply_rules_inferred_and_report_graphs(cls):
         assert {t[1] for t in result.inferred_graph} >= {kind}
 
 
-def test_apply_rules_accepts_a_plain_rdflib_graph_and_names_the_accepted_classes_for_anything_else():
-    import rdflib
-    from starlayer.shacl import apply_rules
-
-    assert_ox(apply_rules(rdflib.Graph(), shacl_graph=_rdflib(RULES)).inferred_graph, max_prefixes=40)
-    with pytest.raises(TypeError, match="StarLayerGraph"):
-        apply_rules(42, shacl_graph=_rdflib(RULES))
-
-
 def test_evaluate_and_close_shape():
     from starlayer.shacl import StarShaclSchema, evaluate
 
@@ -146,7 +111,7 @@ def test_evaluate_and_close_shape():
     schema = StarShaclSchema(shacl_graph=shapes)
     assert_ox(schema.evaluate(_ox(DATA)))
     assert_ox(schema.close_shape(ox.NamedNode("http://example.org/PersonShape")))
-    assert_ox(evaluate(_rdflib(DATA), _rdflib(SHAPES)), max_prefixes=40)
+    assert_ox(evaluate(_ox(DATA), _ox(SHAPES)), max_prefixes=40)
 
 
 def test_extract_subgraph():
@@ -155,7 +120,7 @@ def test_extract_subgraph():
     got = extract_subgraph(_ox(DATA), _ox(SHAPES))
     assert_ox(got)
     assert len(got) > 0
-    assert_ox(extract_subgraph(_rdflib(DATA), _rdflib(SHAPES)), max_prefixes=40)
+    assert_ox(extract_subgraph(_ox(DATA), _ox(SHAPES)), max_prefixes=40)
 
 
 def test_derive_conforms_to():
@@ -165,7 +130,7 @@ def test_derive_conforms_to():
     report = validate(_ox(DATA.replace("ex:bob a ex:Person", "ex:bob a ex:Thing")), shacl_graph=_ox(SHAPES)).report_graph
     got = derive_conforms_to(report, data_graph="http://example.org/d", shapes_graph="http://example.org/s")
     assert_ox(got)
-    old = validate(_rdflib(DATA.replace("ex:bob a ex:Person", "ex:bob a ex:Thing")), shacl_graph=_rdflib(SHAPES)).report_graph
+    old = validate(_ox(DATA.replace("ex:bob a ex:Person", "ex:bob a ex:Thing")), shacl_graph=_ox(SHAPES)).report_graph
     assert_ox(derive_conforms_to(old, data_graph="http://example.org/d", shapes_graph="http://example.org/s"), max_prefixes=40)
 
 
@@ -174,7 +139,7 @@ def test_infer_types_and_meta_validate():
     from starlayer.shacl.shape_types import infer_types
 
     assert_ox(infer_types(_ox(SHAPES)))
-    assert_ox(infer_types(_rdflib(SHAPES)), max_prefixes=40)
+    assert_ox(infer_types(_ox(SHAPES)), max_prefixes=40)
     conforms, report, _text = meta_validate(_ox(SHAPES))
     assert isinstance(conforms, bool)
     assert_ox(report, max_prefixes=15)  # the meta shapes graph's own prefixes come along
@@ -231,9 +196,6 @@ def test_sqe_tree_and_validate():
     assert isinstance(root, ox.BlankNode)
     default_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }")
     assert isinstance(default_graph, StarLayerGraph)  # the tree builders default to an StarLayerGraph
-    rdflib_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=RdflibGraph())
-    assert isinstance(rdflib_graph, RdflibGraph) and not isinstance(rdflib_graph, StarLayerGraph)  # an rdflib graph is filled as it is
-    assert_ox(sqe_validate(rdflib_graph)[1], max_prefixes=40)
 
 
 def test_srl_tree_and_validate():
@@ -280,11 +242,6 @@ def test_manchester_tree_functions():
     assert_ox(report)
     default_tree = manchester.manchester_parse_to_tree(MANCHESTER)
     assert isinstance(default_tree, StarLayerGraph)  # the default is an StarLayerGraph
-    rdflib_tree = manchester.manchester_parse_to_tree(MANCHESTER, graph=RdflibGraph())
-    assert isinstance(rdflib_tree, RdflibGraph) and not isinstance(rdflib_tree, StarLayerGraph)  # an rdflib graph is filled as it is
-    assert isinstance(manchester.manchester_tree_to_owl(rdflib_tree), StarLayerGraph)
-    assert_ox(manchester.manchester_validate(rdflib_tree)[1], max_prefixes=40)
-    assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(rdflib_tree)
     assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(default_tree)
 
 
@@ -294,7 +251,6 @@ def test_skos_validate():
     data = _ox("@prefix skos: <http://www.w3.org/2004/02/skos/core#> . <http://e/c> a skos:Concept ; skos:prefLabel 'c'@en .")
     ok, report, _text = skos.skos_validate(data)
     assert_ox(report)
-    assert_ox(skos.skos_validate(RdflibGraph())[1], max_prefixes=40)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

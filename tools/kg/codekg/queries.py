@@ -32,9 +32,11 @@ import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from rdflib import RDF, RDFS, Literal, URIRef, Variable
+import pyoxigraph as ox
 
 from . import CODEKG_NS, ensure_built, get_codekg_dataset
+from .terms import RDF, RDFS, Literal, URIRef
+from .terms import text as _text
 
 _HERE = Path(__file__).parent
 LIBRARY_TTL = _HERE / "curated" / "query-library.ttl"
@@ -152,11 +154,10 @@ def _clip(text: str) -> str:
 
 @functools.lru_cache(maxsize=1)
 def _library():
-    """The stored query library, a plain ``rdflib.Graph``: it is read with rdflib terms (the sqe tree decoders and the SHACL
-    check take it as it is)."""
-    from rdflib import Graph
+    """The stored query library, a ``StarLayerGraph`` (the sqe tree decoders and the SHACL check take it as it is)."""
+    from starlayer.graph import StarLayerGraph
 
-    graph = Graph()
+    graph = StarLayerGraph()
     graph.parse(str(LIBRARY_TTL), format="turtle")
     return graph
 
@@ -201,11 +202,11 @@ def _slkg(term: str) -> URIRef:
 
 
 def _topic_id(library, node) -> str:
-    return str(node).rsplit("topic-", 1)[-1]
+    return _text(node).rsplit("topic-", 1)[-1]
 
 
 def _questions_answered_by(library, query_node) -> tuple[str, ...]:
-    return tuple(sorted(str(library.value(q, RDFS.label)) for q in library.objects(query_node, _slkg("answersCompetencyQuestion"))))
+    return tuple(sorted(_text(library.value(q, RDFS.label)) for q in library.objects(query_node, _slkg("answersCompetencyQuestion"))))
 
 
 def _named_query(library, node) -> NamedQuery:
@@ -213,17 +214,17 @@ def _named_query(library, node) -> NamedQuery:
     for p in library.objects(node, _slkg("queryParameter")):
         params.append(
             Parameter(
-                name=str(library.value(p, _slkg("paramName"))),
-                description=str(library.value(p, RDFS.comment) or ""),
-                example=str(library.value(p, _slkg("paramExample")) or ""),
-                required=bool(library.value(p, _slkg("paramRequired"))),
+                name=_text(library.value(p, _slkg("paramName"))),
+                description=_text(library.value(p, RDFS.comment) or ""),
+                example=_text(library.value(p, _slkg("paramExample")) or ""),
+                required=_text(library.value(p, _slkg("paramRequired"))) in ("true", "1"),
             )
         )
     params.sort(key=lambda p: (not p.required, p.name))
     return NamedQuery(
-        name=str(node).rsplit("#", 1)[-1],
-        label=str(library.value(node, RDFS.label)),
-        description=str(library.value(node, RDFS.comment)),
+        name=_text(node).rsplit("#", 1)[-1],
+        label=_text(library.value(node, RDFS.label)),
+        description=_text(library.value(node, RDFS.comment)),
         topic=_topic_id(library, library.value(node, _slkg("aboutTopic"))),
         parameters=tuple(params),
         answers=_questions_answered_by(library, node),
@@ -233,7 +234,7 @@ def _named_query(library, node) -> NamedQuery:
 def topics() -> dict[str, str]:
     """Topic id -> label, for ``list_queries(topic=...)``."""
     library = _library()
-    return {_topic_id(library, t): str(library.value(t, RDFS.label)) for t in library.subjects(RDF.type, _slkg("Topic"))}
+    return {_topic_id(library, t): _text(library.value(t, RDFS.label)) for t in library.subjects(RDF.type, _slkg("Topic"))}
 
 
 def list_queries(topic: str | None = None) -> list[NamedQuery]:
@@ -250,9 +251,9 @@ def list_queries(topic: str | None = None) -> list[NamedQuery]:
 def queries_for_topic(topic: str) -> list[NamedQuery]:
     """The queries about a topic, given by id (``"call-graph"``), label or ``slkg:Topic`` IRI."""
     library = _library()
-    wanted = str(topic)
+    wanted = _text(topic)
     for node in library.subjects(RDF.type, _slkg("Topic")):
-        if wanted in (str(node), _topic_id(library, node), str(library.value(node, RDFS.label))):
+        if wanted in (_text(node), _topic_id(library, node), _text(library.value(node, RDFS.label))):
             return list_queries(topic=_topic_id(library, node))
     raise KeyError(f"unknown topic {topic!r}; topics: {sorted(topics())}")
 
@@ -260,7 +261,7 @@ def queries_for_topic(topic: str) -> list[NamedQuery]:
 def get_query(name: str) -> NamedQuery:
     """One named query's description. Raises ``KeyError`` (with close matches) for an unknown name."""
     library = _library()
-    node = next(iter([n for n in library.subjects(RDF.type, _slkg("NamedQuery")) if str(n).endswith("#" + name)]), None)
+    node = next(iter([n for n in library.subjects(RDF.type, _slkg("NamedQuery")) if _text(n).endswith("#" + name)]), None)
     if node is None:
         known = [q.name for q in list_queries()]
         close = difflib.get_close_matches(name, known, n=3)
@@ -286,12 +287,12 @@ def competency_questions(status: str | None = None, unanswered: bool = False) ->
     library = _library()
     found = []
     for node in library.subjects(RDF.type, _slkg("CompetencyQuestion")):
-        answered_by = tuple(sorted(str(q).rsplit("#", 1)[-1] for q in library.subjects(_slkg("answersCompetencyQuestion"), node)))
+        answered_by = tuple(sorted(_text(q).rsplit("#", 1)[-1] for q in library.subjects(_slkg("answersCompetencyQuestion"), node)))
         item = CompetencyQuestion(
-            question=str(library.value(node, RDFS.label)),
-            status=str(library.value(node, _slkg("cqStatus"))),
+            question=_text(library.value(node, RDFS.label)),
+            status=_text(library.value(node, _slkg("cqStatus"))),
             topic=_topic_id(library, library.value(node, _slkg("aboutTopic"))),
-            note=str(library.value(node, RDFS.comment) or ""),
+            note=_text(library.value(node, RDFS.comment) or ""),
             answered_by=answered_by,
         )
         if (status is None or item.status == status) and (not unanswered or not item.answered_by):
@@ -301,8 +302,6 @@ def competency_questions(status: str | None = None, unanswered: bool = False) ->
 
 def _tree_triples(library, root) -> list:
     """The triples of the ``sqe:`` tree under ``root``: everything reachable through blank nodes."""
-    from rdflib import BNode
-
     seen, todo, triples = set(), [root], []
     while todo:
         node = todo.pop()
@@ -311,7 +310,7 @@ def _tree_triples(library, root) -> list:
         seen.add(node)
         for p, o in library.predicate_objects(node):
             triples.append((node, p, o))
-            if isinstance(o, BNode):
+            if isinstance(o, ox.BlankNode):
                 todo.append(o)
     return triples
 
@@ -324,7 +323,7 @@ def validate_library() -> list[str]:
     and checks that it decodes back to SPARQL text.
     """
     import starlayer.shacl
-    from rdflib import Graph
+    from starlayer.graph import StarLayerGraph as Graph
     from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
 
     library = _library()
@@ -334,7 +333,7 @@ def validate_library() -> list[str]:
     if not report.conforms:
         problems.append(f"library does not conform to query-library-shapes.ttl:\n{report.report_text}")
     for node in library.subjects(RDF.type, _slkg("NamedQuery")):
-        name = str(node).rsplit("#", 1)[-1]
+        name = _text(node).rsplit("#", 1)[-1]
         root = library.value(node, _slkg("queryRoot"))
         if root is None:
             continue  # the shapes report the missing root
@@ -362,22 +361,17 @@ def validate_library() -> list[str]:
 def _root(name: str):
     library = _library()
     get_query(name)  # raises a helpful KeyError for an unknown name
-    node = next(n for n in library.subjects(RDF.type, _slkg("NamedQuery")) if str(n).endswith("#" + name))
+    node = next(n for n in library.subjects(RDF.type, _slkg("NamedQuery")) if _text(n).endswith("#" + name))
     return library.value(node, _slkg("queryRoot"))
 
 
 def _term_text(term) -> str:
     if term is None:
         return ""
-    if hasattr(term, "value") and not isinstance(term, (URIRef, Literal)):  # a pyoxigraph term (NamedNode, Literal)
-        if type(term).__name__ == "NamedNode":
-            term = URIRef(term.value)
-        else:
-            return str(term.value)
-    if isinstance(term, URIRef):
-        text = str(term)
+    if isinstance(term, ox.NamedNode):
+        text = term.value
         return text.split("/blob/main/", 1)[1] if "/blob/main/" in text else text.replace(str(CODEKG_NS), "slkg:")
-    return str(term)
+    return _text(term)
 
 
 def _bounded(query_name: str, result, limit: int, offset: int, warnings: list[str]) -> QueryResult:
@@ -413,7 +407,7 @@ def run_query(name: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0, **param
     missing = [p.name for p in described.parameters if p.required and p.name not in params]
     if missing:
         raise ValueError(f"{name}: missing required parameter(s) {missing}. Example: {described.usage()}")
-    bindings = {Variable(k): Literal(v) for k, v in params.items() if v is not None}
+    bindings = {ox.Variable(k): Literal(v) for k, v in params.items() if v is not None}
     # the stored sqe tree is rendered to SPARQL text and the text goes to Oxigraph (no rdflib parse or algebra)
     return _bounded(name, _ox_kg().query(query_text(name), initBindings=bindings), limit, offset, [])
 

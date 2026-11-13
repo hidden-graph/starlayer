@@ -1,9 +1,8 @@
 import pytest
-from rdflib import Literal, Namespace, URIRef
-from rdflib.namespace import RDF
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl_engine.terms import text
+from tests.terms import RDF, NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -22,7 +21,7 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 
 def _valid_data() -> StarLayerGraph:
     data = StarLayerGraph()
-    data.add((EX.alice, EX.age, Literal(30)))
+    data.add((EX.alice, EX.age, lit(30)))
     return data
 
 
@@ -60,27 +59,27 @@ def test_used_data_graph_and_shapes_graph_added_when_iris_supplied() -> None:
     )
 
     report_node = next(result.report_graph.subjects(RDF.type, SH.ValidationReport))
-    assert (report_node, SH.usedDataGraph, URIRef("http://example.org/graphs/data1")) in result.report_graph
-    assert (report_node, SH.usedShapesGraph, URIRef("http://example.org/graphs/shapes1")) in result.report_graph
+    assert (report_node, SH.usedDataGraph, NamedNode("http://example.org/graphs/data1")) in result.report_graph
+    assert (report_node, SH.usedShapesGraph, NamedNode("http://example.org/graphs/shapes1")) in result.report_graph
 
 
 def test_used_data_graph_accepts_a_real_uriref_and_versioned_literal() -> None:
     # The spec explicitly allows "the version IRI of a data/shapes graph"
-    # as a value too - a Literal in the general case, not always a URIRef.
+    # as a value too - a Literal in the general case, not always a NamedNode.
     validator = StarShaclSchema(shacl_graph=_shapes())
     result = validator.validate(
         data_graph=_valid_data(),
         meta_shacl=False,
-        data_graph_iri=URIRef("http://example.org/graphs/data1"),
-        shapes_graph_resource=Literal("http://example.org/graphs/shapes1#v2"),
+        data_graph_iri=NamedNode("http://example.org/graphs/data1"),
+        shapes_graph_resource=lit("http://example.org/graphs/shapes1#v2"),
     )
 
     report_node = next(result.report_graph.subjects(RDF.type, SH.ValidationReport))
-    assert (report_node, SH.usedDataGraph, URIRef("http://example.org/graphs/data1")) in result.report_graph
+    assert (report_node, SH.usedDataGraph, NamedNode("http://example.org/graphs/data1")) in result.report_graph
     assert (
         report_node,
         SH.usedShapesGraph,
-        Literal("http://example.org/graphs/shapes1#v2"),
+        lit("http://example.org/graphs/shapes1#v2"),
     ) in result.report_graph
 
 
@@ -135,19 +134,19 @@ def test_used_data_graph_and_shapes_graph_work_through_apply_rules() -> None:
     )
 
     report_node = next(result.validation.report_graph.subjects(RDF.type, SH.ValidationReport))
-    assert (report_node, SH.usedDataGraph, URIRef("http://example.org/graphs/data1")) in result.validation.report_graph
+    assert (report_node, SH.usedDataGraph, NamedNode("http://example.org/graphs/data1")) in result.validation.report_graph
 
 
 class TestUsedGraphsFallBackToGraphIdentifier:
     """sh:usedDataGraph/sh:usedShapesGraph also fall back to data_graph.identifier
-    /shacl_graph.identifier (2026-10-09), when it's a real URIRef the caller
+    /shacl_graph.identifier (2026-10-09), when it's a real NamedNode the caller
     explicitly gave the graph at construction - never the default random
     BNode every rdflib Graph otherwise gets. An explicit data_graph_iri=/
     shapes_graph_resource= is never overridden by this fallback."""
 
     def test_falls_back_to_identifier_when_a_real_uriref(self) -> None:
         data = StarLayerGraph(identifier=EX.MyDataGraph)
-        data.add((EX.alice, EX.age, Literal(30)))
+        data.add((EX.alice, EX.age, lit(30)))
         shapes = StarLayerGraph(identifier=EX.MyShapesGraph)
         shapes.parse(
             data="""
@@ -175,7 +174,7 @@ class TestUsedGraphsFallBackToGraphIdentifier:
 
     def test_explicit_iri_is_never_overridden_by_identifier(self) -> None:
         data = StarLayerGraph(identifier=EX.MyDataGraph)
-        data.add((EX.alice, EX.age, Literal(30)))
+        data.add((EX.alice, EX.age, lit(30)))
 
         result = StarShaclSchema(shacl_graph=_shapes()).validate(
             data_graph=data,
@@ -191,7 +190,7 @@ class TestUsedGraphsFallBackToGraphIdentifier:
         from starlayer.shacl.validator import validate as bare_validate
 
         data = StarLayerGraph(identifier=EX.MyDataGraph)
-        data.add((EX.alice, EX.age, Literal(30)))
+        data.add((EX.alice, EX.age, lit(30)))
 
         result = bare_validate(data, _shapes(), meta_shacl=False)
 
@@ -217,9 +216,9 @@ class TestAutomaticConformsToDerivation:
         )
         assert result.conforms is True
         assert (
-            URIRef("http://example.org/graphs/data1"),
+            NamedNode("http://example.org/graphs/data1"),
             SH.conformsTo,
-            URIRef("http://example.org/graphs/shapes1"),
+            NamedNode("http://example.org/graphs/shapes1"),
         ) in result.report_graph
 
     def test_only_one_iri_given_no_conforms_to_attempted(self) -> None:
@@ -270,9 +269,9 @@ class TestAutomaticConformsToDerivation:
             shapes_graph_iri="http://example.org/graphs/shapes1",
         )
         assert (
-            URIRef("http://example.org/graphs/data1"),
+            NamedNode("http://example.org/graphs/data1"),
             SH.conformsTo,
-            URIRef("http://example.org/graphs/shapes1"),
+            NamedNode("http://example.org/graphs/shapes1"),
         ) in result.report_graph
 
     def test_fires_via_the_identifier_fallback_too(self) -> None:
@@ -281,7 +280,7 @@ class TestAutomaticConformsToDerivation:
         same-day .identifier fallback (see TestUsedGraphsFallBackToGraphIdentifier
         above) triggers this derivation too, with no extra wiring needed."""
         data = StarLayerGraph(identifier=EX.MyDataGraph)
-        data.add((EX.alice, EX.age, Literal(30)))
+        data.add((EX.alice, EX.age, lit(30)))
         shapes = StarLayerGraph(identifier=EX.MyShapesGraph)
         shapes.parse(
             data="""
@@ -314,13 +313,13 @@ class TestValidateSpecificationGraphParameter:
     function still keeps its own per-call specification_graph= - it has
     no "schema" object for this reasoning to apply to."""
 
-    from rdflib import Namespace as _Namespace
+    from tests.terms import Namespace as _Namespace
 
     DCTERMS = _Namespace("http://purl.org/dc/terms/")
     PROF = _Namespace("http://www.w3.org/ns/dx/prof/")
 
     def _specification_graph(self, shapes_graph_iri, specification_iri):
-        from rdflib import Graph
+        from starlayer.graph import StarLayerGraph as Graph
 
         graph = Graph()
         graph.add((shapes_graph_iri, self.PROF.isProfileOf, specification_iri))
@@ -333,8 +332,8 @@ class TestValidateSpecificationGraphParameter:
     def test_explicit_derive_conforms_to_after_validate_derives_dcterms_conforms_to(self) -> None:
         from starlayer.shacl.shacl_profiling import derive_conforms_to
 
-        shapes_iri = URIRef("http://example.org/graphs/shapes1")
-        spec_iri = URIRef("http://example.org/specs/my-spec")
+        shapes_iri = NamedNode("http://example.org/graphs/shapes1")
+        spec_iri = NamedNode("http://example.org/specs/my-spec")
         result = StarShaclSchema(shacl_graph=_shapes()).validate(
             data_graph=_valid_data(),
             meta_shacl=False,
@@ -342,7 +341,7 @@ class TestValidateSpecificationGraphParameter:
             shapes_graph_resource=shapes_iri,
         )
         assert result.conforms is True
-        assert (URIRef("http://example.org/graphs/data1"), SH.conformsTo, shapes_iri) in result.report_graph
+        assert (NamedNode("http://example.org/graphs/data1"), SH.conformsTo, shapes_iri) in result.report_graph
         # dcterms:conformsTo is absent until the application asks for it -
         # validate() itself never derives it.
         assert not any(True for _ in result.report_graph.triples((None, self.DCTERMS.conformsTo, None)))
@@ -353,7 +352,7 @@ class TestValidateSpecificationGraphParameter:
         )
         for t in derived:
             result.report_graph.add(t)
-        assert (URIRef("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph
+        assert (NamedNode("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph
 
     def test_no_specification_graph_only_sh_conforms_to_as_before(self) -> None:
         """validate() alone, with no application-level derive_conforms_to()
@@ -369,8 +368,8 @@ class TestValidateSpecificationGraphParameter:
     def test_bare_validate_function_also_accepts_specification_graph(self) -> None:
         from starlayer.shacl.validator import validate as bare_validate
 
-        shapes_iri = URIRef("http://example.org/graphs/shapes1")
-        spec_iri = URIRef("http://example.org/specs/my-spec")
+        shapes_iri = NamedNode("http://example.org/graphs/shapes1")
+        spec_iri = NamedNode("http://example.org/specs/my-spec")
         result = bare_validate(
             _valid_data(),
             _shapes(),
@@ -379,4 +378,4 @@ class TestValidateSpecificationGraphParameter:
             shapes_graph_iri=shapes_iri,
             specification_graph=self._specification_graph(shapes_iri, spec_iri),
         )
-        assert (URIRef("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph
+        assert (NamedNode("http://example.org/graphs/data1"), self.DCTERMS.conformsTo, spec_iri) in result.report_graph

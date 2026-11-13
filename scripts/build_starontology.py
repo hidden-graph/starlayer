@@ -14,7 +14,7 @@ The ``.ttl`` files in that directory are the source. This build:
 4. checks that each named graph in the trig is isomorphic to its ``.ttl`` file.
 
 A file is rewritten only when its graph actually changed (compared by graph
-isomorphism, not bytes: rdflib's Turtle output labels blank nodes randomly), so
+isomorphism, not bytes: blank node labels are not stable across serializations), so
 a rerun on an unchanged tree changes nothing.
 
 Not part of normal application use: nothing in the library runs this or reads
@@ -36,9 +36,10 @@ _PACKAGES_STARLAYER = Path(__file__).resolve().parents[1] / "packages" / "starla
 if str(_PACKAGES_STARLAYER) not in sys.path:
     sys.path.insert(0, str(_PACKAGES_STARLAYER))
 
-from rdflib import Dataset, Graph  # noqa: E402
-from rdflib.compare import isomorphic  # noqa: E402
 from starlayer import starontology  # noqa: E402
+from starlayer.graph import StarLayerGraph as Graph  # noqa: E402
+from starlayer.graph import isomorphic  # noqa: E402
+from starlayer.graph.oxgraph import StarLayerDataset  # noqa: E402
 
 _DIR = _PACKAGES_STARLAYER / "starlayer" / "starontology"
 _TRIG = _DIR / "starontology.trig"
@@ -98,12 +99,11 @@ def _parse(path: Path) -> Graph:
 def _turtle_parts(graph: Graph) -> tuple[str, str]:
     """``(extra prefix lines, body)``: the graph as Turtle with the registry's prefixes bound.
 
-    The body has no @prefix lines. A namespace the registry does not know gets a prefix from rdflib (``ns1``); its
-    @prefix line is returned separately so the body never refers to an undeclared prefix.
+    The body has no @prefix lines. A namespace the registry does not know is written as full IRIs, so the body never refers to an undeclared prefix.
     """
     out = Graph()
     for prefix, namespace in starontology._PREFIXES.items():
-        out.bind(prefix, namespace, replace=True)
+        out.bind(prefix, namespace)
     for triple in graph:
         out.add(triple)
     lines = out.serialize(format="turtle").splitlines()
@@ -167,16 +167,17 @@ def _assemble_trig() -> str:
 
 
 def _trig_graphs(text: str) -> dict[str, Graph]:
-    ds = Dataset()
+    ds = StarLayerDataset()
     ds.parse(data=text, format="trig")
     base = starontology._GITHUB_BLOB_BASE
     result = {}
-    for g in ds.graphs():
+    for name in ds.graph_names():
+        g = ds.graph(name)
         if len(g):
             graph = Graph()
             for triple in g:
                 graph.add(triple)
-            result[str(g.identifier)[len(base) :]] = graph
+            result[name.value[len(base) :]] = graph
     return result
 
 
@@ -211,7 +212,7 @@ def build(check: bool) -> int:
     if absent:
         print("ABORT: shacl_shacl validates predicates no form shape has a field for (add a flag in "
               "assets/shacl12-shacl-ui-overlay.ttl, or an entry in build_shacl_ui.EXCLUDED with the reason): "
-              + ", ".join(sorted(str(p) for p in absent)), file=sys.stderr)
+              + ", ".join(sorted(p.value for p in absent)), file=sys.stderr)
         return 1
     if _write_ttl(_UI_TTL, _UI_NOTICE, ui, check=check):
         stale.append(_UI_TTL.name)

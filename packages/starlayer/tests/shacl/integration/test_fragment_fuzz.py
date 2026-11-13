@@ -23,10 +23,10 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import HealthCheck, assume, given, note, settings
 from hypothesis import strategies as st
-from rdflib import RDF, SH, Namespace
 from starlayer import StarLayerGraph
 from starlayer.graph.rdfc import rdfc10_hash
 from starlayer.shacl import evaluate, extract_subgraph, validate
+from tests.terms import RDF, SH, Namespace
 
 E = Namespace("http://e/")  # rdflib terms, for building the graphs below
 
@@ -261,7 +261,7 @@ def _conforming_case(case):
 
 def _reverse_lists(shapes: StarLayerGraph) -> StarLayerGraph:
     """The same shapes with the items of every order-free list (sh:or, sh:xone, sh:and, sh:in, sh:alternativePath) reversed."""
-    plain = shapes.to_rdflib()
+    plain = shapes
     heads = {o for p in (SH["or"], SH.xone, SH["and"], SH["in"], SH.alternativePath) for o in plain.objects(None, p)}
     out = StarLayerGraph()
     for s, p, o in plain:

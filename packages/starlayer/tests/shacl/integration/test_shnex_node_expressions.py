@@ -1,10 +1,8 @@
+import pyoxigraph as ox
 import pytest
-from rdflib import Namespace
-from starlayer.graph.model.triple import TripleTerm
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import EvaluationFailure, StarShaclSchema
-
-from ._rdflib_view import rd
+from tests.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 
@@ -381,11 +379,10 @@ def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
         format="turtle",
     )
     result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
-    derived = list(rd(result.inferred_graph).triples((EX.alice, EX.derivedClaim, None)))
+    derived = list(result.inferred_graph.triples((EX.alice, EX.derivedClaim, None)))
     assert len(derived) == 1
-    from rdflib import Literal
 
-    assert derived[0][2] == TripleTerm(EX.bob, EX.age, Literal(42))
+    assert derived[0][2] == ox.Triple(EX.bob, EX.age, lit(42))
 
 
 # sparql:isTriple/subject over a triple-term value obtained from *real data*

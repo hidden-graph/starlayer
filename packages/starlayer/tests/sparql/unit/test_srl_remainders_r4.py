@@ -3,10 +3,10 @@
 import warnings
 
 import pytest
-from rdflib import Dataset, Graph, Namespace, URIRef, Variable
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
-from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql.srl import SRLError, SRLParseError, parse_ruleset
+from tests.terms import Namespace
 
 warnings.simplefilter("ignore")
 E = Namespace("http://e/")
@@ -33,26 +33,11 @@ def test_now_differs_between_evaluations():
     assert first != second
 
 
-def test_infer_and_query_accept_a_dataset():
-    rules = parse_ruleset(PREFIX + "RULE { ?x :q ?y } WHERE { ?x :p ?y }")
-    ds = Dataset()
-    ds.add((E.a, E.p, E.b))
-    ds.add((E.c, E.p, E.d, URIRef("http://e/g")))
-    assert {tuple(from_engine(x) for x in t) for t in rules.infer(ds)} == {(E.a, E.q, E.b)}  # the default graph, as the dataset's own queries see it
-    union = Dataset(default_union=True)
-    union.add((E.a, E.p, E.b, URIRef("http://e/g")))
-    assert set(rules.infer(union)) == {(E.a, E.q, E.b)}
-    goal = rules.rules[0].head[0]
-    assert {tuple(sorted(m.items())) for m in rules.query(ds, goal)} == {
-        ((Variable("x"), E.a), (Variable("y"), E.b))
-    }
-
-
 def test_infer_accepts_a_starlayer_dataset():
     rules = parse_ruleset(PREFIX + "RULE { ?x :q ?y } WHERE { ?x :p ?y }")
     ds = StarLayerDataset()
     ds.add((E.a, E.p, E.b))
-    assert {tuple(from_engine(x) for x in t) for t in rules.infer(ds)} == {(E.a, E.q, E.b)}
+    assert {tuple(x for x in t) for t in rules.infer(ds)} == {(E.a, E.q, E.b)}
 
 
 def test_document_base_wins_over_the_base_argument():
@@ -81,7 +66,7 @@ def test_triple_function_in_set(make):
     # input gives pyoxigraph terms as well
     import pyoxigraph as ox
 
-    nodes = [ox.NamedNode(str(x)) for x in (E.a, E.p, E.b, E.t)]
+    nodes = [E.a, E.p, E.b, E.t]
     assert set(inferred) == {(nodes[0], nodes[3], ox.Triple(nodes[0], nodes[1], nodes[2]))}
 
 

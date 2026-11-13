@@ -18,17 +18,16 @@ test_srl_shapes.py).
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Graph
 from starlayer import starontology
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph.core import StarLayerGraph
-from starlayer.shacl_engine.terms import from_engine
 
 
 def _rdflib(graph):
-    """A plain rdflib graph copy of an StarLayerGraph, for asserting with rdflib vocabulary."""
+    """A copy of a StarLayerGraph, for asserting with the test vocabulary."""
     out = Graph()
-    for s, p, o in graph.triples((None, None, None)):
-        out.add((from_engine(s), from_engine(p), from_engine(o)))
+    for triple in graph.triples((None, None, None)):
+        out.add(triple)
     return out
 
 
@@ -155,38 +154,38 @@ class TestConformanceProfilesContent:
 
     @pytest.mark.parametrize("name", sorted(_EXPECTED_PROFILES))
     def test_each_profile_is_a_profile_of_the_public_layer(self, name):
-        from rdflib import RDF, Namespace, URIRef
+        from tests.terms import RDF, NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
-        profile = URIRef(_SLP + name)
+        profile = NamedNode(_SLP + name)
         assert (profile, RDF.type, PROF.Profile) in graph
-        assert {str(o) for o in graph.objects(profile, PROF.isProfileOf)} == _EXPECTED_PROFILES[name][0]
+        assert {o.value for o in graph.objects(profile, PROF.isProfileOf)} == _EXPECTED_PROFILES[name][0]
 
     @pytest.mark.parametrize("name", sorted(_EXPECTED_PROFILES))
     def test_each_profile_lists_its_shapes_and_ontology_files(self, name):
-        from rdflib import Namespace, URIRef
+        from tests.terms import NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
         graph = _rdflib(starontology.get_conformance_profiles())
-        profile = URIRef(_SLP + name)
+        profile = NamedNode(_SLP + name)
         by_role = {ROLE.validation: set(), ROLE.schema: set()}
         for descriptor in graph.objects(profile, PROF.hasResource):
             role = next(graph.objects(descriptor, PROF.hasRole))
             by_role[role].add(next(graph.objects(descriptor, PROF.hasArtifact)))
         _, shapes, ontologies = _EXPECTED_PROFILES[name]
-        assert {str(x) for x in by_role[ROLE.validation]} == {starontology.get_resource_iri(n).value for n in shapes}
-        assert {str(x) for x in by_role[ROLE.schema]} == {starontology.get_resource_iri(n).value for n in ontologies}
+        assert {x.value for x in by_role[ROLE.validation]} == {starontology.get_resource_iri(n).value for n in shapes}
+        assert {x.value for x in by_role[ROLE.schema]} == {starontology.get_resource_iri(n).value for n in ontologies}
 
     def test_shapes_graphs_are_not_declared_profiles_of_the_public_layer(self):
         """The layering: no registered file has its own prof:isProfileOf."""
-        from rdflib import Namespace, URIRef
+        from tests.terms import NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
         for info in starontology.get_ontology_list():
-            assert (URIRef(starontology.get_resource_iri(info.name).value), PROF.isProfileOf, None) not in graph
+            assert (NamedNode(starontology.get_resource_iri(info.name).value), PROF.isProfileOf, None) not in graph
 
 class TestGetConformanceProfiles:
     """2026-10-09: the prof:isProfileOf mapping for every pair now lives
@@ -200,15 +199,15 @@ class TestGetConformanceProfiles:
     themselves from this full graph."""
 
     def test_bundled_copy_has_five_profiles_and_three_module_resources(self):
-        from rdflib import RDF, Namespace, URIRef
+        from tests.terms import RDF, NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
         profiles = set(graph.subjects(RDF.type, PROF.Profile))
-        assert profiles == {URIRef(_SLP + name) for name in _EXPECTED_PROFILES}
+        assert profiles == {NamedNode(_SLP + name) for name in _EXPECTED_PROFILES}
         pkg = "https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/"
         for module in ("graph", "sparql", "shacl"):
-            assert (URIRef(pkg + module), None, None) in graph
+            assert (NamedNode(pkg + module), None, None) in graph
 
     def test_returns_independent_graphs_each_call(self):
         first = starontology.get_conformance_profiles()
@@ -223,7 +222,7 @@ class TestGetConformanceProfiles:
         local override for testing, confirmed here with a deliberately
         different (single-triple) document, not just the bundled one
         re-read from a copied path."""
-        from rdflib import URIRef
+        from tests.terms import NamedNode
 
         override = tmp_path / "override-profiles.ttl"
         override.write_text(
@@ -234,7 +233,7 @@ class TestGetConformanceProfiles:
         graph = starontology.get_conformance_profiles(url=str(override))
 
         assert len(graph) == 1
-        assert (URIRef("urn:test:shapes"), None, URIRef("urn:test:ontology")) in graph
+        assert (NamedNode("urn:test:shapes"), None, NamedNode("urn:test:ontology")) in graph
 
 
 class TestGetResourceIri:
@@ -245,18 +244,18 @@ class TestGetResourceIri:
     requires the same IRI in both places)."""
 
     def test_matches_the_artifact_listed_in_the_profile(self):
-        from rdflib import Namespace, URIRef
+        from tests.terms import NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
         graph = _rdflib(starontology.get_conformance_profiles())
-        profile = URIRef(_SLP + "Skos")
+        profile = NamedNode(_SLP + "Skos")
         artifacts = {
             (next(graph.objects(d, PROF.hasRole)), next(graph.objects(d, PROF.hasArtifact)))
             for d in graph.objects(profile, PROF.hasResource)
         }
-        assert (ROLE.validation, URIRef(starontology.get_resource_iri("skos_shacl").value)) in artifacts
-        assert (ROLE.schema, URIRef(starontology.get_resource_iri("skos_owl").value)) in artifacts
+        assert (ROLE.validation, NamedNode(starontology.get_resource_iri("skos_shacl").value)) in artifacts
+        assert (ROLE.schema, NamedNode(starontology.get_resource_iri("skos_owl").value)) in artifacts
 
     def test_shacl_shacl_has_a_real_resource_iri(self):
         """shacl_shacl gets a real, stable IRI here too - used by
@@ -348,8 +347,9 @@ class TestPublishedFiles:
         run scripts/build_starontology.py."""
         from pathlib import Path
 
-        from rdflib import Dataset, Graph
+        from rdflib import Dataset
         from rdflib.compare import to_isomorphic
+        from starlayer.graph import StarLayerGraph as Graph
 
         trig = Path(starontology.__file__).parent / "starontology.trig"
         ds = Dataset()
@@ -384,10 +384,9 @@ class TestPublishedFiles:
         not just that the two pieces exist independently. The full,
         unfiltered mapping graph works fine here - derive_conforms_to()'s
         own WHERE clause already filters by the exact shapes-graph IRI."""
-        from rdflib import URIRef
-        from rdflib.namespace import DCTERMS
         from starlayer.shacl import StarShaclSchema
         from starlayer.shacl.shacl_profiling import derive_conforms_to
+        from tests.terms import DCTERMS, NamedNode
 
         data = StarLayerGraph()
         data.parse(
@@ -415,9 +414,9 @@ class TestPublishedFiles:
         # The report says the data conforms to StarLayer's SKOS profile and,
         # through that profile's prof:isProfileOf link, to the public SKOS
         # Reference.
-        data_iri = URIRef("http://example.org/graphs/mydata")
-        assert (data_iri, DCTERMS.conformsTo, URIRef(_SLP + "Skos")) in derived
-        assert (data_iri, DCTERMS.conformsTo, URIRef("https://www.w3.org/TR/skos-reference")) in derived
+        data_iri = NamedNode("http://example.org/graphs/mydata")
+        assert (data_iri, DCTERMS.conformsTo, NamedNode(_SLP + "Skos")) in derived
+        assert (data_iri, DCTERMS.conformsTo, NamedNode("https://www.w3.org/TR/skos-reference")) in derived
 
 
 _TTL_FILENAME = {
@@ -443,7 +442,7 @@ class TestLocalLoader:
     sqe_shapes.ttl/srl_shapes.ttl themselves."""
 
     def test_resolves_a_real_sh_shapesgraph_iri(self):
-        from rdflib import Namespace as RdfNamespace
+        from tests.terms import Namespace as RdfNamespace
 
         SQE = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
         resolved = starontology.local_loader(SQE.ShapesGraph)
@@ -451,15 +450,15 @@ class TestLocalLoader:
         assert len(resolved) > 0
 
     def test_returns_none_for_an_unregistered_iri(self):
-        from rdflib import URIRef
+        from tests.terms import NamedNode
 
-        assert starontology.local_loader(URIRef("http://example.org/not-registered")) is None
+        assert starontology.local_loader(NamedNode("http://example.org/not-registered")) is None
 
     def test_sqe_shacl_alone_is_missing_spexpr_expression_shape(self):
         """Confirms the real gap this whole mechanism exists to close -
         not just that the pieces exist independently."""
-        from rdflib import RDF
-        from rdflib import Namespace as RdfNamespace
+        from tests.terms import RDF
+        from tests.terms import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -467,8 +466,8 @@ class TestLocalLoader:
         assert (SPEXPR.ExpressionShape, RDF.type, SH.NodeShape) not in sqe_alone
 
     def test_resolve_imports_with_local_loader_closes_the_gap(self):
-        from rdflib import RDF
-        from rdflib import Namespace as RdfNamespace
+        from tests.terms import RDF
+        from tests.terms import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -479,8 +478,8 @@ class TestLocalLoader:
         assert len(merged) > len(sqe_alone)
 
     def test_srl_shacl_also_resolves_its_spexpr_import(self):
-        from rdflib import RDF
-        from rdflib import Namespace as RdfNamespace
+        from tests.terms import RDF
+        from tests.terms import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -503,7 +502,7 @@ class TestShaclVocabulary:
     """shacl_vocabulary: the W3C WG's SHACL 1.2 vocabulary, vendored and unchanged."""
 
     def test_it_declares_what_a_value_of_sh_group_is_and_the_1_2_classes(self):
-        from rdflib import RDFS, Namespace
+        from tests.terms import RDFS, Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
 
@@ -513,7 +512,7 @@ class TestShaclVocabulary:
         assert (SH.ShapesGraph, None, None) in vocabulary, "a SHACL 1.2 class, which pySHACL's 1.0 copy lacks"
 
     def test_the_overlay_says_what_a_shapes_graph_defines_one_property_shape_per_kind_on_the_inverse_of_is_defined_by(self):
-        from rdflib import RDF, RDFS, Namespace
+        from tests.terms import RDF, RDFS, Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")
@@ -524,7 +523,7 @@ class TestShaclVocabulary:
             (path,) = vocabulary.objects(prop, SH.path)
             if (path, SH.inversePath, RDFS.isDefinedBy) in vocabulary:
                 (order,) = vocabulary.objects(prop, SH.order)
-                defines.append((int(order), next(vocabulary.objects(prop, SH["class"]))))
+                defines.append((int(order.value), next(vocabulary.objects(prop, SH["class"]))))
         kinds = [kind for _order, kind in sorted(defines)]
         assert kinds[:4] == [SH.PrefixDeclaration, SH.Parameter, SH.NodeShape, SH.PropertyShape] and len(kinds) == 19, "one property shape and one class per kind"
         assert {SH.SPARQLConstraint, SH.Parameter, SH.ResultAnnotation, SH.RuleSet, SH.ConstraintComponent, SH.TripleRule, SH.SPARQLRuleTemplate} <= set(kinds)
@@ -537,7 +536,7 @@ class TestShaclVocabulary:
                 (group,) = vocabulary.objects(prop, SH.group)
                 (group_order,) = vocabulary.objects(group, SH.order)
                 (order,) = vocabulary.objects(prop, SH.order)
-                groups.setdefault(int(group_order), []).append(int(order))
+                groups.setdefault(int(group_order.value), []).append(int(order.value))
         assert sorted(groups) == [1, 2, 3, 4, 5, 6]
         flat = [o for g in sorted(groups) for o in sorted(groups[g])]
         assert flat == sorted(flat), "a kind's order never goes back across a group"

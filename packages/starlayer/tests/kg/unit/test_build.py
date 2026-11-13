@@ -15,10 +15,8 @@ from pathlib import Path
 
 from codekg import BLOB_BASE, CODEKG_NS
 from codekg.extractor.build import refresh
-from rdflib import Literal, URIRef
-from rdflib.namespace import RDF, RDFS
 from starlayer.graph.oxgraph import StarLayerDataset
-from starlayer.graph.oxgraph._rdflib_bridge import to_rdflib_triples
+from tests.terms import RDF, RDFS, NamedNode, lit
 
 SLKG = CODEKG_NS
 
@@ -48,30 +46,30 @@ def test_refresh_produces_expected_triples(tmp_path):
     ds = StarLayerDataset()
     ds.parse(str(trig_path), format="trig12")
 
-    module_iri = URIRef(BLOB_BASE + "widgets/thing.py")
-    fn_iri = URIRef(f"{module_iri}#greet")
+    module_iri = NamedNode(BLOB_BASE + "widgets/thing.py")
+    fn_iri = NamedNode(f"{module_iri.value}#greet")
 
     module_graph = ds.graph(module_iri)
-    triples = to_rdflib_triples(module_graph.triples((None, None, None)))
+    triples = list(module_graph.triples((None, None, None)))
 
     assert (module_iri, RDF.type, SLKG.Module) in triples
     assert (fn_iri, RDF.type, SLKG.Function) in triples
-    assert (fn_iri, RDFS.label, Literal("greet")) in triples
+    assert (fn_iri, RDFS.label, lit("greet")) in triples
 
 
 def test_refresh_second_run_replaces_stale_triples_not_stacks_them(tmp_path):
     repo_root = _make_repo_root(tmp_path)
     mod_path = repo_root / "packages" / "starlayer" / "starlayer" / "widgets" / "thing.py"
     trig_path = tmp_path / "codekg.trig"
-    module_iri = URIRef(BLOB_BASE + "widgets/thing.py")
+    module_iri = NamedNode(BLOB_BASE + "widgets/thing.py")
 
     mod_path.write_text("def old_name():\n    pass\n", encoding="utf-8")
     refresh([mod_path], repo_root, trig_path=trig_path)
 
     ds1 = StarLayerDataset()
     ds1.parse(str(trig_path), format="trig12")
-    old_fn_iri = URIRef(f"{module_iri}#old_name")
-    assert (old_fn_iri, RDF.type, SLKG.Function) in to_rdflib_triples(ds1.graph(module_iri).triples((None, None, None)))
+    old_fn_iri = NamedNode(f"{module_iri.value}#old_name")
+    assert (old_fn_iri, RDF.type, SLKG.Function) in list(ds1.graph(module_iri).triples((None, None, None)))
 
     # Modify the fixture: rename the function and add a new one.
     mod_path.write_text(
@@ -82,10 +80,10 @@ def test_refresh_second_run_replaces_stale_triples_not_stacks_them(tmp_path):
 
     ds2 = StarLayerDataset()
     ds2.parse(str(trig_path), format="trig12")
-    module_triples = to_rdflib_triples(ds2.graph(module_iri).triples((None, None, None)))
+    module_triples = list(ds2.graph(module_iri).triples((None, None, None)))
 
-    new_fn_iri = URIRef(f"{module_iri}#new_name")
-    another_fn_iri = URIRef(f"{module_iri}#another")
+    new_fn_iri = NamedNode(f"{module_iri.value}#new_name")
+    another_fn_iri = NamedNode(f"{module_iri.value}#another")
 
     assert (new_fn_iri, RDF.type, SLKG.Function) in module_triples
     assert (another_fn_iri, RDF.type, SLKG.Function) in module_triples
@@ -107,8 +105,8 @@ def test_refresh_removes_graph_for_module_no_longer_in_target_paths(tmp_path):
 
     ds1 = StarLayerDataset()
     ds1.parse(str(trig_path), format="trig12")
-    a_iri = URIRef(BLOB_BASE + "widgets/a.py")
-    b_iri = URIRef(BLOB_BASE + "widgets/b.py")
+    a_iri = NamedNode(BLOB_BASE + "widgets/a.py")
+    b_iri = NamedNode(BLOB_BASE + "widgets/b.py")
     assert len(ds1.graph(a_iri)) > 0
     assert len(ds1.graph(b_iri)) > 0
 
@@ -156,14 +154,14 @@ def test_refresh_handles_docstring_resembling_a_prefix_directive(tmp_path):
     ds = StarLayerDataset()
     ds.parse(str(trig_path), format="trig12")  # must not raise
 
-    module_iri = URIRef(BLOB_BASE + "widgets/thing.py")
-    fn_iri = URIRef(f"{module_iri}#f")
-    triples = to_rdflib_triples(ds.graph(module_iri).triples((None, None, None)))
+    module_iri = NamedNode(BLOB_BASE + "widgets/thing.py")
+    fn_iri = NamedNode(f"{module_iri.value}#f")
+    triples = list(ds.graph(module_iri).triples((None, None, None)))
     assert (fn_iri, RDF.type, SLKG.Function) in triples
     comment = next(o for s, p, o in triples if s == fn_iri and p == RDFS.comment)
-    assert '@prefix ex: <http://example.org/> .' in str(comment)
-    assert 'GRAPH <http://example.org/g> { ... }' in str(comment)
-    assert '@version "1.2" directive' in str(comment)
+    assert '@prefix ex: <http://example.org/> .' in comment.value
+    assert 'GRAPH <http://example.org/g> { ... }' in comment.value
+    assert '@version "1.2" directive' in comment.value
 
 
 def test_refresh_writes_the_file_from_scratch_and_does_not_read_the_old_one(tmp_path):

@@ -1,7 +1,7 @@
 import pytest
-from rdflib import Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import Namespace
 
 from ._rdflib_view import rd
 from ._shape_loader import load_shape

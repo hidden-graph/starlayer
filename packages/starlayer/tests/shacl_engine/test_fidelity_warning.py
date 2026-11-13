@@ -9,7 +9,6 @@ import pytest
 
 pytest.importorskip("pyoxigraph")
 
-from rdflib import Graph  # noqa: E402
 from starlayer.graph.oxgraph import StarLayerGraph  # noqa: E402
 from starlayer.shacl_engine import api  # noqa: E402
 from starlayer.shacl_engine.oxigraph_view import OxigraphGraph  # noqa: E402
@@ -61,9 +60,10 @@ def test_one_warning_names_every_kind_involved():
     assert all(k in str(caught[0].message) for k in ("sh:pattern", "sh:minLength", "sh:in"))
 
 
-@pytest.mark.parametrize("make", [lambda t: Graph().parse(data=t, format="turtle"), lambda t: StarLayerGraph().parse(data=t, format="turtle")])
-def test_warns_for_rdflib_or_oxgraph_input(make):
-    """An rdflib graph is converted to an StarLayerGraph copy, so it is stored by Oxigraph like any other and warns too."""
+def test_warns_for_oxgraph_input():
+    def make(t):
+        return StarLayerGraph().parse(data=t, format="turtle")
+
     outcome, caught = _validate(make(INT_DATA), make(_shape("sh:pattern '^[0-9]+$' ; sh:in (4)")))
     assert len(caught) == 1 and outcome.warnings == (str(caught[0].message),)
 

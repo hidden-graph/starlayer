@@ -22,19 +22,18 @@ from build_meta_shapes import (
     build_meta_shapes_graph,
     load_wg_shapes,
 )
-from rdflib import Graph, Literal, Namespace, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import (
     check_sparql_query_text,
     load_meta_shapes_graph,
     meta_validate,
 )
-
-from ._rdflib_view import rd
+from tests.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-SHSH_SHAPE_SHAPE = URIRef("http://www.w3.org/ns/shacl-shacl#ShapeShape")
+SHSH_SHAPE_SHAPE = NamedNode("http://www.w3.org/ns/shacl-shacl#ShapeShape")
 
 
 def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
@@ -700,7 +699,7 @@ def test_the_working_group_file_is_only_added_to_never_edited() -> None:
             if (bn, SH.path, path) in assembled
         ]
         assert rules, f"the Working Group no longer has a rule for {path}; drop it from RELAXED_PATHS"
-        assert all((bn, SH.deactivated, Literal(True)) in assembled for bn in rules)
+        assert all((bn, SH.deactivated, lit(True)) in assembled for bn in rules)
 
 
 @pytest.mark.deferred
@@ -1584,13 +1583,13 @@ class TestShapesGraphFormCoverage:
         shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1, ex:G2 .", format="turtle")
         conforms, report_graph, _text = meta_validate(shapes)
         assert conforms is True
-        assert (None, URIRef("http://www.w3.org/ns/shacl#resultSeverity"), URIRef("http://www.w3.org/ns/shacl#Warning")) in report_graph
+        assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), NamedNode("http://www.w3.org/ns/shacl#Warning")) in report_graph
 
     def test_one_defining_graph_gives_no_warning(self) -> None:
         shapes = Graph()
         shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1 .", format="turtle")
         _conforms, report_graph, _text = meta_validate(shapes)
-        assert (None, URIRef("http://www.w3.org/ns/shacl#resultSeverity"), None) not in report_graph
+        assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), None) not in report_graph
 
 
 # ---------------------------------------------------------------------------
@@ -1965,8 +1964,8 @@ def _warnings(body: str) -> list[str]:
     shapes.parse(data="@prefix sparql: <http://www.w3.org/ns/sparql#> . " + _PREFIXES + body, format="turtle")
     conforms, report_graph, _text = meta_validate(shapes)
     assert conforms is True, "a Warning does not make a shapes graph invalid"
-    warning = URIRef("http://www.w3.org/ns/shacl#Warning")
-    return [str(m) for r in report_graph.subjects(URIRef("http://www.w3.org/ns/shacl#resultSeverity"), warning) for m in report_graph.objects(r, URIRef("http://www.w3.org/ns/shacl#resultMessage"))]
+    warning = NamedNode("http://www.w3.org/ns/shacl#Warning")
+    return [str(m) for r in report_graph.subjects(NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), warning) for m in report_graph.objects(r, NamedNode("http://www.w3.org/ns/shacl#resultMessage"))]
 
 
 @pytest.mark.parametrize("key", ["0", "3", "ex:parameter"])
@@ -2062,7 +2061,7 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
     conforms, report, _text = meta_validate(shapes)
 
     assert conforms is True
-    from rdflib import RDF, Namespace
+    from tests.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
     assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
@@ -2073,7 +2072,7 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
 
 def test_a_rule_that_names_a_rule_processor_is_a_warning_because_this_engine_provides_none() -> None:
     """Inference Rules 10: an engine that cannot handle the value must fail when it runs the rule; the warning says so beforehand."""
-    from rdflib import RDF, Namespace
+    from tests.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
     shapes = Graph()
@@ -2104,7 +2103,7 @@ def _template_results(instances: str):
     """``(conforms, severities)``; meta_validate() raises with the report in its message when there is a violation."""
     import re
 
-    from rdflib import RDF, Namespace
+    from tests.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
     shapes = Graph()
@@ -2113,8 +2112,8 @@ def _template_results(instances: str):
         conforms, report, _text = meta_validate(shapes)
     except MetaShaclError as error:
         return False, re.findall(r"^(Violation|Warning|Info) in ", str(error), re.MULTILINE)
-    report = rd(report)
-    return conforms, [str(report.value(r, sh.resultSeverity)).rsplit("#", 1)[-1] for r in report.subjects(RDF.type, sh.ValidationResult)]
+    report = report
+    return conforms, [report.value(r, sh.resultSeverity).value.rsplit("#", 1)[-1] for r in report.subjects(RDF.type, sh.ValidationResult)]
 
 
 def test_an_instance_with_its_parameters_is_well_formed() -> None:

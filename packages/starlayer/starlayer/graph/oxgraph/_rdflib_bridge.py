@@ -455,13 +455,11 @@ def from_rdflib_term(term: Any) -> Any:
     """rdflib / StarLayer term -> pyoxigraph term (a decomposed directional-language encoding is restored)."""
     from rdflib import Literal as RLiteral
 
-    from starlayer.shacl_engine.terms import to_engine
-
     if isinstance(term, RLiteral):
         restored = _decode_dirlang(term)
         if restored is not None:
             return restored
-    return to_engine(term)
+    return foreign_to_engine(term)
 
 
 def legal_rdf_triples(triples: Iterable[tuple[Any, Any, Any]]) -> Iterator[tuple[Any, Any, Any]]:
@@ -512,8 +510,8 @@ def show(term: Any) -> str:
 
 
 def foreign_to_engine(term: Any) -> Any:
-    """rdflib / StarLayer term (or a 3-tuple, a triple term) -> pyoxigraph term. ``shacl_engine.terms.to_engine`` calls this for
-    anything that is not already a pyoxigraph term. A term pyoxigraph rejects raises ``TermError`` (a ``ValueError``), or under
+    """rdflib / StarLayer term (or a 3-tuple, a triple term) -> pyoxigraph term; a pyoxigraph term is returned as it is.
+    ``shacl_engine.terms.to_engine`` calls this for the StarLayer value classes. A term pyoxigraph rejects raises ``TermError`` (a ``ValueError``), or under
     ``term_policy("lenient")`` becomes an opaque stand-in that ``engine_to_foreign`` maps back (see ``TermError``)."""
     from rdflib import BNode, URIRef, Variable
     from rdflib import Literal as RLiteral
@@ -521,6 +519,8 @@ def foreign_to_engine(term: Any) -> Any:
     from starlayer.graph.model.dirlangstring import DirLangString
     from starlayer.graph.model.triple import TripleTerm
 
+    if isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
+        return term
     T = _T()
     cls = type(term)
     if cls is URIRef or cls is BNode:
@@ -554,9 +554,9 @@ def foreign_to_engine(term: Any) -> Any:
     if isinstance(term, Variable):  # SPARQL-algebra graphs (salg) store query variables as terms: no oxrdf equivalent
         return ox.NamedNode(T._VARIABLE_PREFIX + _rdflib_text(term))
     if isinstance(term, TripleTerm):
-        return ox.Triple(T.to_engine(term.subject), T.to_engine(term.predicate), T.to_engine(term.object))
+        return ox.Triple(foreign_to_engine(term.subject), foreign_to_engine(term.predicate), foreign_to_engine(term.object))
     if isinstance(term, tuple) and len(term) == 3:
-        return ox.Triple(*(T.to_engine(t) for t in term))
+        return ox.Triple(*(foreign_to_engine(t) for t in term))
     raise TypeError(f"cannot convert {term!r} ({type(term).__name__}) to an engine term")
 
 
@@ -622,7 +622,7 @@ def _ill_formed(term: Any) -> Any:
     T = _T()
     with T.term_policy("error"):
         try:
-            T.to_engine(term)
+            foreign_to_engine(term)
         except T.TermError as exc:
             return exc
     return None
@@ -715,15 +715,14 @@ def to_oxgraph(value: Any, where: str = "graph", *, restore_directions: bool = F
         raise TypeError(
             f"{where} must be an StarLayerGraph, StarLayerDataset, pyoxigraph Store, StarLayerGraph or rdflib Graph; got {type(value).__name__}"
         )
-    T = _T()
     check_graphs((value, where))
     from rdflib import URIRef
 
     ident = getattr(value, "identifier", None)
-    out = StarLayerGraph(identifier=T.to_engine(ident)) if type(ident) is URIRef else StarLayerGraph()
+    out = StarLayerGraph(identifier=foreign_to_engine(ident)) if type(ident) is URIRef else StarLayerGraph()
     for prefix, ns in value.namespaces():
         out.bind(prefix, str(ns))
-    to_engine = from_rdflib_term if restore_directions else T.to_engine
+    to_engine = from_rdflib_term if restore_directions else foreign_to_engine
     # under the lenient policy a generalized triple (a literal subject, a non-IRI predicate) is left out; Outcome.invalid_terms lists it
     out.extend([(to_engine(s), to_engine(p), to_engine(o)) for s, p, o in value.triples((None, None, None)) if is_rdf_triple((s, p, o))])
     return out
@@ -777,7 +776,7 @@ class LegacyTermView:
 
     @staticmethod
     def _in(t: Any) -> Any:
-        return _T().to_engine(t)
+        return foreign_to_engine(t)
 
     def triples(self, pattern: tuple[Any, Any, Any]) -> Iterator[tuple[Any, Any, Any]]:
         """Triples matching ``pattern``, with rdflib terms in and out."""

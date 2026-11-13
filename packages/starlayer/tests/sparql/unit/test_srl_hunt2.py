@@ -4,8 +4,9 @@ import signal
 import warnings
 
 import pytest
-from rdflib import Graph, Literal, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
+from tests.terms import NamedNode, lit
 
 warnings.simplefilter("ignore")
 E = "http://e/"
@@ -54,7 +55,7 @@ def test_head_instance_that_is_not_a_valid_triple_is_skipped(rule):
 
 def test_valid_head_instances_are_still_inferred():
     inferred = parse_ruleset(PREFIX + "RULE { ?x :m ?v } WHERE { ?x :n ?v }").infer(_graph(":b :n 1 ."))
-    assert set(inferred) == {(URIRef(E + "b"), URIRef(E + "m"), Literal(1))}
+    assert set(inferred) == {(NamedNode(E + "b"), NamedNode(E + "m"), lit(1))}
 
 
 @pytest.mark.parametrize(

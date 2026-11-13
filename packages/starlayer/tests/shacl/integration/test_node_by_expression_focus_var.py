@@ -1,6 +1,6 @@
 """shnex:var "focusNode" inside sh:nodeByExpression is the value node (GitHub issue #95): evalExpr($expr, data graph, v, {}) binds it."""
 
-from rdflib import Graph
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import validate
 
 P = (

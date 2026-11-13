@@ -11,11 +11,15 @@ Run: python3 scripts/generate_functionality_overview.py
 from __future__ import annotations
 
 import pathlib
-
-from docs_ref import REPO_BLOB
-from rdflib import RDF, RDFS, Graph, Namespace
+import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT / "packages/starlayer"))
+
+from docs_ref import REPO_BLOB  # noqa: E402
+from starlayer.graph import RDF, RDFS, Namespace  # noqa: E402
+from starlayer.graph import StarLayerGraph as Graph  # noqa: E402
+
 PKG_ROOT = REPO_ROOT / "packages/starlayer/starlayer"
 CURATED_PATH = REPO_ROOT / "tools/kg/codekg/curated/functionality.ttl"
 OUT_PATH = REPO_ROOT / "docs/generated/functionality-overview.generated.md"
@@ -24,13 +28,18 @@ SLKG = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg#")
 BLOB_BASE = REPO_BLOB
 
 
+def _text(term) -> str:
+    """The text of a literal or IRI ("None" for no value, as ``str(None)`` was)."""
+    return term.value if hasattr(term, "value") else str(term)
+
+
 def main() -> None:
     curated = Graph()
-    curated.parse(CURATED_PATH, format="turtle")
+    curated.parse(str(CURATED_PATH), format="turtle")
 
     areas = sorted(
         curated.subjects(RDF.type, SLKG.CapabilityArea),
-        key=lambda a: int(curated.value(a, SLKG.position) or 0),
+        key=lambda a: int(_text(curated.value(a, SLKG.position) or 0)),
     )
 
     lines = [
@@ -41,20 +50,20 @@ def main() -> None:
     ]
 
     for area in areas:
-        label = str(curated.value(area, RDFS.label))
+        label = _text(curated.value(area, RDFS.label))
         lines.append(f"## {label}")
         lines.append("")
 
         caps = sorted(
             curated.subjects(SLKG.inCapabilityArea, area),
-            key=lambda c: int(curated.value(c, SLKG.position) or 0),
+            key=lambda c: int(_text(curated.value(c, SLKG.position) or 0)),
         )
-        implemented = [c for c in caps if str(curated.value(c, SLKG.hasStatus)) == "implemented"]
-        roadmap = [c for c in caps if str(curated.value(c, SLKG.hasStatus)) == "roadmap"]
+        implemented = [c for c in caps if _text(curated.value(c, SLKG.hasStatus)) == "implemented"]
+        roadmap = [c for c in caps if _text(curated.value(c, SLKG.hasStatus)) == "roadmap"]
 
         for cap in implemented:
-            comment = str(curated.value(cap, RDFS.comment))
-            specs = sorted(str(s) for s in curated.objects(cap, SLKG.implementsSpecification))
+            comment = _text(curated.value(cap, RDFS.comment))
+            specs = sorted(_text(s) for s in curated.objects(cap, SLKG.implementsSpecification))
             line = f"- {comment}"
             if specs:
                 line += " (" + ", ".join(f"[{s.rstrip('/').rsplit('/', 1)[-1]}]({s})" for s in specs) + ")"
@@ -65,8 +74,9 @@ def main() -> None:
             lines.append("**Planned / deferred:**")
             lines.append("")
             for cap in roadmap:
-                comment = str(curated.value(cap, RDFS.comment))
+                comment = _text(curated.value(cap, RDFS.comment))
                 see_also = curated.value(cap, SLKG.seeAlsoPath)
+                see_also = _text(see_also) if see_also is not None else None
                 line = f"- {comment}"
                 if see_also:
                     line += f" ([details]({BLOB_BASE}{see_also}))"

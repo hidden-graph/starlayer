@@ -5,8 +5,6 @@ cannot colour the answer."""
 
 
 import pytest
-from rdflib import Namespace, URIRef
-from rdflib.namespace import SH
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import (
     RuleError,
@@ -18,7 +16,8 @@ from starlayer.shacl import (
 )
 from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.xpath_regex import needs_translation, xpath_regex_to_python
-from starlayer.shacl_engine.terms import from_engine, text
+from starlayer.shacl_engine.terms import text
+from tests.terms import SH, NamedNode, Namespace
 
 EX = Namespace("http://example.org/")
 P = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -81,7 +80,7 @@ def test_infer_types_is_idempotent_and_never_types_vocabulary_terms(ttl):
     first = infer_types(graph)
     assert len(first) > 0
     for triple in first:
-        graph.add(tuple(from_engine(t) for t in triple))
+        graph.add(tuple(t for t in triple))
     assert len(infer_types(graph)) == 0
     assert not [s for s, _p, _o in first if text(s).startswith(str(SH))]
 
@@ -99,7 +98,7 @@ def test_global_sparql_rule_resolves_its_own_sh_prefixes_not_the_data_graphs_bin
         + '<http://ex/R> a sh:SPARQLRule ; sh:prefixes <http://ex/> ; sh:construct "CONSTRUCT { ex:g ex:made ex:c } WHERE { }" .'
     )
     result = apply_rules(_graph(_NO_BINDING_DATA), shacl_graph=shapes)
-    assert (URIRef("http://ex/g"), URIRef("http://ex/made"), URIRef("http://ex/c")) in result.inferred_graph
+    assert (NamedNode("http://ex/g"), NamedNode("http://ex/made"), NamedNode("http://ex/c")) in result.inferred_graph
 
 
 @pytest.mark.parametrize(
@@ -204,4 +203,4 @@ def test_reifier_shape_violation_reports_the_reifier_shape_component():
     assert not result.conforms
     # SHACL 1.2 Core leaves sh:resultMessage to the processor; the component IRI is what the draft fixes.
     components = set(result.report_graph.objects(None, SH.sourceConstraintComponent))
-    assert {from_engine(c) for c in components} == {URIRef(str(SH) + "ReifierShapeConstraintComponent")}
+    assert {c for c in components} == {NamedNode(str(SH) + "ReifierShapeConstraintComponent")}

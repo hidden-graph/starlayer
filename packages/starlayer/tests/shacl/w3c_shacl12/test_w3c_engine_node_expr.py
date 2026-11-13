@@ -13,7 +13,6 @@ from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.executor import Context
 from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
 from starlayer.shacl_engine.plan import Plan
-from starlayer.shacl_engine.terms import from_engine, to_engine
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
@@ -63,27 +62,24 @@ def _eval(entry: ManifestEntry) -> None:
     ignore = next(entry.graph.objects(action, SHT.ignoreOrder), None)
     prefix = str(SHT) + "scope-"
     scope = {
-        str(p)[len(prefix) :]: [o]
+        p.value[len(prefix) :]: [o]
         for p, o in entry.graph.predicate_objects(action)
-        if str(p).startswith(prefix)
+        if p.value.startswith(prefix)
     }
     result = next(entry.graph.objects(entry.iri, MF.result))
     args = (
         Context(data=graph, plan=Plan(shapes_graph=graph)),
-        to_engine(expr),
-        to_engine(focus),
-        {k: [to_engine(o) for o in v] for k, v in scope.items()},
+        expr,
+        focus,
+        scope,
     )
     if result == SHT.Failure:  # the expression must fail to evaluate (SHACL 1.2 Node Expressions: evaluation failure)
         with pytest.raises(EvaluationFailure):
             evaluate_expression(*args)
         return
     expected = list(entry.graph.items(result))
-    actual = [  # the engine speaks pyoxigraph terms: convert in and out
-        from_engine(t)
-        for t in evaluate_expression(*args)
-    ]
-    assert _same_terms(actual, expected, ordered=not (ignore is not None and ignore.toPython())), f"{actual} != {expected}"
+    actual = list(evaluate_expression(*args))
+    assert _same_terms(actual, expected, ordered=not (ignore is not None and ignore.value == "true")), f"{actual} != {expected}"
 
 
 def _same_terms(actual, expected, ordered: bool) -> bool:
@@ -100,7 +96,7 @@ def _same_terms(actual, expected, ordered: bool) -> bool:
 
     if len(actual) != len(expected):
         return False
-    left, right = [to_engine(t) for t in actual], [to_engine(t) for t in expected]
+    left, right = list(actual), list(expected)
     if ordered:
         return all(same(a, b) for a, b in zip(left, right, strict=True))
     for a in left:

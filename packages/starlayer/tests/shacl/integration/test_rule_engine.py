@@ -8,15 +8,15 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Literal, Namespace, URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 from starlayer.shacl_engine.terms import RDF as OXRDF
-from starlayer.shacl_engine.terms import from_engine, text, to_engine
+from starlayer.shacl_engine.terms import text, to_engine
+from tests.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
-REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
 PREFIXES = """
@@ -77,7 +77,7 @@ class TestOrderGroups:
 
         graph = result.inferred_graph
         reifiers = {s for s, _, o in graph.triples((None, REIFIES, None)) if o == ox.Triple(to_engine(EX.n), to_engine(EX.p), to_engine(EX.x))}
-        sources = {from_engine(rule) for r in reifiers for rule in graph.objects(r, SH.sourceRule)}
+        sources = {rule for r in reifiers for rule in graph.objects(r, SH.sourceRule)}
         assert sources == {EX.A, EX.B}
 
 
@@ -93,7 +93,7 @@ class TestLayers:
         """
         result = _apply(shapes)
 
-        assert (EX.n, EX.b, Literal(True)) in result.inferred_graph
+        assert (EX.n, EX.b, lit(True)) in result.inferred_graph
 
     def test_a_global_rule_in_a_lower_layer_feeds_a_shape_rule_in_a_higher_layer(self) -> None:
         """The global rule makes ex:n an ex:C; only then does the shape that targets ex:C have a focus node."""
@@ -106,7 +106,7 @@ class TestLayers:
         """
         result = _apply(shapes, data="ex:other ex:marker true .")
 
-        assert (EX.n, EX.done, Literal(True)) in result.inferred_graph
+        assert (EX.n, EX.done, lit(True)) in result.inferred_graph
 
     def test_a_shape_rule_in_a_lower_layer_feeds_a_global_rule_in_a_higher_layer(self) -> None:
         shapes = """
@@ -118,7 +118,7 @@ class TestLayers:
         """
         result = _apply(shapes)
 
-        assert (EX.n, EX.stage2, Literal(True)) in result.inferred_graph
+        assert (EX.n, EX.stage2, lit(True)) in result.inferred_graph
 
     def test_a_global_run_once_rule_that_mints_blank_nodes_runs_once(self) -> None:
         shapes = """
@@ -161,7 +161,7 @@ class TestGlobalTripleRule:
         """
         result = _apply(shapes)
 
-        assert (EX.n, EX.stage2, Literal(True)) in result.inferred_graph
+        assert (EX.n, EX.stage2, lit(True)) in result.inferred_graph
 
     def test_rule_sets_select_global_triple_rules_too(self) -> None:
         shapes = """
@@ -192,10 +192,10 @@ class TestDerivedTriplesPerLayer:
         result = _apply(self.SHAPES, data="ex:r a ex:Rectangle .")
 
         graph = result.inferred_graph
-        assert (EX.r, EX.small0, Literal(True)) in graph, "layer 0 saw the derived area"
-        assert (EX.r, EX.small2, Literal(True)) in graph, "a layer-1 rule that expects the predicate gets it again"
-        assert (EX.r, EX.small1, Literal(True)) not in graph, "the area was removed when layer 1 ended"
-        assert (EX.r, EX.area, Literal(1)) not in graph
+        assert (EX.r, EX.small0, lit(True)) in graph, "layer 0 saw the derived area"
+        assert (EX.r, EX.small2, lit(True)) in graph, "a layer-1 rule that expects the predicate gets it again"
+        assert (EX.r, EX.small1, lit(True)) not in graph, "the area was removed when layer 1 ended"
+        assert (EX.r, EX.area, lit(1)) not in graph
 
     def test_a_derived_triple_a_rule_also_inferred_is_kept(self) -> None:
         shapes = """
@@ -206,7 +206,7 @@ class TestDerivedTriplesPerLayer:
         """
         result = _apply(shapes, data="ex:r a ex:Rectangle .")
 
-        assert (EX.r, EX.area, Literal(1)) in result.inferred_graph
+        assert (EX.r, EX.area, lit(1)) in result.inferred_graph
 
 
 class TestRunOnceAcrossShapes:
@@ -258,14 +258,14 @@ class TestTargetsThatDependOnInferredTriples:
 
         result = _apply(shapes, data="ex:other ex:marker true .")
 
-        assert (EX.n, EX.done, Literal(True)) in result.inferred_graph
+        assert (EX.n, EX.done, lit(True)) in result.inferred_graph
 
     def test_a_target_where_shape_reaches_the_nodes_a_rule_makes_conform(self) -> None:
         shapes = self.MAKE + " ex:S a sh:NodeShape ; sh:targetWhere [ sh:class ex:C ] ; sh:rule ex:Use . " + self.USE
 
         result = _apply(shapes, data="ex:other ex:marker true .")
 
-        assert (EX.n, EX.done, Literal(True)) in result.inferred_graph
+        assert (EX.n, EX.done, lit(True)) in result.inferred_graph
 
     def test_nothing_is_resolved_again_when_the_shapes_have_no_such_targets(self) -> None:
         """No extra cost for the ordinary shapes graph: the engine is given no resolver."""
@@ -273,4 +273,4 @@ class TestTargetsThatDependOnInferredTriples:
 
         result = _apply(shapes)
 
-        assert (EX.n, EX.done, Literal(True)) in result.inferred_graph
+        assert (EX.n, EX.done, lit(True)) in result.inferred_graph

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from rdflib import RDF, RDFS, Dataset, Graph, Literal, URIRef
+from starlayer.graph import StarLayerGraph as Graph
+from starlayer.graph.oxgraph import StarLayerDataset as Dataset
+from tests.terms import RDF, RDFS, NamedNode, lit
 
 
 def test_build_starontology_declares_a_namespace_the_registry_does_not_know(tmp_path, monkeypatch) -> None:
@@ -15,14 +17,14 @@ def test_build_starontology_declares_a_namespace_the_registry_does_not_know(tmp_
     monkeypatch.setattr(build, "_filenames", lambda: ["x.ttl"])
     text = build._assemble_trig()  # used to produce a TriG with an undeclared ns1: prefix
     graphs = build._trig_graphs(text)  # parses only if every prefix is declared
-    assert (URIRef("http://example.org/a"), URIRef("http://xmlns.com/foaf/0.1/name"), Literal("x")) in next(iter(graphs.values()))
+    assert (NamedNode("http://example.org/a"), NamedNode("http://xmlns.com/foaf/0.1/name"), lit("x")) in next(iter(graphs.values()))
 
 
 def test_build_starontology_ttl_output_declares_unregistered_prefixes(tmp_path) -> None:
     import build_starontology as build
 
     graph = Graph()
-    graph.add((URIRef("http://example.org/a"), URIRef("http://xmlns.com/foaf/0.1/name"), Literal("x")))
+    graph.add((NamedNode("http://example.org/a"), NamedNode("http://xmlns.com/foaf/0.1/name"), lit("x")))
     out = tmp_path / "out.ttl"
     assert build._write_ttl(out, "# notice\n", graph, check=False)
     assert len(Graph().parse(str(out), format="turtle")) == 1
@@ -38,12 +40,12 @@ def test_api_docs_match_all_names_by_module_not_by_bare_name(tmp_path, monkeypat
     monkeypatch.setattr(api, "PKG_ROOT", tmp_path)
     monkeypatch.setattr(api, "_ALL_FILES", [("__init__.py", "starlayer")])
     ds = Dataset()
-    g = ds.graph(URIRef("http://example.org/g"))
+    g = ds.graph(NamedNode("http://example.org/g"))
     for ident, rdf_type in (("starlayer.impl.evaluate", api.SLKG.Function), ("starlayer.impl._factory.Comp.evaluate", api.SLKG.Method)):
-        node = URIRef("http://example.org/" + ident)
+        node = NamedNode("http://example.org/" + ident)
         g.add((node, RDF.type, rdf_type))
-        g.add((node, RDFS.label, Literal("evaluate")))
-        g.add((node, api.DCTERMS.identifier, Literal(ident)))
+        g.add((node, RDFS.label, lit("evaluate")))
+        g.add((node, api.DCTERMS.identifier, lit(ident)))
     assert api.collect_public_entities(ds) == [("starlayer.impl.evaluate", "starlayer")]
 
 
@@ -82,13 +84,9 @@ def test_check_ignores_the_build_stamp_when_comparing_trig_files() -> None:
     import build
 
     def trig(built_at: str, value: str) -> bytes:
-        from starlayer.graph.oxgraph import StarLayerDataset
-
-        ds = StarLayerDataset()
-        ds.graph(URIRef("https://github.com/hidden-graph/starlayer/ns/codekg/build")).add(
-            (URIRef("http://example.org/b"), URIRef("http://example.org/builtAt"), Literal(built_at))
-        )
-        ds.graph(URIRef("http://example.org/module")).add((URIRef("http://example.org/s"), URIRef("http://example.org/p"), Literal(value)))
+        ds = Dataset()
+        ds.graph(NamedNode("https://github.com/hidden-graph/starlayer/ns/codekg/build")).add((NamedNode("http://example.org/b"), NamedNode("http://example.org/builtAt"), lit(built_at)))
+        ds.graph(NamedNode("http://example.org/module")).add((NamedNode("http://example.org/s"), NamedNode("http://example.org/p"), lit(value)))
         return ds.serialize(format="trig12").encode()
 
     assert build._trig_isomorphic(trig("2026-01-01", "same"), trig("2026-10-26", "same"))

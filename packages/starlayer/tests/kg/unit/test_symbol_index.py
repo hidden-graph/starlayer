@@ -38,15 +38,15 @@ class TestModuleIdentity:
     def test_blob_iri_and_dotted_path(self, tmp_path):
         path = _write(tmp_path, "pkg/mod.py", "x = 1\n")
         module_iri, module_dotted = module_identity(path, tmp_path)
-        assert str(module_iri).endswith("pkg/mod.py")
-        assert "/starlayer/starlayer/" in str(module_iri)
+        assert module_iri.value.endswith("pkg/mod.py")
+        assert "/starlayer/starlayer/" in module_iri.value
         assert module_dotted == "starlayer.pkg.mod"
 
     def test_tests_root_blob_iri_and_dotted_path(self, tmp_path):
         path = _write_test(tmp_path, "pkg/test_mod.py", "x = 1\n")
         module_iri, module_dotted = module_identity(path, tmp_path)
-        assert str(module_iri).endswith("pkg/test_mod.py")
-        assert "/starlayer/tests/" in str(module_iri)
+        assert module_iri.value.endswith("pkg/test_mod.py")
+        assert "/starlayer/tests/" in module_iri.value
         assert module_dotted == "tests.pkg.test_mod"
 
     def test_raises_value_error_outside_any_known_root(self, tmp_path):

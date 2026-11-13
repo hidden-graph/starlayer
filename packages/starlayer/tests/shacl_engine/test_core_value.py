@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from rdflib import Graph
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl_engine import validate
 from starlayer.shacl_engine.plan import ShapeError
 from starlayer.shacl_engine.terms import NS as Namespace

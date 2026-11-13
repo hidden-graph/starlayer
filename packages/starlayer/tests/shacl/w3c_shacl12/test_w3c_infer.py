@@ -90,7 +90,7 @@ def _resolve_action_graph(entry: ManifestEntry, predicate, new_graph=StarLayerGr
 
 
 def _expected_triples(entry: ManifestEntry) -> set[tuple]:
-    from rdflib.namespace import RDF
+    from starlayer.graph import RDF
 
     result_list = next(entry.graph.objects(entry.iri, MF.result))
 
@@ -114,9 +114,9 @@ def _same_triples(added: set[tuple], expected: set[tuple]) -> bool:
     ``_:b2``, ...), equal up to the naming of blank nodes, as RDF graphs are."""
     if added == expected:
         return True
-    from rdflib import BNode
+    import pyoxigraph as ox
 
-    if not any(isinstance(term, BNode) for triple in (*added, *expected) for term in triple):
+    if not any(isinstance(term, ox.BlankNode) for triple in (*added, *expected) for term in triple):
         return False
     from starlayer.graph.compare import isomorphic
 
@@ -146,9 +146,7 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
     validator = StarShaclSchema(shacl_graph=shapes_graph)
     result = validator.apply_rules(data_graph=data_graph, meta_shacl=False)
 
-    from starlayer.shacl_engine.terms import from_engine
-
-    after = {tuple(from_engine(t) for t in triple) for triple in result.inferred_graph.triples((None, None, None))}
+    after = set(result.inferred_graph.triples((None, None, None)))
     added = after - before
 
     assert _same_triples(added, expected), (

@@ -13,8 +13,9 @@ from codekg import (
     CURATED_GRAPH_IRI,
     get_codekg_dataset,
 )
-from rdflib import RDF, Graph, Literal
-from rdflib.namespace import DCTERMS
+from starlayer.graph import StarLayerGraph as Graph
+from tests.terms import DCTERMS, RDF, lit, set_triple
+from tests.terms import text as term_text
 
 ISSUES_TTL = CURATED_DIR / "upstream-issues.ttl"
 SHAPES_TTL = CURATED_DIR.parent / "upstream-issues-shapes.ttl"
@@ -40,10 +41,10 @@ def test_the_issues_conform_to_their_shapes(graph):
     "corrupt",
     [
         lambda g, n: g.remove((n, CODEKG_NS.issueStatus, None)),
-        lambda g, n: g.set((n, CODEKG_NS.issueStatus, Literal("shrug"))),
-        lambda g, n: g.set((n, CODEKG_NS.upstreamProject, Literal("numpy"))),
+        lambda g, n: set_triple(g, (n, CODEKG_NS.issueStatus, lit("shrug"))),
+        lambda g, n: set_triple(g, (n, CODEKG_NS.upstreamProject, lit("numpy"))),
         lambda g, n: g.remove((n, CODEKG_NS.workedAroundByIdentifier, None)),
-        lambda g, n: g.set((n, CODEKG_NS.issueDocPath, Literal("elsewhere/notes.md"))),
+        lambda g, n: set_triple(g, (n, CODEKG_NS.issueDocPath, lit("elsewhere/notes.md"))),
     ],
     ids=["no-status", "unknown-status", "unknown-project", "worked-around-but-no-code", "bad-doc-path"],
 )
@@ -51,7 +52,7 @@ def test_the_shapes_notice_a_damaged_issue(graph, corrupt):
     copy = Graph()
     for triple in graph:
         copy.add(triple)
-    node = next(copy.subjects(CODEKG_NS.issueStatus, Literal("worked-around")))
+    node = next(copy.subjects(CODEKG_NS.issueStatus, lit("worked-around")))
     assert _conforms(copy)
     corrupt(copy, node)
     assert not _conforms(copy)
@@ -63,13 +64,13 @@ def test_every_write_up_has_the_entry_the_issue_names(graph):
         number = graph.value(issue, CODEKG_NS.issueNumber)
         if number is None:
             continue
-        text = (REPO_ROOT / str(graph.value(issue, CODEKG_NS.issueDocPath))).read_text(encoding="utf-8")
-        assert re.search(rf"^## (?:Issue )?{number}\b", text, re.M), f"{issue}: no entry {number} in its write-up"
+        text = (REPO_ROOT / term_text(graph.value(issue, CODEKG_NS.issueDocPath))).read_text(encoding="utf-8")
+        assert re.search(rf"^## (?:Issue )?{number.value}\b", text, re.M), f"{issue}: no entry {number.value} in its write-up"
 
 
 def test_every_write_up_entry_is_in_the_list(graph):
     """The other direction: an entry added to a write-up is not forgotten here."""
-    listed = {(str(graph.value(i, CODEKG_NS.issueDocPath)), int(n)) for i in graph.subjects(RDF.type, CODEKG_NS.UpstreamIssue) if (n := graph.value(i, CODEKG_NS.issueNumber)) is not None}
+    listed = {(term_text(graph.value(i, CODEKG_NS.issueDocPath)), int(n.value)) for i in graph.subjects(RDF.type, CODEKG_NS.UpstreamIssue) if (n := graph.value(i, CODEKG_NS.issueNumber)) is not None}
     for path in sorted((REPO_ROOT / "docs" / "upstream-issues").glob("*-upstream-issues.md")):
         relative = str(path.relative_to(REPO_ROOT))
         found = {int(m) for m in re.findall(r"^## (?:Issue )?(\d+)\b", path.read_text(encoding="utf-8"), re.M)}
@@ -80,7 +81,7 @@ def test_every_write_up_entry_is_in_the_list(graph):
 def test_every_workaround_exists_in_the_code_graph(graph, codekg_dataset):
     dataset = codekg_dataset
     known = {o.value for n in dataset.graph_names() for o in dataset.graph(n).objects(None, DCTERMS.identifier)}
-    cited = {str(o) for o in graph.objects(None, CODEKG_NS.workedAroundByIdentifier)}
+    cited = {term_text(o) for o in graph.objects(None, CODEKG_NS.workedAroundByIdentifier)}
     assert len(cited) >= 3  # 5 before the rdflib grammar workarounds were deleted with the grammar (E4)
     assert not sorted(cited - known), f"workarounds the code KG does not have: {sorted(cited - known)}"
 

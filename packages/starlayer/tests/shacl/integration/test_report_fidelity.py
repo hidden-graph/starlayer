@@ -1,8 +1,8 @@
-from rdflib import Namespace
+import pyoxigraph as ox
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
+from tests.terms import Namespace
 
-from ._rdflib_view import rd
 from ._shape_loader import load_shape
 
 EX = Namespace("http://example.org/")
@@ -19,8 +19,8 @@ def test_report_decodes_triple_term_value_node() -> None:
 
     assert result.conforms is False
     assert (EX.alice, EX.says, (EX.bob, EX.knows, EX.carol)) in data
-    assert any(o == EX.alice for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None)))
-    assert any(o == (EX.bob, EX.knows, EX.carol) for _, _, o in rd(result.report_graph).triples((None, SH.value, None)))
+    assert any(o == EX.alice for _, _, o in result.report_graph.triples((None, SH.focusNode, None)))
+    assert any(o == ox.Triple(EX.bob, EX.knows, EX.carol) for _, _, o in result.report_graph.triples((None, SH.value, None)))
 
 
 def test_report_preserves_path_and_constraint_component() -> None:
@@ -34,11 +34,11 @@ def test_report_preserves_path_and_constraint_component() -> None:
     result = validator.validate(data_graph=data)
 
     assert result.conforms is False
-    assert any(o == (EX.bob, EX.knows, EX.carol) for _, _, o in rd(result.report_graph).triples((None, SH.value, None)))
-    assert any(o == EX.says for _, _, o in rd(result.report_graph).triples((None, SH.resultPath, None)))
+    assert any(o == ox.Triple(EX.bob, EX.knows, EX.carol) for _, _, o in result.report_graph.triples((None, SH.value, None)))
+    assert any(o == EX.says for _, _, o in result.report_graph.triples((None, SH.resultPath, None)))
     assert any(
         o == SH.InConstraintComponent
-        for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
+        for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )
 
 
@@ -90,9 +90,9 @@ def test_report_decodes_result_node_for_nodekind_constraint() -> None:
     result = validator.validate(data_graph=data)
 
     assert result.conforms is False
-    assert any(o == EX.alice for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None)))
-    assert any(o == (EX.bob, EX.knows, EX.carol) for _, _, o in rd(result.report_graph).triples((None, SH.value, None)))
+    assert any(o == EX.alice for _, _, o in result.report_graph.triples((None, SH.focusNode, None)))
+    assert any(o == ox.Triple(EX.bob, EX.knows, EX.carol) for _, _, o in result.report_graph.triples((None, SH.value, None)))
     assert any(
         o == SH.NodeKindConstraintComponent
-        for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))
+        for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )

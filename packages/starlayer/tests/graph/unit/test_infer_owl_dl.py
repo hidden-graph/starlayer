@@ -26,9 +26,9 @@ import os
 import shutil
 
 import pytest
-from rdflib import RDF, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
+from tests.terms import RDF, Namespace
 
 try:
     import owlready2  # noqa: F401

@@ -1,10 +1,9 @@
 
 import pytest
-from rdflib import Literal, Namespace
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError
 from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
-from starlayer.shacl_engine.terms import from_engine
+from tests.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -96,10 +95,10 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
 
         result = evaluate(data, shapes)
 
-        assert [from_engine(o) for o in result.objects(EX.carol, EX.friendCount)] == [Literal(2)]
+        assert [o for o in result.objects(EX.carol, EX.friendCount)] == [lit(2)]
         # The caller's own data_graph is never mutated - evaluate() always
         # returns a throwaway copy, per its own documented contract.
-        assert (EX.carol, EX.friendCount, Literal(2)) not in data
+        assert (EX.carol, EX.friendCount, lit(2)) not in data
 
 
 
@@ -179,7 +178,7 @@ def test_module_level_validate_each_matches_starlayershacl_method() -> None:
 
 def test_validate_reification_required_violation_when_no_reifier_exists() -> None:
     data = StarLayerGraph()
-    data.add((EX.alice, EX.value, Literal("A")))
+    data.add((EX.alice, EX.value, lit("A")))
 
     shapes = StarLayerGraph()
     shapes.parse(
@@ -202,7 +201,7 @@ def test_validate_reification_required_violation_when_no_reifier_exists() -> Non
 
     assert result.conforms is False
     assert any(
-        from_engine(o) == SH.ReifierShapeConstraintComponent
+        o == SH.ReifierShapeConstraintComponent
         for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )
     # sh:value is the plain failing value, not the reified (focus, path,
@@ -210,7 +209,7 @@ def test_validate_reification_required_violation_when_no_reifier_exists() -> Non
     # own reifierShape-001/002 fixtures (tests/w3c_shacl12/), which fixed a
     # real bug here: this assertion previously (wrongly) expected the
     # encoded triple term itself.
-    assert any(from_engine(o) == Literal("A") for _, _, o in result.report_graph.triples((None, SH.value, None)))
+    assert any(o == lit("A") for _, _, o in result.report_graph.triples((None, SH.value, None)))
 
 
 def test_validate_reifier_shape_violation_survives_advanced_mode() -> None:
@@ -271,10 +270,10 @@ def test_validate_reifier_shape_violation_survives_advanced_mode() -> None:
 
     assert result.conforms is False
     assert any(
-        from_engine(o) == SH.ReifierShapeConstraintComponent
+        o == SH.ReifierShapeConstraintComponent
         for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )
-    assert any(from_engine(o) == Literal("A") for _, _, o in result.report_graph.triples((None, SH.value, None)))
+    assert any(o == lit("A") for _, _, o in result.report_graph.triples((None, SH.value, None)))
 
 
 def test_validate_reification_required_conforms_when_reifier_exists() -> None:
@@ -347,7 +346,7 @@ def test_validate_reifier_shape_violation_when_reifier_does_not_conform() -> Non
 
     assert result.conforms is False
     assert any(
-        from_engine(o) == SH.ReifierShapeConstraintComponent
+        o == SH.ReifierShapeConstraintComponent
         for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))
     )
 
@@ -393,7 +392,7 @@ def test_validate_reifier_shape_conforms_when_reifier_conforms() -> None:
 
 def test_validate_hard_fails_when_reification_path_is_not_simple_iri() -> None:
     data = StarLayerGraph()
-    data.add((EX.alice, EX.value, Literal("A")))
+    data.add((EX.alice, EX.value, lit("A")))
 
     shapes = StarLayerGraph()
     shapes.parse(
@@ -453,7 +452,7 @@ def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
     validator = StarShaclSchema(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    derived = {from_engine(o) for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedAdultFriends, None))}
+    derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedAdultFriends, None))}
     assert derived == {EX.bob}
 
 
@@ -495,7 +494,7 @@ class TestBoundDataGraphAndInference:
 
     def test_target_nodes_uses_bound_data_graph_when_omitted(self) -> None:
         schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
-        assert tuple(from_engine(n) for n in schema.target_nodes(shape_node=EX.PersonShape)) == (EX.alice,)
+        assert tuple(n for n in schema.target_nodes(shape_node=EX.PersonShape)) == (EX.alice,)
 
     def test_per_call_data_graph_overrides_the_bound_default(self) -> None:
         schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
@@ -509,7 +508,7 @@ class TestBoundDataGraphAndInference:
         different processing methods, none of them repeating data_graph."""
         schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
         assert schema.validate().conforms is True
-        assert tuple(from_engine(n) for n in schema.target_nodes(shape_node=EX.PersonShape)) == (EX.alice,)
+        assert tuple(n for n in schema.target_nodes(shape_node=EX.PersonShape)) == (EX.alice,)
         assert schema.evaluate() is not None
         assert schema.apply_rules().validation.conforms is True
 
@@ -582,12 +581,12 @@ class TestInputsAndHelpers:
         from starlayer.shacl import target_nodes
 
         both = self._graph(self.SHAPES + " ex:alice a ex:Person .")
-        assert tuple(from_engine(n) for n in target_nodes(data_graph=both, shape_node=EX.S)) == (EX.alice,)
+        assert tuple(n for n in target_nodes(data_graph=both, shape_node=EX.S)) == (EX.alice,)
 
     def test_the_schema_resolves_target_nodes_over_its_bound_shapes(self) -> None:
         schema = StarShaclSchema(shacl_graph=self._graph(self.SHAPES))
         data = self._graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person . ex:bob a ex:Person .")
-        assert {from_engine(n) for n in schema.target_nodes(data_graph=data, shape_node=EX.S)} == {EX.alice, EX.bob}
+        assert {n for n in schema.target_nodes(data_graph=data, shape_node=EX.S)} == {EX.alice, EX.bob}
 
     def test_inplace_adds_the_inferred_triples_to_the_callers_graph(self) -> None:
         shapes = self._graph(
@@ -598,7 +597,7 @@ class TestInputsAndHelpers:
         data = self._graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person .")
         result = validate(data, shapes, mode="rules", meta_shacl=False)
         assert result.data_graph is data
-        assert (EX.alice, EX.seen, Literal(True)) in data
+        assert (EX.alice, EX.seen, lit(True)) in data
 
     def test_apply_rules_stops_a_runaway_rule_at_max_iterations(self) -> None:
         from starlayer.shacl import RuleError, apply_rules

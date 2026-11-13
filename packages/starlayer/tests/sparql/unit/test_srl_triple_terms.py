@@ -6,20 +6,20 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from rdflib import Graph, Literal, URIRef, Variable
-from starlayer.graph.model.triple import TripleTerm
+from rdflib import Variable
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine.terms import from_engine
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
+from tests.terms import NamedNode, lit
 
 EX = "http://example.org/"
-RDF_REIFIES = URIRef("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
+RDF_REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 P = f"PREFIX ex: <{EX}>\n"
 
 
 def _u(local):
-    return URIRef(EX + local)
+    return NamedNode(EX + local)
 
 
 def _base():
@@ -37,7 +37,7 @@ def _base():
 
 
 def _tt(s, p, o):
-    return TripleTerm(s, p, o)
+    return ox.Triple(s, p, o)
 
 
 # --- evaluation ---------------------------------------------------------------
@@ -49,7 +49,7 @@ def test_a_triple_term_in_a_body_pattern_binds_its_inner_variables():
         + "RULE { ?w ex:doubts ?p } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> . FILTER(?n > 100) }"
     )
     inferred = rules.infer(_base())
-    assert {tuple(from_engine(x) for x in t) for t in inferred} == {(_u("alice"), _u("doubts"), _u("bob"))}
+    assert {tuple(t) for t in inferred} == {(_u("alice"), _u("doubts"), _u("bob"))}
 
 
 def test_a_ground_triple_term_in_a_body_pattern_matches_only_that_triple_term():
@@ -57,7 +57,7 @@ def test_a_ground_triple_term_in_a_body_pattern_matches_only_that_triple_term():
         P
         + "RULE { ?w ex:knowsBob ex:yes } WHERE { ?w ex:believes <<( ex:bob ex:age 130 )>> }"
     )
-    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_base())} == {
+    assert {tuple(t) for t in rules.infer(_base())} == {
         (_u("alice"), _u("knowsBob"), _u("yes"))
     }
 
@@ -68,8 +68,8 @@ def test_a_triple_term_pattern_joins_with_the_other_patterns():
         + "RULE { ?w ex:isAbout ?name } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> . ?p ex:name ?name }"
     )
     # only bob has a name among the people believed about
-    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_base())} == {
-        (_u("alice"), _u("isAbout"), Literal("Bob"))
+    assert {tuple(t) for t in rules.infer(_base())} == {
+        (_u("alice"), _u("isAbout"), lit("Bob"))
     }
 
 
@@ -83,7 +83,7 @@ def test_a_head_triple_term_is_created_in_the_output():
     assert (
         _u("alice"),
         _u("says"),
-        _tt(_u("bob"), _u("age"), Literal(130)),
+        _tt(_u("bob"), _u("age"), lit(130)),
     ) in inferred
     assert len(inferred) == 2
 
@@ -98,7 +98,7 @@ def test_a_nested_triple_term_is_matched_and_created():
         P
         + "RULE { ?x ex:found ?c } WHERE { ?x ex:p <<( ?b ex:q <<( ?c ex:r ex:d )>> )>> }"
     )
-    assert {tuple(from_engine(x) for x in t) for t in rules.infer(base)} == {(_u("a"), _u("found"), _u("c"))}
+    assert {tuple(t) for t in rules.infer(base)} == {(_u("a"), _u("found"), _u("c"))}
 
 
 def test_not_with_a_triple_term_pattern():
@@ -107,7 +107,7 @@ def test_not_with_a_triple_term_pattern():
         + "RULE { ?x ex:noBelief ex:yes } "
         + "WHERE { ?x ex:name ?n . NOT { ?x ex:believes <<( ?p ex:age ?a )>> } }"
     )
-    assert {from_engine(t[0]) for t in rules.infer(_base())} == {_u("bob")}
+    assert {t[0] for t in rules.infer(_base())} == {_u("bob")}
 
 
 def test_where_data_with_a_triple_term_matches_only_the_base_graph():
@@ -118,10 +118,10 @@ def test_where_data_with_a_triple_term_matches_only_the_base_graph():
         + "RULE { ?w ex:fromAny ex:yes } WHERE { ?w ex:believes <<( ex:bob ex:age 130 )>> }"
     )
     inferred = rules.infer(_base())
-    assert {from_engine(t[0]) for t in inferred.triples((None, _u("fromBase"), None))} == {
+    assert {t[0] for t in inferred.triples((None, _u("fromBase"), None))} == {
         _u("alice")
     }
-    assert {from_engine(t[0]) for t in inferred.triples((None, _u("fromAny"), None))} == {
+    assert {t[0] for t in inferred.triples((None, _u("fromAny"), None))} == {
         _u("alice"),
         _u("erin"),
     }
@@ -137,7 +137,7 @@ def test_a_data_block_triple_term_is_in_the_output_and_matched_by_rules():
     assert (
         _u("erin"),
         _u("believes"),
-        _tt(_u("bob"), _u("age"), Literal(7)),
+        _tt(_u("bob"), _u("age"), lit(7)),
     ) in inferred
     assert (_u("erin"), _u("thinksAbout"), _u("bob")) in inferred
 
@@ -151,7 +151,7 @@ def test_a_plain_rdflib_base_graph_works_when_the_rules_use_triple_terms():
 def test_a_starlayer_base_graph_with_triple_terms_works_with_rules_that_do_not_use_them():
     """Before triple-term support this raised ``AssertionError: ... must be an rdflib term``."""
     rules = parse_ruleset(P + "RULE { ?x ex:known ex:yes } WHERE { ?x ex:name ?n }")
-    assert {from_engine(t[0]) for t in rules.infer(_base())} == {_u("alice"), _u("carol"), _u("bob")}
+    assert {t[0] for t in rules.infer(_base())} == {_u("alice"), _u("carol"), _u("bob")}
 
 
 def test_a_head_triple_term_that_would_be_invalid_rdf_is_skipped():
@@ -173,7 +173,7 @@ def test_query_with_a_goal_pattern_containing_a_triple_term():
     )
     rows = rules.query(_base(), goal)
     assert {
-        (from_engine(r[ox.Variable("w")]), from_engine(r[ox.Variable("p")]), int(r[ox.Variable("n")].value)) for r in rows
+        (r[ox.Variable("w")], r[ox.Variable("p")], int(r[ox.Variable("n")].value)) for r in rows
     } == {
         (_u("alice"), _u("bob"), 130),
         (_u("carol"), _u("dan"), 40),
@@ -281,7 +281,7 @@ def test_a_comma_separated_object_list_in_the_body_and_the_head():
     rules = parse_ruleset(
         P + "RULE { ?x ex:r ?y , ex:fixed } WHERE { ?x ex:p ?y , ex:b2 }"
     )
-    inferred = {tuple(from_engine(x) for x in t) for t in rules.infer(_annotated_base())}
+    inferred = {tuple(t) for t in rules.infer(_annotated_base())}
     assert inferred == {
         (_u("a"), _u("r"), _u("b1")),
         (_u("a"), _u("r"), _u("b2")),
@@ -294,7 +294,7 @@ def test_an_annotation_block_in_a_body_pattern_matches_the_reifier_of_that_tripl
         P
         + "RULE { ?x ex:strong ?y } WHERE { ?x ex:says ?y {| ex:certainty ?c |} . FILTER(?c > 0.5) }"
     )
-    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_annotated_base())} == {
+    assert {tuple(t) for t in rules.infer(_annotated_base())} == {
         (_u("a"), _u("strong"), _u("b1"))
     }
 
@@ -304,7 +304,7 @@ def test_a_reified_triple_in_a_body_pattern():
         P
         + "RULE { ?x ex:strong ?y } WHERE { << ?x ex:says ?y >> ex:certainty ?c . FILTER(?c > 0.5) }"
     )
-    assert {tuple(from_engine(x) for x in t) for t in rules.infer(_annotated_base())} == {
+    assert {tuple(t) for t in rules.infer(_annotated_base())} == {
         (_u("a"), _u("strong"), _u("b1"))
     }
 
@@ -315,11 +315,11 @@ def test_an_annotation_block_in_a_head_creates_the_triple_its_reifier_and_the_an
     )
     inferred = rules.infer(_annotated_base())
     assert (_u("a"), _u("knows"), _u("b1")) in inferred
-    assert {from_engine(o) for _r, _p, o in inferred.triples((None, RDF_REIFIES, None))} == {
+    assert {o for _r, _p, o in inferred.triples((None, RDF_REIFIES, None))} == {
         _tt(_u("a"), _u("knows"), _u("b1")),
         _tt(_u("a"), _u("knows"), _u("b2")),
     }
-    assert len(list(inferred.triples((None, _u("since"), Literal(2020))))) == 2
+    assert len(list(inferred.triples((None, _u("since"), lit(2020))))) == 2
 
 
 def test_a_reified_triple_in_a_data_block():
@@ -339,9 +339,9 @@ def test_a_blank_node_property_list_and_a_collection():
     )
     inferred = rules.infer(_annotated_base())
     assert (
-        len(list(inferred.triples((None, _u("n"), Literal(1))))) == 2
+        len(list(inferred.triples((None, _u("n"), lit(1))))) == 2
     )  # one fresh blank node per solution
-    assert any(from_engine(p) == _u("list") for _s, p, _o in inferred)
+    assert any(p == _u("list") for _s, p, _o in inferred)
 
 
 def test_a_variable_in_a_data_block_is_rejected():

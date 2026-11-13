@@ -20,7 +20,7 @@ from hypothesis import strategies as st
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
 from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import RDF, RDFS, from_engine
+from starlayer.shacl_engine.terms import RDF, RDFS
 
 E = Namespace("http://e/")
 PREFIXES = (
@@ -276,7 +276,7 @@ def test_the_conformance_theorem_holds_for_random_shapes_and_graphs(case) -> Non
     """Generate a shape and a graph; when the graph conforms, its fragment must too (focus nodes kept as targets)."""
     shapes, data = case
     graph = _graph(data)
-    focus = sorted({s.value.rsplit("/", 1)[-1] for s in graph.subjects(from_engine(RDF.type), from_engine(E["T"]))})
+    focus = sorted({s.value.rsplit("/", 1)[-1] for s in graph.subjects(RDF.type, E["T"])})
     assume(focus)
     strict = _graph(_with_focus_targets(shapes, focus))
     assume(_conforms(graph, strict))

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from rdflib import Namespace
+from starlayer.graph import Namespace
 
 MF = Namespace("http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#")
 SHT = Namespace("http://www.w3.org/ns/shacl-test#")

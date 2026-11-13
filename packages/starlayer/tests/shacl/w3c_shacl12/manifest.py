@@ -15,28 +15,29 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import pyoxigraph as ox
-from rdflib import Graph, URIRef
-from rdflib.namespace import RDF
+from starlayer.graph import RDF
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine.terms import from_engine
+from tests.lexical_graph import LexicalGraph
 
-from ..integration._rdflib_view import RdflibView
 from .namespaces import MF
+
+Graph = LexicalGraph
+URIRef = ox.NamedNode
 
 # Parsed-graph cache keyed by resolved absolute path - a leaf test file is
 # reached exactly once per manifest walk in this suite, but sharing the
 # cache across walks (e.g. Phase 1's sht:Validate walk and a later phase's
 # sht:EvalNodeExpr walk both starting from tests/manifest.ttl) avoids
 # reparsing shared ancestor manifests.
-_DOCUMENT_CACHE: dict[Path, Graph] = {}
+_DOCUMENT_CACHE: dict[Path, LexicalGraph] = {}
 
 
 def file_uri(path: Path) -> URIRef:
-    return URIRef(path.resolve().as_uri())
+    return ox.NamedNode(path.resolve().as_uri())
 
 
 def uri_to_path(iri: URIRef) -> Path:
-    parsed = urlparse(str(iri))
+    parsed = urlparse(iri.value)
     if parsed.scheme != "file":
         raise ValueError(f"expected a file:// IRI, got {iri!r}")
     return Path(unquote(parsed.path))
@@ -61,11 +62,11 @@ def load_document(path: Path) -> Graph:
     """
     path = path.resolve()
     if path not in _DOCUMENT_CACHE:
-        # Parsed with pyoxigraph's parser directly and kept as rdflib terms: the parser keeps the lexical forms as written
+        # Parsed with pyoxigraph's parser directly and kept as pyoxigraph terms in a LexicalGraph: the parser keeps the lexical forms as written
         # ("4.0"^^xsd:decimal), which an StarLayerGraph would rewrite on storage; a W3C expected report must be read as written.
-        graph = RdflibView()
-        for quad in ox.parse(path=str(path), format=ox.RdfFormat.TURTLE, base_iri=str(file_uri(path))):
-            graph.add((from_engine(quad.subject), from_engine(quad.predicate), from_engine(quad.object)))
+        graph = LexicalGraph()
+        for quad in ox.parse(path=str(path), format=ox.RdfFormat.TURTLE, base_iri=file_uri(path).value):
+            graph.add((quad.subject, quad.predicate, quad.object))
         _DOCUMENT_CACHE[path] = graph
     return _DOCUMENT_CACHE[path]
 

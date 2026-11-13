@@ -19,7 +19,6 @@ elsewhere in this package:
 
 import pyoxigraph as ox
 import pytest
-from rdflib import RDF, Literal
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql.sqe import (
@@ -38,6 +37,7 @@ from starlayer.sparql.sqe.vocab import (
     UNION,
     UNION_ALTERNATIVES,
 )
+from tests.terms import RDF, lit
 
 PREFIXES = """
 PREFIX : <http://example.org/>
@@ -284,7 +284,7 @@ class TestTemplateListShape:
             "WHERE { ?s <http://example.org/p> ?o }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        _set(graph, root, TEMPLATE, Literal("not a list of triple patterns at all"))
+        _set(graph, root, TEMPLATE, lit("not a list of triple patterns at all"))
 
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert not conforms
@@ -317,7 +317,7 @@ class TestAlternativesListShape:
         )
         graph, root = sqe_parse_to_tree(query_text)
         union_node = next(graph.subjects(RDF.type, UNION))
-        _set(graph, union_node, UNION_ALTERNATIVES, Literal("garbage, not a list of pattern-lists"))
+        _set(graph, union_node, UNION_ALTERNATIVES, lit("garbage, not a list of pattern-lists"))
 
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert not conforms
@@ -357,7 +357,7 @@ class TestPrefixBindingShape:
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
         graph, root = sqe_parse_to_tree(query_text)
         prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
-        _set(graph, prefix_node, PREFIX_LABEL, Literal(12345))
+        _set(graph, prefix_node, PREFIX_LABEL, lit(12345))
 
         conforms, _report_graph, report_text = sqe_validate(graph)
         assert not conforms
@@ -461,7 +461,6 @@ class TestShapesForTheWiderVocabulary:
     )
 
     def _corrupted(self, predicate_local, find_node):
-        from rdflib import Literal
         from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
         from starlayer.sparql.sqe.vocab import SQE
 
@@ -469,7 +468,7 @@ class TestShapesForTheWiderVocabulary:
         node = find_node(tree)
         predicate = SQE[predicate_local]
         tree.remove((node, predicate, None))
-        tree.add((node, predicate, Literal("JUNK")))
+        tree.add((node, predicate, lit("JUNK")))
         return sqe_validate(tree)[0]
 
     def test_group_by_must_be_a_list(self):
@@ -493,8 +492,8 @@ class TestShapesForTheWiderVocabulary:
     def test_shared_properties_declare_no_domain(self):
         """sqe:expr, var, subject, predicate and object are used by several node types; a domain would give
         an Alias the type Filter (and a TripleTerm the type TriplePattern) under RDFS inference."""
-        from rdflib import RDFS
         from starlayer import starontology
+        from tests.terms import RDFS
 
         ontology = starontology.get_ontology_graph("sqe_owl")
         from starlayer.sparql.sqe.vocab import SQE

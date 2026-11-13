@@ -58,7 +58,7 @@ class TestBasicExtractionAndAcceptanceTest:
     )
 
     def _extract(self, **kwargs):
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         result = extract_subgraph(
@@ -94,7 +94,7 @@ class TestBasicExtractionAndAcceptanceTest:
         assert {p for _, p, _ in extra} == {RDF_TYPE}
 
     def test_non_conforming_focus_node_gives_no_subgraph(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph("@prefix ex: <http://example.org/> . ex:je2 a ex:JournalEntry .")  # missing amount/account
@@ -107,7 +107,7 @@ class TestMultiHopPaths:
     the endpoint."""
 
     def test_sequence_path_includes_both_hops(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph(
@@ -128,7 +128,7 @@ class TestMultiHopPaths:
         assert "shh" not in serialized
 
     def test_zero_or_more_path_terminates_on_a_cycle_and_captures_reachable_edges(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph(
@@ -157,7 +157,7 @@ class TestNestedShapes:
     """Decision 2: sh:node recurses into the referenced shape."""
 
     def test_sh_node_includes_the_nested_shapes_own_required_triples(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph(
@@ -186,7 +186,7 @@ class TestLogicalConstraints:
     when data later makes a second disjunct pass too)."""
 
     def test_sh_or_excludes_the_failing_branch(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph(
@@ -204,7 +204,7 @@ class TestLogicalConstraints:
         assert "phoneUnused" not in serialized
 
     def test_sh_or_includes_every_passing_branch(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph(
@@ -222,7 +222,7 @@ class TestLogicalConstraints:
         assert "555" in serialized
 
     def test_sh_xone_includes_the_one_passing_branch(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph('@prefix ex: <http://example.org/> . ex:alice ex:email "a@example.org" .')
@@ -241,7 +241,7 @@ class TestLogicalConstraints:
         sh:xone itself is no longer satisfied - extraction must fail
         outright (returns an empty graph), not silently include a
         different subgraph."""
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph(
@@ -270,7 +270,7 @@ class TestQualifiedValueShapeDeterminism:
     """
 
     def test_all_qualifying_candidates_are_included_non_qualifying_excluded(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         shapes = _graph(
@@ -290,7 +290,7 @@ class TestQualifiedValueShapeDeterminism:
         """When something else on the same property shape needs every
         value (here, a plain sh:minCount on the raw path), narrowing must
         not drop the non-qualifying candidate."""
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         shapes = _graph(
@@ -326,8 +326,7 @@ class TestCloseShape:
     """
 
     def test_derived_shape_keeps_closed_and_allows_only_what_extraction_adds(self) -> None:
-        from rdflib import Namespace
-        from rdflib.namespace import SH
+        from tests.terms import SH, Namespace
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
@@ -344,8 +343,7 @@ class TestCloseShape:
         assert list(Collection(strict_shapes, ignored[0])) == [RDF_TYPE]
 
     def test_original_shape_is_never_mutated(self) -> None:
-        from rdflib import Namespace
-        from rdflib.namespace import SH
+        from tests.terms import SH, Namespace
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
@@ -360,7 +358,7 @@ class TestCloseShape:
         shacl_graph in place (injecting RDFS/OWL axiom triples as a side
         effect of shape harvesting) - confirmed live before the fix that
         len(shacl_graph) grew after a single extract_subgraph() call."""
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
@@ -374,7 +372,7 @@ class TestCloseShape:
         derives the strict version -> the extracted subgraph conforms to it
         with no exemptions beyond rdf:type (the target triple extraction now
         includes), since extraction already dropped the note."""
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
@@ -402,7 +400,7 @@ class TestNoShapesGraphFallsBackToDataGraph:
     """
 
     def test_extract_subgraph_uses_data_graph_as_its_own_shapes_graph(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         data = _graph(self.DATA_WITH_EMBEDDED_SHAPE)
@@ -448,7 +446,7 @@ class TestWholeShapesGraphExtraction:
         assert "bob" not in result.serialize(format="turtle12")
 
     def test_shape_alone_unions_every_real_target_of_that_one_shape(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         result = extract_subgraph(_graph(self.DATA), shacl_graph=_graph(self.SHAPES), shape=EX.PersonShape)
@@ -462,7 +460,7 @@ class TestWholeShapesGraphExtraction:
         # the shapes graph itself declares, not "any shape alice happens
         # to conform to" (she'd trivially conform to CompanyShape's bare
         # sh:property too, if CompanyShape ever targeted her - it doesn't).
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         result = extract_subgraph(_graph(self.DATA), shacl_graph=_graph(self.SHAPES), focus_node=EX.alice)
@@ -483,7 +481,7 @@ class TestWholeShapesGraphExtraction:
         assert len(result) == 0
 
     def test_both_filters_given_reproduces_the_original_single_pair_behavior(self) -> None:
-        from rdflib import Namespace
+        from tests.terms import Namespace
 
         EX = Namespace("http://example.org/")
         result = extract_subgraph(

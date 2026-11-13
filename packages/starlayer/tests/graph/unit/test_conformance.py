@@ -20,16 +20,16 @@ query to rdflib's SPARQL 1.1 parser.
 
 import pyoxigraph as ox
 import pytest
-from rdflib import URIRef
 from starlayer.graph.model.conformance import SPARQL12ConformanceWarning
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.sparql_text import check_native_version_conformance
+from tests.terms import NamedNode
 
 EX = 'http://example.org/'
 
 
-def ex(local: str) -> URIRef:
-    return URIRef(EX + local)
+def ex(local: str) -> NamedNode:
+    return NamedNode(EX + local)
 
 
 class TestSparqlVersionDirective:
@@ -222,7 +222,7 @@ class TestIdentifierDefault:
         assert g.identifier == ox.DefaultGraph()
 
     def test_native_backend_respects_explicit_identifier(self):
-        g = StarLayerGraph(identifier=URIRef(EX + "someGraph"))
+        g = StarLayerGraph(identifier=NamedNode(EX + "someGraph"))
         assert g.identifier == ox.NamedNode(EX + "someGraph")
 
 
@@ -266,7 +266,7 @@ class TestRdfXmlVersionAttribute:
         # extra (TripleTerm(a,b,c), rdf:version, "1.2") triple.
         assert len(g) == 1
         assert g.has_triple_term(ex('a'), ex('b'), ex('c'))
-        rdf_version = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#version')
+        rdf_version = NamedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#version')
         assert list(g.triples((None, rdf_version, None))) == []
 
 

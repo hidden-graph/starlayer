@@ -3,7 +3,7 @@
 import time
 
 import pytest
-from rdflib import Graph
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.validator import validate as old_validate

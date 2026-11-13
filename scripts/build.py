@@ -93,7 +93,7 @@ def _trig_isomorphic(a: bytes, b: bytes) -> bool:
         out = {}
         for name in ds.graph_names():
             graph = ds.graph(name)
-            if len(graph) and name.value != str(BUILD_GRAPH_IRI):
+            if len(graph) and name.value != BUILD_GRAPH_IRI.value:
                 out[name.value] = [ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in graph]
         return out
 

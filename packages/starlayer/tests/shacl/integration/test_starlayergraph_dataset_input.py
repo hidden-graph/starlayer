@@ -1,7 +1,7 @@
-from rdflib import Dataset, Literal, Namespace
 from starlayer.graph.graph.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerDataset
 from starlayer.shacl import StarShaclSchema
+from tests.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 
@@ -57,8 +57,8 @@ class TestStarLayerDatasetDefaultUnion:
 
     def test_data_in_default_graph_validates_without_default_union(self) -> None:
         data = StarLayerDataset(default_union=False)
-        data.add((EX.alice, EX.age, Literal(30)))
-        data.add((EX.alice, EX.age, Literal(31)))  # extra unrelated triple
+        data.add((EX.alice, EX.age, lit(30)))
+        data.add((EX.alice, EX.age, lit(31)))  # extra unrelated triple
 
         shapes = StarLayerDataset(default_union=False)
         shapes.graph(EX.shapes).parse(
@@ -92,8 +92,8 @@ class TestOntGraphDatasetAutoUnion:
     """
 
     def test_ont_graph_named_graph_content_visible_without_explicit_default_union(self) -> None:
-        ont = Dataset()  # default_union left at its rdflib default (False)
-        ont.get_context(EX.ctx1).parse(
+        ont = StarLayerDataset(default_union=False)
+        ont.graph(EX.ctx1).parse(
             data="""
                 @prefix ex: <http://example.org/> .
                 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -102,13 +102,13 @@ class TestOntGraphDatasetAutoUnion:
             format="turtle",
         )
 
-        data = Dataset()
+        data = StarLayerDataset()
         data.default_graph.parse(
             data="@prefix ex: <http://example.org/> .\nex:rex a ex:Dog .",
             format="turtle",
         )
 
-        shapes = Dataset()
+        shapes = StarLayerDataset()
         shapes.default_graph.parse(
             data="""
                 @prefix ex: <http://example.org/> .
@@ -134,31 +134,3 @@ class TestOntGraphDatasetAutoUnion:
         assert result.conforms is False
         assert "ex:rex" in result.report_text
 
-
-class TestPlainRdflibDatasetInput:
-    def test_plain_dataset_default_graph_normalizes_and_validates(self) -> None:
-        # A plain rdflib.Dataset (not StarLayerDataset) is also a Graph
-        # subclass and goes through the same normalize_to_starlayer_graph()
-        # path - confirms starShacl doesn't require StarLayerDataset
-        # specifically, just something Dataset-shaped with the right
-        # default_union semantics.
-        data = Dataset()
-        data.default_graph.add((EX.bob, EX.age, Literal(30)))
-
-        shapes = Dataset()
-        shapes.default_graph.parse(
-            data="""
-                @prefix ex: <http://example.org/> .
-                @prefix sh: <http://www.w3.org/ns/shacl#> .
-                ex:AgeShape a sh:NodeShape ;
-                  sh:targetSubjectsOf ex:age ;
-                  sh:property [ sh:path ex:age ; sh:minCount 1 ] .
-            """,
-            format="turtle",
-        )
-
-        result = StarShaclSchema(shacl_graph=shapes).validate(
-            data_graph=data, meta_shacl=False
-        )
-
-        assert result.conforms is True

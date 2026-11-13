@@ -1,10 +1,8 @@
 import pytest
-from rdflib import Graph, Namespace, URIRef
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from starlayer.shacl_engine.terms import from_engine
-
-from ._rdflib_view import rd
+from tests.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -16,10 +14,10 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 # -> base) using an in-memory graph_loader, since starlayer.shacl delegates actual
 # retrieval policy to the caller rather than fetching URLs itself.
 
-MYAPP = URIRef("http://example.com/shapes/myapp")
-COMPANY_V2 = URIRef("http://example.com/shapes/company/v2")
-COMPANY = URIRef("http://example.com/shapes/company")
-BASE = URIRef("http://example.com/shapes/base")
+MYAPP = NamedNode("http://example.com/shapes/myapp")
+COMPANY_V2 = NamedNode("http://example.com/shapes/company/v2")
+COMPANY = NamedNode("http://example.com/shapes/company")
+BASE = NamedNode("http://example.com/shapes/base")
 
 
 def _myapp_shapes() -> StarLayerGraph:
@@ -95,7 +93,7 @@ _GRAPHS_BY_IRI = {
 
 
 def _loader(iri):
-    factory = _GRAPHS_BY_IRI.get(from_engine(iri))  # the loader is handed a pyoxigraph NamedNode
+    factory = _GRAPHS_BY_IRI.get(iri)  # the loader is handed a pyoxigraph NamedNode
     return factory() if factory else None
 
 
@@ -121,7 +119,7 @@ def test_transitive_import_closure_with_version_iri_redirect_enforces_imported_c
     # import hops away via the versionIRI redirect), so the closure must
     # have actually been merged in for this to fail.
     assert result.conforms is False
-    components = {o for _, _, o in rd(result.report_graph).triples((None, SH.sourceConstraintComponent, None))}
+    components = {o for _, _, o in result.report_graph.triples((None, SH.sourceConstraintComponent, None))}
     assert SH.MinCountConstraintComponent in components
 
 
@@ -188,7 +186,7 @@ def test_pre_resolved_imports_need_ignore_imports_too() -> None:
     # Still present, as expected - resolve_imports() never strips the
     # owl:imports triples it follows (nor the ones it merges in along the
     # way, e.g. company's own owl:imports base).
-    assert COMPANY_V2 in {from_engine(i) for i in pre_resolved.owl_imports()}
+    assert COMPANY_V2 in {i for i in pre_resolved.owl_imports()}
 
     data = StarLayerGraph()
     data.parse(
@@ -287,10 +285,10 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
     ``owl:imports base`` is only found by looking it up under the plain
     fetched IRI itself.
     """
-    mid_iri = URIRef("http://example.com/shapes/mid")
+    mid_iri = NamedNode("http://example.com/shapes/mid")
 
     def loader(iri):
-        iri = from_engine(iri)  # the loader is handed a pyoxigraph NamedNode
+        iri = iri  # the loader is handed a pyoxigraph NamedNode
         if iri == mid_iri:
             graph = Graph()
             graph.parse(
@@ -361,7 +359,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     with nothing external to fetch. Found as a real false-positive risk
     via direct testing, not hypothetical: without has_import_locally(),
     this would incorrectly raise (nothing was ever actually missing)."""
-    from rdflib.namespace import OWL, RDF
+    from tests.terms import OWL, RDF
 
     shapes = StarLayerGraph()
     shapes.add((EX.ModuleA, OWL.imports, EX.ModuleB))
@@ -370,7 +368,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     shapes.add((EX.PersonShape, SH.targetClass, EX.Person))
     shapes.add((EX.PersonShape, SH.property, EX.NameProp))
     shapes.add((EX.NameProp, SH.path, EX.name))
-    shapes.add((EX.NameProp, SH.minCount, __import__("rdflib").Literal(1)))
+    shapes.add((EX.NameProp, SH.minCount, lit(1)))
 
     # ModuleB is already co-located right here too - a different "module"
     # declaring its own shape, not fetched from anywhere.
@@ -379,7 +377,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     shapes.add((EX.CompanyShape, SH.targetClass, EX.Company))
     shapes.add((EX.CompanyShape, SH.property, EX.NameProp2))
     shapes.add((EX.NameProp2, SH.path, EX.name))
-    shapes.add((EX.NameProp2, SH.minCount, __import__("rdflib").Literal(1)))
+    shapes.add((EX.NameProp2, SH.minCount, lit(1)))
 
     data = StarLayerGraph()
     data.parse(
