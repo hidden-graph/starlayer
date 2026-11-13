@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
-  "version": "1.5.0",
-  "lastUpdated": "2026-10-19",
+  "version": "1.6.0",
+  "lastUpdated": "2026-11-13",
   "canonicalSource": "docs/guides/README.md",
   "artifacts": {
     "index": [
@@ -24,6 +24,7 @@
       "docs/guides/04d-shacl-ui.ipynb",
       "docs/guides/04e-shacl-profiling.ipynb",
       "docs/guides/04f-shacl-subgraph-extraction.ipynb",
+      "docs/guides/04g-building-on-shacl.ipynb",
       "docs/guides/05-starlayer-schemas-and-ontologies.ipynb",
       "docs/guides/05a-manchester-syntax.ipynb",
       "docs/guides/05b-sparql-query-as-rdf.ipynb",

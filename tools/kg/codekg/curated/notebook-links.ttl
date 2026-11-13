@@ -384,3 +384,140 @@ nl:04-30c67e26 a slkg:NotebookExample ;
     rdfs:comment "Derives a shapes graph from data and validates the data against it." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.shapes.derive_shape" .
+
+nl:04-57dcbbde a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04-shacl-shapes.ipynb" ;
+    slkg:cellId "57dcbbde" ;
+    slkg:cellHash "ec9fe92b7f3cdcf0" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Validates, then reads conforms, the report graph rows and the report text of a ValidationResult." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.validate" .
+
+nl:04-a9353f25 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04-shacl-shapes.ipynb" ;
+    slkg:cellId "a9353f25" ;
+    slkg:cellHash "7a16c22df6090073" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Validates each graph of a dataset on its own with validate_each." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.validator.validate_each" .
+
+nl:04-f41bd5ea a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04-shacl-shapes.ipynb" ;
+    slkg:cellId "f41bd5ea" ;
+    slkg:cellHash "6b7bdc5142a37d03" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Shows ShapeError for a misplaced sh:path and MetaShaclError from meta_shacl=True." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.engine.plan.ShapeError",
+        "starlayer.shacl.engine.meta.MetaShaclError" .
+
+nl:04-8c133de1 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04-shacl-shapes.ipynb" ;
+    slkg:cellId "8c133de1" ;
+    slkg:cellHash "50c84a181ce8f91c" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Lists a shape's target nodes with and without inference, and validates with inference= and with sh:entailment in the shapes." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl._adapter.target_nodes" .
+
+nl:02d-a8ec380e a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "a8ec380e" ;
+    slkg:cellHash "3554b9c17792b5ac" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Binds, lists, expands and unbinds prefixes and sets the default prefixes of new graphs." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.core._Base.expand_curie",
+        "starlayer.graph.core._Base.used_prefixes",
+        "starlayer.graph.core._Base.unbind",
+        "starlayer.graph.config.set_default_prefixes" .
+
+nl:02d-f1925477 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "f1925477" ;
+    slkg:cellHash "4bb13c550e13f6b5" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Lists a graph's owl:imports and resolves them with a loader you supply." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.imports.can_resolve_import",
+        "starlayer.graph.core._Base.resolve_imports" .
+
+nl:02d-df2eca05 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "df2eca05" ;
+    slkg:cellHash "a6290dfbb81cd5c8" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Skolemizes and de-skolemizes blank nodes, makes an empty graph like another and takes a concise bounded description." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.rewrite.skolemize",
+        "starlayer.graph.rewrite.de_skolemize",
+        "starlayer.graph.rewrite.empty_like" .
+
+nl:03-5da96c84 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "5da96c84" ;
+    slkg:cellHash "9c68d49090c256f5" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Checks query text with check_query and takes the triples an answer depends on with relevant_subgraph." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql.check.check_query",
+        "starlayer.sparql.relevant.relevant_subgraph" .
+
+nl:04g-64f05da5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04g-building-on-shacl.ipynb" ;
+    slkg:cellId "64f05da5" ;
+    slkg:cellHash "778dc610631a4db4" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Lists the types a shapes graph entails but does not state." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.shape_types.infer_types" .
+
+nl:04g-263cfdfb a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04g-building-on-shacl.ipynb" ;
+    slkg:cellId "263cfdfb" ;
+    slkg:cellHash "7eeb3b276d065f62" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Lists the members of a sh:ShapesGraph and gets None for an IRI that is not one." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.shapes_graphs.shapes_graph_members" .
+
+nl:04g-f5157b68 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04g-building-on-shacl.ipynb" ;
+    slkg:cellId "f5157b68" ;
+    slkg:cellHash "34059ed042f2d5c5" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Finds the embedded SPARQL of a shapes graph that is not valid." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.meta_shapes.sparql_query_problems" .
+
+nl:04g-0cd16b52 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04g-building-on-shacl.ipynb" ;
+    slkg:cellId "0cd16b52" ;
+    slkg:cellHash "1251a265b37e9daf" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Follows a SHACL property path from a node and tests for an inverse path." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.paths.path_values",
+        "starlayer.shacl.paths.is_inverse" .
+
+nl:04g-5839b261 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04g-building-on-shacl.ipynb" ;
+    slkg:cellId "5839b261" ;
+    slkg:cellHash "18851ae7e30e140e" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Evaluates node expressions for a focus node and lists the functions and operators an expression can call." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.node_expression_api.evaluate_expression",
+        "starlayer.shacl.node_expression_api.node_expression_functions" .
+
+nl:04g-55975daa a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04g-building-on-shacl.ipynb" ;
+    slkg:cellId "55975daa" ;
+    slkg:cellHash "bb158442e8fa7281" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Finds the property shapes with a shui:propertyRole and selects a widget for one." ;
+    slkg:demonstratesIdentifier
+        "starlayer.shacl.ui.property_roles.property_shapes_for_role",
+        "starlayer.shacl.ui.widget_selection.select_widget" .
