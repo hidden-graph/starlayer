@@ -1,3 +1,5 @@
+"""Runtime-checkable protocols for a graph with a namespace manager, and a mutable variant."""
+
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
@@ -5,13 +7,12 @@ from typing import Any, Protocol, runtime_checkable
 
 @runtime_checkable
 class StarLayerGraphProtocol(Protocol):
-    """Structural protocol every graph-like input to this package must
-    satisfy: a bound ``namespace_manager`` plus iterability over triples.
-    """
+    """Structural protocol for a graph with a ``namespace_manager`` that can be iterated."""
 
     namespace_manager: Any
 
     def __iter__(self):
+        """Iterates the graph's statements."""
         ...
 
 

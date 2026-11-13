@@ -1,3 +1,8 @@
+"""SPARQL 1.2 query checking, query-as-RDF trees, SPARQL Rules and relevant-subgraph extraction.
+
+The public names (`check_query`, `StarQuery`, `relevant_subgraph`) load lazily from their submodules.
+`srl`, `srl_eval` and `sqe` are reached as submodules (`from starlayer.sparql import srl`), not flattened here.
+"""
 # This package imports nothing eagerly; every public name is imported from its submodule on first access (PEP 562).
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ _LAZY = {
 
 
 def __getattr__(name: str) -> Any:
+    """Import a public name from its submodule on first access and cache it in the module namespace."""
     if name in _LAZY:
         value = getattr(importlib.import_module(f"{__name__}.{_LAZY[name]}"), name)
         globals()[name] = value
@@ -20,6 +26,7 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
+    """List the module's names, including the lazy public names not yet imported."""
     return sorted(set(globals()) | set(_LAZY))
 
 # SRL - deliberately NOT flattened into individual names here

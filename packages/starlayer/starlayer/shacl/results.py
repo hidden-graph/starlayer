@@ -1,3 +1,5 @@
+"""Result types returned by ``validate()`` and ``apply_rules()``."""
+
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -52,6 +54,11 @@ class ValidationResult:
         data_graph: Any | None = None,
         diagnostics: ExecutionDiagnostics | None = None,
     ) -> None:
+        """Build a result; ``report_text`` may be a string or a function that builds it on first read.
+
+        Args:
+            report_text: the report text, or a zero-argument function that returns it; the result is cached after the first successful call.
+        """
         for name, value in (
             ("conforms", conforms),
             ("report_graph", report_graph),
@@ -63,6 +70,7 @@ class ValidationResult:
 
     @property
     def report_text(self) -> str:
+        """The validation report as text, built on first read and cached."""
         text = self._report_text
         if callable(text):
             text = text()

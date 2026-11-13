@@ -55,6 +55,7 @@ __all__ = sorted(_LAZY)
 
 
 def __getattr__(name: str) -> Any:
+    """Import a public ``sqe`` name from its submodule on first access and cache it in the module namespace."""
     if name in _LAZY:
         value = getattr(importlib.import_module(f"{__name__}.{_LAZY[name]}"), name)
         globals()[name] = value
@@ -63,4 +64,5 @@ def __getattr__(name: str) -> Any:
 
 
 def __dir__() -> list[str]:
+    """List the module's names including the public ones not imported yet."""
     return sorted(set(globals()) | set(_LAZY))

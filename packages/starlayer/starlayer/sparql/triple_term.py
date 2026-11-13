@@ -46,9 +46,11 @@ class ExprNode(Node):
         return (self.kind, tuple((k, _value_key(v)) for k, v in self.f.items()))
 
     def __hash__(self) -> int:
+        """Hash of the same key ``__eq__`` compares, so equal nodes hash alike."""
         return hash(self._key())
 
     def __eq__(self, other) -> bool:
+        """Equal when kind and fields match in order; source position is ignored."""
         if isinstance(other, ExprNode):
             return self._key() == other._key()
         return NotImplemented
@@ -60,9 +62,11 @@ class TripleTermNode(ExprNode):
     __slots__ = ()
 
     def __init__(self, kind: str = "TripleTerm", **f):
+        """Build a triple term from ``subject=``, ``predicate=`` and ``object=`` keyword fields."""
         super().__init__(kind, **f)
 
     def get(self, name: str, default=None):
+        """Read a slot from the node's fields, like ``dict.get``."""
         return self.f.get(name, default)
 
     def validate(self) -> TripleTermNode:

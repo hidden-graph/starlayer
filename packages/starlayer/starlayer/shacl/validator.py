@@ -270,6 +270,11 @@ class StarShaclSchema:
         scoring_graph: Any | None = None,
         inference: Any | None = None,
     ) -> None:
+        """Bind the shapes, ontology, default data and scoring graphs for validation.
+
+        Every graph is optional. A foreign graph is converted to an Oxigraph-backed one, and the conversion is run once here so
+        that a graph that cannot be bound fails at construction. ``inference`` is not a graph: it is the entailment regime.
+        """
         self._sources: dict[str, Any] = {
             "shacl_graph": shacl_graph,
             "ont_graph": ont_graph,
@@ -299,6 +304,7 @@ class StarShaclSchema:
 
     @shacl_graph.setter
     def shacl_graph(self, value: Any | None) -> None:
+        """Rebind the shapes graph; conversion, and any failure, is deferred to the next read."""
         self._sources["shacl_graph"] = value
 
     @property
@@ -308,6 +314,7 @@ class StarShaclSchema:
 
     @ont_graph.setter
     def ont_graph(self, value: Any | None) -> None:
+        """Rebind the ontology graph; conversion, and any failure, is deferred to the next read."""
         self._sources["ont_graph"] = value
 
     @property
@@ -317,6 +324,7 @@ class StarShaclSchema:
 
     @data_graph.setter
     def data_graph(self, value: Any | None) -> None:
+        """Rebind the default data graph; conversion, and any failure, is deferred to the next read."""
         self._sources["data_graph"] = value
 
     @property
@@ -326,6 +334,7 @@ class StarShaclSchema:
 
     @scoring_graph.setter
     def scoring_graph(self, value: Any | None) -> None:
+        """Rebind the scoring graph; conversion, and any failure, is deferred to the next read."""
         self._sources["scoring_graph"] = value
 
     def _resolve_data_graph(self, data_graph: Any | None) -> Any:

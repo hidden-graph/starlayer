@@ -16,6 +16,8 @@ from typing import Any
 
 @dataclass(frozen=True)
 class ValidationMode:
+    """A named preset of validator options, as selected by validate(mode=...)."""
+
     name: str
     options: dict[str, Any]
 
@@ -42,10 +44,15 @@ _MODE_OPTIONS: dict[str, dict[str, Any]] = {
 
 
 def available_modes() -> tuple[str, ...]:
+    """The names of the built-in validation modes, sorted."""
     return tuple(sorted(_MODE_OPTIONS.keys()))
 
 
 def get_mode(name: str) -> ValidationMode:
+    """Look up a built-in validation mode by name (case and surrounding whitespace ignored).
+
+    Raises ValueError for an unknown name. The mode holds a copy of the options, so editing it leaves the preset intact.
+    """
     key = name.strip().lower()
     if key not in _MODE_OPTIONS:
         raise ValueError(f"Unknown validation mode {name!r}. Expected one of {available_modes()}.")
@@ -57,6 +64,14 @@ def resolve_mode_options(
     *,
     overrides: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
+    """Build the validator options for a mode, with caller overrides applied on top.
+
+    The result is a fresh dict. A plain-string mode that is not built in raises ValueError.
+
+    Args:
+        mode: A mode name or a ValidationMode; None means the "validation" mode.
+        overrides: Options that replace the mode's value for the same key, or add keys the mode lacks.
+    """
     if mode is None:
         base = dict(_MODE_OPTIONS["validation"])
     elif isinstance(mode, ValidationMode):

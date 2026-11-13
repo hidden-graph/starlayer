@@ -128,6 +128,7 @@ class SparqlSyntaxError(ValueError):
     """A syntax error, with the 0-based offset ``pos`` and 1-based ``line``/``col`` it was found at."""
 
     def __init__(self, why: str, text: str = "", pos: int = 0):
+        """Derive ``line`` and ``col`` from ``pos`` in ``text``; without ``text`` the position is reported on line 1."""
         self.why = why
         self.pos = pos
         self.line = text.count("\n", 0, pos) + 1
@@ -179,6 +180,8 @@ _ECHAR = {"t": "\t", "b": "\b", "n": "\n", "r": "\r", "f": "\f", "\\": "\\", '"'
 
 
 class Tok(NamedTuple):
+    """A token: its kind, its source text and its 0-based offset in the query."""
+
     kind: str  # IRI STR VAR BNODE LANG DBL DEC INT PNAME W P EOF
     text: str
     pos: int
@@ -223,6 +226,11 @@ def _split_keywords(word: str) -> list[tuple[str, str]] | None:
 
 
 def tokenize(text: str) -> list[Tok]:
+    """Split SPARQL text into tokens, dropping whitespace and comments; the list always ends with an ``EOF`` token.
+
+    A word that is no keyword but splits into keywords and digits (``FILTERSTR``) becomes several tokens. Raises
+    :class:`SparqlSyntaxError` at a character no token starts with.
+    """
     out: list[Tok] = []
     pos, n = 0, len(text)
     while pos < n:
@@ -273,14 +281,17 @@ class Node:
     __slots__ = ("kind", "f", "pos")
 
     def __init__(self, kind: str, **f):
+        """A parse-tree node of one ``kind``; the keyword arguments are its fields."""
         self.kind = kind
         self.f = f
         self.pos = 0  # source offset, set by the parser on the nodes the static checks report on
 
     def __getitem__(self, key):
+        """Field ``key``, or None when the node has no such field (never KeyError)."""
         return self.f.get(key)
 
     def __repr__(self):
+        """The node as ``kind(field=value, ...)``, recursively."""
         return f"{self.kind}({', '.join(f'{k}={v!r}' for k, v in self.f.items())})"
 
 

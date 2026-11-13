@@ -68,6 +68,7 @@ def bnode(label: str | None = None) -> ox.BlankNode:
 
 
 def bnode_label(node: ox.BlankNode) -> str:
+    """The label of a blank node, decoding the stand-in that ``bnode`` makes for a label pyoxigraph rejects."""
     value = node.value
     if value.startswith(_INVALID_BNODE_PREFIX):
         return bytes.fromhex(value[len(_INVALID_BNODE_PREFIX):]).decode("utf-8", "surrogatepass")
@@ -75,10 +76,12 @@ def bnode_label(node: ox.BlankNode) -> str:
 
 
 def plain_literal(lexical: str) -> ox.Literal:
+    """A simple literal; its datatype is the implicit ``xsd:string``."""
     return ox.Literal(lexical)
 
 
 def typed_literal(lexical: str, datatype: ox.NamedNode) -> ox.Literal:
+    """A typed literal; the lexical form is kept as given, not normalized or checked against the datatype."""
     return ox.Literal(lexical, datatype=datatype)
 
 
@@ -109,4 +112,5 @@ def language_of(literal: ox.Literal) -> str | None:
 
 
 def boolean(value: bool = True) -> ox.Literal:
+    """An ``xsd:boolean`` literal in canonical form (``true``/``false``); true by default."""
     return ox.Literal("true" if value else "false", datatype=XSD.boolean)

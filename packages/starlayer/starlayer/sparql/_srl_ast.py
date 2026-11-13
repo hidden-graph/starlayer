@@ -122,6 +122,7 @@ class TriplePattern:
     object: Term
 
     def __post_init__(self) -> None:
+        """Converts each position to its pyoxigraph (or ``TripleTermNode``) form, accepting rdflib terms."""
         # a pyoxigraph triple is stored as a TripleTermNode, an rdflib term as its pyoxigraph form
         for name in ("subject", "predicate", "object"):
             value = getattr(self, name)

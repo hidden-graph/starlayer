@@ -493,6 +493,7 @@ class WidgetCandidate:
 
     @property
     def needs_data(self) -> bool:
+        """Whether choosing this widget for a node depends on that node's data."""
         return bool(self.data_checks)
 
 
@@ -516,6 +517,7 @@ class WidgetChoice:
 
     @property
     def needs_data(self) -> bool:
+        """Whether the widget can differ between nodes of this shape, so each node must be checked."""
         return any(candidate.needs_data for candidate in self.candidates)
 
     @property

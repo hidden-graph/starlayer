@@ -44,6 +44,7 @@ class SQEValidationError(SQEError):
     """
 
     def __init__(self, report_text: str, report_graph: Any) -> None:
+        """Carry the SHACL report as text (in the message and report_text) and as a graph (report_graph)."""
         super().__init__(f"sqe: parsed query fails SHACL validation:\n{report_text}")
         self.report_text = report_text
         self.report_graph = report_graph

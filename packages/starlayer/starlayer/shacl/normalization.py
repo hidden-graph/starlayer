@@ -1,3 +1,5 @@
+"""Normalization of the data, shapes and ontology graphs a caller passes in to Oxigraph-backed graphs."""
+
 from __future__ import annotations
 
 from typing import Any

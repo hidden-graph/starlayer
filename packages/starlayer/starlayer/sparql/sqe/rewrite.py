@@ -45,6 +45,7 @@ _NO_NESTED = {"Bind", "SubSelect", "Values", "Graph", "Service"}
 
 
 def rewrite_enabled() -> bool:
+    """Whether the EXISTS rewrite is on; ``STARLAYER_EXISTS_REWRITE`` set to ``0``, ``false`` or ``False`` turns it off."""
     return os.environ.get("STARLAYER_EXISTS_REWRITE", "1") not in ("0", "false", "False")
 
 

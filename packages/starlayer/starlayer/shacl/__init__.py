@@ -1,3 +1,9 @@
+"""The public SHACL 1.2 API: validation, rules, node expressions, shape fragments and SHACL UI helpers.
+
+Applications import from here rather than from submodules; a need that only a submodule meets is a missing public
+component, except for the items the comment below the imports lists as still submodule-only.
+"""
+
 from starlayer.shacl.errors import (
     EvaluationFailure,
     MetaShaclError,
