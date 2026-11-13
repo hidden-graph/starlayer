@@ -53,8 +53,7 @@ REGISTRY: dict[URIRef, ComponentSpec] = {}
 
 
 def component(iri: URIRef, *predicates: URIRef):
-    """Register ``fn`` under a component IRI. rdflib IRIs are accepted and converted (``to_engine``); ``fn`` itself then
-    receives engine terms."""
+    """Register ``fn`` under a component IRI. ``fn`` receives engine (pyoxigraph) terms."""
 
     def deco(fn):
         iri_ = to_engine(iri)

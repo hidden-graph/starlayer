@@ -9,7 +9,7 @@ in any of three ways, and all three are honored:
 - ``<graph> owl:imports <other>`` where ``<other>`` is itself a ``sh:ShapesGraph`` in the same graph: the other module's members
   count too, transitively (2.6). Only modules already in the graph are followed; nothing is fetched.
 
-``StarShaclSchema.extract_shapes_graph()`` is built on these. Terms are pyoxigraph terms (an rdflib term is accepted).
+``StarShaclSchema.extract_shapes_graph()`` is built on these. Terms are pyoxigraph terms.
 """
 
 from __future__ import annotations

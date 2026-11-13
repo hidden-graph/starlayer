@@ -521,8 +521,7 @@ def ruleset_to_text(ruleset: srl_ast.RuleSet, namespace_manager: Any = None) -> 
 
     Args:
         ruleset: The RuleSet to render.
-        namespace_manager: If given (a prefix -> namespace ``dict``, a ``StarLayerGraph`` (its ``prefixes``) or an rdflib
-            ``NamespaceManager``), render prefixed names instead of full
+        namespace_manager: If given (a prefix -> namespace ``dict`` or a ``StarLayerGraph`` (its ``prefixes``)), render prefixed names instead of full
             ``<...>`` IRIs wherever a match exists - purely cosmetic, the
             resulting text still parses identically either way.
 
@@ -621,8 +620,7 @@ def _rule_text(rule: srl_ast._Rule, prefixes: dict) -> str:
 
 def srl_parse_to_tree(text: str, base: str | None = None, graph: Any = None) -> tuple[Any, Any]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
-    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (an ``StarLayerGraph``, which gives pyoxigraph terms,
-    or an rdflib graph) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
+    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (a ``StarLayerGraph``) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
     return ruleset_to_tree(parse_ruleset(text, base), graph)
 
 

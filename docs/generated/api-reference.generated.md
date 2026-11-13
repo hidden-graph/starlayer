@@ -1293,7 +1293,7 @@ Covers ``sh:TripleRule`` and ``sh:SPARQLRule`` (shape-attached, in rule sets, or
 
 **Parameters:**
 
-- `data_graph: Any` - The data the rules run over: an Oxigraph-backed graph (an rdflib / old-style ``StarLayerGraph`` is copied into one).
+- `data_graph: Any` - The data the rules run over: an Oxigraph-backed graph.
 - `shacl_graph: Any | None = None` - The shapes graph holding the rules; ``None`` reads them from ``data_graph``.
 - `ont_graph: Any | None = None` - An optional ontology graph, visible to entailment only.
 - `include_source_rule_provenance: bool = False` - Record, for every inferred triple, a reifier ``_:r rdf:reifies <<( s p o )>>`` with ``_:r sh:sourceRule <rule>`` (Inference Rules section 9).
@@ -1560,7 +1560,7 @@ pass, to an Oxigraph-backed graph (or ``None``) via ``normalize_to_starlayer_gra
 
 **Returns:** `tuple[Any, Any | None, Any | None]`
 
-**Source:** [starlayer.shacl.normalization.normalize_graph_inputs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/normalization.py#L49-L64)
+**Source:** [starlayer.shacl.normalization.normalize_graph_inputs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/normalization.py#L48-L63)
 
 ---
 
@@ -1573,9 +1573,8 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
 
 Normalize an input graph to an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerDataset``).
 
-An ``StarLayerGraph`` or ``StarLayerDataset`` is returned as it is; a bare ``pyoxigraph.Store`` becomes an ``StarLayerDataset`` over it. A plain
-``rdflib.Graph`` or an old-style ``StarLayerGraph`` is converted to an ``StarLayerGraph`` copy (``from_rdflib``: a supported input;
-literals Oxigraph normalises on insert, such as ``"04"^^xsd:integer``, come out normalised).
+An ``StarLayerGraph`` or ``StarLayerDataset`` is returned as it is; a bare ``pyoxigraph.Store`` becomes an ``StarLayerDataset`` over it. An
+rdflib graph is a ``TypeError``: convert it first with ``StarLayerGraph.from_rdflib``.
 
 **Parameters:**
 
@@ -1585,7 +1584,7 @@ literals Oxigraph normalises on insert, such as ``"04"^^xsd:integer``, come out 
 
 **Returns:** `Any`
 
-**Source:** [starlayer.shacl.normalization.normalize_to_starlayer_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/normalization.py#L8-L46)
+**Source:** [starlayer.shacl.normalization.normalize_to_starlayer_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/normalization.py#L8-L45)
 
 ---
 
@@ -1879,7 +1878,7 @@ Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``V
 
 **Parameters:**
 
-- `data_graph: Any` - The RDF data to validate: an ``StarLayerGraph`` / ``StarLayerDataset`` (used as it is) or an rdflib / old-style ``StarLayerGraph`` (copied into an ``StarLayerGraph``). It is never changed unless ``inplace=True``.
+- `data_graph: Any` - The RDF data to validate: a ``StarLayerGraph`` / ``StarLayerDataset`` (used as it is) or a ``pyoxigraph.Store``. It is never changed unless ``inplace=True``.
 - `shacl_graph: Any | None = None` - The shapes graph. ``None`` reads the shapes from ``data_graph`` itself.
 - `ont_graph: Any | None = None` - An optional ontology graph. Its axioms (``rdfs:domain``, ``rdfs:subClassOf`` ...) are visible to entailment, but its triples are never copied into ``data_graph``.
 - `mode: str | ValidationMode | None = None` - A named preset of options (``"validation"``, ``"rules"`` or ``"debug"``); any of its options can be overridden per call through ``**kwargs``.

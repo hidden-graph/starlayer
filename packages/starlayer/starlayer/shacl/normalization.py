@@ -8,9 +8,8 @@ from typing import Any
 def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: bool = False) -> Any:
     """Normalize an input graph to an Oxigraph-backed graph (``StarLayerGraph`` / ``StarLayerDataset``).
 
-    An ``StarLayerGraph`` or ``StarLayerDataset`` is returned as it is; a bare ``pyoxigraph.Store`` becomes an ``StarLayerDataset`` over it. A plain
-    ``rdflib.Graph`` or an old-style ``StarLayerGraph`` is converted to an ``StarLayerGraph`` copy (``from_rdflib``: a supported input;
-    literals Oxigraph normalises on insert, such as ``"04"^^xsd:integer``, come out normalised).
+    An ``StarLayerGraph`` or ``StarLayerDataset`` is returned as it is; a bare ``pyoxigraph.Store`` becomes an ``StarLayerDataset`` over it. An
+    rdflib graph is a ``TypeError``: convert it first with ``StarLayerGraph.from_rdflib``.
 
     Args:
         value: The graph to normalize.

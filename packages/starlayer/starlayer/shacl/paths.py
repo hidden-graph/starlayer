@@ -3,7 +3,7 @@
 A path as SHACL Core 2.3.1 defines it: a predicate, ``sh:inversePath``, ``sh:alternativePath``, a sequence (an RDF list of
 paths), ``sh:zeroOrMorePath``, ``sh:oneOrMorePath`` and ``sh:zeroOrOnePath``. The path is *written* in one graph (the shapes
 graph) and *followed* through another (the data graph); pass the same graph twice, or omit ``shapes_graph``, when they are one.
-Terms are pyoxigraph terms (an rdflib term is accepted and converted).
+Terms are pyoxigraph terms.
 """
 
 from __future__ import annotations

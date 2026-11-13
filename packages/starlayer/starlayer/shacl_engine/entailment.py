@@ -35,7 +35,7 @@ def normalise_regimes(regime: Any) -> frozenset:
     """The entailment regime IRIs of ``regime``: ``None`` (no entailment), a regime IRI (the W3C entailment regime
     IRIs ``sh:entailment`` uses, e.g. ``ENTAILMENT.RDFS``), or an iterable of them. A plain string must itself be such an IRI;
     names such as ``'rdfs'`` or ``'owlrl'`` are not accepted. An unsupported regime raises ``ValueError``. The IRIs come
-    back as pyoxigraph ``NamedNode``s (an rdflib ``URIRef`` or an IRI string is accepted)."""
+    back as pyoxigraph ``NamedNode``s (an IRI string is accepted)."""
     if regime is None:
         return frozenset()
     items: Iterable = [regime] if isinstance(regime, str) or not hasattr(regime, "__iter__") else regime

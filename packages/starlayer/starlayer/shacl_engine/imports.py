@@ -1,8 +1,7 @@
 """``owl:imports`` resolution of a shapes graph (SHACL 1.2 Core), same semantics as the old validator.
 
 ``resolve_imports(shapes_graph, loader, ignore_imports)`` returns the graph to validate against. The caller's graph is
-never modified: the result is the caller's graph itself when nothing is added (an ``StarLayerGraph``; an rdflib / StarLayer input is
-converted first), else a new ``StarLayerGraph`` (a copy of the caller's triples plus the imported ones).
+never modified: the result is the caller's graph itself when nothing is added (a ``StarLayerGraph``), else a new ``StarLayerGraph`` (a copy of the caller's triples plus the imported ones).
 
 Semantics (``StarLayerGraph.resolve_imports`` and ``validate(shapes_graph_loader=, ignore_imports=)``):
 

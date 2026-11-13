@@ -36,8 +36,8 @@ def validate(
     """Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``ValidationResult``.
 
     Args:
-        data_graph: The RDF data to validate: an ``StarLayerGraph`` / ``StarLayerDataset`` (used as it is) or an rdflib / old-style ``StarLayerGraph``
-            (copied into an ``StarLayerGraph``). It is never changed unless ``inplace=True``.
+        data_graph: The RDF data to validate: a ``StarLayerGraph`` / ``StarLayerDataset`` (used as it is) or a
+            ``pyoxigraph.Store``. It is never changed unless ``inplace=True``.
         shacl_graph: The shapes graph. ``None`` reads the shapes from ``data_graph`` itself.
         ont_graph: An optional ontology graph. Its axioms (``rdfs:domain``, ``rdfs:subClassOf`` ...) are visible to entailment, but
             its triples are never copied into ``data_graph``.
@@ -171,7 +171,7 @@ def apply_rules(
     ``data_graph`` is never changed.
 
     Args:
-        data_graph: The data the rules run over: an Oxigraph-backed graph (an rdflib / old-style ``StarLayerGraph`` is copied into one).
+        data_graph: The data the rules run over: an Oxigraph-backed graph.
         shacl_graph: The shapes graph holding the rules; ``None`` reads them from ``data_graph``.
         ont_graph: An optional ontology graph, visible to entailment only.
         include_source_rule_provenance: Record, for every inferred triple, a reifier ``_:r rdf:reifies <<( s p o )>>`` with
