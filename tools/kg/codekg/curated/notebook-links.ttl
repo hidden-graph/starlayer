@@ -12,20 +12,20 @@
 nl:01-b8032fd8 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
     slkg:cellId "b8032fd8" ;
-    slkg:cellHash "d064e7d499af121d" ;
+    slkg:cellHash "ec0c7634ff69efe5" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "The first cell a reader runs: imports StarLayerGraph and sets up the namespace used to build graphs." ;
+    rdfs:comment "The first cell a reader runs: imports StarLayerGraph and validate and sets up the namespace used to build graphs." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core.StarLayerGraph" .
 
 nl:01-6f4c59ad a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
     slkg:cellId "6f4c59ad" ;
-    slkg:cellHash "9e2a5a3ea774ffda" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
-    rdfs:comment "Parses Turtle into a StarLayerGraph and queries it with SPARQL, the smallest complete use of both." ;
+    slkg:cellHash "cf978ef79f1130fe" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Queries a graph with SPARQL and reads the rows as pyoxigraph terms." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.core._Base.parse",
+        "starlayer.graph.core._Base.query",
         "starlayer.graph.core._Base.query" .
 
 nl:02-3f4f3ecb a slkg:NotebookExample ;
@@ -567,3 +567,13 @@ nl:05b-df2738a8 a slkg:NotebookExample ;
     rdfs:comment "Validates an sqe: query tree against the sqe: shapes." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.sqe.shapes.sqe_validate" .
+
+nl:01-2102b1a6 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
+    slkg:cellId "2102b1a6" ;
+    slkg:cellHash "23db5b82fcb29dda" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Builds a graph, binds a prefix, parses Turtle into it and writes it back out." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.core._Base.parse",
+        "starlayer.graph.core._Base.serialize" .
