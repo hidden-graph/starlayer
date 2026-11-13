@@ -10,7 +10,7 @@ from __future__ import annotations
 from collections import Counter
 
 from codekg import CODEKG_NS
-from tests.terms import DCTERMS, RDF, RDFS, lit, text
+from tests.support.terms import DCTERMS, RDF, RDFS, lit, text
 
 from .test_visitor import _extract, _extract_multi, _objects
 

@@ -6,7 +6,7 @@ from starlayer.shacl.normalization import (
     normalize_graph_inputs,
     normalize_to_starlayer_graph,
 )
-from tests.terms import Namespace, lit
+from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 

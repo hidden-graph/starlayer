@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-ENGINE = Path(__file__).resolve().parents[2] / "starlayer" / "shacl" / "engine"
+ENGINE = Path(__file__).resolve().parents[3] / "starlayer" / "shacl" / "engine"
 # xpath_regex.py translates regular-expression text; it holds no terms, only strings built with f-strings
 FILES = sorted(p for p in ENGINE.rglob("*.py") if p.name != "xpath_regex.py")
 

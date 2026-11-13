@@ -19,7 +19,7 @@ from starlayer.sparql.srl_eval import (
     _build_dependency_graph,
     _stratify,
 )
-from tests.terms import RDF, BlankNode, NamedNode, py
+from tests.support.terms import RDF, BlankNode, NamedNode, py
 
 EX = "http://example.org/"
 

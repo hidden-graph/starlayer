@@ -380,7 +380,7 @@ class TestU6:
             INSERT { <<:alice :knows :bob ~ :myReifier>> :note :x }
             WHERE  { :alice :knows :bob }
         """)
-        from tests.terms import NamedNode
+        from tests.support.terms import NamedNode
         assert g.has_triple_term(
             NamedNode(EX + 'alice'), NamedNode(EX + 'knows'), NamedNode(EX + 'bob')
         )

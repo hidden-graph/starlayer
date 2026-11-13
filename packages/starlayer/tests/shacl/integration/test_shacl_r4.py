@@ -17,7 +17,7 @@ from starlayer.shacl import (
 from starlayer.shacl.engine.terms import text
 from starlayer.shacl.engine.xpath_regex import needs_translation, xpath_regex_to_python
 from starlayer.shacl.shape_types import infer_types
-from tests.terms import SH, NamedNode, Namespace
+from tests.support.terms import SH, NamedNode, Namespace
 
 EX = Namespace("http://example.org/")
 P = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "

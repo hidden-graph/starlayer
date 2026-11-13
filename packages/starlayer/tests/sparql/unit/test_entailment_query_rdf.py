@@ -6,7 +6,7 @@ the original are listed in the module docstring of ``tests/graph/test_entailment
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment.infer import ENTAILMENT
 from starlayer.sparql.sqe.entailment import rewrite_for_entailment
-from tests.terms import RDF, Namespace
+from tests.support.terms import RDF, Namespace
 
 _REGIME = ENTAILMENT.RDF
 

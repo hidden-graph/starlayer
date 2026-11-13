@@ -3,7 +3,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
 

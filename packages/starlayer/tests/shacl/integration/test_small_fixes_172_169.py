@@ -9,7 +9,7 @@ from starlayer.shacl.shapes_graphs import (
     shapes_graph_members,
     shapes_graphs,
 )
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 EX = Namespace("http://e/")
 OX = NS("http://e/")  # engine terms: what the public API returns

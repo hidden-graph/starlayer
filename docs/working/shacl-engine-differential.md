@@ -2,7 +2,7 @@
 
 Branch `shacl-engine`. The old validator (`starlayer.shacl`, pyshacl-backed) and the native engine
 (`starlayer.shacl.engine`) were run on the same (data graph, shapes graph) for every `validate` / `StarShaclSchema.validate`
-call made by `packages/starlayer/tests/shacl` (unit and integration; `w3c_shacl12` and `tests/shacl_engine` excluded;
+call made by `packages/starlayer/tests/shacl` (unit and integration; `w3c_shacl12` and `tests/shacl/engine` excluded;
 default tier). Harness: `packages/starlayer/tests/shacl/differential_plugin.py`. Raw records: `docs/working/differential/results.jsonl`
 (git-ignored).
 
@@ -180,7 +180,7 @@ are the legacy of issue #185 candidate 1; engine reports "needs exactly one oper
 cd <worktree root>
 PYTHONPATH=packages/starlayer:packages/starlayer/tests/shacl \
   /usr/local/bin/python3 -m pytest packages/starlayer/tests/shacl \
-  --ignore=packages/starlayer/tests/shacl/w3c_shacl12 --ignore=packages/starlayer/tests/shacl_engine \
+  --ignore=packages/starlayer/tests/shacl/w3c_shacl12 --ignore=packages/starlayer/tests/shacl/engine \
   -p differential_plugin -q -p no:cacheprovider -W ignore
 # DIFF_OUT=path.jsonl changes the output file (default docs/working/differential/results.jsonl)
 ```

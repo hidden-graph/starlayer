@@ -1,7 +1,7 @@
 from starlayer.graph import StarLayerDataset
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.shacl import StarShaclSchema
-from tests.terms import Namespace, lit
+from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 

@@ -17,7 +17,7 @@ from build_meta_shapes import (
 )
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import validate
-from tests.terms import NamedNode
+from tests.support.terms import NamedNode
 
 SH = "http://www.w3.org/ns/shacl#"
 _PREFIXES = (

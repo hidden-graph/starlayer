@@ -14,7 +14,7 @@ from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui import widget_selection as uws
 from starlayer.shacl.ui.widget_selection import select_widget, select_widgets
-from tests.terms import RDF, NamedNode, Namespace
+from tests.support.terms import RDF, NamedNode, Namespace
 
 from ._rdflib_view import rd
 

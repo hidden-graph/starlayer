@@ -8,7 +8,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph, setops
 from starlayer.graph import StarLayerGraph as Graph
-from tests.terms import BlankNode, NamedNode, lit
+from tests.support.terms import BlankNode, NamedNode, lit
 
 union, intersection, difference, symmetric_difference = (
     getattr(setops, n) for n in ("union", "intersection", "difference", "symmetric_difference")

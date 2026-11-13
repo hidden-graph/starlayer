@@ -18,7 +18,7 @@ from codekg import (
     queries,
 )
 from starlayer.graph import StarLayerDataset
-from tests.terms import RDF, BlankNode, NamedNode, lit
+from tests.support.terms import RDF, BlankNode, NamedNode, lit
 
 # ---------------------------------------------------------------------------
 # the comparison helper (no KG needed)

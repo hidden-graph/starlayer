@@ -19,7 +19,7 @@ import itertools
 import pyoxigraph as ox
 import pytest
 from starlayer.shacl.engine import xsd_values as xv
-from tests.shacl_engine import xsd_oracle_corpus as C
+from tests.shacl.engine import xsd_oracle_corpus as C
 
 XSD = C.XSD
 _STORE = ox.Store()

@@ -37,7 +37,7 @@ from starlayer.sparql.sqe.vocab import (
     UNION,
     UNION_ALTERNATIVES,
 )
-from tests.terms import RDF, lit
+from tests.support.terms import RDF, lit
 
 PREFIXES = """
 PREFIX : <http://example.org/>
@@ -493,7 +493,7 @@ class TestShapesForTheWiderVocabulary:
         """sqe:expr, var, subject, predicate and object are used by several node types; a domain would give
         an Alias the type Filter (and a TripleTerm the type TriplePattern) under RDFS inference."""
         from starlayer import starontology
-        from tests.terms import RDFS
+        from tests.support.terms import RDFS
 
         ontology = starontology.get_ontology_graph("sqe_owl")
         from starlayer.sparql.sqe.vocab import SQE

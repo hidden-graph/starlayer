@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from starlayer.graph import StarLayerDataset as Dataset
 from starlayer.graph import StarLayerGraph as Graph
-from tests.terms import RDF, RDFS, NamedNode, lit
+from tests.support.terms import RDF, RDFS, NamedNode, lit
 
 
 def test_build_starontology_ttl_output_declares_unregistered_prefixes(tmp_path) -> None:

@@ -61,7 +61,7 @@ def test_all_matches_actual_module_exports() -> None:
 
 def test_graph_and_validator_work_together_through_the_single_import() -> None:
     from starlayer import StarLayerGraph, StarShaclSchema
-    from tests.terms import Namespace
+    from tests.support.terms import Namespace
 
     ex = Namespace("http://example.org/")
     data = StarLayerGraph()

@@ -101,7 +101,7 @@ def _requested(config, marker: str) -> bool:
     return marker in expr and f"not {marker}" not in expr
 
 
-AREAS = ("graph", "shacl", "shacl_engine", "sparql", "starontology", "kg", "notebooks")
+AREAS = ("graph", "shacl", "sparql", "starontology", "kg", "notebooks", "packaging", "repo")
 
 
 def pytest_collection_modifyitems(config, items):
@@ -112,6 +112,8 @@ def pytest_collection_modifyitems(config, items):
             area = parts[parts.index("tests") + 1 : parts.index("tests") + 2]
             if area and area[0] in AREAS:
                 item.add_marker(area[0])
+            if parts[parts.index("tests") + 1 : parts.index("tests") + 3] == ("shacl", "engine"):
+                item.add_marker("shacl_engine")
     # every test in a conformance suite's directory belongs to that opt-in group, whether or not it carries
     # the marker itself
     for item in items:

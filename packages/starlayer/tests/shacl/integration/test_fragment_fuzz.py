@@ -26,7 +26,7 @@ from hypothesis import strategies as st
 from starlayer import StarLayerGraph
 from starlayer.graph.rdfc import rdfc10_hash
 from starlayer.shacl import evaluate, extract_subgraph, validate
-from tests.terms import RDF, SH, Namespace
+from tests.support.terms import RDF, SH, Namespace
 
 E = Namespace("http://e/")  # rdflib terms, for building the graphs below
 

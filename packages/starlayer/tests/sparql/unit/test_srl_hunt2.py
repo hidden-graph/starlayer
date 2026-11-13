@@ -6,7 +6,7 @@ import warnings
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
-from tests.terms import NamedNode, lit
+from tests.support.terms import NamedNode, lit
 
 warnings.simplefilter("ignore")
 E = "http://e/"

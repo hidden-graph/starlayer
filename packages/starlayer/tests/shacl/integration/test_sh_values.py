@@ -16,7 +16,7 @@ coincidentally both named sh:values but serve entirely different purposes.
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

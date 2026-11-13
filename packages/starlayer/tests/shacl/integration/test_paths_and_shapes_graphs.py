@@ -6,7 +6,7 @@ from starlayer.shacl import ShapeError, StarShaclSchema
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.shapes_graphs import shapes_graph_members, shapes_graphs
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 EX = Namespace("http://e/")
 OX = NS("http://e/")  # engine terms, for what the public API returns

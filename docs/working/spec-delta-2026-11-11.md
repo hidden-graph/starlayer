@@ -73,7 +73,7 @@ defines 32 terms; **7 are absent from our `starontology/*.ttl`**: `PropertyRole`
 **Status, 2026-11-11: phase 0 is done** (commits `a51133e3`, `f306f2e6`, `cbaa394b`). Both suites are pinned at the new commits; `rdf12`
 has a download script; the sync script's destination path is fixed; `sht:Failure` is understood by the node-expression and
 rule harnesses; the SPARQL-RL suite runs as `tests/shacl/w3c_shacl12/test_w3c_sparql_rl.py` (225 pass, 17 strict xfails); the
-six engine gaps of phase 1 are strict xfails in `known_failures.py::ENGINE_GAPS`. `tests/shacl`, `tests/shacl_engine`,
+six engine gaps of phase 1 are strict xfails in `known_failures.py::ENGINE_GAPS`. `tests/shacl`, `tests/shacl/engine`,
 `tests/sparql` and `tests/starontology` pass (8482 passed, 44 xfailed). Two corrections to section 2 found on the way:
 the `unsupported-sparql-002` fixture was **corrected upstream** (it now uses `VALUES $this`, the pre-bound variable the spec
 forbids), so our documented deviation for it is gone; and that fixture still uses a file-level `@prefix ex:` in its `sh:select`

@@ -2,7 +2,7 @@
 
 Status: draft, branch `shacl-engine`. Code: `starlayer/shacl/engine/plan_json.py` (serialiser, `python -m
 starlayer.shacl.engine.plan_json shapes.ttl > plan.json`), `component_table.py` (generated component and operator table,
-`python -m starlayer.shacl.engine.component_table`), tests in `tests/shacl_engine/test_plan_json.py`. Background:
+`python -m starlayer.shacl.engine.component_table`), tests in `tests/shacl/engine/test_plan_json.py`. Background:
 `shacl-engine-design.md` (Plan format), `shacl-engine-cutover.md` section 6 (Rust port notes),
 `shacl-engine-feasibility.md` (deviations and open points).
 

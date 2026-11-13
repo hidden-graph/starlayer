@@ -12,7 +12,7 @@ from pathlib import Path
 from codekg import CODEKG_NS, EXTERNALTYPE_NS
 from codekg.extractor.symbol_index import build_symbol_index, module_identity
 from codekg.extractor.visitor import extract_module
-from tests.terms import DCTERMS, RDF, RDFS, NamedNode, lit, text
+from tests.support.terms import DCTERMS, RDF, RDFS, NamedNode, lit, text
 
 SLKG = CODEKG_NS
 EXT = EXTERNALTYPE_NS

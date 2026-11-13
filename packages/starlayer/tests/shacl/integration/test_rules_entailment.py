@@ -9,7 +9,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.engine.terms import text
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
 PREFIXES = """

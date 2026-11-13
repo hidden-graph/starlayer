@@ -7,7 +7,7 @@ sh:targetObjectsOf can yield them.
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema, validate
-from tests.terms import Namespace, lit
+from tests.support.terms import Namespace, lit
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 P = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "

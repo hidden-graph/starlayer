@@ -13,7 +13,7 @@ from pathlib import Path
 
 import pytest
 
-REPO = Path(__file__).resolve().parents[3]
+REPO = Path(__file__).resolve().parents[4]
 SCANNED = ("packages/starlayer/starlayer", "scripts", "tools", "packages/starlayer-kg")
 
 #: The modules D1 deleted.

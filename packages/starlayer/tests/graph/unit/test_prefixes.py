@@ -4,7 +4,7 @@ reduce_prefixes() is not ported: ``_reduced`` below is its documented replacemen
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 EX = Namespace("http://e/")
 TTL = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix unused: <http://unused/> . ex:S a sh:NodeShape ; sh:name 'x' ."
@@ -188,7 +188,7 @@ def test_trig_prefix_declarations_work_with_or_without_a_space_before_the_iri(de
 
 
 # --- #63 a reduced copy behaves like its source: the same union setting, and a named graph keeps its name
-from tests.terms import Namespace as _Namespace  # noqa: E402
+from tests.support.terms import Namespace as _Namespace  # noqa: E402
 
 _EX = _Namespace("http://ex.org/")
 

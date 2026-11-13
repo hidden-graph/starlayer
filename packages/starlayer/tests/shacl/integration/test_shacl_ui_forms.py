@@ -19,7 +19,7 @@ from rdflib.compare import to_isomorphic
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl.ui.widget_selection import select_widgets
-from tests.terms import RDF, XSD, NamedNode, lit
+from tests.support.terms import RDF, XSD, NamedNode, lit
 
 from ._rdflib_view import rd
 
@@ -300,7 +300,7 @@ class TestWhatAFieldsValuesCanBe:
 
     @staticmethod
     def _node_kind(form, predicate):
-        from tests.terms import Namespace
+        from tests.support.terms import Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         ui = _onto("shacl_shacl_ui")
@@ -310,7 +310,7 @@ class TestWhatAFieldsValuesCanBe:
         raise AssertionError(f"no field for {predicate}")
 
     def test_shapes_and_rules_take_blank_nodes_and_classes_names_and_groups_do_not(self):
-        from tests.terms import Namespace
+        from tests.support.terms import Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")

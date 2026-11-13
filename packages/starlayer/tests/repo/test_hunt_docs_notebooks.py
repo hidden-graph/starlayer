@@ -12,7 +12,7 @@ from pathlib import Path
 
 import pytest
 
-GUIDES = Path(__file__).resolve().parents[3] / "docs" / "guides"
+GUIDES = Path(__file__).resolve().parents[4] / "docs" / "guides"
 
 pytestmark = pytest.mark.skipif(not GUIDES.is_dir(), reason="guides are not in this checkout")
 

@@ -2,7 +2,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.engine.terms import text
-from tests.terms import RDF, NamedNode, Namespace, lit
+from tests.support.terms import RDF, NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -313,7 +313,7 @@ class TestValidateSpecificationGraphParameter:
     function still keeps its own per-call specification_graph= - it has
     no "schema" object for this reasoning to apply to."""
 
-    from tests.terms import Namespace as _Namespace
+    from tests.support.terms import Namespace as _Namespace
 
     DCTERMS = _Namespace("http://purl.org/dc/terms/")
     PROF = _Namespace("http://www.w3.org/ns/dx/prof/")

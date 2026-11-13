@@ -6,7 +6,7 @@ import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import SRLError, SRLParseError, parse_ruleset
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 warnings.simplefilter("ignore")
 E = Namespace("http://e/")

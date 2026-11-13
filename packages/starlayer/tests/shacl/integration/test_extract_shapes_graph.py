@@ -190,7 +190,7 @@ def test_owl_imports_to_a_module_absent_entirely_raises() -> None:
     target with zero triples describing it anywhere in shacl_graph raises -
     call resolve_imports(loader=...) first if it genuinely needs fetching
     from elsewhere."""
-    from tests.terms import OWL
+    from tests.support.terms import OWL
 
     g = _two_module_graph()
     g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
@@ -205,7 +205,7 @@ def test_owl_imports_to_a_module_present_but_not_typed_shapesgraph_raises() -> N
     content in shacl_graph - just not a sh:ShapesGraph type declaration -
     not only when it's entirely absent. Presence alone isn't enough; it
     has to actually be typed a sh:ShapesGraph to count."""
-    from tests.terms import OWL, RDF
+    from tests.support.terms import OWL, RDF
 
     g = _two_module_graph()
     g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
@@ -253,7 +253,7 @@ def test_owl_imports_transitively_pulls_in_another_locally_present_modules_membe
     """If ModuleA owl:imports ModuleB, and both are already co-located in
     the same shacl_graph, ModuleB's own members count as part of
     ModuleA's extracted module too - the third documented mechanism."""
-    from tests.terms import OWL
+    from tests.support.terms import OWL
 
     g = _two_module_graph()
     g.add((EX.ModuleA, OWL.imports, EX.ModuleB))
@@ -271,7 +271,7 @@ def test_owl_imports_transitively_pulls_in_another_locally_present_modules_membe
 def test_owl_imports_cycle_does_not_hang() -> None:
     """ModuleA and ModuleB importing each other must terminate, not loop
     forever chasing the same pair of nodes back and forth."""
-    from tests.terms import OWL
+    from tests.support.terms import OWL
 
     g = _two_module_graph()
     g.add((EX.ModuleA, OWL.imports, EX.ModuleB))

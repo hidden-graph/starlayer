@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-TESTS = Path(__file__).resolve().parent
+TESTS = Path(__file__).resolve().parents[1]
 
 
 def _collect(*args: str) -> list[str]:

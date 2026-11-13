@@ -17,7 +17,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.shacl import StarShaclSchema, target_nodes
 from starlayer.shacl.engine.terms import to_engine
-from tests.terms import RDF, Namespace
+from tests.support.terms import RDF, Namespace
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

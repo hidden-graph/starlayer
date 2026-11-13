@@ -174,7 +174,7 @@ def test_eq_is_identity_only(g):
 
 
 def test_rdflib_terms_are_converted_on_the_way_in():
-    from tests.terms import NamedNode, lit
+    from tests.support.terms import NamedNode, lit
 
     g = StarLayerGraph()
     g.add((NamedNode(EX + "a"), NamedNode(EX + "p"), lit("v")))

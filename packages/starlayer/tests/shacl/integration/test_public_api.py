@@ -19,7 +19,7 @@ from starlayer.shacl import (
 )
 from starlayer.shacl.engine.terms import to_engine
 from starlayer.sparql import check_query
-from tests.terms import RDF, Namespace, lit
+from tests.support.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

@@ -40,7 +40,7 @@ every test.
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from tests.terms import RDF, RDFS, Namespace
+from tests.support.terms import RDF, RDFS, Namespace
 
 EX = Namespace("http://example.org/")
 

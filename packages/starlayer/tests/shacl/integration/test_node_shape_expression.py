@@ -10,7 +10,7 @@ from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 _PREFIXES = (

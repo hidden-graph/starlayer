@@ -23,7 +23,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 

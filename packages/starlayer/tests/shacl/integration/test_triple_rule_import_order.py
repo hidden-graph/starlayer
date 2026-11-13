@@ -11,7 +11,7 @@ import textwrap
 SCRIPT = textwrap.dedent(
     """
     import warnings; warnings.simplefilter('ignore')
-    from tests.terms import NamedNode
+    from tests.support.terms import NamedNode
     from starlayer.shacl.engine.terms import iri_text
     from starlayer.graph import StarLayerGraph
     from starlayer.shacl import StarShaclSchema

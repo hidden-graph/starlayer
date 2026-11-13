@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
 
@@ -125,7 +125,7 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
     assert derived[0][2] == ox.Triple(EX.bob, EX.knows, EX.carol)
 
     # No list-scaffolding triples should leak into the returned data graph.
-    from tests.terms import RDF
+    from tests.support.terms import RDF
 
     assert not any(p in (RDF.first, RDF.rest) for _, p, _ in result.inferred_graph)
 

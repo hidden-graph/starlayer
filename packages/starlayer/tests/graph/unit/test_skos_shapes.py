@@ -18,8 +18,8 @@ import owlrl
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl.engine.terms import NS
-from tests import skos as ss
-from tests.terms import RDF, SKOS, BlankNode, Namespace, lit, rdf_list
+from tests.support import skos as ss
+from tests.support.terms import RDF, SKOS, BlankNode, Namespace, lit, rdf_list
 
 
 def skos_ontology_graph():

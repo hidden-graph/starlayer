@@ -4,7 +4,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
-from tests.terms import NamedNode, Namespace
+from tests.support.terms import NamedNode, Namespace
 
 EX = Namespace("http://example.org/")
 

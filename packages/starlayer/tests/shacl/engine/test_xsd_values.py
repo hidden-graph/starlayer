@@ -255,7 +255,7 @@ def test_order_agrees_with_rdflib(kinds):
     assert checked > 0
 
 
-FIXTURES = Path(__file__).resolve().parents[1] / "shacl" / "vendor" / "shacl12-test-suite" / "tests"
+FIXTURES = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite" / "tests"
 
 
 def _fixture_literals():

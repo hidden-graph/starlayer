@@ -7,7 +7,7 @@ node look non-conforming to the where-shape, and it silently stopped being a tar
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema, validate
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
 

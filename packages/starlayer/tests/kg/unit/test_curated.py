@@ -10,7 +10,7 @@ from codekg import (
     CURATED_GRAPH_IRI,
     get_codekg_dataset,
 )
-from tests.terms import DCTERMS, RDF, NamedNode, lit, set_triple, text
+from tests.support.terms import DCTERMS, RDF, NamedNode, lit, set_triple, text
 
 
 def test_the_curated_graph_is_left_out_unless_asked_for(monkeypatch, tmp_path):

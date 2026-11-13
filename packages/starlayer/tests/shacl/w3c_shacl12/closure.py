@@ -10,7 +10,7 @@ document of its own.
 from __future__ import annotations
 
 import pyoxigraph as ox
-from tests.lexical_graph import LexicalGraph
+from tests.support.lexical_graph import LexicalGraph
 
 
 def node_closure(graph, root) -> LexicalGraph:

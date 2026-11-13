@@ -12,7 +12,7 @@ copy, rewriting a data node's identity inside the results.
 import pytest
 from starlayer.graph.core import StarLayerGraph
 from starlayer.shacl.validator import _find_genuine_report_node
-from tests.terms import RDF, XSD, BlankNode, NamedNode, lit
+from tests.support.terms import RDF, XSD, BlankNode, NamedNode, lit
 
 SH = "http://www.w3.org/ns/shacl#"
 EX = "http://example.org/"

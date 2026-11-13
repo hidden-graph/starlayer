@@ -14,8 +14,8 @@ from codekg import (
     get_codekg_dataset,
 )
 from starlayer.graph import StarLayerGraph as Graph
-from tests.terms import DCTERMS, RDF, lit, set_triple
-from tests.terms import text as term_text
+from tests.support.terms import DCTERMS, RDF, lit, set_triple
+from tests.support.terms import text as term_text
 
 ISSUES_TTL = CURATED_DIR / "upstream-issues.ttl"
 SHAPES_TTL = CURATED_DIR.parent / "upstream-issues-shapes.ttl"

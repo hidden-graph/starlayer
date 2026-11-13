@@ -7,7 +7,7 @@ import pytest
 from rdflib.paths import MulPath
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from tests.terms import NamedNode
+from tests.support.terms import NamedNode
 
 E = "http://e/"
 

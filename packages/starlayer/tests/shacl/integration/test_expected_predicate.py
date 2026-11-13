@@ -27,7 +27,7 @@ per layer and removes the triples again when the layer ends.
 
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import RDF, Namespace, lit
+from tests.support.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
 def _rectangle_shapes(*, with_expected_predicate: bool) -> str:

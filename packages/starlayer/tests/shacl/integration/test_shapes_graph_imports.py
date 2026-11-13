@@ -2,7 +2,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import NamedNode, Namespace, lit
+from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -359,7 +359,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     with nothing external to fetch. Found as a real false-positive risk
     via direct testing, not hypothetical: without has_import_locally(),
     this would incorrectly raise (nothing was ever actually missing)."""
-    from tests.terms import OWL, RDF
+    from tests.support.terms import OWL, RDF
 
     shapes = StarLayerGraph()
     shapes.add((EX.ModuleA, OWL.imports, EX.ModuleB))

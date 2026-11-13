@@ -9,7 +9,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
-from tests.terms import NamedNode, lit
+from tests.support.terms import NamedNode, lit
 
 EX = "http://example.org/"
 RDF_REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")

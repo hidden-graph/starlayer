@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import RuleError, ShapeError, apply_rules, validate
-from tests.terms import NamedNode, Namespace
+from tests.support.terms import NamedNode, Namespace
 
 pytestmark = pytest.mark.shacl
 

@@ -8,7 +8,7 @@ import sys
 
 import pytest
 from starlayer.graph.core import StarLayerGraph
-from tests.skos import skos_validate
+from tests.support.skos import skos_validate
 
 _ROOT = pathlib.Path(__file__).resolve().parents[5]
 _SCRIPTS = _ROOT / "scripts"
@@ -172,7 +172,7 @@ def test_registry_descriptions_carry_no_stale_counts():
 def test_turtle_parts_keeps_a_literal_line_starting_with_at_prefix():
     from starlayer.graph import StarLayerGraph as Graph
     from starlayer.graph import isomorphic
-    from tests.terms import NamedNode, lit
+    from tests.support.terms import NamedNode, lit
 
     b = _script("build_starontology")
     g = Graph()

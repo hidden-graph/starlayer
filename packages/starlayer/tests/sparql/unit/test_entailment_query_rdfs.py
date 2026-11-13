@@ -7,7 +7,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment.infer import ENTAILMENT
 from starlayer.sparql.sqe.entailment import rewrite_for_entailment
-from tests.terms import RDF, RDFS, Namespace, lit
+from tests.support.terms import RDF, RDFS, Namespace, lit
 
 try:
     import owlrl

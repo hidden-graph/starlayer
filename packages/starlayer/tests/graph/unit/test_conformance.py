@@ -23,7 +23,7 @@ import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.execution.sparql_text import check_native_version_conformance
 from starlayer.graph.execution.version_conformance import SPARQL12ConformanceWarning
-from tests.terms import NamedNode
+from tests.support.terms import NamedNode
 
 EX = 'http://example.org/'
 

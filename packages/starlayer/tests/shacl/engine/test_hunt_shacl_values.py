@@ -218,7 +218,7 @@ def test_union_view_sparql_counts_a_triple_held_in_two_graphs_once():
 def _surrogate_case(obj, mode):
     from starlayer.graph import StarLayerGraph as Graph
     from starlayer.shacl.engine.terms import TermError
-    from tests.terms import NamedNode
+    from tests.support.terms import NamedNode
 
     shapes = Graph().parse(
         data="@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "

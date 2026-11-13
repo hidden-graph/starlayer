@@ -7,7 +7,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph, isomorphic
 from starlayer.graph.entailment import ENTAILMENT
-from tests.terms import OWL, RDF
+from tests.support.terms import OWL, RDF
 
 warnings.simplefilter("ignore")
 E = lambda n: ox.NamedNode("http://e/" + n)  # noqa: E731

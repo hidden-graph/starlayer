@@ -9,7 +9,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.paths import path_values
-from tests.terms import NamedNode
+from tests.support.terms import NamedNode
 
 warnings.simplefilter("ignore")
 PREFIXES = (

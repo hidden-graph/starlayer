@@ -4,7 +4,7 @@ names must exist. A long or stale entry file defeats its purpose."""
 import re
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[3]
+ROOT = Path(__file__).resolve().parents[4]
 PACKAGE = ROOT / "packages" / "starlayer" / "starlayer"
 MAX_LINES = 120
 # build products, not committed (.gitignore): they exist only after the first query or KG test has built them

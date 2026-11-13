@@ -9,7 +9,7 @@ silently never executes.
 
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import Namespace, lit
+from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 def test_global_rule_runs_once_against_whole_graph() -> None:

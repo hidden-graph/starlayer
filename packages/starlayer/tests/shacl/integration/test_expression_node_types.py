@@ -9,7 +9,7 @@ from starlayer import starontology
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shape_types import infer_types
-from tests.terms import RDF, BlankNode, Namespace
+from tests.support.terms import RDF, BlankNode, Namespace
 
 pytest.importorskip("owlrl")
 

@@ -14,7 +14,16 @@ import starlayer.shacl
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.shapes import DEFAULT_IGNORED_PROPERTIES
-from tests.terms import RDF, RDFS, BlankNode, Namespace, list_items, lit, rdf_list, text
+from tests.support.terms import (
+    RDF,
+    RDFS,
+    BlankNode,
+    Namespace,
+    list_items,
+    lit,
+    rdf_list,
+    text,
+)
 
 EX = Namespace('http://example.org/')
 # A plain Namespace, not rdflib.namespace.SH - sh:TripleTerm and SHACL 1.2's
@@ -192,7 +201,7 @@ class TestTemplateMerge:
         g.add((EX.alice, EX.name, lit('Alice')))
         g.add((EX.bob, RDF.type, EX.Person))
         g.add((EX.bob, EX.name, lit('Bob')))
-        from tests.terms import XSD
+        from tests.support.terms import XSD
         template, _shape_node, _prop_node = _template_person_shape(datatype=XSD.integer)
 
         result = g.derive_shape(template)

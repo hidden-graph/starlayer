@@ -12,7 +12,7 @@ from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui.widget_selection import select_widgets
-from tests.terms import RDF, RDFS, NamedNode, Namespace, lit
+from tests.support.terms import RDF, RDFS, NamedNode, Namespace, lit
 
 
 def _onto(name):

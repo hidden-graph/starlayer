@@ -22,7 +22,7 @@ result is documented as not meant to be persisted.
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import Namespace, lit, py, text
+from tests.support.terms import Namespace, lit, py, text
 
 EX = Namespace("http://example.org/")
 

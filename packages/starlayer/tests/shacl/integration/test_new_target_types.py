@@ -1,6 +1,6 @@
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
 from ._shape_loader import load_shape

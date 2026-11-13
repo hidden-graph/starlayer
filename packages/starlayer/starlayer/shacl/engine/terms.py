@@ -42,7 +42,7 @@ is_triple = lambda t: isinstance(t, ox.Triple)  # noqa: E731
 def lexical(term: Any) -> str:
     """The lexical value of a term: a literal's lexical form, an IRI's text, a blank node's id. This is what ``str(term)``
     gave on an rdflib term; on a pyoxigraph term ``str()`` yields ``<iri>`` / the N-Triples form, so engine code never
-    calls ``str()`` on a term (``tests/shacl_engine/test_no_str_of_terms.py``). A triple term has no lexical value: use
+    calls ``str()`` on a term (``tests/shacl/engine/test_no_str_of_terms.py``). A triple term has no lexical value: use
     ``text`` or ``n3``."""
     if isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal)):
         return term.value

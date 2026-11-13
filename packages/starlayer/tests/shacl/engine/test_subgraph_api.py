@@ -223,7 +223,7 @@ def test_conformance_theorem_with_the_engine_validate() -> None:
         assert validate(fragment, shapes, meta_shacl=False).conforms, name
 
 
-PAPER = Path(__file__).resolve().parents[1] / "shacl" / "integration" / "test_shape_fragments_paper.py"
+PAPER = Path(__file__).resolve().parents[1] / "integration" / "test_shape_fragments_paper.py"
 
 
 def _paper_cases():

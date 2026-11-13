@@ -5,7 +5,7 @@ import warnings
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, evaluate
-from tests.terms import XSD, Namespace, lit
+from tests.support.terms import XSD, Namespace, lit
 
 warnings.simplefilter("ignore")
 EX = Namespace("http://ex/")

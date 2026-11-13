@@ -182,7 +182,7 @@ def test_unsupported_input_still_names_the_argument():
 
 def test_select_widgets_with_oxigraph_graphs():
     from starlayer.shacl.ui.widget_selection import select_widgets
-    from tests.terms import NamedNode
+    from tests.support.terms import NamedNode
 
     shapes = """
     @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
@@ -249,7 +249,7 @@ def test_sqe_validate_takes_an_oxigraph_tree():
 
 def test_sqe_root_may_be_given_as_an_rdflib_term():
     from starlayer.sparql import sqe
-    from tests.terms import NamedNode
+    from tests.support.terms import NamedNode
 
     tree = StarLayerGraph()
     _, root = sqe.sqe_parse_to_tree(QUERY, tree, NamedNode(EX + "q"))
@@ -268,7 +268,7 @@ BASE = "@prefix ex: <http://example.org/> . ex:a ex:p ex:b . ex:b ex:p ex:c ."
 def test_srl_infer_and_query_on_oxigraph(cls):
     Variable = ox.Variable
     from starlayer.sparql import srl
-    from tests.terms import NamedNode
+    from tests.support.terms import NamedNode
 
     ruleset = srl.parse_ruleset(RULES)
     inferred = ruleset.infer(_ox(cls, BASE))

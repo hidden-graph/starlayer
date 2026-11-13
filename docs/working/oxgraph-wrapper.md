@@ -1,7 +1,7 @@
 # The Oxigraph-backed graph wrapper (`OxGraph`, `OxDataset`)
 
 Branch `mig-wrapper` (from `shacl-engine`), 2026-10-31. New files only: `packages/starlayer/starlayer/graph/oxgraph/` and
-`packages/starlayer/tests/graph/oxgraph/`, plus `packages/starlayer/benchmarks-graph/bench_oxgraph_wrapper.py`. Nothing existing
+`packages/starlayer/tests/graph/unit/`, plus `packages/starlayer/benchmarks-graph/bench_oxgraph_wrapper.py`. Nothing existing
 was edited. The names are working names; at the switch they become `StarLayerGraph` and `StarLayerDataset`.
 Decisions followed: `graph-oxigraph-migration-plan.md` sections 1 and 5.
 
@@ -61,13 +61,13 @@ reuses `graph/query/direct.py` (`_guard`) and `graph/backends/native.py` (`check
   module exists, else raises `NotImplementedError`. The contract is a guess until `interop.py` lands; adjust `core._to_rdf11`.
 - **Engine.** `validate(OxDataset, OxDataset)` works with no change to the engine: the wrapper provides the `GraphView` methods,
   `engine_terms = True` (so no term conversion happens) and `sparql_query` (delegating to `OxigraphGraph`).
-  `tests/graph/oxgraph/test_engine_adapter.py` runs the 138 W3C SHACL 1.2 core Validate entries through it, with `OxDataset` and with
+  `tests/graph/unit/test_engine_adapter.py` runs the 138 W3C SHACL 1.2 core Validate entries through it, with `OxDataset` and with
   `OxGraph`: 268 passed, 8 expected failures (the same four Oxigraph-literal-normalization entries as `test_w3c_engine_core_oxigraph.py`,
   strict xfails, issue #190).
 
 ## Differences from the old `StarLayerGraph` (conformance)
 
-`tests/graph/oxgraph/conformance.py` defines 26 scenarios run on both classes: add / remove / len / contains, triple patterns with
+`tests/graph/unit/conformance.py` defines 26 scenarios run on both classes: add / remove / len / contains, triple patterns with
 wildcards, literals through `add` and through a Turtle parse, parse and serialize round trips (turtle, nt, rdf/xml, json-ld, n3, trig,
 nquads), blank nodes across two parses (nt and turtle), SELECT / ASK / CONSTRUCT / DESCRIBE, `initBindings` and `initNs`, numeric
 formatting, `sameTerm` on numeric constants, SPARQL 1.2 triple terms, all update operations (INSERT DATA, INSERT/DELETE, DELETE WHERE,
@@ -99,7 +99,7 @@ identity (rdflib compares graph identifiers); `+=` is built, `-=`, `&=`, `^=` ar
 ## Persistence
 
 `OxDataset(path=...)` / `OxGraph(path=...)` open a RocksDB store (one writer per path: drop the first object before reopening).
-`tests/graph/oxgraph/test_persistence.py` writes a parse, a named-graph parse and an `INSERT DATA`, flushes, reopens, and compares all
+`tests/graph/unit/test_persistence.py` writes a parse, a named-graph parse and an `INSERT DATA`, flushes, reopens, and compares all
 quads, then clears a graph, reopens as an `OxGraph` and checks the default graph.
 
 ## Benchmark
@@ -123,7 +123,7 @@ a `Quad` / tuple in Python. Not tuned further.
 ## StarLayer helpers (branch `mig-helpers`)
 
 Code in `oxgraph/helpers/` (`entailment.py`, `shapes.py`, `imports.py`, `rewrite.py`, `qnames.py`); `core.py` has one-line delegating
-methods on `OxGraph` and `OxDataset`. Tests: `tests/graph/oxgraph/test_helpers_conformance.py` (198 cases, old `StarLayerGraph` against
+methods on `OxGraph` and `OxDataset`. Tests: `tests/graph/unit/test_helpers_conformance.py` (198 cases, old `StarLayerGraph` against
 `OxGraph`, triple sets compared up to blank-node isomorphism with `rdfc_native.isomorphic`, inputs taken from `test_infer.py`,
 `test_resolve_imports.py`, `test_shape_derivation.py`, `test_dataset.py`, `test_leftovers_72_75_83.py`).
 
@@ -164,7 +164,7 @@ The module docstring is the layout reference; in short: grouped subjects (`;` `,
 well-formed list, only used prefixes, `{| |}` / `~` / `<< s p o >>` for reifiers, `<<( )>>` for triple terms, directional literals, bare numbers only
 when the lexical form is exactly the Turtle token, blank nodes ordered by a structural signature so the text never depends on labels or input order.
 
-Gates (`tests/graph/oxgraph/test_pretty.py`; the fixtures and goldens are in `tests/graph/oxgraph/fixtures/pretty`): over the vendored W3C Turtle 1.2
+Gates (`tests/graph/unit/test_pretty.py`; the fixtures and goldens are in `tests/graph/unit/fixtures/pretty`): over the vendored W3C Turtle 1.2
 inputs, the RDFC-1.0 N-Quads inputs (`test074`, the poison graph, left out), the SHACL suite Turtle and the fixtures (581 parseable documents, 2 styles) and 6,000
 seeded random datasets: the output re-parses isomorphic (`rdfc_native.isomorphic`), every literal keeps its lexical form, language and direction, and a
 second pass over the re-parse gives the same text. 100,000 triples (blank-node trees, lists, numbers; Python 3.10, one run): `pretty_turtle` 2.6 s,
@@ -184,7 +184,7 @@ Differences from the old writer (11 fixture cases compared byte for byte; 3 iden
 ## Migration gaps (branch `mig-b1-gaps`, 2026-11-06)
 
 Owner decision of 2026-11-06: fidelity to the old rdflib `StarLayerGraph` is not a goal; Oxigraph's canonical lexical forms are
-accepted. Tests: `tests/graph/oxgraph/test_migration_gaps.py` and `test_oxigraph_deviations.py`.
+accepted. Tests: `tests/graph/unit/test_migration_gaps.py` and `test_oxigraph_deviations.py`.
 
 - **Pickle and copy (O2).** `pickle`, `copy.copy` and `copy.deepcopy` work on `OxGraph` and `OxDataset` (`pyoxigraph.Store` is not
   picklable, so the state is the quads). A graph view pickles only its own graph (identifier, quads, a copy of the prefixes); a

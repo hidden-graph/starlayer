@@ -12,7 +12,7 @@ from hypothesis import strategies as st
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
 from starlayer.shacl.engine.terms import iri_text
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 E = Namespace("http://e/")
 PRE = "@prefix : <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "

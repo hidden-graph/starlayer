@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from codekg import CODEKG_NS, CURATED_DIR, notebook_links
 from starlayer.graph import StarLayerGraph as Graph
-from tests.terms import RDF, lit, set_triple
+from tests.support.terms import RDF, lit, set_triple
 
 SHAPES_TTL = CURATED_DIR.parent / "notebook-links-shapes.ttl"
 

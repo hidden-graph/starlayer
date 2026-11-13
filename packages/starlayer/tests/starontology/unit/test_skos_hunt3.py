@@ -8,7 +8,7 @@ disjoint with broadMatch and relatedMatch), S13/S14 (labels), S36 (every memberL
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from tests.skos import skos_validate
+from tests.support.skos import skos_validate
 
 HEAD = (
     '@prefix skos: <http://www.w3.org/2004/02/skos/core#> . @prefix : <http://ex/> .\n'

@@ -11,7 +11,7 @@ import pytest
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate
 from starlayer.shacl import evaluate as _evaluate
-from tests.terms import Namespace, lit, py
+from tests.support.terms import Namespace, lit, py
 
 EX = Namespace("http://example.org/")
 

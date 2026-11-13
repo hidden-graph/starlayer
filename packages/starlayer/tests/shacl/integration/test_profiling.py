@@ -2,7 +2,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema, profiling
-from tests.terms import RDF, RDFS, NamedNode, Namespace, lit
+from tests.support.terms import RDF, RDFS, NamedNode, Namespace, lit
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 PROF = Namespace("http://www.w3.org/ns/dx/prof/")

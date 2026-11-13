@@ -15,7 +15,7 @@ these build on.
 import pyoxigraph as ox
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import NamedNode, Namespace, lit
+from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

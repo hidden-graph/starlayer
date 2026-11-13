@@ -256,7 +256,7 @@ it is accepted and gives `true`.
 
 Where it surfaces: the old rdflib evaluator was patched toward the XPath rules (`tests/graph/unit/test_contracts_hunt3.py`, five
 tests); on Oxigraph they differ. Recorded as the strict xfail `test_replace_and_regex_follow_xpath` in
-`tests/graph/oxgraph/test_oxigraph_deviations.py`. It stays an expected failure until every row above agrees with XPath, so a
+`tests/graph/unit/test_oxigraph_deviations.py`. It stays an expected failure until every row above agrees with XPath, so a
 partial fix is visible only in this table. No client-side patch (it would need a translator from the XSD dialect to the `regex`
 crate's).
 

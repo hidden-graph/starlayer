@@ -77,7 +77,7 @@ def test_a_node_reached_through_another_target_is_not_mistaken_for_a_cycle() -> 
 
 
 def pyshacl_sh(term: str):
-    from tests.terms import Namespace
+    from tests.support.terms import Namespace
 
     return Namespace("http://www.w3.org/ns/shacl#")[term]
 

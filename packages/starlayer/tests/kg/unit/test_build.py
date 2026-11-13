@@ -16,7 +16,7 @@ from pathlib import Path
 from codekg import BLOB_BASE, CODEKG_NS
 from codekg.extractor.build import refresh
 from starlayer.graph import StarLayerDataset
-from tests.terms import RDF, RDFS, NamedNode, lit
+from tests.support.terms import RDF, RDFS, NamedNode, lit
 
 SLKG = CODEKG_NS
 

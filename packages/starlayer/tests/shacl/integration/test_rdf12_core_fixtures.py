@@ -2,7 +2,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 from ._shape_loader import load_shape
 

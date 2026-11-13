@@ -13,7 +13,7 @@ from starlayer.sparql.srl import (  # noqa: E402
     ruleset_to_tree,
     srl_validate,
 )
-from tests.terms import RDF, NamedNode, Namespace, lit, rdf_list, set_triple
+from tests.support.terms import RDF, NamedNode, Namespace, lit, rdf_list, set_triple
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 

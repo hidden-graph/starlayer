@@ -16,7 +16,7 @@ from urllib.parse import unquote, urlparse
 
 import pyoxigraph as ox
 from starlayer.graph import RDF, StarLayerGraph
-from tests.lexical_graph import LexicalGraph
+from tests.support.lexical_graph import LexicalGraph
 
 from .namespaces import MF
 

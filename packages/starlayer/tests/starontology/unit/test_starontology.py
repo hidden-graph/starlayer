@@ -153,7 +153,7 @@ class TestConformanceProfilesContent:
 
     @pytest.mark.parametrize("name", sorted(_EXPECTED_PROFILES))
     def test_each_profile_is_a_profile_of_the_public_layer(self, name):
-        from tests.terms import RDF, NamedNode, Namespace
+        from tests.support.terms import RDF, NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
@@ -163,7 +163,7 @@ class TestConformanceProfilesContent:
 
     @pytest.mark.parametrize("name", sorted(_EXPECTED_PROFILES))
     def test_each_profile_lists_its_shapes_and_ontology_files(self, name):
-        from tests.terms import NamedNode, Namespace
+        from tests.support.terms import NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
@@ -179,7 +179,7 @@ class TestConformanceProfilesContent:
 
     def test_shapes_graphs_are_not_declared_profiles_of_the_public_layer(self):
         """The layering: no registered file has its own prof:isProfileOf."""
-        from tests.terms import NamedNode, Namespace
+        from tests.support.terms import NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
@@ -198,7 +198,7 @@ class TestGetConformanceProfiles:
     themselves from this full graph."""
 
     def test_bundled_copy_has_five_profiles_and_three_module_resources(self):
-        from tests.terms import RDF, NamedNode, Namespace
+        from tests.support.terms import RDF, NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         graph = _rdflib(starontology.get_conformance_profiles())
@@ -221,7 +221,7 @@ class TestGetConformanceProfiles:
         local override for testing, confirmed here with a deliberately
         different (single-triple) document, not just the bundled one
         re-read from a copied path."""
-        from tests.terms import NamedNode
+        from tests.support.terms import NamedNode
 
         override = tmp_path / "override-profiles.ttl"
         override.write_text(
@@ -243,7 +243,7 @@ class TestGetResourceIri:
     requires the same IRI in both places)."""
 
     def test_matches_the_artifact_listed_in_the_profile(self):
-        from tests.terms import NamedNode, Namespace
+        from tests.support.terms import NamedNode, Namespace
 
         PROF = Namespace("http://www.w3.org/ns/dx/prof/")
         ROLE = Namespace("http://www.w3.org/ns/dx/prof/role/")
@@ -348,7 +348,7 @@ class TestPublishedFiles:
         own WHERE clause already filters by the exact shapes-graph IRI."""
         from starlayer.shacl import StarShaclSchema
         from starlayer.shacl.profiling import derive_conforms_to
-        from tests.terms import DCTERMS, NamedNode
+        from tests.support.terms import DCTERMS, NamedNode
 
         data = StarLayerGraph()
         data.parse(
@@ -404,7 +404,7 @@ class TestLocalLoader:
     sqe_shapes.ttl/srl_shapes.ttl themselves."""
 
     def test_resolves_a_real_sh_shapesgraph_iri(self):
-        from tests.terms import Namespace as RdfNamespace
+        from tests.support.terms import Namespace as RdfNamespace
 
         SQE = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#")
         resolved = starontology.local_loader(SQE.ShapesGraph)
@@ -412,15 +412,15 @@ class TestLocalLoader:
         assert len(resolved) > 0
 
     def test_returns_none_for_an_unregistered_iri(self):
-        from tests.terms import NamedNode
+        from tests.support.terms import NamedNode
 
         assert starontology.local_loader(NamedNode("http://example.org/not-registered")) is None
 
     def test_sqe_shacl_alone_is_missing_spexpr_expression_shape(self):
         """Confirms the real gap this whole mechanism exists to close -
         not just that the pieces exist independently."""
-        from tests.terms import RDF
-        from tests.terms import Namespace as RdfNamespace
+        from tests.support.terms import RDF
+        from tests.support.terms import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -428,8 +428,8 @@ class TestLocalLoader:
         assert (SPEXPR.ExpressionShape, RDF.type, SH.NodeShape) not in sqe_alone
 
     def test_resolve_imports_with_local_loader_closes_the_gap(self):
-        from tests.terms import RDF
-        from tests.terms import Namespace as RdfNamespace
+        from tests.support.terms import RDF
+        from tests.support.terms import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -440,8 +440,8 @@ class TestLocalLoader:
         assert len(merged) > len(sqe_alone)
 
     def test_srl_shacl_also_resolves_its_spexpr_import(self):
-        from tests.terms import RDF
-        from tests.terms import Namespace as RdfNamespace
+        from tests.support.terms import RDF
+        from tests.support.terms import Namespace as RdfNamespace
         SH = RdfNamespace("http://www.w3.org/ns/shacl#")
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
@@ -464,7 +464,7 @@ class TestShaclVocabulary:
     """shacl_vocabulary: the W3C WG's SHACL 1.2 vocabulary, vendored and unchanged."""
 
     def test_it_declares_what_a_value_of_sh_group_is_and_the_1_2_classes(self):
-        from tests.terms import RDFS, Namespace
+        from tests.support.terms import RDFS, Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
 
@@ -474,7 +474,7 @@ class TestShaclVocabulary:
         assert (SH.ShapesGraph, None, None) in vocabulary, "a SHACL 1.2 class, which pySHACL's 1.0 copy lacks"
 
     def test_the_overlay_says_what_a_shapes_graph_defines_one_property_shape_per_kind_on_the_inverse_of_is_defined_by(self):
-        from tests.terms import RDF, RDFS, Namespace
+        from tests.support.terms import RDF, RDFS, Namespace
 
         SH = Namespace("http://www.w3.org/ns/shacl#")
         STSH = Namespace("https://github.com/hidden-graph/starlayer/ns/shacl#")

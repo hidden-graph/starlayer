@@ -11,7 +11,7 @@ which shape it's attached to, which that per-shape loop cannot express.
 
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import RDF, Namespace, lit
+from tests.support.terms import RDF, Namespace, lit
 
 from ._shape_loader import load_shape
 

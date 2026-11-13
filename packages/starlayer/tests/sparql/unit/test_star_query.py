@@ -6,7 +6,7 @@ query can run against several different graphs without repeating them.
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.sparql import StarQuery
-from tests.terms import Namespace
+from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
 

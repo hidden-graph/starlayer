@@ -38,7 +38,7 @@ from tests.shacl.w3c_shacl12.namespaces import MF, SHT
 from tests.shacl.w3c_shacl12.test_w3c_validate import TOP_MANIFEST, VENDOR_ROOT
 
 SUITE_TESTS = VENDOR_ROOT / "tests"
-DOC = Path(__file__).resolve().parents[4] / "docs" / "working" / "shacl-engine-plan-format.md"
+DOC = Path(__file__).resolve().parents[5] / "docs" / "working" / "shacl-engine-plan-format.md"
 
 
 def _graph_files() -> list[Path]:

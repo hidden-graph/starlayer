@@ -14,7 +14,7 @@ from pathlib import Path
 import pytest
 from codekg import CODEKG_NS, queries
 from starlayer.graph import StarLayerGraph as Graph
-from tests.terms import RDF, RDFS, NamedNode, lit, set_triple
+from tests.support.terms import RDF, RDFS, NamedNode, lit, set_triple
 
 CODEKG_DIR = Path(queries.__file__).parent
 SHAPES_TTL = CODEKG_DIR / "query-library-shapes.ttl"

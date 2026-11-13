@@ -15,7 +15,7 @@ import pytest
 
 _FOREIGN = {"rdflib", "owlrl", "owlready2", "rustdl", "oxrdflib"}
 
-PACKAGE = Path(__file__).resolve().parents[1] / "starlayer"
+PACKAGE = Path(__file__).resolve().parents[2] / "starlayer"
 FILES = sorted(PACKAGE.rglob("*.py"))
 
 

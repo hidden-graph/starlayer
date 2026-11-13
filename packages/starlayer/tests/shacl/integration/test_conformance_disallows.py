@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import Namespace, lit
+from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

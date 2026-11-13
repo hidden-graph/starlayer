@@ -12,7 +12,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 from starlayer.shacl.engine.terms import RDF as OXRDF
 from starlayer.shacl.engine.terms import text, to_engine
-from tests.terms import NamedNode, Namespace, lit
+from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

@@ -15,7 +15,7 @@ from pathlib import Path
 
 import pytest
 
-PACKAGE_ROOT = str(Path(__file__).resolve().parents[1])
+PACKAGE_ROOT = str(Path(__file__).resolve().parents[2])
 
 BLOCK = "import sys\nsys.modules['rdflib'] = None\n"
 

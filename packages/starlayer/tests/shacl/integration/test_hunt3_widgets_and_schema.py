@@ -6,7 +6,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.ui.widget_selection import select_widget, select_widgets
-from tests.terms import RDF, XSD, Namespace
+from tests.support.terms import RDF, XSD, Namespace
 
 EX = Namespace("http://ex/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

@@ -12,7 +12,7 @@ rules, and shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule).
 
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import RDF, Namespace
+from tests.support.terms import RDF, Namespace
 
 EX = Namespace("http://example.org/")
 
@@ -161,7 +161,7 @@ class TestShapeAttachedRulesPath:
         assert (EX.alice, EX.taggedByA, None) in result.inferred_graph
         assert (EX.alice, EX.taggedByB, None) not in result.inferred_graph
         # Only RuleA actually ran, so only RuleA should have provenance.
-        from tests.terms import Namespace as _NS
+        from tests.support.terms import Namespace as _NS
 
         SH = _NS("http://www.w3.org/ns/shacl#")
         source_rules = {o for _, _, o in result.inferred_graph.triples((None, SH.sourceRule, None))}

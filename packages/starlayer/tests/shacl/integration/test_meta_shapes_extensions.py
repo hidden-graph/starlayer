@@ -29,7 +29,7 @@ from starlayer.shacl.meta_shapes import (
     load_meta_shapes_graph,
     meta_validate,
 )
-from tests.terms import NamedNode, Namespace, lit
+from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -2061,7 +2061,7 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
     conforms, report, _text = meta_validate(shapes)
 
     assert conforms is True
-    from tests.terms import RDF, Namespace
+    from tests.support.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
     assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
@@ -2072,7 +2072,7 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
 
 def test_a_rule_that_names_a_rule_processor_is_a_warning_because_this_engine_provides_none() -> None:
     """Inference Rules 10: an engine that cannot handle the value must fail when it runs the rule; the warning says so beforehand."""
-    from tests.terms import RDF, Namespace
+    from tests.support.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
     shapes = Graph()
@@ -2103,7 +2103,7 @@ def _template_results(instances: str):
     """``(conforms, severities)``; meta_validate() raises with the report in its message when there is a violation."""
     import re
 
-    from tests.terms import RDF, Namespace
+    from tests.support.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
     shapes = Graph()

@@ -4,7 +4,7 @@
 ``expressions.OPERATORS``), so a component or operator added to the engine appears in the table at once. What a registry
 cannot know (scope, what the component needs from the executor, the spec clause) is annotated by hand in ``_COMPONENT_META``
 and ``_OPERATOR_META`` below; a row with no annotation has ``"annotated": false``, and
-``tests/shacl_engine/test_plan_json.py`` fails on such a row, so the annotation cannot drift behind the registry.
+``tests/shacl/engine/test_plan_json.py`` fails on such a row, so the annotation cannot drift behind the registry.
 
 ``needs`` flags (per component):
 

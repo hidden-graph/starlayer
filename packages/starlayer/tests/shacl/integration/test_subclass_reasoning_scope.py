@@ -1,6 +1,6 @@
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import RDFS, Namespace
+from tests.support.terms import RDFS, Namespace
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

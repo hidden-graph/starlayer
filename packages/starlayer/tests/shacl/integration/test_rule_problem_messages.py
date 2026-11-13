@@ -10,7 +10,7 @@ from starlayer.shacl.meta_shapes import (
     parameter_value_shapes,
     sparql_query_problems,
 )
-from tests.terms import NamedNode
+from tests.support.terms import NamedNode
 
 PRE = """@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:rule ex:R .
@@ -86,7 +86,7 @@ def test_check_sparql_query_text_still_raises_the_first_problem():
 
 def test_a_node_that_holds_prefix_declarations_is_inferred_to_be_a_prefix_set():
     from starlayer.shacl.shape_types import infer_types
-    from tests.terms import RDF
+    from tests.support.terms import RDF
 
     shapes = Graph().parse(data=PRE + 'ex:Prefixes sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/" ] .', format="turtle")
     inferred = infer_types(shapes)

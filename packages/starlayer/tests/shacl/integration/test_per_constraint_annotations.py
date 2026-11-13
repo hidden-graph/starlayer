@@ -11,7 +11,7 @@ from typing import Any
 import pytest
 from starlayer import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from tests.terms import RDF, Namespace, lit
+from tests.support.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
