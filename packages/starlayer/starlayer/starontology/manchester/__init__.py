@@ -255,19 +255,7 @@ def _inverse_characteristic_maps():
 # ---------------------------------------------------------------------------
 
 def _build_rdf_list(g, items):
-    if not items:
-        return RDF.nil
-    head, prev = None, None
-    for item in items:
-        node = BNode()
-        if prev is not None:
-            g.add((prev, RDF.rest, node))
-        else:
-            head = node
-        g.add((node, RDF.first, item))
-        prev = node
-    g.add((prev, RDF.rest, RDF.nil))
-    return head
+    return g.add_list(items)
 
 
 def _read_rdf_list(g, node):

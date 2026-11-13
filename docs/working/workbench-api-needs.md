@@ -77,6 +77,20 @@ Already in the library, and the workbench keeps its own copy: `copy_graph` is `g
 `graph.cbd` (which takes one node), `expand_name` is `graph.expand_curie` (the app adds the standard prefixes), `n3` / `qname` are `graph.qname_term` / `compute_qname`. The
 `prefix_options` workaround for `used_prefixes()` binding an `nsN` prefix does not apply to the current library (checked 2026-11-13: it does not change the graph).
 
-Not moved: the data index (`DataIndex`: classes with counts, per-class property use with datatypes, kinds and most values). It overlaps with `graph.derive_shape()`, and
-a shared profile of a graph is a design of its own; see `docs/design/future_enhancements.md`. Not moved either, because they are the application: the `*_options` pickers, forms, the
-Turtle drawer and diff, the undo history and the web layer.
+The data index (`DataIndex`) is split: the part that is a fact about the data is `starlayer.graph.profile(graph)` / `graph.profile()` (`GraphProfile`: `classes`,
+`properties`, `instances(cls)`, `types_of(node)`, `class_properties(cls)`, `properties_of(nodes)` giving `PropertyUse(property, nodes, max_values, datatypes, kinds)`). The rest stays
+in the app: what the shapes' targets reach (`focus_nodes`, scope, uncovered properties) is built on the library's `target_nodes` and the pickers' lists are display. The profile is a snapshot
+with no cache: the app keeps its own, keyed on its own data and shapes versions, which is what it did already.
+
+### Where a helper lives (decided 2026-11-13)
+
+A helper is StarLayer's when it states a fact about RDF data or SHACL, or does what a standard says, **and a second user needs it** (the library, another app, the tests): a
+value or term conversion, an RDF list, a closure over a vocabulary's predicates, a profile of a graph, why a widget was chosen. It is the application's when it exists to be shown or to
+manage the app's own state: option lists and their labels and order, forms, undo history, drawing a diff, caches and their invalidation. A cache belongs to whoever knows when the
+data changed: the library gives snapshots (`profile`, `GraphDelta`) and the app decides when to take another. Inside the library there is one implementation of a concept.
+
+`derive_shape()` was checked against the profile and keeps its own analysis: it needs the values (ranges, enumerations, languages), not the summary. It shares the pieces that are the same
+(`terms.term_kind`, and `graph.add_list` for writing lists; the copies in `graph/shapes.py` and `starontology/manchester` are gone). What remains duplicated inside the library are the
+readers of an RDF list in the SHACL engine and the SPARQL tree code (`engine/graphs.list_items`, `shapes_graphs._items`, `text._items`, `subgraph._items`, `core_value.rdf_list`,
+`core_string_pair._list_items`, `sqe/expr_text._list_items`): each fails differently on a malformed list (a `ShapeError` naming the shape, `None`, a short list), so merging them is
+a decision about one error contract, not a tidy-up. Open.

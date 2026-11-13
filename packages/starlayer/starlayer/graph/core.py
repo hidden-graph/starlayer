@@ -383,6 +383,12 @@ class _Base:
             yield firsts[0]
             head = rests[0]
 
+    def profile(self) -> Any:
+        """A snapshot of what the data says about itself (classes with counts, the properties their instances use); see ``profile.profile``."""
+        from starlayer.graph.profile import profile
+
+        return profile(self)
+
     def add_list(self, items: Iterable[Any], head: Any = None) -> Any:
         """Write ``items`` as an RDF list and return its head (``rdf:nil`` for none); see ``rdflist.add_list``."""
         from starlayer.graph import rdflist

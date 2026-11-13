@@ -29,6 +29,7 @@ from starlayer.graph.namespaces import (
     XSD,
     Namespace,
 )
+from starlayer.graph.profile import GraphProfile, PropertyUse, profile
 from starlayer.graph.terms import literal, parse_term, to_python
 
 __all__ = [
@@ -52,6 +53,8 @@ __all__ = [
     "XSD",
     "StarLayerDataset",
     "GraphDelta",
+    "GraphProfile",
+    "PropertyUse",
     "StarLayerGraph",
     "as_store",
     "can_resolve_import",
@@ -60,6 +63,7 @@ __all__ = [
     "isomorphic",
     "literal",
     "parse_term",
+    "profile",
     "reification",
     "set_default_prefixes",
     "to_python",

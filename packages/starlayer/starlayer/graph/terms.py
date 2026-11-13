@@ -142,6 +142,19 @@ def to_python(term: Any) -> Any:
 _PREFIX_NAME = re.compile(r"[A-Za-z][\w.-]*|")
 
 
+def term_kind(term: Any) -> str:
+    """``"iri"``, ``"blank"``, ``"literal"`` or ``"triple"``: the kind of an RDF term. ``TypeError`` for anything else."""
+    if isinstance(term, NamedNode):
+        return "iri"
+    if isinstance(term, BlankNode):
+        return "blank"
+    if isinstance(term, Literal):
+        return "literal"
+    if isinstance(term, Triple):
+        return "triple"
+    raise TypeError(f"not an RDF term: {term!r}")
+
+
 def parse_term(text: str, prefixes: Mapping[str, str] | None = None) -> Any:
     """The term Turtle 1.2 text denotes: ``<http://e/x>``, ``"text"``, ``"text"@en``, ``"text"@ar--rtl``, ``"1"^^<...#integer>``, ``5``,
     ``true``, ``_:b0`` or a triple term ``<<( s p o )>>``. A prefixed name (``ex:alice``, ``xsd:integer`` inside a typed literal) is

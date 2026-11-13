@@ -104,16 +104,12 @@ def _text(term: Any) -> str:
     return term.value if hasattr(term, "value") else str(term)
 
 
+_SHACL_KIND = {"iri": "IRI", "blank": "BlankNode", "literal": "Literal", "triple": "TripleTerm"}
+
+
 def _term_kind(v: Any) -> str:
-    if isinstance(v, ox.Triple):
-        return "TripleTerm"
-    if isinstance(v, ox.Literal):
-        return "Literal"
-    if isinstance(v, ox.BlankNode):
-        return "BlankNode"
-    if isinstance(v, ox.NamedNode):
-        return "IRI"
-    raise TypeError(f"unrecognized RDF term for shape derivation: {v!r}")
+    """The ``sh:nodeKind`` name of a term's kind (``IRI``, ``BlankNode``, ``Literal``, ``TripleTerm``)."""
+    return _SHACL_KIND[terms.term_kind(v)]
 
 
 def _literal_datatype_bucket(lit: ox.Literal) -> ox.NamedNode | None:
@@ -127,14 +123,7 @@ def _literal_datatype_bucket(lit: ox.Literal) -> ox.NamedNode | None:
 
 
 def _build_rdf_list(g: Any, items: Iterable[Any]) -> Any:
-    items = list(items)
-    if not items:
-        return RDF_NIL
-    cells = [ox.BlankNode() for _ in items]
-    for cell, item, nxt in zip(cells, items, [*cells[1:], RDF_NIL], strict=True):
-        g.add((cell, RDF_FIRST, item))
-        g.add((cell, RDF_REST, nxt))
-    return cells[0]
+    return g.add_list(items)
 
 
 def _list_items(g: Any, head: Any) -> list[Any]:
