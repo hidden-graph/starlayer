@@ -521,3 +521,49 @@ nl:04g-55975daa a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.ui.property_roles.property_shapes_for_role",
         "starlayer.shacl.ui.widget_selection.select_widget" .
+
+nl:03-32f5f2c6 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "32f5f2c6" ;
+    slkg:cellHash "6fcc4da5b18dfbc5" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Prepares a query once with StarQuery and runs it against two graphs, with and without an entailment override." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql.star_query.StarQuery" .
+
+nl:03-f6a58c6a a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "f6a58c6a" ;
+    slkg:cellHash "488cbb8c9166df92" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Shows the warning for a VERSION directive that does not match the query text." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.execution.run.query" .
+
+nl:02d-836207d8 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+    slkg:cellId "836207d8" ;
+    slkg:cellHash "1c8fc496abb9baf5" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Converts triple terms to the basic encoding and back with interop.to_basic and from_basic." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.interop.to_basic",
+        "starlayer.graph.interop.from_basic" .
+
+nl:05a-f58f1639 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05a-manchester-syntax.ipynb" ;
+    slkg:cellId "f58f1639" ;
+    slkg:cellHash "3c1ef1eaaa5fcf9f" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Validates a Manchester syntax tree against the manch: shapes." ;
+    slkg:demonstratesIdentifier
+        "starlayer.starontology.manchester.__init__.manchester_validate" .
+
+nl:05b-df2738a8 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05b-sparql-query-as-rdf.ipynb" ;
+    slkg:cellId "df2738a8" ;
+    slkg:cellHash "69af50747c193bf2" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Validates an sqe: query tree against the sqe: shapes." ;
+    slkg:demonstratesIdentifier
+        "starlayer.sparql.sqe.shapes.sqe_validate" .

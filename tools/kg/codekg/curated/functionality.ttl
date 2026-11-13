@@ -120,7 +120,9 @@ cur:cap-rdf-graph-13 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "interchange" ;
     rdfs:comment "Triple terms are converted to and from the basic encoding of the RDF 1.2 Interoperability specification (a blank node typed rdf:PropositionForm with three description properties) when writing or reading plain RDF 1.1 formats." ;
-    slkg:implementedByIdentifier "starlayer.graph.interop" .
+    slkg:implementedByIdentifier
+        "starlayer.graph.interop",
+        "starlayer.graph.interop.to_basic" .
 
 cur:cap-rdf-graph-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;
@@ -167,7 +169,8 @@ cur:cap-sparql-3 a slkg:Capability ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "query", "validate" ;
-    rdfs:comment "SHACL shapes for sqe graphs." .
+    rdfs:comment "SHACL shapes for sqe graphs." ;
+    slkg:implementedByIdentifier "starlayer.sparql.sqe.shapes.sqe_validate" .
 
 cur:cap-sparql-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;
@@ -228,7 +231,8 @@ cur:cap-srl-4 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "infer" ;
     slkg:implementsSpecification tr:sparql12-rl ;
-    rdfs:comment "Rule bodies and heads can use RDF 1.2 triple terms, reified triples and annotations; bodies can use the / and ^ property paths." .
+    rdfs:comment "Rule bodies and heads can use RDF 1.2 triple terms, reified triples and annotations; bodies can use the / and ^ property paths." ;
+    slkg:implementedByIdentifier "starlayer.sparql.srl.parse_ruleset" .
 
 cur:cap-srl-5 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
@@ -266,7 +270,8 @@ cur:cap-srl-8 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "infer" ;
     slkg:implementsSpecification tr:sparql12-rl ;
-    rdfs:comment "Verified against the specification's own worked example." .
+    rdfs:comment "Verified against the specification's own worked example." ;
+    slkg:implementedByIdentifier "starlayer.sparql.srl.parse_ruleset" .
 
 cur:cap-srl-9 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-srl ;
@@ -308,7 +313,8 @@ cur:cap-manchester-3 a slkg:Capability ;
     slkg:position 3 ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate" ;
-    rdfs:comment "SHACL shapes for manch graphs." .
+    rdfs:comment "SHACL shapes for manch graphs." ;
+    slkg:implementedByIdentifier "starlayer.starontology.manchester.__init__.manchester_validate" .
 
 
 ### Reasoning
@@ -385,7 +391,8 @@ cur:cap-shacl-3 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate" ;
     slkg:implementsSpecification tr:shacl12-core ;
-    rdfs:comment "SHACL 1.2 meta-shapes for checking shapes graphs." .
+    rdfs:comment "SHACL 1.2 meta-shapes for checking shapes graphs." ;
+    slkg:implementedByIdentifier "starlayer.shacl.engine.meta.MetaShaclError" .
 
 cur:cap-shacl-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -443,7 +450,8 @@ cur:cap-shacl-9 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate", "infer" ;
     rdfs:comment "Entailment during validation: a shapes graph's sh:entailment declarations, or an inference option, run the same entailment regimes as graph reasoning." ;
-    slkg:implementedByIdentifier "starlayer.shacl.engine.entailment.resolve_data_view" .
+    slkg:implementedByIdentifier "starlayer.shacl.engine.entailment.resolve_data_view" ;
+    slkg:implementedByIdentifier "starlayer.shacl._adapter.target_nodes" .
 
 cur:cap-shacl-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -483,7 +491,9 @@ cur:cap-other-1 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "interchange" ;
     rdfs:comment "VERSION-directive conformance warnings." ;
-    slkg:implementedByIdentifier "starlayer.graph.ntversion" .
+    slkg:implementedByIdentifier
+        "starlayer.graph.ntversion",
+        "starlayer.graph.execution.run.query" .
 
 cur:cap-other-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;
@@ -500,7 +510,8 @@ cur:cap-other-3 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate", "reference" ;
     slkg:implementsSpecification tr:skos-reference ;
-    rdfs:comment "SHACL shapes for SKOS: the Reference's numbered conditions as validation shapes, some non-normative recommendations, and form shapes with datatype-based UI widgets." .
+    rdfs:comment "SHACL shapes for SKOS: the Reference's numbered conditions as validation shapes, some non-normative recommendations, and form shapes with datatype-based UI widgets." ;
+    slkg:implementedByIdentifier "starlayer.starontology.__init__.get_ontology_graph" .
 
 cur:cap-other-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-other ;

@@ -53,12 +53,19 @@ Fourteen more notebook links (55 in all) tie these cells to the symbols they sho
 | `StarLayerGraphProtocol`, `MutableStarLayerGraphProtocol`, `normalize_*`, `ExecutionDiagnostics` (shown by its fields, not by name) | for library authors; the API reference has them |
 | `addN`, `predicate_objects`, `subject_objects`, `subject_predicates`, `engine_view`, `sparql_query` | rdflib-style readers and engine hooks; not worth a section |
 
-Capabilities marked implemented that still have no notebook link to their implementing symbols (all are covered in prose or in a cell, and only lack the link): `cap-shacl-3` (meta-shapes; `04` 5.2 shows `MetaShaclError`, linked to the error, not to the meta-shapes), `cap-sparql-4` (prepared queries, `StarQuery`), `cap-srl-4` and `cap-srl-8` (`03b`), `cap-other-1` (`03` section 1.3), `cap-rdf-graph-13` (the RDF 1.1 basic encoding in `02d`), `cap-manchester-3`, `cap-sparql-3`, `cap-other-3` (the shapes for `manch:`, `sqe:` and SKOS graphs). Roadmap capabilities are not covered, correctly.
+Every capability marked implemented now has a notebook link to a symbol that implements it (60 links in all). Nine of them were not demonstrated, or had no implementing symbol to link to:
+
+- Prepared queries (`cap-sparql-4`) had no code cell at all: `03` section 1.6 shows `StarQuery`.
+- The RDF 1.1 basic encoding (`cap-rdf-graph-13`) was shown only through `serialize(rdf_version="1.1")`: `02d` now shows `interop.to_basic` and `from_basic`.
+- Capabilities that are shapes or data (`cap-shacl-3` meta-shapes, `cap-sparql-3` `sqe:` shapes, `cap-manchester-3` `manch:` shapes, `cap-other-3` SKOS shapes, `cap-shacl-9` entailment during validation) and the two SRL ones (`cap-srl-4`, `cap-srl-8`) had no `implementedByIdentifier`, so no link could name them; each now names the function that runs the shapes or rules (`MetaShaclError`, `sqe_validate`, `manchester_validate`, `get_ontology_graph`, `target_nodes`, `parse_ruleset`), which the guides already demonstrated.
+- The `VERSION` directive warning (`cap-other-1`) is implemented in `query()`, which the cell in `03` section 1.3 calls.
+
+Roadmap capabilities are not covered, correctly.
 
 ## Structure and style (not changed)
 
-`04d` mixes numbered and unnumbered headings; `02` opens with its section on `TripleTerm` semantics although the term helpers it names are gone (the text was reduced earlier, the title still reads like the old class). `05d` should be re-run after the next push, when the fetch URLs exist.
+`02` opens with its section on `TripleTerm` semantics although the term helpers it names are gone (the text was reduced earlier, the title still reads like the old class). `05d` should be re-run after the next push, when the fetch URLs exist.
 
 ## What is left
 
-Links for the nine capabilities above, and the headings of `04d`.
+Nothing from this review. The list of names that stay out of the guides on purpose is above; `05d` is run again after the next push, when the URLs it fetches exist.
