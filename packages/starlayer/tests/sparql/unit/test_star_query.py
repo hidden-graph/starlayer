@@ -3,7 +3,7 @@ once) plus StarLayerGraph.query()'s own per-call options, so the same
 query can run against several different graphs without repeating them.
 """
 
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql import StarQuery
 from tests.terms import Namespace

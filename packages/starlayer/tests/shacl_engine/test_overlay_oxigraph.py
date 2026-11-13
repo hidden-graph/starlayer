@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl_engine import rules
 from starlayer.shacl_engine.entailment import entailed_view

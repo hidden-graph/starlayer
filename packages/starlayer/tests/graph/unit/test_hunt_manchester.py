@@ -7,11 +7,11 @@ The oracle for the serializer is its own documented bar: ``parse_manchester`` ou
 import pyoxigraph as ox
 import pytest
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.manchester._ox_terms import OWL
+from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.graph.manchester.parser import parse_manchester
+from starlayer.graph.manchester.serializer import serialize_manchester
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.parsers._ox_terms import OWL
-from starlayer.graph.parsers.errors import ManchesterSyntaxError
-from starlayer.graph.parsers.manchester_parser import parse_manchester
-from starlayer.graph.serializers.manchester import serialize_manchester
 
 P = 'Prefix: : <http://e/o#>\nPrefix: rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n'
 

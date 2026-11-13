@@ -939,16 +939,6 @@ Returns the N3/Turtle-1.2 (``<<( s p o )>>``) text form.
 
 ---
 
-<a id="entity-starlayer-graph-parsers-errors-Turtle12SyntaxError"></a>
-### `Turtle12SyntaxError`  _(class)_
-
-Malformed Turtle 1.2 input that the parser cannot recognize as any
-valid token or statement form.
-
-**Source:** [starlayer.graph.parsers.errors.Turtle12SyntaxError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/parsers/errors.py#L19-L57)
-
----
-
 <a id="entity-starlayer-graph-oxgraph-helpers-imports-can_resolve_import"></a>
 ### `can_resolve_import`  _(function)_
 

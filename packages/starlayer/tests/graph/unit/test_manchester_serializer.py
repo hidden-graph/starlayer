@@ -1,4 +1,4 @@
-"""Unit tests for starlayer.graph.serializers.manchester.
+"""Unit tests for starlayer.graph.manchester.serializer.
 
 The primary correctness check throughout is round-tripping: parse known-good
 Manchester text (via the already-tested parse_manchester), serialize it back,
@@ -19,11 +19,11 @@ docstring for why those specific reconstructions aren't attempted.
 
 import pytest
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, URIRef
+from starlayer.graph.manchester._ox_terms import lexical as Literal
+from starlayer.graph.manchester.parser import parse_manchester
+from starlayer.graph.manchester.serializer import serialize_manchester
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.parsers._ox_terms import OWL, RDF, RDFS, URIRef
-from starlayer.graph.parsers._ox_terms import lexical as Literal
-from starlayer.graph.parsers.manchester_parser import parse_manchester
-from starlayer.graph.serializers.manchester import serialize_manchester
 
 EX = 'http://example.org/'
 HEADER = 'Prefix: : <http://example.org/>\nPrefix: rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n'
@@ -305,7 +305,7 @@ class TestPrefixesAndNames:
 
 class TestErrors:
     def test_unrecognized_blank_node_raises(self):
-        from starlayer.graph.parsers._ox_terms import BNode
+        from starlayer.graph.manchester._ox_terms import BNode
         g = StarLayerGraph()
         subject = ex('Weird')
         blank = BNode()

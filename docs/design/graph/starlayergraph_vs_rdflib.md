@@ -201,12 +201,12 @@ New classes introduced by StarLayer with no direct rdflib equivalent.
 
 ✅ `DirLangString(value, language, direction)` — Represents an RDF 1.2 base-direction-tagged literal `"text"@lang--dir`. Value-typed like `TripleTerm` (equal/hashable by `(value, language, direction)`; language tag case-folded per RDF 1.2). `direction` must be `'ltr'` or `'rtl'`. Implements `.n3()` (`"text"@lang--dir`). Unlike `TripleTerm`, has no tuple shorthand and needs no registry — `encode_dirlangstring()`/`decode_dirlangstring()` convert to/from the internal `Literal(text, datatype=<dirlang: URI>)` encoding as a pure function of the value itself.
 
-### starlayer/graph/graph/starlayer_graph.py
+### starlayer/graph/entailment/starlayer_graph.py
 
 ✅ `StarLayerGraph` — Subclass of `rdflib.Graph`; the main public API for single-graph RDF 1.2. Stores TripleTerms as content-addressed `tt:HASH` URIRefs internally and hides the encoding from all callers. See method tracker above.
 
 ```python
-from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+from starlayer.graph.entailment.starlayer_graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 from rdflib import URIRef, Literal
 
@@ -214,7 +214,7 @@ g = StarLayerGraph()                    # in-memory, default rdf-1.1 backend
 g = StarLayerGraph(backend='rdf-1.2')  # native RDF 1.2 endpoint
 ```
 
-### starlayer/graph/graph/starlayer_dataset.py
+### starlayer/graph/entailment/starlayer_dataset.py
 
 ✅ `StarLayerDataset` — Subclass of `rdflib.Dataset`; a multi-graph container where every named graph is a `StarLayerGraph`. Each named graph has its own independent TripleTerm registry — triple terms in graph A are not visible from graph B.
 
@@ -229,29 +229,29 @@ g = StarLayerGraph(backend='rdf-1.2')  # native RDF 1.2 endpoint
 - `ds.serialize(format='trig12')` — emits a TriG 1.2 document with `GRAPH <uri> { ... }` blocks.
 
 
-### starlayer/graph/parsers/turtle_parser.py
+### starlayer/graph/manchester/turtle_parser.py
 
 ✅ `StarLayerTurtleParser` — Parses Turtle 1.2 text (including `<<( )>>`, `{| |}`, and `~ reifier` syntax) into an rdflib Graph with BNode-based triple-term encoding. Called by `StarLayerGraph.parse(format='turtle12')`.
 
 ➖ `_Expander` — Internal helper class used by the parser to resolve prefixes and base URIs during parsing. Not part of the public API.
 
-### starlayer/graph/parsers/ntriples12.py
+### starlayer/graph/manchester/ntriples12.py
 
 ✅ `parse_ntriples12(text)` — Parses N-Triples 1.2 text line-by-line; returns a list of `(s, p, o)` triples where subjects/objects may be `TripleTerm` instances. Handles full IRIs, blank nodes, plain/typed/language-tagged/direction-tagged (`"text"@lang--dir`) literals, and `<<( )>>` triple terms (including nested). Called by `StarLayerGraph.parse(format='nt12')`.
 
 ✅ `parse_nquads12(text)` — Parses N-Quads 1.2 text; returns a list of `(s, p, o, g)` quads. Called by `StarLayerGraph.parse(format='nq12')`; the graph component `g` is discarded when merging into a single-graph `StarLayerGraph`.
 
-### starlayer/graph/parsers/trig12.py
+### starlayer/graph/manchester/trig12.py
 
 ✅ `parse_trig12(text)` — Parses TriG 1.2 text by splitting the document into prefix declarations and named-graph content blocks, parsing each block as Turtle 1.2 via `StarLayerTurtleParser`, and merging all resulting triples. Called by `StarLayerGraph.parse(format='trig12')`.
 
-### starlayer/graph/serializers/ntriples12.py
+### starlayer/graph/manchester/ntriples12.py
 
 ✅ `serialize_ntriples12(g)` — Serializes a `StarLayerGraph` to N-Triples 1.2 text (one triple per line, full IRIs, `<<( )>>` for triple terms). Called by `StarLayerGraph.serialize(format='nt12')`.
 
 ✅ `serialize_nquads12(g, graph_uri=None)` — Serializes to N-Quads 1.2 text (N-Triples + graph name from `g.identifier`). Called by `StarLayerGraph.serialize(format='nq12')`.
 
-### starlayer/graph/serializers/trig12.py
+### starlayer/graph/manchester/trig12.py
 
 ✅ `serialize_trig12(g)` — Serializes to TriG 1.2 text. Named-graph identifiers (URIRef) produce a `GRAPH <uri> { ... }` block around Turtle 1.2 content; BNode identifiers produce plain Turtle 1.2 (default-graph convention). Called by `StarLayerGraph.serialize(format='trig12')`.
 

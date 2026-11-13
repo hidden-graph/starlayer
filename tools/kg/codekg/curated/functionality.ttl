@@ -335,8 +335,8 @@ cur:cap-reasoning-2 a slkg:Capability ;
     slkg:appRole "infer" ;
     rdfs:comment "OWL-DL support via two engines: HermiT (through owlready2, which needs Java) or a Rust engine." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.graph.owl_dl",
-        "starlayer.graph.graph.owl_dl_rustdl" .
+        "starlayer.graph.entailment.owl_dl",
+        "starlayer.graph.entailment.owl_dl_rustdl" .
 
 cur:cap-reasoning-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-reasoning ;

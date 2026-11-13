@@ -47,7 +47,7 @@ def load_document(path: Path) -> Graph:
     """Parse ``path`` as Turtle 1.2, cached, with its own file:// IRI as base.
 
     Uses ``format="turtle12"`` (StarLayerGraph's own RDF-1.2-aware parser,
-    ``starlayer.graph.parsers.turtle_parser.StarLayerTurtleParser``), not plain
+    ``starlayer.graph.manchester.turtle_parser.StarLayerTurtleParser``), not plain
     ``"turtle"`` - confirmed empirically that several suite fixtures use
     genuine RDF 1.2 Turtle syntax plain rdflib's parser rejects outright:
     triple-term literals (``<<( s p o )>>``), inline reification annotations

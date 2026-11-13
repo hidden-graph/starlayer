@@ -518,7 +518,7 @@ class TestBoundDataGraphAndInference:
             schema.validate()
 
     def test_inference_bound_at_construction_feeds_validate(self) -> None:
-        from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+        from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 
         data = StarLayerGraph()
         data.parse(

@@ -1,9 +1,9 @@
 """
-starlayer.graph.graph.owl_dl_rustdl
+starlayer.graph.entailment.owl_dl_rustdl
 
 OWL 2 Direct Semantics reasoning via RustDL - the second engine
 infer(entailment=ENTAILMENT['OWL-Direct']) can dispatch to, alongside engine="hermit"
-(starlayer.graph.graph.owl_dl, the default). Same entailment regime, same
+(starlayer.graph.entailment.owl_dl, the default). Same entailment regime, same
 InconsistentOntologyError contract, same (before, delta) return shape -
 a genuinely different tradeoff, not a strictly-better replacement, which
 is why both exist rather than one being swapped for the other.
@@ -43,7 +43,7 @@ docs/design/future_enhancements.md for the fuller writeup:
 
 3. **`HasKey:` and long role chains are refused outright, not silently
    dropped** - `rustdl.UnsupportedAxiomError`, for exactly the two
-   constructs starlayer.graph.parsers.manchester_parser can itself emit
+   constructs starlayer.graph.manchester.parser can itself emit
    (`HasKey:`, and a `SubPropertyChain:` longer than two properties).
    Some data-property/datatype axioms outside RustDL's own recognized
    preprocessing patterns are a "sound under-approximation" instead -
@@ -98,8 +98,8 @@ from pathlib import Path
 from rdflib import RDF, RDFS, Graph, Literal, URIRef
 from rdflib.namespace import OWL
 
-from starlayer.graph.graph import _timeout
-from starlayer.graph.graph.owl_dl import (
+from starlayer.graph.entailment import _timeout
+from starlayer.graph.entailment.owl_dl import (
     InconsistentOntologyError,
     _delta_from_result,
     _skolemize_individuals,

@@ -170,7 +170,7 @@ def canon_bindings(bindings: list[dict]) -> list[frozenset]:
 # W3C fixtures (graphs-2, results-reifiedtriples-1j) that canon_bindings
 # alone false-mismatches on: the exact label a store mints for an anonymous
 # node (including an anonymous ~/{| |} reifier - an ordinary BNode, see
-# starlayer.graph.parsers.turtle_parser._skolemize_encoding) is never
+# starlayer.graph.manchester.turtle_parser._skolemize_encoding) is never
 # semantically meaningful, only a *consistent* relabeling is - exactly the
 # case two independently-executed queries (original vs regenerated text)
 # hit here, since each execution mints its own arbitrary identifiers.
@@ -372,7 +372,7 @@ def skolemize_graph(graph) -> Graph:
     rdflib.compare.to_isomorphic() (which requires every term to be a real
     rdflib.term.Node - TripleTerm deliberately isn't one). An anonymous
     reifier is already an ordinary BNode by the time it reaches here (see
-    starlayer.graph.parsers.turtle_parser._skolemize_encoding) and needs no
+    starlayer.graph.manchester.turtle_parser._skolemize_encoding) and needs no
     further mapping."""
     out = Graph()
 

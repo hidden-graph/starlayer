@@ -6,7 +6,7 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import evaluate as old_evaluate

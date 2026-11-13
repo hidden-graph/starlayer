@@ -28,7 +28,7 @@ engine="hermit", not a bug to chase down here.
 
 import pytest
 from rdflib import RDF, Namespace
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 
 try:
@@ -106,7 +106,7 @@ class TestOwlDlRustdlSubClassClosure:
 @rustdl_extra
 class TestOwlDlRustdlInconsistency:
     def test_inconsistent_ontology_raises(self):
-        from starlayer.graph.graph.owl_dl import InconsistentOntologyError
+        from starlayer.graph.entailment.owl_dl import InconsistentOntologyError
 
         g = StarLayerGraph()
         g.bind("ex", EX)
@@ -229,7 +229,7 @@ class TestOwlDlRustdlTimeout:
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer.graph.graph._timeout import ReasoningTimeoutError
+        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
 
         with pytest.raises(ReasoningTimeoutError):
             self._simple_graph().infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl", timeout=0.001)
@@ -280,7 +280,7 @@ def test_missing_rustdl_raises_actionable_error(monkeypatch):
     """
     import sys
 
-    from starlayer.graph.graph import owl_dl_rustdl
+    from starlayer.graph.entailment import owl_dl_rustdl
 
     monkeypatch.setitem(sys.modules, "rustdl", None)
     with pytest.raises(RuntimeError, match=r"starlayer\[rustdl\]"):

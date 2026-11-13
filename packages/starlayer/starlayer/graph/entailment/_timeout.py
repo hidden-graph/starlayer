@@ -1,5 +1,5 @@
 """
-starlayer.graph.graph._timeout
+starlayer.graph.entailment._timeout
 
 A general wall-clock timeout for OWL-DL reasoning calls
 (`infer(entailment=ENTAILMENT["OWL-Direct"], engine=...)`, either engine) - defense-in-depth

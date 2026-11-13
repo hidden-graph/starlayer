@@ -26,7 +26,7 @@ import os
 import shutil
 
 import pytest
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from tests.terms import RDF, Namespace
 
@@ -130,7 +130,7 @@ class TestOwlDlSubClassClosure:
 @java_required
 class TestOwlDlInconsistency:
     def test_inconsistent_ontology_raises(self):
-        from starlayer.graph.graph.owl_dl import InconsistentOntologyError
+        from starlayer.graph.entailment.owl_dl import InconsistentOntologyError
 
         g = StarLayerGraph()
         g.bind("ex", EX)
@@ -198,7 +198,7 @@ class TestOwlDlTimeout:
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer.graph.graph._timeout import ReasoningTimeoutError
+        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
 
         with pytest.raises(ReasoningTimeoutError):
             self._simple_graph().infer(entailment=ENTAILMENT['OWL-Direct'], engine="hermit", timeout=0.001)
@@ -225,7 +225,7 @@ def test_missing_owlready2_raises_actionable_error(monkeypatch):
     """
     import sys
 
-    from starlayer.graph.graph import owl_dl
+    from starlayer.graph.entailment import owl_dl
 
     monkeypatch.setitem(sys.modules, "owlready2", None)
     with pytest.raises(RuntimeError, match=r"starlayer\[hermit\]"):
@@ -255,7 +255,7 @@ def test_missing_java_raises_a_distinct_clear_error(monkeypatch):
     its own clear, actionable RuntimeError rather than an opaque failure
     from deep inside owlready2/subprocess.
     """
-    from starlayer.graph.graph import owl_dl
+    from starlayer.graph.entailment import owl_dl
 
     monkeypatch.setattr(owl_dl.shutil, "which", lambda name: None)
     g = StarLayerGraph()
@@ -277,7 +277,7 @@ def test_broken_java_raises_a_distinct_clear_error(tmp_path, monkeypatch):
     explicitly caught; this test pins the re-wrap into the same
     RuntimeError family `_require_java()` already uses.
     """
-    from starlayer.graph.graph import owl_dl
+    from starlayer.graph.entailment import owl_dl
 
     fake_java = tmp_path / "java"
     fake_java.write_text(

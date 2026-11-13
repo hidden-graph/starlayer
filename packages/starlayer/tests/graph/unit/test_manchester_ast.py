@@ -19,8 +19,8 @@ shape (``test_decoded_document_is_a_plain_namedtuple_tree``).
 
 import pytest
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.parsers.manchester_parser import parse_manchester
 from starlayer.starontology.manchester import (
     _find_root,
     _tree_to_document,

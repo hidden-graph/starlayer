@@ -66,7 +66,7 @@ def _timeit(fn, repeats=REPEATS) -> float:
 def worker(backend: str, n: int, rate: float) -> dict:
     from rdflib import Literal, URIRef
     from rdflib.namespace import XSD
-    from starlayer.graph.graph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
     from starlayer.graph.model.triple import TripleTerm
 
     rdf_reifies = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')

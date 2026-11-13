@@ -13,8 +13,8 @@ Two directions get tested:
 
 import pytest
 from starlayer import starontology
+from starlayer.graph.manchester._ox_terms import RDF, BNode
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.parsers._ox_terms import RDF, BNode
 from starlayer.starontology import manchester as ms
 from starlayer.starontology.manchester import MANCH, manchester_parse_to_tree
 from tests.graph.unit.test_manchester_ast import DOCUMENTS

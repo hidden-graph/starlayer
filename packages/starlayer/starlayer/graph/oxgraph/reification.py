@@ -1,6 +1,6 @@
 """RDF 1.2 reifier helpers over ``rdf:reifies``, as thin functions on a wrapper (``StarLayerGraph`` / ``StarLayerDataset``) or a bare
 ``pyoxigraph.Store`` (treated as a union dataset). Same contract as the methods of the old ``StarLayerGraph``
-(``graph/graph/starlayer_graph.py``: ``add_reification``, ``reifiers``, ``reifications``, ``reifier_annotations``,
+(``graph/entailment/starlayer_graph.py``: ``add_reification``, ``reifiers``, ``reifications``, ``reifier_annotations``,
 ``reified_triples``), with pyoxigraph terms: a triple term is a ``pyoxigraph.Triple``.
 """
 

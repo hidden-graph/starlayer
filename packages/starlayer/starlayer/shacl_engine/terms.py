@@ -17,8 +17,8 @@ from urllib.parse import unquote
 
 import pyoxigraph as ox
 
-from starlayer.graph.backends._versions import require_supported_pyoxigraph
 from starlayer.graph.namespaces import Namespace as NS  # the public namespace class
+from starlayer.graph.oxgraph._versions import require_supported_pyoxigraph
 
 require_supported_pyoxigraph()
 

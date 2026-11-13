@@ -1,4 +1,4 @@
-"""Unit tests for starlayer.graph.parsers.manchester_parser.
+"""Unit tests for starlayer.graph.manchester.parser.
 
 Grouped by construct: frames, each class-expression form, each Misc axiom,
 and the constructs this parser deliberately doesn't support yet (must raise
@@ -10,11 +10,11 @@ these tests assert the same shapes directly, with no external dependency.
 """
 
 import pytest
+from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, XSD, URIRef
+from starlayer.graph.manchester._ox_terms import lexical as Literal
+from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.parsers._ox_terms import OWL, RDF, RDFS, XSD, URIRef
-from starlayer.graph.parsers._ox_terms import lexical as Literal
-from starlayer.graph.parsers.errors import ManchesterSyntaxError
-from starlayer.graph.parsers.manchester_parser import parse_manchester
 
 EX = 'http://example.org/'
 HEADER = 'Prefix: : <http://example.org/>\nPrefix: xsd: <http://www.w3.org/2001/XMLSchema#>\n'

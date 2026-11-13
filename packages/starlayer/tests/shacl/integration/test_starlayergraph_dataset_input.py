@@ -1,4 +1,4 @@
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerDataset
 from starlayer.shacl import StarShaclSchema
 from tests.terms import Namespace, lit

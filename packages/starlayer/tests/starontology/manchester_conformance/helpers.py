@@ -7,9 +7,9 @@ from pathlib import Path
 
 import pyoxigraph as ox
 from starlayer.graph.compare import isomorphic
+from starlayer.graph.manchester._ox_terms import OWL, RDF, BNode, URIRef
+from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.parsers._ox_terms import OWL, RDF, BNode, URIRef
-from starlayer.graph.parsers.manchester_parser import parse_manchester
 
 HERE = Path(__file__).parent
 GOLDEN_DIR = HERE / "goldens" / "owlapi-5.1.20"

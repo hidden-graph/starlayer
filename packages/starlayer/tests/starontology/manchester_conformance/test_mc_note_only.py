@@ -9,8 +9,8 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.parsers._ox_terms import OWL, RDF, RDFS, XSD, BNode, URIRef
-from starlayer.graph.parsers._ox_terms import lexical as Literal
+from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, XSD, BNode, URIRef
+from starlayer.graph.manchester._ox_terms import lexical as Literal
 
 from .corpus import CASES
 from .helpers import parse_to_graph, rdf_list

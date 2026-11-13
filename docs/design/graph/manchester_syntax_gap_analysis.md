@@ -97,7 +97,7 @@ The Note's own facet table maps `>=` to `xsd:maxInclusive`, which is backwards; 
 
 ## The reverse direction: RDF → Manchester Syntax
 
-`packages/starlayer/starlayer/graph/serializers/manchester.py` (entry point
+`packages/starlayer/starlayer/graph/manchester/serializer.py` (entry point
 `serialize_manchester(graph) -> str`), wired into
 `StarLayerGraph.serialize(format="manchester")` (alias `"omn"`), targets
 the same construct coverage as the table above, in reverse - see that
@@ -176,13 +176,13 @@ shape conformance, positive and negative).
 
 ## Where the code lives
 
-Parser: `packages/starlayer/starlayer/graph/parsers/manchester_parser.py`
+Parser: `packages/starlayer/starlayer/graph/manchester/parser.py`
 (entry point `parse_manchester(text, base=None) -> list[tuple]`), wired
 into `StarLayerGraph.parse(format="manchester")` (alias `"omn"`). Tests:
 `packages/starlayer/tests/graph/unit/test_manchester_parser.py` - oracle-free,
 asserting the RDF shapes this document describes directly.
 
-Serializer: `packages/starlayer/starlayer/graph/serializers/manchester.py`,
+Serializer: `packages/starlayer/starlayer/graph/manchester/serializer.py`,
 wired into `StarLayerGraph.serialize(format="manchester")`. Tests:
 `packages/starlayer/tests/graph/unit/test_manchester_serializer.py` - also
 oracle-free, checking round-trip isomorphism plus a few direct RDF-shape

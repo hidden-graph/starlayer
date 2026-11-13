@@ -1,5 +1,5 @@
 """
-Unit tests for starlayer.graph.graph.StarLayerGraph.
+Unit tests for starlayer.graph.entailment.StarLayerGraph.
 
 Covers: rdflib compatibility, TripleTerm add/query, filtering of internal
 encoding triples, from_rdflib(), and Statement operations.

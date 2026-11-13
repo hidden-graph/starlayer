@@ -48,8 +48,8 @@ def test_quads_restore_a_triple_term():
 def test_manchester_float_lexical_form_is_single_precision(text, expected):
     import struct
 
-    from starlayer.graph.parsers._ox_terms import XSD
-    from starlayer.graph.parsers.manchester_parser import parse_manchester
+    from starlayer.graph.manchester._ox_terms import XSD
+    from starlayer.graph.manchester.parser import parse_manchester
 
     head = "Prefix: : <http://ex.org/>\nOntology: <http://ex.org/o>\nIndividual: a\n Facts: d "
     lits = [o for _, _, o in parse_manchester(head + text + "\n") if isinstance(o, ox.Literal) and o.datatype == XSD.float]

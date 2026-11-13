@@ -21,7 +21,7 @@ import tracemalloc
 from rdflib import URIRef
 
 sys.path.insert(0, '.')
-from starlayer.graph.graph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 
 EX          = 'http://example.org/'

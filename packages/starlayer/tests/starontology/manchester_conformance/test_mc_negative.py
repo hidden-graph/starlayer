@@ -8,8 +8,8 @@ dropping or reinterpreting part of the document. The ``truncation`` group target
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.parsers.errors import ManchesterSyntaxError
-from starlayer.graph.parsers.manchester_parser import parse_manchester
+from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.graph.manchester.parser import parse_manchester
 
 from .corpus import PRELUDE
 from .known_failures import NEGATIVE_FAILURES

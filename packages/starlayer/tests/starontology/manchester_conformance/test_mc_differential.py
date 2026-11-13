@@ -9,7 +9,7 @@ not, so a rejection is a *finding to classify*, never a silent skip.
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.parsers.errors import ManchesterSyntaxError
+from starlayer.graph.manchester.errors import ManchesterSyntaxError
 
 from .corpus import CASES
 from .helpers import load_golden, owlapi_graph_from_golden, parse_to_graph, same_owl

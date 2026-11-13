@@ -14,9 +14,9 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.backends._versions import require_supported_pyoxigraph
 from starlayer.graph.oxgraph import config, formats, ntversion, run, terms, union
 from starlayer.graph.oxgraph._detached import detached
+from starlayer.graph.oxgraph._versions import require_supported_pyoxigraph
 from starlayer.graph.oxgraph.result import Result
 
 require_supported_pyoxigraph()
@@ -474,7 +474,7 @@ class _Base:
     def _parse_manchester(self, kw: dict[str, Any], hint: str | None, base: str | None) -> Any:
         """OWL 2 Manchester Syntax: the parser (``parsers/manchester_parser.py``) is independent of the store and builds the
         triples, which are added here. It has no named graphs, so a dataset gets them in its default graph."""
-        from starlayer.graph.parsers.manchester_parser import parse_manchester
+        from starlayer.graph.manchester.parser import parse_manchester
 
         if "path" in kw:
             with open(kw["path"], encoding="utf-8") as fh:
@@ -500,7 +500,7 @@ class _Base:
         ``rdf_version="1.2"``; plain RDF 1.1 data gets none unless asked. ``rdf_version="1.1"`` never writes one. Oxigraph's
         writers do not write it, so the wrapper adds it."""
         if formats.is_manchester(format):
-            from starlayer.graph.serializers.manchester import serialize_manchester
+            from starlayer.graph.manchester.serializer import serialize_manchester
 
             return self._write(serialize_manchester(self).encode("utf-8"), destination, encoding)
         fmt = formats.to_format(format or self._default_format)

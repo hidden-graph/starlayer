@@ -359,5 +359,5 @@ dataset, so it does not replace anything above.
   <https://www.w3.org/TR/rdf11-mt/>, <https://www.w3.org/TR/owl2-test/>
 * Repo files read: `starlayer/graph/oxgraph/helpers/entailment.py`, `starlayer/graph/oxgraph/_rdflib_bridge.py` (head),
   `starlayer/shacl_engine/entailment.py`, `starlayer/shacl_engine/rules.py`, `starlayer/sparql/srl.py`,
-  `starlayer/sparql/srl_eval.py`, `starlayer/sparql/_srl_ast.py`, `starlayer/graph/graph/owl_dl_rustdl.py` (head),
+  `starlayer/sparql/srl_eval.py`, `starlayer/sparql/_srl_ast.py`, `starlayer/graph/entailment/owl_dl_rustdl.py` (head),
   `docs/working/oxigraph-capability-matrix.md`, `docs/guides/03b-srl-sparql-rules.ipynb`.

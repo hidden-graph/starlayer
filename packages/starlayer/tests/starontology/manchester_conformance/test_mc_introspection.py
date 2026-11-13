@@ -12,8 +12,8 @@ import re
 from pathlib import Path
 
 import pytest
+from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.parsers._ox_terms import OWL, RDF, RDFS, URIRef
 
 from .known_failures import ORPHAN_ONTOLOGY_TERMS
 

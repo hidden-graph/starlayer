@@ -1,5 +1,5 @@
 """
-starlayer.graph.parsers.manchester_parser
+starlayer.graph.manchester.parser
 
 Hand-rolled parser for OWL 2 Manchester Syntax (the frame-based
 "Class: X SubClassOf: Y" notation), following the OWL 2 Mapping to RDF
@@ -90,7 +90,7 @@ import re
 import struct
 from urllib.parse import urljoin
 
-from starlayer.graph.parsers._ox_terms import (
+from starlayer.graph.manchester._ox_terms import (
     OWL,
     RDF,
     RDFS,
@@ -100,8 +100,8 @@ from starlayer.graph.parsers._ox_terms import (
     URIRef,
     lexical,
 )
-from starlayer.graph.parsers._ox_terms import is_valid_langtag as _is_valid_langtag
-from starlayer.graph.parsers.errors import ManchesterSyntaxError
+from starlayer.graph.manchester._ox_terms import is_valid_langtag as _is_valid_langtag
+from starlayer.graph.manchester.errors import ManchesterSyntaxError
 
 _DEFAULT_PREFIXES = {
     'owl': 'http://www.w3.org/2002/07/owl#',

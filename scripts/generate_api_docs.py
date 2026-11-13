@@ -54,10 +54,10 @@ _ALL_FILES = [
     ("graph/rdfc.py", "starlayer.graph"),
     ("graph/compare.py", "starlayer.graph"),
     ("graph/__init__.py", "starlayer.graph"),
-    ("graph/parsers/__init__.py", "starlayer.graph"),
-    ("graph/graph/__init__.py", "starlayer.graph"),
+    ("graph/manchester/__init__.py", "starlayer.graph"),
+    ("graph/entailment/__init__.py", "starlayer.graph"),
     ("graph/model/__init__.py", "starlayer.graph"),
-    ("graph/serializers/__init__.py", "starlayer.graph"),
+    ("graph/manchester/__init__.py", "starlayer.graph"),
     ("shacl/__init__.py", "starlayer.shacl"),
     ("shacl/shacl_profiling.py", "starlayer.shacl"),
 ]

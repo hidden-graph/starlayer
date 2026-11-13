@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph.compare import isomorphic
-from starlayer.graph.parsers.errors import ManchesterSyntaxError
+from starlayer.graph.manchester.errors import ManchesterSyntaxError
 from starlayer.starontology.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_owl,

@@ -1,8 +1,8 @@
 """
-starlayer.graph.serializers.manchester
+starlayer.graph.manchester.serializer
 
 Serialize RDF (a StarLayerGraph) to OWL 2 Manchester Syntax -
-the reverse of starlayer.graph.parsers.manchester_parser. A genuinely
+the reverse of starlayer.graph.manchester.parser. A genuinely
 different, harder kind of problem than parsing: parsing is deterministic
 (one syntax, one RDF shape); serializing is *pattern recognition* over a
 flat, unordered triple set - recognizing which blank-node chains are
@@ -82,7 +82,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from starlayer.graph.parsers._ox_terms import (
+from starlayer.graph.manchester._ox_terms import (
     OWL,
     RDF,
     RDFS,

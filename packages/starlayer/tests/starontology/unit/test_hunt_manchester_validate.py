@@ -1,7 +1,7 @@
 """manchester_validate must reject a tree manchester_tree_to_text cannot decode."""
 
 import pytest
-from starlayer.graph.parsers._ox_terms import RDF, URIRef
+from starlayer.graph.manchester._ox_terms import RDF, URIRef
 from starlayer.starontology.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_text,

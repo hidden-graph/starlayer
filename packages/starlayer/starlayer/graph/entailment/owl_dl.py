@@ -1,5 +1,5 @@
 """
-starlayer.graph.graph.owl_dl
+starlayer.graph.entailment.owl_dl
 
 OWL 2 Direct Semantics reasoning via owlready2 + Java HermiT - a genuinely
 different computational model (tableau-based DL reasoning, with real
@@ -15,7 +15,7 @@ reasoner is sufficient to cover this regime. sync_reasoner_pellet() is
 never called anywhere in this module.
 
 engine="hermit" (this module) is one of two engines infer(entailment=ENTAILMENT['OWL-Direct'])
-can dispatch to - see starlayer.graph.graph.owl_dl_rustdl for the other
+can dispatch to - see starlayer.graph.entailment.owl_dl_rustdl for the other
 (engine="rustdl": no JVM, but sound-not-provably-complete rather than
 sound-and-complete - a real, permanent gap against this module's own
 guarantee, not a bug in either). Both engines' Python packages are optional
@@ -39,7 +39,7 @@ from pathlib import Path
 from rdflib import OWL, RDF, RDFS, BNode, Graph, Literal, URIRef
 from rdflib.namespace import XSD
 
-from starlayer.graph.graph import _timeout
+from starlayer.graph.entailment import _timeout
 
 
 class InconsistentOntologyError(RuntimeError):

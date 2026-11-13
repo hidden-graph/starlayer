@@ -182,10 +182,7 @@ class SRLError(ValueError):
     ``SRLDecodeError``) vs. "any SRL failure" (``SRLError`` itself), the
     same two-tier shape rdflib (``rdflib.exceptions.Error``) and pyshacl
     (``pyshacl.errors.ReportableRuntimeError``) each give their own
-    callers. Contrast ``starlayer.graph.parsers.errors``'s
-    ``Turtle12SyntaxError``/``ManchesterSyntaxError``, which deliberately
-    don't share a base - see that module's own docstring for why that
-    case is different."""
+    callers."""
 
 
 class SRLParseError(SRLError):

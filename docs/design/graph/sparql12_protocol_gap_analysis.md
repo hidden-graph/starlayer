@@ -68,4 +68,4 @@ None of the following is a conformance requirement — they're the genuine minor
 - `packages/starlayer/starlayer/graph/backends/native.py` (entire file)
 - `docs/design/graph/rdf12_sparql12_gap_analysis.md` (template/model document)
 - `docs/upstream-issues/fuseki-upstream-issues.md` (Issue 2)
-- `packages/starlayer/starlayer/graph/graph/starlayer_graph.py` / `starlayer_dataset.py` (native-backend dispatch, auth usage)
+- `packages/starlayer/starlayer/graph/entailment/starlayer_graph.py` / `starlayer_dataset.py` (native-backend dispatch, auth usage)

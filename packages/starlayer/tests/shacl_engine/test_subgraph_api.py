@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import extract_subgraph as old_extract

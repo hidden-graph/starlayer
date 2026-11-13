@@ -201,8 +201,8 @@ def test_manchester_parse_and_serialize_round_trip():
     out = ok("""
         import pyoxigraph as ox
         from starlayer.graph import StarLayerGraph, isomorphic
-        from starlayer.graph.parsers.manchester_parser import parse_manchester
-        from starlayer.graph.serializers.manchester import serialize_manchester
+        from starlayer.graph.manchester.parser import parse_manchester
+        from starlayer.graph.manchester.serializer import serialize_manchester
         text = __TEXT__
         g = StarLayerGraph(); g.parse(data=text, format="manchester")
         assert len(g) > 10 and all(isinstance(t[0], (ox.NamedNode, ox.BlankNode)) for t in g)

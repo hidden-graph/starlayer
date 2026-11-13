@@ -16,7 +16,7 @@ WORKFLOWS = ROOT / ".github" / "workflows"
 
 def test_future_enhancements_widget_snippet_runs() -> None:
     """The maintainer snippet that regenerates the 04d appendix imported a name starlayer.graph does not export."""
-    text = (PACKAGE / "docs" / "future_enhancements.md").read_text()
+    text = (ROOT / "docs" / "design" / "future_enhancements.md").read_text()
     after = text[text.index("Snippet that produced the 04d appendix tables"):]
     code = re.search(r"```python\n(.*?)```", after, re.S).group(1)
     namespace: dict = {}

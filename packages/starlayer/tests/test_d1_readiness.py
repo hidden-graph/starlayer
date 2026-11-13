@@ -18,26 +18,23 @@ SCANNED = ("packages/starlayer/starlayer", "scripts", "tools", "packages/starlay
 
 #: The modules D1 deleted.
 DELETED_MODULES = frozenset({
-    "starlayer.graph.graph.starlayer_graph",
-    "starlayer.graph.graph.starlayer_dataset",
-    "starlayer.graph.graph._rdflib_inherited_contract",
-    "starlayer.graph.graph.prefixes",
+    "starlayer.graph.entailment.starlayer_graph",
+    "starlayer.graph.entailment.starlayer_dataset",
+    "starlayer.graph.entailment._rdflib_inherited_contract",
+    "starlayer.graph.entailment.prefixes",
     "starlayer.sparql.lower_rdf11",
     "starlayer.sparql.entailment_rdf",
     "starlayer.sparql.entailment_rdfs",
-    "starlayer.graph.parsers.turtle_parser",
-    "starlayer.graph.parsers.syntax",
-    "starlayer.graph.parsers.trig12",
-    "starlayer.graph.parsers.ntriples12",
-    "starlayer.graph.parsers.rdfxml12",
-    "starlayer.graph.parsers.lexer",
-    "starlayer.graph.parsers.faithful",
-    "starlayer.graph.parsers.bnode_scope",
-    "starlayer.graph.serializers.turtle12",
-    "starlayer.graph.serializers.ntriples12",
-    "starlayer.graph.serializers.rdfxml12",
-    "starlayer.graph.serializers.trig12",
-    "starlayer.graph.serializers._xml",
+    "starlayer.graph.manchester.turtle_parser",
+    "starlayer.graph.manchester.syntax",
+    "starlayer.graph.manchester.trig12",
+    "starlayer.graph.manchester.ntriples12",
+    "starlayer.graph.manchester.rdfxml12",
+    "starlayer.graph.manchester.lexer",
+    "starlayer.graph.manchester.faithful",
+    "starlayer.graph.manchester.bnode_scope",
+    "starlayer.graph.manchester.turtle12",
+    "starlayer.graph.manchester._xml",
     "starlayer.graph.backends.native",
     "starlayer.graph.backends.skolem_semantics",
     "starlayer.graph.backends.native_oxigraph",
@@ -116,15 +113,15 @@ def test_nothing_imports_a_deleted_module() -> None:
 def test_the_scan_sees_an_importer_of_a_deleted_module(tmp_path: Path) -> None:
     sample = tmp_path / "sample.py"
     sample.write_text(
-        "from starlayer.graph.graph.starlayer_graph import StarLayerGraph\n"
-        "def f():\n    from starlayer.graph.parsers.turtle_parser import _join\n"
-        "from starlayer.graph.parsers.manchester_parser import parse_manchester\n"
+        "from starlayer.graph.entailment.starlayer_graph import StarLayerGraph\n"
+        "def f():\n    from starlayer.graph.manchester.turtle_parser import _join\n"
+        "from starlayer.graph.manchester.parser import parse_manchester\n"
         "from starlayer.graph.query import sparql_api\n"
         "from starlayer.graph import StarLayerGraph\n",
         encoding="utf-8",
     )
     assert deleted_imports(sample) == {
-        "starlayer.graph.graph.starlayer_graph",
-        "starlayer.graph.parsers.turtle_parser",
+        "starlayer.graph.entailment.starlayer_graph",
+        "starlayer.graph.manchester.turtle_parser",
         "starlayer.graph.query",
     }

@@ -14,7 +14,7 @@ dependencies = [
     "requests>=2.28",
     # pyoxigraph is the whole engine: graphs, parsing, SPARQL query and update, SHACL validation and rules. 0.5.13 is the minimum
     # supported Oxigraph: older versions abort the process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
-    # docs/upstream-issues/oxigraph-upstream-issues.md and graph/backends/_versions.py.
+    # docs/upstream-issues/oxigraph-upstream-issues.md and graph/oxgraph/_versions.py.
     "pyoxigraph>=0.5.13",
 ]
 keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]
@@ -38,7 +38,7 @@ classifiers = [
 rdflib = ["rdflib>=7.0"]
 # owlrl computes the OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph.
 reasoning = ["owlrl>=6", "starlayer[rdflib]"]
-# The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can dispatch to (graph/graph/owl_dl.py,
+# The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can dispatch to (graph/entailment/owl_dl.py,
 # owl_dl_rustdl.py). Neither is core: "hermit" also needs a real JVM on PATH, and "rustdl" has no JVM but is not provably complete.
 hermit = ["starlayer[rdflib]", "owlready2>=0.51"]
 rustdl = ["starlayer[rdflib]", "rustdl>=0.4"]
@@ -117,17 +117,9 @@ select = [
 known-third-party = ["codekg"]
 
 [tool.ruff.lint.per-file-ignores]
-# E701/E702 (multiple statements per line): these parser files deliberately
-# use column-aligned one-line `if ...: continue` filter chains and escape-
-# dispatch tables - reviewed 2026-08-16, more readable as-is than reformatted.
 # Capability-check script: each check is a one-line closure handed straight to `trying()`, which calls it immediately, so
 # defining them in a loop is safe (B023) and the compact `a; b` lines keep each check on one screen row (E702).
 "packages/starlayer/benchmarks-graph/oxigraph_capability_checks.py" = ["E702", "B023"]
-"packages/starlayer/starlayer/graph/graph/starlayer_graph.py" = ["E701", "E702"]
-"packages/starlayer/starlayer/graph/parsers/ntriples12.py" = ["E701", "E702"]
-"packages/starlayer/starlayer/graph/parsers/syntax.py" = ["E701", "E702"]
-"packages/starlayer/starlayer/graph/parsers/trig12.py" = ["E701", "E702"]
-"packages/starlayer/starlayer/graph/parsers/turtle_parser.py" = ["E701", "E702"]
 # E402 (import not at top of file): standalone scripts/harnesses that need
 # `sys.path.insert(...)` before importing - not installed as packages.
 "*/benchmarks-*/*.py" = ["E402"]

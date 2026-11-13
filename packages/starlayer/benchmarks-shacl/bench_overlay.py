@@ -29,7 +29,7 @@ for p in (str(ROOT), str(Path(__file__).resolve().parent)):
         sys.path.insert(0, p)
 
 import bench_engine_vs_old as base_bench  # noqa: E402
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT  # noqa: E402
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT  # noqa: E402
 
 RULES_TTL = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -76,8 +76,11 @@ def timed(fn, reps: int):
 
 def entailed_split(data):
     """The three phases inside ``entailed_view``: copy to combined, owlrl closure, fill the overlay."""
-    from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-    from starlayer.graph.graph.starlayer_graph import StarLayerGraph, legal_rdf_triples
+    from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+    from starlayer.graph.entailment.starlayer_graph import (
+        StarLayerGraph,
+        legal_rdf_triples,
+    )
     from starlayer.shacl_engine.rules import new_overlay
 
     t0 = time.perf_counter()

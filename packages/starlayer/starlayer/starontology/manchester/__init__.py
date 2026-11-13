@@ -14,7 +14,7 @@ Four entry points:
 
 - ``manchester_parse_to_tree(text, base=None) -> StarLayerGraph`` - parse Manchester text
   straight to its ``manch:``-encoded syntax tree, reusing
-  ``starlayer.graph.parsers.manchester_parser``'s own tokenizer/frame/
+  ``starlayer.graph.manchester.parser``'s own tokenizer/frame/
   clause/expression-parsing functions completely unchanged (via a
   ``_Cursor`` subclass overriding its no-op syntax-tree-capture hooks - see that
   module's own comments on ``_Cursor.record_frame``/``record_clause``/etc).
@@ -106,7 +106,7 @@ from __future__ import annotations
 from collections import namedtuple
 from typing import Any
 
-from starlayer.graph.parsers._ox_terms import (
+from starlayer.graph.manchester._ox_terms import (
     OWL,
     RDF,
     RDFS,
@@ -231,7 +231,7 @@ def _build_reverse_maps():
 _FRAME_CLASS_TO_KIND, _CLAUSE_CLASS_TO_KIND, _MISC_CLASS_TO_KEYWORD = _build_reverse_maps()
 
 # Built lazily on first use (_inverse_characteristic_maps()), not here at
-# import time - these come from starlayer.graph.parsers.manchester_parser,
+# import time - these come from starlayer.graph.manchester.parser,
 # and this module's cross-package imports all stay deferred; see the module
 # docstring's own explanation.
 _characteristics_inv: dict | None = None
@@ -241,7 +241,7 @@ _data_facets_inv: dict | None = None
 def _inverse_characteristic_maps():
     global _characteristics_inv, _data_facets_inv
     if _characteristics_inv is None:
-        from starlayer.graph.parsers.manchester_parser import (
+        from starlayer.graph.manchester.parser import (
             _CHARACTERISTICS,
             _DATA_FACETS,
         )
@@ -529,7 +529,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
 # Encode - manchester_parse_to_tree() + a _Cursor subclass overriding the
 # syntax-tree-capture hooks. The subclass is defined inside manchester_parse_to_tree() itself,
 # not at module scope, since its base class (_Cursor) is only available
-# once starlayer.graph.parsers.manchester_parser is imported - deferred
+# once starlayer.graph.manchester.parser is imported - deferred
 # here for the circular-import reason this module's own docstring explains.
 # ---------------------------------------------------------------------------
 
@@ -591,12 +591,12 @@ def _holds_document(graph: Any) -> bool:
 
 
 def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
-    from starlayer.graph.oxgraph.core import StarLayerGraph
-    from starlayer.graph.parsers.manchester_parser import (
+    from starlayer.graph.manchester.parser import (
         _Cursor,
         _tokenize,
         run_guarded,
     )
+    from starlayer.graph.oxgraph.core import StarLayerGraph
 
     class _SyntaxTreeCursor(_Cursor):
         def __init__(self, tokens, base):
@@ -699,7 +699,7 @@ def _run_top_level(cur):
     """The parser's own top-level dispatch loop, driven by a recording cursor. Delegated, not copied:
     a second copy here once drifted from the parser (it kept ending silently on a stray token after the
     parser was fixed)."""
-    from starlayer.graph.parsers.manchester_parser import (
+    from starlayer.graph.manchester.parser import (
         _run_top_level as _parser_run_top_level,
     )
 
@@ -906,7 +906,7 @@ def _tree_to_document(graph: Graph, root) -> Document:
 # ---------------------------------------------------------------------------
 # Document -> Manchester Syntax text (from-scratch serializer - the literal
 # inverse of manchester_parser.py's own tuple vocabulary, not adapted from
-# starlayer.graph.serializers.manchester - see this module's own docstring)
+# starlayer.graph.manchester.serializer - see this module's own docstring)
 # ---------------------------------------------------------------------------
 
 def _render_name(node) -> str:
@@ -1132,7 +1132,7 @@ def manchester_tree_to_text(graph: Graph) -> str:
     try:
         return _document_to_text(_tree_to_document(graph, root))
     except RecursionError:
-        from starlayer.graph.parsers.errors import ManchesterSyntaxError
+        from starlayer.graph.manchester.errors import ManchesterSyntaxError
         raise ManchesterSyntaxError('class expression nested too deeply to render', '', pos=0) from None
 
 

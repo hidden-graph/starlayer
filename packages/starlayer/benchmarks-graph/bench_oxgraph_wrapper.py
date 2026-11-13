@@ -51,7 +51,7 @@ class Old:
     name = "StarLayerGraph"
 
     def __init__(self):
-        from starlayer.graph.graph.starlayer_graph import StarLayerGraph
+        from starlayer.graph.entailment.starlayer_graph import StarLayerGraph
 
         self.cls = StarLayerGraph
 

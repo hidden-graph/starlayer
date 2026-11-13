@@ -239,7 +239,7 @@ accepted. Tests: `tests/graph/oxgraph/test_migration_gaps.py` and `test_oxigraph
 
 | Feature | Old code | Notes |
 |---|---|---|
-| Native `derive_shape` | `graph/graph/shape_derivation.py` | today a bridge to rdflib terms; a native port over pyoxigraph terms replaces `helpers/shapes.py` only |
+| Native `derive_shape` | `graph/entailment/shape_derivation.py` | today a bridge to rdflib terms; a native port over pyoxigraph terms replaces `helpers/shapes.py` only |
 | Native OWL-RL / RDFS rules | owlrl | today owlrl on an rdflib copy; the OWL-DL engines are the old modules, reused |
 | Entailment-aware `query(entailment=...)` | `sparql/entailment_rdfs.py`, rewriting the rdflib algebra | done: `sparql/sqe/entailment.py` rewrites the query text for RDF / RDFS; the OWL regimes query a temporary closed copy (`OxGraph._entailed_copy`) |
 | Manchester syntax | `parsers/manchester_parser.py`, `serializers/manchester.py` | independent of the store; add `format="manchester"` that parses to a temp graph |

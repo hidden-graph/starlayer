@@ -17,8 +17,8 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
-from starlayer.graph.graph.owl_dl import InconsistentOntologyError
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.owl_dl import InconsistentOntologyError
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.oxgraph.helpers import entailment as ent
 from tests.terms import RDF, Namespace
@@ -96,7 +96,7 @@ class TestEntailmentDirect:
             g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-RDF-Based'], timeout=5)
 
     def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer.graph.graph._timeout import ReasoningTimeoutError
+        from starlayer.graph.entailment._timeout import ReasoningTimeoutError
 
         g = _disjunctive_graph()
         with pytest.raises(ReasoningTimeoutError):

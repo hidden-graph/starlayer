@@ -21,7 +21,7 @@ import pytest
 pytest.importorskip("pytest_benchmark", reason='needs the benchmark extra: pip install -e ".[benchmark]"')
 
 from bench_inmemory import plain_triples, tt_triples
-from starlayer.graph.graph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 N = 2000
 

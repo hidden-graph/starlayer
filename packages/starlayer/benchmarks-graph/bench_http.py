@@ -28,7 +28,7 @@ from rdflib import URIRef
 from rdflib.plugins.stores.sparqlstore import SPARQLUpdateStore
 
 sys.path.insert(0, '.')
-from starlayer.graph.graph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.model.triple import TripleTerm
 
 EX          = 'http://example.org/'

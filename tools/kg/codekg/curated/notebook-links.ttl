@@ -67,11 +67,11 @@ nl:02b-2c6151e0 a slkg:NotebookExample ;
 nl:02c-b87b0ce5 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02c-owl-dl-reasoning.ipynb" ;
     slkg:cellId "b87b0ce5" ;
-    slkg:cellHash "5fa7b4ac0bc5f500" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "7ee955565153c81d" ;
+    slkg:reviewedOn "2026-11-12"^^xsd:date ;
     rdfs:comment "Shows the OWL-Direct (OWL-DL) regime raising InconsistentOntologyError for a contradiction that the rule-based OWL-RDF-Based regime does not report." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.graph.owl_dl" .
+        "starlayer.graph.entailment.owl_dl" .
 
 nl:03-2e4d34f3 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;

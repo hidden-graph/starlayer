@@ -1,8 +1,8 @@
 """``infer()``: RDFS / RDF / OWL-RL (owlrl) and OWL-DL (HermiT, rustdl) closure over an ``StarLayerGraph`` / ``StarLayerDataset``.
 
-Ported from ``StarLayerGraph.infer`` and ``graph/graph/entailment_regimes.py``. The RDF and RDFS regimes are computed natively on
+Ported from ``StarLayerGraph.infer`` and ``graph/entailment/entailment_regimes.py``. The RDF and RDFS regimes are computed natively on
 pyoxigraph terms (``rdfs_closure.py``), so they need no rdflib. owlrl (OWL-RL and the combined regimes) and the OWL-DL bridges work on rdflib graphs, so the store is copied to one inside the call
-(``_rdflib_bridge``) and the delta is converted back. The OWL-DL engines (``graph/graph/owl_dl*.py``, ``_timeout.py``) are
+(``_rdflib_bridge``) and the delta is converted back. The OWL-DL engines (``graph/entailment/owl_dl*.py``, ``_timeout.py``) are
 reused as they are, lazily, with their optional-dependency errors and their subprocess timeout.
 """
 
@@ -27,7 +27,7 @@ _ENTAILMENT_BASE = "http://www.w3.org/ns/entailment/"
 
 class _EntailmentNamespace:
     """``ENTAILMENT.RDFS``, ``ENTAILMENT["OWL-Direct"]``: the regime IRIs of the SPARQL 1.2 Entailment Regimes spec, as
-    ``NamedNode``s. ``graph/graph/entailment_regimes.py`` re-exports it."""
+    ``NamedNode``s. ``graph/entailment/entailment_regimes.py`` re-exports it."""
 
     def __getitem__(self, name: str) -> ox.NamedNode:
         return ox.NamedNode(_ENTAILMENT_BASE + name)
@@ -167,11 +167,11 @@ def _owl_direct_delta(g: Any, engine: str, timeout: Any) -> set[tuple[Any, Any, 
     if engine not in ("hermit", "rustdl"):
         raise ValueError(f"Unsupported engine {engine!r}; expected one of ['hermit', 'rustdl']")
     if engine == "hermit":
-        from starlayer.graph.graph import owl_dl
+        from starlayer.graph.entailment import owl_dl
 
         classify = owl_dl.classify_owl_dl
     else:
-        from starlayer.graph.graph import owl_dl_rustdl
+        from starlayer.graph.entailment import owl_dl_rustdl
 
         classify = owl_dl_rustdl.classify_owl_dl_rustdl
     _before, delta = classify(bridge.rdflib_graph(g.triples(), decompose=True), timeout=timeout)

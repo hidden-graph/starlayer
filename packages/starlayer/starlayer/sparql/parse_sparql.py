@@ -1,7 +1,7 @@
 """starlayer.sparql.parse_sparql
 
 A hand-written SPARQL 1.2 query parser, in the style of
-``starlayer.graph.parsers.manchester_parser``: a position-carrying regex
+``starlayer.graph.manchester.parser``: a position-carrying regex
 tokenizer, then a recursive-descent parser with one method per grammar
 production, building a small in-memory AST (:class:`Node`). No rdflib parser,
 no pyparsing, and nothing from ``salg``.

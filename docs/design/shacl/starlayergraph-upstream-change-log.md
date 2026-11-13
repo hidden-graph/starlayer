@@ -57,7 +57,7 @@ Validation/tests needed:
 - `tests/unit/test_sparql12_query.py::TestQ16` (registered and unregistered triple-term bindings)
 
 Upstream status:
-- implemented (this repo, `starlayergraph/graph/starlayer_graph.py`)
+- implemented (this repo, `starlayergraph/entailment/starlayer_graph.py`)
 
 ## 2026-07-15 - Fixed: CONSTRUCT templates couldn't mint a not-yet-registered triple-term value
 
@@ -112,7 +112,7 @@ Validation/tests needed:
 - `tests/unit/test_starlayer_graph.py::TestTripleTermAdd::test_nested_tt_object_fully_resolves`
 
 Upstream status:
-- implemented (this repo, `starlayergraph/graph/starlayer_graph.py`)
+- implemented (this repo, `starlayergraph/entailment/starlayer_graph.py`)
 
 ## 2026-07-15 - Fixed: CONSTRUCT BIND for a minted triple term was placed before the WHERE patterns that bind its inputs
 
@@ -183,13 +183,13 @@ Temporary workaround in starshacl:
 - none needed; fixed directly in `starlayergraph`.
 
 Proposed StarLayerGraph API/behavior change:
-- New `starlayergraph/parsers/turtle_parser.py::decode_tt_encoded_triples` - reverses the skolemized tt:HASH encoding back into real `(s, p, o)` triples with any encoded triple-term value restored to a proper `TripleTerm` object (nested triple terms restored recursively). `StarLayerGraph.parse()`'s `turtle12`/`longturtle12`/`trig12` branches now call this and route the result through `self.add()` (-> `_native_add()`) when `self._is_native`, leaving the rdf-1.1 path's `super().add(triple)` loop completely untouched.
+- New `starlayergraph/manchester/turtle_parser.py::decode_tt_encoded_triples` - reverses the skolemized tt:HASH encoding back into real `(s, p, o)` triples with any encoded triple-term value restored to a proper `TripleTerm` object (nested triple terms restored recursively). `StarLayerGraph.parse()`'s `turtle12`/`longturtle12`/`trig12` branches now call this and route the result through `self.add()` (-> `_native_add()`) when `self._is_native`, leaving the rdf-1.1 path's `super().add(triple)` loop completely untouched.
 
 Validation/tests needed:
 - `tests/integration/test_oxigraph_backend.py::TestOxigraphTurtle12Parse` (5 tests: simple/nested triple-term decoding, no leaked encoding triples, `rdf:reifies` lookup matches parsed data, `trig12` parsing) - all confirmed to fail against the pre-fix code, pass against the fix
 
 Upstream status:
-- implemented (this repo, `starlayergraph/parsers/turtle_parser.py`, `starlayer_graph.py`)
+- implemented (this repo, `starlayergraph/manchester/turtle_parser.py`, `starlayer_graph.py`)
 
 ## 2026-07-18 - Fixed: same bug, separate code path - `StarLayerDataset.parse(format='trig12')` on a native-backend dataset had the identical problem
 
@@ -249,7 +249,7 @@ Validation/tests needed:
 - `starlayergraph`'s `tests/unit/test_turtle_parser.py::TestBaseURI` gained `test_base_seeded_via_parse_argument`, `test_in_document_base_overrides_seeded_base`, `test_no_base_seeded_behaves_as_before` - all three confirmed to fail against the pre-fix code. This repo's own W3C-suite harness (`packages/starlayer/tests/shacl/w3c_shacl12/`) re-verified live against the real vendored fixtures after the fix landed - `<>`/`mf:include` resolution confirmed correct.
 
 Upstream status:
-- implemented (`starlayergraph`, `starlayergraph/parsers/turtle_parser.py`, `starlayergraph/graph/starlayer_graph.py`)
+- implemented (`starlayergraph`, `starlayergraph/manchester/turtle_parser.py`, `starlayergraph/entailment/starlayer_graph.py`)
 
 ## 2026-07-30 - Fixed: `StarLayerTurtleParser` rejected three ordinary (non-RDF-1.2) Turtle constructs
 
@@ -266,15 +266,15 @@ Temporary workaround in starshacl:
 - none needed anymore; fixed directly in `starlayergraph`. (The 13 affected files were registered in `packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py` under `pytest.xfail(strict=True)` until this landed; those entries have since been removed - 2 of the 13 turned out to have their own, independent, still-open findings once they could actually run, tracked separately as `reifierShape-001`/`property-sparqlExpr-001` in that same file.)
 
 StarLayerGraph API/behavior change (implemented in `starlayergraph`):
-1. Widened `next_token()`'s fallback-scan stop-character set from `{whitespace, '<'}` to also include `( ) [ ] { } " ' , ;` (`starlayergraph/parsers/lexer.py`).
-2. `expand_triple_set()` now calls `coerce_object()` on each collection element before using it as an `rdf:first` value, matching what ordinary objects already got (`starlayergraph/parsers/syntax.py`) - safe unconditionally, since a bracket/quote-wrapped member never matches `coerce_object`'s literal patterns.
-3. `#`-to-end-of-line stripping added directly to the statement-splitting/directive-scanning character loops (`_split_statements_impl`/`_scan_directive_end` in `starlayergraph/parsers/syntax.py`), gated on not being inside a string or an `<IRI>` (which may legitimately contain a literal `#` fragment) - not just the existing whole-comment-line pre-filter.
+1. Widened `next_token()`'s fallback-scan stop-character set from `{whitespace, '<'}` to also include `( ) [ ] { } " ' , ;` (`starlayergraph/manchester/lexer.py`).
+2. `expand_triple_set()` now calls `coerce_object()` on each collection element before using it as an `rdf:first` value, matching what ordinary objects already got (`starlayergraph/manchester/syntax.py`) - safe unconditionally, since a bracket/quote-wrapped member never matches `coerce_object`'s literal patterns.
+3. `#`-to-end-of-line stripping added directly to the statement-splitting/directive-scanning character loops (`_split_statements_impl`/`_scan_directive_end` in `starlayergraph/manchester/syntax.py`), gated on not being inside a string or an `<IRI>` (which may legitimately contain a literal `#` fragment) - not just the existing whole-comment-line pre-filter.
 
 Validation/tests needed:
 - `starlayergraph`'s `packages/starlayer/tests/graph/unit/test_turtle_parser.py` gained `TestNoSpaceBeforeDelimiter` (3 cases), `TestCollectionElementLiteralCoercion` (4 cases), `TestMidLineComments` (4 cases, including two negative guards confirming a `#` inside a string/IRI is still never stripped) - all confirmed to fail against the pre-fix code via a temporary revert, not just pass against the fix. This repo's own W3C-suite harness re-ran all 13 previously-blocked fixtures live after the fix landed; all 13 now parse correctly (2 then surfaced independent, still-open findings once they could run - see `packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py`).
 
 Upstream status:
-- implemented (`starlayergraph`, `starlayergraph/parsers/lexer.py`, `starlayergraph/parsers/syntax.py`)
+- implemented (`starlayergraph`, `starlayergraph/manchester/lexer.py`, `starlayergraph/manchester/syntax.py`)
 
 ## 2026-07-31 - Fixed: typed-literal construction silently discarded a non-canonical lexical form
 
@@ -294,7 +294,7 @@ Validation/tests needed:
 - `starlayergraph`'s `tests/unit/test_turtle_parser.py::TestPlainTurtle::test_typed_literal_preserves_non_canonical_lexical_form` - confirmed to fail against the pre-fix code.
 
 Upstream status:
-- implemented (`starlayergraph`, `starlayergraph/parsers/turtle_parser.py`)
+- implemented (`starlayergraph`, `starlayergraph/manchester/turtle_parser.py`)
 
 ## 2026-07-31 - Known gap, not yet fixed: `"04"^^<full IRI>` (non-prefixed datatype IRI) fails to parse
 
@@ -369,13 +369,13 @@ Temporary workaround in starshacl:
 - none needed; fixed directly in `starlayergraph`.
 
 StarLayerGraph API/behavior change (implemented in `starlayergraph`):
-- Both `_unescape()` (`starlayergraph/parsers/turtle_parser.py`) and `_unescape_nt()` (`starlayergraph/parsers/ntriples12.py`) now map `\b` → U+0008 and `\f` → U+000C alongside the pre-existing escapes.
+- Both `_unescape()` (`starlayergraph/manchester/turtle_parser.py`) and `_unescape_nt()` (`starlayergraph/manchester/ntriples12.py`) now map `\b` → U+0008 and `\f` → U+000C alongside the pre-existing escapes.
 
 Validation/tests needed:
 - `starlayergraph`'s `tests/unit/test_turtle_parser.py::TestPlainTurtle::test_form_feed_and_backspace_escapes_decode` (new), and a new `packages/starlayer/tests/graph/unit/test_ntriples12.py` (previously zero coverage for this parser) - both confirmed to fail against the pre-fix code.
 
 Upstream status:
-- implemented (`starlayergraph`, `starlayergraph/parsers/turtle_parser.py`, `starlayergraph/parsers/ntriples12.py`)
+- implemented (`starlayergraph`, `starlayergraph/manchester/turtle_parser.py`, `starlayergraph/manchester/ntriples12.py`)
 
 ## 2026-08-01 - Fixed (via monkeypatch, not a `starlayergraph`-authored bug): two confirmed plain-`rdflib` SPARQL arithmetic bugs
 

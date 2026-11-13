@@ -2,7 +2,7 @@
 
 Oxigraph's serializer is a streaming writer: it writes one statement at a time and cannot fold a blank node into ``[ ... ]``,
 an RDF list into ``( ... )`` or a reifier into ``{| ... |}``. :func:`pretty_turtle` and :func:`pretty_trig` read the whole graph
-(or dataset) first and lay it out the way the older rdflib-based writer (``starlayer.graph.serializers.turtle12``) did, written
+(or dataset) first and lay it out the way the older rdflib-based writer (``starlayer.graph.manchester.turtle12``) did, written
 over ``pyoxigraph`` terms with no rdflib import. They are what ``StarLayerGraph.serialize(..., pretty=True)`` calls.
 
 Input: a ``pyoxigraph.Store`` or ``Dataset``, an ``StarLayerGraph`` / ``StarLayerDataset``, or any iterable of ``Quad`` / ``Triple`` (or 3- and

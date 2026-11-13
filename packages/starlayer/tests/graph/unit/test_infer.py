@@ -15,7 +15,7 @@ Requires the `reasoning` extra: pip install -e ".[reasoning]"
 import pytest
 from rdflib import Graph
 from starlayer.graph import TripleTerm
-from starlayer.graph.graph.entailment_regimes import ENTAILMENT
+from starlayer.graph.entailment.entailment_regimes import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from tests.terms import OWL, RDF, RDFS, NamedNode, Namespace
 
