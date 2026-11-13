@@ -300,7 +300,7 @@ dataset, so it does not replace anything above.
 ### Staged path
 
 1. **Now (no behaviour change):** document that `infer()` for RDFS/OWL-RL is a three-copy owlrl path, and that the
-   SHACL engine only needs the delta. Add the benchmark above to `benchmarks-graph/` so regressions are visible.
+   SHACL engine only needs the delta. Add the benchmark above to `benchmarks/graph/` so regressions are visible.
 2. **Prototype 1 (days):** a `engine="reasonable"` option on `infer()` for the OWL-RL regime: feed
    `g.triples()` as 3-tuples (decomposed as today), take `reason()`'s output, subtract the base. Gate by profile:
    if the data uses any rule `reasonable` does not implement (`owl:hasKey`, `maxCardinality`, `owl:oneOf` in

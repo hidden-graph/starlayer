@@ -57,9 +57,9 @@ known-third-party = ["codekg"]
 [tool.ruff.lint.per-file-ignores]
 # Capability-check script: each check is a one-line closure handed straight to `trying()`, which calls it immediately, so
 # defining them in a loop is safe (B023) and the compact `a; b` lines keep each check on one screen row (E702).
-"packages/starlayer/benchmarks-graph/oxigraph_capability_checks.py" = ["E702", "B023"]
+"packages/starlayer/benchmarks/graph/oxigraph_capability_checks.py" = ["E702", "B023"]
 # E402 (import not at top of file): standalone scripts/harnesses that need
 # `sys.path.insert(...)` before importing - not installed as packages.
-"*/benchmarks-*/*.py" = ["E402"]
+"*/benchmarks/*/*.py" = ["E402"]
 "*/examples/*.py" = ["E402"]
 "*/tests/w3c_*/*.py" = ["E402"]

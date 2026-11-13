@@ -1,11 +1,11 @@
 """
-benchmarks-graph/test_bench_graph.py
+benchmarks/graph/test_bench_graph.py
 
 pytest-benchmark regression guards for StarLayerGraph's hot paths. These
 live outside `testpaths` (packages/starlayer/tests), so a bare `pytest`
 run never collects them - invoke explicitly:
 
-    pytest benchmarks-graph/test_bench_graph.py --benchmark-only
+    pytest benchmarks/graph/test_bench_graph.py --benchmark-only
 
 One fixed, CI-fast scale (N=2000) - these catch regressions, they don't
 characterize scaling. For the full scaling sweep used to update
@@ -72,7 +72,7 @@ def test_sparql_tt_pattern(benchmark):
 # --- calibration -------------------------------------------------------------------------------------------------------
 # A fixed, pure-Python workload (no rdflib, no starlayer) timed in the same run. GitHub's runners draw a different CPU
 # from day to day (about 2x apart), so scripts/check_benchmark_regression.py compares each benchmark as a ratio to this
-# one, not as absolute milliseconds. Keep it identical in benchmarks-graph and benchmarks-shacl, and do not change it
+# one, not as absolute milliseconds. Keep it identical in benchmarks/graph and benchmarks/shacl, and do not change it
 # without re-recording both baselines (GitHub issue #33).
 CALIBRATION_NAME = "test_calibration_reference"
 

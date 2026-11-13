@@ -6,7 +6,7 @@ the baseline should be the *median ratio* over several runs on the runners, not 
 
     gh workflow run benchmark.yml --ref <branch>          # four or more times, wait for them to finish
     gh run download <run-id> -n benchmark-results -D out/<run-id>        # for each run
-    python scripts/record_benchmark_baseline.py packages/starlayer/benchmarks-graph/baseline.json \\
+    python scripts/record_benchmark_baseline.py packages/starlayer/benchmarks/graph/baseline.json \\
         out/*/bench-graph-result.json
     then commit.
 

@@ -1,11 +1,11 @@
 """
-benchmarks-graph/bench_oxgraph_wrapper.py
+benchmarks/graph/bench_oxgraph_wrapper.py
 
 100k-triple comparison of the old ``StarLayerGraph`` (rdflib store), the Oxigraph wrapper ``StarLayerGraph`` and a bare
 ``pyoxigraph.Store``, on load (N-Triples text and one-by-one ``add``), query (a join, an aggregate, a point lookup) and iteration.
 Median of REPEATS runs, seconds. Run:
 
-    PYTHONPATH=packages/starlayer python3 packages/starlayer/benchmarks-graph/bench_oxgraph_wrapper.py [--triples 100000]
+    PYTHONPATH=packages/starlayer python3 packages/starlayer/benchmarks/graph/bench_oxgraph_wrapper.py [--triples 100000]
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 """
-benchmarks-graph/bench_inmemory_oxigraph.py
+benchmarks/graph/bench_inmemory_oxigraph.py
 
 In-memory comparison: StarLayerGraph's default store (rdflib Memory, rdf-1.1
 representation with the tt:HASH encoding) vs. in-memory Oxigraph
@@ -16,8 +16,8 @@ RSS is attributable to that one cell, not to earlier cells in the same process.
 No server needed. Requires: pip install oxrdflib pyoxigraph
 
 Run:
-    .venv/bin/python packages/starlayer/benchmarks-graph/bench_inmemory_oxigraph.py
-    .venv/bin/python packages/starlayer/benchmarks-graph/bench_inmemory_oxigraph.py --quick
+    .venv/bin/python packages/starlayer/benchmarks/graph/bench_inmemory_oxigraph.py
+    .venv/bin/python packages/starlayer/benchmarks/graph/bench_inmemory_oxigraph.py --quick
 """
 
 from __future__ import annotations

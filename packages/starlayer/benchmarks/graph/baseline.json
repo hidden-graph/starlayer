@@ -168,7 +168,7 @@
     {
       "group": null,
       "name": "test_insert_plain_triples",
-      "fullname": "packages/starlayer/benchmarks-graph/test_bench_graph.py::test_insert_plain_triples",
+      "fullname": "packages/starlayer/benchmarks/graph/test_bench_graph.py::test_insert_plain_triples",
       "params": null,
       "param": null,
       "extra_info": {},
@@ -261,7 +261,7 @@
     {
       "group": null,
       "name": "test_insert_tt_triples",
-      "fullname": "packages/starlayer/benchmarks-graph/test_bench_graph.py::test_insert_tt_triples",
+      "fullname": "packages/starlayer/benchmarks/graph/test_bench_graph.py::test_insert_tt_triples",
       "params": null,
       "param": null,
       "extra_info": {},
@@ -311,7 +311,7 @@
     {
       "group": null,
       "name": "test_contains_lookup",
-      "fullname": "packages/starlayer/benchmarks-graph/test_bench_graph.py::test_contains_lookup",
+      "fullname": "packages/starlayer/benchmarks/graph/test_bench_graph.py::test_contains_lookup",
       "params": null,
       "param": null,
       "extra_info": {},
@@ -13389,7 +13389,7 @@
     {
       "group": null,
       "name": "test_sparql_select_plain",
-      "fullname": "packages/starlayer/benchmarks-graph/test_bench_graph.py::test_sparql_select_plain",
+      "fullname": "packages/starlayer/benchmarks/graph/test_bench_graph.py::test_sparql_select_plain",
       "params": null,
       "param": null,
       "extra_info": {},
@@ -13449,7 +13449,7 @@
     {
       "group": null,
       "name": "test_sparql_tt_pattern",
-      "fullname": "packages/starlayer/benchmarks-graph/test_bench_graph.py::test_sparql_tt_pattern",
+      "fullname": "packages/starlayer/benchmarks/graph/test_bench_graph.py::test_sparql_tt_pattern",
       "params": null,
       "param": null,
       "extra_info": {},
@@ -13493,7 +13493,7 @@
     {
       "group": null,
       "name": "test_calibration_reference",
-      "fullname": "packages/starlayer/benchmarks-graph/test_bench_graph.py::test_calibration_reference",
+      "fullname": "packages/starlayer/benchmarks/graph/test_bench_graph.py::test_calibration_reference",
       "params": null,
       "param": null,
       "extra_info": {},

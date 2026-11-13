@@ -1,6 +1,6 @@
 # SHACL engine benchmarks: native engine vs the pyshacl-backed validator
 
-Script: `packages/starlayer/benchmarks-shacl/bench_engine_vs_old.py` (branch `shacl-engine`). Background: `shacl-engine-feasibility.md`, `shacl-engine-design.md`.
+Script: `packages/starlayer/benchmarks/shacl/bench_engine_vs_old.py` (branch `shacl-engine`). Background: `shacl-engine-feasibility.md`, `shacl-engine-design.md`.
 
 ## Environment
 

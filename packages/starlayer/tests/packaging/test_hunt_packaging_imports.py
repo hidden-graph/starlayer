@@ -37,9 +37,9 @@ def _import_file(path: Path):
 
 
 def test_every_benchmark_module_benchmark_yml_runs_imports() -> None:
-    """benchmark.yml runs pytest on benchmarks-*/test_bench_*.py; each must import, and each baseline it checks must exist."""
+    """benchmark.yml runs pytest on benchmarks/*/test_bench_*.py; each must import, and each baseline it checks must exist."""
     text = (WORKFLOWS / "benchmark.yml").read_text()
-    files = re.findall(r"pytest (benchmarks-[\w-]+/\S+\.py)", text)
+    files = re.findall(r"pytest (benchmarks/[\w-]+/\S+\.py)", text)
     assert files
     for f in files:
         _import_file(PACKAGE / f)
@@ -123,7 +123,7 @@ def test_env_switches_in_the_docs_are_read_somewhere() -> None:
 
 def test_benchmark_scripts_import() -> None:
     """The benchmark scripts a README presents as runnable still import."""
-    for d in ("benchmarks-graph", "benchmarks-shacl"):
+    for d in ("benchmarks/graph", "benchmarks/shacl"):
         for f in sorted((PACKAGE / d).glob("*.py")):
             _import_file(f)
 

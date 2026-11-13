@@ -1,5 +1,5 @@
 """
-benchmarks-graph/oxigraph_capability_checks.py
+benchmarks/graph/oxigraph_capability_checks.py
 
 Runnable capability checks: pyoxigraph (Oxigraph) versus stock rdflib, for what
 StarLayer uses. Feeds docs/working/oxigraph-capability-matrix.md.
@@ -14,7 +14,7 @@ Checks that make the engine abort (SPARQL ``=`` on rdf:dirLangString) run in a
 subprocess. No server and (except the optional packaging checks) no network.
 
 Run:
-    /usr/local/bin/python3 packages/starlayer/benchmarks-graph/oxigraph_capability_checks.py
+    /usr/local/bin/python3 packages/starlayer/benchmarks/graph/oxigraph_capability_checks.py
     ... --perf     also run the 100k-triple timing table
     ... --net      also run the checks that need network (PyPI wheel listing, Pyodide)
 """

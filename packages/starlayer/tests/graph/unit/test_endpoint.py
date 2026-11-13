@@ -1,7 +1,7 @@
 """A graph held by a SPARQL endpoint: the ``Endpoint`` client, and ``StarLayerGraph(endpoint=..., cache="full" | "temporary")``.
 
 Every test runs against a mock endpoint (a ``pyoxigraph.Store`` behind ``http.server``) and, when they answer on localhost, against a
-real Oxigraph server (``:7878``) and Fuseki (``:3030/ds``): see ``benchmarks-graph/README.md`` for the docker commands. A test names its own
+real Oxigraph server (``:7878``) and Fuseki (``:3030/ds``): see ``benchmarks/graph/README.md`` for the docker commands. A test names its own
 graph so a real server is left as it was found.
 """
 

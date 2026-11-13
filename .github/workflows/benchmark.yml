@@ -24,12 +24,12 @@ jobs:
 
       - name: Run graph benchmarks
         working-directory: packages/starlayer
-        run: pytest benchmarks-graph/test_bench_graph.py --benchmark-only --benchmark-json=bench-graph-result.json
+        run: pytest benchmarks/graph/test_bench_graph.py --benchmark-only --benchmark-json=bench-graph-result.json
 
       - name: Check for regressions - graph
         if: always()
         working-directory: packages/starlayer
-        run: python ../../scripts/check_benchmark_regression.py benchmarks-graph/baseline.json bench-graph-result.json
+        run: python ../../scripts/check_benchmark_regression.py benchmarks/graph/baseline.json bench-graph-result.json
 
       - name: Upload benchmark results
         if: always()

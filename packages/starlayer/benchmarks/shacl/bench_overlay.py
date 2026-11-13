@@ -8,9 +8,9 @@ shapes graph (shape-level SPARQLRule, two global copying SPARQLRules, a TripleRu
 * ``validate`` on the finished overlay (``rules=False``), and the whole ``validate(..., inference=ENTAILMENT.RDFS, rules=True)``;
 * a lookup micro-benchmark: triples/objects/subjects/__contains__ on the finished overlay.
 
-    PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_overlay.py --sizes 5000,20000 --overlay python
-    PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_overlay.py --sizes 5000,20000 --overlay oxigraph
-    PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_overlay.py --sizes 20000 --profile 10
+    PYTHONPATH=packages/starlayer python3 benchmarks/shacl/bench_overlay.py --sizes 5000,20000 --overlay python
+    PYTHONPATH=packages/starlayer python3 benchmarks/shacl/bench_overlay.py --sizes 5000,20000 --overlay oxigraph
+    PYTHONPATH=packages/starlayer python3 benchmarks/shacl/bench_overlay.py --sizes 20000 --profile 10
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 for p in (str(ROOT), str(Path(__file__).resolve().parent)):
     if p not in sys.path:
         sys.path.insert(0, p)

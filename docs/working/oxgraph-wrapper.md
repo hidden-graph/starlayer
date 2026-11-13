@@ -1,7 +1,7 @@
 # The Oxigraph-backed graph wrapper (`OxGraph`, `OxDataset`)
 
 Branch `mig-wrapper` (from `shacl-engine`), 2026-10-31. New files only: `packages/starlayer/starlayer/graph/oxgraph/` and
-`packages/starlayer/tests/graph/unit/`, plus `packages/starlayer/benchmarks-graph/bench_oxgraph_wrapper.py`. Nothing existing
+`packages/starlayer/tests/graph/unit/`, plus `packages/starlayer/benchmarks/graph/bench_oxgraph_wrapper.py`. Nothing existing
 was edited. The names are working names; at the switch they become `StarLayerGraph` and `StarLayerDataset`.
 Decisions followed: `graph-oxigraph-migration-plan.md` sections 1 and 5.
 
@@ -104,7 +104,7 @@ quads, then clears a graph, reopens as an `OxGraph` and checks the default graph
 
 ## Benchmark
 
-`benchmarks-graph/bench_oxgraph_wrapper.py` (100,000 triples; median of 3 runs; seconds). One run on the development machine (macOS, Python 3.10, pyoxigraph 0.5.13), in seconds:
+`benchmarks/graph/bench_oxgraph_wrapper.py` (100,000 triples; median of 3 runs; seconds). One run on the development machine (macOS, Python 3.10, pyoxigraph 0.5.13), in seconds:
 
 | Operation | `StarLayerGraph` | `OxGraph` | bare `Store` | old / wrapper |
 |---|---:|---:|---:|---:|

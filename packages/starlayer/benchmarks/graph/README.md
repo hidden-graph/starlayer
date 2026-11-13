@@ -17,10 +17,10 @@ Performance benchmarks for starlayergraph across all supported backends.
 
 ```bash
 # In-memory — no server needed
-python benchmarks-graph/bench_inmemory.py
+python benchmarks/graph/bench_inmemory.py
 
 # Start Fuseki and/or Oxigraph (see below), then:
-python benchmarks-graph/bench_http.py
+python benchmarks/graph/bench_http.py
 ```
 
 ## Starting Fuseki
@@ -38,7 +38,7 @@ docker run -d --name oxigraph-bench -p 7878:7878 \
 
 ## Results summary
 
-See [performance.md](../../../docs/design/graph/performance.md) for benchmark results and backend recommendations.
+See [performance.md](../../../../docs/working/archive/design-graph-performance.md) for benchmark results and backend recommendations.
 
 ## Regression guard: `test_bench_graph.py`
 
@@ -48,9 +48,9 @@ Lives outside `testpaths` (`packages/starlayer/tests`), so a bare `pytest` run n
 
 ```bash
 pip install -e ".[benchmark]"
-pytest benchmarks-graph/test_bench_graph.py --benchmark-only
+pytest benchmarks/graph/test_bench_graph.py --benchmark-only
 ```
 
-Run on a schedule (not every push/PR - timings are too noisy on shared CI runners to gate every commit on) by [`.github/workflows/benchmark.yml`](../../../.github/workflows/benchmark.yml), which compares a fresh run against the committed `baseline.json` via [`scripts/check_benchmark_regression.py`](../../../scripts/check_benchmark_regression.py) and fails the workflow (GitHub's own failed-scheduled-run notification is the alert) if any benchmark's minimum time, relative to a calibration benchmark timed in the same run, regresses more than 30%. The calibration (`test_calibration_reference`, a fixed pure-Python workload) cancels the differences between the CPUs GitHub assigns, which are about 2x apart.
+Run on a schedule (not every push/PR - timings are too noisy on shared CI runners to gate every commit on) by [`.github/workflows/benchmark.yml`](../../../../.github/workflows/benchmark.yml), which compares a fresh run against the committed `baseline.json` via [`scripts/check_benchmark_regression.py`](../../../../scripts/check_benchmark_regression.py) and fails the workflow (GitHub's own failed-scheduled-run notification is the alert) if any benchmark's minimum time, relative to a calibration benchmark timed in the same run, regresses more than 30%. The calibration (`test_calibration_reference`, a fixed pure-Python workload) cancels the differences between the CPUs GitHub assigns, which are about 2x apart.
 
-To update `baseline.json` after an intentional, accepted performance change, record it from several runs on the CI runners (not from a laptop, and not from one run): trigger `benchmark.yml` four or more times with `gh workflow run`, download each run's `benchmark-results` artifact, and run `scripts/record_benchmark_baseline.py packages/starlayer/benchmarks-graph/baseline.json <the runs' bench-graph-result.json>`. Details are in that script's docstring.
+To update `baseline.json` after an intentional, accepted performance change, record it from several runs on the CI runners (not from a laptop, and not from one run): trigger `benchmark.yml` four or more times with `gh workflow run`, download each run's `benchmark-results` artifact, and run `scripts/record_benchmark_baseline.py packages/starlayer/benchmarks/graph/baseline.json <the runs' bench-graph-result.json>`. Details are in that script's docstring.

@@ -2,7 +2,7 @@
 
 Branch `shacl-engine`. Measured 2026-10-31 with `/usr/local/bin/python3` 3.10.8 on macOS x86_64: pyoxigraph 0.5.13,
 oxrdflib 0.5.0, rdflib 7.6.0. Every row marked yes/partial/no comes from a check in
-`packages/starlayer/benchmarks-graph/oxigraph_capability_checks.py` (run it; `--net` adds the PyPI/Pyodide rows,
+`packages/starlayer/benchmarks/graph/oxigraph_capability_checks.py` (run it; `--net` adds the PyPI/Pyodide rows,
 `--perf` adds the timing table) or from a document named in the evidence column. Anything neither run nor read is
 marked **unverified**.
 

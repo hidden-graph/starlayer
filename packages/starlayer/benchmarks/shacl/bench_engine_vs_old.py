@@ -4,8 +4,8 @@ Configurations: (a) old validator on StarLayerGraph, (b) new engine on StarLayer
 Every measurement runs in its own subprocess so peak RSS (``resource.getrusage``) is per configuration. Best of 3 for
 data up to ``--repeat-max`` triples, one run above that. Sizes stop growing once a run exceeds ``--stop-after`` seconds.
 
-    PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_engine_vs_old.py --sizes 1000,10000,50000,200000
-    PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_engine_vs_old.py --profile 10000
+    PYTHONPATH=packages/starlayer python3 benchmarks/shacl/bench_engine_vs_old.py --sizes 1000,10000,50000,200000
+    PYTHONPATH=packages/starlayer python3 benchmarks/shacl/bench_engine_vs_old.py --profile 10000
 
 The data and shapes here are generated: a people/org/address graph (~14 triples per person, ~3% planted violations) and a shapes graph with
 cardinality+datatype+pattern, sh:class over a subclass hierarchy, sh:node/sh:and, sh:sparql, sh:uniqueValuesFor and
@@ -24,7 +24,7 @@ import sys
 import time
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
