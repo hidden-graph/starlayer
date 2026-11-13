@@ -204,8 +204,8 @@ nl:05b-e00d4c27 a slkg:NotebookExample ;
 nl:06c-421f2a31 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06c-canonical-hashing.ipynb" ;
     slkg:cellId "421f2a31" ;
-    slkg:cellHash "8ea1d5fc09b726dc" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "7bb90c39284ead7e" ;
+    slkg:reviewedOn "2026-11-12"^^xsd:date ;
     rdfs:comment "Shows two graphs with different blank-node labels being isomorphic and having the same RDFC-1.0 hash." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.rdfc.rdfc10_hash",
@@ -223,8 +223,8 @@ nl:06c-9e831b35 a slkg:NotebookExample ;
 nl:appendix-34b06f8c a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/appendix-b1-sqe-shared-parts.ipynb" ;
     slkg:cellId "34b06f8c" ;
-    slkg:cellHash "9728eb9276c47701" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "0907f1669b1fdb6d" ;
+    slkg:reviewedOn "2026-11-12"^^xsd:date ;
     rdfs:comment "Uses cbd() to delete a shared filter and everything hanging from it in a query graph." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.oxgraph.core._Base.cbd" .
@@ -259,8 +259,8 @@ nl:05a-92f83318 a slkg:NotebookExample ;
 nl:03b-c0a10008 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
     slkg:cellId "c0a10008" ;
-    slkg:cellHash "1aee68379cddc509" ;
-    slkg:reviewedOn "2026-11-02"^^xsd:date ;
+    slkg:cellHash "da2f45f36ed66385" ;
+    slkg:reviewedOn "2026-11-12"^^xsd:date ;
     rdfs:comment "Asks a goal pattern of a rule set with query() and gets back only the matching bindings." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.query" .
