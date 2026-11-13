@@ -6,15 +6,15 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import rules
-from starlayer.shacl_engine.entailment import entailed_view
-from starlayer.shacl_engine.overlay_oxigraph import (
+from starlayer.shacl.engine import rules
+from starlayer.shacl.engine.entailment import entailed_view
+from starlayer.shacl.engine.overlay_oxigraph import (
     OxigraphOverlay,
     literal_survives_store,
     term_is_safe,
 )
-from starlayer.shacl_engine.rules import InferredView, apply_rules
-from starlayer.shacl_engine.terms import (
+from starlayer.shacl.engine.rules import InferredView, apply_rules
+from starlayer.shacl.engine.terms import (
     RDF,
     XSD,
     engine_view,

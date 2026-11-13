@@ -27,7 +27,7 @@ def term(x: Any) -> Any:
         return x
     if isinstance(x, tuple) and len(x) == 3:
         return Triple(term(x[0]), term(x[1]), term(x[2]))
-    from starlayer.shacl_engine.terms import (
+    from starlayer.shacl.engine.terms import (
         to_engine,  # rdflib / StarLayer terms; imports rdflib lazily
     )
 

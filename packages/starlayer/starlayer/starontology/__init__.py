@@ -167,7 +167,7 @@ import pyoxigraph as ox
 def __getattr__(name: str) -> Any:
     """``PROF``, the profiles vocabulary as a namespace of pyoxigraph ``NamedNode`` constants (``PROF.hasResource``), is built on first use."""
     if name == "PROF":
-        from starlayer.shacl_engine.terms import NS
+        from starlayer.shacl.engine.terms import NS
 
         return NS("http://www.w3.org/ns/dx/prof/")
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
@@ -750,7 +750,7 @@ _REAL_SHAPES_GRAPH_IRI_TO_NAME: dict | None = None
 def _real_shapes_graph_iri_to_name() -> dict:
     global _REAL_SHAPES_GRAPH_IRI_TO_NAME
     if _REAL_SHAPES_GRAPH_IRI_TO_NAME is None:
-        from starlayer.shacl_engine.terms import RDF, SH
+        from starlayer.shacl.engine.terms import RDF, SH
 
         mapping: dict = {}
         for name in _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART:
@@ -780,7 +780,7 @@ def local_loader(iri: Any) -> Any:
     non-determinism, and nothing to secure against - unlike an arbitrary
     graph's own ``owl:imports``, which could point anywhere.
     """
-    from starlayer.shacl_engine.terms import to_engine
+    from starlayer.shacl.engine.terms import to_engine
 
     name = _real_shapes_graph_iri_to_name().get(to_engine(iri))
     if name is None:

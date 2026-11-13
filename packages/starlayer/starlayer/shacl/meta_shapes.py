@@ -1,7 +1,7 @@
 """The meta-SHACL preflight: a shapes graph checked against SHACL-for-SHACL before it is used (``meta_shacl=True``).
 
 The meta-shapes graph is not assembled at run time. It is stored as ``starontology``'s ``shacl12-shacl.ttl`` (registry entry
-``shacl_shacl``) and read by ``load_meta_shapes_graph``; ``starlayer.shacl_engine.meta`` runs the check. The build that produces
+``shacl_shacl``) and read by ``load_meta_shapes_graph``; ``starlayer.shacl.engine.meta`` runs the check. The build that produces
 the stored graph lives in ``scripts/build_meta_shapes.py`` and is run by ``scripts/build_starontology.py``. It starts from the W3C
 Data Shapes Working Group's own SHACL-for-SHACL (a pinned copy, ``packages/starlayer/starlayer/starontology/_sources/vendor/w3c-shacl-shacl.ttl``) and only adds to
 it: ``shacl12-validation-shapes.ttl`` plus ``sh:deactivated`` on the few Working Group rules that are still stricter than
@@ -23,8 +23,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.shacl_engine.graphs import new_graph
-from starlayer.shacl_engine.terms import (
+from starlayer.shacl.engine.graphs import new_graph
+from starlayer.shacl.engine.terms import (
     RDF,
     SH,
     XSD,
@@ -57,7 +57,7 @@ def parameter_value_shapes(shapes_graph: Any) -> Any:
     Only a parameter whose path is an IRI is used; the parameter's own triples (and what hangs from its blank nodes) are copied, so the
     returned graph shares no blank node with ``shapes_graph`` beyond the parameter's own label.
     """
-    from starlayer.shacl_engine.sparql_support import is_true
+    from starlayer.shacl.engine.sparql_support import is_true
 
     shapes_graph = engine_view(shapes_graph, "shapes graph")
     out: list[tuple[Any, Any, Any]] = []
@@ -197,7 +197,7 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
     advice: it appears in the report but does not make the graph invalid (``allow_warnings=True``; pass ``allow_warnings=False`` to
     count warnings, ``allow_infos=True`` to tolerate infos only). ``extra_graphs`` are added to the meta-shapes. The report is
     an ``StarLayerGraph``."""
-    from starlayer.shacl_engine.meta import meta_validate as engine_meta_validate
+    from starlayer.shacl.engine.meta import meta_validate as engine_meta_validate
 
     result = engine_meta_validate(
         shapes_graph,
@@ -226,8 +226,8 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
         "owl": "http://www.w3.org/2002/07/owl#",
     }
 
-    from starlayer.shacl_engine.plan import ShapeError
-    from starlayer.shacl_engine.sparql_support import prefixes_of
+    from starlayer.shacl.engine.plan import ShapeError
+    from starlayer.shacl.engine.sparql_support import prefixes_of
 
     try:
         prefixes.update(prefixes_of(shapes_graph, query_node))

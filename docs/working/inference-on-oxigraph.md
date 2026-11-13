@@ -29,7 +29,7 @@ scratchpad) and is reproduced in outline there.
 3. **The repo's SRL engine is not "native over Oxigraph".** `srl_eval.py` evaluates on an rdflib `Graph`
    (`evalBGP`, one call per incoming solution, naive re-evaluation of every rule each round); an Oxigraph input is
    snapshotted to rdflib terms first (`srl_eval.py:696`, `_srl_ast.py:484`). On the benchmark below it was
-   slower than owlrl, not faster. The SHACL 1.2 rules engine (`shacl_engine/rules.py`) does run SPARQL CONSTRUCT through
+   slower than owlrl, not faster. The SHACL 1.2 rules engine (`shacl/engine/rules.py`) does run SPARQL CONSTRUCT through
    pyoxigraph on a materialised `OxGraph`, but its loop is also naive and the draft has no negation or
    stratification semantics. Expressing RDFS/OWL 2 RL as SRL is feasible on paper (section 5) but it needs a new,
    semi-naive, store-native evaluator first.
@@ -136,7 +136,7 @@ repo already does in `_rdflib_bridge.py`, or must leave triple-term triples out 
   times to a fixpoint (GitHub issue #97: one pass is not a closure), dropping repeated `err:ErrorMessage` nodes and
   generalised triples, and converting the delta back. OWL-Direct goes to HermiT (owlready2) or rustdl through the
   existing `owl_dl*.py` bridges, again over an rdflib copy.
-* `shacl_engine/entailment.py` calls that `infer(..., mode="delta")` on a combined data-plus-ontology graph and holds
+* `shacl/engine/entailment.py` calls that `infer(..., mode="delta")` on a combined data-plus-ontology graph and holds
   the delta as an overlay. This is the only consumer that matters for validation; it wants the delta, not a copy.
 * Costs of this design: three copies of the data (store, rdflib, expanded rdflib), a repeat-to-fixpoint loop, owlrl's
   speed (section 6), and a hard dependency on rdflib for any inference even though the wrapper is meant to be
@@ -156,7 +156,7 @@ repo already does in `_rdflib_bridge.py`, or must leave triple-term triples out 
   the result converted back. The loop in `_evaluate_ruleset_at_one_instant` is naive: every general rule is re-run in
   full until a whole pass adds nothing. There is no delta, no index choice, no join ordering beyond rdflib's.
   So the premise "SRL runs over Oxigraph" is only true at the API edge.
-* **SHACL 1.2 Inference Rules** (`shacl_engine/rules.py`; draft [shacl12-inference-rules](https://www.w3.org/TR/shacl12-inference-rules/),
+* **SHACL 1.2 Inference Rules** (`shacl/engine/rules.py`; draft [shacl12-inference-rules](https://www.w3.org/TR/shacl12-inference-rules/),
   2026-10-28 at fetch time) run `sh:SPARQLRule` CONSTRUCTs through pyoxigraph on a materialised `OxGraph` (its own
   docstring: SPARQL "runs on a materialised `OxGraph` (base copy plus inferred), built once per `InferredView` and kept
   in step incrementally"). That is store-native for matching, but: the iteration is naive (rerun all rules in a layer
@@ -358,6 +358,6 @@ dataset, so it does not replace anything above.
   <https://www.w3.org/TR/shacl12-inference-rules/>, <https://www.w3.org/TR/owl2-profiles/>,
   <https://www.w3.org/TR/rdf11-mt/>, <https://www.w3.org/TR/owl2-test/>
 * Repo files read: `starlayer/graph/oxgraph/helpers/entailment.py`, `starlayer/graph/oxgraph/_rdflib_bridge.py` (head),
-  `starlayer/shacl_engine/entailment.py`, `starlayer/shacl_engine/rules.py`, `starlayer/sparql/srl.py`,
+  `starlayer/shacl/engine/entailment.py`, `starlayer/shacl/engine/rules.py`, `starlayer/sparql/srl.py`,
   `starlayer/sparql/srl_eval.py`, `starlayer/sparql/_srl_ast.py`, `starlayer/graph/entailment/owl_dl_rustdl.py` (head),
   `docs/working/oxigraph-capability-matrix.md`, `docs/guides/03b-srl-sparql-rules.ipynb`.

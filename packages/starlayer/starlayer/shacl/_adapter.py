@@ -1,5 +1,5 @@
 """The public SHACL entry points (``validate``, ``apply_rules``, ``evaluate``, ``extract_subgraph``, ...) on the native engine
-(``starlayer.shacl_engine``): graph normalisation, option translation and result shaping.
+(``starlayer.shacl.engine``): graph normalisation, option translation and result shaping.
 
 An option the engine has no use for is a ``TypeError`` (an unknown keyword), as is a misspelt one. The engine follows the SHACL 1.2
 drafts where the earlier validator differed; see ``docs/working/shacl-engine-differential.md``.
@@ -14,7 +14,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.shacl_engine.terms import RDF, SH, to_engine
+from starlayer.shacl.engine.terms import RDF, SH, to_engine
 
 _RDF_REIFIES = RDF.reifies
 
@@ -67,7 +67,7 @@ def conformance_disallows_for(allow_warnings: Any, allow_infos: Any) -> Any:
 
 
 def translate_validate_options(options: dict[str, Any]) -> dict[str, Any]:
-    """Map the resolved option dict (mode preset plus overrides) to ``shacl_engine.validate`` keywords. ``advanced`` False means
+    """Map the resolved option dict (mode preset plus overrides) to ``shacl.engine.validate`` keywords. ``advanced`` False means
     no rule execution (``rules=False``); the ``"rules"`` preset (``iterate_rules``) means ``rules=True``; otherwise ``rules=None``,
     which runs rules only when the shapes graph declares ``sh:entailment`` (the draft)."""
     out: dict[str, Any] = {}
@@ -102,7 +102,7 @@ def _check_imports(shapes: Any, loader: Any, ignore_imports: bool) -> None:
     """``owl:imports`` that are not locally satisfied, with no loader and without ``ignore_imports``, is an error (the engine
     resolves imports only when a loader is given)."""
     if shapes is not None and loader is None and not ignore_imports:
-        from starlayer.shacl_engine.imports import resolve_imports
+        from starlayer.shacl.engine.imports import resolve_imports
 
         resolve_imports(shapes, None, False)
 
@@ -117,8 +117,8 @@ def _normalise(data: Any, shapes: Any, ont: Any) -> tuple[Any, Any, Any]:
 def _meta_preflight(shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
     """The ``meta_shacl=True`` preflight on the shapes graph: the caller's ``allow_warnings`` / ``allow_infos`` relax it too (the
     engine's own default tolerates Warning and Info), and the SPARQL text check follows it."""
+    from starlayer.shacl.engine.meta import meta_validate
     from starlayer.shacl.meta_shapes import check_sparql_query_text
-    from starlayer.shacl_engine.meta import meta_validate
 
     meta_validate(
         shapes,
@@ -170,9 +170,9 @@ def validate(
 ) -> Any:
     """``validate()`` on the engine: a ``ValidationResult``. ``options`` is the caller's ``**kwargs`` (option overrides);
     ``inference`` is the keyword of ``validate()``, or the schema's bound regime."""
+    from starlayer.shacl.engine import api
     from starlayer.shacl.results import ValidationResult
     from starlayer.shacl.validation_modes import resolve_mode_options
-    from starlayer.shacl_engine import api
 
     reject_unknown_options(options)
     resolved = resolve_mode_options(mode, overrides=options)
@@ -266,10 +266,10 @@ def apply_rules(
     options: dict[str, Any],
 ) -> Any:
     """``apply_rules()`` on the engine: a ``RulesResult``."""
+    from starlayer.shacl.engine import api, rules
+    from starlayer.shacl.engine.entailment import resolve_data_view
     from starlayer.shacl.results import RulesResult, ValidationResult
     from starlayer.shacl.validation_modes import resolve_mode_options
-    from starlayer.shacl_engine import api, rules
-    from starlayer.shacl_engine.entailment import resolve_data_view
 
     options = dict(options)
     passthrough = {name: options.pop(name) for name in _VALIDATE_KEYWORDS if name in options}
@@ -291,7 +291,7 @@ def apply_rules(
         passthrough["data_graph_iri"] = api._identity_of(data)
     loader = passthrough.get("shapes_graph_loader")
     if loader is not None:  # the rules of an imported module run too: imports first, as validate() does
-        from starlayer.shacl_engine.imports import resolve_imports
+        from starlayer.shacl.engine.imports import resolve_imports
 
         if passthrough.get("shapes_graph_iri") is None:
             passthrough["shapes_graph_iri"] = api._identity_of(shapes)
@@ -318,7 +318,7 @@ def apply_rules(
         data_graph=None,
         diagnostics=outcome.diagnostics,
     )
-    from starlayer.shacl_engine.graphs import new_graph
+    from starlayer.shacl.engine.graphs import new_graph
 
     inferred = new_graph(data)
     inferred.extend(list(result.inferred))
@@ -345,7 +345,7 @@ def evaluate(
     validate: bool = False,
 ) -> Any:
     """``evaluate()`` on the engine (a plain graph)."""
-    from starlayer.shacl_engine.evaluate import evaluate as engine_evaluate
+    from starlayer.shacl.engine.evaluate import evaluate as engine_evaluate
 
     data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
     return engine_evaluate(
@@ -371,7 +371,7 @@ def extract_subgraph(
     include_targets: bool,
 ) -> Any:
     """``extract_subgraph()`` on the engine (an ``StarLayerGraph``)."""
-    from starlayer.shacl_engine.subgraph import extract_subgraph as engine_extract
+    from starlayer.shacl.engine.subgraph import extract_subgraph as engine_extract
 
     return engine_extract(
         data_graph,
@@ -386,7 +386,7 @@ def extract_subgraph(
 
 def target_nodes(*, data_graph: Any, shacl_graph: Any, shape_node: Any, ont_graph: Any, inference: Any) -> tuple[Any, ...]:
     """The nodes ``shape_node`` targets in ``data_graph``, as ``validate()`` resolves them."""
-    from starlayer.shacl_engine import api
+    from starlayer.shacl.engine import api
 
     data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
     return tuple(api.target_nodes(data, shapes, shape_node, ont_graph=ont, inference=inference))
@@ -394,7 +394,7 @@ def target_nodes(*, data_graph: Any, shacl_graph: Any, shape_node: Any, ont_grap
 
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool) -> Any:
     """``StarShaclSchema.extract_shapes_graph`` on the engine."""
-    from starlayer.shacl_engine.shapes_graphs import (
+    from starlayer.shacl.engine.shapes_graphs import (
         extract_shapes_graph as engine_extract,
     )
 
@@ -403,6 +403,6 @@ def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_re
 
 def close_shape(shapes_graph: Any, shape: Any) -> Any:
     """``StarShaclSchema.close_shape`` on the engine."""
-    from starlayer.shacl_engine.shapes_graphs import close_shape as engine_close
+    from starlayer.shacl.engine.shapes_graphs import close_shape as engine_close
 
     return engine_close(shapes_graph, shape)

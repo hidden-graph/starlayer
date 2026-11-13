@@ -18,7 +18,7 @@ import itertools
 
 import pyoxigraph as ox
 import pytest
-from starlayer.shacl_engine import xsd_values as xv
+from starlayer.shacl.engine import xsd_values as xv
 from tests.shacl_engine import xsd_oracle_corpus as C
 
 XSD = C.XSD

@@ -7,7 +7,7 @@ Script: `packages/starlayer/benchmarks-shacl/bench_engine_vs_old.py` (branch `sh
 - python 3.10.8, rdflib 7.6.0, pyoxigraph 0.5.13
 - macOS 12.7.6 (x86_64), Intel Core i7-4578U 3.0 GHz (2 cores, 2014-era laptop), 16 GB. Slow by current standards; read the ratios, not the absolute seconds.
 - Each measurement runs in its own subprocess, one at a time (peak RSS from `resource.getrusage`; "RSS growth" is peak minus RSS after building the data graph, so it excludes the generated data). Best of 3 up to 10k triples, one run above. Timing covers `validate()` only; data generation is excluded. For the Oxigraph column "setup" is the one-off `OxigraphGraph.from_graph` copy, not included in "best".
-- Columns: old = `starlayer.shacl.validator.validate(data, shapes, meta_shacl=False)` on StarLayerGraph; new-slg = `shacl_engine.api.validate` on StarLayerGraph; new-ox = same on OxigraphGraph.
+- Columns: old = `starlayer.shacl.validator.validate(data, shapes, meta_shacl=False)` on StarLayerGraph; new-slg = `shacl.engine.api.validate` on StarLayerGraph; new-ox = same on OxigraphGraph.
 
 ## Data and shapes
 

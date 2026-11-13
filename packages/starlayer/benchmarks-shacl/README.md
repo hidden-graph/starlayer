@@ -2,7 +2,7 @@
 
 *Last reviewed: 2026-11-10*
 
-Performance benchmarks for the native SHACL 1.2 engine (`starlayer.shacl_engine`). Both scripts run standalone and print timings; neither is part of a CI regression guard.
+Performance benchmarks for the native SHACL 1.2 engine (`starlayer.shacl.engine`). Both scripts run standalone and print timings; neither is part of a CI regression guard.
 
 ## Scripts
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.shacl_engine.terms import SH, BlankNode, engine_view, to_engine
+from starlayer.shacl.engine.terms import SH, BlankNode, engine_view, to_engine
 
 __all__ = ["path_values", "is_inverse"]
 
@@ -20,7 +20,7 @@ def path_values(data_graph: Any, focus: Any, path: Any, shapes_graph: Any | None
 
     ``path`` is a predicate IRI or the root of a path expression written in ``shapes_graph`` (default: ``data_graph``).
     Repetition paths stop on a cycle. Raises ``ShapeError`` for a path expression that is malformed."""
-    from starlayer.shacl_engine.paths import eval_path, parse_path
+    from starlayer.shacl.engine.paths import eval_path, parse_path
 
     data = engine_view(data_graph, "data graph")
     shapes = engine_view(data if shapes_graph is None else shapes_graph, "shapes graph")

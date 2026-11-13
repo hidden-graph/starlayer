@@ -1,5 +1,5 @@
 """The vendored W3C SHACL 1.2 ``tests/node-expr`` entries run through the native engine: ``sht:EvalNodeExpr`` entries
-call ``starlayer.shacl_engine.expressions.evaluate_expression``; the ``constraints`` ``sht:Validate`` entries call
+call ``starlayer.shacl.engine.expressions.evaluate_expression``; the ``constraints`` ``sht:Validate`` entries call
 ``validate``. As in ``test_w3c_node_expr.py``, the fixture document is both data graph and shapes graph.
 
 No xfail shims: a failing entry is a to-do.
@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.executor import Context
-from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
-from starlayer.shacl_engine.plan import Plan
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.executor import Context
+from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
+from starlayer.shacl.engine.plan import Plan
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
@@ -87,7 +87,7 @@ def _same_terms(actual, expected, ordered: bool) -> bool:
     literal's lexical form on insert (``"4.0"^^xsd:decimal`` is ``"4"``, ``"04"^^xsd:integer`` is ``"4"``; starlayer #190), and a
     computed decimal has no fixed lexical form either."""
     import pyoxigraph as ox
-    from starlayer.shacl_engine.xsd_values import parse, term_equal, value_equal
+    from starlayer.shacl.engine.xsd_values import parse, term_equal, value_equal
 
     def same(a, b):
         if isinstance(a, ox.Literal) and isinstance(b, ox.Literal) and parse(a) is not None and parse(b) is not None:

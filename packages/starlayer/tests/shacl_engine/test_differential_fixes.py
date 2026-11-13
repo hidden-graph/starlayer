@@ -7,10 +7,10 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import text
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.terms import NS as Namespace
+from starlayer.shacl.engine.terms import text
 
 EX = Namespace("http://example.com/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

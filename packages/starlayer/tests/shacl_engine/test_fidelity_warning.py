@@ -10,9 +10,9 @@ import pytest
 pytest.importorskip("pyoxigraph")
 
 from starlayer.graph.oxgraph import StarLayerGraph  # noqa: E402
-from starlayer.shacl_engine import api  # noqa: E402
-from starlayer.shacl_engine.oxigraph_view import OxigraphGraph  # noqa: E402
-from starlayer.shacl_engine.terms import StarLayerFidelityWarning  # noqa: E402
+from starlayer.shacl.engine import api  # noqa: E402
+from starlayer.shacl.engine.oxigraph_view import OxigraphGraph  # noqa: E402
+from starlayer.shacl.engine.terms import StarLayerFidelityWarning  # noqa: E402
 
 PFX = "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 INT_DATA = PFX + "ex:a ex:p 4 . ex:a ex:q 'x' .\n"

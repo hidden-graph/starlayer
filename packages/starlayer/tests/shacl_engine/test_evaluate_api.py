@@ -11,8 +11,8 @@ from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import evaluate as old_evaluate
 from starlayer.shacl import validate as old_validate
-from starlayer.shacl_engine import evaluate as new_evaluate
-from starlayer.shacl_engine import validate, validate_each
+from starlayer.shacl.engine import evaluate as new_evaluate
+from starlayer.shacl.engine import validate, validate_each
 
 PFX = (
     "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "

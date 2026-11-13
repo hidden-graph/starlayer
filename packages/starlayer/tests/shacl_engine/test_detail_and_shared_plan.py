@@ -8,9 +8,9 @@ from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, validate_each
-from starlayer.shacl_engine import api
-from starlayer.shacl_engine.plan import Plan
-from starlayer.shacl_engine.terms import SH
+from starlayer.shacl.engine import api
+from starlayer.shacl.engine.plan import Plan
+from starlayer.shacl.engine.terms import SH
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 

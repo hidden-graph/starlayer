@@ -40,7 +40,7 @@ def test_validate_builds_report_text_only_when_read(monkeypatch) -> None:
     the report graph never pay for it, and the text is built once."""
     from starlayer import StarLayerGraph
     from starlayer.shacl import validate
-    from starlayer.shacl_engine import text as engine_text
+    from starlayer.shacl.engine import text as engine_text
 
     calls = []
     original = engine_text.report_text

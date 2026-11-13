@@ -2,7 +2,7 @@
 
 On a pyoxigraph term ``str()`` gives ``<http://...>`` (an IRI) or the N-Triples form (a literal), not the lexical value an
 rdflib term gave. Formatting one (``str(x)``, ``f"{x}"``, ``"%s" % x``, ``"{}".format(x)``) is a silent wrong string, not
-an exception. This test walks the AST of every module under ``shacl_engine/`` and fails on a formatting use whose argument
+an exception. This test walks the AST of every module under ``shacl/engine/`` and fails on a formatting use whose argument
 is not provably a plain value:
 
 * provably plain: a literal, an f-string, a number or length (``len``, ``int`` ...), the result of a text helper
@@ -25,7 +25,7 @@ from pathlib import Path
 
 import pytest
 
-ENGINE = Path(__file__).resolve().parents[2] / "starlayer" / "shacl_engine"
+ENGINE = Path(__file__).resolve().parents[2] / "starlayer" / "shacl" / "engine"
 FILES = sorted(ENGINE.rglob("*.py"))
 
 TERMISH_NAME = re.compile(
@@ -198,7 +198,7 @@ def test_str_ok_file_modules_really_are_rdflib_only(path):
             assert all(not a.name.startswith("pyoxigraph") for a in node.names), "imports pyoxigraph"
         if isinstance(node, ast.ImportFrom):
             assert not (node.module or "").startswith("pyoxigraph"), "imports pyoxigraph"
-            if node.module == "starlayer.shacl_engine.terms":
+            if node.module == "starlayer.shacl.engine.terms":
                 assert not ({a.name for a in node.names} & RDFLIB_ONLY_FORBIDDEN_IMPORTS), "imports engine term constants"
 
 

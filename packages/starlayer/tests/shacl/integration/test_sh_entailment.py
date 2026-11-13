@@ -16,7 +16,7 @@ import pytest
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, target_nodes
-from starlayer.shacl_engine.terms import to_engine
+from starlayer.shacl.engine.terms import to_engine
 from tests.terms import RDF, Namespace
 
 EX = Namespace("http://example.org/")

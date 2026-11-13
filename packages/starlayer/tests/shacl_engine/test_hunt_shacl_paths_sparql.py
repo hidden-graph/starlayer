@@ -6,8 +6,8 @@ import warnings
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.subgraph import extract_subgraph
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.subgraph import extract_subgraph
 
 warnings.simplefilter("ignore")
 
@@ -45,7 +45,7 @@ def test_failure_binding_only_boolean_true_aborts(literal):
     ],
 )
 def test_minus_and_service_rejected_in_order_by_and_having(tail):
-    from starlayer.shacl_engine.plan import ShapeError
+    from starlayer.shacl.engine.plan import ShapeError
 
     shapes = G(f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:select """SELECT $this WHERE {{ $this ?p ?o }} {tail}""" ; sh:message "m" ] .')
     with pytest.raises(ShapeError):
@@ -53,7 +53,7 @@ def test_minus_and_service_rejected_in_order_by_and_having(tail):
 
 
 def test_validate_each_shacl_function_uses_each_data_graph():
-    from starlayer.shacl_engine import validate_each
+    from starlayer.shacl.engine import validate_each
 
     pfx = (
         "@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .\n"
@@ -109,7 +109,7 @@ ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://exampl
     ],
 )
 def test_cyclic_expression_is_a_shape_error_not_recursion_error(shapes):
-    from starlayer.shacl_engine.plan import ShapeError
+    from starlayer.shacl.engine.plan import ShapeError
 
     with pytest.raises(ShapeError):
         validate(G("ex:n ex:p 1 ."), G(NX + shapes), meta_shacl=False)
@@ -127,7 +127,7 @@ def test_cyclic_expression_is_a_shape_error_not_recursion_error(shapes):
     ],
 )
 def test_wrong_argument_count_is_a_shape_error(call):
-    from starlayer.shacl_engine.plan import ShapeError
+    from starlayer.shacl.engine.plan import ShapeError
 
     shapes = G(f"@prefix sparql: <http://www.w3.org/ns/sparql#> . ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:expression {call} .")
     with pytest.raises(ShapeError):

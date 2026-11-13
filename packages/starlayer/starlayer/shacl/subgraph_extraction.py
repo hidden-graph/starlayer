@@ -98,7 +98,7 @@ Three things follow from that:
   full trace for the same reason, and ``sh:xone`` keeps the full trace of the
   disjuncts that do not hold.
 
-Built on the engine's own shape machinery (``starlayer.shacl_engine.subgraph``): conformance is the engine's, and the walk of a
+Built on the engine's own shape machinery (``starlayer.shacl.engine.subgraph``): conformance is the engine's, and the walk of a
 shape's paths returns both the value nodes and every triple traversed to reach them.
 """
 

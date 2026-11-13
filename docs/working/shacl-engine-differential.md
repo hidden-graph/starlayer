@@ -1,7 +1,7 @@
 # SHACL engine: differential run on the project's own tests
 
 Branch `shacl-engine`. The old validator (`starlayer.shacl`, pyshacl-backed) and the native engine
-(`starlayer.shacl_engine`) were run on the same (data graph, shapes graph) for every `validate` / `StarShaclSchema.validate`
+(`starlayer.shacl.engine`) were run on the same (data graph, shapes graph) for every `validate` / `StarShaclSchema.validate`
 call made by `packages/starlayer/tests/shacl` (unit and integration; `w3c_shacl12` and `tests/shacl_engine` excluded;
 default tier). Harness: `packages/starlayer/tests/shacl/differential_plugin.py`. Raw records: `docs/working/differential/results.jsonl`
 (git-ignored).
@@ -212,7 +212,7 @@ Remaining differences and their disposition (after the round-2 fixes the affecte
   violation); the old report copies a blank-node focus/value description truncated at depth, the engine copies the full
   closure (the draft is silent); the old `validate` applies `sh:rule` first, the engine only with `rules=True` or `sh:entailment`.
 - **Ported:** `salg:NoUnboundProjectedVariablesConstraintComponent`, via a lazy trampoline
-  (`shacl_engine/components/extensions.py` -> `sparql/salg/engine_components.py`), so sqe/srl/spexpr gain no dependency on salg.
+  (`shacl/engine/components/extensions.py` -> `sparql/salg/engine_components.py`), so sqe/srl/spexpr gain no dependency on salg.
 Existing salg-related test files (12) still pass: 539 passed.
 
 ## Run 3 (2026-10-30, commit 566f507): the gate baseline

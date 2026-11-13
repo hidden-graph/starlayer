@@ -6,7 +6,7 @@ __all__ = ["check_query"]
 
 
 def _calls_service(text: str) -> bool:
-    from starlayer.shacl_engine.sparql_support import _analyse
+    from starlayer.shacl.engine.sparql_support import _analyse
 
     return any(item[0] == "service" for item in _analyse(text)[2])
 

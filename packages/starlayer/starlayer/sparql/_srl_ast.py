@@ -514,7 +514,7 @@ class RuleSet:
         # the evaluation graph (base plus inferred), as StarShaclSchema.apply_rules() validates: validating the inferred
         # triples alone reported violations for constraints the base graph satisfies (GitHub issue #96)
         # (an StarLayerGraph with no prefixes of its own, so the report does not carry an old graph's 29 default prefixes)
-        from starlayer.shacl_engine.graphs import new_graph
+        from starlayer.shacl.engine.graphs import new_graph
 
         evaluation = new_graph()
         evaluation.extend(list(base_graph))

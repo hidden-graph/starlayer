@@ -36,7 +36,7 @@ from pathlib import Path
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema  # noqa: E402
-from starlayer.shacl_engine.rules import RuleError  # noqa: E402
+from starlayer.shacl.engine.rules import RuleError  # noqa: E402
 
 from .ids import portable_id  # noqa: E402
 from .known_failures import ENGINE_GAPS, KNOWN_FAILURES  # noqa: E402

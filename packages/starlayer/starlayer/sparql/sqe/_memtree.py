@@ -61,6 +61,6 @@ def as_engine_graph(graph: Any, root: Any = None) -> tuple[Any, Any]:
     """``(graph, root)`` with pyoxigraph terms: a ``StarLayerGraph`` or ``TreeIndex`` passes as it is; an rdflib graph is a ``TypeError``."""
     if graph is None or getattr(graph, "engine_terms", False) or isinstance(graph, TreeIndex):
         return graph, root
-    from starlayer.shacl_engine.terms import engine_view, to_engine
+    from starlayer.shacl.engine.terms import engine_view, to_engine
 
     return engine_view(graph), to_engine(root)

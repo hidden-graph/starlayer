@@ -22,10 +22,10 @@ def test_reexports_are_the_same_objects_not_copies() -> None:
 
 def test_all_matches_actual_module_exports() -> None:
     """``dir(starlayer)`` also legitimately includes ``graph``/``sparql``/
-    ``shacl``/``starontology``/``conformance`` - Python always binds an
+    ``shacl``/``starontology`` - Python always binds an
     imported submodule as an attribute of its parent package as a side
     effect of the import (not something any of this project's own code
-    opts into). ``graph``/``shacl``/``shacl_engine``/``sparql`` are always present (``starlayer.shacl`` imports the engine for its errors) -
+    opts into). ``graph``/``shacl``/``sparql`` are always present -
     ``starlayer/__init__.py`` imports all three directly and
     unconditionally (``sparql`` joined 2026-10-14, for `StarQuery` -
     see that same date's entry in ``starlayer/sparql/CLAUDE.md``).
@@ -36,10 +36,10 @@ def test_all_matches_actual_module_exports() -> None:
     own submodules import it eagerly (so it was already order-dependent
     before ``sparql`` itself became unconditional - that only fixed
     ``sparql``'s own presence, not its transitive import's), and
-    ``conformance`` the same way again, since ``starlayer.conformance``'s
+    ``conformance`` the same way again, since ``starlayer.shacl.conformance``'s
     own ``declared_conformance()`` lazily imports
     ``starlayer.shacl.shacl_profiling`` internally - whichever test file
-    happens to import ``starlayer.conformance`` first in a given session
+    happens to import ``starlayer.shacl.conformance`` first in a given session
     (e.g. ``test_conformance.py``) is what binds it. ``codekg`` joins the
     list for the identical reason (2026-10-13): nothing in
     ``starlayer/__init__.py`` imports it, but the code-KG extractor's own
@@ -55,7 +55,7 @@ def test_all_matches_actual_module_exports() -> None:
     *curated* re-export is genuinely present, not that nothing else is
     ever visible."""
     exported = {name for name in dir(starlayer) if not name.startswith("_")}
-    submodule_attrs = {"graph", "sparql", "shacl", "shacl_engine", "starontology", "conformance"}
+    submodule_attrs = {"graph", "sparql", "shacl", "starontology"}
     assert exported - submodule_attrs == set(starlayer.__all__)
 
 

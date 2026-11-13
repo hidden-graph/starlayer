@@ -7,8 +7,8 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine.api import validate
-from starlayer.shacl_engine.terms import SH
+from starlayer.shacl.engine.api import validate
+from starlayer.shacl.engine.terms import SH
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
 

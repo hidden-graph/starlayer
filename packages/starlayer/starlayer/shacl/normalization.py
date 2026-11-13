@@ -33,7 +33,7 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
         return value
     if force_default_union and hasattr(value, "default_union") and hasattr(value, "graphs"):  # an rdflib Dataset
         value.default_union = True
-    from starlayer.shacl_engine.terms import engine_view
+    from starlayer.shacl.engine.terms import engine_view
 
     try:
         return engine_view(value, name)

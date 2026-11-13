@@ -2,7 +2,7 @@
 
 A query may hold what an RDF graph cannot: a relative IRI (``<s>`` with no ``BASE``), a blank node label or language tag
 pyoxigraph rejects. ``sqe:`` trees keep such text as opaque, reversible stand-ins
-(``urn:starlayer:invalid-iri:<percent-encoded text>`` and so on; the prefixes are in ``shacl_engine.terms``), so the tree is a valid ``StarLayerGraph`` and the text comes back unchanged. The
+(``urn:starlayer:invalid-iri:<percent-encoded text>`` and so on; the prefixes are in ``shacl.engine.terms``), so the tree is a valid ``StarLayerGraph`` and the text comes back unchanged. The
 functions here make the stand-in and take it apart again; nothing else in the sparql package needs to know the format.
 """
 
@@ -12,7 +12,7 @@ from urllib.parse import quote, unquote
 
 import pyoxigraph as ox
 
-from starlayer.shacl_engine.terms import (
+from starlayer.shacl.engine.terms import (
     INVALID_BNODE_PREFIX,
     INVALID_IRI_PREFIX,
     INVALID_LANG_PREFIX,

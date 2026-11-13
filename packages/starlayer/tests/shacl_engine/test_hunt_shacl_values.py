@@ -9,10 +9,10 @@ import pytest
 pytest.importorskip("pyoxigraph")
 
 import pyoxigraph as ox  # noqa: E402
-from starlayer.shacl_engine import api, validate  # noqa: E402
-from starlayer.shacl_engine import xsd_values as xv  # noqa: E402
-from starlayer.shacl_engine.oxigraph_view import OxigraphGraph  # noqa: E402
-from starlayer.shacl_engine.terms import StarLayerFidelityWarning  # noqa: E402
+from starlayer.shacl.engine import api, validate  # noqa: E402
+from starlayer.shacl.engine import xsd_values as xv  # noqa: E402
+from starlayer.shacl.engine.oxigraph_view import OxigraphGraph  # noqa: E402
+from starlayer.shacl.engine.terms import StarLayerFidelityWarning  # noqa: E402
 
 PRE = (
     "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> . "
@@ -145,7 +145,7 @@ def test_integer_promoted_to_float_rounds_once():
 def test_overlay_literal_safety_check_is_thread_safe():
     import threading
 
-    from starlayer.shacl_engine import overlay_oxigraph as ov
+    from starlayer.shacl.engine import overlay_oxigraph as ov
 
     def lits(k):
         return [ox.Literal(("+" if i % 2 else "") + str(k * 100000 + i), datatype=ox.NamedNode(XSD + "integer")) for i in range(1500)]
@@ -217,7 +217,7 @@ def test_union_view_sparql_counts_a_triple_held_in_two_graphs_once():
 
 def _surrogate_case(obj, mode):
     from starlayer.graph import StarLayerGraph as Graph
-    from starlayer.shacl_engine.terms import TermError
+    from starlayer.shacl.engine.terms import TermError
     from tests.terms import NamedNode
 
     shapes = Graph().parse(

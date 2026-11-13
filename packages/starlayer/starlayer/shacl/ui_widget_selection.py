@@ -33,7 +33,7 @@ from typing import Any, Literal
 import pyoxigraph as ox
 
 from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
-from starlayer.shacl_engine.terms import NS, RDF, SH
+from starlayer.shacl.engine.terms import NS, RDF, SH
 
 # The terms are pyoxigraph terms. The graphs are read as they are (``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store``), with
 # no copy; an rdflib graph or term is a ``TypeError``.
@@ -137,8 +137,8 @@ class _Boundary:
 
 def _conformance_context(base_graph: Any, shapes_graph: Any) -> Any:
     """What answers "does this node conform to this shape?" directly: the shapes graph's plan (a shape is built the first time it is asked about) over ``base_graph``."""
-    from starlayer.shacl_engine.executor import Context
-    from starlayer.shacl_engine.plan import Plan
+    from starlayer.shacl.engine.executor import Context
+    from starlayer.shacl.engine.plan import Plan
 
     return Context(data=base_graph, plan=Plan(shapes_graph=shapes_graph))
 

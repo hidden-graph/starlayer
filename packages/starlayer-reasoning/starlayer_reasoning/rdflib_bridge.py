@@ -14,7 +14,7 @@ from collections.abc import Iterable, Iterator
 from typing import Any
 
 import pyoxigraph as ox
-from starlayer.shacl_engine.terms import (
+from starlayer.shacl.engine.terms import (
     INVALID_BNODE_PREFIX,
     INVALID_IRI_PREFIX,
     INVALID_LANG_PREFIX,
@@ -235,7 +235,7 @@ def show(term: Any) -> str:
 
 def foreign_to_engine(term: Any) -> Any:
     """rdflib / StarLayer term (or a 3-tuple, a triple term) -> pyoxigraph term; a pyoxigraph term is returned as it is.
-    ``shacl_engine.terms.to_engine`` calls this for the StarLayer value classes. A term pyoxigraph rejects (a relative IRI, a
+    ``shacl.engine.terms.to_engine`` calls this for the StarLayer value classes. A term pyoxigraph rejects (a relative IRI, a
     blank node id or language tag it does not accept) raises ``ValueError``."""
     if isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
         return term

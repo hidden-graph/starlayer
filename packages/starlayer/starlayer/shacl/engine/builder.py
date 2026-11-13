@@ -1,0 +1,87 @@
+"""Shapes graph -> ``Shape`` / ``Path`` data. Paths and targets are owned by ``paths.py`` and ``targets.py``."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from starlayer.shacl.engine.components.registry import all_param_predicates
+from starlayer.shacl.engine.plan import SH, Path, Shape, ShapeError, Term, most_severe
+from starlayer.shacl.engine.targets import (  # noqa: F401  (re-exported)
+    declared_shape_nodes,
+    shape_targets,
+)
+from starlayer.shacl.engine.terms import RDF, XSD, Literal, NamedNode, Triple, text
+
+
+def build_path(graph: Any, node: Term) -> Path:
+    """Parse the SHACL property path rooted at ``node``."""
+    from starlayer.shacl.engine.paths import parse_path
+
+    return parse_path(graph, node)
+
+
+_REIFIES = RDF.reifies
+
+
+def _is_true(term: Term) -> bool:
+    """Only the literal ``"true"^^xsd:boolean`` deactivates (``"1"`` does not, as for sh:uniqueLang)."""
+    return isinstance(term, Literal) and term.datatype == XSD.boolean and term.value == "true"
+
+
+def _annotations(graph: Any, node: Term, params: dict, property_shapes: tuple) -> dict:
+    """Per-triple ``sh:deactivated`` / ``sh:severity`` / ``sh:message`` from the reifiers of ``<<( node pred value )>>``.
+
+    ``deactivated`` is the literal ``true``; a ``sh:deactivated`` that is a node expression is kept in ``exprs`` for the executor
+    to evaluate per focus node. Several reifiers of one triple are merged: the most severe ``sh:severity`` and every message."""
+    out: dict = {}
+    pairs = [(p, v) for p, vs in params.items() for v in vs] + [(SH.property, v) for v in property_shapes]
+    for pred, value in pairs:
+        for reifier in graph.subjects(_REIFIES, Triple(node, pred, value)):
+            info = out.setdefault((pred, value), {"deactivated": False, "severity": None, "messages": (), "exprs": ()})
+            deactivated = list(graph.objects(reifier, SH.deactivated))
+            if any(_is_true(d) for d in deactivated):
+                info["deactivated"] = True
+            info["exprs"] = tuple(dict.fromkeys([*info["exprs"], *(d for d in deactivated if not isinstance(d, Literal))]))
+            info["severity"] = most_severe([info["severity"], *graph.objects(reifier, SH.severity)])
+            info["messages"] = tuple(dict.fromkeys([*info["messages"], *graph.objects(reifier, SH.message)]))
+    return out
+
+
+def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
+    """Build a ``Shape`` from a node or property shape in the shapes graph, raising ``ShapeError`` if it is malformed.
+
+    Args:
+        extra_predicates: Parameter predicates to collect in addition to those of the built-in components.
+    """
+    path_values = list(graph.objects(node, SH.path))
+    if len(path_values) > 1:
+        raise ShapeError(f"{text(node)}: more than one sh:path")
+    path = build_path(graph, path_values[0]) if path_values else None
+    if path is not None and (node, RDF.type, SH.NodeShape) in graph:
+        raise ShapeError(f"{text(node)}: a sh:NodeShape cannot be the subject of sh:path")  # Core 3.2: a node shape is not the subject of sh:path
+    params: dict[NamedNode, tuple[Term, ...]] = {}
+    for pred in set(all_param_predicates()) | set(extra_predicates):
+        values = tuple(graph.objects(node, pred))
+        if values:
+            params[pred] = values
+    for prop in graph.objects(node, SH.property):
+        if (prop, SH.path, None) not in graph:
+            raise ShapeError(f"{text(node)}: the sh:property value {text(prop)} has no sh:path")  # Core 3.3: a property shape has one sh:path
+    severities = list(graph.objects(node, SH.severity))
+    deact = [v for v in graph.objects(node, SH.deactivated)]
+    is_prop = path is not None or (node, RDF.type, SH.PropertyShape) in graph
+    return Shape(
+        node=node,
+        is_property=is_prop,
+        path=path,
+        targets=tuple(shape_targets(graph, node)),
+        params=params,
+        property_shapes=tuple(graph.objects(node, SH.property)),
+        severity=severities[0] if severities else SH.Violation,
+        deactivated=any(_is_true(v) for v in deact),
+        deactivated_exprs=tuple(v for v in deact if not isinstance(v, Literal)),
+        messages=tuple(graph.objects(node, SH.message)),
+        values=tuple(graph.objects(node, SH["values"])),
+        default_values=tuple(graph.objects(node, SH.defaultValue)),
+        annotations=_annotations(graph, node, params, tuple(graph.objects(node, SH.property))),
+    )

@@ -777,7 +777,7 @@ def _validation_graphs() -> tuple[Any, Any, Any]:
 def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
     """Raise ``SRLParseError`` if ``ruleset``'s RDF encoding does not conform to
     the ``srl:`` shapes."""
-    from starlayer.shacl_engine.terms import StarLayerFidelityWarning
+    from starlayer.shacl.engine.terms import StarLayerFidelityWarning
 
     graph, _root = ruleset_to_tree(ruleset)
     with warnings.catch_warnings():

@@ -16,8 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.shacl_engine import shapes_graphs as _engine
-from starlayer.shacl_engine.terms import RDF, SH, engine_view, text, to_engine
+from starlayer.shacl.engine import shapes_graphs as _engine
+from starlayer.shacl.engine.terms import RDF, SH, engine_view, text, to_engine
 
 __all__ = ["shapes_graphs", "graph_nodes", "shapes_graph_members"]
 

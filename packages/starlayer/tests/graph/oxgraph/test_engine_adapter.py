@@ -24,7 +24,7 @@ from shacl.w3c_shacl12.test_w3c_engine_core import _ENTRIES  # noqa: E402
 from shacl.w3c_shacl12.test_w3c_engine_core_oxigraph import KNOWN_FAILURES  # noqa: E402
 from shacl.w3c_shacl12.test_w3c_validate import VENDOR_ROOT  # noqa: E402
 from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph  # noqa: E402
-from starlayer.shacl_engine import validate  # noqa: E402
+from starlayer.shacl.engine import validate  # noqa: E402
 
 
 def _load(entry, predicate, cls=StarLayerDataset):

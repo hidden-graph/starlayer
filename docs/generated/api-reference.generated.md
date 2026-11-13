@@ -486,7 +486,7 @@ def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None=None) -> 
 A copy of the whole bound shapes graph in which ``shape`` and the shapes it reaches as a value node's complete
 description (``sh:node``, ``sh:qualifiedValueShape``, the members of ``sh:and`` / ``sh:or`` / ``sh:xone``) are
 ``sh:closed true``: the strict form an ``extract_subgraph`` fragment is checked against. Shapes that are not reached stay as
-they are; nothing is removed. See ``shacl_engine.shapes_graphs.close_shape`` for the exact rules.
+they are; nothing is removed. See ``shacl.engine.shapes_graphs.close_shape`` for the exact rules.
 
 **Parameters:**
 
@@ -1027,12 +1027,12 @@ depends on a remote graph, so it cannot be reproduced from a subgraph of this on
 
 [Back to overview](api-overview.generated.md#starlayershacl)
 
-<a id="entity-starlayer-shacl_engine-expressions-EvaluationFailure"></a>
+<a id="entity-starlayer-shacl-engine-expressions-EvaluationFailure"></a>
 ### `EvaluationFailure`  _(class)_
 
 A node expression has no result for this data (Node Expressions 3.3), as opposed to an empty result.
 
-**Source:** [starlayer.shacl_engine.expressions.EvaluationFailure](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl_engine/expressions.py#L47-L48)
+**Source:** [starlayer.shacl.engine.expressions.EvaluationFailure](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/engine/expressions.py#L47-L48)
 
 ---
 
@@ -1047,12 +1047,12 @@ directly.
 
 ---
 
-<a id="entity-starlayer-shacl_engine-meta-MetaShaclError"></a>
+<a id="entity-starlayer-shacl-engine-meta-MetaShaclError"></a>
 ### `MetaShaclError`  _(class)_
 
 The shapes graph does not validate against the meta-shapes; the message starts with the old preflight's text.
 
-**Source:** [starlayer.shacl_engine.meta.MetaShaclError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl_engine/meta.py#L23-L24)
+**Source:** [starlayer.shacl.engine.meta.MetaShaclError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/engine/meta.py#L23-L24)
 
 ---
 
@@ -1105,12 +1105,12 @@ graph.
 
 ---
 
-<a id="entity-starlayer-shacl_engine-rules-RuleError"></a>
+<a id="entity-starlayer-shacl-engine-rules-RuleError"></a>
 ### `RuleError`  _(class)_
 
 A rule failed, or the rules graph is ill-formed or needs something unsupported (the rule set fails as a whole).
 
-**Source:** [starlayer.shacl_engine.rules.RuleError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl_engine/rules.py#L60-L61)
+**Source:** [starlayer.shacl.engine.rules.RuleError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/engine/rules.py#L60-L61)
 
 ---
 
@@ -1146,12 +1146,12 @@ internal call always uses the ``"validation"`` mode's own
 
 ---
 
-<a id="entity-starlayer-shacl_engine-plan-ShapeError"></a>
+<a id="entity-starlayer-shacl-engine-plan-ShapeError"></a>
 ### `ShapeError`  _(class)_
 
 The shapes graph is malformed (the W3C suite's ``sht:Failure`` cases).
 
-**Source:** [starlayer.shacl_engine.plan.ShapeError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl_engine/plan.py#L19-L20)
+**Source:** [starlayer.shacl.engine.plan.ShapeError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/engine/plan.py#L19-L20)
 
 ---
 

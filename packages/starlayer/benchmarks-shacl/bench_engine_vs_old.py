@@ -1,4 +1,4 @@
-"""Benchmark the native SHACL 1.2 engine (starlayer.shacl_engine) against the pyshacl-backed validator.
+"""Benchmark the native SHACL 1.2 engine (starlayer.shacl.engine) against the pyshacl-backed validator.
 
 Configurations: (a) old validator on StarLayerGraph, (b) new engine on StarLayerGraph, (c) new engine on OxigraphGraph.
 Every measurement runs in its own subprocess so peak RSS (``resource.getrusage``) is per configuration. Best of 3 for
@@ -106,8 +106,8 @@ def _ox_graph_class():
     """OxigraphGraph as it ships has ``query()`` but not the ``sparql_query()`` hook sparql_support.run_query looks for, so
     sh:sparql crashes on it (TypeError: unexpected keyword 'initBindings'). This subclass adds the missing hook - the fast
     path the design intends - so the Oxigraph column can run the full shapes set."""
-    from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
-    from starlayer.shacl_engine.sparql_support import Solutions
+    from starlayer.shacl.engine.oxigraph_view import OxigraphGraph
+    from starlayer.shacl.engine.sparql_support import Solutions
 
     class BenchOxigraph(OxigraphGraph):
         def sparql_query(self, text, init_bindings=None):
@@ -127,7 +127,7 @@ def _runner(config: str, data, shapes):
         from starlayer.shacl.validator import validate
 
         return (lambda: count_results_old(validate(data, shapes, meta_shacl=False))), 0.0
-    from starlayer.shacl_engine.api import validate
+    from starlayer.shacl.engine.api import validate
 
     if config == "new-slg":
         return (lambda: len(validate(data, shapes).results)), 0.0

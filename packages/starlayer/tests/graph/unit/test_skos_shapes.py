@@ -17,7 +17,7 @@ above).
 import owlrl
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl_engine.terms import NS
+from starlayer.shacl.engine.terms import NS
 from tests import skos as ss
 from tests.terms import RDF, SKOS, BlankNode, Namespace, lit, rdf_list
 

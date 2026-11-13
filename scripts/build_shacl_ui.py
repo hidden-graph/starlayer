@@ -41,7 +41,7 @@ if str(_PACKAGES_STARLAYER) not in sys.path:
 import pyoxigraph as ox  # noqa: E402
 from starlayer.graph import RDF, RDFS, Namespace  # noqa: E402
 from starlayer.graph import StarLayerGraph as Graph  # noqa: E402
-from starlayer.shacl_engine.terms import boolean, integer, literal  # noqa: E402
+from starlayer.shacl.engine.terms import boolean, integer, literal  # noqa: E402
 
 BNode = ox.BlankNode
 URIRef = ox.NamedNode

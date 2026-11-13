@@ -2,7 +2,7 @@
 
 An application that previews an expression (an editor, a debugger) uses these instead of reaching into the evaluator's
 modules. Terms go in and come out in the caller's term model (rdflib / StarLayer terms, or pyoxigraph terms); the
-evaluation itself is the native engine's (``starlayer.shacl_engine.expressions``).
+evaluation itself is the native engine's (``starlayer.shacl.engine.expressions``).
 """
 
 from __future__ import annotations
@@ -33,10 +33,10 @@ def evaluate_expression(
     (Core 3.1.3.1): pass the shape. The nodes come back as pyoxigraph terms when ``expression``, ``focus`` and the ``scope`` values
     are all pyoxigraph terms (no rdflib needed), and as rdflib / StarLayer terms as soon as one of them is one."""
 
-    from starlayer.shacl_engine import expressions
-    from starlayer.shacl_engine.executor import Context
-    from starlayer.shacl_engine.plan import Plan
-    from starlayer.shacl_engine.terms import (
+    from starlayer.shacl.engine import expressions
+    from starlayer.shacl.engine.executor import Context
+    from starlayer.shacl.engine.plan import Plan
+    from starlayer.shacl.engine.terms import (
         engine_view,
         to_engine,
     )
@@ -56,13 +56,13 @@ def evaluate_expression(
 
 def node_expression_functions() -> list[str]:
     """The SPARQL functions and operators a node expression can call (``[ sparql:concat ( ... ) ]``), as IRIs, sorted."""
-    from starlayer.shacl_engine.component_table import operator_rows
+    from starlayer.shacl.engine.component_table import operator_rows
 
     return sorted(row["operator"] for row in operator_rows() if row["namespace"] == "sparql")
 
 
 def node_expression_operators() -> list[str]:
     """The SHACL node expression operators (``shnex:filterShape``, ``shnex:pathValues``, ``shnex:if``, ...), as IRIs, sorted."""
-    from starlayer.shacl_engine.component_table import operator_rows
+    from starlayer.shacl.engine.component_table import operator_rows
 
     return sorted(row["operator"] for row in operator_rows() if row["namespace"] == "shnex")

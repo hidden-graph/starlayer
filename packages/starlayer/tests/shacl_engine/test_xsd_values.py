@@ -1,4 +1,4 @@
-"""Unit tests for ``shacl_engine/xsd_values.py`` (pure-Python XSD value space over pyoxigraph literals), including a
+"""Unit tests for ``shacl/engine/xsd_values.py`` (pure-Python XSD value space over pyoxigraph literals), including a
 cross-check against rdflib's own literal values on every well-formed case and on the W3C SHACL 1.2 fixtures."""
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from pathlib import Path
 import pyoxigraph as ox
 import pytest
 from rdflib import Graph, Literal, URIRef
-from starlayer.shacl_engine import xsd_values as xv
+from starlayer.shacl.engine import xsd_values as xv
 
 XSD = "http://www.w3.org/2001/XMLSchema#"
 

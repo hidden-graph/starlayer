@@ -12,7 +12,7 @@ SCRIPT = textwrap.dedent(
     """
     import warnings; warnings.simplefilter('ignore')
     from tests.terms import NamedNode
-    from starlayer.shacl_engine.terms import iri_text
+    from starlayer.shacl.engine.terms import iri_text
     from starlayer.graph.oxgraph import StarLayerGraph
     from starlayer.shacl import StarShaclSchema
     P = '@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://ex/> . '

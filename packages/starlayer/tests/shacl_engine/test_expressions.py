@@ -1,4 +1,4 @@
-"""Unit tests for the native node-expression evaluator (``starlayer.shacl_engine.expressions``) and the constraint
+"""Unit tests for the native node-expression evaluator (``starlayer.shacl.engine.expressions``) and the constraint
 components and value-node rules built on it. The W3C fixtures are in ``w3c_shacl12/test_w3c_engine_node_expr.py``."""
 
 from __future__ import annotations
@@ -7,16 +7,16 @@ import pytest
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.executor import Context
-from starlayer.shacl_engine.expressions import (
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.executor import Context
+from starlayer.shacl.engine.expressions import (
     OPERATORS,
     EvaluationFailure,
     evaluate_expression,
 )
-from starlayer.shacl_engine.plan import Plan, ShapeError
-from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import XSD, boolean, integer, lexical, text
+from starlayer.shacl.engine.plan import Plan, ShapeError
+from starlayer.shacl.engine.terms import NS as Namespace
+from starlayer.shacl.engine.terms import XSD, boolean, integer, lexical, text
 
 EX = Namespace("http://example.com/")
 PREFIXES = """
@@ -197,7 +197,7 @@ def test_failing_values_expression_gives_no_values():
 
 def test_a_list_member_that_is_a_node_expression_is_not_a_constant():
     """Node Expressions 4.1.3: a list expression's members are constants. The workbench shows this error to the user."""
-    from starlayer.shacl_engine.plan import ShapeError
+    from starlayer.shacl.engine.plan import ShapeError
 
     assert ev("( 1 2 )") == [integer(1), integer(2)]
     with pytest.raises(ShapeError, match="not a constant"):

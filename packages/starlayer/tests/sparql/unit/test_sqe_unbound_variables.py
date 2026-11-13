@@ -17,7 +17,7 @@ def _issues(query_text: str) -> list[str]:
     try:
         sqe_parse_to_tree(query_text)
     except SQEValidationError as exc:
-        from starlayer.shacl_engine.terms import SH
+        from starlayer.shacl.engine.terms import SH
 
         return sorted(m.value for m in exc.report_graph.objects(None, SH.resultMessage))
     return []

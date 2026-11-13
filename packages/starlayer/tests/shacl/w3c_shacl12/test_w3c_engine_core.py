@@ -1,4 +1,4 @@
-"""The vendored W3C SHACL 1.2 ``tests/core`` Validate entries run through the native engine (``starlayer.shacl_engine``).
+"""The vendored W3C SHACL 1.2 ``tests/core`` Validate entries run through the native engine (``starlayer.shacl.engine``).
 
 No known-failure xfails while the engine is being built: a failing entry is a to-do. The pass rate per directory is the
 progress measure; see ``docs/working/shacl-engine-design.md``.
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
+from starlayer.shacl.engine import validate
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset

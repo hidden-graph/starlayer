@@ -5,11 +5,11 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import Literal
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import paths as _paths
-from starlayer.shacl_engine import targets as _targets
-from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import SH, text
+from starlayer.shacl.engine import paths as _paths
+from starlayer.shacl.engine import targets as _targets
+from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.terms import NS as Namespace
+from starlayer.shacl.engine.terms import SH, text
 
 # The engine functions take Oxigraph-backed graphs and pyoxigraph terms and return pyoxigraph terms.
 parse_path = _paths.parse_path

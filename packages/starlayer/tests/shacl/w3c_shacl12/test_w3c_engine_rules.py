@@ -1,8 +1,8 @@
 """The vendored W3C SHACL 1.2 ``tests/sparql/rules`` ``sht:Infer`` entries run through the native rules module
-(``starlayer.shacl_engine.rules.apply_rules``). Compared as the set of triples added to the data graph (equal up to blank
+(``starlayer.shacl.engine.rules.apply_rules``). Compared as the set of triples added to the data graph (equal up to blank
 node naming); the caller's data graph must be left untouched.
 
-Entries that need node expressions (``sht:NodeExpr`` compliance) are skipped until ``starlayer.shacl_engine.expressions``
+Entries that need node expressions (``sht:NodeExpr`` compliance) are skipped until ``starlayer.shacl.engine.expressions``
 exists. No known-failure xfails: a failing entry is a to-do.
 """
 
@@ -12,7 +12,7 @@ import importlib.util
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine.rules import apply_rules
+from starlayer.shacl.engine.rules import apply_rules
 
 from .ids import portable_id
 from .manifest import (
@@ -38,7 +38,7 @@ def _entries() -> list[ManifestEntry]:
 
 
 _ENTRIES = _entries()
-_HAS_EXPRESSIONS = importlib.util.find_spec("starlayer.shacl_engine.expressions") is not None
+_HAS_EXPRESSIONS = importlib.util.find_spec("starlayer.shacl.engine.expressions") is not None
 
 
 def pytest_generate_tests(metafunc):
@@ -53,7 +53,7 @@ def _graph(entry: ManifestEntry, predicate) -> StarLayerGraph:
 
 def test_engine_rules(entry: ManifestEntry) -> None:
     if SHT.NodeExpr in set(entry.graph.objects(entry.iri, SHT.compliance)) and not _HAS_EXPRESSIONS:
-        pytest.skip("needs starlayer.shacl_engine.expressions (node expressions), not present yet")
+        pytest.skip("needs starlayer.shacl.engine.expressions (node expressions), not present yet")
     data = _graph(entry, SHT.dataGraph)
     shapes = _graph(entry, SHT.shapesGraph)
     expected = _expected_triples(entry)

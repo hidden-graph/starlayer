@@ -81,7 +81,7 @@ def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -
     """The UI Profile is neither claimed nor excluded: the spec lists no
     members and states no conformance requirements for it, so a
     doesNotConformTo would assert more than the spec supports."""
-    from starlayer import conformance
+    from starlayer.shacl import conformance
 
     graph = declared_conformance_profile()
     ui = NamedNode("http://www.w3.org/ns/shacl/profile/ui")

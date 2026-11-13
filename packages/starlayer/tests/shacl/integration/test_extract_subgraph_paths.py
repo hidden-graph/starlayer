@@ -11,7 +11,7 @@ from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
-from starlayer.shacl_engine.terms import iri_text
+from starlayer.shacl.engine.terms import iri_text
 from tests.terms import Namespace
 
 E = Namespace("http://e/")

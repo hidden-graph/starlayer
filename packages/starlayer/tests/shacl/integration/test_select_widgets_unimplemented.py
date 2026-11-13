@@ -4,13 +4,13 @@ implementation does not implement matches, or when no widget matches, the implem
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui_widget_selection import (
     SHUI,
     WidgetReport,
     select_widget,
     select_widgets,
 )
-from starlayer.shacl_engine.terms import NS
 
 EX = NS("http://example.org/")
 PREFIXES = (

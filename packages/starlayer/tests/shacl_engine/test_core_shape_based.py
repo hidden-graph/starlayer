@@ -6,9 +6,9 @@ import pytest
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.terms import SH, lexical, text
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.terms import SH, lexical, text
 
 PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .

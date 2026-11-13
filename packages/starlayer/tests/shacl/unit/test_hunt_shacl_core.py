@@ -6,8 +6,8 @@ import warnings
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.plan import ShapeError
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.plan import ShapeError
 
 warnings.filterwarnings("ignore")
 
@@ -221,7 +221,7 @@ def test_a_shared_plan_runs_a_shacl_function_body_against_each_call_s_own_data_g
 
 
 def test_evaluate_runs_a_nested_property_shape_at_the_value_nodes_of_its_host():
-    from starlayer.shacl_engine import evaluate
+    from starlayer.shacl.engine import evaluate
 
     shapes = graph(
         """
@@ -242,7 +242,7 @@ def test_evaluate_runs_a_nested_property_shape_at_the_value_nodes_of_its_host():
 def test_recursion_limit_is_restored_after_nested_runs():
     import sys
 
-    from starlayer.shacl_engine.executor import _recursion_room
+    from starlayer.shacl.engine.executor import _recursion_room
 
     before = sys.getrecursionlimit()
     with _recursion_room(before + 5000):

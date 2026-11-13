@@ -6,8 +6,8 @@ one-property-at-a-time ``select_widget()`` and against the widget expected by ha
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ui_widget_selection
+from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget, select_widgets
-from starlayer.shacl_engine.terms import NS
 
 EX = NS("http://example.org/")
 

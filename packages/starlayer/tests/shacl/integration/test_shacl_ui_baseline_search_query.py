@@ -4,8 +4,8 @@ defaults (3)."""
 
 from starlayer import starontology
 from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui_widget_selection import SHUI, select_widget
-from starlayer.shacl_engine.terms import NS
 
 EX = NS("http://example.org/")
 PREFIXES = (

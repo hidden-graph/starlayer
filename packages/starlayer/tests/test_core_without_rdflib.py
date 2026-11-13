@@ -39,7 +39,7 @@ def test_imports():
         from starlayer import StarLayerGraph, StarLayerDataset, StarShaclSchema, StarQuery
         from starlayer.graph import ENTAILMENT, isomorphic, interop, setops, rdfc_native
         from starlayer.shacl import validate, apply_rules, evaluate, extract_subgraph
-        import starlayer.conformance
+        import starlayer.shacl.conformance
     """)
 
 

@@ -7,11 +7,11 @@ import time
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.terms import text
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.terms import text
 
 ox = pytest.importorskip("pyoxigraph")
-from starlayer.shacl_engine.oxigraph_view import OxigraphGraph  # noqa: E402
+from starlayer.shacl.engine.oxigraph_view import OxigraphGraph  # noqa: E402
 
 SHAPES = """@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
 ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:uniqueValuesFor ex:id ."""

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.plan import ShapeError
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.plan import ShapeError
 
 DATA = "@prefix ex: <http://example.org/> . ex:a ex:p 1 . ex:a ex:q 2 ."
 

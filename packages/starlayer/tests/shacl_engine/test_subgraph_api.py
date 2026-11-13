@@ -18,11 +18,11 @@ from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl import extract_subgraph as old_extract
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.shapes_graphs import close_shape, extract_shapes_graph
-from starlayer.shacl_engine.subgraph import extract_subgraph
-from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import text
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.shapes_graphs import close_shape, extract_shapes_graph
+from starlayer.shacl.engine.subgraph import extract_subgraph
+from starlayer.shacl.engine.terms import NS as Namespace
+from starlayer.shacl.engine.terms import text
 from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_engine
 
 EX = Namespace("http://example.org/")
@@ -294,7 +294,7 @@ def test_focus_node_alone_only_uses_shapes_that_target_it() -> None:
 
 def test_oxigraph_backend_matches_rdflib() -> None:
     pytest.importorskip("pyoxigraph")
-    from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
+    from starlayer.shacl.engine.oxigraph_view import OxigraphGraph
 
     data_ttl, shapes_ttl, kwargs = CASES["whole graph"]
     data, shapes = _g(data_ttl), _g(shapes_ttl)

@@ -21,8 +21,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.shacl.engine.terms import SH
 from starlayer.shacl.ui_widget_selection import SHUI, _as_ox_graph, _term_in
-from starlayer.shacl_engine.terms import SH
 
 _REIFIES = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 

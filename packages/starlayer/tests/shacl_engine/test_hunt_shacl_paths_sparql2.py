@@ -8,12 +8,12 @@ import warnings
 import pyoxigraph as ox
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.executor import Context
-from starlayer.shacl_engine.expressions import EvaluationFailure, evaluate_expression
-from starlayer.shacl_engine.plan import Plan, ShapeError
-from starlayer.shacl_engine.subgraph import extract_subgraph
-from starlayer.shacl_engine.terms import NS
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.executor import Context
+from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
+from starlayer.shacl.engine.plan import Plan, ShapeError
+from starlayer.shacl.engine.subgraph import extract_subgraph
+from starlayer.shacl.engine.terms import NS
 
 warnings.simplefilter("ignore")
 
@@ -171,7 +171,7 @@ def test_scope_variable_invalid_varname_is_a_failure_not_value_error():
 
 
 def test_default_value_expression_is_evaluated_for_expected_predicate_rules():
-    from starlayer.shacl_engine.rules import apply_rules
+    from starlayer.shacl.engine.rules import apply_rules
 
     shapes = G(
         """
@@ -187,7 +187,7 @@ ex:R a sh:SPARQLRule ; sh:expectedPredicate ex:area ;
 
 
 def test_now_is_fixed_during_a_rule_set_execution():
-    from starlayer.shacl_engine.rules import apply_rules
+    from starlayer.shacl.engine.rules import apply_rules
 
     shapes = G('ex:R1 a sh:SPARQLRule ; sh:construct "PREFIX ex: <http://example.com/> CONSTRUCT { ex:a ex:t ?n } WHERE { BIND(NOW() AS ?n) }" .')
     apply_rules(G("ex:r a ex:C ."), shapes, max_iterations=50)
@@ -200,7 +200,7 @@ ex:f a sh:NamedParameterExpressionFunction ; sh:parameter [ sh:path ex:{param} ;
   sh:bodyExpression [ sh:sparqlExpr "?{param} + 1" ] .
 ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:out ; sh:values [ ex:{param} 41 ] ] ."""
     )
-    from starlayer.shacl_engine import evaluate
+    from starlayer.shacl.engine import evaluate
 
     out = evaluate(G("ex:a ex:q 1 ."), shapes)
     return [t[2].value for t in out.triples((None, ox.NamedNode("http://example.com/out"), None))]
@@ -211,7 +211,7 @@ def test_sparql_expr_parameter_named_result():
 
 
 def test_sparql_expr_body_ending_in_comment():
-    from starlayer.shacl_engine import evaluate
+    from starlayer.shacl.engine import evaluate
 
     shapes = G('ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:out ; sh:values [ sh:sparqlExpr "1 + 2 # three" ] ] .')
     out = evaluate(G("ex:a ex:q 1 ."), shapes)

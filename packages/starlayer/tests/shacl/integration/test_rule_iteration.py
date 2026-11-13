@@ -2,7 +2,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from starlayer.shacl_engine.terms import to_engine
+from starlayer.shacl.engine.terms import to_engine
 from tests.terms import Namespace
 
 from ._shape_loader import load_shape
@@ -104,7 +104,7 @@ def _build_linear_chain(length: int) -> StarLayerGraph:
 # length". The iteration cap (max_iterations, default 1000) is not an option of
 # validate(); the tests use the engine's apply_rules directly with a small cap.
 def _linear_rules(data, max_iterations):
-    from starlayer.shacl_engine.rules import apply_rules
+    from starlayer.shacl.engine.rules import apply_rules
 
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")

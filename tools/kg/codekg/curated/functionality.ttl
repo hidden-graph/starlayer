@@ -444,7 +444,7 @@ cur:cap-shacl-9 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate", "infer" ;
     rdfs:comment "Entailment during validation: a shapes graph's sh:entailment declarations, or an inference option, run the same entailment regimes as graph reasoning." ;
-    slkg:implementedByIdentifier "starlayer.shacl_engine.entailment.resolve_data_view" .
+    slkg:implementedByIdentifier "starlayer.shacl.engine.entailment.resolve_data_view" .
 
 cur:cap-shacl-10 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -519,6 +519,6 @@ cur:cap-other-5 a slkg:Capability ;
     slkg:implementsSpecification tr:dx-prof ;
     rdfs:comment "StarLayer declares its conformance in one profiles document: StarLayer profiles for SKOS, Manchester Syntax, SPARQL 1.2 Query, SRL and SHACL 1.2, each a profile of the public specification, plus the declared conformance of the graph, SPARQL and SHACL packages. Data validated against a shapes graph is reported as conforming to the matching profile and, through it, to the specification." ;
     slkg:implementedByIdentifier 
-        "starlayer.conformance.declared_conformance",
+        "starlayer.shacl.conformance.declared_conformance",
         "starlayer.shacl.profiling.derive_conforms_to",
         "starlayer.starontology.__init__.get_conformance_profiles" .

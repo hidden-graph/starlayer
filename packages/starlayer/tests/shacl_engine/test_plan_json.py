@@ -13,12 +13,12 @@ from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.component_table import component_table
-from starlayer.shacl_engine.components.registry import REGISTRY
-from starlayer.shacl_engine.expressions import OPERATORS
-from starlayer.shacl_engine.plan import Plan
-from starlayer.shacl_engine.plan_json import (
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.component_table import component_table
+from starlayer.shacl.engine.components.registry import REGISTRY
+from starlayer.shacl.engine.expressions import OPERATORS
+from starlayer.shacl.engine.plan import Plan
+from starlayer.shacl.engine.plan_json import (
     FORMAT_VERSION,
     main,
     plan_from_json,
@@ -26,7 +26,7 @@ from starlayer.shacl_engine.plan_json import (
     term_from_json,
     term_to_json,
 )
-from starlayer.shacl_engine.terms import XSD, integer
+from starlayer.shacl.engine.terms import XSD, integer
 from tests.shacl.w3c_shacl12.comparison import find_report_node, result_multiset
 from tests.shacl.w3c_shacl12.manifest import (
     clone_graph,
@@ -232,7 +232,7 @@ def test_malformed_shape_is_a_recorded_plan_error():
     )
     obj = plan_to_json(plan)
     assert [e["node"]["v"] for e in obj["errors"]] == ["http://e/S"]
-    from starlayer.shacl_engine.plan import ShapeError
+    from starlayer.shacl.engine.plan import ShapeError
 
     with pytest.raises(ShapeError):
         plan_from_json(json.loads(json.dumps(obj))).shape(URIRef("http://e/S"))

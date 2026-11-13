@@ -1,0 +1,294 @@
+"""SHACL 1.2 Core: logical (not, and, or, xone), shape-based (node, qualified*), closed, reifier shape, root class."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Iterator
+from typing import Any
+
+from starlayer.shacl.engine.components.registry import Violation, component
+from starlayer.shacl.engine.plan import SH, Path, ShapeError
+from starlayer.shacl.engine.terms import (
+    RDF,
+    RDFS,
+    XSD,
+    BlankNode,
+    Literal,
+    NamedNode,
+    Triple,
+    text,
+)
+
+_RDF_REIFIES = RDF.reifies
+
+
+def shacl_list(graph: Any, head: Any) -> list[Any]:
+    """Members of a well-formed SHACL list (IRI or blank node cells, exactly one first/rest, no cycle); else ShapeError."""
+    members: list[Any] = []
+    seen: set = set()
+    cell = head
+    while cell != RDF.nil:
+        if cell in seen or not isinstance(cell, NamedNode | BlankNode):
+            raise ShapeError(f"malformed list at {text(head)}")
+        seen.add(cell)
+        firsts, rests = list(graph.objects(cell, RDF.first)), list(graph.objects(cell, RDF.rest))
+        if len(firsts) != 1 or len(rests) != 1:
+            raise ShapeError(f"malformed list at {text(head)}")
+        members.append(firsts[0])
+        cell = rests[0]
+    if any(True for _ in graph.objects(RDF.nil, RDF.first)) or any(True for _ in graph.objects(RDF.nil, RDF.rest)):
+        raise ShapeError(f"malformed list at {text(head)}")
+    return members
+
+
+def _boolean(term: Any, what: str) -> bool:
+    if isinstance(term, Literal) and term.datatype == XSD.boolean and term.value in ("true", "false", "1", "0"):
+        return term.value in ("true", "1")
+    raise ShapeError(f"{what} must be an xsd:boolean literal, got {term!r}")
+
+
+def _only_true(term: Any, what: str) -> bool:
+    """Like ``_boolean`` but only the lexical form ``"true"`` activates (``"1"`` is a valid but inactive boolean)."""
+    return _boolean(term, what) and term.value == "true"
+
+
+_INTEGER = re.compile(r"[+-]?[0-9]+")  # the xsd:integer lexical form; str.isdigit() also accepts "\u00b2" and "\u0663"
+
+
+def _count(term: Any, what: str) -> int:
+    if isinstance(term, Literal) and term.datatype == XSD.integer and _INTEGER.fullmatch(term.value):
+        return int(term.value)
+    raise ShapeError(f"{what} must be an xsd:integer literal, got {term!r}")
+
+
+def _shape_refs(terms: tuple, what: str) -> tuple:
+    for t in terms:
+        if isinstance(t, Literal):
+            raise ShapeError(f"{what} must be an IRI or blank node, got {t!r}")
+    return terms
+
+
+def _lists(ctx: Any, terms: tuple, what: str) -> Iterator[list[Any]]:
+    for t in terms:
+        members = shacl_list(ctx.shapes, t)
+        _shape_refs(tuple(members), what)
+        yield members
+
+
+@component(SH.NotConstraintComponent, SH["not"])
+def not_(ctx, shape, params, focus, values):
+    """sh:not: each value node must not conform to the referenced shape."""
+    for s in _shape_refs(params[SH["not"]], "sh:not"):
+        for v in values:
+            if ctx.conforms(s, v, negated=True):
+                yield Violation(value=v)
+
+
+@component(SH.AndConstraintComponent, SH["and"])
+def and_(ctx, shape, params, focus, values):
+    """sh:and: each value node must conform to every shape in the list."""
+    for members in _lists(ctx, params[SH["and"]], "sh:and"):
+        for v in values:
+            if not all(ctx.conforms(m, v) for m in members):
+                yield Violation(value=v)
+
+
+@component(SH.OrConstraintComponent, SH["or"])
+def or_(ctx, shape, params, focus, values):
+    """sh:or: each value node must conform to at least one shape in the list."""
+    for members in _lists(ctx, params[SH["or"]], "sh:or"):
+        for v in values:
+            if not any(ctx.conforms(m, v) for m in members):
+                yield Violation(value=v)
+
+
+@component(SH.XoneConstraintComponent, SH.xone)
+def xone(ctx, shape, params, focus, values):
+    """sh:xone: each value node must conform to exactly one shape in the list."""
+    for members in _lists(ctx, params[SH.xone], "sh:xone"):
+        for v in values:
+            if sum(1 for m in members if ctx.conforms(m, v)) != 1:
+                yield Violation(value=v)
+
+
+@component(SH.NodeConstraintComponent, SH.node)
+def node(ctx, shape, params, focus, values):
+    """sh:node: each value node must conform to the referenced node shape; that shape's own results are reported as sh:detail."""
+    for s in _shape_refs(params[SH.node], "sh:node"):
+        for v in values:
+            if not ctx.conforms(s, v):
+                # Core 6.9.2.6: the node shape's own results for the value node may be reported as sh:detail
+                yield Violation(value=v, details=tuple(ctx.detail_results(s, v)))
+
+
+def _siblings(ctx: Any, shape: Any, qvs: Any) -> list[Any]:
+    """Other sh:qualifiedValueShape values of the property shapes that share a parent shape with this one."""
+    out: list[Any] = []
+    for parent in ctx.shapes.subjects(SH.property, shape.node):
+        for sibling_ps in ctx.shapes.objects(parent, SH.property):
+            if sibling_ps == shape.node:
+                continue
+            for q in ctx.shapes.objects(sibling_ps, SH.qualifiedValueShape):
+                if q != qvs and q not in out:
+                    out.append(q)
+    return out
+
+
+def _qualified(ctx, shape, params, values) -> Iterator[tuple[int, Any]]:
+    """For each sh:qualifiedValueShape, the number of value nodes conforming to it (and to no sibling if disjoint)."""
+    shapes = _shape_refs(params.get(SH.qualifiedValueShape, ()), "sh:qualifiedValueShape")
+    disjoint = False
+    for d in params.get(SH.qualifiedValueShapesDisjoint, ()):
+        disjoint = disjoint or _boolean(d, "sh:qualifiedValueShapesDisjoint")
+    for q in shapes:
+        siblings = _siblings(ctx, shape, q) if disjoint else []
+        n = sum(1 for v in values if ctx.conforms(q, v) and not any(ctx.conforms(s, v) for s in siblings))
+        yield n, q
+
+
+@component(SH.QualifiedMinCountConstraintComponent, SH.qualifiedValueShape, SH.qualifiedMinCount, SH.qualifiedValueShapesDisjoint)
+def qualified_min(ctx, shape, params, focus, values):
+    """sh:qualifiedMinCount: at least that many value nodes conform to sh:qualifiedValueShape (and, if sh:qualifiedValueShapesDisjoint, to no sibling's).
+
+    One violation is yielded for each (qualifiedMinCount, qualifiedValueShape) pair that falls short.
+    """
+    for m in params.get(SH.qualifiedMinCount, ()):
+        minimum = _count(m, "sh:qualifiedMinCount")
+        for n, _ in _qualified(ctx, shape, params, values):
+            if n < minimum:
+                yield Violation()
+
+
+@component(SH.QualifiedMaxCountConstraintComponent, SH.qualifiedValueShape, SH.qualifiedMaxCount, SH.qualifiedValueShapesDisjoint)
+def qualified_max(ctx, shape, params, focus, values):
+    """sh:qualifiedMaxCount: at most that many value nodes conform to sh:qualifiedValueShape (and, if sh:qualifiedValueShapesDisjoint, to no sibling's).
+
+    One violation is yielded for each (qualifiedMaxCount, qualifiedValueShape) pair that is exceeded.
+    """
+    for m in params.get(SH.qualifiedMaxCount, ()):
+        maximum = _count(m, "sh:qualifiedMaxCount")
+        for n, _ in _qualified(ctx, shape, params, values):
+            if n > maximum:
+                yield Violation()
+
+
+def _shacl_types(shapes: Any, node_: Any) -> set:
+    """The SHACL types of a node: its rdf:type values and their rdfs:subClassOf ancestors, in the shapes graph."""
+    found: set = set()
+    stack = list(shapes.objects(node_, RDF.type))
+    while stack:
+        t = stack.pop()
+        if t not in found:
+            found.add(t)
+            stack.extend(shapes.objects(t, RDFS.subClassOf))
+    return found
+
+
+def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
+    """collectProperties from the sh:ByTypes definition: own sh:property paths, plus, for a class, its superclasses'
+    and the targeting shapes' properties, plus, for a node shape, those of its sh:node shapes."""
+    if node_ in visited:
+        return set()
+    visited.add(node_)
+    props = {p for ps in shapes.objects(node_, SH.property) for p in shapes.objects(ps, SH.path) if isinstance(p, NamedNode)}
+    types = _shacl_types(shapes, node_)
+    if isinstance(node_, NamedNode) and (RDFS.Class in types or SH.ShapeClass in types):
+        for sup in shapes.objects(node_, RDFS.subClassOf):
+            props |= _collect_properties(shapes, sup, visited)
+        for other in shapes.subjects(SH.targetClass, node_):
+            props |= _collect_properties(shapes, other, visited)
+    if SH.NodeShape in types:
+        for linked in shapes.objects(node_, SH.node):
+            props |= _collect_properties(shapes, linked, visited)
+    return props
+
+
+@component(SH.ClosedConstraintComponent, SH.closed, SH.ignoredProperties)
+def closed(ctx, shape, params, focus, values):
+    """sh:closed: when true, a value node may only have the properties its shape declares or sh:ignoredProperties lists.
+
+    With the value sh:ByTypes, the properties declared by the value node's types are allowed instead.
+    """
+    closed_vals = params.get(SH.closed, ())
+    if not closed_vals:
+        return  # sh:closed is the only required parameter: sh:ignoredProperties alone is not an instance of the component
+    if len(closed_vals) != 1:
+        raise ShapeError(f"{text(shape.node)}: more than one sh:closed")
+    mode = closed_vals[0]
+    by_types = mode == SH.ByTypes
+    if not by_types and not _boolean(mode, "sh:closed"):
+        return
+    ignored: set = set()
+    for members in _lists(ctx, params.get(SH.ignoredProperties, ()), "sh:ignoredProperties"):
+        if not all(isinstance(m, NamedNode) for m in members):
+            raise ShapeError("sh:ignoredProperties members must be IRIs")
+        ignored.update(members)
+    declared: set = set()
+    for ps in shape.property_shapes:
+        for p in ctx.shapes.objects(ps, SH.path):
+            if isinstance(p, NamedNode):
+                declared.add(p)
+    for v in values:
+        if isinstance(v, Literal | Triple):
+            continue
+        if by_types:
+            allowed = {RDF.type} | ignored
+            for t in set(ctx.data.objects(v, RDF.type)):
+                allowed |= _collect_properties(ctx.shapes, t, set())
+        else:
+            allowed = declared | ignored
+        for _, p, o in ctx.data.triples((v, None, None)):
+            if p not in allowed:
+                yield Violation(path=Path(kind="pred", iri=p, node=p), value=o)
+
+
+@component(SH.ReifierShapeConstraintComponent, SH.reifierShape, SH.reificationRequired)
+def reifier_shape(ctx, shape, params, focus, values):
+    """sh:reifierShape / sh:reificationRequired: the reifiers of each (focus, path, value) triple conform to every reifier shape.
+
+    Needs a property shape with an IRI path; anything else raises ShapeError.
+    """
+    if shape.path is None or shape.path.kind != "pred":
+        raise ShapeError(f"{text(shape.node)}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
+    required = any(_only_true(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
+    rshapes = _shape_refs(params.get(SH.reifierShape, ()), "sh:reifierShape")
+    for v in values:
+        reifiers = (
+            list(ctx.data.subjects(_RDF_REIFIES, Triple(focus, shape.path.iri, v)))
+            if not isinstance(focus, Literal | Triple)
+            else []
+        )
+        if required and not reifiers:
+            yield Violation(value=v)
+        for s in rshapes:
+            for r in reifiers:
+                if not ctx.conforms(s, r):
+                    yield Violation(value=v)
+
+
+@component(SH.RootClassConstraintComponent, SH.rootClass)
+def root_class(ctx, shape, params, focus, values):
+    """sh:rootClass: each value node must be, or be an rdfs:subClassOf descendant of, one of the root classes."""
+    roots: set = set()
+    for r in params[SH.rootClass]:
+        if isinstance(r, NamedNode):
+            roots.add(r)
+        elif isinstance(r, BlankNode):  # Core 6.10.9.4: a blank node is a SHACL list of IRIs
+            members = shacl_list(ctx.shapes, r)
+            if not all(isinstance(m, NamedNode) for m in members):
+                raise ShapeError(f"sh:rootClass list members must be IRIs, got {text(r)}")
+            roots.update(members)
+        else:
+            raise ShapeError(f"sh:rootClass must be an IRI or a list of IRIs, got {r!r}")
+    for v in values:
+        seen, stack = set(), [v]
+        found = False
+        while stack and not found:
+            c = stack.pop()
+            if c in roots:
+                found = True
+            elif c not in seen:
+                seen.add(c)
+                stack.extend(ctx.data.objects(c, RDFS.subClassOf))
+        if not found:
+            yield Violation(value=v)

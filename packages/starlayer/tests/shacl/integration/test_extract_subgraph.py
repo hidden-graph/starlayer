@@ -10,7 +10,7 @@ and only real stored triples are ever included).
 
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
-from starlayer.shacl_engine.terms import RDF, text
+from starlayer.shacl.engine.terms import RDF, text
 
 RDF_TYPE = RDF.type
 

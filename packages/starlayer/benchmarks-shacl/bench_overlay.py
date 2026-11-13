@@ -60,7 +60,7 @@ def make_inputs(triples: int):
 
 
 def select(overlay: str) -> None:
-    from starlayer.shacl_engine import rules
+    from starlayer.shacl.engine import rules
 
     rules.use_oxigraph_overlay(overlay == "oxigraph")
 
@@ -78,7 +78,7 @@ def entailed_split(data):
     """The three phases inside ``entailed_view``: copy to combined, owlrl closure, fill the overlay."""
     from starlayer.graph.entailment import ENTAILMENT
     from starlayer.graph.oxgraph import StarLayerGraph
-    from starlayer.shacl_engine.rules import new_overlay
+    from starlayer.shacl.engine.rules import new_overlay
     from starlayer_reasoning.rdflib_bridge import legal_rdf_triples
 
     t0 = time.perf_counter()
@@ -88,7 +88,7 @@ def entailed_split(data):
     t1 = time.perf_counter()
     delta = combined.infer(entailment=frozenset({ENTAILMENT.RDFS}), mode="delta")
     t2 = time.perf_counter()
-    from starlayer.shacl_engine.terms import engine_view, to_engine_triple
+    from starlayer.shacl.engine.terms import engine_view, to_engine_triple
 
     view = new_overlay(engine_view(data))
     n = 0
@@ -101,7 +101,7 @@ def entailed_split(data):
 
 def lookups(view, data, calls: int = 20000):
     """Mixed read workload typical of the engine: s-p-? objects, ?-p-o subjects, s-?-? scan, membership."""
-    from starlayer.shacl_engine.terms import NS, RDF, engine_view
+    from starlayer.shacl.engine.terms import NS, RDF, engine_view
 
     ex = NS("http://example.org/")
     data = engine_view(data)  # the overlay speaks engine (pyoxigraph) terms
@@ -134,9 +134,9 @@ def lookups(view, data, calls: int = 20000):
 
 
 def stages(triples: int, reps: int):
-    from starlayer.shacl_engine.api import validate
-    from starlayer.shacl_engine.entailment import entailed_view
-    from starlayer.shacl_engine.rules import apply_rules
+    from starlayer.shacl.engine.api import validate
+    from starlayer.shacl.engine.entailment import entailed_view
+    from starlayer.shacl.engine.rules import apply_rules
 
     data, shapes = make_inputs(triples)
     row = {"triples": len(data)}
@@ -152,7 +152,7 @@ def stages(triples: int, reps: int):
 
 
 def profile_full(triples: int, top: int):
-    from starlayer.shacl_engine.api import validate
+    from starlayer.shacl.engine.api import validate
 
     data, shapes = make_inputs(triples)
     pr = cProfile.Profile()
@@ -164,7 +164,7 @@ def profile_full(triples: int, top: int):
     st.sort_stats("tottime").print_stats(top)
     # attribute cumulative time to buckets
     buckets = {
-        "overlay (rules.py/overlay_oxigraph.py/oxigraph_view.py)": ("shacl_engine/rules.py", "overlay_oxigraph", "oxigraph_view"),
+        "overlay (rules.py/overlay_oxigraph.py/oxigraph_view.py)": ("shacl/engine/rules.py", "overlay_oxigraph", "oxigraph_view"),
     }
     total = st.total_tt
     print("cumulative time of selected entry points (inclusive, overlapping):")

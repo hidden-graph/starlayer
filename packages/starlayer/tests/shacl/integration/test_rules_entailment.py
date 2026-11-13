@@ -8,7 +8,7 @@ caller's data is not changed. Both used to be refused as unsupported entailment 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
-from starlayer.shacl_engine.terms import text
+from starlayer.shacl.engine.terms import text
 from tests.terms import Namespace
 
 EX = Namespace("http://example.org/")

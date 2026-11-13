@@ -18,7 +18,7 @@ from starlayer.shacl import (
     shapes_graph_members,
     sparql_query_problems,
 )
-from starlayer.shacl_engine.terms import to_engine
+from starlayer.shacl.engine.terms import to_engine
 from starlayer.sparql import check_query
 from tests.terms import RDF, Namespace, lit
 

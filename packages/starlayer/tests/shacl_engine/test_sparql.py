@@ -7,12 +7,12 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.interface import Solutions
-from starlayer.shacl_engine.plan import Path, ShapeError
-from starlayer.shacl_engine.sparql_support import fill_template, path_to_sparql
-from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import integer, text
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.interface import Solutions
+from starlayer.shacl.engine.plan import Path, ShapeError
+from starlayer.shacl.engine.sparql_support import fill_template, path_to_sparql
+from starlayer.shacl.engine.terms import NS as Namespace
+from starlayer.shacl.engine.terms import integer, text
 
 EX = Namespace("http://example.com/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

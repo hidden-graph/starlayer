@@ -4,7 +4,7 @@ Thanks for contributing. Working with an AI agent? [AGENTS.md](AGENTS.md) is its
 
 ## Layout
 
-A monorepo: `packages/starlayer/` is the library (its `pyproject.toml`, source in `starlayer/` with `graph/`, `sparql/`, `shacl/`, `shacl_engine/` and `starontology/`) and `packages/starlayer-kg/` is the code knowledge graph as data. The root `pyproject.toml` holds the pytest and ruff configuration and the uv workspace. Tests are in `packages/starlayer/tests/`, guides in `docs/guides/`, build scripts in `scripts/`. The [docs map](docs/README.md) lists everything else.
+A monorepo: `packages/starlayer/` is the library (its `pyproject.toml`, source in `starlayer/` with `graph/`, `sparql/`, `shacl/` (with the engine in `shacl/engine/`) and `starontology/`) and `packages/starlayer-reasoning/` is the rdflib and reasoner plugin, and `packages/starlayer-kg/` is the code knowledge graph as data. The root `pyproject.toml` holds the pytest and ruff configuration and the uv workspace. Tests are in `packages/starlayer/tests/`, guides in `docs/guides/`, build scripts in `scripts/`. The [docs map](docs/README.md) lists everything else.
 
 ## Set up
 

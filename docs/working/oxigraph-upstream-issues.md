@@ -41,7 +41,7 @@ pyoxigraph 0.5.13 (the version pinned in this repo's environment). Not checked o
 W3C SHACL 1.2 suite `tests/sparql/functions/langLabelCount-example`: the function body runs
 `?predicate rdfs:subPropertyOf* rdfs:label` and `rdfs:label` is not a node of the data graph, so the label count is 0
 instead of 2 (expected value `"2 2 1 false"`, actual `"0 0 0 false"`). Both the native engine
-(`starlayer.shacl_engine`, which runs queries on Oxigraph) and the legacy validator show it. Recorded as a strict xfail
+(`starlayer.shacl.engine`, which runs queries on Oxigraph) and the legacy validator show it. Recorded as a strict xfail
 in `packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py` (`OXIGRAPH_QUERY_BUGS`), applied in
 `test_w3c_validate.py`.
 

@@ -12,14 +12,14 @@ import rdflib
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine.interface import GraphView
-from starlayer.shacl_engine.oxigraph_view import (
+from starlayer.shacl.engine.interface import GraphView
+from starlayer.shacl.engine.oxigraph_view import (
     DEFAULT,
     OxigraphGraph,
     to_ox,
 )
-from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import RDF, integer, text
+from starlayer.shacl.engine.terms import NS as Namespace
+from starlayer.shacl.engine.terms import RDF, integer, text
 from starlayer_reasoning.model.dirlangstring import DirLangString
 from starlayer_reasoning.model.triple import TripleTerm as RdflibTripleTerm
 from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_ox

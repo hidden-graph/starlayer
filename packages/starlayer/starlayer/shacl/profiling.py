@@ -42,8 +42,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.shacl_engine.graphs import new_graph
-from starlayer.shacl_engine.terms import RDF, SH, engine_view, to_engine
+from starlayer.shacl.engine.graphs import new_graph
+from starlayer.shacl.engine.terms import RDF, SH, engine_view, to_engine
 
 _SH = "http://www.w3.org/ns/shacl#"
 _SH_ValidationReport = SH.ValidationReport

@@ -14,9 +14,9 @@ from starlayer.shacl import (
     extract_subgraph,
     validate,
 )
+from starlayer.shacl.engine.terms import text
 from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.xpath_regex import needs_translation, xpath_regex_to_python
-from starlayer.shacl_engine.terms import text
 from tests.terms import SH, NamedNode, Namespace
 
 EX = Namespace("http://example.org/")

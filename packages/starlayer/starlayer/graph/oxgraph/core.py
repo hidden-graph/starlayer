@@ -170,7 +170,7 @@ def _read_input(data: Any, source: Any, file: Any) -> tuple[dict[str, Any], str 
 class _Base:
     """What the graph view and the dataset share. Subclasses define ``_pattern_graph`` and ``_union``."""
 
-    #: the engine's term model is pyoxigraph's (``shacl_engine`` reads these)
+    #: the engine's term model is pyoxigraph's (the SHACL engine reads these)
     engine_terms = True
     preserves_lexical_forms = False
     native_sparql = True
@@ -757,9 +757,9 @@ class _Base:
 
         return reification.has_triple_term(self, subject, predicate, object)
 
-    # ---- the shacl_engine's graph view -------------------------------------------------------------------------
+    # ---- the SHACL engine's graph view -------------------------------------------------------------------------
     def engine_view(self) -> Any:
-        from starlayer.shacl_engine.oxigraph_view import DEFAULT, UNION, OxigraphGraph
+        from starlayer.shacl.engine.oxigraph_view import DEFAULT, UNION, OxigraphGraph
 
         return OxigraphGraph(self.store, self._engine_graph_name(UNION, DEFAULT))
 
@@ -1128,7 +1128,7 @@ class StarLayerDataset(_Base):
         return union if self._union else default
 
     def _sparql_view(self) -> Any:
-        from starlayer.shacl_engine.oxigraph_view import DEFAULT, OxigraphGraph
+        from starlayer.shacl.engine.oxigraph_view import DEFAULT, OxigraphGraph
 
         if self._merged():  # a triple in two graphs: its SPARQL runs on the merged copy, where it is one triple
             return OxigraphGraph(self._overlap.store(self.store), DEFAULT)

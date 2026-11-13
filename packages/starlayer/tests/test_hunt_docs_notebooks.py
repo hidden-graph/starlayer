@@ -94,7 +94,7 @@ def test_guides_02b_02c_do_not_say_query_entailment_raises():
 
 
 def test_guide_04_names_the_rule_error_class_that_exists():
-    import starlayer.shacl_engine.rules as rules
+    import starlayer.shacl.engine.rules as rules
 
     assert not hasattr(rules, "RuleLoadError")
     assert hasattr(rules, "RuleError")

@@ -4,6 +4,7 @@ Applications import from here rather than from submodules; a need that only a su
 component, except for the items the comment below the imports lists as still submodule-only.
 """
 
+from starlayer.shacl.engine.terms import SH
 from starlayer.shacl.errors import (
     EvaluationFailure,
     MetaShaclError,
@@ -44,7 +45,6 @@ from starlayer.shacl.validator import (
     validate,
     validate_each,
 )
-from starlayer.shacl_engine.terms import SH
 
 # Everything an application needs is importable from here: apps do not reach into submodules (a need to is a missing
 # public component). Processing modes: validate / validate_each / apply_rules / evaluate / extract_subgraph, with the

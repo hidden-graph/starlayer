@@ -3,9 +3,9 @@
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema
+from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.shapes_graphs import shapes_graph_members, shapes_graphs
-from starlayer.shacl_engine.terms import NS
 from tests.terms import Namespace
 
 EX = Namespace("http://e/")

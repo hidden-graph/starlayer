@@ -1,6 +1,6 @@
 """The public SHACL API: ``validate``, ``validate_each``, ``apply_rules``, ``evaluate`` and ``StarShaclSchema``.
 
-Each call normalises its graphs and hands them to the native SHACL 1.2 engine (``starlayer.shacl_engine``) through
+Each call normalises its graphs and hands them to the native SHACL 1.2 engine (``starlayer.shacl.engine``) through
 ``starlayer.shacl._adapter``. ``StarShaclSchema`` binds a shapes graph (and optionally an ontology, a data graph, a scoring
 graph and an entailment regime) once and offers the same operations as methods.
 """
@@ -11,10 +11,10 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from starlayer.shacl import _adapter
+from starlayer.shacl.engine.terms import RDF, SH, BlankNode, n3
 from starlayer.shacl.normalization import normalize_to_starlayer_graph
 from starlayer.shacl.results import RulesResult, ValidationResult
 from starlayer.shacl.validation_modes import ValidationMode
-from starlayer.shacl_engine.terms import RDF, SH, BlankNode, n3
 
 
 def validate(
@@ -527,7 +527,7 @@ class StarShaclSchema:
         """A copy of the whole bound shapes graph in which ``shape`` and the shapes it reaches as a value node's complete
         description (``sh:node``, ``sh:qualifiedValueShape``, the members of ``sh:and`` / ``sh:or`` / ``sh:xone``) are
         ``sh:closed true``: the strict form an ``extract_subgraph`` fragment is checked against. Shapes that are not reached stay as
-        they are; nothing is removed. See ``shacl_engine.shapes_graphs.close_shape`` for the exact rules."""
+        they are; nothing is removed. See ``shacl.engine.shapes_graphs.close_shape`` for the exact rules."""
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
         if shacl_graph_input is None:
             raise ValueError(

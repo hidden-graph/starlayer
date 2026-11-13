@@ -12,8 +12,8 @@ pyoxigraph release with the fix is installed they will XPASS and fail, which is 
 from __future__ import annotations
 
 import pytest
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.oxigraph_view import OxigraphGraph
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset

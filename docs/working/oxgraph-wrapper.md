@@ -9,7 +9,7 @@ Decisions followed: `graph-oxigraph-migration-plan.md` sections 1 and 5.
 
 A composition wrapper over a `pyoxigraph.Store` (pyoxigraph classes cannot be subclassed). Terms are pyoxigraph terms
 (`NamedNode`, `BlankNode`, `Literal`, `Triple`). It is not an rdflib `Graph`, and the package does not import rdflib at module level;
-an rdflib or StarLayer term handed to `add` and friends is converted lazily through `shacl_engine.terms.to_engine`. The query path
+an rdflib or StarLayer term handed to `add` and friends is converted lazily through `shacl.engine.terms.to_engine`. The query path
 reuses `graph/query/direct.py` (`_guard`) and `graph/backends/native.py` (`check_native_version_conformance`,
 `inject_init_bindings`), imported lazily, because `direct.run_direct` itself returns rdflib terms and cannot choose a default graph.
 

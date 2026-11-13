@@ -1,0 +1,131 @@
+"""The plan: shapes read once from a shapes graph into plain data, built lazily per shape node.
+
+``Shape`` and ``Path`` are plain frozen data (dataclasses of terms and tuples) so a plan can be serialized for a Rust
+executor later. ``Plan.shape(node)`` builds a shape on first use, so shapes referenced from ``sh:node``, ``sh:not``,
+``sh:and`` etc. need no pre-pass.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any
+
+from starlayer.shacl.engine.terms import RDF, SH, NamedNode, engine_view, text
+
+URIRef = NamedNode  # type alias kept for the annotations below
+Term = Any
+
+
+class ShapeError(ValueError):
+    """The shapes graph is malformed (the W3C suite's ``sht:Failure`` cases)."""
+
+
+def reject_removed_constructs(graph: Any) -> None:
+    """SHACL 1.2 SPARQL-Related Features, Appendix F: "SPARQL-based targets (``sh:target`` with ``sh:SPARQLTarget`` and
+    ``sh:SPARQLTargetType``) are no longer defined", and ``sh:SPARQLFunction`` (SHACL Advanced Features) is replaced by functions
+    declared on node expressions. The W3C vocabulary file still lists the terms, so the vocabulary cannot tell them from live
+    ones; a shapes graph that uses them would otherwise validate with those parts silently doing nothing, so it is refused."""
+    found = [(f"sh:target on {text(s)}") for s, _p, _o in graph.triples((None, SH.target, None))]
+    for cls, name in ((SH.SPARQLTarget, "sh:SPARQLTarget"), (SH.SPARQLTargetType, "sh:SPARQLTargetType"), (SH.SPARQLFunction, "sh:SPARQLFunction")):
+        found += [f"{text(s)} is a {name}" for s in graph.subjects(RDF.type, cls)]
+    if found:
+        shown = "; ".join(found[:5]) + (f"; and {len(found) - 5} more" if len(found) > 5 else "")
+        raise ShapeError(
+            "the shapes graph uses SHACL Advanced Features constructs that SHACL 1.2 no longer defines (SHACL SPARQL-Related Features, "
+            f"Appendix F): {shown}. Use sh:targetNode with a node expression, for example sh:targetNode [ sh:select \"...\" ] (section 6.1), "
+            "and sh:ListParameterExpressionFunction for a function (section 7)"
+        )
+
+
+_SEVERITY_RANK = {SH.Violation: 2, SH.Warning: 1, SH.Info: 0}
+
+
+def most_severe(severities: Any) -> Term:
+    """The most severe of the given severities (``None`` entries ignored; ``None`` if there are none). Violation, Warning,
+    Info; any other severity IRI ranks below Info. A tie keeps the first."""
+    best = None
+    for s in severities:
+        if s is not None and (best is None or _SEVERITY_RANK.get(s, -1) > _SEVERITY_RANK.get(best, -1)):
+            best = s
+    return best
+
+
+@dataclass(frozen=True)
+class Path:
+    """A SHACL property path. ``kind`` is one of: pred, inverse, seq, alt, zero_or_more, one_or_more, zero_or_one.
+    ``pred`` carries ``iri``; the others carry ``args`` (one sub-path, or several for seq/alt). ``node`` is the path's
+    term in the shapes graph (reported as ``sh:resultPath``)."""
+
+    kind: str
+    iri: Term = None
+    args: tuple[Path, ...] = ()
+    node: Term = None
+
+
+@dataclass(frozen=True)
+class Shape:
+    """One SHACL shape read from the shapes graph into a frozen record of terms and tuples."""
+
+    node: Term
+    is_property: bool
+    path: Path | None
+    targets: tuple[tuple[URIRef, Term], ...]  # (target predicate, target value)
+    params: dict[URIRef, tuple[Term, ...]]  # every sh: parameter predicate present -> its values, in graph order
+    property_shapes: tuple[Term, ...]
+    severity: Term
+    deactivated: bool
+    messages: tuple[Term, ...]
+    values: tuple[Term, ...] = ()  # sh:values node expressions (extra value nodes of a property shape)
+    default_values: tuple[Term, ...] = ()  # sh:defaultValue node expressions (used only if there are no other value nodes)
+    # (parameter predicate, value) -> {'deactivated': bool, 'severity': Term|None, 'messages': tuple, 'exprs': tuple}, read from RDF 1.2 reifiers of the
+    # shape's own triples (`sh:datatype xsd:boolean {| sh:deactivated true |}`); sh:property uses the same key shape.
+    annotations: dict[tuple[Term, Term], dict[str, Any]] = field(default_factory=dict)
+    deactivated_exprs: tuple[Term, ...] = ()  # sh:deactivated values that are node expressions, evaluated per focus node
+
+
+@dataclass
+class Plan:
+    """A shapes graph plus its lazily built ``Shape`` objects and constraint components."""
+
+    shapes_graph: Any
+    _cache: dict[Term, Shape] = field(default_factory=dict)
+    _components: list | None = None
+    sparql_cache: dict = field(default_factory=dict)  # prefix declarations and checked queries, keyed by their inputs
+
+    def __post_init__(self) -> None:
+        """Normalise the shapes graph to an engine-term view and refuse one using unsupported constructs.
+
+        The refused constructs are sh:target, sh:SPARQLTarget, sh:SPARQLTargetType and sh:SPARQLFunction."""
+        self.shapes_graph = engine_view(self.shapes_graph, "shapes graph")  # the seam: rdflib / StarLayer graphs get an engine-term view
+        reject_removed_constructs(self.shapes_graph)
+
+    def components(self) -> list:
+        """Built-in components plus the SPARQL-based constraint components declared in the shapes graph (built once)."""
+        if self._components is None:
+            from starlayer.shacl.engine.components.registry import static_specs
+            from starlayer.shacl.engine.components.sparql_components import (
+                declared_components,
+            )
+
+            self._components = static_specs() + declared_components(self)
+        return self._components
+
+    def shape(self, node: Term) -> Shape:
+        """The ``Shape`` for a node, built on first request and cached."""
+        if node not in self._cache:
+            from starlayer.shacl.engine.builder import build_shape
+
+            extra = {p for spec in self.components() for p in spec.predicates}
+            self._cache[node] = build_shape(self.shapes_graph, node, extra)
+        return self._cache[node]
+
+    def all_shape_nodes(self) -> list[Term]:
+        """The shape nodes the shapes graph declares, by shape type or by having a target, without duplicates."""
+        from starlayer.shacl.engine.builder import declared_shape_nodes
+
+        return declared_shape_nodes(self.shapes_graph)
+
+
+def is_shape_type(graph: Any, node: Term) -> bool:
+    """Whether the node is explicitly typed sh:NodeShape, sh:PropertyShape or sh:Shape (subclasses not followed)."""
+    return any(t in (SH.NodeShape, SH.PropertyShape, SH.Shape) for t in graph.objects(node, RDF.type))

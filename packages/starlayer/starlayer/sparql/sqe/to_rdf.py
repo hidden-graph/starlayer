@@ -114,7 +114,7 @@ def sqe_parse_to_tree(
 
         ast = parse_sparql_update(text)  # Update text: the same encoder, a tree rooted at sqe:UpdateRequest
     if root is not None:
-        from starlayer.shacl_engine.terms import to_engine
+        from starlayer.shacl.engine.terms import to_engine
 
         root = to_engine(root)
         if not isinstance(root, (ox.NamedNode, ox.BlankNode)):

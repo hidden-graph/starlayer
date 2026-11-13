@@ -27,7 +27,7 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.graph.oxgraph import terms
-from starlayer.shacl_engine.terms import NS
+from starlayer.shacl.engine.terms import NS
 
 SH = NS("http://www.w3.org/ns/shacl#")
 RDFS = NS("http://www.w3.org/2000/01/rdf-schema#")
@@ -124,7 +124,7 @@ def _literal_datatype_bucket(lit: ox.Literal) -> ox.NamedNode | None:
     the datatype cannot be claimed), else its datatype (xsd:string for a plain one)."""
     if lit.language:
         return None
-    from starlayer.shacl_engine import xsd_values
+    from starlayer.shacl.engine import xsd_values
 
     return lit.datatype if xsd_values.well_formed(lit) else None
 
@@ -191,7 +191,7 @@ def _shared_rdf_type(data: Any, values: Iterable[Any]) -> Any:
 
 def _number_of(v: Any) -> int | float | None:
     """The int or float of a well-formed numeric literal (``xsd:decimal`` and booleans excluded, as in the old module)."""
-    from starlayer.shacl_engine import xsd_values
+    from starlayer.shacl.engine import xsd_values
 
     n = xsd_values.numeric(v)
     return None if isinstance(n, Decimal) else n

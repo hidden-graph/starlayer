@@ -3,12 +3,12 @@
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
+from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.shapes_graphs import (
     graph_nodes,
     shapes_graph_members,
     shapes_graphs,
 )
-from starlayer.shacl_engine.terms import NS
 from tests.terms import Namespace
 
 EX = Namespace("http://e/")

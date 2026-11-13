@@ -27,7 +27,7 @@ index a2a204f0..8d7b8d5c 100644
 -    expected = list(entry.graph.items(next(entry.graph.objects(entry.iri, MF.result))))
 +    result = next(entry.graph.objects(entry.iri, MF.result))
 +    if result == SHT.Failure:  # PROTOTYPE: the expression must fail to evaluate
-+        from starlayer.shacl_engine.expressions import EvaluationFailure
++        from starlayer.shacl.engine.expressions import EvaluationFailure
 +        with pytest.raises(EvaluationFailure):
 +            evaluate_expression(
 +                Context(data=graph, plan=Plan(shapes_graph=graph)),

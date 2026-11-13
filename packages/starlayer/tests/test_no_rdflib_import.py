@@ -43,4 +43,4 @@ def test_the_detector_catches_each_import_form():
     assert rdflib_imports("import rdflib") == [1]
     assert rdflib_imports("def f():\n    from rdflib.namespace import RDF\n") == [2]
     assert rdflib_imports("from rdflib import Graph") == [1]
-    assert rdflib_imports("import pyoxigraph\nfrom starlayer.shacl_engine import terms") == []
+    assert rdflib_imports("import pyoxigraph\nfrom starlayer.shacl.engine import terms") == []

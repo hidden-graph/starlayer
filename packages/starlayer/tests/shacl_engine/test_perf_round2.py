@@ -10,12 +10,12 @@ import pytest
 import rdflib
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import executor
-from starlayer.shacl_engine.api import validate
-from starlayer.shacl_engine.oxigraph_view import OxigraphGraph
-from starlayer.shacl_engine.paths import _dedupe
-from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.terms import text
+from starlayer.shacl.engine import executor
+from starlayer.shacl.engine.api import validate
+from starlayer.shacl.engine.oxigraph_view import OxigraphGraph
+from starlayer.shacl.engine.paths import _dedupe
+from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.terms import text
 from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_ox
 from starlayer_reasoning.rdflib_bridge import foreign_to_engine
 
@@ -158,7 +158,7 @@ def test_sparql_constraint_is_prepared_once_per_run(monkeypatch):
         'sh:select "SELECT $this WHERE { $this <http://example.org/bad> true }" ] .'
     )
     data = g(" ".join(f"ex:n{i} a ex:T ; ex:bad {'true' if i % 2 else 'false'} ." for i in range(6)))
-    from starlayer.shacl_engine.components import sparql_constraints as sc
+    from starlayer.shacl.engine.components import sparql_constraints as sc
 
     calls = []
     real = sc.substitute_path

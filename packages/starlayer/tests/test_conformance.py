@@ -1,4 +1,4 @@
-"""starlayer.conformance.declared_conformance() - a multi-resource,
+"""starlayer.shacl.conformance.declared_conformance() - a multi-resource,
 SHACL-1.2-Profiling-S3-style self-declaration: one graph with three real
 resources (starlayer.shacl, starlayer.graph, starlayer.sparql), each
 asserting dcterms:conformsTo only the spec documents specific to what
@@ -10,7 +10,7 @@ predicate exists) rather than only prose - see this module's own
 docstring for exactly which two cases qualify and why the rest don't."""
 
 import pyoxigraph as ox
-from starlayer import conformance
+from starlayer.shacl import conformance
 
 DCTERMS = conformance.DCTERMS
 RDFS = conformance.NS("http://www.w3.org/2000/01/rdf-schema#")

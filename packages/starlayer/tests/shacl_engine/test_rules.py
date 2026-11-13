@@ -1,18 +1,18 @@
-"""Unit tests for ``starlayer.shacl_engine.rules`` (SHACL 1.2 inference rules)."""
+"""Unit tests for ``starlayer.shacl.engine.rules`` (SHACL 1.2 inference rules)."""
 
 from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine.rules import (
+from starlayer.shacl.engine.rules import (
     InferredView,
     RuleError,
     apply_rules,
     entailment_selection,
     validate_with_rules,
 )
-from starlayer.shacl_engine.terms import integer
+from starlayer.shacl.engine.terms import integer
 
 EX = "http://example.com/ns#"
 PRE = """
@@ -204,7 +204,7 @@ def test_validation_sees_inferred_triples() -> None:
         ex:Check a sh:NodeShape ; sh:targetClass ex:C ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .
         """
     )
-    from starlayer.shacl_engine import validate
+    from starlayer.shacl.engine import validate
 
     assert not validate(data).conforms
     outcome, _ = validate_with_rules(data, rules=True)
@@ -237,7 +237,7 @@ def test_rule_without_type_fails() -> None:
 
 def test_triple_rule() -> None:
     pytest.importorskip(
-        "starlayer.shacl_engine.expressions", reason="sh:TripleRule needs node expressions (expressions.py not present yet)"
+        "starlayer.shacl.engine.expressions", reason="sh:TripleRule needs node expressions (expressions.py not present yet)"
     )
     data = g(
         """

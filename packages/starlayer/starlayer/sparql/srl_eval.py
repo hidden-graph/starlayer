@@ -771,7 +771,7 @@ def flatten_dataset(graph):
     union of its graphs. An rdflib graph is a ``TypeError`` (convert it with ``StarLayerGraph.from_rdflib``). Nothing here changes ``graph``."""
     from starlayer.graph.oxgraph.core import StarLayerGraph
     from starlayer.graph.oxgraph.inputs import as_oxigraph
-    from starlayer.shacl_engine.graphs import new_graph
+    from starlayer.shacl.engine.graphs import new_graph
 
     if isinstance(graph, StarLayerGraph):
         return graph
@@ -816,7 +816,7 @@ def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):
 
 
 def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
-    from starlayer.shacl_engine.graphs import new_graph
+    from starlayer.shacl.engine.graphs import new_graph
 
     base_graph = flatten_dataset(base_graph)
     if ruleset.imports:
@@ -909,7 +909,7 @@ def _srl_query(base_graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.Tripl
     Returns:
         One ``dict[Variable, term]`` solution per match, the terms pyoxigraph terms.
     """
-    from starlayer.shacl_engine.graphs import new_graph
+    from starlayer.shacl.engine.graphs import new_graph
 
     base_graph = flatten_dataset(base_graph)
     gi = _evaluate_ruleset(base_graph, ruleset)

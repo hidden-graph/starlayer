@@ -189,7 +189,7 @@ def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_met
     """The shipped shapes are checked once, by their own tests; every parse must not re-check them
     (the engine's ``meta_shacl`` preflight and starlayer's own meta-shape layer are both off for ``srl_validate``)."""
     from starlayer.shacl import meta_shapes
-    from starlayer.shacl_engine import meta as engine_meta
+    from starlayer.shacl.engine import meta as engine_meta
     from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
 
     called = []

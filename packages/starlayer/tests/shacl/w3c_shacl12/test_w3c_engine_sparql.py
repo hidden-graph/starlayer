@@ -1,5 +1,5 @@
 """The vendored W3C SHACL 1.2 ``tests/sparql`` Validate entries (component, node, property, pre-binding, targets) run
-through the native engine (``starlayer.shacl_engine``), SPARQL executed by StarLayer's own query layer. Rules and functions
+through the native engine (``starlayer.shacl.engine``), SPARQL executed by StarLayer's own query layer. Rules and functions
 are out of scope for now.
 
 No known-failure xfails while the engine is being built: a failing entry is a to-do. The pass rate per directory is the
@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
+from starlayer.shacl.engine import validate
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset

@@ -10,8 +10,8 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
-from starlayer.shacl_engine.terms import RDF as OXRDF
-from starlayer.shacl_engine.terms import text, to_engine
+from starlayer.shacl.engine.terms import RDF as OXRDF
+from starlayer.shacl.engine.terms import text, to_engine
 from tests.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")

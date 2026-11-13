@@ -1,4 +1,4 @@
-"""SPARQL text helpers for ``run.py`` and ``shacl_engine.oxigraph_view``: the ``VERSION`` prologue directive (SPARQL 1.2 Query
+"""SPARQL text helpers for ``run.py`` and ``shacl.engine.oxigraph_view``: the ``VERSION`` prologue directive (SPARQL 1.2 Query
 sec 4.3: ``Prologue ::= ( BaseDecl | PrefixDecl | VersionDecl )*``, in any order, repeatable) and pre-binding a variable by a
 ``VALUES`` clause when the engine's ``substitutions`` cannot.
 

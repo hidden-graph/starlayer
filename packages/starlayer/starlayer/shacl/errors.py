@@ -9,9 +9,9 @@
 
 from __future__ import annotations
 
-from starlayer.shacl_engine.expressions import EvaluationFailure
-from starlayer.shacl_engine.meta import MetaShaclError
-from starlayer.shacl_engine.plan import ShapeError
-from starlayer.shacl_engine.rules import RuleError
+from starlayer.shacl.engine.expressions import EvaluationFailure
+from starlayer.shacl.engine.meta import MetaShaclError
+from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.rules import RuleError
 
 __all__ = ["EvaluationFailure", "MetaShaclError", "RuleError", "ShapeError"]

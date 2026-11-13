@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl_engine import validate
-from starlayer.shacl_engine.expressions import EvaluationFailure
-from starlayer.shacl_engine.terms import NS as Namespace
-from starlayer.shacl_engine.terms import text
+from starlayer.shacl.engine import validate
+from starlayer.shacl.engine.expressions import EvaluationFailure
+from starlayer.shacl.engine.terms import NS as Namespace
+from starlayer.shacl.engine.terms import text
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")

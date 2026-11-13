@@ -26,8 +26,8 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
-from starlayer.shacl_engine.graphs import new_graph
-from starlayer.shacl_engine.terms import RDF, RDFS, SH, engine_view
+from starlayer.shacl.engine.graphs import new_graph
+from starlayer.shacl.engine.terms import RDF, RDFS, SH, engine_view
 
 _SH_NS = str(SH)
 
