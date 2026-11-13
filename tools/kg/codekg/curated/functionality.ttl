@@ -376,7 +376,7 @@ cur:cap-shacl-2 a slkg:Capability ;
     slkg:implementsSpecification tr:shacl12-sparql, tr:shacl12-node-expr, tr:shacl12-inference-rules, tr:shacl12-ui, tr:shacl12-profiling ;
     rdfs:comment "Support for additional SHACL 1.2 specifications: SPARQL Extensions, Node Expressions, Rules, User Interfaces, Profiling." ;
     slkg:implementedByIdentifier 
-        "starlayer.shacl.shacl_profiling",
+        "starlayer.shacl.profiling",
         "starlayer.shacl.validator.StarShaclSchema.apply_rules",
         "starlayer.shacl.validator.StarShaclSchema.evaluate" .
 
@@ -415,8 +415,8 @@ cur:cap-shacl-6 a slkg:Capability ;
     slkg:implementsSpecification tr:shacl12-ui ;
     rdfs:comment "SHACL 1.2 User Interfaces widget selection: choose a widget for each property of a shape using the specification's scoring and matcher rules." ;
     slkg:implementedByIdentifier 
-        "starlayer.shacl.ui_widget_selection.select_widget",
-        "starlayer.shacl.ui_widget_selection.select_widgets",
+        "starlayer.shacl.ui.widget_selection.select_widget",
+        "starlayer.shacl.ui.widget_selection.select_widgets",
         "starlayer.shacl.validator.StarShaclSchema.select_widgets" .
 
 cur:cap-shacl-7 a slkg:Capability ;
@@ -519,6 +519,6 @@ cur:cap-other-5 a slkg:Capability ;
     slkg:implementsSpecification tr:dx-prof ;
     rdfs:comment "StarLayer declares its conformance in one profiles document: StarLayer profiles for SKOS, Manchester Syntax, SPARQL 1.2 Query, SRL and SHACL 1.2, each a profile of the public specification, plus the declared conformance of the graph, SPARQL and SHACL packages. Data validated against a shapes graph is reported as conforming to the matching profile and, through it, to the specification." ;
     slkg:implementedByIdentifier 
-        "starlayer.shacl.conformance.declared_conformance",
+        "starlayer.shacl.profiling.conformance.declared_conformance",
         "starlayer.shacl.profiling.derive_conforms_to",
         "starlayer.starontology.__init__.get_conformance_profiles" .

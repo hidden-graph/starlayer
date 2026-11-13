@@ -504,7 +504,7 @@ class StarShaclSchema:
         Raises:
             ValueError: no shapes graph is bound, or a ``focus_node`` is given with no data graph available.
         """
-        from starlayer.shacl.ui_widget_selection import select_widgets
+        from starlayer.shacl.ui.widget_selection import select_widgets
 
         shapes_graph = self._resolve_shacl_graph(shapes_graph_resource)
         if shapes_graph is None:

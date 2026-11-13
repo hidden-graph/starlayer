@@ -1,4 +1,4 @@
-"""starlayer.shacl.conformance.declared_conformance() - a multi-resource,
+"""starlayer.shacl.profiling.conformance.declared_conformance() - a multi-resource,
 SHACL-1.2-Profiling-S3-style self-declaration: one graph with three real
 resources (starlayer.shacl, starlayer.graph, starlayer.sparql), each
 asserting dcterms:conformsTo only the spec documents specific to what
@@ -10,7 +10,7 @@ predicate exists) rather than only prose - see this module's own
 docstring for exactly which two cases qualify and why the rest don't."""
 
 import pyoxigraph as ox
-from starlayer.shacl import conformance
+from starlayer.shacl.profiling import conformance
 
 DCTERMS = conformance.DCTERMS
 RDFS = conformance.NS("http://www.w3.org/2000/01/rdf-schema#")
@@ -94,7 +94,7 @@ def test_claims_stay_on_their_own_resource_not_cross_contaminated() -> None:
 def test_shacl_resource_matches_declared_conformance_profile() -> None:
     """declared_conformance_profile() returns exactly the starlayer.shacl
     resource's triples from the same profiles document."""
-    from starlayer.shacl.shacl_profiling import declared_conformance_profile
+    from starlayer.shacl.profiling import declared_conformance_profile
 
     graph = conformance.declared_conformance()
     declared = set(declared_conformance_profile())

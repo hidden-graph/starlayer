@@ -125,7 +125,7 @@ def test_extract_subgraph():
 
 def test_derive_conforms_to():
     from starlayer.shacl import validate
-    from starlayer.shacl.profiling import derive_conforms_to
+    from starlayer.shacl.profiling.profiles import derive_conforms_to
 
     report = validate(_ox(DATA.replace("ex:bob a ex:Person", "ex:bob a ex:Thing")), shacl_graph=_ox(SHAPES)).report_graph
     got = derive_conforms_to(report, data_graph="http://example.org/d", shapes_graph="http://example.org/s")
@@ -159,7 +159,7 @@ def test_starontology_getters_return_oxgraphs():
 
 
 def test_declared_conformance_profile_and_expr_validation_getters():
-    from starlayer.shacl.profiling import declared_conformance_profile
+    from starlayer.shacl.profiling.profiles import declared_conformance_profile
     from starlayer.sparql import expr_validation
 
     assert_ox(declared_conformance_profile(), max_prefixes=15)

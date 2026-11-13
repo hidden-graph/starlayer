@@ -147,7 +147,7 @@ def declared_conformance() -> Any:
 
     A fresh graph on every call (matching ``declared_conformance_profile()``'s
     own "never share one mutable graph object across callers" convention -
-    see ``starlayer/shacl/profiling.py``).
+    see ``starlayer/shacl/profiling/profiles.py``).
     """
     from starlayer import starontology
 

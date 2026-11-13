@@ -1,14 +1,14 @@
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
-from starlayer.shacl.ui_widget_selection import select_widget, select_widgets
+from starlayer.shacl.ui.widget_selection import select_widget, select_widgets
 
 EX = NS("http://example.org/")
 SHUI = NS("http://www.w3.org/ns/shacl-ui/")
 
 # SHACL 1.2 User Interfaces (https://www.w3.org/TR/shacl12-ui/) Section 3
 # "Scoring System" - the widget *selection* algorithm, built entirely on
-# the public starlayer.shacl.validate() (see ui_widget_selection.py's own
+# the public starlayer.shacl.validate() (see ui/widget_selection.py's own
 # module docstring). shui:WidgetAcceptMatcher has no formal upstream
 # shape and is actively contested (w3c/data-shapes#1249) as of the
 # 2026-10-16 re-check - these tests deliberately exercise matchers with

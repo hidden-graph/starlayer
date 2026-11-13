@@ -182,7 +182,7 @@ def test_unsupported_input_still_names_the_argument():
 
 
 def test_select_widgets_with_oxigraph_graphs():
-    from starlayer.shacl.ui_widget_selection import select_widgets
+    from starlayer.shacl.ui.widget_selection import select_widgets
     from tests.terms import NamedNode
 
     shapes = """
@@ -200,7 +200,7 @@ def test_select_widgets_with_oxigraph_graphs():
 
 def test_derive_conforms_to_takes_oxigraph_reports():
     from starlayer.shacl import validate
-    from starlayer.shacl.profiling import derive_conforms_to
+    from starlayer.shacl.profiling.profiles import derive_conforms_to
 
     result = validate(_ox(StarLayerGraph, FIXED_DATA), shacl_graph=_ox(StarLayerGraph, SHAPES), data_graph_iri=EX + "data", shapes_graph_iri=EX + "shapes")
     report = _ox(StarLayerGraph, "")

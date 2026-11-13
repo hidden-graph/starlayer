@@ -57,7 +57,7 @@ def test_dirlang_preflabel_conforms():
 def test_ui_baseline_treats_dirlangstring_like_langstring():
     import pyoxigraph as ox
     from starlayer import starontology as so
-    from starlayer.shacl.ui_widget_selection import select_widgets
+    from starlayer.shacl.ui.widget_selection import select_widgets
 
     t = ("@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> . "
          "@prefix : <http://e/> .\n")

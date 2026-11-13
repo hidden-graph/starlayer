@@ -347,7 +347,7 @@ class TestPublishedFiles:
         unfiltered mapping graph works fine here - derive_conforms_to()'s
         own WHERE clause already filters by the exact shapes-graph IRI."""
         from starlayer.shacl import StarShaclSchema
-        from starlayer.shacl.shacl_profiling import derive_conforms_to
+        from starlayer.shacl.profiling import derive_conforms_to
         from tests.terms import DCTERMS, NamedNode
 
         data = StarLayerGraph()

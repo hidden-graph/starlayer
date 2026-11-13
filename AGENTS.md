@@ -4,7 +4,7 @@ starlayer is a platform for building Python semantic apps on the RDF 1.2 / SPARQ
 
 ## Layout
 - `packages/starlayer/starlayer/` is the library (its `pyproject.toml` is next to it in `packages/starlayer/`):
-  `graph/` (`StarLayerGraph` / `StarLayerDataset` over Oxigraph, interop, set operations, Manchester syntax), `sparql/` (SPARQL 1.2, `sqe:` query trees, SRL rules), `shacl/` (SHACL 1.2 validation, rules, UI widget selection, the engine in `shacl/engine/`, and `shacl/conformance.py`, the library's declared conformance),
+  `graph/` (`StarLayerGraph` / `StarLayerDataset` over Oxigraph, interop, set operations, Manchester syntax), `sparql/` (SPARQL 1.2, `sqe:` query trees, SRL rules), `shacl/` (SHACL 1.2 validation, rules, UI widget selection, the engine in `shacl/engine/`, and `shacl/profiling/conformance.py`, the library's declared conformance),
   `starontology/` (bundled ontologies and shapes, as `.ttl` files in a folder per vocabulary). The code-KG tooling is outside the package, in `tools/kg/codekg/` (repo-only). `packages/starlayer-reasoning/` is the plugin that holds everything needing rdflib or a reasoner (the rdflib conversion, OWL-RL, OWL-DL); `packages/starlayer-kg/` is the code-KG data package.
 - Tests: `packages/starlayer/tests/{graph,sparql,shacl,starontology,kg}/`. Guides: `docs/guides/*.ipynb` (index: `docs/guides/README.md`). Build scripts: `scripts/`. What changed in the RDF, SPARQL and SHACL drafts and their test suites since we last looked: `python scripts/check_spec_drift.py` (records in `docs/working/spec-dates.json`).
 - Each of `graph/`, `sparql/`, `shacl/` has a `CLAUDE.md` starting with "Rules that bite". Read that block, not the design history below it.

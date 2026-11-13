@@ -1230,7 +1230,7 @@ class TestShuiWellFormedness:
         """stsh:WidgetScoreShape (starontology.trig, 2026-10-16) -
         mirrors the upstream spec's own formal shui:WidgetScore shape,
         confirmed stable (unlike shui:WidgetAcceptMatcher, deliberately
-        left unconstrained - see starlayer.shacl.ui_widget_selection's
+        left unconstrained - see starlayer.shacl.ui.widget_selection's
         own module docstring)."""
         shapes = Graph()
         shapes.parse(

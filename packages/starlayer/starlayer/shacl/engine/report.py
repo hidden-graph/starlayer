@@ -88,7 +88,7 @@ def annotate_provenance(
         report.add((node, SH.usedConfiguration, config))
     if data_graph_iri is not None and shapes_graph_iri is not None:
         # Profiling S5.5: lazy import, a pure function over the report graph (not the old validator)
-        from starlayer.shacl.profiling import derive_conforms_to
+        from starlayer.shacl.profiling.profiles import derive_conforms_to
 
         report += derive_conforms_to(report, specification_graph=specification_graph)
 

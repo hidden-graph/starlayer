@@ -1197,7 +1197,7 @@ The validation report as text, built on first read and cached.
 
 ---
 
-<a id="entity-starlayer-shacl-ui_widget_selection-WidgetReport"></a>
+<a id="entity-starlayer-shacl-ui-widget_selection-WidgetReport"></a>
 ### `WidgetReport`  _(class)_
 
 What the SHACL UI draft makes an implementation tell its application (Section 3, "Scoring System"): "When a widget that the
@@ -1208,7 +1208,7 @@ the application implements matched). ``shape_node`` is the property shape, ``rol
 unimplemented widget's score, ``focus_node`` the node when the choice was for one. How the report is handled or presented is left
 to the application.
 
-**Source:** [starlayer.shacl.ui_widget_selection.WidgetReport](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L319-L333)
+**Source:** [starlayer.shacl.ui.widget_selection.WidgetReport](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L319-L333)
 
 ---
 
@@ -1239,7 +1239,7 @@ Covers ``sh:TripleRule`` and ``sh:SPARQLRule`` (shape-attached, in rule sets, or
 
 ---
 
-<a id="entity-starlayer-shacl-profiling-declared_conformance_profile"></a>
+<a id="entity-starlayer-shacl-profiling-profiles-declared_conformance_profile"></a>
 ### `declared_conformance_profile`  _(function)_
 
 ```python
@@ -1255,11 +1255,11 @@ sharing one mutable graph object across callers.
 
 **Returns:** `Any` - A fresh ``StarLayerGraph`` containing the bundled conformance statement.
 
-**Source:** [starlayer.shacl.profiling.declared_conformance_profile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/profiling.py#L102-L118)
+**Source:** [starlayer.shacl.profiling.profiles.declared_conformance_profile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/profiling/profiles.py#L102-L118)
 
 ---
 
-<a id="entity-starlayer-shacl-profiling-derive_conforms_to"></a>
+<a id="entity-starlayer-shacl-profiling-profiles-derive_conforms_to"></a>
 ### `derive_conforms_to`  _(function)_
 
 ```python
@@ -1295,7 +1295,7 @@ different resource than ``shapes_graph``) - pass a graph relating
 
 **Returns:** `Any` - A new ``StarLayerGraph``. ``report_graph``/``specification_graph`` are read, never mutated.
 
-**Source:** [starlayer.shacl.profiling.derive_conforms_to](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/profiling.py#L148-L277)
+**Source:** [starlayer.shacl.profiling.profiles.derive_conforms_to](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/profiling/profiles.py#L148-L277)
 
 ---
 
@@ -1575,7 +1575,7 @@ Repetition paths stop on a cycle. Raises ``ShapeError`` for a path expression th
 
 ---
 
-<a id="entity-starlayer-shacl-ui_property_roles-property_shapes_for_role"></a>
+<a id="entity-starlayer-shacl-ui-property_roles-property_shapes_for_role"></a>
 ### `property_shapes_for_role`  _(function)_
 
 ```python
@@ -1597,11 +1597,11 @@ of ``shape_node`` (pyoxigraph or rdflib).
 
 **Returns:** `list[Any]`
 
-**Source:** [starlayer.shacl.ui_property_roles.property_shapes_for_role](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_property_roles.py#L47-L77)
+**Source:** [starlayer.shacl.ui.property_roles.property_shapes_for_role](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/property_roles.py#L47-L77)
 
 ---
 
-<a id="entity-starlayer-shacl-ui_widget_selection-select_widget"></a>
+<a id="entity-starlayer-shacl-ui-widget_selection-select_widget"></a>
 ### `select_widget`  _(function)_
 
 ```python
@@ -1668,11 +1668,11 @@ implementation MUST report this to the application". Without it nothing is repor
 
 **Returns:** `Any | None`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L358-L422)
+**Source:** [starlayer.shacl.ui.widget_selection.select_widget](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L358-L422)
 
 ---
 
-<a id="entity-starlayer-shacl-ui_widget_selection-select_widgets"></a>
+<a id="entity-starlayer-shacl-ui-widget_selection-select_widgets"></a>
 ### `select_widgets`  _(function)_
 
 ```python
@@ -1721,7 +1721,7 @@ when the choice is made.
 
 **Returns:** `dict[Any, Any]`
 
-**Source:** [starlayer.shacl.ui_widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui_widget_selection.py#L585-L653)
+**Source:** [starlayer.shacl.ui.widget_selection.select_widgets](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L585-L653)
 
 ---
 

@@ -19,7 +19,7 @@ from starlayer.shacl.engine.plan import SH, ShapeError
 from starlayer.shacl.engine.terms import RDF, XSD, BlankNode, Literal, NamedNode
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 from starlayer.shacl.engine.terms import text as term_text
-from starlayer.shacl.xpath_regex import xpath_regex_to_python
+from starlayer.shacl.engine.xpath_regex import xpath_regex_to_python
 
 _LINE_BREAK = re.compile(r"[\f\r\n\v]")
 

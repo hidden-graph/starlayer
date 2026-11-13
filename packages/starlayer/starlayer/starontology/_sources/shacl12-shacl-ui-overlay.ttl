@@ -221,7 +221,7 @@ stsh:RulesGroup a sh:PropertyGroup ;
 stsh:WidgetGroup a sh:PropertyGroup ;
 	sh:name "SHACL 1.2 UI Widgets"@en ;
 	sh:order 16 ;
-	sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui_widget_selection; property roles are not interpreted."@en .
+	sh:description "shui: vocabulary for form generation — widget/editor/viewer assignment and the built-in widget instances. Documents the vocabulary: validation ignores it; widget selection is implemented separately in starlayer.shacl.ui.widget_selection; property roles are not interpreted."@en .
 
 #############################################################################
 # Predicate rendering hints (sh:group / sh:order): Rules & SPARQL
@@ -1051,7 +1051,7 @@ stsh:WidgetScoreShape
 		sh:nodeKind sh:BlankNodeOrIRI ;           # shapesGraphShape-nodeKind: optional, per the upstream shape
 	] .
 
-# (shui:WidgetAcceptMatcher has no well-formedness shape on purpose: the upstream draft has none and the matcher is contested; see starlayer.shacl.ui_widget_selection.)
+# (shui:WidgetAcceptMatcher has no well-formedness shape on purpose: the upstream draft has none and the matcher is contested; see starlayer.shacl.ui.widget_selection.)
 
 # A configuration (SHACL UI 3.4): global settings, each at most once. The two preferences are lists (language tags; SHACL property paths).
 stsh:ConfigurationShape

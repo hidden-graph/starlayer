@@ -306,7 +306,7 @@ class TestValidateSpecificationGraphParameter:
     ont_graph/inference), so binding it at construction would make every
     validate() call on one schema instance always assert the same
     external-spec claim whether or not that caller wanted it. The real,
-    supported path is calling shacl_profiling.derive_conforms_to()
+    supported path is calling profiling.derive_conforms_to()
     explicitly, after validate() returns - see its own module docstring.
     sh:conformsTo (S5.5's first rule) is unaffected either way; it never
     depended on specification_graph. The bare module-level validate()
@@ -330,7 +330,7 @@ class TestValidateSpecificationGraphParameter:
             StarShaclSchema(shacl_graph=_shapes(), specification_graph=StarLayerGraph())
 
     def test_explicit_derive_conforms_to_after_validate_derives_dcterms_conforms_to(self) -> None:
-        from starlayer.shacl.shacl_profiling import derive_conforms_to
+        from starlayer.shacl.profiling import derive_conforms_to
 
         shapes_iri = NamedNode("http://example.org/graphs/shapes1")
         spec_iri = NamedNode("http://example.org/specs/my-spec")

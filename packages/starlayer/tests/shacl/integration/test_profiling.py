@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, shacl_profiling
+from starlayer.shacl import StarShaclSchema, profiling
 from tests.terms import RDF, RDFS, NamedNode, Namespace, lit
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -12,12 +12,12 @@ EX = Namespace("http://example.org/")
 
 def declared_conformance_profile():
     """The profile graph in rdflib terms, for asserting with rdflib vocabulary."""
-    return shacl_profiling.declared_conformance_profile()
+    return profiling.declared_conformance_profile()
 
 
 def derive_conforms_to(*args, **kwargs):
     """The derived triples in rdflib terms, for asserting with rdflib vocabulary."""
-    return shacl_profiling.derive_conforms_to(*args, **kwargs)
+    return profiling.derive_conforms_to(*args, **kwargs)
 
 
 _LIBRARY_IRI = NamedNode("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
@@ -81,7 +81,7 @@ def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -
     """The UI Profile is neither claimed nor excluded: the spec lists no
     members and states no conformance requirements for it, so a
     doesNotConformTo would assert more than the spec supports."""
-    from starlayer.shacl import conformance
+    from starlayer.shacl.profiling import conformance
 
     graph = declared_conformance_profile()
     ui = NamedNode("http://www.w3.org/ns/shacl/profile/ui")
@@ -91,10 +91,10 @@ def test_declared_conformance_profile_says_why_the_ui_profile_is_not_claimed() -
 
 
 def test_declared_conformance_profile_returns_independent_copies() -> None:
-    first = shacl_profiling.declared_conformance_profile()  # the StarLayerGraph itself: adding to it must not reach the next call
+    first = profiling.declared_conformance_profile()  # the StarLayerGraph itself: adding to it must not reach the next call
     first.add((_LIBRARY_IRI, DCTERMS.conformsTo, NamedNode("http://www.w3.org/ns/shacl/profile/ui")))
 
-    second = shacl_profiling.declared_conformance_profile()
+    second = profiling.declared_conformance_profile()
 
     assert (_LIBRARY_IRI, DCTERMS.conformsTo, NamedNode("http://www.w3.org/ns/shacl/profile/ui")) in first
     assert (_LIBRARY_IRI, DCTERMS.conformsTo, NamedNode("http://www.w3.org/ns/shacl/profile/ui")) not in second

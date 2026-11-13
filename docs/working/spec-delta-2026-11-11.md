@@ -135,7 +135,7 @@ IRI); it is accepted now, with rules for its own parts. `property_shapes_for_rol
 property shapes that play a role in the draft's order (qualified before direct, ascending `sh:order`; the triple annotation counts as
 qualified); it and `WidgetReport` are exported from `starlayer.shacl`. The term documentation lists all five roles. Label and language
 resolution (normative for renderers, they read the data graph and the language preferences) are not implemented: a proposal, not done. Guide 04d has a new subsection. (Original scope:) Widget selection must not offer an unimplemented widget and must report
-the case to the application (`shacl/ui_widget_selection.py`: decide how the report is surfaced, which is an API choice); read the
+the case to the application (`shacl/ui/widget_selection.py`: decide how the report is surfaced, which is an API choice); read the
 reworked search-query text (`shui:searchQuery` substitution, `$language` for `$uiLanguage`) and `shui:suggestedValues`. Keep our
 deterministic ordering: the spec now says SHOULD, so this is no change.
 

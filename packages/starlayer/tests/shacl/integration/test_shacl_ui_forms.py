@@ -18,7 +18,7 @@ from build_shacl_ui import (
 from rdflib.compare import to_isomorphic
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl.ui_widget_selection import select_widgets
+from starlayer.shacl.ui.widget_selection import select_widgets
 from tests.terms import RDF, XSD, NamedNode, lit
 
 from ._rdflib_view import rd

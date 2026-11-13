@@ -144,7 +144,7 @@ nl:04d-n13-editors a slkg:NotebookExample ;
     slkg:reviewedOn "2026-10-19"^^xsd:date ;
     rdfs:comment "Calls the select_widgets() function to pick an editor widget for each property of a shape." ;
     slkg:demonstratesIdentifier
-        "starlayer.shacl.ui_widget_selection.select_widgets" .
+        "starlayer.shacl.ui.widget_selection.select_widgets" .
 
 nl:04d-n45-schema-select a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04d-shacl-ui.ipynb" ;
@@ -158,12 +158,12 @@ nl:04d-n45-schema-select a slkg:NotebookExample ;
 nl:04e-96560f37 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04e-shacl-profiling.ipynb" ;
     slkg:cellId "96560f37" ;
-    slkg:cellHash "79707a32cf88203b" ;
-    slkg:reviewedOn "2026-11-10"^^xsd:date ;
-    rdfs:comment "Validates against a profile and then calls shacl_profiling.derive_conforms_to() explicitly to add the conformsTo statements from the report." ;
+    slkg:cellHash "6a73ecd23d25b3b5" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Validates against a profile and then calls profiling.derive_conforms_to() explicitly to add the conformsTo statements from the report." ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.profiling.derive_conforms_to",
-        "starlayer.shacl.shacl_profiling" .
+        "starlayer.shacl.profiling" .
 
 nl:04e-c2a7c429 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04e-shacl-profiling.ipynb" ;

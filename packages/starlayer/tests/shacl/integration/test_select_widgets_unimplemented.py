@@ -5,7 +5,7 @@ implementation does not implement matches, or when no widget matches, the implem
 import pytest
 from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
-from starlayer.shacl.ui_widget_selection import (
+from starlayer.shacl.ui.widget_selection import (
     SHUI,
     WidgetReport,
     select_widget,

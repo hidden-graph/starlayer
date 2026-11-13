@@ -1,6 +1,6 @@
 """The public namespace for SHACL 1.2 Profiling - `from starlayer.shacl
-import shacl_profiling` then `shacl_profiling.declared_conformance_profile`/
-`shacl_profiling.derive_conforms_to`.
+import profiling` then `profiling.declared_conformance_profile`/
+`profiling.derive_conforms_to`.
 
 A thin re-export of `profiling.py`'s own two functions - the real SHACL 1.2
 Profiling spec (https://www.w3.org/TR/shacl12-profiling/) implementation.
@@ -16,7 +16,10 @@ do with this SHACL document despite the shared English word "profile."
 
 from __future__ import annotations
 
-from starlayer.shacl.profiling import declared_conformance_profile, derive_conforms_to
+from starlayer.shacl.profiling.profiles import (
+    declared_conformance_profile,
+    derive_conforms_to,
+)
 
 __all__ = [
     "declared_conformance_profile",

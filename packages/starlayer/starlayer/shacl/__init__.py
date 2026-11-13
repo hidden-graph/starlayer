@@ -31,8 +31,8 @@ from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.shapes_graphs import shapes_graph_members
 from starlayer.shacl.subgraph_extraction import extract_subgraph
 from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
-from starlayer.shacl.ui_property_roles import property_shapes_for_role
-from starlayer.shacl.ui_widget_selection import (
+from starlayer.shacl.ui.property_roles import property_shapes_for_role
+from starlayer.shacl.ui.widget_selection import (
     WidgetReport,
     select_widget,
     select_widgets,
@@ -54,7 +54,7 @@ from starlayer.shacl.validator import (
 # Graph normalisation: normalize_to_starlayer_graph /
 # normalize_graph_inputs, StarLayerGraphProtocol / MutableStarLayerGraphProtocol.
 #
-# Still reached only through a submodule: `shacl_profiling` (Profiling's declared_conformance_profile() /
+# Still reached only through a submodule: `profiling` (Profiling's declared_conformance_profile() /
 # derive_conforms_to()); `engine` (evaluate_component() and friends, deprecated); `starontology.get_raw_url(name)`;
 # `StarShaclSchema.close_shape(shape)`, a method.
 

@@ -36,10 +36,10 @@ def test_all_matches_actual_module_exports() -> None:
     own submodules import it eagerly (so it was already order-dependent
     before ``sparql`` itself became unconditional - that only fixed
     ``sparql``'s own presence, not its transitive import's), and
-    ``conformance`` the same way again, since ``starlayer.shacl.conformance``'s
+    ``conformance`` the same way again, since ``starlayer.shacl.profiling.conformance``'s
     own ``declared_conformance()`` lazily imports
-    ``starlayer.shacl.shacl_profiling`` internally - whichever test file
-    happens to import ``starlayer.shacl.conformance`` first in a given session
+    ``starlayer.shacl.profiling`` internally - whichever test file
+    happens to import ``starlayer.shacl.profiling.conformance`` first in a given session
     (e.g. ``test_conformance.py``) is what binds it. ``codekg`` joins the
     list for the identical reason (2026-10-13): nothing in
     ``starlayer/__init__.py`` imports it, but the code-KG extractor's own
