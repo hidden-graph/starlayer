@@ -28,12 +28,20 @@ from starlayer.shacl.results import (
     ValidationResult,
 )
 from starlayer.shacl.shape_types import infer_types
-from starlayer.shacl.shapes_graphs import shapes_graph_members
+from starlayer.shacl.shapes_graphs import (
+    referenced_shapes,
+    rule_dependencies,
+    shapes_graph_members,
+)
 from starlayer.shacl.subgraph_extraction import extract_subgraph
 from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
 from starlayer.shacl.ui.property_roles import property_shapes_for_role
 from starlayer.shacl.ui.widget_selection import (
+    WidgetCondition,
     WidgetReport,
+    WidgetTrace,
+    WidgetTraceCandidate,
+    explain_widgets,
     select_widget,
     select_widgets,
 )
@@ -76,6 +84,10 @@ __all__ = [
     "select_widget",
     "select_widgets",
     "WidgetReport",
+    "WidgetCondition",
+    "WidgetTrace",
+    "WidgetTraceCandidate",
+    "explain_widgets",
     "StarLayerGraphProtocol",
     "MutableStarLayerGraphProtocol",
     "evaluate_expression",
@@ -83,6 +95,8 @@ __all__ = [
     "node_expression_operators",
     "infer_types",
     "shapes_graph_members",
+    "referenced_shapes",
+    "rule_dependencies",
     "path_values",
     "is_inverse",
     "sparql_query_problems",

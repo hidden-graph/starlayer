@@ -149,6 +149,47 @@ def referenced_shapes(graph: Any, starting_points: Any) -> set:
     return result
 
 
+def rule_dependencies(graph: Any, starting_points: Any) -> set:
+    """What the rules of ``starting_points`` need in order to run, beyond ``referenced_shapes``: the named shapes in a list given to a rule's
+    ``sh:condition``, the prefix declarations their SPARQL uses (``sh:prefixes`` and ``sh:declare`` values, and the ``owl:imports`` of those, transitively),
+    and, for an instance of a rule template, the template (its class) and the classes it specialises. Each of those nodes' own
+    references are followed too. Named nodes only, starting points not included, a blank node comes with the description of the node that holds it."""
+    start = set(starting_points)
+    found: set = set()
+    pending = list(start | referenced_shapes(graph, start))
+    seen: set = set(pending)
+    found |= set(pending) - start
+
+    def take(node: Any) -> None:
+        if isinstance(node, (BlankNode, Literal)) or node in seen:
+            return
+        seen.add(node)
+        found.add(node)
+        pending.append(node)
+        for extra in referenced_shapes(graph, [node]):
+            if extra not in seen:
+                seen.add(extra)
+                found.add(extra)
+                pending.append(extra)
+
+    while pending:
+        node = pending.pop()
+        for condition in graph.objects(node, SH.condition):
+            if (condition, RDF.first, None) in graph or condition == RDF.nil:
+                for member in _items(graph, condition):
+                    take(member)
+        for predicate in (SH.prefixes, SH.declare, OWL.imports):
+            for value in graph.objects(node, predicate):
+                take(value)
+        for kind in graph.objects(node, RDF.type):
+            if isinstance(kind, NamedNode) and not kind.value.startswith(str(SH)):
+                take(kind)
+        if (node, RDF.type, SH.SPARQLRuleTemplate) in graph:
+            for parent in graph.objects(node, RDFS.subClassOf):
+                take(parent)
+    return found - start
+
+
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
     """The ``sh:ShapesGraph`` module ``shapes_graph_iri`` of ``shapes_graph`` as a new standalone graph; ``None`` when the
     IRI is not typed ``sh:ShapesGraph`` there. ``include_referenced=True`` also copies the named shapes the members refer

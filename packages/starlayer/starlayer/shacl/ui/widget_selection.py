@@ -651,3 +651,89 @@ def select_widgets(
         b.out(prop): b.out(_select(prop, b.focus_node, data_graph, shapes, scoring, role, batch, implemented_set, report))
         for prop in properties
     }
+
+
+@dataclass(frozen=True)
+class WidgetCondition:
+    """One condition a widget candidate has: its ``kind`` (``"score"``: the ``shui:WidgetScore``; ``"matcher"``: the widget's ``shui:WidgetAcceptMatcher``) and ``node``.
+
+    ``shape`` is the node's ``shui:shapesGraphShape`` and ``shape_holds`` whether the property shape conforms to it (``None`` without one).
+    ``data_shape`` is its ``shui:dataGraphShape`` and ``data_holds`` how many of the sampled focus nodes conform, as ``(conforming, sampled)``
+    (``None`` without a data shape, a sample or a data graph). ``blocks`` says what stops the candidate: ``"shape"`` (the shape condition fails),
+    ``"data"`` (a data condition stands alone, which cannot be checked without a node) or ``None``."""
+
+    kind: str
+    node: Any
+    shape: Any | None
+    shape_holds: bool | None
+    data_shape: Any | None
+    data_holds: tuple[int, int] | None
+    blocks: str | None
+
+
+@dataclass(frozen=True)
+class WidgetTraceCandidate:
+    """A widget the selection considers, in rank order. ``scored`` is False for a widget the shape names that the scoring graph does not
+    score (it ranks with ``default_score``). ``outcome``: ``"rejected"`` (a condition blocks it), ``"per node"`` (data conditions beside
+    shape conditions that hold: decided for each node) or ``"accepted"``."""
+
+    widget: Any
+    score: float
+    scored: bool
+    conditions: tuple[WidgetCondition, ...]
+    outcome: str
+
+
+@dataclass(frozen=True)
+class WidgetTrace:
+    """Why a property shape gets the widget it gets: ``named`` are the widgets the shape names itself (``shui:editor`` / ``shui:viewer``), ``default_score`` is
+    the score a named widget has when nothing scores it, and ``candidates`` are every widget considered, highest score first, with their conditions
+    and outcome. The winner is the first candidate that is not rejected and, for a node, whose data conditions hold: ``select_widget`` makes that call."""
+
+    shape_node: Any
+    role: str
+    default_score: float
+    named: tuple[Any, ...]
+    candidates: tuple[WidgetTraceCandidate, ...]
+
+
+def explain_widgets(
+    *, shape_node: Any, shapes_graph: Any, scoring_graph: Any | None = None, role: Role, data_graph: Any | None = None,
+    focus_nodes: Any = (), sample: int = 3,
+) -> WidgetTrace:
+    """Every candidate widget for the property shape ``shape_node`` in ``role`` with the steps ``select_widget`` takes (SHACL UI 3.2 to 3.5), for a report.
+
+    Nothing is chosen here; ``select_widget`` and ``select_widgets`` choose, and this says why. ``data_graph`` and ``focus_nodes`` are optional: with
+    them, a data condition is tried on the first ``sample`` focus nodes and the count is in ``WidgetCondition.data_holds`` (a report of what is known,
+    not a check: a data shape that cannot run is left unsaid). ``ValueError`` for a role that is not ``"editor"`` or ``"viewer"`` and for a
+    ``shape_node`` that is not in the shapes graph."""
+    if role not in ("editor", "viewer"):
+        raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
+    b = _Boundary(shape_node, None, shapes_graph, scoring_graph)
+    shapes, scoring, shape = b.shapes_graph, b.scoring_graph, b.shape_node
+    if (shape, None, None) not in shapes:
+        raise ValueError(f"shape_node {shape_node!r} is not a subject in the shapes graph")
+    data = None if data_graph is None else _as_ox_graph(data_graph)
+    focus = [_term_in(n) for n in list(focus_nodes)[:sample]] if data is not None else []
+    named_predicate = SHUI.editor if role == "editor" else SHUI.viewer
+    candidates = []
+    for score, widget, score_node in _ranked_with_declared(shape, shapes, scoring, role):
+        conditions = []
+        for kind, node in (("score", score_node), ("matcher", _find_matcher(widget, scoring))):
+            if node is None:
+                continue
+            shape_condition = next(scoring.objects(node, SHUI.shapesGraphShape), None)
+            data_condition = next(scoring.objects(node, SHUI.dataGraphShape), None)
+            holds = _shape_condition_holds(node, shape_node=shape, shapes_graph=shapes, scoring_graph=scoring) if shape_condition is not None else None
+            counted = None
+            if data_condition is not None and focus:
+                try:
+                    counted = (sum(1 for f in focus if _data_condition_holds(node, focus_node=f, data_graph=data, shapes_graph=shapes, scoring_graph=scoring)), len(focus))
+                except Exception:  # noqa: BLE001  (a report of what is known, not a check)
+                    counted = None
+            blocks = "shape" if holds is False else ("data" if data_condition is not None and shape_condition is None else None)
+            conditions.append(WidgetCondition(kind, node, shape_condition, holds, data_condition, counted, blocks))
+        outcome = "rejected" if any(c.blocks for c in conditions) else ("per node" if any(c.data_shape is not None for c in conditions) else "accepted")
+        candidates.append(WidgetTraceCandidate(widget, score, score_node is not None, tuple(conditions), outcome))
+    named = tuple(sorted((w for w in shapes.objects(shape, named_predicate) if isinstance(w, ox.NamedNode)), key=lambda w: w.value))
+    return WidgetTrace(shape, role, default_widget_score(shapes), named, tuple(candidates))

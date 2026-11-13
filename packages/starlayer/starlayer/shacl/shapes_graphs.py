@@ -19,7 +19,7 @@ from typing import Any
 from starlayer.shacl.engine import shapes_graphs as _engine
 from starlayer.shacl.engine.terms import RDF, SH, engine_view, text, to_engine
 
-__all__ = ["shapes_graphs", "graph_nodes", "shapes_graph_members"]
+__all__ = ["shapes_graphs", "graph_nodes", "shapes_graph_members", "referenced_shapes", "rule_dependencies"]
 
 
 def shapes_graphs(graph: Any) -> list[Any]:
@@ -65,3 +65,13 @@ def referenced_shapes(graph: Any, starting_points: Any) -> set[Any]:
     Cycles are fine.
     """
     return _engine.referenced_shapes(engine_view(graph, "graph"), [to_engine(n) for n in starting_points])
+
+
+def rule_dependencies(graph: Any, starting_points: Any) -> set[Any]:
+    """What the rules of ``starting_points`` need to run, beyond ``referenced_shapes``: the shapes in a list given to a rule's
+    ``sh:condition``, the prefix declarations their SPARQL uses (``sh:prefixes``, ``sh:declare`` and the ``owl:imports`` of those, transitively),
+    and, for an instance of a rule template, the template and the classes it specialises. Those nodes' own references are followed too.
+
+    Named nodes only, starting points not included; with ``referenced_shapes`` it is the set to copy to make shapes and their rules
+    self-contained."""
+    return _engine.rule_dependencies(engine_view(graph, "graph"), [to_engine(n) for n in starting_points])

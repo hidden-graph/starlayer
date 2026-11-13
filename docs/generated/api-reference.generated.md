@@ -1676,6 +1676,20 @@ The validation report as text, built on first read and cached.
 
 ---
 
+<a id="entity-starlayer-shacl-ui-widget_selection-WidgetCondition"></a>
+### `WidgetCondition`  _(class)_
+
+One condition a widget candidate has: its ``kind`` (``"score"``: the ``shui:WidgetScore``; ``"matcher"``: the widget's ``shui:WidgetAcceptMatcher``) and ``node``.
+
+``shape`` is the node's ``shui:shapesGraphShape`` and ``shape_holds`` whether the property shape conforms to it (``None`` without one).
+``data_shape`` is its ``shui:dataGraphShape`` and ``data_holds`` how many of the sampled focus nodes conform, as ``(conforming, sampled)``
+(``None`` without a data shape, a sample or a data graph). ``blocks`` says what stops the candidate: ``"shape"`` (the shape condition fails),
+``"data"`` (a data condition stands alone, which cannot be checked without a node) or ``None``.
+
+**Source:** [starlayer.shacl.ui.widget_selection.WidgetCondition](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L657-L671)
+
+---
+
 <a id="entity-starlayer-shacl-ui-widget_selection-WidgetReport"></a>
 ### `WidgetReport`  _(class)_
 
@@ -1688,6 +1702,28 @@ unimplemented widget's score, ``focus_node`` the node when the choice was for on
 to the application.
 
 **Source:** [starlayer.shacl.ui.widget_selection.WidgetReport](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L319-L333)
+
+---
+
+<a id="entity-starlayer-shacl-ui-widget_selection-WidgetTrace"></a>
+### `WidgetTrace`  _(class)_
+
+Why a property shape gets the widget it gets: ``named`` are the widgets the shape names itself (``shui:editor`` / ``shui:viewer``), ``default_score`` is
+the score a named widget has when nothing scores it, and ``candidates`` are every widget considered, highest score first, with their conditions
+and outcome. The winner is the first candidate that is not rejected and, for a node, whose data conditions hold: ``select_widget`` makes that call.
+
+**Source:** [starlayer.shacl.ui.widget_selection.WidgetTrace](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L688-L697)
+
+---
+
+<a id="entity-starlayer-shacl-ui-widget_selection-WidgetTraceCandidate"></a>
+### `WidgetTraceCandidate`  _(class)_
+
+A widget the selection considers, in rank order. ``scored`` is False for a widget the shape names that the scoring graph does not
+score (it ranks with ``default_score``). ``outcome``: ``"rejected"`` (a condition blocks it), ``"per node"`` (data conditions beside
+shape conditions that hold: decided for each node) or ``"accepted"``.
+
+**Source:** [starlayer.shacl.ui.widget_selection.WidgetTraceCandidate](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L675-L684)
 
 ---
 
@@ -1836,6 +1872,36 @@ are all pyoxigraph terms (no rdflib needed), and as rdflib / StarLayer terms as 
 **Returns:** `list`
 
 **Source:** [starlayer.shacl.node_expression_api.evaluate_expression](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/node_expression_api.py#L19-L54)
+
+---
+
+<a id="entity-starlayer-shacl-ui-widget_selection-explain_widgets"></a>
+### `explain_widgets`  _(function)_
+
+```python
+def explain_widgets(*, shape_node: Any, shapes_graph: Any, scoring_graph: Any | None=None, role: Role, data_graph: Any | None=None, focus_nodes: Any=(), sample: int=3) -> WidgetTrace
+```
+
+Every candidate widget for the property shape ``shape_node`` in ``role`` with the steps ``select_widget`` takes (SHACL UI 3.2 to 3.5), for a report.
+
+Nothing is chosen here; ``select_widget`` and ``select_widgets`` choose, and this says why. ``data_graph`` and ``focus_nodes`` are optional: with
+them, a data condition is tried on the first ``sample`` focus nodes and the count is in ``WidgetCondition.data_holds`` (a report of what is known,
+not a check: a data shape that cannot run is left unsaid). ``ValueError`` for a role that is not ``"editor"`` or ``"viewer"`` and for a
+``shape_node`` that is not in the shapes graph.
+
+**Parameters:**
+
+- `shape_node: Any`
+- `shapes_graph: Any`
+- `scoring_graph: Any | None = None`
+- `role: Role`
+- `data_graph: Any | None = None`
+- `focus_nodes: Any = ()`
+- `sample: int = 3`
+
+**Returns:** `WidgetTrace`
+
+**Source:** [starlayer.shacl.ui.widget_selection.explain_widgets](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/widget_selection.py#L700-L739)
 
 ---
 
@@ -2077,6 +2143,57 @@ of ``shape_node`` (pyoxigraph or rdflib).
 **Returns:** `list[Any]`
 
 **Source:** [starlayer.shacl.ui.property_roles.property_shapes_for_role](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/ui/property_roles.py#L47-L77)
+
+---
+
+<a id="entity-starlayer-shacl-shapes_graphs-referenced_shapes"></a>
+### `referenced_shapes`  _(function)_
+
+```python
+def referenced_shapes(graph: Any, starting_points: Any) -> set[Any]
+```
+
+The named shapes that ``starting_points`` refer to, directly or through further shapes: what a self-contained
+extract must also hold (GitHub issue #19).
+
+Follows ``sh:node``, ``sh:property``, ``sh:not``, ``sh:qualifiedValueShape``, ``sh:reifierShape``, ``sh:someValue``,
+``sh:memberShape`` and the shapes in the lists of ``sh:and``, ``sh:or`` and ``sh:xone``. Blank nodes are walked through
+but not returned (they come with a shape's concise bounded description); a starting point is not part of the result.
+Cycles are fine.
+
+**Parameters:**
+
+- `graph: Any`
+- `starting_points: Any`
+
+**Returns:** `set[Any]`
+
+**Source:** [starlayer.shacl.shapes_graphs.referenced_shapes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/shapes_graphs.py#L58-L67)
+
+---
+
+<a id="entity-starlayer-shacl-shapes_graphs-rule_dependencies"></a>
+### `rule_dependencies`  _(function)_
+
+```python
+def rule_dependencies(graph: Any, starting_points: Any) -> set[Any]
+```
+
+What the rules of ``starting_points`` need to run, beyond ``referenced_shapes``: the shapes in a list given to a rule's
+``sh:condition``, the prefix declarations their SPARQL uses (``sh:prefixes``, ``sh:declare`` and the ``owl:imports`` of those, transitively),
+and, for an instance of a rule template, the template and the classes it specialises. Those nodes' own references are followed too.
+
+Named nodes only, starting points not included; with ``referenced_shapes`` it is the set to copy to make shapes and their rules
+self-contained.
+
+**Parameters:**
+
+- `graph: Any`
+- `starting_points: Any`
+
+**Returns:** `set[Any]`
+
+**Source:** [starlayer.shacl.shapes_graphs.rule_dependencies](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/shapes_graphs.py#L70-L77)
 
 ---
 

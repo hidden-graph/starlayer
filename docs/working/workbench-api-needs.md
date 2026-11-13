@@ -55,3 +55,28 @@ Public, in `starlayer.shacl`: `select_widget(s)(implemented=, on_report=)` and `
 offer a widget it does not implement and must report that one matched or none did), and `property_shapes_for_role(shape_node=, role=,
 shapes_graph=)` (the property shapes of a node shape that play a `shui:propertyRole`, in the draft's order). The label and language
 resolution of the draft stay with the application. The SHACL UI namespace is now `http://www.w3.org/ns/shacl-ui/` (slash).
+
+## Added 2026-11-13 (what the workbench's `_starlayer.py` did that the library should do)
+
+Read from `graph-workbench/src/graph_workbench/_starlayer.py` (workbench `c95f541`). Public now, so the workbench can drop its own versions:
+
+| The workbench had | Public in StarLayer |
+|---|---|
+| `literal(value, datatype, lang, direction)`, `py_value(term)` | `starlayer.graph.literal`, `starlayer.graph.to_python` (an ill-formed lexical form is a `ValueError`, where `py_value` gave `None`) |
+| `parse_literal(text)`, `parse_term(text)` (through a throwaway graph) | `starlayer.graph.parse_term(text, prefixes=None)`: one IRI, blank node, literal or triple term of Turtle 1.2 text; a prefixed name needs `prefixes` |
+| its own `Namespace` (with `in` and `.term()`), and `SKOS`, `SCHEMA`, `SHUI` | `starlayer.graph.Namespace` now has both; `SKOS`, `SCHEMA`, `DCTERMS`, `DC`, `FOAF`, `PROV`, `DCAT` and `SHUI` are in `starlayer.graph.namespaces` (one definition each) |
+| `set_triple` | `graph.set(triple)` |
+| `_cells`, `_chain`, `list_with`, `list_without` (list editing in `edits.py`) | `graph.add_list(items, head=None)`, `graph.remove_list(head)`, `graph.set_list(subject, predicate, items)`; reading stays `graph.items(head)` |
+| the closure loops in `graph_classes`, `shape_closure` | `graph.transitive_objects(subject, predicate)` / `transitive_subjects(predicate, object)` |
+| additions and deletions as sets (`Change`, `turtlediff`) | `starlayer.graph.GraphDelta` (`apply`, `inverse`, `then`) and `diff(old, new)`; the undo stack and the Turtle drawing stay in the app |
+| `widget_trace` (imports six private functions of `shacl.ui.widget_selection`) | `starlayer.shacl.explain_widgets(...) -> WidgetTrace` (candidates, their `WidgetCondition`s and outcome); the app's `known` (rendered widgets) stays in the app |
+| `shape_closure` | `starlayer.shacl.referenced_shapes` (it already follows `sh:rule`, `sh:condition`, `sh:target` and the node expressions that take a shape; the starting shapes are not part of its result) |
+| `rule_closure` | `starlayer.shacl.rule_dependencies`: what `referenced_shapes` leaves out for rules (the shapes in a `sh:condition` list, `sh:prefixes` / `sh:declare` / `owl:imports`, rule templates and the classes they specialise) |
+
+Already in the library, and the workbench keeps its own copy: `copy_graph` is `graph.copy()`, `list_items` is `graph.items`, `describe_nodes` is close to
+`graph.cbd` (which takes one node), `expand_name` is `graph.expand_curie` (the app adds the standard prefixes), `n3` / `qname` are `graph.qname_term` / `compute_qname`. The
+`prefix_options` workaround for `used_prefixes()` binding an `nsN` prefix does not apply to the current library (checked 2026-11-13: it does not change the graph).
+
+Not moved: the data index (`DataIndex`: classes with counts, per-class property use with datatypes, kinds and most values). It overlaps with `graph.derive_shape()`, and
+a shared profile of a graph is a design of its own; see `docs/design/future_enhancements.md`. Not moved either, because they are the application: the `*_options` pickers, forms, the
+Turtle drawer and diff, the undo history and the web layer.
