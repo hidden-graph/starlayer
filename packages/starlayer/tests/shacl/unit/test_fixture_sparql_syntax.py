@@ -28,7 +28,7 @@ from tests.terms import Namespace
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
 _HERE = os.path.dirname(__file__)
-_ASSETS_DIR = os.path.join(_HERE, "..", "..", "..", "..", "scripts", "assets")
+_ASSETS_DIR = os.path.join(_HERE, "..", "..", "..", "starlayer", "starontology", "_sources")
 _FIXTURES_DIR = os.path.join(_HERE, "..", "fixtures", "shapes")
 
 

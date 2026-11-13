@@ -1,7 +1,7 @@
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 #
 # Our additions to the W3C Data Shapes Working Group's SHACL-for-SHACL (the pinned copy in
-# scripts/assets/vendor/w3c-shacl-shacl.ttl). scripts/build_meta_shapes.py merges the two by ADDING: nothing in the
+# packages/starlayer/starlayer/starontology/_sources/vendor/w3c-shacl-shacl.ttl). scripts/build_meta_shapes.py merges the two by ADDING: nothing in the
 # Working Group's file is deleted or edited.
 #
 # This file holds:
@@ -21,7 +21,7 @@
 # Working Group fixed them (2026-10-12); test_wg_overrides.py fails when it fixes another, so its entry can go.
 #
 # Also includes 4 gaps found 2026-08-01 by diffing against the official
-# SHACL 1.2 WG's own draft meta-shapes (scripts/assets/vendor/
+# SHACL 1.2 WG's own draft meta-shapes (packages/starlayer/starlayer/starontology/_sources/vendor/
 # w3c-shacl-shacl.ttl - see docs/shacl12-gap-matrix.md's "Official SHACL 1.2
 # meta-shapes (shsh:) comparison" section for the full writeup): sh:
 # DataGraph/owl:imports well-formedness, sh:in/sh:xone satisfiability
@@ -209,7 +209,7 @@ stsh:NewPredicateShapes
 
 #############################################################################
 # Gaps closed 2026-08-01 by comparing against the official SHACL 1.2 WG
-# draft meta-shapes (scripts/assets/vendor/w3c-shacl-shacl.ttl,
+# draft meta-shapes (packages/starlayer/starlayer/starontology/_sources/vendor/w3c-shacl-shacl.ttl,
 # see docs/shacl12-gap-matrix.md's "Official SHACL 1.2 meta-shapes (shsh:)
 # comparison" section) - none of these are among the 11 new predicates
 # this file otherwise tracks; found only by diffing against the official

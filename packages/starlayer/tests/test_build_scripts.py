@@ -7,19 +7,6 @@ from starlayer.graph.oxgraph import StarLayerDataset as Dataset
 from tests.terms import RDF, RDFS, NamedNode, lit
 
 
-def test_build_starontology_declares_a_namespace_the_registry_does_not_know(tmp_path, monkeypatch) -> None:
-    import build_starontology as build
-
-    (tmp_path / "x.ttl").write_text(
-        '@prefix foaf: <http://xmlns.com/foaf/0.1/> .\n<http://example.org/a> foaf:name "x" .\n', encoding="utf-8"
-    )
-    monkeypatch.setattr(build, "_DIR", tmp_path)
-    monkeypatch.setattr(build, "_filenames", lambda: ["x.ttl"])
-    text = build._assemble_trig()  # used to produce a TriG with an undeclared ns1: prefix
-    graphs = build._trig_graphs(text)  # parses only if every prefix is declared
-    assert (NamedNode("http://example.org/a"), NamedNode("http://xmlns.com/foaf/0.1/name"), lit("x")) in next(iter(graphs.values()))
-
-
 def test_build_starontology_ttl_output_declares_unregistered_prefixes(tmp_path) -> None:
     import build_starontology as build
 

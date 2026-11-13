@@ -2,16 +2,16 @@
 ``starlayer.shacl.meta_validate()`` checks shapes graphs against.
 
 Build-time only: the library never imports this. It reads the stored result,
-``starontology/shacl12-shacl.ttl``, which ``scripts/build_starontology.py``
+``starontology/shacl/shacl12-shacl.ttl``, which ``scripts/build_starontology.py``
 regenerates from ``build_meta_shapes_graph()`` below.
 
 The graph is the W3C Data Shapes Working Group's own SHACL-for-SHACL
-(``assets/vendor/w3c-shacl-shacl.ttl``, a pinned verbatim copy, see
-``assets/vendor/VENDORED_FROM.md``) **plus additions only - nothing in the
+(``_sources/vendor/w3c-shacl-shacl.ttl``, a pinned verbatim copy, see
+``_sources/vendor/VENDORED_FROM.md``) **plus additions only - nothing in the
 Working Group's file is deleted or edited**, so a newer upstream copy can be
 dropped in and compared. The additions are:
 
-1. ``assets/shacl12-validation-shapes.ttl``: rules for the SHACL 1.2 predicates
+1. ``_sources/shacl12-validation-shapes.ttl``: rules for the SHACL 1.2 predicates
    the Working Group's file has no rule for yet (``sh:someValue``,
    ``sh:uniqueValuesFor``, ``sh:subsetOf``, ``sh:rootClass``, ``sh:reifierShape``,
    ``sh:reificationRequired``, SPARQL, rules, ...), our ``stsh:`` shapes, and
@@ -46,7 +46,7 @@ TRUE = ox.Literal("true", datatype=XSD.boolean)
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHSH = Namespace("http://www.w3.org/ns/shacl-shacl#")
 
-_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "assets")
+_ASSETS_DIR = os.path.join(os.path.dirname(__file__), "..", "packages", "starlayer", "starlayer", "starontology", "_sources")
 VALIDATION_SHAPES_PATH = os.path.join(_ASSETS_DIR, "shacl12-validation-shapes.ttl")
 WG_SHAPES_PATH = os.path.join(_ASSETS_DIR, "vendor", "w3c-shacl-shacl.ttl")
 WG_VENDORED_FROM_PATH = os.path.join(_ASSETS_DIR, "vendor", "VENDORED_FROM.md")

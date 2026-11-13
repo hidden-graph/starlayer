@@ -1,7 +1,6 @@
 """tests/unit/test_starontology.py
 
-starontology is pure data (one TriG dataset, starontology.trig, holding
-every registered entry including shacl_shacl as of 2026-10-12) behind a
+starontology is pure data (one Turtle file per registered entry, in a folder per vocabulary) behind a
 thin registry (get_ontology_list()/get_ontology_graph()) -
 this suite confirms every registered entry loads and parses, and the
 registry's own list/lookup behavior is correct. The underlying
@@ -260,7 +259,7 @@ class TestGetResourceIri:
     def test_shacl_shacl_has_a_real_resource_iri(self):
         """shacl_shacl gets a real, stable IRI here too - used by
         starlayer-profiles.ttl's slp:Shacl as its validation artifact.
-        A real stored named graph in starontology.trig since 2026-10-12,
+        A real stored file since 2026-10-12,
         and a real standalone published file since 2026-10-14 (see
         TestGetRawUrl/TestPublishedFiles below) - this IRI's own path
         predates both and needed no change for either."""
@@ -280,7 +279,7 @@ class TestGetRawUrl:
     """get_raw_url() is deliberately a different URL from
     get_resource_iri() - a raw.githubusercontent.com URL for actually
     fetching real content, not the resource's own stable blob-URL
-    identity (which doubles as starontology.trig's own internal named-
+    identity (which was once the named-
     graph context IRI and must never change - see get_raw_url()'s own
     docstring for why these are two separate concerns)."""
 
@@ -318,9 +317,7 @@ class TestGetRawUrl:
 
 class TestPublishedFiles:
     """Every get_raw_url() entry's implied path must be a real .ttl file on
-    disk (those files are the source; get_ontology_graph() reads them), and
-    starontology.trig, which scripts/build_starontology.py assembles from
-    them, must hold an isomorphic named graph for each. A filesystem/parse
+    disk (those files are the source; get_ontology_graph() reads them). A filesystem/parse
     check, not a live network call - consistent with this project's "no
     network in the normal suite" convention."""
 
@@ -340,41 +337,6 @@ class TestPublishedFiles:
         for name in self._all_names():
             path = self._published_path(name)
             assert path.is_file(), f"{name}: no published file at {path}"
-
-    @pytest.mark.deferred
-    def test_trig_matches_the_ttl_files(self):
-        """Fails if a .ttl was edited without rebuilding the trig:
-        run scripts/build_starontology.py."""
-        from pathlib import Path
-
-        from rdflib import Dataset
-        from rdflib.compare import to_isomorphic
-        from starlayer.graph import StarLayerGraph as Graph
-
-        trig = Path(starontology.__file__).parent / "starontology.trig"
-        ds = Dataset()
-        ds.parse(str(trig), format="trig")
-        in_trig = {}
-        for g in ds.graphs():
-            if len(g):
-                copy = Graph()
-                for triple in g:
-                    copy.add(triple)
-                in_trig[str(g.identifier)] = copy
-
-        for name in self._all_names():
-            iri = (
-                starontology.get_resource_iri(name).value
-                if name != "starlayer_profiles"
-                else starontology._GITHUB_BLOB_BASE + starontology._PROFILES_FILENAME
-            )
-            live = _rdflib(
-                starontology.get_conformance_profiles()
-                if name == "starlayer_profiles"
-                else starontology.get_ontology_graph(name)
-            )
-            assert iri in in_trig, f"{name}: no named graph {iri} in starontology.trig"
-            assert to_isomorphic(in_trig[iri]) == to_isomorphic(live), f"{name}: starontology.trig is stale"
 
     def test_end_to_end_chain_actually_derives_dcterms_conforms_to(self):
         """The real motivating workflow: validate against a starontology
@@ -420,14 +382,14 @@ class TestPublishedFiles:
 
 
 _TTL_FILENAME = {
-    "manchester_owl": "manchester-ast-ontology.ttl",
-    "manchester_shacl": "manchester_shapes.ttl",
-    "skos_owl": "skos-ontology.ttl",
-    "skos_shacl": "skos_shapes.ttl",
-    "sqe_owl": "sqe-ontology.ttl",
-    "sqe_shacl": "sqe_shapes.ttl",
-    "srl_owl": "srl-ontology.ttl",
-    "srl_shacl": "srl_shapes.ttl",
+    "manchester_owl": "manchester/manchester-ast-ontology.ttl",
+    "manchester_shacl": "manchester/manchester_shapes.ttl",
+    "skos_owl": "skos/skos-ontology.ttl",
+    "skos_shacl": "skos/skos_shapes.ttl",
+    "sqe_owl": "sqe/sqe-ontology.ttl",
+    "sqe_shacl": "sqe/sqe_shapes.ttl",
+    "srl_owl": "srl/srl-ontology.ttl",
+    "srl_shacl": "srl/srl_shapes.ttl",
 }
 
 
@@ -547,6 +509,6 @@ class TestShaclVocabulary:
         import re
         from pathlib import Path
 
-        assets = Path(__file__).resolve().parents[5] / "scripts" / "assets" / "vendor"
+        assets = Path(starontology.__file__).parent / "_sources" / "vendor"
         recorded = re.search(r"w3c-shacl\.ttl.*?SHA-256 of the file: `([0-9a-f]{64})`", (assets / "VENDORED_FROM.md").read_text(), re.S).group(1)
         assert hashlib.sha256((assets / "w3c-shacl.ttl").read_bytes()).hexdigest() == recorded

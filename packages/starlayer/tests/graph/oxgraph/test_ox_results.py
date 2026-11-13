@@ -246,7 +246,7 @@ def test_manchester_tree_functions():
 
 
 def test_skos_validate():
-    from starlayer.starontology import skos
+    from tests import skos
 
     data = _ox("@prefix skos: <http://www.w3.org/2004/02/skos/core#> . <http://e/c> a skos:Concept ; skos:prefLabel 'c'@en .")
     ok, report, _text = skos.skos_validate(data)

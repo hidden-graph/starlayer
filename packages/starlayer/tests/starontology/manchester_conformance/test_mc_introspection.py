@@ -37,14 +37,14 @@ def _sha(path: Path) -> str:
 def test_snapshot_matches_live_file(name):
     """Fails when the live vocabulary/shapes change without a deliberate snapshot refresh (see
     snapshots/SNAPSHOT_FROM.md); the diff of the snapshot is then part of the review."""
-    assert _sha(HERE / "snapshots" / name) == _sha(LIVE / name), (
+    assert _sha(HERE / "snapshots" / name) == _sha(LIVE / "manchester" / name), (
         f"{name} changed in starontology/ - review the change, then refresh snapshots/{name} "
         "and its hash in SNAPSHOT_FROM.md"
     )
 
 
 def _ontology_terms() -> set[str]:
-    g = _load(LIVE / "manchester-ast-ontology.ttl")
+    g = _load(LIVE / "manchester" / "manchester-ast-ontology.ttl")
     return {
         s.value[len(MANCH):]
         for s in set(g.subjects()) if isinstance(s, URIRef) and s.value.startswith(MANCH)
@@ -55,7 +55,7 @@ def _terms_used_by_code() -> set[str]:
     """Terms the encoder/decoder reference: ``MANCH.Name`` attribute use, plus quoted tag names that are
     looked up as ``MANCH[tag]`` (expression/data-range tags are dispatched that way). The quoted-name
     scan only counts names that are real ontology terms, so it cannot invent a use."""
-    source = (LIVE / "manchester.py").read_text(encoding="utf-8")
+    source = (LIVE / "manchester" / "__init__.py").read_text(encoding="utf-8")
     attr = set(re.findall(r"\bMANCH\.([A-Za-z_][A-Za-z0-9_]*)", source))
     quoted = set(re.findall(r"['\"]([A-Za-z][A-Za-z0-9]*)['\"]", source))
     return attr | (quoted & _ontology_terms())
@@ -69,7 +69,7 @@ def test_every_term_the_code_uses_is_defined_in_the_ontology():
 
 @pytest.mark.manchester_conformance
 def test_every_ontology_term_is_used_by_the_code():
-    g = _load(LIVE / "manchester-ast-ontology.ttl")
+    g = _load(LIVE / "manchester" / "manchester-ast-ontology.ttl")
     # Abstract grouping classes (only ever superclasses) are reached through RDFS reasoning, not named in code.
     abstract = {
         c.value[len(MANCH):]
@@ -89,8 +89,8 @@ def test_orphan_registry_has_no_stale_entries():
 def test_every_concrete_class_has_a_shape_or_inherits_one():
     """Every non-abstract manch: class must be covered by some SHACL shape (directly, or via a
     superclass the shapes target with RDFS reasoning on, as ``manchester_validate`` does)."""
-    onto = _load(LIVE / "manchester-ast-ontology.ttl")
-    shapes = _load(LIVE / "manchester_shapes.ttl")
+    onto = _load(LIVE / "manchester" / "manchester-ast-ontology.ttl")
+    shapes = _load(LIVE / "manchester" / "manchester_shapes.ttl")
     targeted = {o.value for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#targetClass"))}
     # classes mentioned in sh:class / sh:or lists also count as constrained
     sh_class = {o.value for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#class"))}

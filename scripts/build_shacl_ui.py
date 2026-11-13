@@ -1,4 +1,4 @@
-"""scripts/build_shacl_ui.py - builds ``starontology/shacl12-shacl-ui.ttl`` (registry entry ``shacl_shacl_ui``), the UI companion of
+"""scripts/build_shacl_ui.py - builds ``starontology/shacl/shacl12-shacl-ui.ttl`` (registry entry ``shacl_shacl_ui``), the UI companion of
 ``shacl_shacl``, and checks that it is complete.
 
 Build-time only: the library never imports this. It reads the stored result, which ``scripts/build_starontology.py``
@@ -6,7 +6,7 @@ regenerates from ``build_shacl_ui_graph()`` below.
 
 The registered file is two things:
 
-1. the hand-edited source, ``assets/shacl12-shacl-ui-overlay.ttl``: the property groups, ``sh:group`` / ``sh:order`` on each
+1. the hand-edited source, ``_sources/shacl12-shacl-ui-overlay.ttl``: the property groups, ``sh:group`` / ``sh:order`` on each
    SHACL predicate, the form flags (``stsh:nodeFormField``, ``stsh:propertyFormField``, ``stsh:formMaxCount``,
    ``stsh:nodePrimary``) and two small forms written by hand (a property group's, a shapes graph's);
 2. the **form shapes** generated from it: ``stsh:NodeShapeForm`` and ``stsh:PropertyShapeForm``, each a node shape whose
@@ -46,7 +46,7 @@ from starlayer.shacl_engine.terms import boolean, integer, literal  # noqa: E402
 BNode = ox.BlankNode
 URIRef = ox.NamedNode
 
-OVERLAY_PATH = Path(__file__).resolve().parent / "assets" / "shacl12-shacl-ui-overlay.ttl"
+OVERLAY_PATH = _PACKAGES_STARLAYER / "starlayer" / "starontology" / "_sources" / "shacl12-shacl-ui-overlay.ttl"
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
 SHUI = Namespace("http://www.w3.org/ns/shacl-ui/")

@@ -1,4 +1,4 @@
-"""Tests for starontology.skos / skos-ontology.ttl.
+"""Tests for the bundled SKOS ontology and shapes (starontology/skos/).
 
 Unlike the manch:/salg: vocabularies, SKOS needs no encode/decode/round-trip
 layer - a SKOS thesaurus is already plain RDF the moment it's authored - so
@@ -18,7 +18,7 @@ import owlrl
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl_engine.terms import NS
-from starlayer.starontology import skos as ss
+from tests import skos as ss
 from tests.terms import RDF, SKOS, BlankNode, Namespace, lit, rdf_list
 
 

@@ -1,8 +1,8 @@
 """scripts/check_wg_shacl_shacl.py - is our pinned copy of the W3C Working Group's SHACL-for-SHACL still the latest?
 
-Fetches the upstream file and compares it with ``assets/vendor/w3c-shacl-shacl.ttl``. Exits 0 if they are identical, 1 if
+Fetches the upstream file and compares it with ``_sources/vendor/w3c-shacl-shacl.ttl``. Exits 0 if they are identical, 1 if
 upstream has moved (printing what changed), 2 if the check could not be made. Needs network access, so it is not part of
-the test run: run it by hand, or on a schedule, and follow ``assets/vendor/VENDORED_FROM.md`` when it reports a change.
+the test run: run it by hand, or on a schedule, and follow ``_sources/vendor/VENDORED_FROM.md`` when it reports a change.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ UPSTREAM_COMMITS = (
     "https://api.github.com/repos/w3c/data-shapes/commits"
     "?sha=gh-pages&path=shacl12-vocabularies/shacl-shacl.ttl&per_page=3"
 )
-PINNED = os.path.join(os.path.dirname(__file__), "assets", "vendor", "w3c-shacl-shacl.ttl")
+PINNED = os.path.join(os.path.dirname(__file__), "..", "packages", "starlayer", "starlayer", "starontology", "_sources", "vendor", "w3c-shacl-shacl.ttl")
 
 
 def _get(url: str) -> bytes:
@@ -46,7 +46,7 @@ def main() -> int:
     sys.stdout.writelines(
         difflib.unified_diff(pinned.splitlines(True), upstream.splitlines(True), "pinned", "upstream", n=2)
     )
-    print("\nTo update: see scripts/assets/vendor/VENDORED_FROM.md")
+    print("\nTo update: see packages/starlayer/starlayer/starontology/_sources/vendor/VENDORED_FROM.md")
     return 1
 
 

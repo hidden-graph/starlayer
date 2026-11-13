@@ -1,7 +1,7 @@
 """Meta-validation: check a shapes graph against SHACL-SHACL, run by this engine (dogfooding).
 
 The meta-shapes are the project's stored ``shacl12-shacl.ttl`` (``starontology`` entry ``shacl_shacl``: the pinned W3C
-SHACL-SHACL plus ``scripts/assets/shacl12-validation-shapes.ttl``, built by ``scripts/build_meta_shapes.py``), read through
+SHACL-SHACL plus ``packages/starlayer/starlayer/starontology/_sources/shacl12-validation-shapes.ttl``, built by ``scripts/build_meta_shapes.py``), read through
 ``starlayer.shacl.meta_shapes.load_meta_shapes_graph`` exactly as the old preflight does, plus the parameter-value shapes
 (SPARQL Extensions 4.2.1) and any ``extra`` graphs (``meta_shapes_extra``). Only warnings and infos are tolerated, as in the
 old preflight (``allow_warnings=True``).

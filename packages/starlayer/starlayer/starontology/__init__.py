@@ -33,21 +33,11 @@ own concern, genuinely different per vocabulary -
 `starlayer.sparql.srl.srl_validate()` for `srl:` lives
 outside this subpackage entirely.
 
-`starontology.manchester`/`starontology.skos` are the exceptions - real
-logic for the `manch:`/`skos:` vocabularies (parse/serialize/validate for
-`manch:`, just validate for `skos:`, which needs no encode/decode layer at
-all), since validating (or, for `manch:`, editing) a vocabulary against/as
-its own structure is an ontology-management concern in its own right, not
-a `starlayer.graph`/`.sparql`/`.ontology` one. `srl:` is expected to join
-them here eventually for the
-same reason, once it's separable from the sibling `starlayer.sparql`
-package's shared internals it currently depends on. So: this top-level
-module stays data-only, but a named submodule (`starontology.manchester`/
-`.skos`, and later `.srl`) can hold real logic when the vocabulary itself
-needs more than a loader - see each submodule's own docstring for its full
-reasoning (and, for `starontology.manchester`, the circular-import
-discipline its logic follows - `starontology.skos` doesn't need that, since
-it never touches `starlayer.graph` at all).
+`starontology.manchester` is the exception: real logic for the `manch:` vocabulary (parse, serialize, validate and edit), since
+validating or editing a vocabulary against its own structure is an ontology-management concern in its own right. Every other
+vocabulary is data only: a SKOS graph, for example, is validated with
+``validate(data, shacl_graph=get_ontology_graph("skos_shacl"), allow_infos=True)``. See the submodule's own docstring for its
+circular-import discipline.
 
 **What the loaders return.** ``get_ontology_graph(name)`` and ``get_conformance_profiles()`` return a fresh `StarLayerGraph` (pyoxigraph
 terms; only the prefixes the graph's IRIs use). None of the registered entries carries RDF 1.2 content (triple terms,
@@ -121,21 +111,19 @@ copy, changes nothing at run time until that script is re-run; a test fails
 while the stored copy and a fresh build disagree.
 The build code is not part of the installed library.
 
-**One Turtle file per entry, a TriG copy for convenience.** Every registered
-entry, and the profiles document (see below), is one ``.ttl`` file in this
-directory, and those files are the source. ``get_ontology_graph()`` parses
+**One Turtle file per entry, grouped by vocabulary.** Every registered
+entry is one ``.ttl`` file in a folder per vocabulary (``manchester/``, ``skos/``, ``sqe/``, ``srl/``, ``spexpr/``,
+``shacl/``: the ontology and its shapes together), and the profiles document (see below) is ``starlayer-profiles.ttl``
+in this directory. Those files are the source; ``_sources/`` holds what the generated ones are built from (not shipped). ``get_ontology_graph()`` parses
 only the file it is asked for, once, and caches it (``_file_graph()``);
 ``_named_graph(context_iri)`` copies its triples into a fresh ``StarLayerGraph`` per
 call, which is what every public function below returns. Each entry's
 identity is the GitHub-blob-URL resource IRI ``get_resource_iri()`` mints
-for it, which is also its ``.../<filename>`` file, so every
+for it, which is also its ``.../<folder>/<filename>`` file, so every
 ``prof:isProfileOf`` triple and every caller's own
-``validate(shapes_graph_resource=...)`` usage keeps working. Two files are
-generated, not hand-edited: ``shacl12-shacl.ttl`` and ``skos-ontology.ttl``
-(see ``scripts/build_starontology.py``). ``starontology.trig`` holds the same
-graphs as named graphs in a single file, for tooling that wants everything
-at once; the build script regenerates it and a test fails if it drifts from
-the ``.ttl`` files, but nothing in the library reads it.
+``validate(shapes_graph_resource=...)`` usage keeps working. Four files are
+generated, not hand-edited: ``shacl/shacl12-shacl.ttl``, ``shacl/shacl12-vocabulary.ttl``, ``shacl/shacl12-shacl-ui.ttl`` and
+``skos/skos-ontology.ttl`` (from ``skos/skos.rdf``; see ``scripts/build_starontology.py``).
 
 **``get_conformance_profiles()``**: StarLayer defines its own profiles
 (``slp:Manchester``, ``slp:Skos``, ``slp:SparqlQuery``, ``slp:SparqlRL``,
@@ -190,16 +178,11 @@ _HERE = Path(__file__).parent
 # Every registered ontology/shapes entry, and the profiles document, is one
 # Turtle file in this directory (the file named in _FILENAME_BY_NAME below).
 # Those files are the source: edit them directly, except the two generated
-# ones (shacl12-shacl.ttl, skos-ontology.ttl), which scripts/ rebuilds.
+# ones (the shacl12-* files, skos-ontology.ttl), which scripts/ rebuilds.
 # Each is parsed on first use and cached, so asking for one entry never
-# parses the others. starontology.trig, the same graphs in one TriG file, is
-# generated from these files by scripts/build_starontology.py as a
-# convenience for tooling that wants everything at once; nothing here reads
-# it.
-_DATASET_TTL_PATH = _HERE / "starontology.trig"
+# parses the others.
 
-# Prefixes bound onto every graph this module hands out (and written into the
-# header of starontology.trig). Callers rely on them being present.
+# Prefixes bound onto every graph this module hands out. Callers rely on them being present.
 _PREFIXES: dict[str, str] = {
     "conformance": "https://github.com/hidden-graph/starlayer/ns/conformance#",
     "dcterms": "http://purl.org/dc/terms/",
@@ -231,29 +214,29 @@ _PREFIXES: dict[str, str] = {
 # to compute _resource_iri() below (the same GitHub-blob-URL identity this
 # project uses elsewhere), not to open a file directly.
 _FILENAME_BY_NAME: dict[str, str] = {
-    "manchester_owl": "manchester-ast-ontology.ttl",
-    "manchester_shacl": "manchester_shapes.ttl",
-    "skos_owl": "skos-ontology.ttl",
-    "skos_shacl": "skos_shapes.ttl",
-    "sqe_owl": "sqe-ontology.ttl",
-    "sqe_shacl": "sqe_shapes.ttl",
-    "srl_owl": "srl-ontology.ttl",
-    "srl_shacl": "srl_shapes.ttl",
-    "spexpr_owl": "spexpr-ontology.ttl",
-    "spexpr_shacl": "spexpr_shapes.ttl",
+    "manchester_owl": "manchester/manchester-ast-ontology.ttl",
+    "manchester_shacl": "manchester/manchester_shapes.ttl",
+    "skos_owl": "skos/skos-ontology.ttl",
+    "skos_shacl": "skos/skos_shapes.ttl",
+    "sqe_owl": "sqe/sqe-ontology.ttl",
+    "sqe_shacl": "sqe/sqe_shapes.ttl",
+    "srl_owl": "srl/srl-ontology.ttl",
+    "srl_shacl": "srl/srl_shapes.ttl",
+    "spexpr_owl": "spexpr/spexpr-ontology.ttl",
+    "spexpr_shacl": "spexpr/spexpr_shapes.ttl",
     # shacl_shacl gets a real resource IRI too (used by
     # starlayer-profiles.ttl's own prof:isProfileOf entry for it -
     # see get_conformance_profiles()'s docstring) - a generated .ttl at this
     # filename, loaded via the shared _load() like every other entry.
-    "shacl_shacl": "shacl12-shacl.ttl",
+    "shacl_shacl": "shacl/shacl12-shacl.ttl",
     # The SHACL 1.2 vocabulary (the W3C WG's shacl.ttl): what the sh: terms are, for reasoning about types. Generated.
-    "shacl_vocabulary": "shacl12-vocabulary.ttl",
+    "shacl_vocabulary": "shacl/shacl12-vocabulary.ttl",
     # Companions of shacl_shacl and the SHACL UI widget selection (GitHub issues #12 and #10). Hand-edited files.
-    "shacl_shacl_ui": "shacl12-shacl-ui.ttl",
-    "shacl_ui_baseline": "shacl-ui-baseline.ttl",
-    "shacl_shacl_ui_scores": "shacl12-shacl-ui-scores.ttl",
+    "shacl_shacl_ui": "shacl/shacl12-shacl-ui.ttl",
+    "shacl_ui_baseline": "shacl/shacl-ui-baseline.ttl",
+    "shacl_shacl_ui_scores": "shacl/shacl12-shacl-ui-scores.ttl",
     # What the structure of a shapes graph entails about it: rules that add the shape types (GitHub issues #24, #27, #28).
-    "shacl_shacl_rules": "shacl12-shacl-rules.ttl",
+    "shacl_shacl_rules": "shacl/shacl12-shacl-rules.ttl",
 }
 
 # The ontology-shapes profile mapping's own filename/named-graph identity -
@@ -614,7 +597,7 @@ _GITHUB_BLOB_BASE = "https://github.com/hidden-graph/starlayer/blob/main/package
 # real content; raw.githubusercontent.com does. Deliberately a second,
 # separate base rather than changing _GITHUB_BLOB_BASE itself - the blob
 # value is also each entry's resource identity (see _resource_iri()'s own
-# callers, and the named graphs in starontology.trig), so changing it would
+# callers), so changing it would
 # silently break the identities already asserted in
 # starlayer-profiles.ttl's own prof:isProfileOf triples. Standard
 # Linked Data move: a resource's IRI need not be the same URL you fetch a

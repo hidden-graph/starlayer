@@ -46,13 +46,13 @@ slp:Manchester a prof:Profile ;
         a prof:ResourceDescriptor ;
         rdfs:comment "OWL 2 Manchester Syntax's own internal AST as RDF (manch:) - frames/clauses/class- and property-expressions/data-ranges, one level upstream of the compiled OWL RDF mapping." ;
         rdfs:label "manchester_owl" ;
-        prof:hasArtifact starontology:manchester-ast-ontology.ttl ;
+        prof:hasArtifact starontology:manchester\/manchester-ast-ontology.ttl ;
         prof:hasRole role:schema
     ], [
         a prof:ResourceDescriptor ;
         rdfs:comment "SHACL shapes validating a manch: AST graph's own structural well-formedness." ;
         rdfs:label "manchester_shacl" ;
-        prof:hasArtifact starontology:manchester_shapes.ttl ;
+        prof:hasArtifact starontology:manchester\/manchester_shapes.ttl ;
         prof:hasRole role:validation
     ] ;
     prof:isProfileOf tr:owl2-manchester-syntax .
@@ -63,7 +63,7 @@ slp:Shacl a prof:Profile ;
         a prof:ResourceDescriptor ;
         rdfs:comment "The SHACL 1.2 meta-shapes: the shapes that check a shapes graph is well-formed." ;
         rdfs:label "shacl_shacl" ;
-        prof:hasArtifact starontology:shacl12-shacl.ttl ;
+        prof:hasArtifact starontology:shacl\/shacl12-shacl.ttl ;
         prof:hasRole role:validation
     ] ;
     prof:isProfileOf profile:rules, profile:sparql, profile:node-expr, profile:profiling, profile:core .
@@ -74,13 +74,13 @@ slp:Skos a prof:Profile ;
         a prof:ResourceDescriptor ;
         rdfs:comment "The W3C's own SKOS vocabulary (skos.rdf from the SKOS Reference, W3C Recommendation 2009), over the real skos: namespace." ;
         rdfs:label "skos_owl" ;
-        prof:hasArtifact starontology:skos-ontology.ttl ;
+        prof:hasArtifact starontology:skos\/skos-ontology.ttl ;
         prof:hasRole role:schema
     ], [
         a prof:ResourceDescriptor ;
         rdfs:comment "SHACL shapes for SKOS: the Reference's numbered conditions as validation shapes, plus form shapes carrying shui:editor/shui:viewer widgets chosen by each property's datatype." ;
         rdfs:label "skos_shacl" ;
-        prof:hasArtifact starontology:skos_shapes.ttl ;
+        prof:hasArtifact starontology:skos\/skos_shapes.ttl ;
         prof:hasRole role:validation
     ] ;
     prof:isProfileOf tr:skos-reference .
@@ -91,25 +91,25 @@ slp:SparqlQuery a prof:Profile ;
         a prof:ResourceDescriptor ;
         rdfs:comment "SHACL shapes validating an sqe: query-edit graph's own structural well-formedness, designed for UI-editor field-level validation, not just decode-ability." ;
         rdfs:label "sqe_shacl" ;
-        prof:hasArtifact starontology:sqe_shapes.ttl ;
+        prof:hasArtifact starontology:sqe\/sqe_shapes.ttl ;
         prof:hasRole role:validation
     ], [
         a prof:ResourceDescriptor ;
         rdfs:comment "The SPARQL expression/variable/property-path vocabulary (spexpr:) - the one slice sqe:/srl: both need identically." ;
         rdfs:label "spexpr_owl" ;
-        prof:hasArtifact starontology:spexpr-ontology.ttl ;
+        prof:hasArtifact starontology:spexpr\/spexpr-ontology.ttl ;
         prof:hasRole role:schema
     ], [
         a prof:ResourceDescriptor ;
         rdfs:comment "A SPARQL SELECT/ASK/CONSTRUCT query's own raw parse tree, pre-translateQuery, as a flat, human-readable RDF tree (sqe:) meant for hand/UI editing - deliberately not a resolved algebra." ;
         rdfs:label "sqe_owl" ;
-        prof:hasArtifact starontology:sqe-ontology.ttl ;
+        prof:hasArtifact starontology:sqe\/sqe-ontology.ttl ;
         prof:hasRole role:schema
     ], [
         a prof:ResourceDescriptor ;
         rdfs:comment "SHACL shapes validating an spexpr: expression/variable/path value's own well-formedness - imported by sqe:/srl: alike (each via owl:imports), not defined separately by either of them." ;
         rdfs:label "spexpr_shacl" ;
-        prof:hasArtifact starontology:spexpr_shapes.ttl ;
+        prof:hasArtifact starontology:spexpr\/spexpr_shapes.ttl ;
         prof:hasRole role:validation
     ] ;
     prof:isProfileOf tr:sparql12-query .
@@ -120,13 +120,13 @@ slp:SparqlRL a prof:Profile ;
         a prof:ResourceDescriptor ;
         rdfs:comment "SRL/SPARQL-RL's own rule-set abstract syntax as RDF (srl:) - a Datalog-style rules language, general-purpose and SHACL-independent." ;
         rdfs:label "srl_owl" ;
-        prof:hasArtifact starontology:srl-ontology.ttl ;
+        prof:hasArtifact starontology:srl\/srl-ontology.ttl ;
         prof:hasRole role:schema
     ], [
         a prof:ResourceDescriptor ;
         rdfs:comment "SHACL shapes validating an srl: rule-set graph's own structural well-formedness." ;
         rdfs:label "srl_shacl" ;
-        prof:hasArtifact starontology:srl_shapes.ttl ;
+        prof:hasArtifact starontology:srl\/srl_shapes.ttl ;
         prof:hasRole role:validation
     ] ;
     prof:isProfileOf tr:sparql12-rl .

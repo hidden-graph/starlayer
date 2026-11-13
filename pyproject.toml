@@ -12,13 +12,8 @@ authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
     "requests>=2.28",
-    # rdflib is NOT a core dependency: graphs, parsing, SPARQL query and update, SHACL validation and rules run on pyoxigraph.
-    # It is the `rdflib` extra (from_rdflib / to_rdflib, passing an rdflib graph where a function takes a graph). The Manchester
-    # parser, the SRL / salg / sqe trees and SHACL UI widget selection run on pyoxigraph alone. Manchester validation and
-    # inference need `reasoning`: owlrl computes the RDFS / OWL 2 RL closures on an rdflib copy.
-    # pyoxigraph is core: starlayer.shacl_engine and starlayer.graph.oxgraph import it at
-    # module level. 0.5.13 is the minimum supported Oxigraph: older versions abort the
-    # process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
+    # pyoxigraph is the whole engine: graphs, parsing, SPARQL query and update, SHACL validation and rules. 0.5.13 is the minimum
+    # supported Oxigraph: older versions abort the process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
     # docs/upstream-issues/oxigraph-upstream-issues.md and graph/backends/_versions.py.
     "pyoxigraph>=0.5.13",
 ]
@@ -39,26 +34,19 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# Optional rdflib: from_rdflib / to_rdflib and graph arguments that are rdflib graphs. Without it these raise an ImportError that
-# names this extra. `pip install starlayer[rdflib]`.
+# rdflib is not needed to use StarLayer; it is only for StarLayerGraph.from_rdflib / to_rdflib (whole graphs).
 rdflib = ["rdflib>=7.0"]
-# owlrl computes the RDFS and OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph, so
-# the extra includes rdflib.
-reasoning = ["owlrl>=6", "rdflib>=7.0"]
-# The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can
-# dispatch to - see starlayer/graph/graph/owl_dl.py and owl_dl_rustdl.py.
-# Neither is core: "hermit" also needs a real JVM on PATH that pip alone
-# can't provide, and "rustdl" is a different, non-strictly-better tradeoff
-# (no JVM, but not provably complete on full SROIQ) - both opt-in, symmetrically.
-hermit = ["rdflib>=7.0", "owlready2>=0.51"]
-rustdl = ["rdflib>=7.0", "rustdl>=0.4"]
-# The tests import rdflib (an oracle and the optional-feature tests) and owlrl in many places.
-test = ["pytest>=8.0", "hypothesis>=6", "rdflib>=7.0", "owlrl>=6"]
+# owlrl computes the OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph.
+reasoning = ["owlrl>=6", "starlayer[rdflib]"]
+# The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can dispatch to (graph/graph/owl_dl.py,
+# owl_dl_rustdl.py). Neither is core: "hermit" also needs a real JVM on PATH, and "rustdl" has no JVM but is not provably complete.
+hermit = ["starlayer[rdflib]", "owlready2>=0.51"]
+rustdl = ["starlayer[rdflib]", "rustdl>=0.4"]
+# The tests use rdflib (a bridge and an oracle) and owlrl.
+test = ["pytest>=8.0", "hypothesis>=6", "starlayer[reasoning]"]
 # Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
-notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "rdflib>=7.0", "owlrl>=6"]
-# pytest-benchmark for benchmarks-graph's own test_bench_graph.py
-# regression guard (outside `testpaths`, so a bare `pytest` never collects
-# them - see .github/workflows/benchmark.yml and each dir's own README).
+notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "starlayer[reasoning]"]
+# pytest-benchmark for the benchmarks-graph regression guard (outside `testpaths`; see .github/workflows/benchmark.yml).
 benchmark = ["pytest-benchmark>=5.0"]
 
 [project.urls]
@@ -76,10 +64,13 @@ where = ["packages/starlayer"]
 include = ["starlayer*"]
 
 [tool.setuptools.package-data]
-# Only what the library reads at run time. Not shipped: starontology.trig (a
-# generated copy of the .ttl files) and skos.rdf (build input). The code knowledge
+# Only what the library reads at run time: the profiles document and the ontology and shapes files in the vocabulary folders. Not
+# shipped: skos/skos.rdf (build input) and starontology/_sources (what the generated files are built from). The code knowledge
 # graph tooling lives in tools/kg, outside the package.
-starlayer = ["py.typed", "starontology/*.ttl"]
+starlayer = ["py.typed", "starontology/starlayer-profiles.ttl", "starontology/*/*.ttl"]
+
+[tool.setuptools.exclude-package-data]
+starlayer = ["starontology/_sources/*", "starontology/_sources/*/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["packages/starlayer/tests"]

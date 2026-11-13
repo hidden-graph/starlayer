@@ -8,7 +8,7 @@ watches them. This script reports three kinds of drift, from our own records:
    date of the draft at our last review), and against the date of the vendored copy of it (a snapshot, or a grammar table).
 2. **Test-suite pins.** Each vendored W3C suite is pinned to a commit (``PINNED_SHA`` in its download script). The commits and the files
    in the vendored subtrees that changed upstream since the pin.
-3. **Vendored vocabularies.** ``scripts/assets/vendor/w3c-*.ttl`` against the upstream file.
+3. **Vendored vocabularies.** ``packages/starlayer/starlayer/starontology/_sources/vendor/w3c-*.ttl`` against the upstream file.
 
 It changes nothing but ``--record``. After you have *read* what moved and dealt with it, ``--record`` writes the current dates to
 ``spec-dates.json``, so that the next run reports only what moved after that.
@@ -39,7 +39,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "packages" / "starlayer"
 DATES_FILE = ROOT / "docs" / "working" / "spec-dates.json"
 SNAPSHOTS = PACKAGE / "tests" / "graph" / "vendor" / "spec_snapshots"
-VENDOR = ROOT / "scripts" / "assets" / "vendor"
+VENDOR = ROOT / "packages" / "starlayer" / "starlayer" / "starontology" / "_sources" / "vendor"
 
 #: slug of https://www.w3.org/TR/<slug>/ -> (title, the vendored copy of it, if any: ("snapshot", file) or ("json", file))
 SPECS: dict[str, tuple[str, tuple[str, Path] | None]] = {
@@ -84,7 +84,7 @@ PINS: dict[str, tuple[str, str, list[Path], list[str]]] = {
     "w3c/data-shapes": (
         "w3c/data-shapes",
         "gh-pages",
-        [PACKAGE / "scripts" / "sync_w3c_shacl12_suite.py"],
+        [ROOT / "scripts" / "sync_w3c_shacl12_suite.py"],
         ["shacl12-test-suite/"],
     ),
 }
@@ -279,7 +279,7 @@ def check_vocabularies() -> list[dict]:
         try:
             upstream = _get(f"https://raw.githubusercontent.com/w3c/data-shapes/gh-pages/{upstream_path}")
             same = local.exists() and hashlib.sha256(upstream).digest() == hashlib.sha256(local.read_bytes()).digest()
-            row["status"] = "current" if same else "upstream differs from the vendored copy (see scripts/assets/vendor/VENDORED_FROM.md)"
+            row["status"] = "current" if same else "upstream differs from the vendored copy (see packages/starlayer/starlayer/starontology/_sources/vendor/VENDORED_FROM.md)"
         except Exception as exc:  # noqa: BLE001
             row["error"] = str(exc)
             row["status"] = "could not check"

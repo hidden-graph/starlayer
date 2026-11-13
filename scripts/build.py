@@ -2,7 +2,7 @@
 
 Runs the individual build scripts in dependency order:
 
-1. ``build_starontology.py``  - ``starontology`` generated ``.ttl`` files and ``starontology.trig``
+1. ``build_starontology.py``  - the four generated ``starontology`` ``.ttl`` files
 2. ``build_codekg.py``        - ``codekg.trig`` from the source and ``testskg.trig`` from the tests (not committed)
 3. ``generate_api_docs.py``   - ``docs/generated/api-*.generated.md`` from the code KG
 4. ``generate_functionality_overview.py`` - ``docs/generated/functionality-overview.generated.md``

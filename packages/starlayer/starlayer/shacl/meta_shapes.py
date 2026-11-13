@@ -3,7 +3,7 @@
 The meta-shapes graph is not assembled at run time. It is stored as ``starontology``'s ``shacl12-shacl.ttl`` (registry entry
 ``shacl_shacl``) and read by ``load_meta_shapes_graph``; ``starlayer.shacl_engine.meta`` runs the check. The build that produces
 the stored graph lives in ``scripts/build_meta_shapes.py`` and is run by ``scripts/build_starontology.py``. It starts from the W3C
-Data Shapes Working Group's own SHACL-for-SHACL (a pinned copy, ``scripts/assets/vendor/w3c-shacl-shacl.ttl``) and only adds to
+Data Shapes Working Group's own SHACL-for-SHACL (a pinned copy, ``packages/starlayer/starlayer/starontology/_sources/vendor/w3c-shacl-shacl.ttl``) and only adds to
 it: ``shacl12-validation-shapes.ttl`` plus ``sh:deactivated`` on the few Working Group rules that are still stricter than
 SHACL 1.2. A test fails if the stored file drifts from a fresh build, and ``test_wg_overrides.py`` fails when the Working Group
 fixes something we override. Editing the validation shapes or updating the pinned copy changes nothing here until that build is

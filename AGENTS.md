@@ -5,7 +5,7 @@ starlayer is a platform for building Python semantic apps on the RDF 1.2 / SPARQ
 ## Layout
 - `packages/starlayer/starlayer/` is the one installed package (the `pyproject.toml` is at the repo root):
   `graph/` (`StarLayerGraph` / `StarLayerDataset` over Oxigraph, interop, set operations, Manchester syntax), `sparql/` (SPARQL 1.2, `sqe:` query trees, SRL rules), `shacl/` (SHACL 1.2 validation, rules, UI widget selection),
-  `starontology/` (bundled ontologies and shapes, as `.ttl` files), and `conformance.py`. The code-KG tooling is outside the package, in `tools/kg/codekg/` (repo-only).
+  `starontology/` (bundled ontologies and shapes, as `.ttl` files in a folder per vocabulary), and `conformance.py`. The code-KG tooling is outside the package, in `tools/kg/codekg/` (repo-only).
 - Tests: `packages/starlayer/tests/{graph,sparql,shacl,starontology,kg}/`. Guides: `docs/guides/*.ipynb` (index: `docs/guides/README.md`). Build scripts: `scripts/`. What changed in the RDF, SPARQL and SHACL drafts and their test suites since we last looked: `python scripts/spec_drift.py` (records in `docs/working/spec-dates.json`).
 - Each of `graph/`, `sparql/`, `shacl/` has a `CLAUDE.md` starting with "Rules that bite". Read that block, not the design history below it.
 
@@ -17,12 +17,12 @@ starlayer is a platform for building Python semantic apps on the RDF 1.2 / SPARQ
 - `ruff check packages/` must pass (CI runs it). Formatting is not enforced; do not reformat files you are not changing.
 
 ## Generated files: never edit by hand
-`docs/generated/*.generated.md`, and in `packages/starlayer/starlayer/`: `starontology/starontology.trig`, `starontology/shacl12-shacl.ttl`, `starontology/skos-ontology.ttl`.
-Edit the source (another `.ttl` in `starontology/`, `scripts/assets/shacl12-validation-shapes.ttl`, `codekg/curated/functionality.ttl`) and run `python scripts/build.py`. `codekg/curated/query-library.ttl` is itself a source (hand-edited, nothing generates it).
+`docs/generated/*.generated.md`, and in `packages/starlayer/starlayer/`: the four generated files `starontology/shacl/shacl12-{shacl,vocabulary,shacl-ui}.ttl` and `starontology/skos/skos-ontology.ttl`.
+Edit the source (another `.ttl` in `starontology/`, `starontology/_sources/shacl12-validation-shapes.ttl` (the build inputs are in `starontology/_sources`), `codekg/curated/functionality.ttl`) and run `python scripts/build.py`. `codekg/curated/query-library.ttl` is itself a source (hand-edited, nothing generates it).
 CI runs `python scripts/build.py --check`. The code KG files (`codekg.trig`, `testskg.trig`, `starlayer-kg.trig` in `tools/kg/codekg/`) are build products, not committed. In a checkout the first query or KG test builds them (about 30 s, then about 75 s for the combined file); rebuild after source changes with `python scripts/build.py --only codekg kg`. Users do not build: at release time, with the docs, a maintainer runs `python scripts/publish_kg.py` (add `--release vX.Y.Z` to create the GitHub release), which builds `packages/starlayer-kg` (the `starlayer-kg` data wheel) from the committed source.
 
 ## Use the knowledge graph first
-Do not read large files into context: `tools/kg/codekg/codekg.trig` (6 MB, built locally), `docs/generated/api-reference.generated.md` (about 5,000 lines), `starontology/starontology.trig`, or any `CLAUDE.md` below its "Rules that bite" block. Ask the graph a narrow question instead.
+Do not read large files into context: `tools/kg/codekg/codekg.trig` (6 MB, built locally), `docs/generated/api-reference.generated.md` (about 5,000 lines), or any `CLAUDE.md` below its "Rules that bite" block. Ask the graph a narrow question instead.
 - Three layers: the vocabulary `tools/kg/codekg/ontology.ttl` (`slkg:`), the generated dataset `codekg/codekg.trig` (one named graph per module: classes, functions, calls, overrides, tests), and the hand-written capability graph `codekg/curated/functionality.ttl`.
 - Capability map in plain text: `docs/generated/functionality-overview.generated.md`. One line per public symbol: `docs/generated/api-overview.generated.md`.
 - **Start with a named query**, not raw SPARQL: `python scripts/kg.py list` (or `list --topic call-graph`), then `run find-symbol text=tt_hash` or `run callers-of symbol=<dotted path>`, or `run capabilities-by-role role=ui-generate` to find what StarLayer offers for a job (storage, interchange, query, validate, infer, ui-generate, reference). From Python: `from codekg import queries`, then `queries.run_query("callers-of", symbol=...)`. Results are tables limited to 25 rows (`--limit`, `--offset` to page), with file and line. The catalogue is `docs/generated/query-library.generated.md`; queries live in `codekg/curated/query-library.ttl` (edit it directly), and `python scripts/build.py --only queries` validates it and rewrites the catalogue.

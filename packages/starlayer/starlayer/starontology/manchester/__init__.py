@@ -118,7 +118,7 @@ from starlayer.graph.parsers._ox_terms import (
     lexical,
 )
 
-from . import get_ontology_graph
+from .. import get_ontology_graph
 
 Graph = Any  # a StarLayerGraph (pyoxigraph terms)
 

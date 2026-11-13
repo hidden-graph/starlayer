@@ -8,7 +8,7 @@ import sys
 
 import pytest
 from starlayer.graph.oxgraph.core import StarLayerGraph
-from starlayer.starontology.skos import skos_validate
+from tests.skos import skos_validate
 
 _ROOT = pathlib.Path(__file__).resolve().parents[5]
 _SCRIPTS = _ROOT / "scripts"

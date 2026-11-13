@@ -36,8 +36,8 @@ STARLAYER = Path(__file__).resolve().parents[3] / "starlayer"
 ONTOLOGY_DIR = STARLAYER / "starontology"
 
 PUBLISHED = {
-    "shapes": ["srl_shapes.ttl", "spexpr_shapes.ttl", "sqe_shapes.ttl"],
-    "ontologies": ["srl-ontology.ttl", "spexpr-ontology.ttl", "sqe-ontology.ttl"],
+    "shapes": ["srl/srl_shapes.ttl", "spexpr/spexpr_shapes.ttl", "sqe/sqe_shapes.ttl"],
+    "ontologies": ["srl/srl-ontology.ttl", "spexpr/spexpr-ontology.ttl", "sqe/sqe-ontology.ttl"],
 }
 
 # Representative cases: triple terms, expressions of every family, functions, negation, data, paths.
