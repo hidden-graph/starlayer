@@ -9,7 +9,7 @@ This is the single master index for every guide notebook - every notebook's own 
 ## The guides
 
 1. **[Getting Started](01-getting-started.ipynb)** - install (and what the separate `starlayer-reasoning` package adds), first parse, first query, first validate.
-2. **[Graphs](02-graphs.ipynb)** - `TripleTerm`/`DirLangString` semantics.
+2. **[Graphs](02-graphs.ipynb)** - RDF 1.2 triple terms, reifiers, annotations and directional language strings, and the Turtle 1.2 syntax for them.
    - **2.a [Working with datasets](02a-graphs-datasets.ipynb)** - `StarLayerDataset`, multiple named graphs in one store.
    - **2.b [Inferencing](02b-graphs-inferencing.ipynb)** - RDF/RDFS/OWL 2 RL reasoning via `owlrl` (and natively for RDF), the full entailment-regime picture (what each regime means, the regime-support status table, which one to use), and a worked example of both the `infer()` and `query(entailment=...)` forms per regime.
    - **2.c [OWL 2 DL reasoning](02c-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).

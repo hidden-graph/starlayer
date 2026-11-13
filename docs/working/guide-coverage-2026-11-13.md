@@ -62,10 +62,6 @@ Every capability marked implemented now has a notebook link to a symbol that imp
 
 Roadmap capabilities are not covered, correctly.
 
-## Structure and style (not changed)
-
-`02` opens with its section on `TripleTerm` semantics although the term helpers it names are gone (the text was reduced earlier, the title still reads like the old class). `05d` should be re-run after the next push, when the fetch URLs exist.
-
 ## What is left
 
 Nothing from this review. The list of names that stay out of the guides on purpose is above; `05d` is run again after the next push, when the URLs it fetches exist.
