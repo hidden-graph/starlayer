@@ -47,7 +47,7 @@ def main() -> int:
     args = parser.parse_args()
 
     version = _version(PKG / "pyproject.toml")
-    lib_version = _version(ROOT / "pyproject.toml")
+    lib_version = _version(ROOT / "packages" / "starlayer" / "pyproject.toml")
     if version != lib_version:
         print(f"starlayer-kg is {version} but starlayer is {lib_version}: make them equal first", file=sys.stderr)
         return 1

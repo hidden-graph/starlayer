@@ -15,8 +15,7 @@ jobs:
         with:
           python-version: "3.10"
 
-      # Repo-root pyproject.toml's [tool.ruff] covers the whole package at
-      # once - one lint policy for the monorepo, not per-package config.
+      # The repo-root pyproject.toml's [tool.ruff] is the one lint policy for every package.
       - name: Install ruff
         run: pip install ruff
 
@@ -39,14 +38,14 @@ jobs:
           python-version: "3.12"
 
       - name: Install starlayer
-        run: pip install -e ".[test]"
+        run: pip install -e "packages/starlayer[test]"
 
       - name: Check generated files are current
         run: python scripts/build.py --check
 
   # One Python version only: this is an alpha project, and a four-version matrix
-  # (3.10-3.13) made every run about four times as long. pyproject.toml still
-  # declares >=3.10; to check another version, run the suite locally or
+  # (3.10-3.13) made every run about four times as long. The packages still
+  # declare >=3.10; to check another version, run the suite locally or
   # temporarily widen this list.
   test:
     runs-on: ubuntu-latest
@@ -61,12 +60,9 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      # One package now (starlayer, source at packages/starlayer, but the
-      # canonical pyproject.toml lives at the repo root since the 2026-10-12
-      # consolidation - install from "." here, not "packages/starlayer").
       - name: Install starlayer
         run: |
-          pip install -e ".[test]"
+          pip install -e "packages/starlayer[test]"
 
       # No test carries the `integration` marker any more (the Fuseki ones were removed), so there is no separate integration step:
       # `pytest -m integration` would collect nothing and exit 5. The step and its Oxigraph service container went with them.

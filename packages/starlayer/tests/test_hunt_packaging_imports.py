@@ -94,7 +94,7 @@ def test_to_rdflib_dataset_works_without_dataset_default_graph(monkeypatch) -> N
 
 
 def test_pyproject_does_not_claim_rdflib_is_needed_for_what_runs_without_it() -> None:
-    text = (ROOT / "pyproject.toml").read_text()
+    text = (PACKAGE / "pyproject.toml").read_text()
     for stale in ("the Manchester syntax, the SRL / salg / sqe tree machinery", "Manchester syntax, SRL / salg / sqe trees, SHACL UI widget selection"):
         assert stale not in text
 

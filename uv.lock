@@ -7,6 +7,12 @@ resolution-markers = [
     "python_full_version < '3.11'",
 ]
 
+[manifest]
+members = [
+    "starlayer",
+    "starlayer-kg",
+]
+
 [[package]]
 name = "appnope"
 version = "1.0.0"
@@ -1603,7 +1609,7 @@ wheels = [
 [[package]]
 name = "starlayer"
 version = "0.1.0"
-source = { editable = "." }
+source = { editable = "packages/starlayer" }
 dependencies = [
     { name = "pyoxigraph" },
     { name = "requests" },
@@ -1651,22 +1657,31 @@ requires-dist = [
     { name = "nbclient", marker = "extra == 'notebooks'", specifier = ">=0.10" },
     { name = "nbformat", marker = "extra == 'notebooks'", specifier = ">=5" },
     { name = "owlready2", marker = "extra == 'hermit'", specifier = ">=0.51" },
-    { name = "owlrl", marker = "extra == 'notebooks'", specifier = ">=6" },
     { name = "owlrl", marker = "extra == 'reasoning'", specifier = ">=6" },
-    { name = "owlrl", marker = "extra == 'test'", specifier = ">=6" },
     { name = "pyoxigraph", specifier = ">=0.5.13" },
     { name = "pytest", marker = "extra == 'test'", specifier = ">=8.0" },
     { name = "pytest-benchmark", marker = "extra == 'benchmark'", specifier = ">=5.0" },
-    { name = "rdflib", marker = "extra == 'hermit'", specifier = ">=7.0" },
-    { name = "rdflib", marker = "extra == 'notebooks'", specifier = ">=7.0" },
     { name = "rdflib", marker = "extra == 'rdflib'", specifier = ">=7.0" },
-    { name = "rdflib", marker = "extra == 'reasoning'", specifier = ">=7.0" },
-    { name = "rdflib", marker = "extra == 'rustdl'", specifier = ">=7.0" },
-    { name = "rdflib", marker = "extra == 'test'", specifier = ">=7.0" },
     { name = "requests", specifier = ">=2.28" },
     { name = "rustdl", marker = "extra == 'rustdl'", specifier = ">=0.4" },
+    { name = "starlayer", extras = ["rdflib"], marker = "extra == 'hermit'", editable = "packages/starlayer" },
+    { name = "starlayer", extras = ["rdflib"], marker = "extra == 'reasoning'", editable = "packages/starlayer" },
+    { name = "starlayer", extras = ["rdflib"], marker = "extra == 'rustdl'", editable = "packages/starlayer" },
+    { name = "starlayer", extras = ["reasoning"], marker = "extra == 'notebooks'", editable = "packages/starlayer" },
+    { name = "starlayer", extras = ["reasoning"], marker = "extra == 'test'", editable = "packages/starlayer" },
 ]
 provides-extras = ["rdflib", "reasoning", "hermit", "rustdl", "test", "notebooks", "benchmark"]
+
+[[package]]
+name = "starlayer-kg"
+version = "0.1.0"
+source = { editable = "packages/starlayer-kg" }
+dependencies = [
+    { name = "starlayer" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "starlayer", editable = "packages/starlayer" }]
 
 [[package]]
 name = "tomli"

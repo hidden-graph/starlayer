@@ -1,76 +1,11 @@
-[build-system]
-requires = ["setuptools>=68", "wheel"]
-build-backend = "setuptools.build_meta"
+# The repository root holds the tool configuration shared by the packages (pytest, ruff) and the uv workspace; each package under
+# packages/ has its own pyproject.toml with its metadata, dependencies and extras.
 
-[project]
-name = "starlayer"
-version = "0.1.0"
-description = "Full StarLayer RDF 1.2 stack: graph, SPARQL, and SHACL support"
-readme = { file = "README.md", content-type = "text/markdown" }
-license = { file = "LICENSE" }
-authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
-requires-python = ">=3.10"
-dependencies = [
-    "requests>=2.28",
-    # pyoxigraph is the whole engine: graphs, parsing, SPARQL query and update, SHACL validation and rules. 0.5.13 is the minimum
-    # supported Oxigraph: older versions abort the process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
-    # docs/upstream-issues/oxigraph-upstream-issues.md and graph/oxgraph/_versions.py.
-    "pyoxigraph>=0.5.13",
-]
-keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]
-classifiers = [
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-    "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: MIT License",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Programming Language :: Python :: 3.14",
-    "Topic :: Scientific/Engineering :: Information Analysis",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-]
+[tool.uv.workspace]
+members = ["packages/*"]
 
-[project.optional-dependencies]
-# rdflib is not needed to use StarLayer; it is only for StarLayerGraph.from_rdflib / to_rdflib (whole graphs).
-rdflib = ["rdflib>=7.0"]
-# owlrl computes the OWL 2 RL closures behind infer() / entailment regimes; it runs on an rdflib copy of the graph.
-reasoning = ["owlrl>=6", "starlayer[rdflib]"]
-# The two engines StarLayerGraph.infer(entailment=ENTAILMENT["OWL-Direct"], engine=...) can dispatch to (graph/entailment/owl_dl.py,
-# owl_dl_rustdl.py). Neither is core: "hermit" also needs a real JVM on PATH, and "rustdl" has no JVM but is not provably complete.
-hermit = ["starlayer[rdflib]", "owlready2>=0.51"]
-rustdl = ["starlayer[rdflib]", "rustdl>=0.4"]
-# The tests use rdflib (a bridge and an oracle) and owlrl.
-test = ["pytest>=8.0", "hypothesis>=6", "starlayer[reasoning]"]
-# Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
-notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "starlayer[reasoning]"]
-# pytest-benchmark for the benchmarks-graph regression guard (outside `testpaths`; see .github/workflows/benchmark.yml).
-benchmark = ["pytest-benchmark>=5.0"]
-
-[project.urls]
-Homepage = "https://github.com/hidden-graph/starlayer"
-Repository = "https://github.com/hidden-graph/starlayer"
-Issues = "https://github.com/hidden-graph/starlayer/issues"
-
-# package-data below is the whole list of non-Python files that ship; without
-# this, setuptools also adds anything a stale *.egg-info/SOURCES.txt lists.
-[tool.setuptools]
-include-package-data = false
-
-[tool.setuptools.packages.find]
-where = ["packages/starlayer"]
-include = ["starlayer*"]
-
-[tool.setuptools.package-data]
-# Only what the library reads at run time: the profiles document and the ontology and shapes files in the vocabulary folders. Not
-# shipped: skos/skos.rdf (build input) and starontology/_sources (what the generated files are built from). The code knowledge
-# graph tooling lives in tools/kg, outside the package.
-starlayer = ["py.typed", "starontology/starlayer-profiles.ttl", "starontology/*/*.ttl"]
-
-[tool.setuptools.exclude-package-data]
-starlayer = ["starontology/_sources/*", "starontology/_sources/*/*"]
+[tool.uv.sources]
+starlayer = { workspace = true }
 
 [tool.pytest.ini_options]
 testpaths = ["packages/starlayer/tests"]

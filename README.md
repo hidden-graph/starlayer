@@ -73,7 +73,7 @@ print(result.conforms)             # False: "thirty" is not an integer
 git clone https://github.com/hidden-graph/starlayer.git
 cd starlayer
 python3 -m venv .venv && source .venv/bin/activate
-pip install -e ".[test]"
+pip install -e "packages/starlayer[test]"
 cd packages/starlayer && pytest tests -m "not integration"
 ```
 

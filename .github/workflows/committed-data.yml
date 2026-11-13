@@ -23,6 +23,7 @@ on:
       - "scripts/**"
       - "docs/upstream-issues/**"
       - "pyproject.toml"
+      - "packages/*/pyproject.toml"
       - ".github/workflows/committed-data*.yml"
   workflow_call:
   workflow_dispatch:
@@ -38,7 +39,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install starlayer
-        run: pip install -e ".[test]"
+        run: pip install -e "packages/starlayer[test]"
 
       - name: Committed-data tests
         working-directory: packages/starlayer

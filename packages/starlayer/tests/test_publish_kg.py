@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "packages/starlayer-kg"))
 def test_versions_of_the_library_and_the_data_package_are_equal() -> None:
     import publish_kg
 
-    assert publish_kg._version(ROOT / "packages/starlayer-kg/pyproject.toml") == publish_kg._version(ROOT / "pyproject.toml")
+    assert publish_kg._version(ROOT / "packages/starlayer-kg/pyproject.toml") == publish_kg._version(ROOT / "packages/starlayer/pyproject.toml")
 
 
 def test_source_checkout_has_no_graph_and_says_how_to_get_one(monkeypatch, tmp_path) -> None:
