@@ -60,8 +60,10 @@ class _NotComputable(Exception):
 def relevant_subgraph(
     graph: Any, query: str, init_bindings: Mapping[str, Any] | None = None, init_ns: Mapping[str, str] | None = None
 ) -> Any:
-    """The relevant subgraph of ``query`` in ``graph`` (see the module docstring), as a ``StarLayerGraph``. ``init_ns`` (prefix to
-    namespace) declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
+    """The triples of ``graph`` that the answer of ``query`` depends on, as a new ``StarLayerGraph``.
+
+    Every derivation is kept and nothing is chosen between them (see the module docstring). ``init_ns`` (prefix to namespace)
+    declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
 
     Raises ``TypeError`` for a ``StarLayerDataset`` (name one of its graphs, or merge them: ``to_graph()``), ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
     depends on a remote graph, so it cannot be reproduced from a subgraph of this one)."""

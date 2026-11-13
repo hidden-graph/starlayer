@@ -772,6 +772,7 @@ class LegacyTermView:
     """A view over an engine-term graph that speaks rdflib terms (for code that still speaks rdflib terms)."""
 
     def __init__(self, view: Any) -> None:
+        """Wrap ``view``, the engine-term graph whose reads this class translates."""
         self.view = view
 
     @staticmethod

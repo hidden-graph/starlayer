@@ -122,7 +122,8 @@ def resolve_export(module: str, name: str, _depth: int = 0) -> str | None:
 
     An ``__all__`` name is usually imported from a submodule, so this follows ``from x import name [as alias]``
     statements until the module that defines it. Matching only the bare name would pick up every unrelated symbol that
-    shares it (every ``evaluate`` method, say).
+    shares it (every ``evaluate`` method, say). A package that exports a name lazily (``_LAZY``, PEP 562) is followed to the
+    submodule the map names.
     """
     path = _module_path(module)
     if path is None or _depth > 8:
@@ -134,6 +135,11 @@ def resolve_export(module: str, name: str, _depth: int = 0) -> str | None:
             return f"{module}.{name}"
         if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == name for t in node.targets):
             return f"{module}.{name}"
+    for node in tree.body:  # a PEP 562 lazy export: ``_LAZY = {"name": "submodule"}`` in a package's __init__
+        if isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_LAZY" for t in node.targets) and isinstance(node.value, ast.Dict):
+            for key, value in zip(node.value.keys, node.value.values, strict=True):
+                if isinstance(key, ast.Constant) and key.value == name and isinstance(value, ast.Constant) and is_package:
+                    return resolve_export(f"{module}.{value.value}", name, _depth + 1)
     for node in tree.body:
         if not isinstance(node, ast.ImportFrom):
             continue

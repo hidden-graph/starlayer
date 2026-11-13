@@ -82,19 +82,27 @@ TESTSKG_TRIG_PATH = _HERE / "testskg.trig"
 CURATED_DIR = _HERE / "curated"
 
 
-def ensure_built() -> None:
-    """Build ``codekg.trig`` and ``testskg.trig`` with the extractor if either is missing (about 30 seconds).
+def _source_is_newer() -> bool:
+    """True if any source file of the package changed after the graphs were built (what the extractor reads is that source)."""
+    built = min(CODEKG_TRIG_PATH.stat().st_mtime, TESTSKG_TRIG_PATH.stat().st_mtime)
+    source = Path(__file__).resolve().parents[3] / "packages" / "starlayer" / "starlayer"
+    return any(p.stat().st_mtime > built for p in source.rglob("*.py"))
 
-    The generated graphs are not committed, so a fresh checkout has none. Callers that need the graph (the query tool,
-    the KG tests) call this first; to rebuild after the source changed, run ``python scripts/build.py --only codekg``.
+
+def ensure_built() -> None:
+    """Build ``codekg.trig`` and ``testskg.trig`` with the extractor if either is missing, or older than the source (about 30 seconds).
+
+    The generated graphs are not committed, so a fresh checkout has none, and one built before the last source edit describes
+    code that no longer exists (the generated API reference reads it). Callers that need the graph (the query tool, the KG tests,
+    the API reference) call this first; ``python scripts/build.py --only codekg`` rebuilds it on demand.
     """
-    if CODEKG_TRIG_PATH.exists() and TESTSKG_TRIG_PATH.exists():
+    if CODEKG_TRIG_PATH.exists() and TESTSKG_TRIG_PATH.exists() and not _source_is_newer():
         return
     import sys
 
     from codekg.extractor.cli import main
 
-    print("codekg.trig is not built yet; extracting the code graph (about 30 seconds) ...", file=sys.stderr, flush=True)
+    print("codekg.trig is missing or older than the source; extracting the code graph (about 30 seconds) ...", file=sys.stderr, flush=True)
     main([])
 
 
