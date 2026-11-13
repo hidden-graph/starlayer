@@ -22,7 +22,7 @@ Plain-text snapshots of all nine documents as of the dates above are saved in `p
 
 No RDF 1.2 companion spec exists yet for JSON-LD or TriX — see §6, the one open item in this review.
 
-Existing project docs ([starlayergraph_vs_rdflib.md](starlayergraph_vs_rdflib.md), [sparql12_design.md](sparql12_design.md)) track coverage of rdflib's own API surface and document starlayergraph's *intended* design. Neither compares against the W3C spec text directly — that's what this document is for.
+Existing project docs ([starlayergraph_vs_rdflib.md](../../working/archive/design-graph-starlayergraph_vs_rdflib.md), [sparql12_design.md](../../working/archive/design-graph-sparql12_design.md)) track coverage of rdflib's own API surface and document starlayergraph's *intended* design. Neither compares against the W3C spec text directly — that's what this document is for.
 
 ---
 
