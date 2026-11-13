@@ -9,7 +9,7 @@
 * through the wrapper: ``StarLayerDataset.parse`` stores what the parser produced (Oxigraph normalises numeric lexical forms on
   insert, so the expected graph goes through a store too).
 
-``KNOWN_GAPS`` are tests Oxigraph fails today, each with its cause (``docs/working/phase-c-parser-measurement.md``). They are
+``KNOWN_GAPS`` are tests Oxigraph fails today, each with its cause (``docs/working/archive/phase-c-parser-measurement.md``). They are
 not skipped: ``test_known_gap_still_fails`` fails when one starts to pass, so the entry is removed.
 """
 

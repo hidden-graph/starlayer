@@ -1,4 +1,4 @@
-"""Gaps found by the B1 classification (``docs/working/b1-classification.md``, branch ``mig-b1-gaps``): pickle and deepcopy,
+"""Gaps found by the B1 classification (``docs/working/archive/b1-classification.md``, branch ``mig-b1-gaps``): pickle and deepcopy,
 ``from_rdflib`` / ``to_rdflib``, the ``VERSION`` line on write, the basic encoding on a plain ``turtle`` parse, exception types
 and the SHACL report. Each is a property of ``StarLayerGraph`` / ``StarLayerDataset`` alone."""
 

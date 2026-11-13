@@ -7,7 +7,7 @@ property tests. The sqe tests treat that path as the oracle; these tests hold th
 
 (The ``prepare_query_12`` + rdflib-algebra serializer round trip that used to be tested here is dropped: rdflib's
 ``translateAlgebra`` moves a FILTER into an aggregate for some generated queries, and ``sqe_tree_to_text``, which
-``test_sqe_property_based`` checks, replaces that path. See ``docs/working/d2-gaps.md`` G10.)
+``test_sqe_property_based`` checks, replaces that path. See ``docs/working/archive/d2-gaps.md`` G10.)
 
 Opt-in (``pytest --sqe-coverage``); example count from ``STARLAYER_SQE_FUZZ_EXAMPLES``.
 """
@@ -36,7 +36,7 @@ def _outcome(dataset, query):
 @pytest.mark.xfail(
     strict=False,
     reason="the rdflib reference (7.6.0) is wrong for some generated queries: a CONSTRUCT with a literal subject keeps the triple "
-    "(the SPARQL spec drops it) and an OPTIONAL whose FILTER always errors drops the row; see docs/working/hunt-2026-11.md",
+    "(the SPARQL spec drops it) and an OPTIONAL whose FILTER always errors drops the row; see docs/working/archive/hunt-2026-11.md",
 )
 @_SETTINGS
 @given(query=_QUERIES)

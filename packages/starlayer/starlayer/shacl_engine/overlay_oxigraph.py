@@ -1,7 +1,7 @@
 """``OxigraphOverlay``: the inferred-triples overlay of ``rules.InferredView`` kept in an in-memory ``pyoxigraph.Store``.
 
 Experimental, opt-in (``rules.use_oxigraph_overlay(True)`` or ``STARLAYER_SHACL_OVERLAY=oxigraph``); see
-docs/working/shacl-engine-overlay-oxigraph.md for the measurements and the recommendation.
+docs/working/archive/shacl-engine-overlay-oxigraph.md for the measurements and the recommendation.
 
 Fidelity guard. A pyoxigraph store rewrites some literals on insert (``"04"^^xsd:integer`` -> ``"4"``, ``"1"^^xsd:boolean``
 -> ``"true"``, ``"4.0"^^xsd:decimal`` -> ``"4"``, derived integer types such as ``xsd:unsignedByte`` -> ``xsd:integer``,

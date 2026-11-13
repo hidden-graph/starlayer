@@ -1,5 +1,5 @@
 # SOURCE of what StarLayer adds to the W3C SHACL 1.2 vocabulary (packages/starlayer/starlayer/starontology/_sources/vendor/w3c-shacl.ttl, never edited).
-# HAND-EDITED. scripts/build_starontology.py writes the registered file starontology/shacl12-vocabulary.ttl (registry entry
+# HAND-EDITED. scripts/build_starontology.py writes the registered file starontology/shacl/shacl12-vocabulary.ttl (registry entry
 # shacl_vocabulary) from the vendored file plus this one.
 #
 # Contents: stsh:ShapesGraphShape, a description of what a shapes graph holds, for tools that show shapes graphs. It has one property

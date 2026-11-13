@@ -45,7 +45,7 @@ Details in section 6.
 
 Directory `starlayer/sparql/` (called `sparql/` below) has 41 `.py` files, 12,646 lines, plus 8 Turtle files in
 `starlayer/starontology/` (3,277 lines). There is **no `spexpr/` directory**; this matches
-`docs/working/graph-rdflib-compat-inventory.md` section 2.3 item 3.
+`docs/working/archive/graph-rdflib-compat-inventory.md` section 2.3 item 3.
 
 ### 1.1 The layers by file
 

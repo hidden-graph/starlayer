@@ -3,7 +3,7 @@
 This test keeps it that way. It requires that the modules D1 deleted do not exist, and walks every module of
 ``starlayer/``, ``scripts/``, ``tools/`` and ``packages/starlayer-kg`` with ``ast`` (lazy imports inside functions
 included) to require that nothing imports them. ``StarLayerGraph`` / ``StarLayerDataset`` now name the Oxigraph-backed
-classes of ``starlayer.graph.oxgraph.core``. See ``docs/working/d1-readiness.md``.
+classes of ``starlayer.graph.oxgraph.core``. See ``docs/working/archive/d1-readiness.md``.
 """
 
 from __future__ import annotations

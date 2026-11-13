@@ -26,7 +26,7 @@ Check names below are the strings printed by the script (`ox:` = pyoxigraph, `rd
 4. **Oxigraph is 10 to 1000 times faster** on every operation timed (section 7), and its query engine releases the
    GIL.
 5. **Oxigraph reads and writes RDF 1.2 Turtle, TriG and N-Triples natively.** Stock rdflib parses none of it.
-   StarLayer's `parse12` and serializers (about 8,000 lines, by `docs/working/graph-rdflib-compat-inventory.md`)
+   StarLayer's `parse12` and serializers (about 8,000 lines, by `docs/working/archive/graph-rdflib-compat-inventory.md`)
    exist for that gap. But Oxigraph's JSON-LD writer refuses triple terms, and it has no TriX, RDFa, HexTuples or
    pretty (nested `[ ]`, `( )`) Turtle output.
 

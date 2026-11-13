@@ -1,6 +1,6 @@
 # SOURCE of the UI overlay for the SHACL meta-shapes: how to present the SHACL vocabulary in a form, as opposed to shacl_shacl,
 # which says what is valid. HAND-EDITED. scripts/build_shacl_ui.py reads this file and writes the registered file
-# starontology/shacl12-shacl-ui.ttl (registry entry shacl_shacl_ui), which is this file plus the FORM SHAPES it generates:
+# starontology/shacl/shacl12-shacl-ui.ttl (registry entry shacl_shacl_ui), which is this file plus the FORM SHAPES it generates:
 # stsh:NodeShapeForm and stsh:PropertyShapeForm, a shape per kind of node whose property shapes are the form's fields (one per
 # predicate flagged stsh:nodeFormField / stsh:propertyFormField), each with its group and order from here and the datatype,
 # node kind and sh:in list its predicate has in shacl_shacl. The build checks that every predicate shacl_shacl validates is a
@@ -19,7 +19,7 @@
 # A form shape has no sh:target*: it is not applied to anything. The exceptions are the two well-formedness shapes at the end
 # (stsh:ShuiPredicateShapes, stsh:WidgetScoreShape), which validate shui: terms when this graph is merged with shacl_shacl.
 # A tool picks the form for a node by stsh:formFor (the class of node the form is for) and passes it to select_widgets as
-# shape_node. The human-editable content is docs/working/shacl-presentation/shacl-presentation-content.md, which may have
+# shape_node. The human-editable content is docs/working/archive/shacl-presentation/shacl-presentation-content.md, which may have
 # drifted.
 #
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#

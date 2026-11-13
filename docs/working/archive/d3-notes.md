@@ -27,7 +27,7 @@
    not rewritten.
 4. **Removed**: `scripts/b1_flip_experiment.py` (patches `graph/graph/starlayer_graph.py` / `starlayer_dataset.py`, deleted at D1),
    `scripts/b1_classify.py` (classifies the output of that experiment) and `tests/shacl/integration/test_expression_node_types.py-E` (a sed
-   backup of the real test from before the rename). `docs/working/b1-classification.md` still mentions the scripts; it is history.
+   backup of the real test from before the rename). `docs/working/archive/b1-classification.md` still mentions the scripts; it is history.
 5. **Left alone, for a decision**: the `sqlalchemy` and `oxigraph` extras in `pyproject.toml` (`rdflib-sqlalchemy`, `oxrdflib`) serve only the
    deleted rdflib store paths (the `oxigraph` comment still describes `StarLayerGraph(store=OxigraphStore(...), backend='rdf-1.2')`);
    README and AGENTS list them. Removing them touches `uv.lock`. Also `packages/starlayer/docs/future_enhancements.md` has many entries about the old class

@@ -4,7 +4,7 @@ Read-only analysis, branch `shacl-engine` (HEAD e4ffd68). Decision taken as give
 algebra encoded as RDF) need not be preserved; sqe stays; a StarLayer-owned parser will replace rdflib as the parser, and execution
 will send text to Oxigraph (both separate work). Paths are under `packages/starlayer/starlayer/` unless they start with `tests/`,
 `docs/`, `scripts/`, `tools/`. Line counts are `wc -l`. I ran no tests; "unverified" marks anything I did not check in code.
-Builds on `docs/working/sparql-layers-exploration.md` (its section 1.2 rule check is confirmed below).
+Builds on `docs/working/archive/sparql-layers-exploration.md` (its section 1.2 rule check is confirmed below).
 
 ## 1. Inventory
 

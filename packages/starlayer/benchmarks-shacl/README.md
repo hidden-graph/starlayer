@@ -16,7 +16,7 @@ PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_engine_vs_old.py --
 PYTHONPATH=packages/starlayer python3 benchmarks-shacl/bench_overlay.py --sizes 5000,20000 --overlay oxigraph
 ```
 
-Results and background: [`docs/working/shacl-engine-benchmarks.md`](../../../docs/working/shacl-engine-benchmarks.md) and [`docs/working/shacl-engine-overlay-oxigraph.md`](../../../docs/working/shacl-engine-overlay-oxigraph.md).
+Results and background: [`docs/working/shacl-engine-benchmarks.md`](../../../docs/working/shacl-engine-benchmarks.md) and [`docs/working/archive/shacl-engine-overlay-oxigraph.md`](../../../docs/working/archive/shacl-engine-overlay-oxigraph.md).
 
 ## No scheduled regression guard
 

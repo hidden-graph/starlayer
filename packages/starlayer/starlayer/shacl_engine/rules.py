@@ -208,7 +208,7 @@ _OXIGRAPH_OVERLAY = os.environ.get("STARLAYER_SHACL_OVERLAY", "").strip().lower(
 def use_oxigraph_overlay(enabled: bool = True) -> None:
     """Opt in (or out) of the Oxigraph-backed overlay (``overlay_oxigraph.OxigraphOverlay``) for inferred triples. The
     default is the Python ``InferredView``; the environment variable ``STARLAYER_SHACL_OVERLAY=oxigraph`` selects the
-    Oxigraph one at import time. Experimental: see docs/working/shacl-engine-overlay-oxigraph.md."""
+    Oxigraph one at import time. Experimental: see docs/working/archive/shacl-engine-overlay-oxigraph.md."""
     global _OXIGRAPH_OVERLAY
     _OXIGRAPH_OVERLAY = bool(enabled)
 

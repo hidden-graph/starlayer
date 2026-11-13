@@ -61,7 +61,7 @@ salg and the rdflib tree encoder were retired in E4, and the owner's decision is
 - `handoff-next-steps.md`, "Decisions still open": "Update sub-select check for an unbound projected variable (a salg check) was not ported" is moot
   with salg. No row in `non-spec-behaviour.md` carries it, so there is nothing to disposition. I left that handoff line alone; delete it when the
   handoff is next edited.
-- `docs/working/e1-notes.md` (lines 50, 51, 69) still describes `sqe_tree_to_query` as present; that file is a historical note and is left alone.
+- `docs/working/archive/e1-notes.md` (lines 50, 51, 69) still describes `sqe_tree_to_query` as present; that file is a historical note and is left alone.
 
 ## Verification of rows 5, 6, 7 against the specs
 

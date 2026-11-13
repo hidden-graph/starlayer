@@ -9,7 +9,7 @@ Three questions, each over a generated corpus (``xsd_oracle_corpus.py``):
 Every disagreement was decided against the specification (XSD 1.1 Part 2, XPath Functions and Operators 3.1, SPARQL 1.2 Query
 section 17) and is either a fix in ``xsd_values`` or a documented, asserted difference in ``OXIGRAPH_DIFFERENCES`` below: the test
 fails when a difference appears that is not listed AND when a listed one disappears (so an Oxigraph upgrade that fixes one is noticed).
-The write-up with the clauses is in docs/working/shacl-engine-term-model-spike.md.
+The write-up with the clauses is in docs/working/archive/shacl-engine-term-model-spike.md.
 """
 
 from __future__ import annotations

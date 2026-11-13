@@ -22,7 +22,7 @@ Project-specific instructions for Claude Code sessions working in this repo. See
 
 ## Design history
 
-The dated log of the pySHACL-backed validator (its monkeypatches, the triple-term adapter, `native_components`, and the fixes made to it, 2026-10-06 to 2026-10-30) is archived in `docs/working/archive/shacl-claude-md-pyshacl-era.md`; the code it describes was replaced by the engine (`docs/working/shacl-engine-cutover.md`). Decisions that still hold and live in the code they describe:
+The dated log of the pySHACL-backed validator (its monkeypatches, the triple-term adapter, `native_components`, and the fixes made to it, 2026-10-06 to 2026-10-30) is archived in `docs/working/archive/shacl-claude-md-pyshacl-era.md`; the code it describes was replaced by the engine (`docs/working/archive/shacl-engine-cutover.md`). Decisions that still hold and live in the code they describe:
 
 - **Shape typing is a rule set** (`shape_types.infer_types()`, `starontology/shacl/shacl12-shacl-rules.ttl`): a shape need not carry `rdf:type` (Core 3.1 to 3.3).
 - **Widget selection** (`ui_widget_selection.py`) follows SHACL UI 4.3: a widget a shape names is scored, and `shui:defaultWidgetScore` is read; `select_widgets(per="shape")` answers once per property shape.
