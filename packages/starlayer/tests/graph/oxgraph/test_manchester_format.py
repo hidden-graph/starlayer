@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pyoxigraph as ox
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.compare import isomorphic
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 
 TEXT = """Prefix: ex: <http://example.org/>
 Ontology: <http://example.org/o>

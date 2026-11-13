@@ -14,7 +14,7 @@ dependencies = [
     "requests>=2.28",
     # pyoxigraph is the whole engine: graphs, parsing, SPARQL query and update, SHACL validation and rules. 0.5.13 is the minimum
     # supported Oxigraph: older versions abort the process on SPARQL `=` over rdf:dirLangString (oxigraph#1982), see
-    # docs/upstream-issues/oxigraph-upstream-issues.md and graph/oxgraph/_versions.py.
+    # docs/upstream-issues/oxigraph-upstream-issues.md and graph/_versions.py.
     "pyoxigraph>=0.5.13",
 ]
 keywords = ["rdf", "rdf12", "sparql", "sparql12", "shacl", "knowledge-graph", "semantic-web", "linked-data", "turtle", "reification", "triple-terms", "rdf-star", "algebra"]

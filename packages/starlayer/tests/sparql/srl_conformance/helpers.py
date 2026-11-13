@@ -94,7 +94,7 @@ def expression_results(ruleset) -> list:
 
 def _stored_literal(term):
     """The literal as an Oxigraph-backed graph holds it (``"9.0"^^xsd:decimal`` is kept ``"9"``; ``.5`` is ``0.5``)."""
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     g = StarLayerGraph(prefixes={})
     g.add((ox.NamedNode("urn:s"), ox.NamedNode("urn:p"), term))

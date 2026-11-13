@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING
 from codekg.terms import DCTERMS, Namespace, URIRef
 
 if TYPE_CHECKING:
-    from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+    from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 CODEKG_NS = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg#")
 EXTERNALTYPE_NS = Namespace("https://github.com/hidden-graph/starlayer/ns/codekg/externaltype#")
@@ -109,10 +109,10 @@ def ensure_built() -> None:
 def get_ontology_graph() -> StarLayerGraph:
     """A fresh ``StarLayerGraph`` of ``ontology.ttl`` alone (plain Turtle,
     not a dataset), identified by ``ONTOLOGY_GRAPH_IRI``."""
-    # Lazy, not top-level: a top-level `from starlayer.graph.oxgraph import StarLayerGraph` pulls in the whole starlayer package before
+    # Lazy, not top-level: a top-level `from starlayer.graph import StarLayerGraph` pulls in the whole starlayer package before
     # this subpackage finishes its own import (Python always fully executes a parent package's __init__.py before any of its
     # submodules) - the same circular-import discipline starlayer.starontology's own loaders follow.
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
 
     graph = StarLayerGraph(identifier=ONTOLOGY_GRAPH_IRI)
     graph.parse(str(_ONTOLOGY_TTL_PATH), format="turtle")
@@ -128,7 +128,7 @@ def get_codekg_dataset(include_curated: bool = False, include_tests: bool = True
     write curated triples into ``codekg.trig``). Never cached/shared - the extractor mutates a dataset
     returned from a similar pattern, so a caller must never be handed back
     the same mutable object another caller could also be holding."""
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     dataset = StarLayerDataset()
     if CODEKG_TRIG_PATH.exists():

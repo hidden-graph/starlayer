@@ -55,7 +55,7 @@ def expression_shapes_turtle() -> str:
 def shapes_graph() -> Any:
     """A fresh ``StarLayerGraph`` of the ``spexpr:`` shapes: the stored ``spexpr_shacl`` plus the generated per-builtin
     shapes. Callers get their own copy, because a shapes graph may be modified while validating."""
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     graph = StarLayerGraph(prefixes={})
     graph.parse(data=expression_shapes_turtle(), format="turtle")

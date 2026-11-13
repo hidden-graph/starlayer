@@ -6,17 +6,17 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 
 [Back to overview](api-overview.generated.md#starlayer)
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset"></a>
 ### `StarLayerDataset`  _(class)_
 
 The whole store. ``default_union`` (default True) makes ``triples`` / ``len`` / ``iter`` / SPARQL's default graph the
 union of all graphs, as the engine's graph view does; False restricts them to the default graph (rdflib's ``Dataset``).
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L959-L1161)
+**Source:** [starlayer.graph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L960-L1162)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-clear"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-clear"></a>
 ### `StarLayerDataset.clear`  _(method)_
 
 ```python
@@ -27,11 +27,11 @@ Remove every quad and every named graph.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1121-L1125)
+**Source:** [starlayer.graph.core.StarLayerDataset.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1122-L1126)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-copy"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-copy"></a>
 ### `StarLayerDataset.copy`  _(method)_
 
 ```python
@@ -42,11 +42,11 @@ An independent in-memory copy of this dataset, including empty named graphs, pre
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1143-L1151)
+**Source:** [starlayer.graph.core.StarLayerDataset.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1144-L1152)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-default_graph"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-default_graph"></a>
 ### `StarLayerDataset.default_graph`  _(method)_
 
 ```python
@@ -57,11 +57,11 @@ A view of the dataset's default graph (re-made on each access; it shares this da
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1052-L1054)
+**Source:** [starlayer.graph.core.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1053-L1055)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-default_union"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-default_union"></a>
 ### `StarLayerDataset.default_union`  _(method)_
 
 ```python
@@ -72,11 +72,11 @@ Whether the default graph is the union of all graphs.
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.default_union](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1001-L1003)
+**Source:** [starlayer.graph.core.StarLayerDataset.default_union](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1002-L1004)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-from_rdflib"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-from_rdflib"></a>
 ### `StarLayerDataset.from_rdflib`  _(method)_
 
 ```python
@@ -93,11 +93,11 @@ named graphs too, prefixes, ``default_union``) or from a plain graph (its triple
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L984-L990)
+**Source:** [starlayer.graph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L985-L991)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-graph"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-graph"></a>
 ### `StarLayerDataset.graph`  _(method)_
 
 ```python
@@ -112,11 +112,11 @@ A view of one graph (created, empty, if it does not exist yet); shares this data
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1091-L1096)
+**Source:** [starlayer.graph.core.StarLayerDataset.graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1092-L1097)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-graph_names"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-graph_names"></a>
 ### `StarLayerDataset.graph_names`  _(method)_
 
 ```python
@@ -127,11 +127,11 @@ The names of the named graphs, empty ones included (the default graph is not lis
 
 **Returns:** `list[Any]`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graph_names](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1102-L1104)
+**Source:** [starlayer.graph.core.StarLayerDataset.graph_names](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1103-L1105)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-graphs"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-graphs"></a>
 ### `StarLayerDataset.graphs`  _(method)_
 
 ```python
@@ -142,11 +142,11 @@ The default graph, then every named graph (empty ones included).
 
 **Returns:** `list[StarLayerGraph]`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.graphs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1098-L1100)
+**Source:** [starlayer.graph.core.StarLayerDataset.graphs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1099-L1101)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-has_graph"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-has_graph"></a>
 ### `StarLayerDataset.has_graph`  _(method)_
 
 ```python
@@ -161,11 +161,11 @@ Whether ``identifier`` names a graph of the dataset; the default graph always ex
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.has_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1106-L1109)
+**Source:** [starlayer.graph.core.StarLayerDataset.has_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1107-L1110)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-quads"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-quads"></a>
 ### `StarLayerDataset.quads`  _(method)_
 
 ```python
@@ -180,11 +180,11 @@ Quads matching ``(s, p, o[, graph])``; graph ``None`` is any graph (the default 
 
 **Returns:** `Iterator[ox.Quad]`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1014-L1018)
+**Source:** [starlayer.graph.core.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1015-L1019)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-reifications"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-reifications"></a>
 ### `StarLayerDataset.reifications`  _(method)_
 
 ```python
@@ -201,11 +201,11 @@ A dataset of the ``rdf:reifies`` triples of every reified triple term matching `
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1078-L1080)
+**Source:** [starlayer.graph.core.StarLayerDataset.reifications](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1079-L1081)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-reified_triples"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-reified_triples"></a>
 ### `StarLayerDataset.reified_triples`  _(method)_
 
 ```python
@@ -220,11 +220,11 @@ A dataset of the ``reifier rdf:reifies <triple term>`` triples of ``reifier``, p
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1086-L1088)
+**Source:** [starlayer.graph.core.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1087-L1089)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-reifier_annotations"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-reifier_annotations"></a>
 ### `StarLayerDataset.reifier_annotations`  _(method)_
 
 ```python
@@ -239,11 +239,11 @@ A dataset of the annotation triples ``(reifier, predicate, value)`` of every rei
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1082-L1084)
+**Source:** [starlayer.graph.core.StarLayerDataset.reifier_annotations](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1083-L1085)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-reifiers"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-reifiers"></a>
 ### `StarLayerDataset.reifiers`  _(method)_
 
 ```python
@@ -261,11 +261,11 @@ came from. ``list(reification.reifiers(ds))`` gives the reifier nodes alone.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1073-L1076)
+**Source:** [starlayer.graph.core.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1074-L1077)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-remove"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-remove"></a>
 ### `StarLayerDataset.remove`  _(method)_
 
 ```python
@@ -282,11 +282,11 @@ Without a graph, a union dataset matches in every graph; otherwise only the defa
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1040-L1049)
+**Source:** [starlayer.graph.core.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1041-L1050)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-remove_graph"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-remove_graph"></a>
 ### `StarLayerDataset.remove_graph`  _(method)_
 
 ```python
@@ -301,11 +301,11 @@ Remove a named graph with its triples (the default graph is emptied).
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.remove_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1111-L1119)
+**Source:** [starlayer.graph.core.StarLayerDataset.remove_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1112-L1120)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerDataset-to_graph"></a>
+<a id="entity-starlayer-graph-core-StarLayerDataset-to_graph"></a>
 ### `StarLayerDataset.to_graph`  _(method)_
 
 ```python
@@ -317,21 +317,21 @@ collapse). It is a copy: it can be queried or compared on its own.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L1056-L1061)
+**Source:** [starlayer.graph.core.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1057-L1062)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerGraph"></a>
+<a id="entity-starlayer-graph-core-StarLayerGraph"></a>
 ### `StarLayerGraph`  _(class)_
 
 One graph of a store: the default graph (``identifier=None``) or the named graph ``identifier`` (a ``NamedNode``,
 ``BlankNode``, or an IRI string).
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L849-L956)
+**Source:** [starlayer.graph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L850-L957)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerGraph-clear"></a>
+<a id="entity-starlayer-graph-core-StarLayerGraph-clear"></a>
 ### `StarLayerGraph.clear`  _(method)_
 
 ```python
@@ -342,11 +342,11 @@ Remove every triple of this graph only; other graphs of the store are untouched.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L927-L931)
+**Source:** [starlayer.graph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L928-L932)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerGraph-copy"></a>
+<a id="entity-starlayer-graph-core-StarLayerGraph-copy"></a>
 ### `StarLayerGraph.copy`  _(method)_
 
 ```python
@@ -358,11 +358,11 @@ An independent in-memory copy of this graph (same identifier, own copy of the pr
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L939-L946)
+**Source:** [starlayer.graph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L940-L947)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerGraph-from_rdflib"></a>
+<a id="entity-starlayer-graph-core-StarLayerGraph-from_rdflib"></a>
 ### `StarLayerGraph.from_rdflib`  _(method)_
 
 ```python
@@ -381,11 +381,11 @@ For an rdflib dataset's named graphs use ``StarLayerDataset.from_rdflib``.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L873-L883)
+**Source:** [starlayer.graph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L874-L884)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-core-StarLayerGraph-identifier"></a>
+<a id="entity-starlayer-graph-core-StarLayerGraph-identifier"></a>
 ### `StarLayerGraph.identifier`  _(method)_
 
 ```python
@@ -396,7 +396,7 @@ The name of the graph this view is bound to.
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.oxgraph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/core.py#L886-L888)
+**Source:** [starlayer.graph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L887-L889)
 
 ---
 
@@ -726,17 +726,17 @@ section 7.1, "Dataset Poisoning": implementations MUST terminate early with an e
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint"></a>
+<a id="entity-starlayer-graph-endpoint-Endpoint"></a>
 ### `Endpoint`  _(class)_
 
 A SPARQL endpoint: ``query_url`` for reads and ``update_url`` (omitted: read-only) for writes. ``auth`` is a
 ``(user, password)`` pair for HTTP Basic, ``headers`` any extra request headers.
 
-**Source:** [starlayer.graph.oxgraph.endpoint.Endpoint](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L57-L148)
+**Source:** [starlayer.graph.endpoint.Endpoint](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L57-L148)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint-ask"></a>
+<a id="entity-starlayer-graph-endpoint-Endpoint-ask"></a>
 ### `Endpoint.ask`  _(method)_
 
 ```python
@@ -751,11 +751,11 @@ Run an ASK query and return its boolean answer.
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.oxgraph.endpoint.Endpoint.ask](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L123-L125)
+**Source:** [starlayer.graph.endpoint.Endpoint.ask](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L123-L125)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint-pull"></a>
+<a id="entity-starlayer-graph-endpoint-Endpoint-pull"></a>
 ### `Endpoint.pull`  _(method)_
 
 ```python
@@ -770,11 +770,11 @@ Every triple of one graph of the endpoint (``None`` / ``DefaultGraph``: the defa
 
 **Returns:** `list[ox.Triple]`
 
-**Source:** [starlayer.graph.oxgraph.endpoint.Endpoint.pull](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L133-L136)
+**Source:** [starlayer.graph.endpoint.Endpoint.pull](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L133-L136)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint-pull_quads"></a>
+<a id="entity-starlayer-graph-endpoint-Endpoint-pull_quads"></a>
 ### `Endpoint.pull_quads`  _(method)_
 
 ```python
@@ -790,11 +790,11 @@ The quads of one graph (or of the whole dataset) as a stream, to be consumed ins
 
 **Returns:** `Iterator[Iterator[ox.Quad]]`
 
-**Source:** [starlayer.graph.oxgraph.endpoint.Endpoint.pull_quads](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L139-L148)
+**Source:** [starlayer.graph.endpoint.Endpoint.pull_quads](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L139-L148)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint-query"></a>
+<a id="entity-starlayer-graph-endpoint-Endpoint-query"></a>
 ### `Endpoint.query`  _(method)_
 
 ```python
@@ -810,11 +810,11 @@ whole answer is read; ``stream()`` is for a large one).
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.oxgraph.endpoint.Endpoint.query](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L113-L121)
+**Source:** [starlayer.graph.endpoint.Endpoint.query](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L113-L121)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint-stream"></a>
+<a id="entity-starlayer-graph-endpoint-Endpoint-stream"></a>
 ### `Endpoint.stream`  _(method)_
 
 ```python
@@ -830,11 +830,11 @@ result must be consumed inside the block.
 
 **Returns:** `Iterator[Any]`
 
-**Source:** [starlayer.graph.oxgraph.endpoint.Endpoint.stream](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L102-L111)
+**Source:** [starlayer.graph.endpoint.Endpoint.stream](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L102-L111)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-Endpoint-update"></a>
+<a id="entity-starlayer-graph-endpoint-Endpoint-update"></a>
 ### `Endpoint.update`  _(method)_
 
 ```python
@@ -849,17 +849,119 @@ Run a SPARQL Update on the endpoint; a read-only endpoint (no ``update_url``) ra
 
 **Returns:** `None`
 
-**Source:** [starlayer.graph.oxgraph.endpoint.Endpoint.update](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L127-L131)
+**Source:** [starlayer.graph.endpoint.Endpoint.update](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L127-L131)
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-endpoint-EndpointError"></a>
+<a id="entity-starlayer-graph-endpoint-EndpointError"></a>
 ### `EndpointError`  _(class)_
 
 The endpoint could not be reached or answered with an error status (``status`` is the HTTP status, ``None`` if there was
 no answer).
 
-**Source:** [starlayer.graph.oxgraph.endpoint.EndpointError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/endpoint.py#L47-L54)
+**Source:** [starlayer.graph.endpoint.EndpointError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/endpoint.py#L47-L54)
+
+---
+
+<a id="entity-starlayer-graph-execution-session-EntailmentSession"></a>
+### `EntailmentSession`  _(class)_
+
+Open with ``graph.entailment_session(regime)``. Use it as a context manager, or call :meth:`close`.
+
+The entailed triples come from the graph's kept ones (``infer=`` as on ``query()``: ``"changed"`` computes them again only
+after a write, ``"cached"`` reuses any, ``"always"`` computes them). :meth:`query` never computes them: the session answers
+from its copy. :attr:`stale` says whether the graph was written to since the copy was made; :meth:`refresh` makes a new copy.
+
+**Source:** [starlayer.graph.execution.session.EntailmentSession](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L20-L114)
+
+---
+
+<a id="entity-starlayer-graph-execution-session-EntailmentSession-close"></a>
+### `EntailmentSession.close`  _(method)_
+
+```python
+def close(self) -> None
+```
+
+End the session: empty and drop the copy. The graph and the entailed triples it keeps are not affected. Calling it
+again does nothing.
+
+**Returns:** `None`
+
+**Source:** [starlayer.graph.execution.session.EntailmentSession.close](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L93-L96)
+
+---
+
+<a id="entity-starlayer-graph-execution-session-EntailmentSession-closed"></a>
+### `EntailmentSession.closed`  _(method)_
+
+```python
+def closed(self) -> bool
+```
+
+True once the session has been closed; its copy is gone and queries raise ``RuntimeError``.
+
+**Returns:** `bool`
+
+**Source:** [starlayer.graph.execution.session.EntailmentSession.closed](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L80-L82)
+
+---
+
+<a id="entity-starlayer-graph-execution-session-EntailmentSession-query"></a>
+### `EntailmentSession.query`  _(method)_
+
+```python
+def query(self, text: str, initNs: Any=None, initBindings: Any=None, base: str | None=None) -> Any
+```
+
+Run SPARQL ``text`` on the copy (the data as of the last open or refresh, plus the entailed triples). Read the result
+before the session is closed or refreshed: closing empties the copy.
+
+**Parameters:**
+
+- `text: str`
+- `initNs: Any = None`
+- `initBindings: Any = None`
+- `base: str | None = None`
+
+**Returns:** `Any`
+
+**Source:** [starlayer.graph.execution.session.EntailmentSession.query](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L68-L71)
+
+---
+
+<a id="entity-starlayer-graph-execution-session-EntailmentSession-refresh"></a>
+### `EntailmentSession.refresh`  _(method)_
+
+```python
+def refresh(self, infer: str='changed') -> EntailmentSession
+```
+
+Make a new copy of the graph's current data; the entailed triples are computed again as ``infer`` says
+(``"changed"``: only if the graph was written to since they were computed).
+
+**Parameters:**
+
+- `infer: str = 'changed'`
+
+**Returns:** `EntailmentSession`
+
+**Source:** [starlayer.graph.execution.session.EntailmentSession.refresh](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L84-L91)
+
+---
+
+<a id="entity-starlayer-graph-execution-session-EntailmentSession-stale"></a>
+### `EntailmentSession.stale`  _(method)_
+
+```python
+def stale(self) -> bool
+```
+
+True if a write was made through StarLayer since the copy was made (any graph counts, as for ``infer="changed"``).
+
+**Returns:** `bool`
+
+**Source:** [starlayer.graph.execution.session.EntailmentSession.stale](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L74-L77)
 
 ---
 
@@ -872,7 +974,140 @@ A namespace of pyoxigraph ``NamedNode`` constants: ``SH.minCount``, ``SH["class"
 
 ---
 
-<a id="entity-starlayer-graph-oxgraph-helpers-imports-can_resolve_import"></a>
+<a id="entity-starlayer-graph-execution-result-Result"></a>
+### `Result`  _(class)_
+
+A pyoxigraph query result read like an rdflib one: rows, bindings, triples or a boolean, by query form.
+
+**Source:** [starlayer.graph.execution.result.Result](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L107-L188)
+
+---
+
+<a id="entity-starlayer-graph-execution-result-Result-bindings"></a>
+### `Result.bindings`  _(method)_
+
+```python
+def bindings(self) -> list[dict[str, Any]]
+```
+
+The SELECT solutions as ``{name: term}`` dicts, with unbound variables absent.
+
+**Returns:** `list[dict[str, Any]]`
+
+**Source:** [starlayer.graph.execution.result.Result.bindings](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L138-L140)
+
+---
+
+<a id="entity-starlayer-graph-execution-result-Result-graph"></a>
+### `Result.graph`  _(method)_
+
+```python
+def graph(self) -> Any
+```
+
+The CONSTRUCT or DESCRIBE triples as a new in-memory ``StarLayerGraph``, built once.
+
+**Returns:** `Any`
+
+**Source:** [starlayer.graph.execution.result.Result.graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L153-L161)
+
+---
+
+<a id="entity-starlayer-graph-execution-result-Result-rows"></a>
+### `Result.rows`  _(method)_
+
+```python
+def rows(self) -> list[Row]
+```
+
+The SELECT solutions, read from the one-shot stream once; other query forms raise ``TypeError``.
+
+**Returns:** `list[Row]`
+
+**Source:** [starlayer.graph.execution.result.Result.rows](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L133-L135)
+
+---
+
+<a id="entity-starlayer-graph-execution-result-Result-triples"></a>
+### `Result.triples`  _(method)_
+
+```python
+def triples(self) -> list[tuple[Any, Any, Any]]
+```
+
+The CONSTRUCT or DESCRIBE triples, read from the one-shot stream once; other forms raise ``TypeError``.
+
+**Returns:** `list[tuple[Any, Any, Any]]`
+
+**Source:** [starlayer.graph.execution.result.Result.triples](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L144-L150)
+
+---
+
+<a id="entity-starlayer-graph-execution-result-Row"></a>
+### `Row`  _(class)_
+
+One solution: a tuple of terms in ``vars`` order (``None`` for an unbound variable) that can also be read by name:
+``row["x"]``, ``row[Variable("x")]``, ``row.x``, ``row.get("x")``, ``row.asdict()``.
+
+**Source:** [starlayer.graph.execution.result.Row](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L21-L66)
+
+---
+
+<a id="entity-starlayer-graph-execution-result-Row-asdict"></a>
+### `Row.asdict`  _(method)_
+
+```python
+def asdict(self) -> dict[str, Any]
+```
+
+Map variable name to term, leaving unbound variables out.
+
+**Returns:** `dict[str, Any]`
+
+**Source:** [starlayer.graph.execution.result.Row.asdict](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L64-L66)
+
+---
+
+<a id="entity-starlayer-graph-execution-result-Row-get"></a>
+### `Row.get`  _(method)_
+
+```python
+def get(self, key: Any, default: Any=None) -> Any
+```
+
+Value of a variable, or ``default`` when the name is unknown or the variable is unbound.
+
+**Parameters:**
+
+- `key: Any`
+- `default: Any = None`
+
+**Returns:** `Any`
+
+**Source:** [starlayer.graph.execution.result.Row.get](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/result.py#L56-L62)
+
+---
+
+<a id="entity-starlayer-graph-core-as_store"></a>
+### `as_store`  _(function)_
+
+```python
+def as_store(x: Any) -> ox.Store
+```
+
+The ``pyoxigraph.Store`` behind a wrapper, an ``OxigraphGraph`` view, or a bare store.
+
+**Parameters:**
+
+- `x: Any`
+
+**Returns:** `ox.Store`
+
+**Source:** [starlayer.graph.core.as_store](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L45-L54)
+
+---
+
+<a id="entity-starlayer-graph-imports-can_resolve_import"></a>
 ### `can_resolve_import`  _(function)_
 
 ```python
@@ -888,7 +1123,7 @@ Whether ``loader(iri)`` returns a graph (it is called once; there is no cheaper 
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.oxgraph.helpers.imports.can_resolve_import](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/oxgraph/helpers/imports.py#L22-L24)
+**Source:** [starlayer.graph.imports.can_resolve_import](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/imports.py#L22-L24)
 
 ---
 
@@ -939,6 +1174,25 @@ Raises:
 **Returns:** `str`
 
 **Source:** [starlayer.graph.rdfc.rdfc10_hash](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/rdfc.py#L36-L43)
+
+---
+
+<a id="entity-starlayer-graph-config-set_default_prefixes"></a>
+### `set_default_prefixes`  _(function)_
+
+```python
+def set_default_prefixes(mapping: Mapping[str, str] | None) -> None
+```
+
+Replace the global default prefixes (``None`` or an empty mapping clears them).
+
+**Parameters:**
+
+- `mapping: Mapping[str, str] | None`
+
+**Returns:** `None`
+
+**Source:** [starlayer.graph.config.set_default_prefixes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/config.py#L14-L17)
 
 ---
 

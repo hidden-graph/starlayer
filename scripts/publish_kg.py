@@ -58,7 +58,7 @@ def main() -> int:
     subprocess.run([sys.executable, str(ROOT / "scripts/build.py"), "--only", "codekg", "kg"], cwd=ROOT, check=True)
 
     sys.path.insert(0, str(ROOT / "packages/starlayer"))
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     kg = StarLayerDataset()
     kg.parse(str(TRIG), format="trig12")

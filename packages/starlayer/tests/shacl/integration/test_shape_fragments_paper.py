@@ -17,7 +17,7 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import HealthCheck, assume, given, settings
 from hypothesis import strategies as st
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import extract_subgraph, validate
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import RDF, RDFS

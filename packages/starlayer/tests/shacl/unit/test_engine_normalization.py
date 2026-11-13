@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 from starlayer.shacl.normalization import (
     normalize_graph_inputs,
     normalize_to_starlayer_graph,

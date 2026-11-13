@@ -17,8 +17,8 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
+from starlayer.graph import StarLayerDataset, StarLayerGraph
+from starlayer.graph.entailment.infer import ENTAILMENT
 from starlayer.sparql.sqe.entailment import (
     EntailmentRewriteError,
     rewrite_for_entailment,

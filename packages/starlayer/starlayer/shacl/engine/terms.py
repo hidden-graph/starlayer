@@ -13,8 +13,8 @@ from urllib.parse import unquote
 
 import pyoxigraph as ox
 
+from starlayer.graph._versions import require_supported_pyoxigraph
 from starlayer.graph.namespaces import Namespace as NS  # the public namespace class
-from starlayer.graph.oxgraph._versions import require_supported_pyoxigraph
 
 require_supported_pyoxigraph()
 
@@ -165,7 +165,7 @@ def engine_view(graph: Any, where: str = "graph") -> Any:
         return graph
     if getattr(graph, "engine_terms", False):
         return _union_view(graph)
-    from starlayer.graph.oxgraph.inputs import as_oxigraph
+    from starlayer.graph.inputs import as_oxigraph
 
     return as_oxigraph(graph, where)
 
@@ -174,7 +174,7 @@ def _union_view(graph: Any) -> Any:
     """SHACL validates one data graph, and a dataset is that graph's union of all its graphs (as pySHACL does, which sets
     ``default_union`` on a multi-graph data graph). A dataset whose own ``default_union`` is off is seen through a view of the same
     store with it on; every other graph is returned as it is."""
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     if isinstance(graph, StarLayerDataset) and not graph.default_union:
         return StarLayerDataset(store=graph.store, default_union=True, prefixes=dict(graph.prefixes))

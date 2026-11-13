@@ -5,7 +5,7 @@ for VALUES triple terms, BIND scope and SELECT * with grouping."""
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql.parse_sparql import SparqlSyntaxError
 from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12

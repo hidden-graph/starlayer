@@ -19,7 +19,7 @@ def as_quads(graph: Any) -> list:
     default graph), or of a plain collection of pyoxigraph ``(s, p, o)`` triples. An rdflib graph is a ``TypeError``."""
     import pyoxigraph as ox
 
-    from starlayer.graph.oxgraph.inputs import as_oxigraph, is_oxigraph_input
+    from starlayer.graph.inputs import as_oxigraph, is_oxigraph_input
 
     if not is_oxigraph_input(graph) and not hasattr(graph, "triples") and not hasattr(graph, "namespaces"):
         return [ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in graph]  # a plain collection of pyoxigraph triples
@@ -27,7 +27,7 @@ def as_quads(graph: Any) -> list:
         as_oxigraph(graph)  # raises the TypeError that points to from_rdflib
     if isinstance(graph, ox.Store):
         return list(graph)
-    from starlayer.graph.oxgraph.core import StarLayerDataset
+    from starlayer.graph.core import StarLayerDataset
 
     if isinstance(graph, StarLayerDataset):
         return list(graph.quads())

@@ -2,8 +2,8 @@
 a malformed score or an ``owl:imports`` in the catalog does not stop the selection; ``StarShaclSchema`` sees edits
 made to the graphs it was given."""
 
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.ui.widget_selection import select_widget, select_widgets
 from tests.terms import RDF, XSD, Namespace

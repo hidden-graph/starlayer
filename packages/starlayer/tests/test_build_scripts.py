@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+from starlayer.graph import StarLayerDataset as Dataset
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerDataset as Dataset
 from tests.terms import RDF, RDFS, NamedNode, lit
 
 

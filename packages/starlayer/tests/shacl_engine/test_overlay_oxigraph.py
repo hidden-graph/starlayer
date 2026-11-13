@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.engine import rules
 from starlayer.shacl.engine.entailment import entailed_view
 from starlayer.shacl.engine.overlay_oxigraph import (

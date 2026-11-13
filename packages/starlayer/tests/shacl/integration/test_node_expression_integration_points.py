@@ -35,7 +35,7 @@ test_shnex_node_expressions.py and test_node_by_expression.py).
 """
 
 from rdflib import Namespace
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 
 EX = Namespace("http://example.org/")

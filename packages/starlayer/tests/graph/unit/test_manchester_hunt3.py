@@ -7,12 +7,12 @@ one ontology per document, ``languageTag`` non-empty, ``description2List`` with 
 
 import pyoxigraph as ox
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.manchester._ox_terms import XSD, URIRef
 from starlayer.graph.manchester._ox_terms import lexical as Literal
 from starlayer.graph.manchester.errors import ManchesterSyntaxError
 from starlayer.graph.manchester.parser import parse_manchester
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.starontology.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_owl,

@@ -486,7 +486,7 @@ def extract_subgraph(
         if value is not None and type(value) is str:  # a bare str is not a term (an rdflib ``URIRef`` is a str subclass)
             raise TypeError(f"{argument} must be an RDF term such as a NamedNode or URIRef, not {type(value).__name__}: {value!r}")
     data_graph = engine_view(data_graph, "data graph")
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     if isinstance(data_graph, StarLayerDataset):
         raise TypeError(

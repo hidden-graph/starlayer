@@ -3,7 +3,7 @@ told (SHACL UI, Scoring System: "An implementation MUST NOT select or offer a wi
 implementation does not implement matches, or when no widget matches, the implementation MUST report this to the application.")"""
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui.widget_selection import (
     SHUI,

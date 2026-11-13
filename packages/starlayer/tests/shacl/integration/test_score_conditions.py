@@ -4,7 +4,7 @@ added by a higher layer is never blocked by a condition in a lower one (which a 
 shared by every layer, would do)."""
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui.widget_selection import SHUI, select_widget, select_widgets
 

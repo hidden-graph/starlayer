@@ -1,7 +1,7 @@
 """CONSTRUCT leaves out a template triple that instantiates to invalid RDF (SPARQL 1.1 sec 16.2.1)."""
 
 import pyoxigraph as ox
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 
 class _Namespace:

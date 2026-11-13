@@ -258,7 +258,7 @@ def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
     of the same pattern and any solution counts as true.
     """
     check_query(ctx.plan, text, bindings, ask=True)
-    from starlayer.graph.oxgraph.run import _has_blank, _mask
+    from starlayer.graph.execution.run import _has_blank, _mask
 
     if any(_has_blank(v) for v in bindings.values()):
         # A blank node can be pre-bound only in a SELECT query (the graph layer widens its projection): ask the same

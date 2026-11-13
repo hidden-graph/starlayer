@@ -12,7 +12,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph.pretty import _PN_LOCAL
+from starlayer.graph.pretty import _PN_LOCAL
 
 # Turtle 1.2 PN_LOCAL (the grammar's own character classes, no backslash escapes: an IRI that needs one has no qname) or empty
 _LOCAL = re.compile(rf"(?:{_PN_LOCAL.pattern})?")

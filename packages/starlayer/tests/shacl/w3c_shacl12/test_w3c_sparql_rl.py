@@ -21,8 +21,8 @@ from pathlib import Path
 
 import pyoxigraph as ox
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql.parse_srl import parse_srl
 from starlayer.sparql.srl import SRLError, parse_ruleset
 from starlayer.sparql.srl_eval import StratificationError

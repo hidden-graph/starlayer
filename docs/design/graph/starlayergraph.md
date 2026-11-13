@@ -61,7 +61,7 @@ See `docs/design/shacl/compatibility.md`'s "Backend Compatibility" section for w
 | `starlayergraph/entailment/` | `StarLayerGraph` and `StarLayerDataset` — the public API |
 | `starlayergraph/manchester/` | Format-specific RDF 1.2 parsers: Turtle 1.2/LongTurtle 1.2, N-Triples 1.2, N-Quads 1.2, TriG 1.2, RDF/XML 1.2, TriX 1.2 (`jsonld12` was removed as a recognized format entirely, 2026-10-02 — see `docs/design/graph/rdf12_sparql12_gap_analysis.md` §6) |
 | `starlayergraph/manchester/` | Format-specific RDF 1.2 serializers for the same formats |
-| `starlayergraph/query/` | SPARQL 1.2 → SPARQL 1.1 rewriter (`sparql12_to_11.py`) and parse-tree helpers (`sparql_api.py`) for the default (`rdf-1.1`) representation |
+| `starlayergraph/execution/` | SPARQL 1.2 → SPARQL 1.1 rewriter (`sparql12_to_11.py`) and parse-tree helpers (`sparql_api.py`) for the default (`rdf-1.1`) representation |
 | `starlayergraph/backends/` | Transport utilities for the native (`rdf-1.2`) representation - both remote (HTTP) and in-process Oxigraph (`native_oxigraph.py`) |
 
 ---

@@ -7,7 +7,7 @@ The shared dataset matches the one defined at the top of that document.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 # StarLayerGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
 URIRef = ox.NamedNode

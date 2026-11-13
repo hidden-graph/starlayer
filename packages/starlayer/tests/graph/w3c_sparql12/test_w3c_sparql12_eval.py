@@ -20,8 +20,7 @@ from __future__ import annotations
 import json
 
 import pytest
-from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph, isomorphic
 
 from .harness import bindings_match, data_format, load_index, parse_srj
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.interface import Solutions
 from starlayer.shacl.engine.plan import Path, ShapeError

@@ -7,8 +7,7 @@ quad iteration, TriG 1.2 / N-Quads 1.2 serialization, and round-trip.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph, isomorphic
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 

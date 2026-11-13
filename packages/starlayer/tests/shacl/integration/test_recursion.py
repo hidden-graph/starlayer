@@ -10,7 +10,7 @@ import warnings
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.engine.terms import text
 

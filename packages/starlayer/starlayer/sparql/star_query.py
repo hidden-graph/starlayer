@@ -116,14 +116,14 @@ class StarQuery:
             raise TypeError(f"StarQuery.run() got unexpected option(s): {', '.join(unknown)}")
         kwargs.update(overrides)
 
-        from starlayer.graph.oxgraph.session import EntailmentSession
+        from starlayer.graph.execution.session import EntailmentSession
 
         if isinstance(graph, EntailmentSession):
             if kwargs["entailment"] is not None:
                 raise ValueError("a session already applies its own entailment regime: run a StarQuery with no entailment= on it.")
             return graph.query(self._text, initNs=kwargs["initNs"], initBindings=kwargs["initBindings"], base=kwargs.get("base", self._base))
 
-        from starlayer.graph.oxgraph.inputs import as_oxigraph
+        from starlayer.graph.inputs import as_oxigraph
 
         graph = as_oxigraph(graph)  # a bare Store has no StarLayer query() keywords: it becomes a dataset; an rdflib graph is a TypeError
         # The wrapper runs the query text on Oxigraph. RDF / RDFS entailment rewrites the text; the OWL regimes run on a temporary

@@ -9,7 +9,7 @@ import pytest
 
 pytest.importorskip("pyoxigraph")
 
-from starlayer.graph.oxgraph import StarLayerGraph  # noqa: E402
+from starlayer.graph import StarLayerGraph  # noqa: E402
 from starlayer.shacl.engine import api  # noqa: E402
 from starlayer.shacl.engine.oxigraph_view import OxigraphGraph  # noqa: E402
 from starlayer.shacl.engine.terms import StarLayerFidelityWarning  # noqa: E402

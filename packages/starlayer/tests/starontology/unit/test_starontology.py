@@ -19,7 +19,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph.core import StarLayerGraph
+from starlayer.graph.core import StarLayerGraph
 
 
 def _rdflib(graph):

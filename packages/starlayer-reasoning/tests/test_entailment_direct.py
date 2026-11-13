@@ -17,10 +17,9 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import RDF, Namespace
+from starlayer.graph import RDF, Namespace, StarLayerDataset, StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.oxgraph.helpers import entailment as ent
+from starlayer.graph.entailment import infer as ent
 from starlayer_reasoning.owl_dl import InconsistentOntologyError
 
 try:

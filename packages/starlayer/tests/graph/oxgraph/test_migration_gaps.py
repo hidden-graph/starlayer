@@ -9,8 +9,7 @@ import pickle
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import interop
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph, interop
 
 EX = "http://example.org/"
 RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -366,7 +365,7 @@ def test_a_wrong_version_label_is_read_without_a_warning(recwarn):
 
 
 def test_the_rdf_conformance_warning_class_is_gone():
-    from starlayer.graph.oxgraph import version_conformance as conformance
+    from starlayer.graph.execution import version_conformance as conformance
 
     assert not hasattr(conformance, "RDF12ConformanceWarning")
     assert hasattr(conformance, "SPARQL12ConformanceWarning")

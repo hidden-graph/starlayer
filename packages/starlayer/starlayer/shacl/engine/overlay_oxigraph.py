@@ -22,7 +22,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph._detached import detached
+from starlayer.graph._detached import detached
 from starlayer.shacl.engine.rules import InferredView, Triple
 
 _SCRATCH = ox.Store()

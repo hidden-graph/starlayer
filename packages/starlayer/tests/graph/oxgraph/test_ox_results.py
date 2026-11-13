@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .

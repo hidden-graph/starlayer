@@ -3,8 +3,7 @@
 import warnings
 
 import pytest
-from starlayer.graph import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import ENTAILMENT, StarLayerGraph
 
 warnings.simplefilter("ignore")
 SCHEMA = """@prefix : <http://e/> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .

@@ -12,7 +12,7 @@ import pytest
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.component_table import component_table
 from starlayer.shacl.engine.components.registry import REGISTRY

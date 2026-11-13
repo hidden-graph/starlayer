@@ -16,8 +16,7 @@ result once a loader hands one back.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import can_resolve_import
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph, can_resolve_import
 
 
 class _NS:

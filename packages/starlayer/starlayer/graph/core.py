@@ -14,10 +14,11 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph import config, formats, ntversion, run, terms, union
-from starlayer.graph.oxgraph._detached import detached
-from starlayer.graph.oxgraph._versions import require_supported_pyoxigraph
-from starlayer.graph.oxgraph.result import Result
+from starlayer.graph import config, formats, ntversion, terms
+from starlayer.graph._detached import detached
+from starlayer.graph._versions import require_supported_pyoxigraph
+from starlayer.graph.execution import run, union
+from starlayer.graph.execution.result import Result
 
 require_supported_pyoxigraph()
 
@@ -43,7 +44,7 @@ def _uses_rdf12(items: Iterable[Any]) -> bool:
 
 def as_store(x: Any) -> ox.Store:
     """The ``pyoxigraph.Store`` behind a wrapper, an ``OxigraphGraph`` view, or a bare store."""
-    from starlayer.graph.oxgraph.endpoint import BackedStore
+    from starlayer.graph.endpoint import BackedStore
 
     if isinstance(x, (ox.Store, BackedStore)):
         return x
@@ -198,60 +199,60 @@ class _Base:
         union.touch()  # the caller may write to it: a deduplicated copy of the union is stale from now on
         return self.store
 
-    # ---- StarLayer helpers (thin delegates; the code lives in oxgraph/helpers/) -------------------------------------
+    # ---- StarLayer helpers (thin delegates; the code lives in graph/) -------------------------------------
     def infer(self, entailment: Any = None, **kw: Any) -> Any:
-        from starlayer.graph.oxgraph.helpers import entailment as m
+        from starlayer.graph.entailment import infer as m
         return m.infer(self, m.ENTAILMENT.RDFS if entailment is None else entailment, **kw)
 
     def derive_shape(self, *a: Any, **kw: Any) -> Any:
-        from starlayer.graph.oxgraph.helpers import shapes
+        from starlayer.graph import shapes
         return shapes.derive_shape(self, *a, **kw)
 
     def owl_imports(self) -> tuple[Any, ...]:
-        from starlayer.graph.oxgraph.helpers import imports
+        from starlayer.graph import imports
         return imports.owl_imports(self)
 
     def has_import_locally(self, iri: Any) -> bool:
-        from starlayer.graph.oxgraph.helpers import imports
+        from starlayer.graph import imports
         return imports.has_import_locally(self, iri)
 
     def resolve_imports(self, **kw: Any) -> Any:
-        from starlayer.graph.oxgraph.helpers import imports
+        from starlayer.graph import imports
         return imports.resolve_imports(self, **kw)
 
     def skolemize(self, *a: Any, **kw: Any) -> Any:
-        from starlayer.graph.oxgraph.helpers import rewrite
+        from starlayer.graph import rewrite
         return rewrite.skolemize(self, *a, **kw)
 
     def de_skolemize(self, *a: Any, **kw: Any) -> Any:
-        from starlayer.graph.oxgraph.helpers import rewrite
+        from starlayer.graph import rewrite
         return rewrite.de_skolemize(self, *a, **kw)
 
     def cbd(self, resource: Any, **kw: Any) -> Any:
-        from starlayer.graph.oxgraph.helpers import rewrite
+        from starlayer.graph import rewrite
         return rewrite.cbd(self, resource, **kw)
 
     def empty_like(self) -> Any:
-        from starlayer.graph.oxgraph.helpers import rewrite
+        from starlayer.graph import rewrite
         return rewrite.empty_like(self)
 
     def qname(self, uri: Any) -> str:
-        from starlayer.graph.oxgraph.helpers import qnames
+        from starlayer.graph import qnames
         return qnames.qname(self.prefixes, uri)
 
     def compute_qname(self, uri: Any, generate: bool = True) -> tuple[str, str, str]:
-        from starlayer.graph.oxgraph.helpers import qnames
+        from starlayer.graph import qnames
         return qnames.compute_qname(self.prefixes, uri, generate)
 
     def expand_curie(self, curie: str) -> Any:
-        from starlayer.graph.oxgraph.helpers import qnames
+        from starlayer.graph import qnames
         return qnames.expand_curie(self.prefixes, curie)
 
     def qname_term(self, term: Any) -> str:
         """The prefixed N3 form of any term (IRI, blank node, literal, triple term) using this graph's prefixes; an IRI with no
         fitting prefix is ``<iri>``. pyoxigraph terms have no ``n3()``: this replaces ``term.n3(namespace_manager)``, and
         ``str(term)`` replaces ``term.n3()``."""
-        from starlayer.graph.oxgraph.helpers import qnames
+        from starlayer.graph import qnames
         return qnames.n3(self.prefixes, term)
 
     def namespaces(self) -> Iterator[tuple[str, str]]:
@@ -493,7 +494,7 @@ class _Base:
         Prefixes are the graph's dict plus ``prefixes`` (the per-call override); ``only_used=True`` declares only those the
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
         triple terms), so the output contains no triple term. ``pretty=True`` lays Turtle / TriG out with
-        ``oxgraph.pretty`` (nested blank nodes, lists, annotations; see that module).
+        ``pretty`` (nested blank nodes, lists, annotations; see that module).
 
         A Turtle, TriG, N-Triples or N-Quads document that uses an RDF 1.2 feature (a triple term, a base-direction literal)
         starts with the version declaration (``@version "1.2" .`` / ``VERSION "1.2"``), as does any such document written with
@@ -508,7 +509,7 @@ class _Base:
             raise ValueError(f"unknown rdf_version {rdf_version!r}")
         pfx = {**self.prefixes, **{str(k): str(v) for k, v in (prefixes or {}).items()}}
         if not pretty and fmt in _TURTLE_LIKE:  # the pretty writer renames such a prefix; Oxigraph's would write Turtle that does not parse (N-Triples, N-Quads and JSON-LD write no prefixes)
-            from starlayer.graph.oxgraph.pretty import _PN_PREFIX
+            from starlayer.graph.pretty import _PN_PREFIX
 
             for name in pfx:
                 if not _PN_PREFIX.fullmatch(name):
@@ -516,8 +517,8 @@ class _Base:
         items = self._serial_items(fmt)
         if fmt == ox.RdfFormat.RDF_XML:
             items = _xml_safe_blank_nodes(items)
-        if pretty:  # pretty Turtle / TriG (RDF 1.2): oxgraph/pretty.py
-            from starlayer.graph.oxgraph.pretty import serialize_pretty
+        if pretty:  # pretty Turtle / TriG (RDF 1.2): pretty.py
+            from starlayer.graph.pretty import serialize_pretty
 
             source = self._pretty_source(fmt)
             if rdf_version in ("1.1", "rdf-1.1"):  # pretty-print the basic encoding, so the output has no triple term either
@@ -582,7 +583,7 @@ class _Base:
         """Bind ``prefix`` to ``namespace``. The prefix must be a valid Turtle PN_PREFIX (``''`` is the empty prefix) and the
         namespace an absolute IRI (a ``str`` or a ``NamedNode``); anything else raises ``ValueError`` here, so a bad binding
         cannot make later ``query()`` / ``update()`` / ``serialize()`` calls fail."""
-        from starlayer.graph.oxgraph.pretty import _IRI_BAD, _PN_PREFIX
+        from starlayer.graph.pretty import _IRI_BAD, _PN_PREFIX
 
         if not isinstance(prefix, str) or not _PN_PREFIX.fullmatch(prefix):
             raise ValueError(f"{prefix!r} is not a valid prefix name")
@@ -623,12 +624,12 @@ class _Base:
         modified; the copy always holds the current data). The entailed triples are kept on this object, one set per regime
         (and per engine for ``OWL-Direct``), and ``infer`` says when they are computed again: ``"changed"`` (default) after a
         write made through this package since they were computed (``as_store()`` counts; a write on a raw store reference kept
-        from before is not seen, call ``oxgraph.union.touch()`` after it), ``"always"`` on every call, ``"cached"`` only when none
+        from before is not seen, call ``union.touch()`` after it), ``"always"`` on every call, ``"cached"`` only when none
         are kept (they may then be out of date). A write to any store counts, so it can recompute when it need not. ``engine`` /
         ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
         Anything else raises ``NotImplementedError``."""
         regime = None if entailment is None else str(getattr(entailment, "value", entailment))
-        from starlayer.graph.oxgraph.helpers import entailment as ent
+        from starlayer.graph.entailment import infer as ent
 
         if regime is not None and regime not in (ent.RDF_REGIME, ent.RDFS_REGIME, ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
             raise NotImplementedError(
@@ -653,7 +654,7 @@ class _Base:
         (or a ``with`` block). Use it when the same graph is queried several times with an OWL regime: ``query(entailment=...)``
         copies the store on every call, a session once. ``infer``, ``engine`` and ``timeout`` are as for ``query()``. The graph is
         not modified; the session holds the data as it is now (``session.stale`` and ``session.refresh()`` handle later writes)."""
-        from starlayer.graph.oxgraph.session import EntailmentSession
+        from starlayer.graph.execution.session import EntailmentSession
 
         return EntailmentSession(self, str(getattr(entailment, "value", entailment)), infer=infer, engine=engine, timeout=timeout)
 
@@ -684,7 +685,7 @@ class _Base:
         """The triples ``regime`` entails that this wrapper (or, with ``of``, that graph view, kept under ``scope``) does not
         hold, kept per regime (and engine, for ``OWL-Direct``, whose engines can differ) with the write number they were
         computed at; ``infer`` says when to compute them again."""
-        from starlayer.graph.oxgraph.helpers import entailment as ent
+        from starlayer.graph.entailment import infer as ent
 
         kept = self.__dict__.setdefault("_entailed", {})
         key = (regime, engine if regime == ent.OWL_DIRECT_REGIME else None, scope)
@@ -718,42 +719,42 @@ class _Base:
 
     # ---- RDF 1.2 reifiers (thin functions in reification.py) -----------------------------------------------------
     def add_reification(self, reifier: Any, triple_term: Any) -> Any:
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.add_reification(self, reifier, triple_term)
 
     def reifiers(self, TT: Any = None, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: N803, A002
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.reifiers(self, TT, predicate, object)
 
     def reifications(self, s: Any = None, p: Any = None, o: Any = None) -> Iterator[ox.Triple]:
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.reifications(self, s, p, o)
 
     def reifier_annotations(self, TT: Any) -> Iterator[tuple[Any, Any, Any]]:  # noqa: N803
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.reifier_annotations(self, TT)
 
     def reified_triples(self, reifier: Any) -> Iterator[ox.Triple]:
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.reified_triples(self, reifier)
 
     def remove_reification(self, reifier: Any, triple_term: Any = None) -> Any:
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.remove_reification(self, reifier, triple_term)
 
     def triple_terms(self, subject: Any = None, predicate: Any = None, object: Any = None) -> Iterator[ox.Triple]:  # noqa: A002
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.triple_terms(self, subject, predicate, object)
 
     def has_triple_term(self, subject: Any, predicate: Any, object: Any) -> bool:  # noqa: A002
-        from starlayer.graph.oxgraph import reification
+        from starlayer.graph import reification
 
         return reification.has_triple_term(self, subject, predicate, object)
 
@@ -855,13 +856,13 @@ class StarLayerGraph(_Base):
         """``endpoint`` (an ``Endpoint``) holds this graph (the default graph, or the named graph ``identifier``) in a SPARQL endpoint;
         the graph keeps a full local copy, in memory or, with ``path``, on disk, in sync with the writes made through this object
         (``max_age`` seconds old at most, when given; ``pull=False`` opens an existing on-disk copy without asking the endpoint). See
-        ``oxgraph/endpoint.py``."""
+        ``endpoint.py``."""
         _no_backend(backend)
         self._g = terms.graph_name(identifier)
         if endpoint is not None:
             if store is not None:
                 raise ValueError("give an endpoint, or a store")
-            from starlayer.graph.oxgraph.endpoint import BackedStore
+            from starlayer.graph.endpoint import BackedStore
 
             self.store = BackedStore(endpoint, self._g, max_age=max_age, path=path, pull=pull)
             self._path = os.fspath(path) if path is not None else None
@@ -965,12 +966,12 @@ class StarLayerDataset(_Base):
     def __init__(self, store: Any = None, path: Any = None, default_union: bool = True, *, prefixes: dict[str, str] | None = None,
                  backend: str | None = None, endpoint: Any = None, max_age: float | None = None, pull: bool = True) -> None:
         """``endpoint`` (an ``Endpoint``) holds the whole dataset in a SPARQL endpoint; ``path``, ``max_age`` and ``pull`` are as for
-        ``StarLayerGraph`` (see ``oxgraph/endpoint.py``)."""
+        ``StarLayerGraph`` (see ``endpoint.py``)."""
         _no_backend(backend)
         if endpoint is not None:
             if store is not None:
                 raise ValueError("give an endpoint, or a store")
-            from starlayer.graph.oxgraph.endpoint import BackedStore
+            from starlayer.graph.endpoint import BackedStore
 
             self.store = BackedStore(endpoint, dataset=True, max_age=max_age, path=path, pull=pull)
             self._path = os.fspath(path) if path is not None else None

@@ -13,7 +13,7 @@ from urllib.parse import urljoin, urlparse
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph import terms
+from starlayer.graph import terms
 
 SKOLEM_AUTHORITY = "https://rdflib.github.io"
 SKOLEM_GENID = "/.well-known/genid/"
@@ -31,7 +31,7 @@ def _need_graph(target: Any, what: str) -> None:
 def empty_like(g: Any) -> Any:
     """A new, empty, in-memory graph of the same kind (``StarLayerGraph`` -> ``StarLayerGraph``, ``StarLayerDataset`` -> ``StarLayerDataset`` with the same
     ``default_union``) with a copy of the namespace bindings."""
-    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+    from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
     prefixes = dict(g.prefixes)
     if isinstance(g, StarLayerDataset):
@@ -41,7 +41,7 @@ def empty_like(g: Any) -> Any:
 
 def _new_graph_like(g: Any) -> Any:
     """The default target of ``cbd`` / ``skolemize``: a plain ``StarLayerGraph`` with the source's prefixes (also for a dataset)."""
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     return StarLayerGraph(prefixes=dict(g.prefixes))
 

@@ -5,7 +5,7 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset
+from starlayer.graph import StarLayerDataset
 
 warnings.simplefilter("ignore")
 E = lambda n: ox.NamedNode("http://e/" + n)  # noqa: E731

@@ -15,8 +15,8 @@ import re
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.oxgraph.pretty import pretty_trig, pretty_turtle
+from starlayer.graph import StarLayerDataset, StarLayerGraph
+from starlayer.graph.pretty import pretty_trig, pretty_turtle
 from starlayer.graph.rdfc_native import isomorphic
 
 HERE = os.path.dirname(__file__)

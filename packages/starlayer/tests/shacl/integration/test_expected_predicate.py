@@ -25,7 +25,7 @@ implementation; the rule engine (starlayer.shacl.rule_engine) calls it once
 per layer and removes the triples again when the layer ends.
 """
 
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from tests.terms import RDF, Namespace, lit
 

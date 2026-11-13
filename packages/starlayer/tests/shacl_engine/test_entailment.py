@@ -3,9 +3,9 @@
 import time
 
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.engine import entailment as _entailment
 from starlayer.shacl.engine.api import validate as engine_validate
 from starlayer.shacl.engine.terms import NS as Namespace

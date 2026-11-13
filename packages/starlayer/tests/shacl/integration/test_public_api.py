@@ -4,8 +4,7 @@
 from __future__ import annotations
 
 import pytest
-from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph, isomorphic
 from starlayer.shacl import (
     evaluate_expression,
     infer_types,

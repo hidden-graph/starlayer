@@ -1,5 +1,5 @@
 import pyoxigraph as ox
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from tests.terms import Namespace
 

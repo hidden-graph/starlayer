@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import Literal
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import paths as _paths
 from starlayer.shacl.engine import targets as _targets
 from starlayer.shacl.engine.plan import ShapeError

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.imports import declared_imports, resolve_imports
 from starlayer.shacl.engine.meta import META_ERROR_PREFIX, MetaShaclError, meta_validate
 from starlayer.shacl.engine.terms import OWL, RDF

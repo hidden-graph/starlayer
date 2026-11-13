@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph, reification
+from starlayer.graph import StarLayerDataset, StarLayerGraph, reification
 
 N = ox.NamedNode
 EX = "http://example.org/"

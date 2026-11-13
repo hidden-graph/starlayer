@@ -49,7 +49,7 @@ package's own top level, not nested under one subpackage's docs.
   shape from a graph's own data) - the method exists, no guide covers it
   yet.
 - Consider adding a `processQuery(graph, queryString, ...)` to
-  `starlayer.graph.query.sparql_api` for symmetry with the existing
+  `starlayer.graph.execution.sparql_api` for symmetry with the existing
   `processUpdate`, found while reviewing the api-reference.md doc
   (2026-10-04). rdflib itself only defines `processUpdate`, not
   `processQuery` - confirmed by reading both `Graph.update()`'s and

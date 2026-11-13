@@ -330,7 +330,7 @@ def _ox_term(term):
 
 def _pattern_term_text(term) -> str:
     """SPARQL 1.2 text for one pattern term."""
-    from starlayer.graph.oxgraph.run import _sparql_term
+    from starlayer.graph.execution.run import _sparql_term
 
     if isinstance(term, Variable):
         return "?" + term.value
@@ -521,7 +521,7 @@ def _bound(expr, mu: dict) -> tuple[str, str, dict]:
     ``VALUES`` row, so they join like any bound variable: pyoxigraph's ``substitutions=`` turns ``=``, ``!=`` and ``IN`` into
     term identity and loses a variable passed through unchanged. A blank node cannot be written there, so a variable bound to
     one is substituted instead (the engine pre-binds a variable only if the query projects it)."""
-    from starlayer.graph.oxgraph.run import _sparql_term
+    from starlayer.graph.execution.run import _sparql_term
 
     used = _RENDERED.get()[id(expr)][2]
     names = sorted(var.value for var in used if var in mu)
@@ -769,8 +769,8 @@ _NOW: ContextVar = ContextVar("srl_now", default=None)
 def flatten_dataset(graph):
     """``graph`` as an ``StarLayerGraph`` the rules are evaluated on: an ``StarLayerGraph`` as it is; an ``StarLayerDataset`` / ``Store`` as the
     union of its graphs. An rdflib graph is a ``TypeError`` (convert it with ``StarLayerGraph.from_rdflib``). Nothing here changes ``graph``."""
-    from starlayer.graph.oxgraph.core import StarLayerGraph
-    from starlayer.graph.oxgraph.inputs import as_oxigraph
+    from starlayer.graph.core import StarLayerGraph
+    from starlayer.graph.inputs import as_oxigraph
     from starlayer.shacl.engine.graphs import new_graph
 
     if isinstance(graph, StarLayerGraph):
@@ -837,7 +837,7 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
                 raise SRLEvalError(f"SRL: a DATA block has a triple that is not an RDF triple (literal subject or non-IRI predicate): {t}")
             d.add(triple)
 
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     gi = StarLayerGraph(prefixes={})  # the caller binds the prefixes it wants on the result
     for t in d:

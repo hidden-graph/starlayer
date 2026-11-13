@@ -7,7 +7,7 @@ via StarLayerGraph.parse() and StarLayerGraph.serialize().
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 

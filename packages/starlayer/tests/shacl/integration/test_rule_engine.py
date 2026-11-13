@@ -8,7 +8,7 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 from starlayer.shacl.engine.terms import RDF as OXRDF
 from starlayer.shacl.engine.terms import text, to_engine

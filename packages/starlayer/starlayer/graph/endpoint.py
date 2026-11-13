@@ -16,7 +16,7 @@ of its graphs), and keeps a **full local copy**:
   ``pull=False`` opens an existing on-disk copy without asking the endpoint (it is then as old as its last pull).
 
 **Blank nodes.** The endpoint gives a blank node it receives a new identifier, so the copy and the endpoint could not agree on which
-is which. A blank node in a write is therefore skolemized (``starlayer.graph.oxgraph.helpers.rewrite.skolem_iri``, the IRI
+is which. A blank node in a write is therefore skolemized (``starlayer.graph.rewrite.skolem_iri``, the IRI
 ``graph.skolemize()`` makes) before it is sent, and the copy gets the same IRI. A blank node that came *from* the endpoint (it is in
 the copy) cannot be addressed there: writing it is a ``ValueError``. The copy is a ``pyoxigraph.Store``, which normalises literal
 lexical forms (starlayer #190); an endpoint that keeps them as written (Fuseki) can differ in spelling. A dataset is pulled with a
@@ -228,7 +228,7 @@ class BackedStore:
 
     # ---- blank nodes and scope of a write ---------------------------------------------------------------------------
     def _skolemize(self, term: Any) -> Any:
-        from starlayer.graph.oxgraph.helpers.rewrite import skolem_iri
+        from starlayer.graph.rewrite import skolem_iri
 
         if isinstance(term, ox.Triple):
             return ox.Triple(self._skolemize(term.subject), term.predicate, self._skolemize(term.object))

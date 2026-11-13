@@ -153,7 +153,7 @@ class Result:
     def graph(self) -> Any:
         """The CONSTRUCT or DESCRIBE triples as a new in-memory ``StarLayerGraph``, built once."""
         if self._graph is None:
-            from starlayer.graph.oxgraph.core import StarLayerGraph
+            from starlayer.graph.core import StarLayerGraph
 
             g = StarLayerGraph()
             g.extend(self.triples)

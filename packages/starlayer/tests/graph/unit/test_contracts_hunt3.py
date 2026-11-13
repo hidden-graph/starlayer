@@ -9,7 +9,7 @@ import pickle
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 XSD = "http://www.w3.org/2001/XMLSchema#"
 A, B, C = (ox.NamedNode("http://e/" + x) for x in "abc")
@@ -132,7 +132,7 @@ def test_replace_flags_are_flags():
 
 
 # (REPLACE with a zero-length match, an invalid replacement string, and `\$` in the replacement follow XPath in the old
-# evaluator; Oxigraph does not: pinned by the strict xfail in tests/graph/oxgraph/test_oxigraph_deviations.py)
+# evaluator; Oxigraph does not: pinned by the strict xfail in tests/graph/test_oxigraph_deviations.py)
 
 
 # --- ROUND, FLOOR, CEIL -----------------------------------------------------------------------------

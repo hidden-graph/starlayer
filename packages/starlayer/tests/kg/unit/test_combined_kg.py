@@ -17,7 +17,7 @@ from codekg import (
     ONTOLOGY_GRAPH_IRI,
     queries,
 )
-from starlayer.graph.oxgraph import StarLayerDataset
+from starlayer.graph import StarLayerDataset
 from tests.terms import RDF, BlankNode, NamedNode, lit
 
 # ---------------------------------------------------------------------------

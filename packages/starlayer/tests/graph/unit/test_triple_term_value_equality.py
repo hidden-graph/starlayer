@@ -6,7 +6,7 @@ SPARQL 1.2 sameValue step 4 compares the components pairwise, so
 """
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 CASES = [
     ("<<(<a:s> <a:p> 1)>> = <<(<a:s> <a:p> 1.0)>>", True),

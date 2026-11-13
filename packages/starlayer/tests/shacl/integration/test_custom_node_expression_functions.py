@@ -1,6 +1,6 @@
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate
 from tests.terms import Namespace

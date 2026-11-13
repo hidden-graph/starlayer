@@ -4,7 +4,7 @@ import warnings
 
 import pytest
 from pyoxigraph import NamedNode
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.shapes_graphs import referenced_shapes

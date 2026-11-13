@@ -16,9 +16,8 @@ import pyoxigraph as ox
 import pytest
 from pyoxigraph import NamedNode
 from rdflib import Graph
-from starlayer.graph import OWL, RDF, RDFS, Namespace
+from starlayer.graph import OWL, RDF, RDFS, Namespace, StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
 
 try:
     import owlrl

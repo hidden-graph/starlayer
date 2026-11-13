@@ -8,7 +8,7 @@ Opt-in (``pytest --sqe-coverage``).
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.sparql.sqe import (
     sqe_parse_to_tree,
     sqe_tree_to_text,

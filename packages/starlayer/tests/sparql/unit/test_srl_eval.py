@@ -231,7 +231,7 @@ class TestInferAndQueryInferenceParameter:
     """
 
     def _base_with_subclass_only(self):
-        from starlayer.graph.oxgraph import StarLayerGraph
+        from starlayer.graph import StarLayerGraph
 
         base = StarLayerGraph()
         base.parse(

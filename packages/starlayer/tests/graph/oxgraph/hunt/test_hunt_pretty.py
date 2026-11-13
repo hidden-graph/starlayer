@@ -6,8 +6,8 @@ import random
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.oxgraph.pretty import pretty_trig
+from starlayer.graph import StarLayerGraph
+from starlayer.graph.pretty import pretty_trig
 
 D = ox.DefaultGraph()
 N = ox.NamedNode

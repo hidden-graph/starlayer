@@ -8,7 +8,7 @@ include every satisfying candidate rather than picking an arbitrary one,
 and only real stored triples are ever included).
 """
 
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 from starlayer.shacl.engine.terms import RDF, text
 
@@ -494,7 +494,7 @@ class TestWholeShapesGraphExtraction:
 
 def test_a_dataset_is_refused_and_one_of_its_graphs_is_accepted() -> None:
     import pytest
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     prefixes = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
     dataset = StarLayerDataset()

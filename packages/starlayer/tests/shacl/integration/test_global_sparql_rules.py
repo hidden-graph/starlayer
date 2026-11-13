@@ -7,7 +7,7 @@ some shape's sh:rule, so a standalone rule node is invisible to it and
 silently never executes.
 """
 
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from tests.terms import Namespace, lit
 

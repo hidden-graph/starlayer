@@ -9,7 +9,7 @@ progress measure; see ``docs/working/shacl-engine-design.md``.
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 
 from .closure import node_closure

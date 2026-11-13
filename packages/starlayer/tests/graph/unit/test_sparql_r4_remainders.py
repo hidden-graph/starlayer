@@ -3,7 +3,7 @@
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 from starlayer_reasoning.model.triple import TripleTerm
 from tests.terms import BlankNode, Namespace

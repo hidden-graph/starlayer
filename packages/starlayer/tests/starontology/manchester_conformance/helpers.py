@@ -6,10 +6,10 @@ import json
 from pathlib import Path
 
 import pyoxigraph as ox
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.manchester._ox_terms import OWL, RDF, BNode, URIRef
 from starlayer.graph.manchester.parser import parse_manchester
-from starlayer.graph.oxgraph import StarLayerGraph
 
 HERE = Path(__file__).parent
 GOLDEN_DIR = HERE / "goldens" / "owlapi-5.1.20"

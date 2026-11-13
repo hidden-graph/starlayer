@@ -8,7 +8,7 @@ import pyoxigraph as ox
 import pytest
 import rdflib
 from rdflib import Graph
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 X = "http://www.w3.org/2001/XMLSchema#"
 CASES = [("04", "integer"), ("1", "boolean"), ("none", "boolean"), ("4.0", "decimal"), ("+1.50", "double"), ("2020-01-01T00:00:00Z", "dateTime")]

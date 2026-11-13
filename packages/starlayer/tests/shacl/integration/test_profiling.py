@@ -1,6 +1,6 @@
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, profiling
 from tests.terms import RDF, RDFS, NamedNode, Namespace, lit
 

@@ -18,7 +18,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT, SUPPORTED_REGIMES
+from starlayer.graph.entailment.infer import ENTAILMENT, SUPPORTED_REGIMES
 from starlayer.shacl.engine.rules import new_overlay
 from starlayer.shacl.engine.terms import (
     RDF,

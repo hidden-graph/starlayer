@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.graph.oxgraph import union
+from starlayer.graph.execution import union
 
 __all__ = ["EntailmentSession"]
 
@@ -34,7 +34,7 @@ class EntailmentSession:
             engine: only for ``OWL-Direct``; with the other regime anything but the default raises ``ValueError``.
             timeout: only for ``OWL-Direct``; ``None`` takes the default timeout, and with the other regime any value raises.
         """
-        from starlayer.graph.oxgraph.helpers import entailment as ent
+        from starlayer.graph.entailment import infer as ent
 
         if regime not in (ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
             raise ValueError(

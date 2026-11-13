@@ -173,7 +173,7 @@ def _dataset():
 def _kg():
     """All the code KG's module graphs merged into one ``StarLayerGraph``, plus the curated layer (capabilities and the query library).
     Named queries are sent to it as SPARQL text."""
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
 
     graph = StarLayerGraph()
     graph.extend((q.subject, q.predicate, q.object) for q in _dataset().quads((None, None, None, None)))

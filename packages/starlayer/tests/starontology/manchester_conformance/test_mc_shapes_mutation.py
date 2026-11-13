@@ -16,9 +16,9 @@ check on the asserted graph.
 from __future__ import annotations
 
 import pytest
+from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.manchester._ox_terms import RDF, BNode, URIRef, Vocab
 from starlayer.graph.manchester._ox_terms import lexical as Literal
-from starlayer.graph.oxgraph import StarLayerGraph as Graph
 from starlayer.starontology.manchester import (
     MANCH,
     _concrete_classes,

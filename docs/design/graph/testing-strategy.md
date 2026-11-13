@@ -21,8 +21,8 @@ Runs on every push/PR (`.github/workflows/test.yml`, Python 3.10–3.13). Covers
 No server required; this is the tier every contribution must pass.
 
 SPARQL 1.2 query/update parsing goes through the sibling `starsparql`
-package's real grammar/algebra pipeline (`starlayergraph/query/query_cache.py`,
-`starlayergraph/query/sparql_api.py`) — a real, editable-installed dependency
+package's real grammar/algebra pipeline (`starlayergraph/execution/query_cache.py`,
+`starlayergraph/execution/sparql_api.py`) — a real, editable-installed dependency
 (see `pyproject.toml`), not vendored code. A pytest/pyparsing interaction
 that could corrupt that package's grammar installation when run alongside
 other test modules was found and fixed during the migration off starlayergraph's

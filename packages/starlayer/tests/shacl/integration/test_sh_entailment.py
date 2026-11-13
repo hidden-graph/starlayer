@@ -13,8 +13,8 @@ to take effect - a real, not vacuous, exercise of this feature.
 """
 
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, target_nodes
 from starlayer.shacl.engine.terms import to_engine
 from tests.terms import RDF, Namespace

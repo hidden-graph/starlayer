@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pyoxigraph as ox
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 TTL = "@prefix ex: <http://example.org/> . ex:a ex:p ex:b , 'x'@en , 42 ; ex:q <<( ex:a ex:p ex:b )>> ."
 

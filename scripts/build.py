@@ -83,7 +83,7 @@ def _same(path: Path, before: bytes | None) -> bool:
 def _trig_isomorphic(a: bytes, b: bytes) -> bool:
     import pyoxigraph as ox
     from codekg import BUILD_GRAPH_IRI
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
     from starlayer.graph.rdfc_native import isomorphic
 
     def graphs(data: bytes) -> dict:

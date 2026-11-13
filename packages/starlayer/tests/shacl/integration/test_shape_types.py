@@ -2,7 +2,7 @@
 
 import pytest
 from starlayer import starontology
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.shape_types import infer_types
 from tests.terms import RDF, Namespace
 

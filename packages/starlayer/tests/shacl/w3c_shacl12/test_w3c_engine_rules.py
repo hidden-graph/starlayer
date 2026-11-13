@@ -11,7 +11,7 @@ from __future__ import annotations
 import importlib.util
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.rules import apply_rules
 
 from .ids import portable_id

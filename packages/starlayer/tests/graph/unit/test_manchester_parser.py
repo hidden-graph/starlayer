@@ -10,11 +10,11 @@ these tests assert the same shapes directly, with no external dependency.
 """
 
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, XSD, URIRef
 from starlayer.graph.manchester._ox_terms import lexical as Literal
 from starlayer.graph.manchester.errors import ManchesterSyntaxError
 from starlayer.graph.manchester.parser import parse_manchester
-from starlayer.graph.oxgraph import StarLayerGraph
 
 EX = 'http://example.org/'
 HEADER = 'Prefix: : <http://example.org/>\nPrefix: xsd: <http://www.w3.org/2001/XMLSchema#>\n'

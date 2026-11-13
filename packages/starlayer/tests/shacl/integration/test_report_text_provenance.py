@@ -6,7 +6,7 @@ the recomputed conformance."""
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import validate
 
 _SHAPES = """

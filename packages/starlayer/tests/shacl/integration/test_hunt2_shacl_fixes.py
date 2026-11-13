@@ -5,8 +5,8 @@ import warnings
 import pyoxigraph as ox
 import pytest
 import starlayer.shacl as shacl
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.paths import path_values
 from tests.terms import NamedNode

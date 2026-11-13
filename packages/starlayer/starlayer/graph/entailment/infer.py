@@ -13,6 +13,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph import terms
 from starlayer.graph.entailment import (
     D_REGIME,
     ENTAILMENT,
@@ -23,8 +24,7 @@ from starlayer.graph.entailment import (
     RDFS_REGIME,
     SUPPORTED_REGIMES,
 )
-from starlayer.graph.oxgraph import terms
-from starlayer.graph.oxgraph.helpers.rdfs_closure import rdfs_delta
+from starlayer.graph.entailment.rdfs_closure import rdfs_delta
 
 VALID_INFER_RETURN_MODES = frozenset({"full", "delta", "in-place"})
 #: the default ``timeout=`` of ``infer()`` for OWL-DL (seconds); the same value as ``starlayer_reasoning``'s own default

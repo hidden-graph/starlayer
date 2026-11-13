@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 REIFIES = "<http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies>"
 TTL = f'<http://e/r> {REIFIES} <<( <http://e/s> <http://e/p> <http://e/o> )>> . <http://e/s> <http://e/p> "x"@en--ltr .'

@@ -470,7 +470,7 @@ def _file_graph(filename: str) -> tuple[Any, dict[str, str]]:
     """
     cached = _file_graph_cache.get(filename)
     if cached is None:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
 
         graph = StarLayerGraph(prefixes={})
         graph.parse(str(_HERE / filename), format="turtle")
@@ -515,7 +515,7 @@ def _named_graph(context_iri: Any) -> Any:
     ``_GITHUB_BLOB_BASE`` plus the entry's filename), its identifier that IRI and its prefixes those its IRIs use."""
     import pyoxigraph as ox
 
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     iri = getattr(context_iri, "value", str(context_iri))
     filename = iri[len(_GITHUB_BLOB_BASE) :]
@@ -718,7 +718,7 @@ def get_conformance_profiles(url: str | None = None) -> Any:
     Returns an ``StarLayerGraph`` (pyoxigraph terms, only the prefixes its IRIs use), as ``get_ontology_graph()`` does.
     """
     if url is not None:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
 
         graph = StarLayerGraph(prefixes={})
         graph.parse(url, format="turtle")

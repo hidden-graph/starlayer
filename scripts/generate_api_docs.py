@@ -35,7 +35,7 @@ sys.path[:0] = [str(REPO_ROOT / "packages/starlayer"), str(REPO_ROOT / "tools/kg
 
 from _docs_ref import REPO_BLOB  # noqa: E402
 from starlayer.graph import RDF, RDFS, Namespace  # noqa: E402
-from starlayer.graph.oxgraph import StarLayerDataset as Dataset  # noqa: E402
+from starlayer.graph import StarLayerDataset as Dataset  # noqa: E402
 
 CODEKG_PATH = REPO_ROOT / "tools/kg/codekg/codekg.trig"
 OUT_DIR = REPO_ROOT / "docs/generated"
@@ -57,7 +57,7 @@ _ALL_FILES = [
     ("graph/compare.py", "starlayer.graph"),
     ("graph/__init__.py", "starlayer.graph"),
     ("graph/manchester/__init__.py", "starlayer.graph"),
-    ("graph/entailment.py", "starlayer.graph"),
+    ("graph/entailment/__init__.py", "starlayer.graph"),
     ("graph/manchester/__init__.py", "starlayer.graph"),
     ("shacl/__init__.py", "starlayer.shacl"),
     ("shacl/profiling/__init__.py", "starlayer.shacl"),

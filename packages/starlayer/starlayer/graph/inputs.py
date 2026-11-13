@@ -17,14 +17,14 @@ __all__ = ["as_oxigraph", "is_oxigraph_dataset", "is_oxigraph_input"]
 
 def is_oxigraph_input(value: Any) -> bool:
     """True for a ``StarLayerGraph`` / ``StarLayerDataset`` or a bare ``pyoxigraph.Store``."""
-    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+    from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
     return isinstance(value, (StarLayerGraph, StarLayerDataset, ox.Store))
 
 
 def is_oxigraph_dataset(value: Any) -> bool:
     """True for a ``StarLayerDataset`` or a bare ``pyoxigraph.Store`` (something with named graphs)."""
-    from starlayer.graph.oxgraph.core import StarLayerDataset
+    from starlayer.graph.core import StarLayerDataset
 
     return isinstance(value, (StarLayerDataset, ox.Store))
 
@@ -34,7 +34,7 @@ def as_oxigraph(value: Any, where: str = "graph") -> Any:
     ``None`` as ``None``. Anything else, an rdflib graph above all, is a ``TypeError`` (``where`` names the argument)."""
     if value is None:
         return None
-    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+    from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
     if isinstance(value, (StarLayerGraph, StarLayerDataset)):
         return value

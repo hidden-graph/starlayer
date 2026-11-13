@@ -11,7 +11,7 @@ import pytest
 import rdflib
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.interface import GraphView
 from starlayer.shacl.engine.oxigraph_view import (
     DEFAULT,

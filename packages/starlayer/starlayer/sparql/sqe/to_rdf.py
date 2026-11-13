@@ -120,7 +120,7 @@ def sqe_parse_to_tree(
         if not isinstance(root, (ox.NamedNode, ox.BlankNode)):
             raise TypeError(f"root must be an IRI or a blank node, not {type(root).__name__}")
     triples, root = ast_to_triples(ast, root)
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     tree = StarLayerGraph(prefixes={}) if graph is None else graph
     tree.extend(triples)

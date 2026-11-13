@@ -15,7 +15,7 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql.relevant import relevant_subgraph, relevant_triples
 
 PROLOGUE = "PREFIX : <http://e/> "
@@ -182,7 +182,7 @@ def test_service_is_refused_because_the_answer_depends_on_a_remote_graph() -> No
 
 
 def test_a_dataset_is_refused_and_one_of_its_graphs_is_accepted() -> None:
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     dataset = StarLayerDataset()
     dataset.parse(data="@prefix : <http://e/> . :a :p 1 .", format="turtle")

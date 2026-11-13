@@ -3,8 +3,8 @@ once) plus StarLayerGraph.query()'s own per-call options, so the same
 query can run against several different graphs without repeating them.
 """
 
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.sparql import StarQuery
 from tests.terms import Namespace
 
@@ -99,7 +99,7 @@ class TestRunsAgainstAnOxGraph:
     """The wrapper takes query text, not a prepared query object, so ``run`` sends the text."""
 
     def _ox(self, data: str):
-        from starlayer.graph.oxgraph import StarLayerGraph
+        from starlayer.graph import StarLayerGraph
 
         g = StarLayerGraph()
         g.parse(data=data, format="turtle")

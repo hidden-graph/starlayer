@@ -54,7 +54,7 @@ from starlayer.sparql import _oxterms as T
 from starlayer.sparql._oxterms import RDF, XSD
 
 if TYPE_CHECKING:
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
 Variable = ox.Variable
 
@@ -2221,7 +2221,7 @@ def ast_to_tree(q: Node, graph: StarLayerGraph | None = None, root=None, *, trip
     Raises:
         SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
     """
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     triples, root = ast_to_triples(q, root, triple_order=triple_order)
     if graph is None:

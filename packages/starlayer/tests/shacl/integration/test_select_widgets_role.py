@@ -7,7 +7,7 @@ written per role."""
 import pyoxigraph as ox
 import pytest
 from starlayer import starontology
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui import widget_selection as uws
 from starlayer.shacl.ui.widget_selection import SHUI, select_widget, select_widgets

@@ -5,9 +5,8 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.oxgraph.helpers.rdfs_closure import rdfs_delta
+from starlayer.graph import ENTAILMENT, StarLayerGraph
+from starlayer.graph.entailment.rdfs_closure import rdfs_delta
 from starlayer_reasoning import owl_rl
 
 warnings.simplefilter("ignore")

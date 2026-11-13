@@ -5,7 +5,7 @@ from __future__ import annotations
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.plan import ShapeError
 

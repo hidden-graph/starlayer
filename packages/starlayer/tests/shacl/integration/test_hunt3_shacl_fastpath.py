@@ -6,7 +6,7 @@ messages and invalid ``sh:pattern``."""
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, apply_rules, evaluate, validate
 from tests.terms import RDF, Namespace
 

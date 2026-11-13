@@ -3,7 +3,7 @@
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 warnings.simplefilter("ignore")
 P = "PREFIX : <http://e/> "

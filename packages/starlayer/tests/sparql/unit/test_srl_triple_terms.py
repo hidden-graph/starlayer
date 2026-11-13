@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
 from tests.terms import NamedNode, lit

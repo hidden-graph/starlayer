@@ -1,7 +1,7 @@
-"""The minimum-pyoxigraph check (``starlayer.graph.oxgraph._versions``). No engine needed."""
+"""The minimum-pyoxigraph check (``starlayer.graph._versions``). No engine needed."""
 import pytest
-from starlayer.graph.oxgraph import _versions
-from starlayer.graph.oxgraph._versions import (
+from starlayer.graph import _versions
+from starlayer.graph._versions import (
     check_pyoxigraph_version,
     require_supported_pyoxigraph,
 )

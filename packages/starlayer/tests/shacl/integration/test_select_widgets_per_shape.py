@@ -6,7 +6,7 @@ a node's data. The answer must not change, so each is checked against ``select_w
 
 import pytest
 from starlayer import StarShaclSchema, starontology
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui import widget_selection as uws
 from starlayer.shacl.ui.widget_selection import (

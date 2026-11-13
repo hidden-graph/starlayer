@@ -3,7 +3,7 @@ a group is evaluated on its own and joined with its siblings afterwards)."""
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 
 class _Namespace:
@@ -54,7 +54,7 @@ def test_filter_in_exists_sees_the_outer_solution(graph):
 
 def test_triple_term_pattern_inside_graph_still_joins_the_outer_variable():
     """The triple-term lowering leaves ?o only in a filter inside the GRAPH group; it must keep seeing ?o."""
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     ds = StarLayerDataset()
     ds.parse(data="PREFIX : <http://example/> :s :p :o . :s :q <<( :s :p :o )>> .", format="turtle12")

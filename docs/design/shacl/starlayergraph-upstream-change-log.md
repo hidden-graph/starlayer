@@ -77,7 +77,7 @@ Validation/tests needed:
 - `tests/unit/test_sparql12_to_11.py`, full suite regression (existing `TestQ14` CONSTRUCT tests unaffected)
 
 Upstream status:
-- implemented (this repo, `starlayergraph/query/sparql12_to_11.py`)
+- implemented (this repo, `starlayergraph/execution/sparql12_to_11.py`)
 
 ## 2026-07-15 - Fixed: accessor functions and `isTripleTerm()` only recognized `?var`, not `$var`
 
@@ -94,7 +94,7 @@ Validation/tests needed:
 - `tests/unit/test_sparql12_to_11.py::test_rewrite_accepts_dollar_sigil_for_accessor_functions`, `test_rewrite_accepts_dollar_sigil_for_is_triple_term`
 
 Upstream status:
-- implemented (this repo, `starlayergraph/query/sparql12_to_11.py`)
+- implemented (this repo, `starlayergraph/execution/sparql12_to_11.py`)
 
 ## 2026-07-15 - Fixed: nested triple term (object position) crashed / lost fidelity on restore
 
@@ -129,7 +129,7 @@ Validation/tests needed:
 - `tests/unit/test_sparql12_to_11.py::test_construct_bind_for_new_triple_term_placed_after_where_patterns`, `tests/unit/test_sparql12_query.py::TestQ17`
 
 Upstream status:
-- implemented (this repo, `starlayergraph/query/sparql12_to_11.py`)
+- implemented (this repo, `starlayergraph/execution/sparql12_to_11.py`)
 
 ## 2026-07-18 - Fixed: `StarLayerGraph.query()`/`StarLayerDataset.query()` re-rewrote and re-parsed the same query text on every call
 
@@ -143,13 +143,13 @@ Temporary workaround in starshacl:
 - none needed; fixed directly in `starlayergraph`.
 
 Proposed StarLayerGraph API/behavior change:
-- New `starlayergraph/query/query_cache.py::prepare_query_cached` - a per-instance cache (`self._prepared_query_cache`) keyed on `(query text, effective namespaces, base IRI)` - all three of which rdflib's own `prepareQuery` bakes into the parsed query at parse time - returning a reused, already-rewritten-and-parsed `rdflib.plugins.sparql.sparql.Query` object instead of a plain string. Passing a pre-parsed `Query` object instead of a string to `Graph.query()` is a documented rdflib capability for the default code path (see the next entry for where it isn't).
+- New `starlayergraph/execution/query_cache.py::prepare_query_cached` - a per-instance cache (`self._prepared_query_cache`) keyed on `(query text, effective namespaces, base IRI)` - all three of which rdflib's own `prepareQuery` bakes into the parsed query at parse time - returning a reused, already-rewritten-and-parsed `rdflib.plugins.sparql.sparql.Query` object instead of a plain string. Passing a pre-parsed `Query` object instead of a string to `Graph.query()` is a documented rdflib capability for the default code path (see the next entry for where it isn't).
 
 Validation/tests needed:
 - `packages/starlayer/tests/graph/unit/test_query_prepare_cache.py` (parse-count verification via monkeypatched `prepareQuery`, correctness across repeated calls with differing bindings/namespaces, cache-doesn't-serve-stale-data-after-mutation, `StarLayerDataset` analogues)
 
 Upstream status:
-- implemented (this repo, `starlayergraph/query/query_cache.py`, wired into `starlayer_graph.py`/`starlayer_dataset.py`)
+- implemented (this repo, `starlayergraph/execution/query_cache.py`, wired into `starlayer_graph.py`/`starlayer_dataset.py`)
 
 ## 2026-07-18 - Fixed: prepared-query caching broke `StarLayerGraph.query()` against remote-endpoint stores (Fuseki, and any `SPARQLStore`/`SPARQLUpdateStore`-backed store)
 
@@ -163,13 +163,13 @@ Temporary workaround in starshacl:
 - none needed; fixed directly in `starlayergraph`.
 
 Proposed StarLayerGraph API/behavior change:
-- New `starlayergraph/query/query_cache.py::store_accepts_prepared_query(store)` - `isinstance` check against the two known string-only store classes. `StarLayerGraph.query()` checks this before deciding whether to use the cached prepared object or fall back to a plain rewritten string; no lost benefit for the affected stores either, since they forward the query text to a remote server, so local rdflib-side re-parsing was never the bottleneck there. `StarLayerDataset.query()` was confirmed unaffected - it always executes against its own always-in-memory `_build_raw_execution_graph()`, regardless of the dataset's own backing store.
+- New `starlayergraph/execution/query_cache.py::store_accepts_prepared_query(store)` - `isinstance` check against the two known string-only store classes. `StarLayerGraph.query()` checks this before deciding whether to use the cached prepared object or fall back to a plain rewritten string; no lost benefit for the affected stores either, since they forward the query text to a remote server, so local rdflib-side re-parsing was never the bottleneck there. `StarLayerDataset.query()` was confirmed unaffected - it always executes against its own always-in-memory `_build_raw_execution_graph()`, regardless of the dataset's own backing store.
 
 Validation/tests needed:
 - `tests/unit/test_query_prepare_cache.py::test_store_accepts_prepared_query_false_for_sparql_update_store`, `test_store_accepts_prepared_query_true_for_default_memory_store`, `test_starlayer_graph_over_sparql_update_store_falls_back_to_string` (no server needed - mocked store); real-Fuseki `packages/starlayer/tests/graph/integration/test_fuseki_backend.py`/`test_cross_backend_parity.py` (previously 4 failures, now fully passing)
 
 Upstream status:
-- implemented (this repo, `starlayergraph/query/query_cache.py`, `starlayer_graph.py`)
+- implemented (this repo, `starlayergraph/execution/query_cache.py`, `starlayer_graph.py`)
 
 ## 2026-07-18 - Fixed: `StarLayerGraph.parse(format='turtle12'/'longturtle12'/'trig12')` wrote the rdf-1.1 encoding directly into the store for *any* backend, including native `rdf-1.2`
 
@@ -340,7 +340,7 @@ Upstream status:
 
 Motivation:
 - Found while verifying the fix above - `sparql:triple`'s W3C-suite test (`node-expr/shnex-sparql/triple.ttl`) appeared to already pass, but only by accident: that fixture's own `mf:result` happens to contain the literal Turtle constant `<<( ex:s ex:p ex:o )>>`, which registers that exact triple term in the document's graph as an ordinary side effect of parsing the file - coincidentally matching what `sparql:triple ( ex:s ex:p ex:o )` was trying to *construct*, masking the real gap. Confirmed independently of starshacl: `StarLayerGraph().query('SELECT (TRIPLE(?a0, ?a1, ?a2) AS ?r) WHERE {}', initBindings={'a0': ex.s, 'a1': ex.p, 'a2': ex.o})` returned zero rows regardless of how much unrelated content the graph already had, while the identical query with `ex:s`/`ex:p`/`ex:o` written directly in the query text (no `initBindings` at all) returned the correct triple term. Unlike the fix above (which is about *recognizing* an existing triple-term value), this is about *constructing* a brand-new one from initBindings-only arguments - a different, narrower case.
-- Root cause, in `starlayergraph/query/sparql12_to_11.py`: `TRIPLE(s, p, o)` desugars to `<<( s p o )>>` before the rest of the rewriter runs, and the rewriter decided "match an existing graph pattern" vs. "construct a value via the internal content-addressed hash function" purely by whether `s`/`p`/`o` were syntactically ground (no variables) - never by *where* the triple term occurred (a graph-pattern term slot in an ordinary `subject predicate object .` statement vs. a plain expression position such as a `BIND(...)`/`FILTER(...)`/SELECT-projection argument, which already accepts an arbitrary expression). A non-ground occurrence in an *expression* position (e.g. `SELECT (TRIPLE(?a0, ?a1, ?a2) AS ?r) WHERE {}`, with `?a0`/`?a1`/`?a2` bound only via `initBindings`) was always routed to the "match" branch - injecting `?tt <rdf:subject> ?a0 . ?tt <rdf:predicate> ?a1 . ?tt <rdf:object> ?a2 .` into the (here, empty) `WHERE` clause - which can only ever succeed if a triple term with those exact components already happens to be registered in the store, which an `initBindings`-only value never is.
+- Root cause, in `starlayergraph/execution/sparql12_to_11.py`: `TRIPLE(s, p, o)` desugars to `<<( s p o )>>` before the rest of the rewriter runs, and the rewriter decided "match an existing graph pattern" vs. "construct a value via the internal content-addressed hash function" purely by whether `s`/`p`/`o` were syntactically ground (no variables) - never by *where* the triple term occurred (a graph-pattern term slot in an ordinary `subject predicate object .` statement vs. a plain expression position such as a `BIND(...)`/`FILTER(...)`/SELECT-projection argument, which already accepts an arbitrary expression). A non-ground occurrence in an *expression* position (e.g. `SELECT (TRIPLE(?a0, ?a1, ?a2) AS ?r) WHERE {}`, with `?a0`/`?a1`/`?a2` bound only via `initBindings`) was always routed to the "match" branch - injecting `?tt <rdf:subject> ?a0 . ?tt <rdf:predicate> ?a1 . ?tt <rdf:object> ?a2 .` into the (here, empty) `WHERE` clause - which can only ever succeed if a triple term with those exact components already happens to be registered in the store, which an `initBindings`-only value never is.
 
 starshacl impact:
 - `sparql:triple` (the `TRIPLE()` constructor function as a node expression) didn't work when its arguments came from evaluated sub-expressions rather than literal constants already present in the shapes graph - confirmed via `packages/starlayer/tests/shacl/w3c_shacl12/known_failures.py`'s now-removed `triple-example` entry.
@@ -352,10 +352,10 @@ StarLayerGraph API/behavior change (implemented in `starlayergraph`):
 - `_rewrite_group_content` now tracks paren-nesting depth (an unclosed `(` at the point a `<<( )>>`/desugared-`TRIPLE()` occurrence is scanned means it's inside an expression context - `BIND(...)`, a SELECT projection's `(expr AS ?var)`, `FILTER(...)`, or a nested function argument - since SPARQL has no other bare-parenthesized construct at the graph-pattern level). A non-ground triple term in that position is now substituted in place with a direct call to the internal hash function (`<...ns/tt#fn/hash>(s, p, o)`) rather than a "match an existing pattern" injection - a plain expression position already accepts an arbitrary SPARQL expression syntactically, so no fresh variable or hoisted `BIND` is needed; the substituted call's arguments resolve against whatever bindings are already in scope at evaluation time. A non-ground triple term used as a genuine graph-pattern term (e.g. `?stmt rdf:reifies <<( ?s :p ?o )>> .`, no enclosing parens) is unaffected and still uses matching-pattern semantics, which is correct there (RDF-star/1.2's own reification-matching semantics).
 
 Validation/tests needed:
-- `starlayergraph`'s `tests/unit/test_sparql12_to_11.py::test_triple_constructor_with_all_initbindings_args_constructs_a_value` and `::test_triple_constructor_in_bind_with_where_bound_vars_still_matches_literal_form` - both confirmed to fail against the pre-fix code via `git stash push -- starlayergraph/query/sparql12_to_11.py`. Full existing `test_sparql12_to_11.py` suite (27 tests) re-run afterward with no regressions, confirming the pre-existing `TRIPLE()`/`<<( )>>`-equivalence and ground-value-construction tests still hold.
+- `starlayergraph`'s `tests/unit/test_sparql12_to_11.py::test_triple_constructor_with_all_initbindings_args_constructs_a_value` and `::test_triple_constructor_in_bind_with_where_bound_vars_still_matches_literal_form` - both confirmed to fail against the pre-fix code via `git stash push -- starlayergraph/execution/sparql12_to_11.py`. Full existing `test_sparql12_to_11.py` suite (27 tests) re-run afterward with no regressions, confirming the pre-existing `TRIPLE()`/`<<( )>>`-equivalence and ground-value-construction tests still hold.
 
 Upstream status:
-- implemented (`starlayergraph`, `starlayergraph/query/sparql12_to_11.py`)
+- implemented (`starlayergraph`, `starlayergraph/execution/sparql12_to_11.py`)
 
 ## 2026-08-01 - Fixed: ECHAR escapes `\b`/`\f` (backspace/form-feed) never decoded in string literals
 
@@ -392,13 +392,13 @@ Temporary workaround in starshacl:
 - none needed; patched directly in `starlayergraph`, applied globally to every consumer.
 
 StarLayerGraph API/behavior change (implemented in `starlayergraph`):
-- New `starlayergraph/query/operator_patches.py`, applied eagerly from `starlayergraph/__init__.py` (`apply_all_operator_patches()`) so every consumer gets spec-correct arithmetic without needing to opt in. Both patches mutate the specific `Comp` grammar-node objects inside rdflib's own already-built pyparsing SPARQL grammar tree (found by name via a small recursive tree-walk, `_find_comp`, since `Builtin_CEIL`/`Builtin_FLOOR`/`Builtin_ROUND` aren't separately-named top-level grammar variables in `rdflib.plugins.sparql.parser`) - `Comp.postParse` reads `self.evalfn` fresh on every single query parse (it's a plain mutable instance attribute, not a closure baked in once at grammar-definition/import time), so overwriting it via `.setEvalFn()` after the fact is confirmed safe and takes effect for every future `.query()` call, on any graph, without needing to touch `rdflib`'s own installed files. `patch_multiplicative_expression_type_promotion()` reimplements `MultiplicativeExpression` with `type_promotion()` tracking (mirroring `AdditiveExpression`), special-casing `/` to force `xsd:decimal` rather than `xsd:integer` when both operands are integers (matching op:numeric-divide's actual semantics, which the original bug's ad-hoc "let Python infer it" approach happened to also get right for that one case). `patch_decimal_result_lexical_form()` wraps `Builtin_CEIL`/`Builtin_FLOOR`/`Builtin_ROUND` to run their output through a shared `_canonicalize_decimal_lexical_form()` helper (appends `.0` when the datatype is `xsd:decimal` and the lexical form has no `.`); the division fix reuses the same helper. Both follow the idempotent apply-once pattern (`_xxx_patch_status` flag + marker attribute on the patched callable) already established in `starshacl/validator.py`.
+- New `starlayergraph/execution/operator_patches.py`, applied eagerly from `starlayergraph/__init__.py` (`apply_all_operator_patches()`) so every consumer gets spec-correct arithmetic without needing to opt in. Both patches mutate the specific `Comp` grammar-node objects inside rdflib's own already-built pyparsing SPARQL grammar tree (found by name via a small recursive tree-walk, `_find_comp`, since `Builtin_CEIL`/`Builtin_FLOOR`/`Builtin_ROUND` aren't separately-named top-level grammar variables in `rdflib.plugins.sparql.parser`) - `Comp.postParse` reads `self.evalfn` fresh on every single query parse (it's a plain mutable instance attribute, not a closure baked in once at grammar-definition/import time), so overwriting it via `.setEvalFn()` after the fact is confirmed safe and takes effect for every future `.query()` call, on any graph, without needing to touch `rdflib`'s own installed files. `patch_multiplicative_expression_type_promotion()` reimplements `MultiplicativeExpression` with `type_promotion()` tracking (mirroring `AdditiveExpression`), special-casing `/` to force `xsd:decimal` rather than `xsd:integer` when both operands are integers (matching op:numeric-divide's actual semantics, which the original bug's ad-hoc "let Python infer it" approach happened to also get right for that one case). `patch_decimal_result_lexical_form()` wraps `Builtin_CEIL`/`Builtin_FLOOR`/`Builtin_ROUND` to run their output through a shared `_canonicalize_decimal_lexical_form()` helper (appends `.0` when the datatype is `xsd:decimal` and the lexical form has no `.`); the division fix reuses the same helper. Both follow the idempotent apply-once pattern (`_xxx_patch_status` flag + marker attribute on the patched callable) already established in `starshacl/validator.py`.
 
 Validation/tests needed:
-- `starlayergraph`'s new `packages/starlayer/tests/graph/unit/test_operator_patches.py` (10 tests: integer\*integer stays integer, integer\*decimal/double promotion, addition unaffected, division/CEIL/FLOOR/ROUND canonical lexical form, ABS unaffected) - all confirmed to fail against the pre-patch code via `git stash push -u -- starlayergraph/__init__.py starlayergraph/query/operator_patches.py`. `starShacl`'s W3C-suite harness re-verified live: all 9 previously-xfailed fixtures now genuinely pass (not just no-longer-gated) - confirmed via the same stash-based adversarial revert against the real fixtures (`packages/starlayer/tests/shacl/w3c_shacl12/`), which reproduced all 9 original failures with the patch removed.
+- `starlayergraph`'s new `packages/starlayer/tests/graph/unit/test_operator_patches.py` (10 tests: integer\*integer stays integer, integer\*decimal/double promotion, addition unaffected, division/CEIL/FLOOR/ROUND canonical lexical form, ABS unaffected) - all confirmed to fail against the pre-patch code via `git stash push -u -- starlayergraph/__init__.py starlayergraph/execution/operator_patches.py`. `starShacl`'s W3C-suite harness re-verified live: all 9 previously-xfailed fixtures now genuinely pass (not just no-longer-gated) - confirmed via the same stash-based adversarial revert against the real fixtures (`packages/starlayer/tests/shacl/w3c_shacl12/`), which reproduced all 9 original failures with the patch removed.
 
 Upstream status:
-- implemented as a monkeypatch in `starlayergraph` (`starlayergraph/query/operator_patches.py`, `starlayergraph/__init__.py`) - the actual bug lives in plain `rdflib`, not this repo; not yet reported upstream to `RDFLib/rdflib`. Full issue write-ups ready to file: `starlayergraph`'s own `docs/upstream-issues/rdflib-upstream-issues.md` (Issues 1-2).
+- implemented as a monkeypatch in `starlayergraph` (`starlayergraph/execution/operator_patches.py`, `starlayergraph/__init__.py`) - the actual bug lives in plain `rdflib`, not this repo; not yet reported upstream to `RDFLib/rdflib`. Full issue write-ups ready to file: `starlayergraph`'s own `docs/upstream-issues/rdflib-upstream-issues.md` (Issues 1-2).
 
 ## 2026-08-01 - Known gap, not yet fixed: Oxigraph's native SPARQL engine doesn't canonicalize whole-number decimal results, diverging from the in-memory backend and Fuseki
 

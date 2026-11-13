@@ -62,7 +62,7 @@ def test_guides_have_no_empty_code_span_and_registry_functions_return_one_class(
     import inspect
 
     from starlayer import starontology as so
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
 
     assert list(inspect.signature(so.get_ontology_graph).parameters) == ["name"]
     assert isinstance(so.get_ontology_graph("skos_owl"), StarLayerGraph)

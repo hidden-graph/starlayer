@@ -6,7 +6,7 @@ a case where rdflib is lenient is marked, and the grammar (Turtle 1.2 / N-Triple
 
 import pytest
 import rdflib
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 from tests.terms import NamedNode
 
 REIFIES = NamedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')

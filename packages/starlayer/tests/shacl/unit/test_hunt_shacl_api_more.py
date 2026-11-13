@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph.core import StarLayerGraph
+from starlayer.graph.core import StarLayerGraph
 from starlayer.shacl import validate
 
 pytestmark = pytest.mark.filterwarnings("ignore")

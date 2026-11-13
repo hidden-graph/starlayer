@@ -272,7 +272,7 @@ def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None) -> tuple[Any, A
     sink = _Sink()
     root = _Writer(sink).ruleset(ruleset)
     if graph is None:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
 
         graph = StarLayerGraph(prefixes={})
     graph.extend(list(sink))

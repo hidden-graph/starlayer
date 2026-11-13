@@ -6,7 +6,7 @@ accept a node expression as the value of ``sh:targetNode``, and a rule condition
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, apply_rules, target_nodes, validate
 from tests.terms import NamedNode, Namespace
 

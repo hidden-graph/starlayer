@@ -37,7 +37,7 @@ def _prefixes(graph: Any) -> dict[str, str]:
 
 def _n3(graph: Any, term: Any) -> str:
     """``term`` with the prefixes ``graph`` binds (an IRI none fits stays ``<iri>``)."""
-    from starlayer.graph.oxgraph.helpers import qnames
+    from starlayer.graph import qnames
 
     try:
         return qnames.n3(_prefixes(graph), term)

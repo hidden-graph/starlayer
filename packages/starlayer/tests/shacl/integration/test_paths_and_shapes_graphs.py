@@ -1,7 +1,7 @@
 """path_values()/is_inverse() (GitHub issue #30) and shapes_graphs()/shapes_graph_members() (GitHub issue #17)."""
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.paths import is_inverse, path_values

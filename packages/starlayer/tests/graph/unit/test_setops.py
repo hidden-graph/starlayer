@@ -6,9 +6,8 @@ import time
 
 import pyoxigraph as ox
 import pytest
+from starlayer.graph import StarLayerDataset, StarLayerGraph, setops
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph import setops
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from tests.terms import BlankNode, NamedNode, lit
 
 union, intersection, difference, symmetric_difference = (

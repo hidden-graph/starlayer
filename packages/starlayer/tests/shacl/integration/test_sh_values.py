@@ -14,7 +14,7 @@ coincidentally both named sh:values but serve entirely different purposes.
 """
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 from tests.terms import Namespace
 

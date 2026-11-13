@@ -14,7 +14,7 @@ Covers:
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 
@@ -461,7 +461,7 @@ class TestUpdateWithTripleTerm:
 # expressions, permitting only ground terms - so a ground <<( s p o )>>
 # triple term here can't be handled the way one inside an ordinary WHERE
 # clause is (hoisting to a BIND). See
-# starlayer.graph.query.sparql12_to_11._rewrite_insert_delete_data_blocks.
+# starlayer.graph.execution.sparql12_to_11._rewrite_insert_delete_data_blocks.
 # ---------------------------------------------------------------------------
 
 class TestUpdateDataWithGroundTripleTerm:

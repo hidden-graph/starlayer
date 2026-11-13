@@ -380,7 +380,7 @@ _NOW_TOKEN = re.compile(r"""[#"'<]|(?<![\w:?$])NOW\s*\(\s*\)""", re.IGNORECASE)
 
 def _fix_now(text: str, now: str) -> str:
     """``text`` with every ``NOW()`` call (not inside a comment, string or IRI) replaced by the dateTime literal ``now``."""
-    from starlayer.graph.oxgraph.run import _IRI_AT, _STRING_AT
+    from starlayer.graph.execution.run import _IRI_AT, _STRING_AT
 
     out: list[str] = []
     i = 0

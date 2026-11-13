@@ -5,7 +5,7 @@ graph, never the union of every graph.
 """
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset
+from starlayer.graph import StarLayerDataset
 
 E = "http://e/"
 SETUP = f"INSERT DATA {{ <{E}a> <{E}p> <{E}b> . GRAPH <{E}g> {{ <{E}z> <{E}p> <{E}z> }} GRAPH <{E}h> {{ <{E}h1> <{E}p> <{E}h2> }} }}"

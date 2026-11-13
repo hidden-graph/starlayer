@@ -255,9 +255,9 @@ g = StarLayerGraph(backend='rdf-1.2')  # native RDF 1.2 endpoint
 
 ✅ `serialize_trig12(g)` — Serializes to TriG 1.2 text. Named-graph identifiers (URIRef) produce a `GRAPH <uri> { ... }` block around Turtle 1.2 content; BNode identifiers produce plain Turtle 1.2 (default-graph convention). Called by `StarLayerGraph.serialize(format='trig12')`.
 
-### starlayer/graph/query/sparql_api.py
+### starlayer/graph/execution/sparql_api.py
 
-**No longer a text-level rewrite — superseded, not just relocated.** The old `starlayergraph/query/sparql12_to_11.py` module (`rewrite_sparql12_to_11(query)` / `_RewriteState`) is gone entirely; nothing of that name or shape exists anywhere in the current codebase. SPARQL 1.2→1.1 translation is no longer string-rewriting at all — it's a real grammar/algebra pipeline living in the sibling `starlayer.sparql` package (`parse12.py`, `lower_rdf11.py`), and this module is a thin wrapper around it:
+**No longer a text-level rewrite — superseded, not just relocated.** The old `starlayergraph/execution/sparql12_to_11.py` module (`rewrite_sparql12_to_11(query)` / `_RewriteState`) is gone entirely; nothing of that name or shape exists anywhere in the current codebase. SPARQL 1.2→1.1 translation is no longer string-rewriting at all — it's a real grammar/algebra pipeline living in the sibling `starlayer.sparql` package (`parse12.py`, `lower_rdf11.py`), and this module is a thin wrapper around it:
 
 ✅ `parseQuery(q)` — Parses a SPARQL 1.2 query string via `starlayer.sparql.parse12.parse_query_12`, returning a pyparsing `ParseResults` tree (same type rdflib's own `parseQuery` returns) with genuine `TripleTermNode` nodes constructed directly by the grammar wherever `<<( s p o )>>`/`TRIPLE(s, p, o)` appears — not detected and reassembled from a text-level encoding after the fact.
 

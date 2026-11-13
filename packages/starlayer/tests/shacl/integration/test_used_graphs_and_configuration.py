@@ -1,5 +1,5 @@
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.engine.terms import text
 from tests.terms import RDF, NamedNode, Namespace, lit

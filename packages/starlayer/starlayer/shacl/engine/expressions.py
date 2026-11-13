@@ -605,7 +605,7 @@ def _run_call(template: str, values: list) -> list:
     global _SCRATCH_STORE
     if _SCRATCH_STORE is None:
         _SCRATCH_STORE = ox.Store()
-    from starlayer.graph.oxgraph import run as oxrun
+    from starlayer.graph.execution import run as oxrun
 
     names = [f"a{i}" for i in range(len(values))]
     try:

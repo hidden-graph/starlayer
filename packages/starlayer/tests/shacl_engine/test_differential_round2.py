@@ -4,7 +4,7 @@ list parameter functions called from SPARQL, SPARQL-based custom components, con
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.expressions import EvaluationFailure
 from starlayer.shacl.engine.terms import NS as Namespace

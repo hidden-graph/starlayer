@@ -28,8 +28,8 @@ engine="hermit", not a bug to chase down here.
 
 import pytest
 from rdflib import RDF, Namespace
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
 
 try:
     import rustdl

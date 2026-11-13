@@ -5,7 +5,7 @@ cannot colour the answer."""
 
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
     RuleError,
     ShapeError,

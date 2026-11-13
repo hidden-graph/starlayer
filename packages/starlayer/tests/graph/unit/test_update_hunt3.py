@@ -9,7 +9,7 @@ import textwrap
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 warnings.simplefilter("ignore")
 P = "PREFIX : <http://e/> "
@@ -181,7 +181,7 @@ def test_blank_nodes_in_a_delete_are_rejected(make, text):
 _RACE = textwrap.dedent(
     """
     import concurrent.futures as cf, sys
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
     from starlayer.sparql import srl
 
     def update(i):

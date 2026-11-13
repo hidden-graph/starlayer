@@ -82,7 +82,7 @@ def validate(
 def _each_items(data_graphs: Any) -> list[tuple[Any, Any]]:
     """The ``(key, graph)`` pairs ``validate_each`` validates: a dataset's graphs (``None`` for a default graph that holds triples,
     then the named graphs by name), a mapping's items, or a sequence's graphs by position."""
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     if isinstance(data_graphs, StarLayerDataset):
         default = data_graphs.default_graph

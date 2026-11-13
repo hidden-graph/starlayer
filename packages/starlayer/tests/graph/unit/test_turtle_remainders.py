@@ -1,7 +1,7 @@
 """Leftovers of issues #93 and #94 in the hand-written Turtle 1.2 parser."""
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset
+from starlayer.graph import StarLayerDataset
 
 
 def _quads(text):

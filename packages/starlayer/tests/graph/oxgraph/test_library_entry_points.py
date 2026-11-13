@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import ENTAILMENT, StarLayerDataset, StarLayerGraph
 
 EX = "http://example.org/"
 SHAPES = """

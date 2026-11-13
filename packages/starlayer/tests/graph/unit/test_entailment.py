@@ -38,8 +38,8 @@ every test.
 """
 
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerGraph
 from tests.terms import RDF, RDFS, Namespace
 
 EX = Namespace("http://example.org/")

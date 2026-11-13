@@ -18,12 +18,12 @@ docstring for why those specific reconstructions aren't attempted.
 """
 
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, URIRef
 from starlayer.graph.manchester._ox_terms import lexical as Literal
 from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.graph.manchester.serializer import serialize_manchester
-from starlayer.graph.oxgraph import StarLayerGraph
 
 EX = 'http://example.org/'
 HEADER = 'Prefix: : <http://example.org/>\nPrefix: rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n'

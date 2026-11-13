@@ -25,7 +25,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph._detached import detached
+from starlayer.graph._detached import detached
 from starlayer.shacl.engine.terms import (
     to_engine,
 )
@@ -49,7 +49,7 @@ _BLANKS = re.compile(r"(?:\s|#[^\n]*\n)*")
 
 def _close_brace(text: str, k: int) -> int:
     """The index of the ``}`` that closes the ``{`` at ``text[k]`` (strings, IRIs and comments skipped); ``len(text)`` if none."""
-    from starlayer.graph.oxgraph.run import _IRI_AT, _STRING_AT
+    from starlayer.graph.execution.run import _IRI_AT, _STRING_AT
 
     depth, i, n = 0, k, len(text)
     while i < n:
@@ -75,7 +75,7 @@ def inject_everywhere(text: str, values: str) -> str:
     do not reach a group that holds only a ``FILTER``). Not in a sub-select's opening brace, a ``VALUES`` data block, a
     ``CONSTRUCT`` template or a ``{|`` annotation block. ``CONSTRUCT WHERE { P }`` is first written out as
     ``CONSTRUCT { P } WHERE { VALUES ... P }``. Strings, IRIs and comments are skipped."""
-    from starlayer.graph.oxgraph.run import _IRI_AT, _STRING_AT
+    from starlayer.graph.execution.run import _IRI_AT, _STRING_AT
 
     out: list[str] = []
     i, n = 0, len(text)
@@ -144,7 +144,7 @@ class OxigraphGraph:
             graph_name: ``UNION`` (default) reads every graph, ``DEFAULT`` the default graph only, any other value that named graph.
         """
         self.store = store if store is not None else ox.Store()
-        from starlayer.graph.oxgraph import union
+        from starlayer.graph.execution import union
 
         self._overlap = union.Overlap()
         self.graph_name = graph_name
@@ -196,7 +196,7 @@ class OxigraphGraph:
         """Add a triple to the selected graph (the default graph when reading the union)."""
         g = ox.DefaultGraph() if self._graph is None else self._graph
         self.store.add(ox.Quad(*(to_ox(t) for t in triple), g))
-        from starlayer.graph.oxgraph import union
+        from starlayer.graph.execution import union
 
         union.touch()  # a dataset over this store drops its deduplicated copy
 
@@ -289,7 +289,7 @@ class OxigraphGraph:
                 kwargs["use_default_graph_as_union"] = True
         else:
             kwargs["default_graph"] = self._graph
-        from starlayer.graph.oxgraph import run as oxrun
+        from starlayer.graph.execution import run as oxrun
 
         if subs and not any(oxrun._has_blank(v) for v in subs.values()):
             # pre-binding as the draft defines it: the binding is part of every group (see ``inject_everywhere``)
@@ -301,8 +301,8 @@ class OxigraphGraph:
         except RuntimeError as exc:
             if not subs or "projection" not in f"{exc}":  # str-ok: an exception message
                 raise
-            from starlayer.graph.oxgraph import run as oxrun
-            from starlayer.graph.oxgraph.sparql_text import inject_init_bindings
+            from starlayer.graph.execution import run as oxrun
+            from starlayer.graph.execution.sparql_text import inject_init_bindings
 
             if any(oxrun._has_blank(v) for v in subs.values()):
                 return oxrun._query_widening(store, text, kwargs, subs, exc)

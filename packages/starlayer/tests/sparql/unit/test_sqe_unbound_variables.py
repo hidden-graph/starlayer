@@ -65,7 +65,7 @@ class TestEmbeddedShaclQueries:
     """``sparql_query_problems`` exempts exactly ``$this`` / ``$value`` / ``$PATH`` (bound by the SHACL engine), and only there."""
 
     def _problems(self, select: str) -> list[str]:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
         from starlayer.shacl.meta_shapes import sparql_query_problems
 
         wrapper = "sh:sparql [ a sh:SPARQLConstraint ; sh:select"
@@ -92,7 +92,7 @@ class TestDeclaredParametersArePreBound:
     PREFIXES = f"@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <{EX}> . "
 
     def _problems(self, turtle: str) -> list[str]:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
         from starlayer.shacl.meta_shapes import sparql_query_problems
 
         g = StarLayerGraph()

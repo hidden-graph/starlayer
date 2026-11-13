@@ -256,7 +256,7 @@ def test_resolve_imports_delta_fills_target_graph():
 
 
 def test_a_variable_named_from_does_not_switch_the_union_off():
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     ds = StarLayerDataset()
     ds.update("INSERT DATA { GRAPH <urn:g> { <urn:b> <urn:from> <urn:x> } <urn:c> <urn:from> <urn:y> }")

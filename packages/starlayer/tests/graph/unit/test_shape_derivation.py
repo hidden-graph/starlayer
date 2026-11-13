@@ -1,4 +1,4 @@
-"""Tests for StarLayerGraph.derive_shape() / starlayer.graph.oxgraph.helpers.shapes.
+"""Tests for StarLayerGraph.derive_shape() / starlayer.graph.shapes.
 
 Two phases exercised: fresh derivation (no template - Phase A) and
 template-merge (Phase B's per-constraint-component relax table). Every
@@ -11,9 +11,9 @@ import re
 
 import pyoxigraph as ox
 import starlayer.shacl
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.oxgraph.helpers.shapes import DEFAULT_IGNORED_PROPERTIES
+from starlayer.graph.shapes import DEFAULT_IGNORED_PROPERTIES
 from tests.terms import RDF, RDFS, BlankNode, Namespace, list_items, lit, rdf_list, text
 
 EX = Namespace('http://example.org/')
@@ -306,6 +306,6 @@ class TestTemplateMerge:
 def test_derive_never_imports_pyshacl_directly():
     import inspect
 
-    import starlayer.graph.oxgraph.helpers.shapes as mod
+    import starlayer.graph.shapes as mod
     source = inspect.getsource(mod)
     assert not re.search(r'^\s*(import pyshacl|from pyshacl)', source, re.MULTILINE)

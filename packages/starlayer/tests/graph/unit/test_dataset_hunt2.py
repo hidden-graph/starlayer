@@ -4,7 +4,7 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset
+from starlayer.graph import StarLayerDataset
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 

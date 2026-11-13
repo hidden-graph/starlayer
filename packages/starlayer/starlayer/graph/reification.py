@@ -11,13 +11,13 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph import terms
-from starlayer.graph.oxgraph.terms import RDF_REIFIES
+from starlayer.graph import terms
+from starlayer.graph.terms import RDF_REIFIES
 
 
 def _view(g: Any) -> Any:
     if isinstance(g, ox.Store):
-        from starlayer.graph.oxgraph.core import StarLayerDataset
+        from starlayer.graph.core import StarLayerDataset
 
         return StarLayerDataset(g)
     return g

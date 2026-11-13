@@ -12,7 +12,7 @@ failure, so the document says which cases a release must fix before the xfail go
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 P = "PREFIX : <urn:> "
 

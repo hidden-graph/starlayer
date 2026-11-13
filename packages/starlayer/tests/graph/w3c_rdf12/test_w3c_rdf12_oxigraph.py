@@ -19,9 +19,8 @@ from pathlib import Path
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import rdfc_native
-from starlayer.graph.oxgraph import ntversion
-from starlayer.graph.oxgraph.core import StarLayerDataset
+from starlayer.graph import ntversion, rdfc_native
+from starlayer.graph.core import StarLayerDataset
 
 DATA = Path(__file__).parent / "data"
 MF = "http://www.w3.org/2001/sw/DataAccess/tests/test-manifest#"
@@ -90,7 +89,7 @@ def _all(*kinds_suffix: str, exclude_known: bool = False, only_known: bool = Fal
 
 
 def _parse(t: dict) -> list[ox.Quad]:
-    """Oxigraph's parser behind the wrapper's N-Triples / N-Quads ``VERSION`` handling (``oxgraph/ntversion.py``): Oxigraph
+    """Oxigraph's parser behind the wrapper's N-Triples / N-Quads ``VERSION`` handling (``ntversion.py``): Oxigraph
     itself rejects that directive, so these two syntaxes are the wrapper's parser, the others are Oxigraph's own."""
     kw = ntversion.accept_version_directive({"input": t["file"].read_bytes()}, t["format"])
     return list(ox.parse(format=t["format"], base_iri=t["base"], **kw))

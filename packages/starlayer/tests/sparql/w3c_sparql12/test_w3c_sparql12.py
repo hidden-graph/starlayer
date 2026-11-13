@@ -12,8 +12,8 @@
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.oxgraph.sparql_text import strip_version_directive
+from starlayer.graph import StarLayerDataset, StarLayerGraph
+from starlayer.graph.execution.sparql_text import strip_version_directive
 from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 from tests.sparql.w3c_sparql12.harness import load_index

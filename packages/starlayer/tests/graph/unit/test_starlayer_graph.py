@@ -11,8 +11,7 @@ import pyoxigraph as ox
 import pytest
 from rdflib import Graph
 from rdflib import URIRef as RdURIRef
-from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph, isomorphic
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
 
@@ -117,7 +116,7 @@ class TestNamedViewAndQuadFormats:
         sg.add((URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         out = sg.serialize(format='trig')
         assert f'<{EX}mygraph> {{' in out
-        from starlayer.graph.oxgraph import StarLayerDataset
+        from starlayer.graph import StarLayerDataset
         ds = StarLayerDataset().parse(data=out, format='trig')
         assert [(q.subject.value, q.graph_name.value) for q in ds.quads()] == [(EX + 's', EX + 'mygraph')]
 

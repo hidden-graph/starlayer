@@ -313,7 +313,7 @@ def test_a_triple_rule_with_no_subject_runs_with_the_focus_node_as_subject() -> 
         "@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . "
         'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:predicate ex:self ; sh:object [ shnex:var "focusNode" ] ] .'
     )
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
 
     result = apply_rules(StarLayerGraph.from_rdflib(Graph()), shapes)
     assert (NamedNode("http://example.org/a"), NamedNode("http://example.org/self"), NamedNode("http://example.org/a")) in result.inferred_graph

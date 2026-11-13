@@ -9,7 +9,7 @@ which shape it's attached to, which that per-shape loop cannot express.
 ``validator.py::_patch_rules_for_native_engine``) - see that module's docstring.
 """
 
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from tests.terms import RDF, Namespace, lit
 

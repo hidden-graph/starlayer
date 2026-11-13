@@ -9,7 +9,7 @@ import pyoxigraph as ox
 import pytest
 import rdflib
 from pyoxigraph import NamedNode as URIRef
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import executor
 from starlayer.shacl.engine.api import validate
 from starlayer.shacl.engine.oxigraph_view import OxigraphGraph

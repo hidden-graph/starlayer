@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.oxgraph.pretty import pretty_turtle
+from starlayer.graph.pretty import pretty_turtle
 from starlayer_reasoning.model.dirlangstring import (
     DIRLANG_NS,
     DirLangString,
@@ -201,7 +201,7 @@ def test_dirlangstring_pickle_and_copy():
 
 
 def test_an_odd_prefix_name_is_ignored_by_formats_that_write_no_prefixes():
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
 
     g = StarLayerGraph()
     g.update("INSERT DATA { <urn:a> <urn:p> <urn:b> }")

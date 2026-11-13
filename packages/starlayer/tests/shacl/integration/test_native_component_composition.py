@@ -39,7 +39,7 @@ def _validate_rdf12(data_ttl12: str, shapes_ttl: str, **kwargs):
     # sh:reifierShape/sh:reificationRequired need real RDF-1.2 triple-term
     # identity (rdf:reifies), which only StarLayerGraph's turtle12 parser
     # produces - a plain rdflib.Graph can't represent it.
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
 
     data = StarLayerGraph()
     data.parse(data=data_ttl12, format="turtle12")

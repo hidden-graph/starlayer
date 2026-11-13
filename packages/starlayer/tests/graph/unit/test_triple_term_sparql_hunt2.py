@@ -4,7 +4,7 @@ not see the encoding, and a triple term can sit in a pattern beside an IRI objec
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 warnings.simplefilter("ignore")
 DATA = "@prefix : <http://x/> . :s :q :o . << :s :q :o >> :cert 0.9 . :a :q <<(:s :p 123)>> ."

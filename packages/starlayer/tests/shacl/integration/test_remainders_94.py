@@ -4,8 +4,8 @@ rdf:subject/predicate/object support triples (a triple term is not a resource wi
 from __future__ import annotations
 
 import pytest
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import validate
 
 pytestmark = pytest.mark.shacl

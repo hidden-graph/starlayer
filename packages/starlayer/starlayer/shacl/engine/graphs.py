@@ -1,7 +1,7 @@
 """Small helpers over Oxigraph-backed graphs, for the engine modules that build graphs (reports, extracts, closures).
 
 Every graph the engine builds is an ``StarLayerGraph`` (pyoxigraph terms, its own in-memory store). ``StarLayerGraph`` is imported
-lazily: ``starlayer.graph.oxgraph`` imports the engine's SPARQL view.
+lazily: ``starlayer.graph`` imports the engine's SPARQL view.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ from starlayer.shacl.engine.terms import RDF
 
 def new_graph(like: Any = None, *, identifier: Any = None) -> Any:
     """A fresh empty ``StarLayerGraph``, with the prefixes ``like`` binds (when it binds any: ``namespaces()``)."""
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     out = StarLayerGraph(identifier=identifier)
     namespaces = getattr(like, "namespaces", None)

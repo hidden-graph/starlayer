@@ -134,7 +134,7 @@ def decompose(graph: Any) -> Any:
     synthetic reification fragment (a fresh blank node per triple-term occurrence, three edges in an internal namespace, recursing
     for a nested one). Injective, and the result holds no triple term, which is what the rdflib reasoners need."""
     from rdflib import Graph
-    from starlayer.graph.oxgraph.inputs import is_oxigraph_input
+    from starlayer.graph.inputs import is_oxigraph_input
 
     if is_oxigraph_input(graph):
         graph = to_rdflib_triples(iter(graph))
@@ -151,7 +151,7 @@ def to_rdflib_rdf11(value: Any, *, bnode_prefix: str | None = None, direction_po
     (a plain ``turtle`` parse does not adopt the basic encoding either; ``interop.from_basic`` does)."""
     from rdflib import BNode, Dataset, Graph, URIRef
     from starlayer.graph import interop
-    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+    from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
     if isinstance(value, ox.Store):
         value = StarLayerDataset(store=value)
@@ -330,7 +330,7 @@ def graph_from_rdflib(value: Any, *, restore_directions: bool = False) -> Any:
     ``"4"``). ``restore_directions=True`` turns a directional literal written in its datatype-IRI form (``interop.encode_directions``)
     back into a real one."""
     from rdflib import URIRef
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     ident = getattr(value, "identifier", None)
     out = StarLayerGraph(identifier=foreign_to_engine(ident)) if type(ident) is URIRef else StarLayerGraph()
@@ -345,7 +345,7 @@ def dataset_from_rdflib(value: Any) -> Any:
     """A new ``StarLayerDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / StarLayer dataset (every graph, empty named graphs
     too, ``default_union`` kept) or from a plain graph (its triples go to the default graph, whatever its identifier). Terms are
     converted and checked as in ``graph_from_rdflib``, and a decomposed directional literal is restored. Prefixes are copied."""
-    from starlayer.graph.oxgraph.core import StarLayerDataset
+    from starlayer.graph.core import StarLayerDataset
 
     if isinstance(value, (StarLayerDataset, ox.Store)) or not hasattr(value, "namespaces"):
         raise TypeError(f"expected an rdflib Dataset, ConjunctiveGraph or Graph; got {type(value).__name__}")

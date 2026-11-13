@@ -7,8 +7,8 @@ import pyoxigraph as ox
 import pytest
 from rdflib.collection import Collection
 from starlayer import starontology
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.meta_shapes import meta_validate

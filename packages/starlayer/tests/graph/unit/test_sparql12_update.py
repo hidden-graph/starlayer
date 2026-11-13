@@ -11,7 +11,7 @@ Covers:
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 # StarLayerGraph stores and returns pyoxigraph terms; the expected values below are written the same way.
 NamedNode = ox.NamedNode

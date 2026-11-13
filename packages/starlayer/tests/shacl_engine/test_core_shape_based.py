@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import SH, lexical, text

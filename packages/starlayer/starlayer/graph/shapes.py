@@ -26,7 +26,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph import terms
+from starlayer.graph import terms
 from starlayer.shacl.engine.terms import NS
 
 SH = NS("http://www.w3.org/ns/shacl#")
@@ -516,7 +516,7 @@ def derive_shape(g: Any, template_shape: Any = None, *, ignored_properties: Any 
     """One closed ``sh:NodeShape`` per ``rdf:type`` found in ``g``, optionally reconciled with ``template_shape`` (an
     ``StarLayerGraph`` / ``StarLayerDataset``, or an rdflib graph whose terms are converted). ``ignored_properties`` are pyoxigraph
     ``NamedNode``s (rdflib IRIs are converted). Returns a new ``StarLayerGraph`` with ``g``'s prefixes plus ``sh``."""
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     ignored: set[Any] = set(_ALWAYS_IGNORED)
     if use_default_ignored_properties:

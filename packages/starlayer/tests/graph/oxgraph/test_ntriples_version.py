@@ -5,7 +5,7 @@ from __future__ import annotations
 import io
 
 import pytest
-from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
 T = '<http://e/a> <http://e/b> "x" .\n'
 BAD_T = "<http://e/a> <http://e/b> .\n"  # a missing object

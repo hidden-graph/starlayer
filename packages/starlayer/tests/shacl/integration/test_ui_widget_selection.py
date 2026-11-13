@@ -1,5 +1,5 @@
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui.widget_selection import select_widget, select_widgets
 

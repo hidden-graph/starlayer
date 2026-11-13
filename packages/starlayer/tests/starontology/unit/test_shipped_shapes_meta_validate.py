@@ -16,7 +16,7 @@ import warnings
 
 import pytest
 from starlayer import starontology
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.meta_shapes import meta_validate
 
 _SHAPES_GRAPHS = sorted([name for name in starontology._REGISTRY if name.endswith("_shacl")])

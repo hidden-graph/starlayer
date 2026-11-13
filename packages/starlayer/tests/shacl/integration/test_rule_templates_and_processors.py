@@ -7,7 +7,7 @@ named after the local name of its ``sh:path``. A required parameter without a va
 """
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import RuleError, StarShaclSchema
 from tests.terms import Namespace, lit
 

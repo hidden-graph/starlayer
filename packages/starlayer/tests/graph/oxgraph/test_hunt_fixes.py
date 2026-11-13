@@ -6,9 +6,8 @@ import random
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import interop
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.oxgraph.pretty import pretty_trig
+from starlayer.graph import StarLayerDataset, StarLayerGraph, interop
+from starlayer.graph.pretty import pretty_trig
 
 N = ox.NamedNode
 EX = "http://ex/"

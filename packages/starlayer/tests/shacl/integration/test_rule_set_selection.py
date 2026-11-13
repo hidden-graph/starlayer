@@ -10,7 +10,7 @@ Covers both kinds of rule the rule engine runs: global (shape-independent)
 rules, and shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule).
 """
 
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from tests.terms import RDF, Namespace
 

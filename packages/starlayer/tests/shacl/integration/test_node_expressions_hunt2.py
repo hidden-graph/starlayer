@@ -3,7 +3,7 @@
 import warnings
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, evaluate
 from tests.terms import XSD, Namespace, lit
 

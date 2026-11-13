@@ -85,7 +85,7 @@ def _wrapped(fn: Any) -> Any:
 
     @functools.wraps(fn)
     def run(a: Any, b: Any, *, into: Any = None) -> Any:
-        from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+        from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
         wrappers = (StarLayerGraph, StarLayerDataset)
         if not any(isinstance(x, wrappers) for x in (a, b, into)):

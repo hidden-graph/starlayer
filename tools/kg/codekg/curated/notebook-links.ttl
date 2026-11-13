@@ -12,11 +12,11 @@
 nl:01-b8032fd8 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
     slkg:cellId "b8032fd8" ;
-    slkg:cellHash "54117448fb09d741" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "d064e7d499af121d" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "The first cell a reader runs: imports StarLayerGraph and sets up the namespace used to build graphs." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core.StarLayerGraph" .
+        "starlayer.graph.core.StarLayerGraph" .
 
 nl:01-6f4c59ad a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
@@ -25,8 +25,8 @@ nl:01-6f4c59ad a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Parses Turtle into a StarLayerGraph and queries it with SPARQL, the smallest complete use of both." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core._Base.parse",
-        "starlayer.graph.oxgraph.core._Base.query" .
+        "starlayer.graph.core._Base.parse",
+        "starlayer.graph.core._Base.query" .
 
 nl:02-3f4f3ecb a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
@@ -35,7 +35,7 @@ nl:02-3f4f3ecb a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Builds a graph with a triple term and a reifier and shows it serialized, the basic way to see a graph's contents." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core._Base.serialize" .
+        "starlayer.graph.core._Base.serialize" .
 
 nl:02-7334cc46 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
@@ -44,7 +44,7 @@ nl:02-7334cc46 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-02"^^xsd:date ;
     rdfs:comment "Calls reifications() to list the triple terms that have a reifier, next to reifiers()." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core._Base.reifications" .
+        "starlayer.graph.core._Base.reifications" .
 
 nl:02a-122b54fa a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02a-graphs-datasets.ipynb" ;
@@ -53,7 +53,7 @@ nl:02a-122b54fa a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Creates a StarLayerDataset and adds two named graphs to it." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core.StarLayerDataset" .
+        "starlayer.graph.core.StarLayerDataset" .
 
 nl:02b-2c6151e0 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02b-graphs-inferencing.ipynb" ;
@@ -62,7 +62,7 @@ nl:02b-2c6151e0 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Runs infer() with the RDF entailment regime and shows the graph before and after." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core._Base.infer" .
+        "starlayer.graph.core._Base.infer" .
 
 nl:02c-b87b0ce5 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02c-owl-dl-reasoning.ipynb" ;
@@ -80,7 +80,7 @@ nl:03-2e4d34f3 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-02"^^xsd:date ;
     rdfs:comment "A SPARQL 1.2 query that binds the terms inside a triple term, run with query()." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core._Base.query" .
+        "starlayer.graph.core._Base.query" .
 
 nl:03b-7790f87d a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
@@ -227,13 +227,13 @@ nl:appendix-34b06f8c a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-12"^^xsd:date ;
     rdfs:comment "Uses cbd() to delete a shared filter and everything hanging from it in a query graph." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core._Base.cbd" .
+        "starlayer.graph.core._Base.cbd" .
 
 nl:05-da3100e0 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05-starlayer-schemas-and-ontologies.ipynb" ;
     slkg:cellId "da3100e0" ;
-    slkg:cellHash "6051974ea7770825" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "b15dc623c0b99055" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "Loads the bundled SKOS shapes graph and validates a SKOS concept scheme against it with a StarShaclSchema." ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.skos" .
@@ -290,7 +290,7 @@ nl:06b-252791c5 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Runs a query with a SERVICE block against a remote SPARQL endpoint on a StarLayerGraph; skips when the endpoint is unreachable." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.oxgraph.core._Base.query" .
+        "starlayer.graph.core._Base.query" .
 
 nl:03-b337c254 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
@@ -298,4 +298,4 @@ nl:03-b337c254 a slkg:NotebookExample ;
     slkg:cellHash "369e65b117ade53b" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
     rdfs:comment "Runs a SPARQL 1.2 INSERT DATA with a triple term through update() on a StarLayerGraph." ;
-    slkg:demonstratesIdentifier "starlayer.graph.oxgraph.core._Base.update" .
+    slkg:demonstratesIdentifier "starlayer.graph.core._Base.update" .

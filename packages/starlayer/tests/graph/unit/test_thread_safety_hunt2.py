@@ -6,7 +6,7 @@ import textwrap
 import warnings
 from concurrent.futures import ThreadPoolExecutor
 
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 warnings.simplefilter("ignore")
 
@@ -14,7 +14,7 @@ COLD_START = textwrap.dedent(
     """
     import warnings; warnings.simplefilter('ignore')
     from concurrent.futures import ThreadPoolExecutor
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
     g = StarLayerGraph()
     g.parse(data='@prefix : <http://e/> . :s :p 1 . :t :p 2 .', format='turtle12')
     Q = 'PREFIX : <http://e/> SELECT ?s WHERE { ?s :p ?o FILTER(?o > %d) }'

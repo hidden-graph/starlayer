@@ -4,7 +4,7 @@ so the group matched as if it had no filter (docs/upstream-issues/rdflib-upstrea
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 DATA = "<http://e/a> <http://e/p> <http://e/b> ."
 

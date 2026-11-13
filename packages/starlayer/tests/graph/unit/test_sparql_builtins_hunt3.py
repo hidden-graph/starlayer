@@ -2,15 +2,15 @@
 (GitHub issue #76). Each test is a repro from the issue; the expected values
 come from SPARQL 1.1/1.2 Query (sections 17.2 error handling, 17.3 operator
 mapping, 17.4 functions, 18.6 aggregates), not from plain rdflib. See
-``starlayer/graph/query/builtin_error_patches.py``.
+``starlayer/graph/execution/builtin_error_patches.py``.
 """
 
 from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
-from starlayer.graph.oxgraph.sparql_text import strip_version_directive
+from starlayer.graph import StarLayerGraph
+from starlayer.graph.execution.sparql_text import strip_version_directive
 
 PRE = "PREFIX : <http://e/> PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> "
 XSD_NS = "http://www.w3.org/2001/XMLSchema#"

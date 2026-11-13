@@ -7,7 +7,7 @@ import subprocess
 import sys
 
 import pytest
-from starlayer.graph.oxgraph.core import StarLayerGraph
+from starlayer.graph.core import StarLayerGraph
 from tests.skos import skos_validate
 
 _ROOT = pathlib.Path(__file__).resolve().parents[5]

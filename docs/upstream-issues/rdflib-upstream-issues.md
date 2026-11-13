@@ -1,6 +1,6 @@
 # rdflib Upstream Issues
 
-Bugs in rdflib 7.6.0 found while building SPARQL 1.2 support here. Every example is plain `rdflib` (do not `import starlayer.graph`, which applies the fixes). **None are filed upstream yet**; they will be reported as a batch. Each has a fix applied in this repo, in `starlayer/graph/query/*_patches.py`.
+Bugs in rdflib 7.6.0 found while building SPARQL 1.2 support here. Every example is plain `rdflib` (do not `import starlayer.graph`, which applies the fixes). **None are filed upstream yet**; they will be reported as a batch. Each has a fix applied in this repo, in `starlayer/graph/execution/*_patches.py`.
 
 | # | Bug | Effect | Fix |
 |---|-----|--------|-----|
@@ -32,7 +32,7 @@ list(Graph().query("SELECT (6 * 7 AS ?r) WHERE {}"))[0][0]
 # expected: Literal('42', datatype=xsd:integer)
 ```
 
-Fix: `starlayer/graph/query/operator_patches.py::patch_multiplicative_expression_type_promotion`.
+Fix: `starlayer/graph/execution/operator_patches.py::patch_multiplicative_expression_type_promotion`.
 
 ## 2. `translateAlgebra` regenerates invalid or crashing SPARQL text
 
@@ -72,7 +72,7 @@ translateAlgebra(q)
 
 Also affects: two `UNION` branches each `BIND`ing the same variable name regenerate as `(expr1 AS (expr2 AS ?var))` - nested, invalid.
 
-Fix: `starlayer/graph/query/algebra_translator_patches.py::patch_algebra_translator_bugs`.
+Fix: `starlayer/graph/execution/algebra_translator_patches.py::patch_algebra_translator_bugs`.
 
 ## 5. Un-aliased computed `GROUP BY` key crashes
 
@@ -87,7 +87,7 @@ list(g.query("SELECT (COUNT(?o) as ?c) WHERE { ?s <http://ex/p> ?o } GROUP BY (?
 # expected: 2 grouped rows (GROUP BY ?o and GROUP BY (?o+1 AS ?k) both work fine)
 ```
 
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_group_by_unaliased_expression_key`.
+Fix: `starlayer/graph/execution/evaluate_patches.py::patch_group_by_unaliased_expression_key`.
 
 ## 6. A `SELECT` row with no variable bindings gets silently dropped when iterated
 
@@ -110,7 +110,7 @@ r2.bindings, len(r2), list(r2)
 # -> ([], 0, [])  - genuinely zero rows; before the fix, indistinguishable from the "exists" case via list()
 ```
 
-Fix: `starlayer/graph/query/result_patches.py::patch_result_iter_empty_binding_row`.
+Fix: `starlayer/graph/execution/result_patches.py::patch_result_iter_empty_binding_row`.
 
 ## 7. `xsd:integer()` cannot cast a decimal, double, float or boolean
 
@@ -128,7 +128,7 @@ for arg in ("16.0934", "-2.7", "1.5e0", "true"):
 
 Found because the SRL spec's own Examples 9 and 10 compute `xsd:integer(?miles * 1.60934)` and infer nothing without it. (Without the `COALESCE`, the row is silently dropped; see item 6.)
 
-Fix: `starlayer/graph/query/operator_patches.py::patch_integer_cast_from_numeric_and_boolean`, applied on `import starlayer.graph`. `NaN` and the infinities stay errors. **Not filed upstream.**
+Fix: `starlayer/graph/execution/operator_patches.py::patch_integer_cast_from_numeric_and_boolean`, applied on `import starlayer.graph`. `NaN` and the infinities stay errors. **Not filed upstream.**
 
 
 
@@ -141,7 +141,7 @@ list(Graph().query("SELECT ?x WHERE { BIND(1 AS ?o) { BIND(2 AS ?x) FILTER(?x = 
 # expected: [(Literal(2),)]
 ```
 
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalfilter_forgotten_vars`. (Revised 2026-10-18: the first version of this patch kept every variable the filter mentions, which also made it see variables bound outside its group - see item 16. It now evaluates the filter over the variables its own group binds.)
+Fix: `starlayer/graph/execution/evaluate_patches.py::patch_evalfilter_forgotten_vars`. (Revised 2026-10-18: the first version of this patch kept every variable the filter mentions, which also made it see variables bound outside its group - see item 16. It now evaluates the filter over the variables its own group binds.)
 
 ## 9. `INSERT DATA` into a `Dataset`'s default graph crashes
 
@@ -152,7 +152,7 @@ Dataset().update("INSERT DATA { <http://ex/a> <http://ex/b> <http://ex/c> }")
 # expected: one triple added (a plain Graph works)
 ```
 
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_evalinsertdata_quad_unpacking`.
+Fix: `starlayer/graph/execution/evaluate_patches.py::patch_evalinsertdata_quad_unpacking`.
 
 ## 10. `REPLACE` ignores its flags argument
 
@@ -163,7 +163,7 @@ list(Graph().query('SELECT (REPLACE("aBc", "b", "X", "i") AS ?r) WHERE {}'))[0][
 # expected: 'aXc'
 ```
 
-Cause: rdflib calls `re.sub(pattern, repl, text, flags)`, but the fourth positional parameter of `re.sub` is `count`, not `flags`. Worked around in `starlayer/graph/query/custom_functions.py` (`_replace`).
+Cause: rdflib calls `re.sub(pattern, repl, text, flags)`, but the fourth positional parameter of `re.sub` is `count`, not `flags`. Worked around in `starlayer/graph/execution/custom_functions.py` (`_replace`).
 
 ## 11. `STRLANG` accepts an empty language tag
 
@@ -174,7 +174,7 @@ list(Graph().query('SELECT (STRLANG("a", "") AS ?r) WHERE {}'))[0][0]
 # expected: an error, so ?r is unbound
 ```
 
-Fix: `starlayer/graph/query/operator_patches.py::patch_strlang_rejects_empty_language_tag`.
+Fix: `starlayer/graph/execution/operator_patches.py::patch_strlang_rejects_empty_language_tag`.
 
 ## 12. `CEIL`, `FLOOR` and `ROUND` of a decimal give a non-canonical lexical form
 
@@ -185,7 +185,7 @@ list(Graph().query("SELECT (CEIL(1.5) AS ?r) WHERE {}"))[0][0]
 # expected: Literal('2.0', datatype=xsd:decimal)
 ```
 
-Fix: `starlayer/graph/query/operator_patches.py::patch_decimal_result_lexical_form`.
+Fix: `starlayer/graph/execution/operator_patches.py::patch_decimal_result_lexical_form`.
 
 
 ## 13. Queries that break the grammar are accepted
@@ -228,7 +228,7 @@ Literal("foo") == Literal("foo", datatype=XSD.string)
 # expected: True
 ```
 
-Fix: `starlayer/graph/query/operator_patches.py::patch_sameterm_simple_literal_is_xsd_string` makes `sameTerm()` treat them as one term. `Literal.__eq__` and triple-pattern matching are unchanged, so `?s ?p "a"^^xsd:string` still does not match a stored `"a"`; fixing that means changing `Literal` itself.
+Fix: `starlayer/graph/execution/operator_patches.py::patch_sameterm_simple_literal_is_xsd_string` makes `sameTerm()` treat them as one term. `Literal.__eq__` and triple-pattern matching are unchanged, so `?s ?p "a"^^xsd:string` still does not match a stored `"a"`; fixing that means changing `Literal` itself.
 
 ## 16. A `FILTER` in a nested group sees variables bound outside the group
 
@@ -258,7 +258,7 @@ Graph().query(q).bindings
 # expected: []
 ```
 
-Fix: `starlayer/graph/query/evaluate_patches.py::patch_aggregate_join_no_row_for_empty_explicit_group`. Found by the Oxigraph differential tests.
+Fix: `starlayer/graph/execution/evaluate_patches.py::patch_aggregate_join_no_row_for_empty_explicit_group`. Found by the Oxigraph differential tests.
 
 ## 18. `CONSTRUCT` keeps template triples that are not valid RDF
 
@@ -291,7 +291,7 @@ d.update("INSERT { ?s ?p ?o } USING <http://e/g> WHERE { ?s ?p ?o }")  # tries t
 
 `ADD`/`COPY`/`MOVE` with `DEFAULT` raise `ValueError` or lose data. SPARQL 1.1 Update section 3.2 defines each on the true default graph; section 3.1.3 says `USING` names a graph of the dataset. Found by the second hunt (GitHub issue #78).
 
-Fix: `starlayer/graph/query/update_patches.py::patch_update_graph_management`.
+Fix: `starlayer/graph/execution/update_patches.py::patch_update_graph_management`.
 
 ## 20. A negated property set matches the triple-term encoding; `isIRI` and `STR` accept a triple term
 
@@ -310,7 +310,7 @@ list(Graph().query('SELECT (SUBSTR("abc", 0, 2) AS ?x) (SUBSTR("abc", -1, 3) AS 
 # expected: ("a", "a")
 ```
 
-Found by the second hunt (GitHub issue #76). Fix: `starlayer/graph/query/builtin_error_patches.py::patch_substr_xpath_semantics` (also replaces `operators.Builtin_SUBSTR`, which the directional-literal `SUBSTR` reuses).
+Found by the second hunt (GitHub issue #76). Fix: `starlayer/graph/execution/builtin_error_patches.py::patch_substr_xpath_semantics` (also replaces `operators.Builtin_SUBSTR`, which the directional-literal `SUBSTR` reuses).
 
 ## 23. `TIMEZONE()` drops the minutes of a UTC offset
 
@@ -468,7 +468,7 @@ list(g.query("PREFIX : <http://e/> SELECT ?y { :a :p* ?y }"))             # a ap
 
 The grammar writes the inverse member as `Comp("InversePath", "^" + iri)` with the IRI not a named parameter, so the parsed node is empty and the IRI is lost. `NegatedPath.eval` also reads `^b` as "skip a forward edge whose reverse exists", where SPARQL 1.1 section 18.4 makes `!(a|^b)` the alternative `!(a) | ^(!(b))`. `MulPath.eval` yields a bag, but `*`, `+` and `?` are evaluated over the set of reachable nodes. Found by the second and third hunts (GitHub issue #77).
 
-Fix: `starlayer/graph/query/path_patches.py::patch_negated_set_inverse_member` and `patch_repetition_paths_are_distinct`, and `evaluate_patches.py::patch_negated_path_skips_encoding_triples` (the evaluation).
+Fix: `starlayer/graph/execution/path_patches.py::patch_negated_set_inverse_member` and `patch_repetition_paths_are_distinct`, and `evaluate_patches.py::patch_negated_path_skips_encoding_triples` (the evaluation).
 
 ## 31. `DELETE DATA`, `DELETE WHERE` and `DELETE { }` delete from every graph; `USING` and `USING NAMED` are wrong; invalid template triples are inserted
 
@@ -492,7 +492,7 @@ SPARQL 1.1 Update section 3.1.3 deletes from the graph the template names, the d
 
 Found by the third hunt (GitHub issue #135).
 
-Fix: `starlayer/graph/query/update_patches.py::patch_update_graph_management` (it now replaces `evalInsertData`, `evalDeleteData` and `evalModify` too, and supersedes `evaluate_patches.py::patch_evalmodify_default_graph_selection`).
+Fix: `starlayer/graph/execution/update_patches.py::patch_update_graph_management` (it now replaces `evalInsertData`, `evalDeleteData` and `evalModify` too, and supersedes `evaluate_patches.py::patch_evalmodify_default_graph_selection`).
 
 ## 32. An empty update request crashes
 
@@ -563,7 +563,7 @@ list(g.query("SELECT ?x { <http://e/n0> <http://e/next>+ ?x }"))     # Recursion
 
 `MulPath.eval` walks the chain with recursive generators (`_fwd`, `_bwd`): one nested generator frame per hop, so a chain of about a thousand hops overflows Python's stack, and every result is passed up through every frame. A graph where one node reaches thousands of others through `p+` (an organisation chart, a long `skos:broader` or `rdfs:subClassOf` chain, a linked list) fails with `RecursionError`. Found by the slow parts hunt, while timing a `knows+` query on growing graphs. Not filed upstream.
 
-Fix: `starlayer/graph/query/path_patches.py::patch_repetition_paths_are_distinct` evaluates the repetition itself (`_repetition_pairs`) with a breadth-first search and a visited set: the same set of pairs (checked against rdflib's own code on 14,400 random evaluations), no recursion. A 5,000-hop chain takes 0.34 s.
+Fix: `starlayer/graph/execution/path_patches.py::patch_repetition_paths_are_distinct` evaluates the repetition itself (`_repetition_pairs`) with a breadth-first search and a visited set: the same set of pairs (checked against rdflib's own code on 14,400 random evaluations), no recursion. A 5,000-hop chain takes 0.34 s.
 
 ## 40. A negative decimal literal is a parse error
 
@@ -617,7 +617,7 @@ g.query("ASK { FILTER(false) }").askAnswer                                  # Tr
 ```
 
 Impact: SHACL-SPARQL ASK validators written as `ASK { FILTER(false) }`, and the W3C SHACL 1.2 test
-`tests/sparql/pre-binding/pre-binding-002`. Fix: `starlayer/graph/query/algebra_translator_patches.py::patch_group_filter_falsy_literal`
+`tests/sparql/pre-binding/pre-binding-002`. Fix: `starlayer/graph/execution/algebra_translator_patches.py::patch_group_filter_falsy_literal`
 wraps `collectAndRemoveFilters` and returns a truthy `Literal` subclass for a falsy literal (same lexical form, datatype and
 language, so evaluation is unchanged). GitHub issue #186.
 

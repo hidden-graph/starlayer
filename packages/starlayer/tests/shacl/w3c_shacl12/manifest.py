@@ -15,8 +15,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 import pyoxigraph as ox
-from starlayer.graph import RDF
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import RDF, StarLayerGraph
 from tests.lexical_graph import LexicalGraph
 
 from .namespaces import MF

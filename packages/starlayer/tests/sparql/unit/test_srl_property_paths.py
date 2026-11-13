@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql import srl
 from starlayer.sparql.srl import SRLParseError, parse_ruleset
 from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_engine

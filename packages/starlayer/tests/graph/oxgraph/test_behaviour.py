@@ -6,7 +6,7 @@ import io
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import (
+from starlayer.graph import (
     StarLayerDataset,
     StarLayerGraph,
     as_store,

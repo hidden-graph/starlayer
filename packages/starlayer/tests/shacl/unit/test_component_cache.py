@@ -1,7 +1,7 @@
 """A constraint component is built once per shape, not once per focus node (slow parts hunt, sh:in over many nodes)."""
 
 import pyoxigraph as ox
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import validate
 from starlayer.shacl.engine.terms import text
 

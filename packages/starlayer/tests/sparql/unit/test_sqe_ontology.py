@@ -129,7 +129,7 @@ class TestRootParameter:
     QUERY_TEXT = "SELECT ?s WHERE { ?s a <http://example.org/Thing> }"
 
     def test_defaults_to_a_fresh_bnode(self):
-        from starlayer.graph.oxgraph import StarLayerGraph
+        from starlayer.graph import StarLayerGraph
 
         graph, root = sqe_parse_to_tree(self.QUERY_TEXT)
         assert isinstance(graph, StarLayerGraph)  # with no graph= given the tree is written to a fresh StarLayerGraph: pyoxigraph terms

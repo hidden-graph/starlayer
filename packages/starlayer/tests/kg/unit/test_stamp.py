@@ -9,7 +9,7 @@ import pytest
 from codekg import BUILD_GRAPH_IRI, CODEKG_NS
 from codekg.extractor import stamp
 from codekg.extractor.build import refresh
-from starlayer.graph.oxgraph import StarLayerDataset
+from starlayer.graph import StarLayerDataset
 from tests.terms import RDF
 
 PKG = Path("packages/starlayer/starlayer/widgets")

@@ -1,7 +1,7 @@
 """A literal sh:targetWhere is a ShapeError (GitHub issue #172); packaging graphs of any sh:Graph role (GitHub issue #169)."""
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, StarShaclSchema, validate
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.shapes_graphs import (

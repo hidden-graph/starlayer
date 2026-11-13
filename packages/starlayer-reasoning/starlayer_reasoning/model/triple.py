@@ -50,7 +50,7 @@ class TripleTerm:
         # position, and never itself a triple term (triple terms are only
         # ever legal in object position). Mirrors the identical validation
         # the in-memory backend's own TRIPLE() implementation already
-        # enforces (starlayer.graph/query/custom_functions.py::_tt_hash_fn) - this
+        # enforces (starlayer.graph/execution/custom_functions.py::_tt_hash_fn) - this
         # constructor is the other place a TripleTerm comes into being, e.g.
         # decoding a native-backend query result back into a real Python
         # object, so it needs the same check independently. Confirmed via a

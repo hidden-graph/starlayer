@@ -67,7 +67,7 @@ def relevant_subgraph(
 
     Raises ``TypeError`` for a ``StarLayerDataset`` (name one of its graphs, or merge them: ``to_graph()``), ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
     depends on a remote graph, so it cannot be reproduced from a subgraph of this one)."""
-    from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+    from starlayer.graph import StarLayerDataset, StarLayerGraph
 
     if isinstance(graph, StarLayerDataset):
         raise TypeError(

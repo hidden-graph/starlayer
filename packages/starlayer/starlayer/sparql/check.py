@@ -16,7 +16,7 @@ def check_query(text: str, prepare: bool = False) -> str | None:
 
     ``prepare``: also prepare a query with Oxigraph, for a query whose text carries all its ``PREFIX`` lines; an update is
     only parsed, and so is a query with a ``SERVICE`` clause (preparing it would send the request)."""
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
     from starlayer.sparql.parse_sparql import (
         SparqlSyntaxError,
         parse_sparql,

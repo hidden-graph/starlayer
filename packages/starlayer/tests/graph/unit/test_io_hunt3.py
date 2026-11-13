@@ -6,8 +6,7 @@ import io
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import isomorphic
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph, isomorphic
 
 pytestmark = pytest.mark.graph
 

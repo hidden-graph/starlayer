@@ -1,5 +1,5 @@
+from starlayer.graph import StarLayerDataset
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.graph.oxgraph import StarLayerDataset
 from starlayer.shacl import StarShaclSchema
 from tests.terms import Namespace, lit
 

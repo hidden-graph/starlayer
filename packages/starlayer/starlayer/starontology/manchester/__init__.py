@@ -564,7 +564,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
         ``graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:Document`` tree.
     """
     if graph is None:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
 
         graph = StarLayerGraph()
     tree = _manchester_parse_to_tree_graph(text, base)
@@ -577,8 +577,8 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
 
 def _holds_document(graph: Any) -> bool:
     """True if ``graph`` (a ``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``) has a ``manch:Document``."""
-    from starlayer.graph.oxgraph.core import as_store
-    from starlayer.graph.oxgraph.inputs import is_oxigraph_dataset, is_oxigraph_input
+    from starlayer.graph.core import as_store
+    from starlayer.graph.inputs import is_oxigraph_dataset, is_oxigraph_input
 
     if is_oxigraph_dataset(graph):
         return any(True for _ in as_store(graph).quads_for_pattern(
@@ -589,12 +589,12 @@ def _holds_document(graph: Any) -> bool:
 
 
 def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
+    from starlayer.graph.core import StarLayerGraph
     from starlayer.graph.manchester.parser import (
         _Cursor,
         _tokenize,
         run_guarded,
     )
-    from starlayer.graph.oxgraph.core import StarLayerGraph
 
     class _SyntaxTreeCursor(_Cursor):
         def __init__(self, tokens, base):
@@ -1154,7 +1154,7 @@ def manchester_tree_to_owl(graph: Any) -> Any:
     Returns:
         The compiled OWL content as a fresh ``StarLayerGraph``.
     """
-    from starlayer.graph.oxgraph.core import StarLayerGraph
+    from starlayer.graph.core import StarLayerGraph
 
     owl_graph = StarLayerGraph()
     owl_graph.parse(data=manchester_tree_to_text(graph), format='manchester')
@@ -1163,7 +1163,7 @@ def manchester_tree_to_owl(graph: Any) -> Any:
 
 def _as_graph(graph: Any) -> Any:
     """A ``StarLayerGraph`` for any graph a caller may pass (a dataset gives its default graph; an rdflib graph is a ``TypeError``)."""
-    from starlayer.graph.oxgraph.inputs import as_oxigraph
+    from starlayer.graph.inputs import as_oxigraph
 
     graph = as_oxigraph(graph)
     return graph.to_graph() if hasattr(graph, "to_graph") else graph
@@ -1286,7 +1286,7 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
-    from starlayer.graph.oxgraph.helpers.entailment import ENTAILMENT
+    from starlayer.graph.entailment.infer import ENTAILMENT
 
     problems = _preflight(_as_graph(data_graph))
     if any("cycle" in message for _, message in problems):
@@ -1318,7 +1318,7 @@ def _preflight_report(problems, report_graph):
     """``report_graph`` (or a fresh one) with the pre-flight findings added as sh:ValidationResult."""
     sh = Vocab(_SH)
     if report_graph is None:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
 
         report_graph = StarLayerGraph()
         report_graph.add((BNode(), RDF.type, sh.ValidationReport))

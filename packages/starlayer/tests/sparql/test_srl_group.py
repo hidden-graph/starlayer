@@ -8,7 +8,7 @@ are in scope afterwards."""
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql.parse_srl import parse_srl
 from starlayer.sparql.srl import (
     SRLError,

@@ -4,7 +4,7 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 warnings.simplefilter("ignore")
 

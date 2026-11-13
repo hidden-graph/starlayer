@@ -27,9 +27,9 @@ SUITE = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SUITE.parent))
 
 import pyoxigraph as ox  # noqa: E402
+from starlayer.graph import StarLayerGraph as Graph  # noqa: E402
 from starlayer.graph.manchester._ox_terms import RDF, BNode, URIRef  # noqa: E402
 from starlayer.graph.manchester._ox_terms import lexical as Literal  # noqa: E402
-from starlayer.graph.oxgraph import StarLayerGraph as Graph  # noqa: E402
 from starlayer.starontology.manchester import (  # noqa: E402
     MANCH,
     manchester_parse_to_tree,

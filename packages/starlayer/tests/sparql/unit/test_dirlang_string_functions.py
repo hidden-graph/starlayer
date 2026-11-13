@@ -14,7 +14,7 @@ internally stored with a non-standard `dirlang:` datatype IRI (see
 `starlayer.graph.model.encoding`). Fixed by routing all 14 (13 here;
 `langMATCHES` needs no fix - see `custom_functions.py`'s own module
 comment) through dedicated custom functions registered in
-`starlayer.graph.query.custom_functions`, intercepted during
+`starlayer.graph.execution.custom_functions`, intercepted during
 `lower_rdf11._lower_expr`'s own dispatch.
 
 Execution-level tests throughout (run the real query, compare the actual
@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 from rdflib.namespace import RDF, XSD
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 XSD_INTEGER = ox.NamedNode(str(XSD.integer))
 XSD_BOOLEAN = ox.NamedNode(str(XSD.boolean))

@@ -1,6 +1,6 @@
 import pyoxigraph as ox
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import EvaluationFailure, StarShaclSchema
 from tests.terms import Namespace, lit
 

@@ -3,8 +3,8 @@
 import warnings
 
 import pytest
+from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerDataset, StarLayerGraph
 from starlayer.sparql.srl import SRLError, SRLParseError, parse_ruleset
 from tests.terms import Namespace
 

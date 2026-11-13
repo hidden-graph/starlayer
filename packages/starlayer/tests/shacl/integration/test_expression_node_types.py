@@ -6,7 +6,7 @@ argument lists had none, so a tool that finds shapes by target found nothing for
 
 import pytest
 from starlayer import starontology
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema
 from starlayer.shacl.shape_types import infer_types
 from tests.terms import RDF, BlankNode, Namespace

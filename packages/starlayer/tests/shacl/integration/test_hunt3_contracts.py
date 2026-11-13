@@ -2,7 +2,7 @@
 ``extract_subgraph`` refuses a ``str`` where it needs a term (it was a bare KeyError, or a silently empty result)."""
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 from tests.terms import NamedNode, Namespace
 

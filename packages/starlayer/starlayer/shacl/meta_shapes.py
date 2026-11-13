@@ -417,7 +417,7 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
             if cached is not None:
                 conforms, report_text = cached
             else:
-                from starlayer.graph.oxgraph.core import StarLayerGraph
+                from starlayer.graph.core import StarLayerGraph
 
                 encoded_graph = StarLayerGraph(prefixes={})
                 encoded_graph.extend(ast_to_triples(query)[0])

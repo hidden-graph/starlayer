@@ -51,7 +51,7 @@ class Old:
     name = "StarLayerGraph"
 
     def __init__(self):
-        from starlayer.graph.oxgraph import StarLayerGraph
+        from starlayer.graph import StarLayerGraph
 
         self.cls = StarLayerGraph
 
@@ -84,14 +84,14 @@ class Wrapper:
     name = "StarLayerGraph"
 
     def load(self, text):
-        from starlayer.graph.oxgraph import StarLayerGraph
+        from starlayer.graph import StarLayerGraph
 
         g = StarLayerGraph()
         g.parse(data=text, format="nt")
         return g
 
     def add_loop(self, triples):
-        from starlayer.graph.oxgraph import StarLayerGraph
+        from starlayer.graph import StarLayerGraph
 
         g = StarLayerGraph()
         for s, p, o in triples:

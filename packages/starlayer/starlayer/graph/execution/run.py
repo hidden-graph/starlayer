@@ -11,10 +11,10 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph import terms
-from starlayer.graph.oxgraph import union as union_graph
-from starlayer.graph.oxgraph.result import HiddenColumns, Result
-from starlayer.graph.oxgraph.sparql_text import (
+from starlayer.graph import terms
+from starlayer.graph.execution import union as union_graph
+from starlayer.graph.execution.result import HiddenColumns, Result
+from starlayer.graph.execution.sparql_text import (
     check_native_version_conformance,
     inject_init_bindings,
 )

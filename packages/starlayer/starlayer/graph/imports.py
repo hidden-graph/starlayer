@@ -11,7 +11,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph import terms
+from starlayer.graph import terms
 
 OWL = "http://www.w3.org/2002/07/owl#"
 OWL_IMPORTS = ox.NamedNode(OWL + "imports")
@@ -86,7 +86,7 @@ def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None
         result.extend(delta)
         return result
     if target_graph is None:
-        from starlayer.graph.oxgraph.core import StarLayerGraph
+        from starlayer.graph.core import StarLayerGraph
 
         target_graph = StarLayerGraph(prefixes=dict(g.prefixes))
     elif not (hasattr(target_graph, "extend") and hasattr(target_graph, "store")):

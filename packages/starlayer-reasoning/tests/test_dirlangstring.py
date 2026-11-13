@@ -9,8 +9,8 @@ round-trips, and the SPARQL 1.2 base-direction functions.
 import pyoxigraph as ox
 import pytest
 from rdflib import Literal, URIRef
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.interop import DIRLANG_NS
-from starlayer.graph.oxgraph import StarLayerGraph
 from starlayer_reasoning.model.dirlangstring import (
     DirLangString,
     decode_dirlang_datatype,
@@ -242,7 +242,7 @@ class TestNTriples12:
 
 class TestTrig12:
     def test_round_trip(self):
-        from starlayer.graph.oxgraph import StarLayerDataset
+        from starlayer.graph import StarLayerDataset
 
         ds = StarLayerDataset()
         ds.parse(data=f'''

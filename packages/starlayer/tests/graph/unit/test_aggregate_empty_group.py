@@ -1,7 +1,7 @@
 """An explicit GROUP BY over no solutions gives no rows; an implicit group still gives its one row."""
 
 import pyoxigraph as ox
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 
 
 def test_explicit_group_by_over_nothing_gives_no_rows():

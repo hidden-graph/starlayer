@@ -1,6 +1,6 @@
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError
 from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
 from tests.terms import Namespace, lit

@@ -42,7 +42,7 @@ def refresh(target_paths: list[Path], repo_root: Path, *, trig_path: Path | None
             constant. Exists for testability (so a test never touches the real, checked-in file).
         tests_trig_path: Override for ``testskg.trig``; with ``trig_path`` given it defaults to ``testskg.trig`` beside it.
     """
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     from . import stamp, symbol_index, visitor
 

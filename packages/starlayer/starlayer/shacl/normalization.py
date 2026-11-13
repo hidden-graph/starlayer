@@ -21,7 +21,7 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
     Raises:
         TypeError: If ``value`` is not a graph the library accepts.
     """
-    from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+    from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
     if value is None:
         raise TypeError(f"{name} must be a graph (StarLayerGraph, StarLayerDataset or rdflib.Graph). Got None.")

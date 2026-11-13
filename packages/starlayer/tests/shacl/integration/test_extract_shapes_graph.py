@@ -7,7 +7,7 @@ on (follows blank-node objects recursively, never named-IRI ones).
 """
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclSchema, extract_subgraph
 from starlayer.shacl.engine.terms import NS as Namespace
 

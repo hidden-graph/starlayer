@@ -1,8 +1,8 @@
 """No ``import rdflib`` (or a reasoner) anywhere in the ``starlayer`` package.
 
 The terms are pyoxigraph terms and the graphs are Oxigraph-backed (``StarLayerGraph``). rdflib, ``owlrl`` and the OWL-DL engines live in
-the ``starlayer-reasoning`` package, which the core reaches only through ``starlayer.graph.oxgraph.core._reasoning`` and
-``starlayer.graph.oxgraph.helpers.entailment._reasoning``. This test walks the AST of every module (function-level imports included)
+the ``starlayer-reasoning`` package, which the core reaches only through ``starlayer.graph.core._reasoning`` and
+``starlayer.graph.entailment.infer._reasoning``. This test walks the AST of every module (function-level imports included)
 and fails on any import of them.
 """
 

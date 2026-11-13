@@ -14,8 +14,8 @@ starlayer.graph/compare.py's own module docstring for why the decomposition
 fix is correct.
 """
 
+from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
-from starlayer.graph.oxgraph import StarLayerGraph
 
 
 def _graph(data: str) -> StarLayerGraph:
@@ -156,7 +156,7 @@ class TestSimpleLiteralVsExplicitXsdStringIsomorphism:
 
 
 def _people(n, city_suffix=""):
-    from starlayer.graph.oxgraph import StarLayerGraph
+    from starlayer.graph import StarLayerGraph
 
     lines = ["@prefix ex: <http://example.org/> ."]
     for i in range(n):
@@ -180,8 +180,8 @@ def test_isomorphic_is_false_when_the_graphs_differ_in_size():
 
 
 def test_isomorphic_still_treats_a_simple_literal_and_xsd_string_as_equal():
+    from starlayer.graph import StarLayerGraph
     from starlayer.graph.compare import isomorphic
-    from starlayer.graph.oxgraph import StarLayerGraph
 
     a, b = StarLayerGraph(), StarLayerGraph()
     a.parse(data='@prefix ex: <http://e/> . ex:a ex:p "x" .', format="turtle12")

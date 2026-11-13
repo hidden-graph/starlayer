@@ -32,7 +32,7 @@ from typing import Any, Literal
 
 import pyoxigraph as ox
 
-from starlayer.graph.oxgraph.core import StarLayerDataset, StarLayerGraph
+from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 from starlayer.shacl.engine.terms import NS, RDF, SH
 
 # The terms are pyoxigraph terms. The graphs are read as they are (``StarLayerGraph`` / ``StarLayerDataset`` / ``pyoxigraph.Store``), with
@@ -105,7 +105,7 @@ def _as_ox_graph(value: Any) -> Any:
         return value
     if isinstance(value, ox.Store):
         return StarLayerDataset(store=value)
-    from starlayer.graph.oxgraph.inputs import as_oxigraph
+    from starlayer.graph.inputs import as_oxigraph
 
     return as_oxigraph(value)  # raises the TypeError that points to from_rdflib
 

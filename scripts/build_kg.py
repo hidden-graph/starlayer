@@ -4,7 +4,7 @@ The code graph (``codekg.trig``), the curated files (``codekg/curated/*.ttl``) a
 are separate sources. This joins them into one file that an agent can download, load into memory with any RDF
 library and query, without a StarLayer checkout:
 
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
     kg = StarLayerDataset(default_union=True)
     kg.parse(path, format="trig12")
 
@@ -63,7 +63,7 @@ def build_dataset():
         queries,
     )
     from codekg.terms import RDF, Literal
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     out: StarLayerDataset = get_codekg_dataset(include_curated=True)
     for prefix, namespace in PREFIXES.items():
@@ -114,7 +114,7 @@ def main() -> int:
     parser.add_argument("--check", action="store_true", help="change nothing; exit 1 if the committed file is out of date")
     args = parser.parse_args()
 
-    from starlayer.graph.oxgraph import StarLayerDataset
+    from starlayer.graph import StarLayerDataset
 
     output = ROOT / OUTPUT_REL
     built = build_dataset()

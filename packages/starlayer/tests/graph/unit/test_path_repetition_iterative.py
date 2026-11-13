@@ -5,8 +5,8 @@ import random
 
 import pytest
 from rdflib.paths import MulPath
+from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.graph.oxgraph import StarLayerGraph
 from tests.terms import NamedNode
 
 E = "http://e/"

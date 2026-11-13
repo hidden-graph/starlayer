@@ -4,7 +4,7 @@ seconds for a shape with a few dozen properties). The answers must not change, s
 one-property-at-a-time ``select_widget()`` and against the widget expected by hand."""
 
 import pytest
-from starlayer.graph.oxgraph import StarLayerGraph
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui import widget_selection as ui_widget_selection
 from starlayer.shacl.ui.widget_selection import SHUI, select_widget, select_widgets
