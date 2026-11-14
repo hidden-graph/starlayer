@@ -69,7 +69,7 @@ def test_select_based_custom_component_flags_violations() -> None:
 
     result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
-    assert "Value Node: Literal(\"20\"" in result.report_text
+    assert "Value Node: 20" in result.report_text
 
 
 def test_ask_based_custom_component_over_rdf12_triple_term_value() -> None:

@@ -76,7 +76,7 @@ def _python_value(node: ox.Literal) -> str | None:
 
 
 def stringify_node(graph: Any, node: Any, depth: int = 0) -> str:
-    """A node as text, in the form the old report text uses: prefixed names, ``Literal("x", lang=..., datatype=...)``,
+    """A node as text, as Turtle writes it: prefixed names, literals (``"x"``, ``"x"@en``, ``1``, ``"2026-01-02"^^xsd:date``),
     blank nodes as ``[ p o ; ... ]``, lists as ``( a b )``, triple terms as ``<<( s p o )>>``."""
     if isinstance(node, ox.Triple):
         return "<<( {} {} {} )>>".format(  # str-ok: stringify_node returns text
@@ -91,14 +91,19 @@ def stringify_node(graph: Any, node: Any, depth: int = 0) -> str:
     return f"{node}"  # str-ok: a plain value (a Python str or number), not a term
 
 
+_BARE_DATATYPES = frozenset(T.XSD[n] for n in ("integer", "decimal", "double", "boolean"))
+
+
 def _literal(graph: Any, node: ox.Literal) -> str:
+    """A literal as Turtle writes it: ``"text"``, ``"text"@en``, a number or boolean bare (``1``, ``true``), any other datatype as ``"lexical"^^xsd:date``."""
     lex = node.value
-    value = _python_value(node)
-    val = f'"{lex}" = {value}' if value is not None and value != lex else f'"{lex}"'  # str-ok: python value text
-    lang = f", lang={node.language}" if node.language else ""
-    plain = node.language is not None or node.datatype == T.XSD.string
-    datatype = "" if plain else f", datatype={stringify_node(graph, node.datatype)}"
-    return f"Literal({val}{lang}{datatype})"  # str-ok: rendered text
+    if node.language:
+        return f'"{lex}"@{node.language}'  # str-ok: rendered text
+    if node.datatype == T.XSD.string:
+        return f'"{lex}"'  # str-ok: rendered text
+    if node.datatype in _BARE_DATATYPES:
+        return lex
+    return f'"{lex}"^^{stringify_node(graph, node.datatype)}'  # str-ok: rendered text
 
 
 def _blank(graph: Any, node: ox.BlankNode, depth: int) -> str:
