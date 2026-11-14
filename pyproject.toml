@@ -11,7 +11,9 @@ starlayer-reasoning = { workspace = true }
 [tool.pytest.ini_options]
 testpaths = ["packages/starlayer/tests", "packages/starlayer-reasoning/tests"]
 # Lets tests import the build-time modules in scripts/ (build_meta_shapes.py) and the code-KG tooling in tools/kg (the `codekg` package) directly.
-pythonpath = ["scripts", "tools/kg"]
+# packages/starlayer puts its own `tests` package on the path, whichever way starlayer is installed (a pip editable install maps only the
+# `starlayer` package, so `from tests...` would otherwise fail).
+pythonpath = ["scripts", "tools/kg", "packages/starlayer"]
 markers = [
     "integration: tests requiring a running Fuseki/Oxigraph server - the 'full testing' tier.",
     "w3c_sparql12: W3C SPARQL 1.2 test suite cross-checks.",

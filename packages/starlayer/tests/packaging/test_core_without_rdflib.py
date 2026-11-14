@@ -456,7 +456,8 @@ def test_the_sqe_text_path_loads_no_rdflib_module():
     ],
 )
 def test_an_rdflib_feature_raises_a_clear_import_error(code):
-    result = run_blocked(code)
+    # The reasoning cases mean "starlayer-reasoning is not installed", so hide it if this environment has it.
+    result = run_blocked("import sys\nsys.modules['starlayer_reasoning'] = None\n" + code)
     assert result.returncode != 0
     assert "ImportError" in result.stderr
     hint = "starlayer[rdflib]" if "rdflib(" in code or "_rdflib(" in code else "pip install starlayer-reasoning"

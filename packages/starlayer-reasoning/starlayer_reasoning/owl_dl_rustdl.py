@@ -299,7 +299,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
         )
         if status == 'inconsistent':
             raise InconsistentOntologyError(
-                "infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') found self's data "
+                "infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') found the graph's data "
                 "logically inconsistent."
             )
 

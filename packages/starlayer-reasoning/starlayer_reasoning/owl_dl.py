@@ -44,7 +44,7 @@ Triple = tuple[Any, Any, Any]
 
 
 class InconsistentOntologyError(RuntimeError):
-    """Raised when entailment=ENTAILMENT['OWL-Direct'] finds self's data logically
+    """Raised when entailment=ENTAILMENT['OWL-Direct'] finds the graph's data logically
     inconsistent under OWL 2 DL semantics - e.g. an individual typed as two
     classes declared owl:disjointWith each other. Unlike entailment=ENTAILMENT['OWL-RDF-Based']
     (whose consistency checking, via owlrl, is partial and silently embeds
@@ -172,7 +172,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
         )
         if status == 'inconsistent':
             raise InconsistentOntologyError(
-                "infer(entailment=ENTAILMENT['OWL-Direct']) found self's data logically "
+                "infer(entailment=ENTAILMENT['OWL-Direct']) found the graph's data logically "
                 "inconsistent under OWL 2 DL semantics."
             )
         if status == 'java_error':
