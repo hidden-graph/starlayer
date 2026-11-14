@@ -56,9 +56,8 @@ docs/design/future_enhancements.md for the fuller writeup:
    targets an `owl:oneOf` nominal enumeration, hangs
    `materialize_inferred_class_assertions()` indefinitely - confirmed
    RustDL-specific (HermiT handles the identical case without issue).
-   `_check_rustdl_hang_risk()` below catches this pre-flight via a real
-   `starlayer.shacl` SHACL shape (`_HANG_RISK_SHAPES_TTL`) over the *compiled*
-   OWL 2 RDF Mapping triples (`owl:Restriction`/`onProperty`/
+   `_check_rustdl_hang_risk()` below catches this pre-flight via a SPARQL
+   ASK (`_HANG_RISK_ASK`) over the *compiled* OWL 2 RDF Mapping triples (`owl:Restriction`/`onProperty`/
    `someValuesFrom`/`oneOf`) - deliberately not gated through this
    project's own `manch:` Manchester-syntax-tree-as-RDF vocabulary, since the
    pattern looks identical regardless of how the ontology was authored
@@ -92,60 +91,52 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from rdflib import RDF, RDFS, Graph, Literal, URIRef
-from rdflib.namespace import OWL
+import pyoxigraph as ox
 
 from starlayer_reasoning import _timeout
 from starlayer_reasoning.owl_dl import (
+    RDF_FIRST,
+    RDF_NIL,
+    RDF_REST,
+    RDF_TYPE,
+    RDFS_SUBCLASS,
     InconsistentOntologyError,
     _delta_from_result,
+    _owl,
     _skolemize_individuals,
+    encode,
+    write_rdfxml,
 )
 
 # See this module's own docstring, point 4, for the full account of what
 # this detects and why. A single sh:sparql SELECT over the compiled OWL 2
 # RDF Mapping triples - bounded, no recursion, so this pre-flight check
 # itself carries none of the hang risk it's guarding against.
-_HANG_RISK_SHAPES_TTL = """
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-@prefix owl: <http://www.w3.org/2002/07/owl#> .
-
-[] a sh:NodeShape ;
-    sh:targetClass owl:Restriction ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "RustDL hang risk: a property declared both owl:FunctionalProperty and owl:InverseFunctionalProperty is used in a someValuesFrom restriction whose filler is an owl:oneOf nominal enumeration." ;
-        sh:select \"\"\"
-            PREFIX owl: <http://www.w3.org/2002/07/owl#>
-            SELECT $this
-            WHERE {
-                $this owl:onProperty ?p ;
-                      owl:someValuesFrom ?filler .
-                ?p a owl:FunctionalProperty ;
-                   a owl:InverseFunctionalProperty .
-                ?filler owl:oneOf ?list .
-            }
-        \"\"\" ;
-    ] .
+_HANG_RISK_ASK = """
+    PREFIX owl: <http://www.w3.org/2002/07/owl#>
+    ASK {
+        ?restriction a owl:Restriction ;
+                     owl:onProperty ?p ;
+                     owl:someValuesFrom ?filler .
+        ?p a owl:FunctionalProperty ;
+           a owl:InverseFunctionalProperty .
+        ?filler owl:oneOf ?list .
+    }
 """
 
 
-def _check_rustdl_hang_risk(graph: Graph) -> None:
+def _check_rustdl_hang_risk(triples) -> None:
     """Pre-flight structural check for the confirmed RustDL hang - see this
     module's own docstring, point 4. Raises `rustdl.UnsupportedAxiomError`
-    if `graph` matches the hang pattern; returns silently otherwise. Always
-    goes through `starlayer.shacl` (never bare `pyshacl`), consistent with every
-    other SHACL-shape-based check in this package - `packages/graph`
-    already depends on `packages/shacl` (see `shape_derivation.py`'s own
-    module docstring for that dependency)."""
-    import starlayer.shacl
-
+    if the triples match the hang pattern; returns silently otherwise. One
+    SPARQL ASK over the triples in a throwaway Oxigraph store: bounded, no
+    recursion, so the check itself carries none of the hang risk it guards
+    against."""
     rustdl = _require_rustdl()
 
-    shapes = Graph()
-    shapes.parse(data=_HANG_RISK_SHAPES_TTL, format='turtle')
-    result = starlayer.shacl.validate(graph, shacl_graph=shapes)
-    if not result.conforms:
+    store = ox.Store()
+    store.extend(ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in triples)
+    if bool(store.query(_HANG_RISK_ASK)):
         raise rustdl.UnsupportedAxiomError(
             "A property is declared both owl:FunctionalProperty and "
             "owl:InverseFunctionalProperty and used in a someValuesFrom "
@@ -173,34 +164,44 @@ def _require_rustdl():
     return rustdl
 
 
-def _infer_missing_owl_types(g: Graph) -> None:
-    """See this module's own docstring's "RDF/XML compatibility fix"
-    section. Mutates `g` in place, purely additive."""
-    already_typed = {s for s, _p, _o in g.triples((None, RDF.type, None))}
-    restriction_nodes = {s for s, _p, _o in g.triples((None, OWL.onProperty, None))}
-    class_nodes = {o for _s, _p, o in g.triples((None, RDF.type, None))}
+_ON_PROPERTY, _OWL_RESTRICTION, _OWL_CLASS = _owl("onProperty", "Restriction", "Class")
+_CLASS_POSITIONS = frozenset((RDFS_SUBCLASS, *_owl("equivalentClass", "disjointWith", "complementOf", "someValuesFrom", "allValuesFrom", "onClass")))
+_LIST_POSITIONS = _owl("unionOf", "intersectionOf", "oneOf")
+_ONE_OF = _LIST_POSITIONS[2]
 
-    for pred in (RDFS.subClassOf, OWL.equivalentClass, OWL.disjointWith,
-                 OWL.complementOf, OWL.someValuesFrom, OWL.allValuesFrom, OWL.onClass):
-        for s, _p, o in g.triples((None, pred, None)):
+
+def _infer_missing_owl_types(triples: set) -> set:
+    """See this module's own docstring's "RDF/XML compatibility fix"
+    section. The triples to add to ``triples``: purely additive."""
+    already_typed = {s for s, p, _o in triples if p == RDF_TYPE}
+    restriction_nodes = {s for s, p, _o in triples if p == _ON_PROPERTY}
+    class_nodes = {o for _s, p, o in triples if p == RDF_TYPE}
+    first: dict = {}
+    rest: dict = {}
+    for s, p, o in triples:
+        if p in _CLASS_POSITIONS:
             class_nodes.add(s)
             class_nodes.add(o)
+        elif p == RDF_FIRST:
+            first.setdefault(s, o)
+        elif p == RDF_REST:
+            rest.setdefault(s, o)
 
-    for pred in (OWL.unionOf, OWL.intersectionOf, OWL.oneOf):
-        for _s, _p, lst in g.triples((None, pred, None)):
-            class_nodes.add(lst)
-            node = lst
-            while node is not None and node != RDF.nil:
-                if pred != OWL.oneOf:
-                    first = g.value(node, RDF.first)
-                    if first is not None:
-                        class_nodes.add(first)
-                node = g.value(node, RDF.rest)
+    for _s, p, lst in triples:
+        if p not in _LIST_POSITIONS:
+            continue
+        class_nodes.add(lst)
+        node, seen = lst, set()
+        while node is not None and node != RDF_NIL and node not in seen:
+            seen.add(node)
+            if p != _ONE_OF and node in first:
+                class_nodes.add(first[node])
+            node = rest.get(node)
 
-    for n in restriction_nodes - already_typed:
-        g.add((n, RDF.type, OWL.Restriction))
-    for n in class_nodes - already_typed - restriction_nodes:
-        g.add((n, RDF.type, OWL.Class))
+    def typed(nodes, cls):
+        return {(n, RDF_TYPE, cls) for n in nodes if isinstance(n, (ox.NamedNode, ox.BlankNode))}
+
+    return typed(restriction_nodes - already_typed, _OWL_RESTRICTION) | typed(class_nodes - already_typed - restriction_nodes, _OWL_CLASS)
 
 
 def _run_rustdl_subprocess(owl_path: str, result_path: str, queue) -> None:
@@ -264,7 +265,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
     won't reproduce the same way this engine did under HermiT.
 
     Args:
-        graph: The graph to classify.
+        graph: A StarLayerGraph, or an iterable of pyoxigraph (s, p, o) triples.
         timeout: Wall-clock budget in seconds for the actual RustDL call
             (default `_timeout.DEFAULT_TIMEOUT_SECONDS`, 120s) -
             defense-in-depth for any hang pattern other than the one
@@ -275,20 +276,21 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
             shared between both engines.
 
     Returns:
-        A (before, delta) tuple of Graphs - `before` the decomposed input
-        graph, `delta` the newly-entailed triples not already in `before`.
+        A (before, delta) tuple of sets of pyoxigraph triples - `before` the
+        input with each triple term written out as a PropositionForm
+        description, `delta` the newly-entailed triples not already in
+        `before`.
     """
     _require_rustdl()
 
-    from starlayer.graph.rdflib_bridge import decompose as _decompose
-    before = _decompose(graph)
+    before, placeholders = encode(graph)
     _check_rustdl_hang_risk(before)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         owl_path = Path(tmp_dir) / "graph.owl"
         to_serialize = _skolemize_individuals(before)
-        _infer_missing_owl_types(to_serialize)
-        to_serialize.serialize(destination=str(owl_path), format='xml')
+        to_serialize |= _infer_missing_owl_types(to_serialize)
+        write_rdfxml(to_serialize, owl_path)
         path = str(owl_path)
         result_path = Path(tmp_dir) / "result.pickle"
 
@@ -305,20 +307,20 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
         with open(result_path, 'rb') as f:
             result = pickle.load(f)
 
-        expanded = Graph()
+        expanded = set()
         for s, o in result['subclass']:
-            expanded.add((URIRef(s), RDFS.subClassOf, URIRef(o)))
+            expanded.add((ox.NamedNode(s), RDFS_SUBCLASS, ox.NamedNode(o)))
         for c, i in result['class_assertions']:
-            expanded.add((URIRef(i), RDF.type, URIRef(c)))
+            expanded.add((ox.NamedNode(i), RDF_TYPE, ox.NamedNode(c)))
         for s, p, o in result['property_assertions']:
-            expanded.add((URIRef(s), URIRef(p), URIRef(o)))
+            expanded.add((ox.NamedNode(s), ox.NamedNode(p), ox.NamedNode(o)))
         for s, p, lexical, datatype, lang in result['data_property_assertions']:
             if lang:
-                lit = Literal(lexical, lang=lang)
+                lit = ox.Literal(lexical, language=lang)
             elif datatype:
-                lit = Literal(lexical, datatype=URIRef(datatype))
+                lit = ox.Literal(lexical, datatype=ox.NamedNode(datatype))
             else:
-                lit = Literal(lexical)
-            expanded.add((URIRef(s), URIRef(p), lit))
+                lit = ox.Literal(lexical)
+            expanded.add((ox.NamedNode(s), ox.NamedNode(p), lit))
 
-    return before, _delta_from_result(expanded, before)
+    return before, _delta_from_result(expanded, before, placeholders)

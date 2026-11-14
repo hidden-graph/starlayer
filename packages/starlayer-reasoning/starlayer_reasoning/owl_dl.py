@@ -31,12 +31,16 @@ from __future__ import annotations
 
 import shutil
 import tempfile
+from collections.abc import Iterable
 from pathlib import Path
+from typing import Any
 
-from rdflib import OWL, RDF, RDFS, BNode, Graph, Literal, URIRef
-from rdflib.namespace import XSD
+import pyoxigraph as ox
+from starlayer.graph import interop
 
 from starlayer_reasoning import _timeout
+
+Triple = tuple[Any, Any, Any]
 
 
 class InconsistentOntologyError(RuntimeError):
@@ -128,16 +132,15 @@ def _run_hermit_subprocess(owl_path: str, result_path: str, queue) -> None:
 
 def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECONDS):
     """Run OWL 2 DL classification (HermiT, via owlready2) over `graph`,
-    returning (before, delta) in the same shape
-    StarLayerGraph._infer_before_and_delta() returns for the owlrl-backed
-    regimes, so infer()'s mode="full"/"delta"/"in-place" branches can
+    returning (before, delta) in the same shape classify_owl_dl_rustdl()
+    returns, so infer()'s mode="full"/"delta"/"in-place" branches can
     treat both engines uniformly without knowing which one ran.
 
     Raises InconsistentOntologyError if the data is logically inconsistent
     under OWL 2 DL semantics.
 
     Args:
-        graph: The graph to classify.
+        graph: A StarLayerGraph, or an iterable of pyoxigraph (s, p, o) triples.
         timeout: Wall-clock budget in seconds for the actual HermiT call
             (default `_timeout.DEFAULT_TIMEOUT_SECONDS`, 120s) - the call
             runs in its own subprocess/process group so it can be forcibly
@@ -149,18 +152,19 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
             mechanism that reliably works here.
 
     Returns:
-        A (before, delta) tuple of Graphs - `before` the decomposed input
-        graph, `delta` the newly-entailed triples not already in `before`.
+        A (before, delta) tuple of sets of pyoxigraph triples - `before` the
+        input with each triple term written out as a PropositionForm
+        description (the reasoners cannot hold a triple term), `delta` the
+        newly-entailed triples not already in `before`.
     """
     _require_owlready2()
     _require_java()
 
-    from starlayer.graph.rdflib_bridge import decompose as _decompose
-    before = _decompose(graph)
+    before, placeholders = encode(graph)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
         owl_path = Path(tmp_dir) / "graph.owl"
-        _skolemize_individuals(before).serialize(destination=str(owl_path), format='xml')
+        write_rdfxml(_skolemize_individuals(before), owl_path)
         result_path = Path(tmp_dir) / "result.owl"
 
         status, message = _timeout.run_with_timeout(
@@ -187,80 +191,110 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
                 f"misconfigured, not just missing. {message}"
             )
 
-        expanded = Graph()
-        expanded.parse(str(result_path), format='xml')
+        expanded = read_rdfxml(result_path)
 
-    return before, _delta_from_result(expanded, before)
+    return before, _delta_from_result(expanded, before, placeholders)
+
+
+# ---- what goes to the reasoners and what comes back: pyoxigraph triples, RDF/XML on disk ----------------------------------
+
+_RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+_RDFS = "http://www.w3.org/2000/01/rdf-schema#"
+_OWL = "http://www.w3.org/2002/07/owl#"
+_XSD = "http://www.w3.org/2001/XMLSchema#"
+RDF_TYPE, RDF_FIRST, RDF_REST, RDF_NIL, RDF_LIST = (ox.NamedNode(_RDF + n) for n in ("type", "first", "rest", "nil", "List"))
+RDFS_SUBCLASS, RDFS_SUBPROPERTY, RDFS_DATATYPE = (ox.NamedNode(_RDFS + n) for n in ("subClassOf", "subPropertyOf", "Datatype"))
+
+
+def _owl(*names: str) -> tuple:
+    return tuple(ox.NamedNode(_OWL + n) for n in names)
 
 
 _ANONYMOUS_ONTOLOGY = "http://anonymous"
 _SKOLEM = "urn:starlayer:owl-dl-individual#"
 _STRUCTURAL_TYPES = frozenset(
-    {OWL.Restriction, OWL.Class, OWL.DataRange, RDFS.Datatype, OWL.AllDifferent, OWL.AllDisjointClasses, OWL.AllDisjointProperties,
-     OWL.NegativePropertyAssertion, OWL.Axiom, OWL.Annotation, RDF.List, OWL.Ontology}
+    _owl("Restriction", "Class", "DataRange", "AllDifferent", "AllDisjointClasses", "AllDisjointProperties",
+         "NegativePropertyAssertion", "Axiom", "Annotation", "Ontology") + (RDFS_DATATYPE, RDF_LIST)
 )
 _STRUCTURAL_PREDICATES = frozenset(
-    {OWL.onProperty, OWL.onClass, OWL.onDataRange, OWL.onDatatype, OWL.withRestrictions, OWL.someValuesFrom, OWL.allValuesFrom,
-     OWL.hasValue, OWL.hasSelf, OWL.cardinality, OWL.minCardinality, OWL.maxCardinality, OWL.qualifiedCardinality,
-     OWL.minQualifiedCardinality, OWL.maxQualifiedCardinality, OWL.unionOf, OWL.intersectionOf, OWL.complementOf, OWL.oneOf,
-     OWL.datatypeComplementOf, OWL.members, OWL.distinctMembers, OWL.inverseOf, RDF.first, RDF.rest, OWL.sourceIndividual,
-     OWL.assertionProperty, OWL.targetIndividual, OWL.targetValue, OWL.annotatedSource, OWL.annotatedProperty,
-     OWL.annotatedTarget}
+    _owl("onProperty", "onClass", "onDataRange", "onDatatype", "withRestrictions", "someValuesFrom", "allValuesFrom",
+         "hasValue", "hasSelf", "cardinality", "minCardinality", "maxCardinality", "qualifiedCardinality",
+         "minQualifiedCardinality", "maxQualifiedCardinality", "unionOf", "intersectionOf", "complementOf", "oneOf",
+         "datatypeComplementOf", "members", "distinctMembers", "inverseOf", "sourceIndividual",
+         "assertionProperty", "targetIndividual", "targetValue", "annotatedSource", "annotatedProperty",
+         "annotatedTarget") + (RDF_FIRST, RDF_REST)
 )
+_ONTOLOGY, _EQUIVALENT_CLASS, _EQUIVALENT_PROPERTY, _INVERSE_OF, _SYMMETRIC, _TRANSITIVE = _owl(
+    "Ontology", "equivalentClass", "equivalentProperty", "inverseOf", "SymmetricProperty", "TransitiveProperty")
+_PF_PREDICATES = frozenset((interop.PF_SUBJECT, interop.PF_PREDICATE, interop.PF_OBJECT))
 
 
-def _skolemize_individuals(graph: Graph) -> Graph:
-    """A copy of ``graph`` in which every blank node that stands for an individual (or a triple-term placeholder) is an IRI
+def triples_of(graph: Any) -> list[Triple]:
+    """The (s, p, o) triples of a StarLayerGraph, or of any iterable of triples."""
+    items = graph.triples() if hasattr(graph, "triples") else graph
+    return [(s, p, o) for s, p, o in items]
+
+
+def encode(graph: Any) -> tuple[set[Triple], set]:
+    """``graph`` as plain RDF 1.1 triples, which is what the reasoners read: each triple term becomes a blank node with a
+    ``rdf:PropositionForm`` description (``interop.to_basic``) and a base-direction literal its datatype-IRI form
+    (``interop.encode_directions``). Also the blank nodes that stand for triple terms, whose entailments are no part of the
+    user's graph."""
+    quads = [ox.Quad(s, p, o, ox.DefaultGraph()) for s, p, o in triples_of(graph)]
+    quads = interop.encode_directions(interop.to_basic(quads))
+    triples = {(q.subject, q.predicate, q.object) for q in quads}
+    return triples, {s for s, p, _o in triples if p == interop.PF_SUBJECT}
+
+
+def write_rdfxml(triples: Iterable[Triple], path: Path) -> None:
+    """``triples`` as RDF/XML at ``path`` (Oxigraph's writer): the format both reasoners read."""
+    path.write_bytes(ox.serialize([ox.Triple(s, p, o) for s, p, o in triples], format=ox.RdfFormat.RDF_XML))
+
+
+def read_rdfxml(path: Path) -> set[Triple]:
+    """The triples of the RDF/XML file at ``path``."""
+    return {(t.subject, t.predicate, t.object) for t in ox.parse(path=str(path), format=ox.RdfFormat.RDF_XML)}
+
+
+def _skolemize_individuals(triples: Iterable[Triple]) -> set[Triple]:
+    """A copy of ``triples`` in which every blank node that stands for an individual (or a triple-term placeholder) is an IRI
     of an internal namespace. The reasoners rename the blank nodes they read, so a blank node individual would come back
     under a new name and every triple about it would look new. Blank nodes of class expressions, restrictions and lists must
     stay blank nodes for the RDF mapping to parse, so those are left alone."""
+    triples = set(triples)
     structural = set()
-    for s, p, o in graph:
-        if isinstance(s, BNode) and (p in _STRUCTURAL_PREDICATES or str(p).startswith(str(XSD))
-                                     or (p == RDF.type and o in _STRUCTURAL_TYPES)):
+    for s, p, o in triples:
+        if isinstance(s, ox.BlankNode) and (p in _STRUCTURAL_PREDICATES or p.value.startswith(_XSD)
+                                            or (p == RDF_TYPE and o in _STRUCTURAL_TYPES)):
             structural.add(s)
 
     def sk(term):
-        return URIRef(_SKOLEM + str(term)) if isinstance(term, BNode) and term not in structural else term
+        return ox.NamedNode(_SKOLEM + term.value) if isinstance(term, ox.BlankNode) and term not in structural else term
 
-    out = Graph()
-    for s, p, o in graph:
-        out.add((sk(s), p, sk(o)))
-    return out
+    return {(sk(s), p, sk(o)) for s, p, o in triples}
 
 
 def _unskolemize(term):
-    return BNode(str(term)[len(_SKOLEM):]) if isinstance(term, URIRef) and str(term).startswith(_SKOLEM) else term
+    return ox.BlankNode(term.value[len(_SKOLEM):]) if isinstance(term, ox.NamedNode) and term.value.startswith(_SKOLEM) else term
 
 
-def _delta_from_result(expanded: Graph, before: Graph) -> Graph:
-    """The new triples of the reasoner's ``expanded`` result over the input ``before`` (decomposed, blank nodes as the user
-    has them): blank node individuals back under their own names, the closures the reasoners leave out added, and only
-    triples about the user's own terms kept. A triple is not new when ``before`` holds it, plain and xsd:string literals
-    being the same term. Blank nodes the reasoner invented (renamed class expressions) and the triple-term placeholders and
-    their internal namespace are no part of the user's data."""
-    from starlayer.graph.rdflib_bridge import (
-        decomposition_nodes,
-        drop_decomposition,
-    )
+def _delta_from_result(expanded: Iterable[Triple], before: set[Triple], placeholders: set) -> set[Triple]:
+    """The new triples of the reasoner's ``expanded`` result over the input ``before`` (blank nodes as the user has them):
+    blank node individuals back under their own names, the closures the reasoners leave out added, and only triples about the
+    user's own terms kept. Blank nodes the reasoner invented (renamed class expressions) and the triple-term placeholders and
+    their PropositionForm vocabulary are no part of the user's data."""
+    result = {(_unskolemize(s), p, _unskolemize(o)) for s, p, o in expanded}
+    _drop_temp_ontology(result)
+    result |= _closure_additions(result, before)
+    result |= _type_closure_additions(result)
 
-    unskolemized = Graph()
-    for s, p, o in expanded:
-        if isinstance(o, Literal) and o.datatype == XSD.string and not o.language:
-            o = Literal(str(o))
-        unskolemized.add((_unskolemize(s), p, _unskolemize(o)))
-    expanded = unskolemized
-    _drop_temp_ontology(expanded)
-    _complete_closure(expanded, before)
-    _complete_type_closure(expanded)
-
-    own_bnodes = {t for tr in before for t in tr if isinstance(t, BNode)}
-    before_set = set(before)
-    delta = Graph()
-    new = (t for t in expanded if t not in before_set and not any(isinstance(x, BNode) and x not in own_bnodes for x in t))
-    for t in drop_decomposition(new, decomposition_nodes(before)):
-        delta.add(t)
-    return delta
+    own_bnodes = {t for triple in before for t in triple if isinstance(t, ox.BlankNode)}
+    return {
+        t for t in result
+        if t not in before
+        and not any(isinstance(x, ox.BlankNode) and x not in own_bnodes for x in t)
+        and t[1] not in _PF_PREDICATES and not any(x in placeholders for x in t)
+    }
 
 
 def _transitive(edges: dict) -> dict:
@@ -281,19 +315,20 @@ def _transitive(edges: dict) -> dict:
     return out
 
 
-def _complete_closure(expanded: Graph, before: Graph) -> None:
+def _closure_additions(expanded: set[Triple], before: set[Triple]) -> set[Triple]:
     """The reasoners' realization output holds only the direct (or no) rdfs:subClassOf / rdfs:subPropertyOf edges and no
-    property assertions that follow from a property axiom. Adds, to ``expanded`` in place, what OWL 2 entails and the OWL-RL
-    regime already gives: the transitive closure of subClassOf and subPropertyOf over named classes and properties (an
+    property assertions that follow from a property axiom. The triples to add to ``expanded``: what OWL 2 entails and the
+    OWL-RL regime already gives: the transitive closure of subClassOf and subPropertyOf over named classes and properties (an
     equivalentClass / equivalentProperty counting as both directions), and the property assertions that follow from
     subPropertyOf, equivalentProperty, inverseOf, SymmetricProperty and TransitiveProperty, read from the input and the result
-    together. Purely additive."""
-    facts = set(before) | set(expanded)
+    together."""
+    facts = before | expanded
+    added: set[Triple] = set()
 
     def edges(pred, equivalent):
         out: dict = {}
         for s, p, o in facts:
-            if not (isinstance(s, URIRef) and isinstance(o, URIRef) and s != o):
+            if not (isinstance(s, ox.NamedNode) and isinstance(o, ox.NamedNode) and s != o):
                 continue
             if p == pred:
                 out.setdefault(s, set()).add(o)
@@ -302,24 +337,24 @@ def _complete_closure(expanded: Graph, before: Graph) -> None:
                 out.setdefault(o, set()).add(s)
         return _transitive(out)
 
-    supers = edges(RDFS.subPropertyOf, OWL.equivalentProperty)
-    for pred, closed in ((RDFS.subClassOf, edges(RDFS.subClassOf, OWL.equivalentClass)), (RDFS.subPropertyOf, supers)):
+    supers = edges(RDFS_SUBPROPERTY, _EQUIVALENT_PROPERTY)
+    for pred, closed in ((RDFS_SUBCLASS, edges(RDFS_SUBCLASS, _EQUIVALENT_CLASS)), (RDFS_SUBPROPERTY, supers)):
         for s, parents in closed.items():
             for o in parents:
-                expanded.add((s, pred, o))
+                added.add((s, pred, o))
 
     inverse: dict = {}
     symmetric, transitive = set(), set()
     for s, p, o in facts:
-        if p == OWL.inverseOf and isinstance(s, URIRef) and isinstance(o, URIRef):
+        if p == _INVERSE_OF and isinstance(s, ox.NamedNode) and isinstance(o, ox.NamedNode):
             inverse.setdefault(s, set()).add(o)
             inverse.setdefault(o, set()).add(s)
-        elif p == RDF.type and o == OWL.SymmetricProperty:
+        elif p == RDF_TYPE and o == _SYMMETRIC:
             symmetric.add(s)
-        elif p == RDF.type and o == OWL.TransitiveProperty:
+        elif p == RDF_TYPE and o == _TRANSITIVE:
             transitive.add(s)
     if not (supers or inverse or symmetric or transitive):
-        return
+        return added
     relevant = set(supers) | {q for qs in supers.values() for q in qs} | set(inverse) | symmetric | transitive
     by_predicate: dict = {}
     for s, p, o in facts:
@@ -328,10 +363,10 @@ def _complete_closure(expanded: Graph, before: Graph) -> None:
     known = {(s, p, o) for p, pairs in by_predicate.items() for s, o in pairs}
 
     def add(s, p, o):
-        if (s, p, o) not in known and isinstance(p, URIRef) and not isinstance(s, Literal):
+        if (s, p, o) not in known and isinstance(p, ox.NamedNode) and not isinstance(s, ox.Literal):
             known.add((s, p, o))
             by_predicate.setdefault(p, set()).add((s, o))
-            expanded.add((s, p, o))
+            added.add((s, p, o))
             return True
         return False
 
@@ -345,11 +380,11 @@ def _complete_closure(expanded: Graph, before: Graph) -> None:
                     changed |= add(s, q, o)
             for q in inverse.get(p, ()):
                 for s, o in pairs:
-                    if not isinstance(o, Literal):
+                    if not isinstance(o, ox.Literal):
                         changed |= add(o, q, s)
             if p in symmetric:
                 for s, o in pairs:
-                    if not isinstance(o, Literal):
+                    if not isinstance(o, ox.Literal):
                         changed |= add(o, p, s)
             if p in transitive:
                 forward: dict = {}
@@ -358,20 +393,23 @@ def _complete_closure(expanded: Graph, before: Graph) -> None:
                 for s, o in pairs:
                     for z in forward.get(o, ()):
                         changed |= add(s, p, z)
+    return added
 
 
-def _drop_temp_ontology(expanded: Graph) -> None:
+def _drop_temp_ontology(triples: set[Triple]) -> None:
     """The reasoners read the graph from a temporary ``.../graph.owl`` file, and when the input declares no ontology IRI they
     name the ontology after that file (owlready2 with no file name uses ``http://anonymous``), so the result carries
     ``<file:///tmp/.../graph.owl> a owl:Ontology``: a name that is no part of the user's data and made two runs of the same
     input differ. Removes that declaration."""
-    for s in {s for s in expanded.subjects(RDF.type, OWL.Ontology)
-              if isinstance(s, URIRef) and (str(s) == _ANONYMOUS_ONTOLOGY
-                                            or (str(s).startswith("file:///") and str(s).endswith("/graph.owl")))}:
-        expanded.remove((s, None, None))
+    temporary = {
+        s for s, p, o in triples
+        if p == RDF_TYPE and o == _ONTOLOGY and isinstance(s, ox.NamedNode)
+        and (s.value == _ANONYMOUS_ONTOLOGY or (s.value.startswith("file:///") and s.value.endswith("/graph.owl")))
+    }
+    triples.difference_update({t for t in triples if t[0] in temporary})
 
 
-def _complete_type_closure(expanded: Graph) -> None:
+def _type_closure_additions(expanded: set[Triple]) -> set[Triple]:
     """HermiT's CLI realization output only reports each individual's
     *most specific* known type(s), not every ancestor class up the
     hierarchy (confirmed live: for a plain `Manager rdfs:subClassOf
@@ -380,15 +418,13 @@ def _complete_type_closure(expanded: Graph) -> None:
     itself - `SubClassOf(Manager, Employee)` - is reported and present in
     `expanded`). Every other entailment regime infer() supports (all owlrl-backed)
     gives the full transitive rdf:type closure, so this step restores that
-    same guarantee here - walks rdfs:subClassOf transitively from each
-    individual's reported type(s) and adds every ancestor class as an
-    additional rdf:type, mutating `expanded` in place. Purely additive:
-    never removes or changes an existing triple, only adds ones already
-    implied by what HermiT already reported.
-    """
+    same guarantee here - the triples to add: every ancestor class of each
+    individual's reported type(s), by walking rdfs:subClassOf transitively.
+    Purely additive: only what HermiT already reported implies."""
     parents: dict = {}
-    for c, _p, parent in expanded.triples((None, RDFS.subClassOf, None)):
-        parents.setdefault(c, set()).add(parent)
+    for c, p, parent in expanded:
+        if p == RDFS_SUBCLASS:
+            parents.setdefault(c, set()).add(parent)
 
     def _ancestors(cls):
         seen = set()
@@ -401,9 +437,4 @@ def _complete_type_closure(expanded: Graph) -> None:
             stack.extend(parents.get(p, ()))
         return seen
 
-    new_triples = []
-    for ind, _p, cls in expanded.triples((None, RDF.type, None)):
-        for ancestor in _ancestors(cls):
-            new_triples.append((ind, RDF.type, ancestor))
-    for t in new_triples:
-        expanded.add(t)
+    return {(ind, RDF_TYPE, ancestor) for ind, p, cls in expanded if p == RDF_TYPE for ancestor in _ancestors(cls)}

@@ -5,7 +5,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from starlayer.graph import rdflib_bridge as bridge
+import pyoxigraph as ox
+from starlayer.graph import interop
 
 
 def delta(triples: Iterable[tuple[Any, Any, Any]], *, engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:
@@ -21,5 +22,6 @@ def delta(triples: Iterable[tuple[Any, Any, Any]], *, engine: str, timeout: Any)
         classify = owl_dl_rustdl.classify_owl_dl_rustdl
     else:
         raise ValueError(f"Unsupported engine {engine!r}; expected one of ['hermit', 'rustdl']")
-    _before, added = classify(bridge.rdflib_graph(triples, decompose=True), timeout=timeout)
-    return set(bridge.legal_rdf_triples(added)) - set(triples)
+    _before, added = classify(triples, timeout=timeout)
+    restored = interop.decode_directions(ox.Triple(s, p, o) for s, p, o in added)
+    return {(q.subject, q.predicate, q.object) for q in restored} - set(triples)
