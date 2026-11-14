@@ -443,7 +443,7 @@ def test_documented_equivalents():
     r = ox.BlankNode()  # add_reifier_annotation + add_reification
     g.add((r, ox.NamedNode(EX + "confidence"), ox.Literal("0.9")))
     g.add_reification(r, tt)
-    assert (r, ox.NamedNode(EX + "confidence"), ox.Literal("0.9")) in set(g.reifier_annotations(tt))
+    assert (r, ox.NamedNode(EX + "confidence"), ox.Literal("0.9")) in set(g.annotations(tt))
     from starlayer.graph import isomorphic
     from starlayer.graph.rdfc_native import isomorphic as quads_isomorphic
 

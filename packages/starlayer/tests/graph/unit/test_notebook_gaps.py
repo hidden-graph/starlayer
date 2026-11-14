@@ -79,13 +79,13 @@ def test_dataset_reifier_methods_keep_graphs():
     ann.add_reification(r, t)
     ann.add((r, Q, ox.Literal("src")))
     ds.graph(N(EX + "facts")).add((A, P, B))
-    for result in (ds.reifiers(TT=t), ds.reifications(), ds.reifier_annotations(t), ds.reified_triples(r)):
+    for result in (ds.reifiers(tt=t), ds.reified_triples(), ds.annotations(t), ds.reified_triples(r)):
         assert isinstance(result, StarLayerDataset) and len(result) > 0
         assert result.graph_names() == [N(EX + "ann")]  # the facts graph holds no reifier
-    assert len(ds.reifiers(TT=t)) == 2 and len(ds.reifications()) == 1 and len(ds.reifier_annotations(t)) == 1
-    assert len(ds.reified_triples(r)) == 1 and len(ds.reifiers(TT=ox.Triple(B, P, A))) == 0
-    assert set(ds.reifiers(TT=t).graph(N(EX + "ann")).triples()) == set(ann.triples())
-    assert ds.reifiers(TT=t).prefixes == ds.prefixes
+    assert len(ds.reifiers(tt=t)) == 2 and len(ds.reified_triples()) == 1 and len(ds.annotations(t)) == 1
+    assert len(ds.reified_triples(r)) == 1 and len(ds.reifiers(tt=ox.Triple(B, P, A))) == 0
+    assert set(ds.reifiers(tt=t).graph(N(EX + "ann")).triples()) == set(ann.triples())
+    assert ds.reifiers(tt=t).prefixes == ds.prefixes
     assert list(reification.reifiers(ds)) == [r]  # the function form still yields the nodes
 
 

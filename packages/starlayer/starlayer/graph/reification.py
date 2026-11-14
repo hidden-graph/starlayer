@@ -1,7 +1,7 @@
 """RDF 1.2 reifier helpers over ``rdf:reifies``, as thin functions on a wrapper (``StarLayerGraph`` / ``StarLayerDataset``) or a bare
 ``pyoxigraph.Store`` (treated as a union dataset). Same contract as the methods of the old ``StarLayerGraph``
-(``graph/entailment/starlayer_graph.py``: ``add_reification``, ``reifiers``, ``reifications``, ``reifier_annotations``,
-``reified_triples``), with pyoxigraph terms: a triple term is a ``pyoxigraph.Triple``.
+(``graph/entailment/starlayer_graph.py``: ``add_reification``, ``reifiers``, ``reified_triples``, ``annotations``), with pyoxigraph terms:
+a triple term is a ``pyoxigraph.Triple``.
 """
 
 from __future__ import annotations
@@ -36,11 +36,12 @@ def add_reification(graph: Any, reifier: Any, triple_term: Any) -> Any:
     return graph
 
 
-def reifiers(graph: Any, TT: Any = None, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: N803, A002
-    """Distinct reifier nodes; the filters combine: reify ``TT`` AND have ``(reifier, predicate, object)`` in the graph."""
+def reifiers(graph: Any, tt: Any = None, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: A002
+    """Distinct reifier nodes: every reifier, or with ``tt`` those of that triple term. ``predicate`` and ``object`` narrow it to reifiers
+    that also have ``(reifier, predicate, object)`` in the graph."""
     g = _view(graph)
     seen: set = set()
-    for r, _p, _o in g.triples((None, RDF_REIFIES, _tt(TT) if TT is not None else None)):
+    for r, _p, _o in g.triples((None, RDF_REIFIES, _tt(tt) if tt is not None else None)):
         if r in seen:
             continue
         seen.add(r)
@@ -48,34 +49,29 @@ def reifiers(graph: Any, TT: Any = None, predicate: Any = None, object: Any = No
             yield r
 
 
-def reifications(graph: Any, s: Any = None, p: Any = None, o: Any = None) -> Iterator[ox.Triple]:
-    """Distinct triple terms that have at least one reifier and match the pattern."""
+def reified_triples(graph: Any, reifier: Any = None) -> Iterator[ox.Triple]:
+    """The triple terms reified by ``reifier``, or with no reifier every triple term that has at least one reifier (each once)."""
     g = _view(graph)
-    s, p, o = terms.term(s), terms.term(p), terms.term(o)
+    if reifier is not None:
+        for _s, _p, o in g.triples((terms.term(reifier), RDF_REIFIES, None)):
+            if isinstance(o, ox.Triple):
+                yield o
+        return
     seen: set = set()
-    for _r, _p, tt in g.triples((None, RDF_REIFIES, None)):
-        if not isinstance(tt, ox.Triple) or tt in seen:
-            continue
-        if (s is not None and tt.subject != s) or (p is not None and tt.predicate != p) or (o is not None and tt.object != o):
-            continue
-        seen.add(tt)
-        yield tt
+    for _r, _p, o in g.triples((None, RDF_REIFIES, None)):
+        if isinstance(o, ox.Triple) and o not in seen:
+            seen.add(o)
+            yield o
 
 
-def reifier_annotations(graph: Any, TT: Any) -> Iterator[tuple[Any, Any, Any]]:  # noqa: N803
-    """``(reifier, predicate, value)`` for every reifier of ``TT``, without the ``rdf:reifies`` triple itself."""
+def annotations(graph: Any, tt: Any = None) -> Iterator[tuple[Any, Any, Any]]:
+    """``(reifier, predicate, value)`` for every reifier of ``tt`` (or of any triple term, with no ``tt``), without the ``rdf:reifies``
+    triple itself: what an annotation block ``{| ... |}`` writes."""
     g = _view(graph)
-    for r in list(reifiers(g, TT)):
+    for r in list(reifiers(g, tt)):
         for _s, pred, val in g.triples((r, None, None)):
             if pred != RDF_REIFIES:
                 yield r, pred, val
-
-
-def reified_triples(graph: Any, reifier: Any) -> Iterator[ox.Triple]:
-    """The triple terms reified by ``reifier``."""
-    for _s, _p, o in _view(graph).triples((terms.term(reifier), RDF_REIFIES, None)):
-        if isinstance(o, ox.Triple):
-            yield o
 
 
 def remove_reification(graph: Any, reifier: Any, triple_term: Any = None) -> Any:

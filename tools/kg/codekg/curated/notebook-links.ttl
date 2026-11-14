@@ -40,11 +40,13 @@ nl:02-3f4f3ecb a slkg:NotebookExample ;
 nl:02-7334cc46 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
     slkg:cellId "7334cc46" ;
-    slkg:cellHash "0f1651c4f259e750" ;
-    slkg:reviewedOn "2026-11-02"^^xsd:date ;
-    rdfs:comment "Calls reifications() to list the triple terms that have a reifier, next to reifiers()." ;
+    slkg:cellHash "16797c74c30c6e2d" ;
+    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    rdfs:comment "Lists the reifiers of a triple term, the triple terms that have a reifier and a reifier's annotations with reifiers(), reified_triples() and annotations()." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.core._Base.reifications" .
+        "starlayer.graph.core._Base.reifiers",
+        "starlayer.graph.core._Base.reified_triples",
+        "starlayer.graph.core._Base.annotations" .
 
 nl:02a-122b54fa a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02a-graphs-datasets.ipynb" ;

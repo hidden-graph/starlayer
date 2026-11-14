@@ -557,10 +557,10 @@ def test_reification_helpers():
     assert set(g.reifiers(predicate=Q)) == {r1}
     assert set(g.reifiers(t1, Q, L("note"))) == {r1}
     assert list(g.reifiers(ox.Triple(D, P, D))) == []
-    assert set(g.reifications()) == {t1, t2} and len(list(g.reifications())) == 2  # distinct
-    assert set(g.reifications(o=C)) == {t2} and set(g.reifications(p=P)) == {t1, t2} and list(g.reifications(s=B)) == []
-    assert set(g.reifier_annotations(t1)) == {(r1, Q, L("note")), (r1, N(EX + "src"), D)}
-    assert list(g.reifier_annotations(t2)) == []
+    assert set(g.reified_triples()) == {t1, t2} and len(list(g.reified_triples())) == 2  # distinct
+    assert {t for t in g.reified_triples() if t.object == C} == {t2} and {t for t in g.reified_triples() if t.predicate == P} == {t1, t2}
+    assert set(g.annotations(t1)) == {(r1, Q, L("note")), (r1, N(EX + "src"), D)}
+    assert list(g.annotations(t2)) == []
     assert set(g.reified_triples(r2)) == {t1, t2} and list(g.reified_triples(D)) == []
     # the module-level functions take a bare store too
     assert set(reification.reifiers(g.store)) == {r1, r2}
@@ -570,9 +570,9 @@ def test_reification_helpers():
 
 def test_reification_from_turtle_annotation_syntax():
     g = StarLayerGraph().parse(data="@prefix : <http://example.org/> . :a :p :b {| :q 'n' |} . :a :p :c ~ :r2 .")
-    ts = set(g.reifications())
+    ts = set(g.reified_triples())
     assert ts == {ox.Triple(A, P, B), ox.Triple(A, P, C)}
-    assert {a[2] for t in ts for a in g.reifier_annotations(t)} == {L("n")}
+    assert {a[2] for t in ts for a in g.annotations(t)} == {L("n")}
 
 
 # ---- persistence of the wrapper on a path ------------------------------------------------------------------------------

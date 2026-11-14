@@ -112,7 +112,7 @@ cur:cap-rdf-graph-9 a slkg:Capability ;
     rdfs:comment "Concise bounded descriptions of a resource, and lookup of the triple terms that have at least one reifier." ;
     slkg:implementedByIdentifier 
         "starlayer.graph.core._Base.cbd",
-        "starlayer.graph.core._Base.reifications" .
+        "starlayer.graph.core._Base.reified_triples" .
 
 cur:cap-rdf-graph-13 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-rdf-graph ;

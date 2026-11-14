@@ -406,7 +406,7 @@ class TestStatements:
 
     def test_reifiers_by_triple_term(self, sg):
         sg.add_reification(URIRef(EX+'stmt'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
-        reifiers = list(sg.reifiers(TT=(URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))))
+        reifiers = list(sg.reifiers(tt=(URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))))
         assert URIRef(EX+'stmt') in reifiers
         tts = list(sg.reified_triples(URIRef(EX+'stmt')))
         assert tts[0] == TripleTerm(URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o'))
@@ -420,7 +420,7 @@ class TestStatements:
     def test_reifications_returns_triple_terms(self, sg):
         sg.add_reification(URIRef(EX+'stmt1'), (URIRef(EX+'s'), URIRef(EX+'p'), URIRef(EX+'o')))
         sg.add_reification(URIRef(EX+'stmt2'), (URIRef(EX+'a'), URIRef(EX+'b'), URIRef(EX+'c')))
-        tts = list(sg.reifications())
+        tts = list(sg.reified_triples())
         assert len(tts) == 2
         assert all(isinstance(tt, ox.Triple) for tt in tts)
 

@@ -676,7 +676,7 @@ class TestRDFXML12SpecInterop:
         base = URIRef('http://example.org/')
         prop = URIRef('http://example.org/stuff/1.0/prop')
         assert (base, prop, Literal('blah')) in g
-        reifiers = list(g.reifiers(TT=TripleTerm(base, prop, Literal('blah'))))
+        reifiers = list(g.reifiers(tt=TripleTerm(base, prop, Literal('blah'))))
         assert len(reifiers) == 1
         assert isinstance(reifiers[0], ox.BlankNode)
         assert (reifiers[0], prop, Literal('foo')) in g

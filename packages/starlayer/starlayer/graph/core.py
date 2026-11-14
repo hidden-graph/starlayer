@@ -775,25 +775,20 @@ class _Base:
 
         return reification.add_reification(self, reifier, triple_term)
 
-    def reifiers(self, TT: Any = None, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: N803, A002
+    def reifiers(self, tt: Any = None, predicate: Any = None, object: Any = None) -> Iterator[Any]:  # noqa: A002
         from starlayer.graph import reification
 
-        return reification.reifiers(self, TT, predicate, object)
+        return reification.reifiers(self, tt, predicate, object)
 
-    def reifications(self, s: Any = None, p: Any = None, o: Any = None) -> Iterator[ox.Triple]:
-        from starlayer.graph import reification
-
-        return reification.reifications(self, s, p, o)
-
-    def reifier_annotations(self, TT: Any) -> Iterator[tuple[Any, Any, Any]]:  # noqa: N803
-        from starlayer.graph import reification
-
-        return reification.reifier_annotations(self, TT)
-
-    def reified_triples(self, reifier: Any) -> Iterator[ox.Triple]:
+    def reified_triples(self, reifier: Any = None) -> Iterator[ox.Triple]:
         from starlayer.graph import reification
 
         return reification.reified_triples(self, reifier)
+
+    def annotations(self, tt: Any = None) -> Iterator[tuple[Any, Any, Any]]:
+        from starlayer.graph import reification
+
+        return reification.annotations(self, tt)
 
     def remove_reification(self, reifier: Any, triple_term: Any = None) -> Any:
         from starlayer.graph import reification
@@ -1108,8 +1103,8 @@ class StarLayerDataset(_Base):
         g.extend(ox.Triple(q.subject, q.predicate, q.object) for q in self.store)
         return g
 
-    # The four plural reifier methods keep provenance: each returns an StarLayerDataset whose graphs hold the matching
-    # reifier triples, as the old StarLayerDataset did (the ``reification.*`` functions on a dataset yield the flat terms).
+    # The reifier methods keep provenance here: each returns a StarLayerDataset whose graphs hold the matching reifier triples, as the
+    # old StarLayerDataset did (the ``reification.*`` functions on a dataset yield the flat terms).
     def _reifier_dataset(self, pick: Any) -> StarLayerDataset:
         result = StarLayerDataset(default_union=self._union, prefixes=dict(self.prefixes))
         for g in self.graphs():
@@ -1118,22 +1113,23 @@ class StarLayerDataset(_Base):
                 result.graph(g.identifier).extend(triples)
         return result
 
-    def reifiers(self, TT: Any = None, predicate: Any = None, object: Any = None) -> StarLayerDataset:  # noqa: N803, A002
+    def reifiers(self, tt: Any = None, predicate: Any = None, object: Any = None) -> StarLayerDataset:  # noqa: A002
         """A dataset of every matching reifier's triples (its ``rdf:reifies`` links and annotations), each kept in the graph it
         came from. ``list(reification.reifiers(ds))`` gives the reifier nodes alone."""
-        return self._reifier_dataset(lambda g: (t for r in g.reifiers(TT, predicate, object) for t in g.triples((r, None, None))))
+        return self._reifier_dataset(lambda g: (t for r in g.reifiers(tt, predicate, object) for t in g.triples((r, None, None))))
 
-    def reifications(self, s: Any = None, p: Any = None, o: Any = None) -> StarLayerDataset:
-        """A dataset of the ``rdf:reifies`` triples of every reified triple term matching ``s p o``, per graph."""
-        return self._reifier_dataset(lambda g: ((r, terms.RDF_REIFIES, tt) for tt in g.reifications(s, p, o) for r in g.reifiers(tt)))
+    def reified_triples(self, reifier: Any = None) -> StarLayerDataset:
+        """A dataset of the ``reifier rdf:reifies <triple term>`` triples of ``reifier`` (of every reifier, with none), per graph."""
+        def pick(g: Any) -> Any:
+            if reifier is None:
+                return ((r, terms.RDF_REIFIES, tt) for tt in g.reified_triples() for r in g.reifiers(tt))
+            return ((terms.term(reifier), terms.RDF_REIFIES, tt) for tt in g.reified_triples(reifier))
 
-    def reifier_annotations(self, TT: Any) -> StarLayerDataset:  # noqa: N803
-        """A dataset of the annotation triples ``(reifier, predicate, value)`` of every reifier of ``TT``, per graph."""
-        return self._reifier_dataset(lambda g: g.reifier_annotations(TT))
+        return self._reifier_dataset(pick)
 
-    def reified_triples(self, reifier: Any) -> StarLayerDataset:
-        """A dataset of the ``reifier rdf:reifies <triple term>`` triples of ``reifier``, per graph."""
-        return self._reifier_dataset(lambda g: ((terms.term(reifier), terms.RDF_REIFIES, tt) for tt in g.reified_triples(reifier)))
+    def annotations(self, tt: Any = None) -> StarLayerDataset:
+        """A dataset of the annotation triples ``(reifier, predicate, value)`` of every reifier of ``tt`` (of any triple term, with none), per graph."""
+        return self._reifier_dataset(lambda g: g.annotations(tt))
 
     # ---- graph management ---------------------------------------------------------------------------------------
     def graph(self, identifier: Any = None) -> StarLayerGraph:

@@ -178,7 +178,7 @@ class TestContextAPI:
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
-        reifiers = list(g1.reifiers(TT=tt))
+        reifiers = list(g1.reifiers(tt=tt))
         assert ex('stmt1') in reifiers
 
     def test_encoding_triples_hidden_in_context(self):
@@ -222,14 +222,14 @@ class TestDatasetWideReifiers:
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
-        result = ds.reifiers(TT=tt)
+        result = ds.reifiers(tt=tt)
         assert isinstance(result, StarLayerDataset)
 
     def test_result_scoped_to_originating_graph(self):
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
-        result = ds.reifiers(TT=tt)
+        result = ds.reifiers(tt=tt)
         assert (ex('stmt1'), RDF_REIFIES, tt) in result.graph(G1)
         assert len(result.graph(G2)) == 0
 
@@ -237,7 +237,7 @@ class TestDatasetWideReifiers:
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
-        result = ds.reifiers(TT=tt)
+        result = ds.reifiers(tt=tt)
         assert (ex('stmt1'), ex('confidence'), None) in [
             (s, p, None) for s, p, o in result.graph(G1).triples((None, None, None))
         ]
@@ -256,7 +256,7 @@ class TestDatasetWideReifiers:
     def test_reifications_returns_dataset_scoped_by_graph(self):
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
-        result = ds.reifications()
+        result = ds.reified_triples()
         assert isinstance(result, StarLayerDataset)
         tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         tt2 = TripleTerm(ex('carol'), ex('likes'), ex('dana'))
@@ -273,11 +273,11 @@ class TestDatasetWideReifiers:
         assert (ex('stmt'), RDF_REIFIES, tt1) in result.graph(G1)
         assert (ex('stmt'), RDF_REIFIES, tt2) in result.graph(G2)
 
-    def test_reifier_annotations_excludes_reifies_triple(self):
+    def test_annotations_exclude_reifies_triple(self):
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_SAME_REIFIER_TWO_GRAPHS, format='trig12')
         tt1 = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
-        result = ds.reifier_annotations(tt1)
+        result = ds.annotations(tt1)
         g1 = result.graph(G1)
         assert (ex('stmt'), ex('source'), ex('sourceA')) in g1
         assert (ex('stmt'), RDF_REIFIES, tt1) not in g1
@@ -286,7 +286,7 @@ class TestDatasetWideReifiers:
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         tt = TripleTerm(ex('nobody'), ex('knows'), ex('nothing'))
-        result = ds.reifiers(TT=tt)
+        result = ds.reifiers(tt=tt)
         assert isinstance(result, StarLayerDataset)
         assert len(result) == 0
 
