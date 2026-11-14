@@ -279,7 +279,7 @@ def test_a_dataset_pulls_every_graph_and_writes_to_the_right_one(endpoint, two_g
     _seed(endpoint, g1, (EX + "a", EX + "v", f"<{EX}b>"))
     ds = StarLayerDataset(endpoint=endpoint)
     assert _quads_in(ds, g1) == {(_n("a"), _n("v"), _n("b"), g1)}
-    ds.graph(g2).add((_n("c"), _n("v"), _n("d")))  # a view of one graph writes into that graph on the endpoint
+    ds.graph(g2).add((_n("c"), _n("v"), _n("d")))  # a StarLayerGraph of one graph writes into that graph on the endpoint
     assert _remote(endpoint, g2) == {(_n("c"), _n("v"), _n("d"))}
     ds.graph(g1).remove((_n("a"), None, None))
     assert _remote(endpoint, g1) == set() and _quads_in(ds, g1, g2) == {(_n("c"), _n("v"), _n("d"), g2)}

@@ -72,7 +72,7 @@ An independent in-memory copy of this dataset, including empty named graphs, pre
 def default_graph(self) -> StarLayerGraph
 ```
 
-A view of the dataset's default graph (re-made on each access; it shares this dataset's ``prefixes``).
+The dataset's default graph as a ``StarLayerGraph`` (re-made on each access; it shares this dataset's ``prefixes``).
 
 **Returns:** `StarLayerGraph`
 
@@ -123,7 +123,7 @@ named graphs too, prefixes, ``default_union``) or from a plain graph (its triple
 def graph(self, identifier: Any=None) -> StarLayerGraph
 ```
 
-A view of one graph (created, empty, if it does not exist yet); shares this dataset's ``prefixes`` dict.
+One graph of the dataset as a ``StarLayerGraph`` (created, empty, if it does not exist yet); shares this dataset's ``prefixes`` dict.
 
 **Parameters:**
 
@@ -371,7 +371,7 @@ For an rdflib dataset's named graphs use ``StarLayerDataset.from_rdflib``.
 def identifier(self) -> Any
 ```
 
-The name of the graph this view is bound to.
+The name of the graph this ``StarLayerGraph`` holds.
 
 **Returns:** `Any`
 

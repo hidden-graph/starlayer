@@ -2,7 +2,7 @@
 
 ``Endpoint`` is the client: ``query`` (SELECT / ASK / CONSTRUCT, parsed by pyoxigraph into the types ``Store.query`` gives) and
 ``update``, over plain HTTP. ``BackedStore`` stands in for the ``pyoxigraph.Store`` of a ``StarLayerGraph(endpoint=...)`` (one graph of
-the endpoint: the default graph, or the named graph the ``StarLayerGraph`` is a view of) or of a ``StarLayerDataset(endpoint=...)`` (all
+the endpoint: the default graph, or the named graph the ``StarLayerGraph`` holds) or of a ``StarLayerDataset(endpoint=...)`` (all
 of its graphs), and keeps a **full local copy**:
 
 * The copy is pulled when the object is made, as a stream (the response is parsed as it arrives, never held whole).

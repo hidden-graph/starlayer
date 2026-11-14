@@ -51,8 +51,8 @@ nl:02-7334cc46 a slkg:NotebookExample ;
 nl:02a-122b54fa a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02a-graphs-datasets.ipynb" ;
     slkg:cellId "122b54fa" ;
-    slkg:cellHash "b27718228bb4416c" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "9758b0bfc5a257cd" ;
+    slkg:reviewedOn "2026-11-14"^^xsd:date ;
     rdfs:comment "Creates a StarLayerDataset and adds two named graphs to it." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core.StarLayerDataset" .

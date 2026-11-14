@@ -943,3 +943,10 @@ class TestChainingContractMatchesRdflib:
         assert dest.exists()
 
 
+
+
+def test_a_graph_of_a_dataset_refuses_a_quad_of_another_graph_and_says_so():
+    ds = StarLayerDataset()
+    g = ds.graph(URIRef(EX + "g"))
+    with pytest.raises(ValueError, match=r"writes only to graph .*/g>.*cannot add a quad of graph .*/other>"):
+        g.add((URIRef(EX + "s"), URIRef(EX + "p"), URIRef(EX + "o"), URIRef(EX + "other")))

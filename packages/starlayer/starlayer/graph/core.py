@@ -169,7 +169,7 @@ def _read_input(data: Any, source: Any, file: Any) -> tuple[dict[str, Any], str 
 
 
 class _Base:
-    """What the graph view and the dataset share. Subclasses define ``_pattern_graph`` and ``_union``."""
+    """What a single graph (``StarLayerGraph``) and the dataset share. Subclasses define ``_pattern_graph`` and ``_union``."""
 
     #: the engine's term model is pyoxigraph's (the SHACL engine reads these)
     engine_terms = True
@@ -290,7 +290,7 @@ class _Base:
             yield key
 
     def quads(self, pattern: tuple = (None, None, None, None)) -> Iterator[ox.Quad]:
-        """Quads matching ``(s, p, o)`` or ``(s, p, o, graph)``; ``None`` is a wildcard. On a graph view the graph is fixed."""
+        """Quads matching ``(s, p, o)`` or ``(s, p, o, graph)``; ``None`` is a wildcard. On a ``StarLayerGraph`` the graph is fixed."""
         s, p, o = pattern[:3]
         g = terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else ...
         return self._quads_in(s, p, o, g)
@@ -309,12 +309,12 @@ class _Base:
     def __contains__(self, item: Any) -> bool:
         if isinstance(item, (ox.Triple, ox.Quad)):
             item = tuple(item)
-        if len(item) == 4:  # a graph view contains nothing of another graph (``_quads_in`` is empty for a foreign graph)
+        if len(item) == 4:  # a single graph contains nothing of another graph (``_quads_in`` is empty for a foreign graph)
             return next(self._quads_in(*item[:3], terms.graph_name(item[3])), None) is not None
         return self._has_quad(*item)
 
     def _terms(self, s: Any, p: Any, o: Any, pick: Any, unique: bool) -> Iterator[Any]:
-        """The ``pick`` term of each matching triple. On a union view a triple held by several graphs counts once (as ``triples()``
+        """The ``pick`` term of each matching triple. On a union a triple held by several graphs counts once (as ``triples()``
         does); ``unique`` also drops a repeated term."""
         seen_terms: set | None = set() if unique else None
         seen_triples: set | None = set() if self._union else None
@@ -427,8 +427,8 @@ class _Base:
 
     # ---- writing ------------------------------------------------------------------------------------------------
     def _quad(self, triple: Any, g: Any, strict: bool = True) -> ox.Quad:
-        """The quad for a triple (into graph ``g``) or a quad. With ``strict`` a quad that is not in this graph (a view of
-        another graph) raises ``ValueError``: a view never writes outside itself."""
+        """The quad for a triple (into graph ``g``) or a quad. With ``strict`` a quad that is not in this graph (a quad of
+        another graph) raises ``ValueError``: a ``StarLayerGraph`` never writes outside its own graph."""
         if isinstance(triple, ox.Quad):
             q = triple
         elif len(triple) == 4:
@@ -437,7 +437,7 @@ class _Base:
             s, p, o = triple
             return ox.Quad(terms.term(s), terms.term(p), terms.term(o), g)
         if strict and not self._accepts(q):
-            raise ValueError(f"this is a view of graph {self._add_graph()}; it cannot add a quad of graph {q.graph_name}")
+            raise ValueError(f"this StarLayerGraph writes only to graph {self._add_graph()}; it cannot add a quad of graph {q.graph_name}")
         return q
 
     def add(self, triple: Any) -> Any:
@@ -455,7 +455,7 @@ class _Base:
         return self
 
     def addN(self, quads: Iterable[Any]) -> Any:  # noqa: N802
-        """rdflib's name: add ``(s, p, o, graph)`` quads. On a graph view only quads for this graph are added."""
+        """rdflib's name: add ``(s, p, o, graph)`` quads. On a ``StarLayerGraph`` only quads for its graph are added."""
         try:
             self.store.extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
         finally:
@@ -466,7 +466,7 @@ class _Base:
         return True
 
     def remove(self, pattern: tuple[Any, Any, Any]) -> Any:
-        """Remove every statement matching the pattern (``None`` is a wildcard), as rdflib's ``remove`` does. On a graph view a
+        """Remove every statement matching the pattern (``None`` is a wildcard), as rdflib's ``remove`` does. On a ``StarLayerGraph`` a
         pattern naming another graph matches nothing and removes nothing (it never reaches into the other graph)."""
         doomed = list(self._quads_in(*pattern[:3], terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else ...))
         for q in doomed:
@@ -481,7 +481,7 @@ class _Base:
         ``file=``. ``format`` is a name (``formats.py``) or an ``RdfFormat``; omitted it is guessed from the file name, else
         Turtle. Blank nodes are scoped to the document (renamed per parse unless ``rename_blank_nodes=False``). The prefixes the
         document declares are copied into ``self.prefixes``. A triple format loads into the default graph of a dataset or into
-        this graph; a quad format loads each quad into its graph, and into a single graph view only if it has no named graphs."""
+        this graph; a quad format loads each quad into its graph, and into a single ``StarLayerGraph`` only if it has no named graphs."""
         kw, hint = _read_input(data, source, file)
         if formats.is_manchester(format) or (format is None and hint and str(hint).lower().endswith((".omn", ".manchester"))):
             return self._parse_manchester(kw, hint, base or publicID)
@@ -670,7 +670,7 @@ class _Base:
               timeout: Any = None, custom_functions: Mapping[Any, Any] | None = None,
               custom_aggregate_functions: Mapping[Any, Any] | None = None) -> Result:
         """Run SPARQL ``text`` on Oxigraph as it is. ``initNs`` overrides the graph's prefixes for this call; ``initBindings``
-        pre-binds variables (``substitutions``, with the ``VALUES`` fallback). A graph view queries its own graph as the default
+        pre-binds variables (``substitutions``, with the ``VALUES`` fallback). A ``StarLayerGraph`` queries its own graph as the default
         graph; a dataset the default graph, or the union of all graphs when ``default_union``.
 
         ``entailment`` is a regime IRI. ``ENTAILMENT.RDF`` / ``ENTAILMENT.RDFS``: the query is rewritten (see
@@ -744,7 +744,7 @@ class _Base:
         return copy
 
     def _entailed_triples(self, regime: str, infer: str, *, engine: str, timeout: Any, of: Any = None, scope: Any = None) -> set[tuple[Any, Any, Any]]:
-        """The triples ``regime`` entails that this wrapper (or, with ``of``, that graph view, kept under ``scope``) does not
+        """The triples ``regime`` entails that this wrapper (or, with ``of``, that ``StarLayerGraph``, kept under ``scope``) does not
         hold, kept per regime (and engine, for ``OWL-Direct``, whose engines can differ) with the write number they were
         computed at; ``infer`` says when to compute them again."""
         from starlayer.graph.entailment import infer as ent
@@ -770,7 +770,7 @@ class _Base:
 
     def update(self, text: str, initNs: Mapping[str, str] | None = None, base: str | None = None, *,  # noqa: N803
                custom_functions: Mapping[Any, Any] | None = None, custom_aggregate_functions: Mapping[Any, Any] | None = None) -> None:
-        """Run SPARQL Update ``text`` on the store (``custom_functions`` and ``custom_aggregate_functions`` as for ``query()``). It acts on the whole store, also from a named-graph view (use ``WITH <g>``
+        """Run SPARQL Update ``text`` on the store (``custom_functions`` and ``custom_aggregate_functions`` as for ``query()``). It acts on the whole store, also from a ``StarLayerGraph`` of a named graph (use ``WITH <g>``
         or ``GRAPH`` in the text to aim it). On a ``default_union`` dataset the ``WHERE`` of an ``INSERT`` / ``DELETE`` operation
         reads the union of all graphs, as ``query()`` does (done by adding ``USING`` clauses; see
         ``run.union_update_text`` for how, and its limits)."""
@@ -938,7 +938,7 @@ class StarLayerGraph(_Base):
 
     @property
     def identifier(self) -> Any:
-        """The name of the graph this view is bound to."""
+        """The name of the graph this ``StarLayerGraph`` holds."""
         return self._g
 
     def _pattern_graph(self) -> Any:
@@ -969,7 +969,7 @@ class StarLayerGraph(_Base):
         return (ox.Triple(q.subject, q.predicate, q.object) for q in self._quads(None, None, None))
 
     def _pretty_source(self, fmt: ox.RdfFormat) -> Any:
-        # a quad format keeps the graph name of a view (the pretty writer flattens a view passed as such)
+        # a quad format keeps the graph name of a named graph (the pretty writer flattens one passed as such)
         return list(self._quads(None, None, None)) if fmt in formats.QUAD_FORMATS else self
 
     def _query_default_graph(self) -> Any:
@@ -1104,7 +1104,7 @@ class StarLayerDataset(_Base):
 
     @property
     def default_graph(self) -> StarLayerGraph:
-        """A view of the dataset's default graph (re-made on each access; it shares this dataset's ``prefixes``)."""
+        """The dataset's default graph as a ``StarLayerGraph`` (re-made on each access; it shares this dataset's ``prefixes``)."""
         return StarLayerGraph(self.store, prefixes=self.prefixes)
 
     def to_graph(self) -> StarLayerGraph:
@@ -1144,7 +1144,7 @@ class StarLayerDataset(_Base):
 
     # ---- graph management ---------------------------------------------------------------------------------------
     def graph(self, identifier: Any = None) -> StarLayerGraph:
-        """A view of one graph (created, empty, if it does not exist yet); shares this dataset's ``prefixes`` dict."""
+        """One graph of the dataset as a ``StarLayerGraph`` (created, empty, if it does not exist yet); shares this dataset's ``prefixes`` dict."""
         name = terms.graph_name(identifier)
         if not isinstance(name, ox.DefaultGraph):
             self.store.add_graph(name)
