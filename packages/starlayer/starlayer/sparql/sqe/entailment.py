@@ -12,15 +12,22 @@ Rules (RDF Semantics numbering), for ``ENTAILMENT.RDFS``; ``ENTAILMENT.RDF`` is 
   each also through sub-properties of ``rdf:type`` / of the predicate (rdfs7), and rdfD2 (a term used as a predicate, or the
   subject of ``rdfs:subPropertyOf`` / ``rdfs:domain`` / ``rdfs:range``, or the object of ``rdfs:subPropertyOf``, is an
   ``rdf:Property``, at every superclass of ``rdf:Property``).
-- ``?s rdfs:subClassOf ?o`` and ``?s rdfs:subPropertyOf ?o``: the transitive-reflexive closure (rdfs11, rdfs10; rdfs5, rdfs6).
-  Reflexivity is unconditional (a zero-length path matches every term), a superset of the strict rules, as before.
+- ``?s rdfs:subClassOf ?o`` and ``?s rdfs:subPropertyOf ?o``: the transitive closure of the asserted triples (rdfs11, rdfs5), and
+  the facts below. Reflexivity is not unconditional: ``C subClassOf C`` holds for a class (rdfs10) and ``p subPropertyOf p`` for
+  a property (rdfs6), as in ``infer()``.
 - ``?s P ?o`` with an IRI ``P``: asserted with ``P`` or any sub-property of it (rdfs7).
 - ``?s ?p ?o``: ``?p`` ranges over the asserted predicate and its super-properties, over ``rdf:type`` for the entailed types, and
   over the transitive (two steps or more) ``rdfs:subClassOf`` / ``rdfs:subPropertyOf`` triples.
 
-Left out on purpose, as before (vocabulary-level facts, not about the data): rdfs4a/4b and rdfs8 (everything is an
-``rdfs:Resource``), rdfs12/13, rdfD1, and the axiomatic triples (including ``rdf:_n`` container membership properties and
-``rdfs:member``: no ``rdf:_1 rdfs:subPropertyOf rdfs:member`` is entailed). A property path in the query, a ``SERVICE`` body and a
+The vocabulary-level facts ``infer(ENTAILMENT.RDFS)`` also materializes enter an answer only where a pattern can match them,
+so a query that never asks for them pays nothing (``tests/graph/unit/test_entailment_query_matches_infer.py`` holds the two to
+the same answers): every term that occurs in a triple (as subject, predicate or object, or as a component of a triple term in
+object position) is an ``rdfs:Resource`` (rdfs4), a class is a subclass of itself and of ``rdfs:Resource`` (rdfs10, rdfs8),
+a property is a subproperty of itself (rdfs6), a container membership property is a subproperty of ``rdfs:member`` (rdfs12) and
+a datatype a subclass of ``rdfs:Literal`` (rdfs13). Left out, as in ``infer()``: rdfD1, the axiomatic triples (including the
+``rdf:_n`` container membership properties) and the RDF 1.2 triple-term rules rdfs14 and rdfs14a. Two limits: a term nested more
+than one level inside triple terms is not typed ``rdfs:Resource``, and asserted ``rdfs:subClassOf`` triples that start at ``rdfs:Resource``,
+``rdfs:Literal`` or ``rdfs:member`` are not chained onto the facts above. A property path in the query, a ``SERVICE`` body and a
 triple term inside a pattern are not widened.
 
 What changes in the query text besides the patterns: blank nodes in the WHERE clause become variables (a label cannot be
@@ -64,6 +71,23 @@ _SUBPROPERTY = RDFS.subPropertyOf
 _SUBPROPERTY_PLUS = Node("MulPath", path=_SUBPROPERTY, mod="+")
 # a subject of one of these is an rdf:Property (the domains of rdfs:subPropertyOf, rdfs:domain and rdfs:range are rdf:Property)
 _PROPERTY_SUBJECT_PATH = Node("AlternativePath", args=[_SUBPROPERTY, RDFS.domain, RDFS.range])
+_RESOURCE = RDFS.Resource
+_CLASS = RDFS.Class
+_DATATYPE = RDFS.Datatype
+_LITERAL = RDFS.Literal
+_CONTAINER_MEMBERSHIP = RDFS.ContainerMembershipProperty
+_MEMBER = RDFS.member
+#: terms of the triples ``infer()`` adds on its own (so each is an ``rdfs:Resource``), and what makes it add them: any triple
+#: (rdf1 types the predicates, rdfs6 makes ``rdf:type`` and ``rdfs:subPropertyOf`` their own subproperties), a class or a datatype
+#: (``rdfs:subClassOf``), a datatype (``rdfs:Literal``), a container membership property (``rdfs:member``)
+_DERIVED = (
+    ((RDF.type, RDF.Property, RDFS.Resource, RDFS.subPropertyOf), "any"),
+    ((RDFS.subClassOf,), "class"),
+    ((RDFS.Literal,), "datatype"),
+    ((RDFS.member,), "membership"),
+)
+#: the terms among those that ``infer()`` uses as a predicate, so types ``rdf:Property``
+_DERIVED_PREDICATES = (((RDF.type, RDFS.subPropertyOf), "any"), ((RDFS.subClassOf,), "class"))
 _PREFIX = "_sl_ent"
 _QUERY_KINDS = ("SelectQuery", "AskQuery", "ConstructQuery", "DescribeQuery")
 
@@ -138,6 +162,18 @@ def _tp(s: Any, p: Any, o: Any) -> Node:
 
 def _union(alts: list[list]) -> Node:
     return Node("Union", alts=alts)
+
+
+def _not(expr: Node) -> Node:
+    return Node("UnaryNot", expr=expr)
+
+
+def _exists(*elements: Any) -> Node:
+    return Node("Filter", expr=Node("Builtin_EXISTS", graph=list(elements)))
+
+
+def _not_exists(*elements: Any) -> Node:
+    return Node("Filter", expr=Node("Builtin_NOTEXISTS", graph=list(elements)))
 
 
 def _is_node(t: Any) -> bool:
@@ -287,10 +323,8 @@ class _Rewriter:
                     simple.append(_tp(s, p, o))
             elif p == _TYPE:
                 unions.append(_union(self.type_alts(s, o)))
-            elif p == _SUBCLASS:
-                self.place(self.star(s, _SUBCLASS, o), simple, unions)
-            elif p == _SUBPROPERTY:
-                self.place(self.star(s, _SUBPROPERTY, o), simple, unions)
+            elif p in (_SUBCLASS, _SUBPROPERTY):
+                unions.append(_union(self.schema_alts(s, p, o, strict=True)))
             elif isinstance(p, URIRef):
                 # rdfs7: a fresh variable for the predicate actually used, joined to p through subPropertyOf* (the schema is
                 # read by the engine, not enumerated here)
@@ -324,6 +358,109 @@ class _Rewriter:
             alts.append([*self.star(RDF.Property, _SUBCLASS, o), _tp(pf, s, po)])
             alts.append([*self.star(RDF.Property, _SUBCLASS, o), _tp(s, _PROPERTY_SUBJECT_PATH, ps)])
             alts.append([*self.star(RDF.Property, _SUBCLASS, o), _tp(pr, _SUBPROPERTY, s)])
+            for term_set, why in _DERIVED_PREDICATES:  # rdf1 on the triples ``infer()`` adds: their predicates are properties
+                for guard in self.vocabulary_alts(s, term_set, why):
+                    alts.append([*self.star(RDF.Property, _SUBCLASS, o), *guard])
+        alts.extend(self.resource_alts(s, o))
+        return alts
+
+    # ---- rdfs4: every term of the data is an rdfs:Resource ---------------------------------------------------------
+    def given(self, var: Any, const: Any) -> list | None:
+        """Elements that make ``var`` the term ``const``; ``[]`` when it is that term already, ``None`` when it cannot be."""
+        if isinstance(var, Variable):
+            return [Node("Values", vars=[var], rows=[[const]])]
+        return [] if var == const else None
+
+    def typed_alts(self, y: Variable, kind: URIRef) -> list[list]:
+        """Alternatives for ``y rdf:type kind`` (asserted, rdfs9, rdfs2, rdfs3; no rdfD2) written to start from the schema, for the
+        test "is there anything of that kind" where ``y`` is not wanted: the schema is small, the data is not."""
+        c, q = self.fresh(2)
+        pp, d, p1, o1 = self.fresh(4)
+        pr, dr, p2, s2 = self.fresh(4)
+        return [
+            [*self.star(c, _SUBCLASS, kind), *self.star(q, _SUBPROPERTY, _TYPE), _tp(y, q, c)],
+            [_tp(pp, RDFS.domain, d), *self.star(d, _SUBCLASS, kind), *self.star(p1, _SUBPROPERTY, pp), _tp(y, p1, o1)],
+            [_tp(pr, RDFS.range, dr), *self.star(dr, _SUBCLASS, kind), *self.star(p2, _SUBPROPERTY, pr), _tp(s2, p2, y)],
+        ]
+
+    def vocabulary_alts(self, x: Any, term_set: tuple, why: str) -> list[list]:
+        """Alternatives that make ``x`` one of ``term_set`` when what ``infer()`` adds them for holds (``why``: any triple, a class
+        or datatype, a datatype, a container membership property)."""
+        if isinstance(x, Variable):
+            pick = [Node("Values", vars=[x], rows=[[t] for t in term_set])]
+        elif x in term_set:
+            pick = []
+        else:
+            return []
+        y = self.fresh()
+        if why == "any":
+            guard = _exists(_tp(self.fresh(), self.fresh(), self.fresh()))
+        else:
+            kinds = {"class": [_CLASS, _DATATYPE], "datatype": [_DATATYPE], "membership": [_CONTAINER_MEMBERSHIP]}[why]
+            guard = _exists(_union([alt for kind in kinds for alt in self.typed_alts(y, kind)]))
+        return [[*pick, guard]]
+
+    def terms(self, x: Variable) -> Node:
+        """A sub-select of the distinct terms of the data (not literals or triple terms): each one is a subject, a predicate or an
+        object, or a component of a triple term in object position (one level), and the terms ``infer()`` types as soon as there
+        is a triple."""
+        a, b, t = self.fresh(3)
+        parts = [
+            [_tp(x, a, b)],
+            [_tp(a, x, b)],
+            [_tp(a, b, x)],
+            *([_tp(a, b, t), Node("Filter", expr=Node("Builtin_isTRIPLE", arg=t)), Node("Bind", expr=Node(f"Builtin_{part}", arg=t), var=x)] for part in ("SUBJECT", "PREDICATE", "OBJECT")),
+            *(guard for term_set, why in _DERIVED for guard in self.vocabulary_alts(x, term_set, why)),
+        ]
+        where = [_union(parts), Node("Filter", expr=_not(Node("Builtin_isLITERAL", arg=x))), Node("Filter", expr=_not(Node("Builtin_isTRIPLE", arg=x)))]
+        return Node("SubSelect", modifier="DISTINCT", projection=[Node("ProjectVar", var=x)], datasets=[], where=where,
+                    group_by=None, having=None, order_by=None, limit=None, offset=None, values=None)
+
+    def occurs(self, c: Any) -> list:
+        """Elements that hold when the constant ``c`` is a term of the data (``terms`` for one term)."""
+        a, b, t = self.fresh(3)
+        parts = [[_tp(c, a, b)], [_tp(a, c, b)], [_tp(a, b, c)]]
+        for part in ("SUBJECT", "PREDICATE", "OBJECT"):
+            parts.append([_tp(a, b, t), Node("Filter", expr=Node("Builtin_isTRIPLE", arg=t)),
+                          Node("Filter", expr=Node("Builtin_sameTerm", arg1=Node(f"Builtin_{part}", arg=t), arg2=c))])
+        parts.extend(guard for term_set, why in _DERIVED for guard in self.vocabulary_alts(c, term_set, why))
+        return [_exists(_union(parts))]
+
+    def resource_alts(self, s: Any, o: Any) -> list[list]:
+        """rdfs4 for ``s rdf:type o``: a term of the data is an ``rdfs:Resource``. Only a pattern that can match that (``o`` is a
+        variable or ``rdfs:Resource``) gets the alternative."""
+        if not _is_node(s):
+            return []
+        tail = self.given(o, _RESOURCE) if isinstance(o, (Variable, URIRef)) else None
+        if tail is None:
+            return []
+        return [[self.terms(s), *tail]] if isinstance(s, Variable) else [[*self.occurs(s), *tail]]
+
+    # ---- rdfs6, rdfs8, rdfs10, rdfs12, rdfs13: reflexive and vocabulary subclass and subproperty facts ----------------
+    def schema_alts(self, s: Any, step: URIRef, o: Any, *, strict: bool) -> list[list]:
+        """The alternatives for ``s step o`` where ``step`` is ``rdfs:subClassOf`` or ``rdfs:subPropertyOf``: the transitive closure
+        of the asserted triples (``strict``; the caller has the asserted and the two-step ones otherwise) and the facts a class or
+        a property gives about itself: ``C subClassOf C`` and ``C subClassOf rdfs:Resource`` for a class, ``D subClassOf
+        rdfs:Literal`` for a datatype, ``p subPropertyOf p`` for a property, ``m subPropertyOf rdfs:member`` for a container
+        membership property."""
+        alts: list[list] = [[_tp(s, _mul(step, "+"), o)]] if strict else []
+        if not _is_node(s):
+            return alts
+        own, extras = (_CLASS, [(_RESOURCE, _CLASS), (_LITERAL, _DATATYPE)]) if step == _SUBCLASS else (RDF.Property, [(_MEMBER, _CONTAINER_MEMBERSHIP)])
+        if isinstance(o, (Variable, URIRef)):
+            if isinstance(s, Variable) and isinstance(o, Variable):
+                alts.append([_union(self.type_alts(s, own))] + ([] if s == o else [Node("Bind", expr=s, var=o)]))
+            elif isinstance(s, Variable):
+                alts.append([Node("Values", vars=[s], rows=[[o]]), _union(self.type_alts(o, own))])
+            elif isinstance(o, Variable):
+                alts.append([_union(self.type_alts(s, own)), Node("Values", vars=[o], rows=[[s]])])
+            elif s == o:
+                alts.append([_union(self.type_alts(s, own))])
+            for sup, of in extras:
+                tail = self.given(o, sup)
+                if tail is not None:
+                    below = self.fresh()  # s is below something of that kind (or is one): rdfs11 / rdfs5 carry the fact down the chain
+                    alts.append([*self.star(s, step, below), _union(self.type_alts(below, of)), *tail])
         return alts
 
     def variable_predicate_alts(self, s: Any, p: Variable, o: Any) -> list[list]:
@@ -336,6 +473,8 @@ class _Rewriter:
         alts.append([_union(self.type_alts(s, o)), *self.star(_TYPE, _SUBPROPERTY, p)])
         for predicate in (_SUBCLASS, _SUBPROPERTY):  # rdfs11 / rdfs5: two steps or more (one step is the asserted triple)
             alts.append([*self.star(predicate, _SUBPROPERTY, p), _tp(s, Node("SequencePath", args=[predicate, _mul(predicate, "+")]), o)])
+            for extra in self.schema_alts(s, predicate, o, strict=False):  # the facts a class or a property gives about itself
+                alts.append([*self.star(predicate, _SUBPROPERTY, p), *extra])
         return alts
 
 

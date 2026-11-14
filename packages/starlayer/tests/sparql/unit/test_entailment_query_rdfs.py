@@ -108,7 +108,8 @@ class TestSubClassOf:
         g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
         g.add((EX.alice, RDF.type, EX.Manager))
         rows = _query(g, "SELECT ?x WHERE { ex:alice a ?x }")
-        assert {str(r.x) for r in rows} == {EX.Manager.value, EX.Employee.value}
+        # alice is also an rdfs:Resource (rdfs4): a term of the data, as in infer()
+        assert {str(r.x) for r in rows} == {EX.Manager.value, EX.Employee.value, RDFS.Resource.value}
 
     @owlrl_extra
     def test_matches_owlrl_oracle(self):
@@ -133,19 +134,19 @@ class TestSubClassOfAsQueryPredicate:
         g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
         g.add((EX.Employee, RDFS.subClassOf, EX.Person))
         rows = _query(g, "SELECT ?x WHERE { ex:Manager rdfs:subClassOf ?x }")
-        # includes Manager itself too - reflexivity, see the dedicated test below
-        assert {str(r.x) for r in rows} == {EX.Manager.value, EX.Employee.value, EX.Person.value}
+        # Manager is not a class by rdfs:Class here, so it is not its own subclass (see the test below)
+        assert {str(r.x) for r in rows} == {EX.Employee.value, EX.Person.value}
 
-    def test_reflexivity_is_unconditional_a_documented_superset_of_owlrl(self):
-        # Manager is never typed rdfs:Class here - owlrl's own rdfs10 would
-        # NOT entail Manager subClassOf Manager for this data (confirmed
-        # live against owlrl directly), but this rewrite's reflexivity is
-        # unconditional by design (see entailment_rdfs.py's module
-        # docstring) - Manager shows up in its own result.
+    def test_reflexivity_holds_for_a_class_only(self):
+        # rdfs10 as infer() applies it (and owlrl): C subClassOf C and C subClassOf rdfs:Resource for a term typed rdfs:Class
         g = Graph()
         g.add((EX.Manager, RDFS.subClassOf, EX.Employee))
+        g.add((EX.Employee, RDF.type, RDFS.Class))
         rows = _query(g, "SELECT ?x WHERE { ex:Manager rdfs:subClassOf ?x }")
-        assert EX.Manager.value in {str(r.x) for r in rows}
+        # Manager is below a class, so below rdfs:Resource (rdfs8 then rdfs11), but it is not typed a class itself
+        assert {str(r.x) for r in rows} == {EX.Employee.value, RDFS.Resource.value}
+        rows = _query(g, "SELECT ?x WHERE { ex:Employee rdfs:subClassOf ?x }")
+        assert {str(r.x) for r in rows} == {EX.Employee.value, RDFS.Resource.value}
 
 
 @owlrl_extra
@@ -225,24 +226,25 @@ class TestSubPropertyOf:
 
 
 class TestDeliberateExclusions:
-    """The rewrite does NOT chase the "vocabulary-level" rules - see
-    entailment_rdfs.py's module docstring for why. These tests pin that
-    scope down explicitly, rather than leaving it as an implicit gap a
-    future change could silently widen or narrow without anyone noticing.
-    """
+    """What the rewrite leaves out, as ``infer()`` does (see the module docstring of ``sqe/entailment.py``). These tests pin that
+    scope down explicitly, rather than leaving it as an implicit gap a future change could silently widen or narrow."""
 
-    def test_does_not_entail_universal_rdfs_resource_typing(self):
+    def test_types_every_term_of_the_data_rdfs_resource(self):
+        # rdfs4: the terms of the data, and the ones infer() adds triples about as soon as there is one
         g = Graph()
         g.add((EX.alice, EX.knows, EX.bob))
         rows = _query(g, "SELECT ?x WHERE { ?x a rdfs:Resource }")
-        assert list(rows) == []
+        assert {str(r.x) for r in rows} == {
+            EX.alice.value, EX.knows.value, EX.bob.value, RDF.type.value, RDF.Property.value, RDFS.Resource.value, RDFS.subPropertyOf.value}
 
     def test_does_not_entail_the_rdf_axiomatic_property_triples(self):
-        # rdf:type is an rdf:Property by axiom; it is entailed only where the data uses it as a predicate (rdfD2)
+        # the axiomatic triples are left out: rdf:first and the container membership properties are properties only where the data
+        # uses them. rdf:type and rdfs:subPropertyOf are properties because infer() adds triples that use them (rdf1, rdfs6)
         g = Graph()
         g.add((EX.alice, EX.knows, EX.bob))
         rows = _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")
-        assert {str(r.x) for r in rows} == {EX.knows.value}
+        assert {str(r.x) for r in rows} == {EX.knows.value, RDF.type.value, RDFS.subPropertyOf.value}
+        assert RDF.first.value not in {str(r.x) for r in rows}
 
 
 class TestPropertyTyping:
@@ -251,7 +253,8 @@ class TestPropertyTyping:
     def test_a_used_predicate_is_a_property(self):
         g = Graph()
         g.add((EX.alice, EX.knows, EX.bob))
-        assert {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")} == {EX.knows.value}
+        got = {str(r.x) for r in _query(g, "SELECT ?x WHERE { ?x a rdf:Property }")}
+        assert EX.knows.value in got and RDF.first.value not in got
 
     def test_a_super_property_is_a_property_though_never_used(self):
         g = Graph()
@@ -293,7 +296,7 @@ class TestVariablePredicate:
         g.add((EX.C, RDFS.subClassOf, EX.D))
         g.add((EX.x, RDF.type, EX.C))
         rows = _query(g, "SELECT ?o WHERE { ex:x ?p ?o FILTER(?p = rdf:type) }")
-        assert {str(r.o) for r in rows} == {EX.C.value, EX.D.value}
+        assert {str(r.o) for r in rows} == {EX.C.value, EX.D.value, RDFS.Resource.value}
 
     def test_a_bare_pattern_keeps_every_asserted_triple(self):
         # a predicate that is neither a subject nor an object anywhere (ex:knows, rdfs:subClassOf) must still be matched
