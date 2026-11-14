@@ -1,5 +1,5 @@
 """
-starlayer_reasoning.model.triple
+starlayer.graph.rdflib_model.triple
 
 Core RDF 1.2 types: TripleTerm.
 """

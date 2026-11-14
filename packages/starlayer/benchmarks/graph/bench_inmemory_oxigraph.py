@@ -67,7 +67,7 @@ def worker(backend: str, n: int, rate: float) -> dict:
     from rdflib import Literal, URIRef
     from rdflib.namespace import XSD
     from starlayer.graph import StarLayerGraph
-    from starlayer_reasoning.model.triple import TripleTerm
+    from starlayer.graph.rdflib_model.triple import TripleTerm
 
     rdf_reifies = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
     ex_conf = URIRef(EX + 'confidence')

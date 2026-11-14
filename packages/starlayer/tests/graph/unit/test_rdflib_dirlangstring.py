@@ -11,7 +11,7 @@ import pytest
 from rdflib import Literal, URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.interop import DIRLANG_NS
-from starlayer_reasoning.model.dirlangstring import (
+from starlayer.graph.rdflib_model.dirlangstring import (
     DirLangString,
     decode_dirlang_datatype,
     decode_dirlangstring,

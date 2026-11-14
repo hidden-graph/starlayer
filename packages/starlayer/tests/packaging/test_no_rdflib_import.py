@@ -1,9 +1,10 @@
 """No ``import rdflib`` (or a reasoner) anywhere in the ``starlayer`` package.
 
 The terms are pyoxigraph terms and the graphs are Oxigraph-backed (``StarLayerGraph``). rdflib, ``owlrl`` and the OWL-DL engines live in
-the ``starlayer-reasoning`` package, which the core reaches only through ``starlayer.graph.core._reasoning`` and
-``starlayer.graph.entailment.infer._reasoning``. This test walks the AST of every module (function-level imports included)
-and fails on any import of them.
+the ``starlayer-reasoning`` package, which the core reaches only through ``starlayer.graph.entailment.infer._reasoning``. The one
+exception is the rdflib conversion (``graph/rdflib_bridge.py`` and ``graph/rdflib_model/``): it imports rdflib inside its functions,
+and ``StarLayerGraph.from_rdflib`` / ``to_rdflib`` reach it only when called. This test walks the AST of every other module
+(function-level imports included) and fails on any import of them.
 """
 
 from __future__ import annotations
@@ -16,7 +17,9 @@ import pytest
 _FOREIGN = {"rdflib", "owlrl", "owlready2", "rustdl", "oxrdflib"}
 
 PACKAGE = Path(__file__).resolve().parents[2] / "starlayer"
-FILES = sorted(PACKAGE.rglob("*.py"))
+#: the modules that hold the rdflib conversion; they import rdflib inside functions
+CONVERSION = {PACKAGE / "graph" / "rdflib_bridge.py", *(PACKAGE / "graph" / "rdflib_model").glob("*.py")}
+FILES = sorted(p for p in PACKAGE.rglob("*.py") if p not in CONVERSION)
 
 
 def rdflib_imports(source: str) -> list[int]:
@@ -36,7 +39,7 @@ def test_the_scan_sees_the_package():
 
 @pytest.mark.parametrize("path", FILES, ids=lambda p: str(p.relative_to(PACKAGE)))
 def test_no_rdflib_import(path):
-    assert rdflib_imports(path.read_text()) == [], f"{path.name} imports rdflib or a reasoner: that belongs in starlayer-reasoning"
+    assert rdflib_imports(path.read_text()) == [], f"{path.name} imports rdflib or a reasoner: that belongs in the rdflib conversion (graph/rdflib_bridge.py) or starlayer-reasoning"
 
 
 def test_the_detector_catches_each_import_form():

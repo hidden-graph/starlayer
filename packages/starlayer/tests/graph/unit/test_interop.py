@@ -240,7 +240,7 @@ class TestBaseDirectionPolicy:
         assert f"^^<{DIRLANG_NS}he--rtl>" in out and "--rtl " not in out.replace(f"{DIRLANG_NS}he--rtl", "")
 
     def test_matches_the_datatype_helpers_of_dirlangstring(self):
-        from starlayer_reasoning.model.dirlangstring import (
+        from starlayer.graph.rdflib_model.dirlangstring import (
             decode_dirlang_datatype,
             encode_dirlang_datatype,
         )

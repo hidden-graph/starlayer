@@ -14,12 +14,12 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.pretty import pretty_turtle
-from starlayer_reasoning.model.dirlangstring import (
+from starlayer.graph.rdflib_model.dirlangstring import (
     DIRLANG_NS,
     DirLangString,
     decode_dirlangstring,
 )
-from starlayer_reasoning.model.triple import TripleTerm
+from starlayer.graph.rdflib_model.triple import TripleTerm
 
 
 def test_jsonld_dataset_keeps_named_graph():

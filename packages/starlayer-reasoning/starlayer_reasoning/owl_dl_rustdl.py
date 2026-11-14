@@ -280,7 +280,7 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
     """
     _require_rustdl()
 
-    from starlayer_reasoning.rdflib_bridge import decompose as _decompose
+    from starlayer.graph.rdflib_bridge import decompose as _decompose
     before = _decompose(graph)
     _check_rustdl_hang_risk(before)
 

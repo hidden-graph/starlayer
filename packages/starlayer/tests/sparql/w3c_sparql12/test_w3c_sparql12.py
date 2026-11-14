@@ -118,7 +118,7 @@ def _stored_form(term):
     spells a number the long way (op-2: ``"123.0"^^xsd:decimal``) is compared as the store returns it (``"123"``)."""
     from rdflib import Literal as RdfLiteral
     from rdflib import URIRef
-    from starlayer_reasoning.model.triple import TripleTerm
+    from starlayer.graph.rdflib_model.triple import TripleTerm
 
     if isinstance(term, TripleTerm):
         return TripleTerm(_stored_form(term.subject), _stored_form(term.predicate), _stored_form(term.object))

@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 from typing import Any
 
-from starlayer_reasoning import rdflib_bridge as bridge
+from starlayer.graph import rdflib_bridge as bridge
 
 _ERROR_NS = "http://www.daml.org/2002/03/agents/agent-ont#"
 

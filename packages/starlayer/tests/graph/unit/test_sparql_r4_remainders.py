@@ -4,8 +4,8 @@ import warnings
 
 import pytest
 from starlayer.graph import StarLayerGraph
+from starlayer.graph.rdflib_model.triple import TripleTerm
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
-from starlayer_reasoning.model.triple import TripleTerm
 from tests.support.terms import BlankNode, Namespace
 
 warnings.simplefilter("ignore")

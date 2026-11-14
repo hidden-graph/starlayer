@@ -12,6 +12,10 @@ import rdflib
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from starlayer.graph import StarLayerGraph
+from starlayer.graph.rdflib_bridge import engine_to_foreign as from_ox
+from starlayer.graph.rdflib_bridge import foreign_to_engine
+from starlayer.graph.rdflib_model.dirlangstring import DirLangString
+from starlayer.graph.rdflib_model.triple import TripleTerm as RdflibTripleTerm
 from starlayer.shacl.engine.interface import GraphView
 from starlayer.shacl.engine.oxigraph_view import (
     DEFAULT,
@@ -20,10 +24,6 @@ from starlayer.shacl.engine.oxigraph_view import (
 )
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import RDF, integer, text
-from starlayer_reasoning.model.dirlangstring import DirLangString
-from starlayer_reasoning.model.triple import TripleTerm as RdflibTripleTerm
-from starlayer_reasoning.rdflib_bridge import engine_to_foreign as from_ox
-from starlayer_reasoning.rdflib_bridge import foreign_to_engine
 
 EX = Namespace("http://example.com/ns#")
 URIRef = ox.NamedNode

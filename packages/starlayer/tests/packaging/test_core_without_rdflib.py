@@ -1,6 +1,6 @@
 """The core surface works with rdflib absent; the rdflib-only features say so clearly.
 
-rdflib lives in the ``starlayer-reasoning`` package. Each test runs a child interpreter that sets
+rdflib is an optional extra (``starlayer[rdflib]``); the conversion imports it only when it runs. Each test runs a child interpreter that sets
 ``sys.modules["rdflib"] = None`` first (so ``import rdflib`` and any ``from rdflib...`` fail), then imports and exercises the
 core: graphs, parse and serialize, SPARQL query and update, SHACL validation and rules. ``test_nothing_in_the_core_imports_rdflib``
 also checks that no rdflib module got loaded.
@@ -459,4 +459,5 @@ def test_an_rdflib_feature_raises_a_clear_import_error(code):
     result = run_blocked(code)
     assert result.returncode != 0
     assert "ImportError" in result.stderr
-    assert "pip install starlayer-reasoning" in result.stderr, result.stderr[-1500:]
+    hint = "starlayer[rdflib]" if "rdflib(" in code or "_rdflib(" in code else "pip install starlayer-reasoning"
+    assert hint in result.stderr, result.stderr[-1500:]

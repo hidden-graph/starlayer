@@ -155,7 +155,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     _require_owlready2()
     _require_java()
 
-    from starlayer_reasoning.rdflib_bridge import decompose as _decompose
+    from starlayer.graph.rdflib_bridge import decompose as _decompose
     before = _decompose(graph)
 
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -239,7 +239,7 @@ def _delta_from_result(expanded: Graph, before: Graph) -> Graph:
     triples about the user's own terms kept. A triple is not new when ``before`` holds it, plain and xsd:string literals
     being the same term. Blank nodes the reasoner invented (renamed class expressions) and the triple-term placeholders and
     their internal namespace are no part of the user's data."""
-    from starlayer_reasoning.rdflib_bridge import (
+    from starlayer.graph.rdflib_bridge import (
         decomposition_nodes,
         drop_decomposition,
     )

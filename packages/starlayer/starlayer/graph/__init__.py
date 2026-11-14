@@ -2,7 +2,7 @@
 
 ``StarLayerGraph`` (one graph) and ``StarLayerDataset`` (a store of named graphs) are composition wrappers over a
 ``pyoxigraph.Store``; terms are pyoxigraph terms. Parsing, serialization, SPARQL 1.2 query and update, and RDFC-1.0
-canonicalisation run on Oxigraph. ``from_rdflib`` / ``to_rdflib`` convert to and from rdflib and need the ``starlayer-reasoning`` package.
+canonicalisation run on Oxigraph. ``from_rdflib`` / ``to_rdflib`` convert to and from rdflib and need rdflib (``pip install "starlayer[rdflib]"``).
 Entailment regimes are the W3C IRIs in ``ENTAILMENT``. ``NamedNode``, ``BlankNode``, ``Literal``, ``Triple`` and ``BaseDirection`` are
 pyoxigraph's own classes, re-exported so that a program needs one import for them and the graph.
 """

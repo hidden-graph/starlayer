@@ -1,8 +1,8 @@
 """The graph objects StarLayer's functions take, and the error for anything else.
 
 A function that takes a graph takes a ``StarLayerGraph``, a ``StarLayerDataset`` or a ``pyoxigraph.Store``. An rdflib graph is a
-``TypeError`` that names ``StarLayerGraph.from_rdflib``, the one explicit conversion (it lives in the ``starlayer-reasoning``
-package, with the other code that needs rdflib).
+``TypeError`` that names ``StarLayerGraph.from_rdflib``, the one explicit conversion (``rdflib_bridge``, which imports rdflib
+only when it runs).
 """
 
 from __future__ import annotations

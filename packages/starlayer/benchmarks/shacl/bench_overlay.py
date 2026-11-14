@@ -78,8 +78,8 @@ def entailed_split(data):
     """The three phases inside ``entailed_view``: copy to combined, owlrl closure, fill the overlay."""
     from starlayer.graph import StarLayerGraph
     from starlayer.graph.entailment import ENTAILMENT
+    from starlayer.graph.rdflib_bridge import legal_rdf_triples
     from starlayer.shacl.engine.rules import new_overlay
-    from starlayer_reasoning.rdflib_bridge import legal_rdf_triples
 
     t0 = time.perf_counter()
     combined = StarLayerGraph()

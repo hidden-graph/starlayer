@@ -1,7 +1,6 @@
-"""OWL reasoning and rdflib interchange for StarLayer.
+"""OWL reasoning for StarLayer.
 
-``starlayer`` calls this package for what needs rdflib: ``StarLayerGraph.from_rdflib`` / ``to_rdflib`` (``rdflib_bridge``) and the OWL
-regimes of ``infer()`` (``owl_rl_delta`` for OWL 2 RL with ``owlrl``, ``owl_direct_delta`` for OWL 2 DL with HermiT or rustdl). Each
+``starlayer`` calls this package for the OWL regimes of ``infer()`` (``owl_rl_delta`` for OWL 2 RL with ``owlrl``, ``owl_direct_delta`` for OWL 2 DL with HermiT or rustdl). Each
 takes and returns pyoxigraph triples.
 """
 

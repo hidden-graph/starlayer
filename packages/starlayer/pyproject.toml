@@ -34,12 +34,13 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-# rdflib interchange (from_rdflib / to_rdflib) and the OWL regimes of infer() live in the starlayer-reasoning package, which this
-# project's tests also use as a bridge and an oracle.
-reasoning = ["starlayer-reasoning"]
-test = ["pytest>=8.0", "hypothesis>=6", "starlayer-reasoning"]
+# rdflib interchange (from_rdflib / to_rdflib); rdflib is imported only when a conversion runs. 7.0 to 7.2 have no Dataset.default_graph.
+rdflib = ["rdflib>=7.0"]
+# The OWL regimes of infer() live in the starlayer-reasoning package, which this project's tests also use as an oracle.
+reasoning = ["starlayer[rdflib]", "starlayer-reasoning"]
+test = ["pytest>=8.0", "hypothesis>=6", "rdflib>=7.0", "starlayer-reasoning"]
 # Executes the guide notebooks (tests/notebooks, opt-in: pytest --notebooks).
-notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "starlayer-reasoning"]
+notebooks = ["nbclient>=0.10", "nbformat>=5", "ipykernel>=6", "rdflib>=7.0", "starlayer-reasoning"]
 # pytest-benchmark for the benchmarks/graph regression guard (outside `testpaths`; see .github/workflows/benchmark.yml).
 benchmark = ["pytest-benchmark>=5.0"]
 

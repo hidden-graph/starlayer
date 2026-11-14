@@ -875,7 +875,7 @@ class _Base:
         ``rdf:PropositionForm`` basic encoding, each base-direction literal its datatype-IRI form (``direction_policy`` as in
         ``interop.encode_directions``). rdflib terms keep their lexical form as stored. Writes to the result do not reach
         this graph."""
-        return _reasoning("to_rdflib()").to_rdflib_rdf11(self, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
+        return _rdflib_bridge("to_rdflib()").to_rdflib_rdf11(self, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
 
     def _refuse_path_pickle(self) -> None:
         if self._path is not None:
@@ -892,12 +892,11 @@ class _Base:
         return self is other
 
 
-def _reasoning(what: str) -> Any:
-    """The ``starlayer_reasoning.rdflib_bridge`` module, or an ``ImportError`` that says how to install it (rdflib lives there)."""
-    try:
-        from starlayer_reasoning import rdflib_bridge
-    except ImportError as exc:
-        raise ImportError(f"{what} needs the starlayer-reasoning package (it holds the rdflib conversion): `pip install starlayer-reasoning`") from exc
+def _rdflib_bridge(what: str) -> Any:
+    """The ``rdflib_bridge`` module, or an ``ImportError`` that says how to install rdflib (the core itself never imports it)."""
+    from starlayer.graph import rdflib_bridge
+
+    rdflib_bridge.require_rdflib(what)
     return rdflib_bridge
 
 
@@ -935,7 +934,7 @@ class StarLayerGraph(_Base):
             return graph.copy()
         if isinstance(graph, (StarLayerDataset, ox.Store)):
             raise TypeError(f"StarLayerGraph.from_rdflib takes an rdflib graph, not {type(graph).__name__}")
-        return _reasoning("from_rdflib()").graph_from_rdflib(graph, restore_directions=True)
+        return _rdflib_bridge("from_rdflib()").graph_from_rdflib(graph, restore_directions=True)
 
     @property
     def identifier(self) -> Any:
@@ -1042,7 +1041,7 @@ class StarLayerDataset(_Base):
         ``StarLayerGraph.from_rdflib``. An ``StarLayerDataset`` is copied."""
         if isinstance(dataset, StarLayerDataset):
             return dataset.copy()
-        return _reasoning("from_rdflib()").dataset_from_rdflib(dataset)
+        return _rdflib_bridge("from_rdflib()").dataset_from_rdflib(dataset)
 
     def _query_store(self) -> ox.Store:
         """The store SPARQL runs on: for a union default graph, one in which a triple held by several graphs is one triple

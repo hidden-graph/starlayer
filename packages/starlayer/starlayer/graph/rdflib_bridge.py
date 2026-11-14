@@ -1,11 +1,10 @@
-"""The conversion between pyoxigraph terms and rdflib terms, for everything in this package that runs on rdflib.
-
-``owlrl`` (OWL-RL and the combined regimes), the OWL-DL engines (HermiT through owlready2, rustdl) and ``StarLayerGraph.from_rdflib`` /
-``to_rdflib`` work on rdflib graphs. A graph is copied to rdflib terms, the reasoner runs, and what it adds is converted back to pyoxigraph
+"""The conversion between pyoxigraph terms and rdflib terms: ``StarLayerGraph.from_rdflib`` / ``to_rdflib``, and the OWL reasoners of
+``starlayer-reasoning`` (``owlrl`` for OWL-RL and the combined regimes, HermiT through owlready2 and rustdl for OWL-DL), which work on
+rdflib graphs. A graph is copied to rdflib terms, the reasoner runs, and what it adds is converted back to pyoxigraph
 terms. rdflib cannot hold a triple term, so the copy replaces each one with a synthetic reification fragment (``decompose``) and a
 directional-language literal with the datatype-IRI form; both are undone on the way back.
 
-rdflib is imported where it is used, so ``import starlayer_reasoning`` itself does not need it until a conversion runs.
+rdflib is imported where it is used, so ``import starlayer.graph.rdflib_bridge`` itself does not need it until a conversion runs.
 """
 
 from __future__ import annotations
@@ -14,6 +13,7 @@ from collections.abc import Iterable, Iterator
 from typing import Any
 
 import pyoxigraph as ox
+
 from starlayer.shacl.engine.terms import (
     INVALID_BNODE_PREFIX,
     INVALID_IRI_PREFIX,
@@ -30,6 +30,14 @@ _FROM_ENGINE: dict = {}
 # A dedicated, internal-only namespace for the synthetic reification edges: nothing else writes it, so it can never collide with a
 # source graph's own use of classic RDF reification (rdf:subject/predicate/object) on unrelated blank nodes.
 _TT_PREFIX = "urn:starlayer:canon-tt#"
+
+
+def require_rdflib(what: str) -> None:
+    """Raise an ``ImportError`` that says how to install rdflib when it cannot be imported; ``what`` names the call that needs it."""
+    try:
+        import rdflib  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(f"{what} needs rdflib: `pip install \"starlayer[rdflib]\"`") from exc
 
 
 def to_rdflib_term(term: Any) -> Any:
@@ -77,11 +85,11 @@ def _decompose_quads(quads: Any) -> list:
     from rdflib import BNode, Literal, URIRef
     from rdflib.namespace import XSD
 
-    from starlayer_reasoning.model.dirlangstring import (
+    from starlayer.graph.rdflib_model.dirlangstring import (
         DirLangString,
         encode_dirlangstring,
     )
-    from starlayer_reasoning.model.triple import TripleTerm
+    from starlayer.graph.rdflib_model.triple import TripleTerm
 
     out: dict = {}
 
@@ -134,6 +142,7 @@ def decompose(graph: Any) -> Any:
     synthetic reification fragment (a fresh blank node per triple-term occurrence, three edges in an internal namespace, recursing
     for a nested one). Injective, and the result holds no triple term, which is what the rdflib reasoners need."""
     from rdflib import Graph
+
     from starlayer.graph.inputs import is_oxigraph_input
 
     if is_oxigraph_input(graph):
@@ -150,6 +159,7 @@ def to_rdflib_rdf11(value: Any, *, bnode_prefix: str | None = None, direction_po
     base-direction literal the datatype-IRI form. ``from_rdflib`` restores the directional literals, not the triple terms
     (a plain ``turtle`` parse does not adopt the basic encoding either; ``interop.from_basic`` does)."""
     from rdflib import BNode, Dataset, Graph, URIRef
+
     from starlayer.graph import interop
     from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
@@ -182,7 +192,7 @@ def to_rdflib_rdf11(value: Any, *, bnode_prefix: str | None = None, direction_po
     return out
 
 def _decode_dirlang(term: Any) -> Any:
-    from starlayer_reasoning.model.dirlangstring import decode_dirlang_datatype
+    from starlayer.graph.rdflib_model.dirlangstring import decode_dirlang_datatype
 
     dt = getattr(term, "datatype", None)
     decoded = decode_dirlang_datatype(dt) if dt is not None else None
@@ -242,8 +252,8 @@ def foreign_to_engine(term: Any) -> Any:
     from rdflib import BNode, URIRef
     from rdflib import Literal as RLiteral
 
-    from starlayer_reasoning.model.dirlangstring import DirLangString
-    from starlayer_reasoning.model.triple import TripleTerm
+    from starlayer.graph.rdflib_model.dirlangstring import DirLangString
+    from starlayer.graph.rdflib_model.triple import TripleTerm
 
     cls = type(term)
     if cls is URIRef or cls is BNode:
@@ -277,7 +287,7 @@ def engine_to_foreign(term: Any) -> Any:
     """pyoxigraph term -> rdflib / StarLayer term (``URIRef``, ``BNode``, ``Literal(..., normalize=False)``, ``DirLangString``,
     ``TripleTerm``)."""
     if isinstance(term, ox.Triple):
-        from starlayer_reasoning.model.triple import TripleTerm
+        from starlayer.graph.rdflib_model.triple import TripleTerm
 
         return TripleTerm(engine_to_foreign(term.subject), engine_to_foreign(term.predicate), engine_to_foreign(term.object))
     out = _FROM_ENGINE.get(term)
@@ -304,7 +314,7 @@ def _engine_to_foreign(term: Any) -> Any:
         return BNode(term.value)
     if term.language:
         if term.direction is not None:
-            from starlayer_reasoning.model.dirlangstring import DirLangString
+            from starlayer.graph.rdflib_model.dirlangstring import DirLangString
 
             return DirLangString(term.value, term.language, str(term.direction))
         return RLiteral(term.value, lang=term.language)
@@ -330,6 +340,7 @@ def graph_from_rdflib(value: Any, *, restore_directions: bool = False) -> Any:
     ``"4"``). ``restore_directions=True`` turns a directional literal written in its datatype-IRI form (``interop.encode_directions``)
     back into a real one."""
     from rdflib import URIRef
+
     from starlayer.graph.core import StarLayerGraph
 
     ident = getattr(value, "identifier", None)

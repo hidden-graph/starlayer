@@ -38,7 +38,7 @@ def test_ordered_collection_entails_collection_via_rdfs():
     this is real entailed structure, not just an assumption, the same
     discipline the sibling starlayer.sparql package's own
     test_expression_shape_relies_on_rdfs_reasoning_not_enumeration uses."""
-    from starlayer_reasoning.rdflib_bridge import rdflib_graph
+    from starlayer.graph.rdflib_bridge import rdflib_graph
 
     ontology = rdflib_graph(skos_ontology_graph().triples(), decompose=False)  # owlrl runs on an rdflib copy
     import rdflib

@@ -5,14 +5,13 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "starlayer-reasoning"
 version = "0.1.0"
-description = "OWL reasoning and rdflib interchange for StarLayer: OWL 2 RL (owlrl), OWL 2 DL (HermiT, rustdl), StarLayerGraph.from_rdflib / to_rdflib"
+description = "OWL reasoning for StarLayer: OWL 2 RL (owlrl) and OWL 2 DL (HermiT, rustdl) behind StarLayerGraph.infer()"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
-    "starlayer",
-    "rdflib>=7.0",
+    "starlayer[rdflib]",
     "owlrl>=6",
 ]
 keywords = ["rdf", "owl", "owl2-rl", "reasoning", "entailment", "rdflib", "starlayer"]

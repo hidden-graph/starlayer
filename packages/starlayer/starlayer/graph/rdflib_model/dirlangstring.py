@@ -1,5 +1,5 @@
 """
-starlayer_reasoning.model.dirlangstring
+starlayer.graph.rdflib_model.dirlangstring
 
 Core RDF 1.2 type: DirLangString — a language-tagged string literal carrying
 an explicit base text direction ('ltr' or 'rtl'), per rdf:dirLangString

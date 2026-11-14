@@ -35,7 +35,7 @@ REIFIES = NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
 
-from starlayer_reasoning.rdflib_bridge import foreign_to_engine  # noqa: E402
+from starlayer.graph.rdflib_bridge import foreign_to_engine  # noqa: E402
 
 
 def _expand_to_fixpoint(semantics, graph):
@@ -231,7 +231,7 @@ class TestInferDelta:
         assert (EX.fido, RDF.type, EX.Animal) in delta
 
     def test_original_decomposed_union_delta_equals_closure(self) -> None:
-        from starlayer_reasoning.rdflib_bridge import decompose as _decompose
+        from starlayer.graph.rdflib_bridge import decompose as _decompose
 
         g = _rdfs_graph()
 
@@ -259,8 +259,8 @@ class TestInferDelta:
         # isomorphic(), not raw equality, for the same _decompose()-mints-a-
         # fresh-BNode-per-call reason.
         from starlayer.graph.compare import isomorphic
-        from starlayer_reasoning.rdflib_bridge import decompose as _decompose
-        from starlayer_reasoning.rdflib_bridge import (
+        from starlayer.graph.rdflib_bridge import decompose as _decompose
+        from starlayer.graph.rdflib_bridge import (
             decomposition_nodes,
             drop_decomposition,
         )
@@ -331,8 +331,8 @@ class TestInferWithTripleTerms:
         # previous test) is the correct oracle comparison for the part that
         # genuinely still goes through decomposition.
         from starlayer.graph.compare import isomorphic
-        from starlayer_reasoning.rdflib_bridge import decompose as _decompose
-        from starlayer_reasoning.rdflib_bridge import (
+        from starlayer.graph.rdflib_bridge import decompose as _decompose
+        from starlayer.graph.rdflib_bridge import (
             decomposition_nodes,
             drop_decomposition,
         )

@@ -72,7 +72,7 @@ def _query(graph, text: str):
 
 def _materialize(*triples) -> Graph:
     import rdflib
-    from starlayer_reasoning.rdflib_bridge import (
+    from starlayer.graph.rdflib_bridge import (
         foreign_to_engine,
         to_rdflib_triples,
     )
