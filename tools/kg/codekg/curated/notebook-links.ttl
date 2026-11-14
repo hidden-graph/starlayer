@@ -571,9 +571,9 @@ nl:05b-df2738a8 a slkg:NotebookExample ;
 nl:01-2102b1a6 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
     slkg:cellId "2102b1a6" ;
-    slkg:cellHash "23db5b82fcb29dda" ;
+    slkg:cellHash "89fa04d522a0476f" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Builds a graph, binds a prefix, parses Turtle into it and writes it back out." ;
+    rdfs:comment "Builds a graph, parses Turtle into it (the document's prefixes are bound) and writes it back out." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.parse",
         "starlayer.graph.core._Base.serialize" .
