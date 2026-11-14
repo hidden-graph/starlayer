@@ -304,6 +304,8 @@ class _Base:
     def __len__(self) -> int:
         if self._union:
             return sum(1 for _ in self.triples())
+        if isinstance(self.store, ox.Store) and self._pattern_graph() == ox.DefaultGraph() and next(iter(self.store.named_graphs()), None) is None:
+            return len(self.store)  # the default graph is all the store has: the store counts them, without a Python object per quad
         return sum(1 for _ in self._quads(None, None, None))
 
     def __contains__(self, item: Any) -> bool:
@@ -966,6 +968,10 @@ class StarLayerGraph(_Base):
     def _serial_items(self, fmt: ox.RdfFormat) -> Iterable[Any]:
         if fmt in formats.QUAD_FORMATS:
             return self._quads(None, None, None)
+        if isinstance(self._g, ox.DefaultGraph) and isinstance(self.store, ox.Store):
+            # a triple format writes a default-graph quad as the triple it holds, so the quads go to the writer as they are (it is
+            # about eight times faster than making a Triple of each one first); the writer reads them all within the call, on this thread
+            return self.store.quads_for_pattern(None, None, None, self._g)
         return (ox.Triple(q.subject, q.predicate, q.object) for q in self._quads(None, None, None))
 
     def _pretty_source(self, fmt: ox.RdfFormat) -> Any:
