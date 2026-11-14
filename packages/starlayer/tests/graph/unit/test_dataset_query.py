@@ -451,7 +451,7 @@ class TestUpdateWithTripleTerm:
         """
         ds.update(q)
         g1 = ds.graph(G1)
-        assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g1
 
 
 # ---------------------------------------------------------------------------

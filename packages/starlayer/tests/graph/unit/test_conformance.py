@@ -265,7 +265,7 @@ class TestRdfXmlVersionAttribute:
         # Exactly the one real triple (stmt rdf:reifies <<(a b c)>>) - no
         # extra (TripleTerm(a,b,c), rdf:version, "1.2") triple.
         assert len(g) == 1
-        assert g.has_triple_term(ex('a'), ex('b'), ex('c'))
+        assert (None, None, (ex('a'), ex('b'), ex('c'))) in g
         rdf_version = NamedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#version')
         assert list(g.triples((None, rdf_version, None))) == []
 
@@ -281,5 +281,5 @@ class TestVersionLabelIsAHint:
         """
         g = StarLayerGraph()
         g.parse(data=data, format='turtle12')
-        assert g.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
+        assert (None, None, (ex('bob'), ex('knows'), ex('carol'))) in g
         assert not [w for w in recwarn.list if 'VERSION' in str(w.message)]

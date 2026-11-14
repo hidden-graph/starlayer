@@ -461,7 +461,7 @@ class TestStatements:
 
 
 # ---------------------------------------------------------------------------
-# triple_terms() / has_triple_term() direct pattern matching
+# triple_terms() and (None, None, triple term) in g: direct pattern matching
 # ---------------------------------------------------------------------------
 
 class TestTripleTermsQuery:
@@ -484,13 +484,11 @@ class TestTripleTermsQuery:
         tts = list(sg_two_tts.triple_terms(predicate=URIRef(EX+'likes')))
         assert tts == [TripleTerm(URIRef(EX+'bob'), URIRef(EX+'likes'), URIRef(EX+'dana'))]
 
-    def test_has_triple_term_true(self, sg_two_tts):
-        assert sg_two_tts.has_triple_term(
-            URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))
+    def test_triple_term_as_object_true(self, sg_two_tts):
+        assert (None, None, (URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'carol'))) in sg_two_tts
 
-    def test_has_triple_term_false(self, sg_two_tts):
-        assert not sg_two_tts.has_triple_term(
-            URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'dana'))
+    def test_triple_term_as_object_false(self, sg_two_tts):
+        assert (None, None, (URIRef(EX+'bob'), URIRef(EX+'knows'), URIRef(EX+'dana'))) not in sg_two_tts
 
     # -- namespace_manager propagation --------------------------------------
     # triple_terms()/reified_triples() read straight from the internal

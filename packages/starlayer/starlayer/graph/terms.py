@@ -54,7 +54,12 @@ def graph_name(x: Any) -> Any:
 def in_pattern(s: Any, p: Any, o: Any) -> tuple[Any, Any, Any] | None:
     """Pattern terms coerced; ``None`` when no RDF statement can match (a literal subject or a non-IRI predicate), because
     Oxigraph raises there while an RDF graph simply has no such statement."""
-    s, p, o = term(s), term(p), term(o)
+    try:
+        s, p, o = term(s), term(p), term(o)
+    except TypeError:
+        if any(isinstance(x, tuple) and len(x) == 3 for x in (s, p, o)):  # a triple term that cannot exist (a literal subject ...): no statement holds it
+            return None
+        raise
     if isinstance(s, (ox.Literal, ox.Triple)) or (p is not None and not isinstance(p, ox.NamedNode)):
         return None
     return s, p, o

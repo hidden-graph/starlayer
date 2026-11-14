@@ -45,7 +45,7 @@ def test_remove_of_last_use_drops_the_triple_term_and_its_encoding():
     h = StarLayerGraph()
     h.add((E("s"), E("p"), E("o")))
     assert isomorphic(g, h) and isomorphic(h, g)
-    assert list(g.triple_terms()) == [] and not g.has_triple_term(E("a"), E("p"), E("b"))
+    assert list(g.triple_terms()) == [] and (None, None, (E("a"), E("p"), E("b"))) not in g
     assert len(list(g.triples((None, None, None)))) == 1
 
 
@@ -56,7 +56,7 @@ def test_remove_keeps_a_triple_term_still_used_and_cascades_to_nested_terms():
     g.add((E("s1"), E("q"), outer))
     g.add((E("s2"), E("q"), outer))
     g.remove((E("s1"), E("q"), outer))
-    assert g.has_triple_term(E("x"), E("r"), inner)
+    assert (None, None, (E("x"), E("r"), inner)) in g
     g.remove((E("s2"), E("q"), outer))
     assert list(g.triple_terms()) == []
     assert len(list(g.triples((None, None, None)))) == 0

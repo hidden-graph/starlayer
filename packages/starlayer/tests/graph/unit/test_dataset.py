@@ -112,11 +112,11 @@ class TestParseTriG12:
         g1 = ds.graph(G1)
         assert (ex('s'), ex('p'), ex('o')) in g1
 
-    def test_named_graph_has_triple_term(self):
+    def test_named_graph_triple_term_as_object(self):
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
-        assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g1
 
     def test_named_graph_triple_term_in_object(self):
         ds = StarLayerDataset(default_union=False)
@@ -131,10 +131,10 @@ class TestParseTriG12:
         ds.parse(data=TRIG_BASIC, format='trig12')
         g1 = ds.graph(G1)
         g2 = ds.graph(G2)
-        assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
-        assert not g1.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
-        assert g2.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
-        assert not g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g1
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) not in g1
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) in g2
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) not in g2
 
     def test_triple_terms_not_visible_across_graphs(self):
         ds = StarLayerDataset(default_union=False)
@@ -423,7 +423,7 @@ class TestCBD:
         result = ds.cbd(ex('claim1'))
 
         assert isinstance(result, StarLayerGraph)
-        assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in result
         assert len(result) == 1
 
     def test_cbd_rejects_a_plain_rdflib_graph_as_target(self):
@@ -476,7 +476,7 @@ class TestDefaultGraphIsAStarLayerGraph:
         ds = StarLayerDataset(default_union=False)
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         ds.default_graph.add((ex('claim1'), ex('about'), tt))
-        assert ds.default_graph.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in ds.default_graph
 
     def test_graphs_yields_the_default_graph_as_a_starlayergraph(self):
         """graphs() yields from super(Dataset, self).graph_names(), which
@@ -495,7 +495,7 @@ class TestDefaultGraphIsAStarLayerGraph:
         _sg_cache, never touching whatever object a one-time-cached
         self._default_context pointed at. Before the fix, default_graph
         kept returning that stale, registry-empty pre-parse object, so
-        has_triple_term() here returned False even though the triple parsed
+        the triple-term membership test here returned False even though the triple parsed
         correctly and even round-tripped correctly through serialize()
         (which reaches the current object via get_context(), not
         default_graph). longturtle12/nt12/rdfxml12/manchester don't hit
@@ -508,7 +508,7 @@ class TestDefaultGraphIsAStarLayerGraph:
             'ex:claim rdf:reifies <<( ex:bob ex:knows ex:carol )>> .'
         )
         ds.parse(data=text, format='turtle12')
-        assert ds.default_graph.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
+        assert (None, None, (ex('bob'), ex('knows'), ex('carol'))) in ds.default_graph
 
 
 class TestSingleDocumentFormatsParseIntoDefaultGraph:
@@ -570,7 +570,7 @@ class TestSkolemizeDeskolemize:
         g.add((ex('claim1'), ex('about'), tt))
         result = g.skolemize()
         assert isinstance(result, StarLayerGraph)
-        assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in result
 
     def test_graph_de_skolemize_with_triple_term_does_not_crash(self):
         g = StarLayerGraph()
@@ -578,7 +578,7 @@ class TestSkolemizeDeskolemize:
         g.add((ex('claim1'), ex('about'), tt))
         result = g.de_skolemize()
         assert isinstance(result, StarLayerGraph)
-        assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in result
 
     def test_dataset_skolemize_with_triple_term_does_not_crash(self):
         ds = StarLayerDataset(default_union=False)
@@ -586,7 +586,7 @@ class TestSkolemizeDeskolemize:
         ds.add((ex('claim1'), ex('about'), tt))
         result = ds.skolemize()
         assert isinstance(result, StarLayerGraph)
-        assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in result
 
     def test_dataset_de_skolemize_with_triple_term_does_not_crash(self):
         ds = StarLayerDataset(default_union=False)
@@ -594,7 +594,7 @@ class TestSkolemizeDeskolemize:
         ds.add((ex('claim1'), ex('about'), tt))
         result = ds.de_skolemize()
         assert isinstance(result, StarLayerGraph)
-        assert result.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in result
 
     def test_skolemize_rejects_a_plain_rdflib_graph_as_new_graph(self):
         from rdflib import Graph
@@ -757,8 +757,8 @@ class TestRoundTrip:
         ds2.parse(data=out, format='trig12')
         g1 = ds2.graph(G1)
         g2 = ds2.graph(G2)
-        assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
-        assert g2.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g1
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) in g2
 
     def test_graph_isolation_preserved_after_roundtrip(self):
         ds = StarLayerDataset(default_union=False)
@@ -768,8 +768,8 @@ class TestRoundTrip:
         ds2.parse(data=out, format='trig12')
         g1 = ds2.graph(G1)
         g2 = ds2.graph(G2)
-        assert not g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
-        assert not g1.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) not in g2
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) not in g1
 
     def test_triple_count_preserved(self):
         ds = StarLayerDataset(default_union=False)
@@ -813,21 +813,21 @@ class TestNQ12MultiGraph:
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g1 = ds.graph(G1)
-        assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g1
 
     def test_triple_term_in_graph2(self):
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g2 = ds.graph(G2)
-        assert g2.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) in g2
 
     def test_graph_isolation(self):
         ds = StarLayerDataset(default_union=False)
         ds.parse(data=NQ_BASIC, format='nq12')
         g1 = ds.graph(G1)
         g2 = ds.graph(G2)
-        assert not g1.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
-        assert not g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) not in g1
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) not in g2
 
     def test_plain_triple_in_named_graph(self):
         ds = StarLayerDataset(default_union=False)
@@ -856,9 +856,9 @@ class TestNQ12MultiGraph:
         ds2.parse(data=out, format='nq12')
         g1 = ds2.graph(G1)
         g2 = ds2.graph(G2)
-        assert g1.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
-        assert g2.has_triple_term(ex('bob'), ex('likes'), ex('carol'))
-        assert not g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g1
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) in g2
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) not in g2
 
     def test_nq12_triple_count_preserved(self):
         ds = StarLayerDataset(default_union=False)
@@ -877,8 +877,8 @@ class TestNQ12MultiGraph:
         out = ds.serialize(format='nq12')
         ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='nq12')
-        assert ds2.graph(G1).has_triple_term(ex('alice'), ex('knows'), ex('bob'))
-        assert ds2.graph(G2).has_triple_term(ex('bob'), ex('likes'), ex('carol'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in ds2.graph(G1)
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) in ds2.graph(G2)
 
     def test_cross_format_nq12_to_trig(self):
         """Parse N-Quads 1.2, serialize to TriG 1.2, re-parse — data preserved."""
@@ -888,8 +888,8 @@ class TestNQ12MultiGraph:
         assert 'graph1> {' in out or 'graph1 {' in out  # Oxigraph's TriG writer has no GRAPH keyword
         ds2 = StarLayerDataset(default_union=False)
         ds2.parse(data=out, format='trig12')
-        assert ds2.graph(G1).has_triple_term(ex('alice'), ex('knows'), ex('bob'))
-        assert ds2.graph(G2).has_triple_term(ex('bob'), ex('likes'), ex('carol'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in ds2.graph(G1)
+        assert (None, None, (ex('bob'), ex('likes'), ex('carol'))) in ds2.graph(G2)
 
 
 # ---------------------------------------------------------------------------

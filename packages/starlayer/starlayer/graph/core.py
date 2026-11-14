@@ -805,11 +805,6 @@ class _Base:
 
         return reification.triple_terms(self, subject, predicate, object)
 
-    def has_triple_term(self, subject: Any, predicate: Any, object: Any) -> bool:  # noqa: A002
-        from starlayer.graph import reification
-
-        return reification.has_triple_term(self, subject, predicate, object)
-
     # ---- the SHACL engine's graph view -------------------------------------------------------------------------
     def engine_view(self) -> Any:
         from starlayer.shacl.engine.oxigraph_view import DEFAULT, UNION, OxigraphGraph

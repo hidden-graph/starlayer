@@ -104,7 +104,7 @@ class TestNT12Parse:
         nt = f'<{EX}stmt1> <{RDF_REIFIES.value}> <<( <{EX}alice> <{EX}knows> <{EX}bob> )>> .\n'
         g = StarLayerGraph()
         g.parse(data=nt, format='nt12')
-        assert g.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         objs = list(g.objects(ex('stmt1'), RDF_REIFIES))
         assert tt in objs
@@ -224,7 +224,7 @@ class TestNQ12:
         )
         g = StarLayerDataset()
         g.parse(data=nq, format='nq12')
-        assert g.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g
 
     def test_serialize_includes_graph_name(self):
         g = StarLayerGraph(identifier=ex('mygraph'))
@@ -250,7 +250,7 @@ class TestNQ12:
         g2 = StarLayerDataset()
         g2.parse(data=text, format='nq12')
         assert (ex('a'), ex('b'), ex('c')) in g2.graph(ex('mygraph'))
-        assert g2.has_triple_term(ex('s'), ex('p'), ex('o'))
+        assert (None, None, (ex('s'), ex('p'), ex('o'))) in g2
 
 
 # ---------------------------------------------------------------------------
@@ -287,7 +287,7 @@ class TestTriG12Parse:
         )
         g = StarLayerDataset()
         g.parse(data=trig, format='trig12')
-        assert g.graph(ex('g1')).has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g.graph(ex('g1'))
 
     def test_multiple_named_graphs_are_refused_by_a_graph_view(self):
         trig = (
@@ -373,7 +373,7 @@ class TestTriG12RoundTrip:
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         g.add((ex('stmt1'), RDF_REIFIES, tt))
         _, g2 = round_trip(g, 'trig12')
-        assert g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g2
         objs = list(g2.objects(ex('stmt1'), RDF_REIFIES))
         assert tt in objs
 
@@ -420,14 +420,14 @@ class TestVersionDeclarationNT12:
         text = g.serialize(format='nt12')
         g2 = StarLayerGraph()
         g2.parse(data=text, format='nt12')
-        assert g2.has_triple_term(ex('s'), ex('p'), ex('o'))
+        assert (None, None, (ex('s'), ex('p'), ex('o'))) in g2
 
     def test_round_trip_preserves_triple_term(self):
         g = StarLayerGraph()
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         g.add((ex('stmt1'), RDF_REIFIES, tt))
         _, g2 = round_trip(g, 'nt12')
-        assert g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g2
 
 
 class TestVersionDeclarationNQ12:
@@ -451,14 +451,14 @@ class TestVersionDeclarationNQ12:
         text = g.serialize(format='nq12')
         g2 = StarLayerGraph()
         g2.parse(data=text, format='nq12')
-        assert g2.has_triple_term(ex('s'), ex('p'), ex('o'))
+        assert (None, None, (ex('s'), ex('p'), ex('o'))) in g2
 
     def test_round_trip_preserves_triple_term(self):
         g = StarLayerGraph()
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         g.add((ex('stmt1'), RDF_REIFIES, tt))
         _, g2 = round_trip(g, 'nq12')
-        assert g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g2
 
 
 class TestVersionDeclarationTriG12:
@@ -497,14 +497,14 @@ class TestVersionDeclarationTriG12:
         )
         g = StarLayerGraph()
         g.parse(data=trig, format='trig12')
-        assert g.has_triple_term(ex('s'), ex('p'), ex('o'))
+        assert (None, None, (ex('s'), ex('p'), ex('o'))) in g
 
     def test_round_trip_preserves_triple_term(self):
         g = StarLayerGraph()
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         g.add((ex('stmt1'), RDF_REIFIES, tt))
         _, g2 = round_trip(g, 'trig12')
-        assert g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g2
 
 
 # ---------------------------------------------------------------------------
@@ -585,7 +585,7 @@ class TestRDFXML12RoundTrip:
         tt = TripleTerm(ex('alice'), ex('knows'), ex('bob'))
         g.add((ex('stmt'), RDF_REIFIES, tt))
         _, g2 = round_trip(g, 'rdfxml12')
-        assert g2.has_triple_term(ex('alice'), ex('knows'), ex('bob'))
+        assert (None, None, (ex('alice'), ex('knows'), ex('bob'))) in g2
         assert tt in list(g2.objects(ex('stmt'), RDF_REIFIES))
 
     def test_typed_literal(self):
@@ -706,7 +706,7 @@ class TestN3AliasGraph:
             ),
             format='n3',
         )
-        assert g.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
+        assert (None, None, (ex('bob'), ex('knows'), ex('carol'))) in g
 
     def test_parse_real_n3_rule_fails(self):
         n3_rule = (
@@ -731,7 +731,7 @@ class TestN3AliasGraph:
 
     def test_round_trip(self):
         text, g2 = round_trip_graph_with_tt(format='n3')
-        assert g2.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
+        assert (None, None, (ex('bob'), ex('knows'), ex('carol'))) in g2
 
 
 def round_trip_graph_with_tt(format):
@@ -756,7 +756,7 @@ class TestN3AliasDataset:
             ),
             format='n3',
         )
-        assert ds.default_graph.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
+        assert (None, None, (ex('bob'), ex('knows'), ex('carol'))) in ds.default_graph
 
     def test_serialize_flattens_like_turtle12(self):
         ds = StarLayerDataset()
@@ -774,4 +774,4 @@ class TestN3AliasDataset:
         out = ds.serialize(format='n3')
         ds2 = StarLayerDataset()
         ds2.parse(data=out, format='n3')
-        assert ds2.default_graph.has_triple_term(ex('bob'), ex('knows'), ex('carol'))
+        assert (None, None, (ex('bob'), ex('knows'), ex('carol'))) in ds2.default_graph

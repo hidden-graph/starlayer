@@ -31,7 +31,7 @@ nl:01-6f4c59ad a slkg:NotebookExample ;
 nl:02-3f4f3ecb a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
     slkg:cellId "3f4f3ecb" ;
-    slkg:cellHash "f622b560cba8d69a" ;
+    slkg:cellHash "5daec121067ea510" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "Builds a graph with a triple term and a reifier and shows it serialized, the basic way to see a graph's contents." ;
     slkg:demonstratesIdentifier

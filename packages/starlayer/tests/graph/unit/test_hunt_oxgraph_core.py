@@ -234,12 +234,12 @@ def test_derive_shape_subclass_hierarchy():
     assert len(g.derive_shape()) > 0
 
 
-# ---- has_triple_term: an impossible pattern is False --------------------------------------------------------------------
-def test_has_triple_term_impossible_pattern_is_false():
+# ---- (None, None, triple term) in g: an impossible pattern is False -------------------------------------------------------
+def test_a_triple_term_that_no_statement_can_contain_is_not_in_the_graph():
     g = StarLayerGraph()
     g.add((ex("a"), ex("b"), ex("c")))
-    assert g.has_triple_term(ox.Literal("x"), ex("b"), ex("c")) is False
-    assert g.has_triple_term(ex("a"), ox.BlankNode("p"), ex("c")) is False
+    assert (None, None, (ox.Literal("x"), ex("b"), ex("c"))) not in g
+    assert (None, None, (ex("a"), ox.BlankNode("p"), ex("c"))) not in g
 
 
 # ---- resolve_imports(mode="delta", target_graph=...) --------------------------------------------------------------------

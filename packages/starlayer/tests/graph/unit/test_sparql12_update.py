@@ -145,9 +145,7 @@ class TestU3:
                 :stmt3 rdf:reifies <<( :carol :knows :dave )>> .
             }
         """)
-        assert g.has_triple_term(
-            NamedNode(EX + 'carol'), NamedNode(EX + 'knows'), NamedNode(EX + 'dave')
-        )
+        assert (None, None, (NamedNode(EX + 'carol'), NamedNode(EX + 'knows'), NamedNode(EX + 'dave'))) in g
 
     def test_insert_data_queryable_after_insert(self, g):
         g.update("""
@@ -316,9 +314,7 @@ class TestU7:
             INSERT { :newStmt rdf:reifies <<( ?s ?p ?o )>> }
             WHERE  { :stmt1 rdf:reifies <<( ?s ?p ?o )>> }
         """)
-        assert g.has_triple_term(
-            NamedNode(EX + 'bob'), NamedNode(EX + 'knows'), NamedNode(EX + 'carol')
-        )
+        assert (None, None, (NamedNode(EX + 'bob'), NamedNode(EX + 'knows'), NamedNode(EX + 'carol'))) in g
 
     def test_insert_template_variable_subject_and_tt_object(self, g):
         """Variable reifier subject bound from WHERE + TT in object position."""
@@ -381,9 +377,7 @@ class TestU6:
             WHERE  { :alice :knows :bob }
         """)
         from tests.support.terms import NamedNode
-        assert g.has_triple_term(
-            NamedNode(EX + 'alice'), NamedNode(EX + 'knows'), NamedNode(EX + 'bob')
-        )
+        assert (None, None, (NamedNode(EX + 'alice'), NamedNode(EX + 'knows'), NamedNode(EX + 'bob'))) in g
 
 
 # ---------------------------------------------------------------------------

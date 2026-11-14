@@ -12,7 +12,7 @@ A, B, C, P, Q = (N(EX + x) for x in ("a", "b", "c", "p", "q"))
 REIFIES = N("http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies")
 
 
-def test_triple_terms_and_has_triple_term():
+def test_triple_terms_and_the_object_membership_test():
     g = StarLayerGraph()
     t1, t2 = ox.Triple(A, P, B), ox.Triple(A, Q, C)
     g.add((N(EX + "r"), REIFIES, t1))
@@ -21,8 +21,8 @@ def test_triple_terms_and_has_triple_term():
     g.add((A, P, C))  # asserted, but not a triple term
     assert set(g.triple_terms()) == {t1, t2} and len(list(g.triple_terms())) == 2  # distinct
     assert set(g.triple_terms(subject=A, predicate=Q)) == {t2} and list(g.triple_terms(object=A)) == []
-    assert g.has_triple_term(A, P, B) and g.has_triple_term(A, Q, C)
-    assert not g.has_triple_term(A, P, C)  # asserted directly, never the object of a triple
+    assert (None, None, (A, P, B)) in g and (None, None, (A, Q, C)) in g
+    assert (None, None, (A, P, C)) not in g  # asserted directly, never the object of a triple
 
 
 def test_remove_reification():
