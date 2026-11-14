@@ -60,8 +60,8 @@ nl:02a-122b54fa a slkg:NotebookExample ;
 nl:02b-2c6151e0 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02b-graphs-inferencing.ipynb" ;
     slkg:cellId "2c6151e0" ;
-    slkg:cellHash "07e637c801ed2c7c" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "c94ddeb4ef53d42d" ;
+    slkg:reviewedOn "2026-11-14"^^xsd:date ;
     rdfs:comment "Runs infer() with the RDF entailment regime and shows the graph before and after." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.infer" .
