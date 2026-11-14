@@ -21,7 +21,7 @@ nl:01-b8032fd8 a slkg:NotebookExample ;
 nl:01-6f4c59ad a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
     slkg:cellId "6f4c59ad" ;
-    slkg:cellHash "cf978ef79f1130fe" ;
+    slkg:cellHash "8b49362fa6977598" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "Queries a graph with SPARQL and reads the rows as pyoxigraph terms." ;
     slkg:demonstratesIdentifier
