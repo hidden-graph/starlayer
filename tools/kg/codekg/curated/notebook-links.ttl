@@ -40,8 +40,8 @@ nl:02-3f4f3ecb a slkg:NotebookExample ;
 nl:02-7334cc46 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
     slkg:cellId "7334cc46" ;
-    slkg:cellHash "16797c74c30c6e2d" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "951890e51cbab9be" ;
+    slkg:reviewedOn "2026-11-14"^^xsd:date ;
     rdfs:comment "Lists the reifiers of a triple term, the triple terms that have a reifier and a reifier's annotations with reifiers(), reified_triples() and annotations()." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.reifiers",

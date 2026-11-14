@@ -531,7 +531,7 @@ class _Base:
 
     def serialize(self, destination: Any = None, format: str | ox.RdfFormat | None = None, base: str | None = None,  # noqa: A002
                   prefixes: Mapping[str, str] | None = None, *, only_used: bool = False, rdf_version: str | None = None,
-                  encoding: str = "utf-8", pretty: bool | str = False) -> str | None:
+                  encoding: str = "utf-8", pretty: bool | str = False, bnode_labels: str | None = None) -> str | None:
         """Write the graph. ``destination`` None returns a ``str``; a path or file object is written and ``None`` returned.
         Prefixes are the graph's dict plus ``prefixes`` (the per-call override); ``only_used=True`` declares only those the
         output uses (Turtle, TriG). ``rdf_version="1.1"`` exports through ``starlayer.graph.interop`` (the basic encoding of
@@ -541,7 +541,13 @@ class _Base:
         A Turtle, TriG, N-Triples or N-Quads document that uses an RDF 1.2 feature (a triple term, a base-direction literal)
         starts with the version declaration (``@version "1.2" .`` / ``VERSION "1.2"``), as does any such document written with
         ``rdf_version="1.2"``; plain RDF 1.1 data gets none unless asked. ``rdf_version="1.1"`` never writes one. Oxigraph's
-        writers do not write it, so the wrapper adds it."""
+        writers do not write it, so the wrapper adds it.
+
+        ``bnode_labels="short"`` writes the blank nodes as ``_:b0``, ``_:b1``, ... instead of their long ids (see ``bnodes.py``; the graph
+        keeps its ids, and the labels and the order of the statements are the same every time for the same graph). The default
+        ``None`` writes the ids as they are."""
+        if bnode_labels not in (None, "short"):
+            raise ValueError(f"bnode_labels must be None or 'short', not {bnode_labels!r}")
         if formats.is_manchester(format):
             from starlayer.graph.manchester.serializer import serialize_manchester
 
@@ -557,6 +563,10 @@ class _Base:
                 if not _PN_PREFIX.fullmatch(name):
                     raise ValueError(f"{name!r} is not a valid prefix name")
         items = self._serial_items(fmt)
+        if bnode_labels == "short":
+            from starlayer.graph.bnodes import short_bnode_labels
+
+            items = short_bnode_labels(items)
         if fmt == ox.RdfFormat.RDF_XML:
             items = _xml_safe_blank_nodes(items)
         if pretty:  # pretty Turtle / TriG (RDF 1.2): pretty.py
@@ -567,13 +577,15 @@ class _Base:
                 from starlayer.graph import interop
 
                 source = interop.encode_directions(interop.to_basic(self._serial_items(fmt)))
+            if bnode_labels == "short":
+                source = short_bnode_labels(list(source))
             raw = serialize_pretty(source, fmt, pfx or None, base, only_used, pretty).encode("utf-8")
         elif rdf_version in ("1.1", "rdf-1.1"):
             # Triple terms by the Interoperability draft's basic encoding, base-direction literals by the interop
             # policy (a datatype IRI form by default); the result contains neither.
             from starlayer.graph import interop
 
-            raw = interop.export_rdf11(items, fmt, None, pfx or None, base)
+            raw = interop.export_rdf11(items, fmt, None, pfx or None, base, bnode_labels=bnode_labels)
         else:
             raw = ox.serialize(items, None, fmt, prefixes=pfx or None, base_iri=base)
         if only_used and fmt in _TURTLE_LIKE and pfx:

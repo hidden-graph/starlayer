@@ -408,17 +408,23 @@ def export_rdf11(
     *,
     bnode_prefix: str | None = None,
     direction_policy: _Lit["datatype", "error", "drop"] = "datatype",
+    bnode_labels: str | None = None,
 ) -> bytes | None:
     """Serialise as RDF 1.1: apply :func:`to_basic`, then the base-direction policy
     (:func:`encode_directions`), assert that no triple term and no directional literal remains, and write
     with pyoxigraph. ``format`` is a ``pyoxigraph.RdfFormat`` or a name (turtle, trig, ntriples, nquads,
     rdfxml). Turtle, N-Triples and RDF/XML hold one graph: a dataset with named graphs is refused. Returns
     the bytes when ``destination`` is None. The output is valid RDF 1.1 but, as the draft warns, not
-    semantically equivalent to the RDF 1.2 input when it had triple terms."""
+    semantically equivalent to the RDF 1.2 input when it had triple terms. ``bnode_labels="short"`` writes the blank nodes, those of
+    the basic encoding included, as ``_:b0``, ``_:b1``, ... (see ``bnodes.py``)."""
     fmt = _FORMATS[format.lower()] if isinstance(format, str) else format
     if fmt not in _TRIPLE_FORMATS and fmt not in (ox.RdfFormat.TRIG, ox.RdfFormat.N_QUADS):
         raise ValueError(f"not an RDF 1.1 format supported here: {fmt}")
     quads = to_rdf11(store_or_quads, bnode_prefix=bnode_prefix, direction_policy=direction_policy)
+    if bnode_labels == "short":  # after the basic encoding, so the nodes it adds get short labels too
+        from starlayer.graph.bnodes import short_bnode_labels
+
+        quads = short_bnode_labels(quads)
     if fmt in _TRIPLE_FORMATS:
         if any(not isinstance(q.graph_name, ox.DefaultGraph) for q in quads):
             raise ValueError(f"{fmt} cannot hold named graphs; use TriG or N-Quads")
