@@ -12,7 +12,7 @@
 nl:01-b8032fd8 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
     slkg:cellId "b8032fd8" ;
-    slkg:cellHash "35c67512f12b969a" ;
+    slkg:cellHash "f9ada5b3b7fd9e03" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
     rdfs:comment "The first cell a reader runs: imports StarLayerGraph and validate and sets up the namespace used to build graphs." ;
     slkg:demonstratesIdentifier
