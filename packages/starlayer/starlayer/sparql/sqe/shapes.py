@@ -42,15 +42,18 @@ def _entailed_copy(data_graph: Any) -> Any:
     return rdfs_entailed_copy(data_graph, _schema())
 
 
+@functools.lru_cache(maxsize=1)
 def _shapes_graph() -> Any:
-    """A fresh ``StarLayerGraph`` combining ``sqe:``'s own shapes with the shared expression shapes
-    (``spexpr:``; see ``..expr_validation``). Callers get their own copy, so a validation never changes a shared
-    instance. Nothing here comes from ``salg:``."""
+    """The ``StarLayerGraph`` combining ``sqe:``'s own shapes with the shared expression shapes (``spexpr:``; see
+    ``..expr_validation``), built once: validation never changes its shapes graph. Nothing here comes from ``salg:``."""
     from ..expr_validation import shapes_graph as spexpr_shapes_graph
 
     g = spexpr_shapes_graph()
     g.parse(data=SHAPES_TURTLE, format="turtle")
     return g
+
+
+_PLANS: dict = {}  # the parsed Plan of ``_shapes_graph()``, kept across calls (see ``shacl._adapter.shared_plans``)
 
 
 def _ontology_graph() -> Any:
@@ -79,14 +82,16 @@ def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
+    from starlayer.shacl._adapter import shared_plans
 
     from ._memtree import as_engine_graph
 
     data_graph, _ = as_engine_graph(data_graph)
-    result = starlayer.shacl.validate(
-        _entailed_copy(data_graph),
-        shacl_graph=_shapes_graph(),
-        advanced=True,
-        max_validation_depth=100,
-    )
+    with shared_plans(_PLANS):
+        result = starlayer.shacl.validate(
+            _entailed_copy(data_graph),
+            shacl_graph=_shapes_graph(),
+            advanced=True,
+            max_validation_depth=100,
+        )
     return result.conforms, result.report_graph, result.report_text

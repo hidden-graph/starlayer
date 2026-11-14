@@ -40,10 +40,12 @@ _PLAN_CACHE: contextvars.ContextVar[dict | None] = contextvars.ContextVar("starl
 
 
 @contextlib.contextmanager
-def shared_plans() -> Iterator[dict]:
+def shared_plans(cache: dict | None = None) -> Iterator[dict]:
     """While active, validations over the same explicit shapes graph object share one parsed ``Plan`` (used by the
-    ``validate_each`` entry points: the shapes are parsed once for the whole batch, not once per data graph)."""
-    cache: dict = {}
+    ``validate_each`` entry points: the shapes are parsed once for the whole batch, not once per data graph). A caller that owns
+    a shapes graph it never changes (the ``sqe:`` and ``srl:`` shapes) passes a ``cache`` dict it keeps, so the Plan lives as
+    long as the dict and is built once per process."""
+    cache = {} if cache is None else cache
     token = _PLAN_CACHE.set(cache)
     try:
         yield cache

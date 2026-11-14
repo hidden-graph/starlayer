@@ -759,6 +759,7 @@ def _shapes_graph() -> Any:
 
 
 _validation_graphs_cache: tuple[Any, Any, Any] | None = None
+_validation_plans: dict = {}  # the parsed Plan of the cached shapes graph, kept across calls (see ``shacl._adapter.shared_plans``)
 
 
 def _validation_graphs() -> tuple[Any, Any, Any]:
@@ -812,16 +813,18 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
     """
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
+    from starlayer.shacl._adapter import shared_plans
 
     from .expr_validation import rdfs_entailed_copy
     from .sqe._memtree import as_engine_graph
 
     shapes, _ontology, schema = _validation_graphs()
     data_graph, _ = as_engine_graph(data_graph)
-    result = starlayer.shacl.validate(
-        rdfs_entailed_copy(data_graph, schema),  # the RDFS closure the shapes rely on, done natively
-        shacl_graph=shapes,
-        advanced=True,
-        max_validation_depth=100,
-    )
+    with shared_plans(_validation_plans):
+        result = starlayer.shacl.validate(
+            rdfs_entailed_copy(data_graph, schema),  # the RDFS closure the shapes rely on, done natively
+            shacl_graph=shapes,
+            advanced=True,
+            max_validation_depth=100,
+        )
     return result.conforms, result.report_graph, result.report_text

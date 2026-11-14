@@ -11,6 +11,7 @@ The engine's ``validate`` is imported lazily (``api`` may import this module).
 
 from __future__ import annotations
 
+import threading
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any
@@ -52,6 +53,24 @@ def _report_text(conforms: bool, results: list) -> str:
     return "\n".join(lines)
 
 
+_static_meta: Any = None
+_static_meta_lock = threading.Lock()
+_static_meta_plans: dict = {}  # the Plan of ``_static_meta``, kept across calls (see ``api.validate``'s ``plan_cache``)
+
+
+def _static_meta_graph() -> Any:
+    """The meta-shapes graph with no extra graphs and no parameter-value shapes, built once and shared: a validation never
+    changes its shapes graph, and a shared graph lets the engine keep its parsed Plan (about 160 shapes, most of the cost of a
+    meta check) instead of rebuilding it on every call."""
+    global _static_meta
+    with _static_meta_lock:
+        if _static_meta is None:
+            from starlayer.shacl.meta_shapes import load_meta_shapes_graph
+
+            _static_meta = load_meta_shapes_graph(())
+        return _static_meta
+
+
 def meta_validate(
     shapes_graph: Any,
     *,
@@ -77,18 +96,25 @@ def meta_validate(
         parameter_value_shapes,
     )
 
-    if engine_validate is None:
+    real_engine = engine_validate is None
+    if real_engine:
         from starlayer.shacl.engine.api import validate as engine_validate
 
     shapes_graph = engine_view(shapes_graph, "shapes graph")
 
-    meta = load_meta_shapes_graph(tuple(meta_shapes_extra if meta_shapes_extra is not None else extra))
-    meta += parameter_value_shapes(shapes_graph)
+    extras = tuple(meta_shapes_extra if meta_shapes_extra is not None else extra)
+    parameter_shapes = parameter_value_shapes(shapes_graph)
+    reuse = not extras and len(parameter_shapes) == 0 and real_engine
+    if reuse:
+        meta, kwargs = _static_meta_graph(), {"plan_cache": _static_meta_plans}
+    else:
+        meta, kwargs = load_meta_shapes_graph(extras), {}
+        meta += parameter_shapes
     # old preflight: allow_warnings tolerates Warning and Info, allow_infos only Info; passing None/False (what
     # ``validate(allow_warnings=None)`` forwards) makes them count
     disallows = SH.Violation if allow_warnings else SH.Warning if allow_infos else SH.Info
     outcome = engine_validate(shapes_graph, meta, conformance_disallows=disallows, rules=False,
-                              meta_shacl=False, ignore_imports=True)
+                              meta_shacl=False, ignore_imports=True, **kwargs)
     result = MetaResult(
         conforms=outcome.conforms,
         report_graph=outcome.report_graph,
