@@ -20,10 +20,11 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+import pyoxigraph as ox
 import pytest
-from hypothesis import HealthCheck, given, settings
+from hypothesis import HealthCheck, example, given, settings
 from hypothesis import strategies as st
-from rdflib import XSD, Graph, Literal, URIRef
+from starlayer.graph import StarLayerGraph
 
 from .corpus import PRELUDE
 from .helpers import parse_ruleset
@@ -196,7 +197,7 @@ def _run(rule_list, base, data=()):
     strata = [group for group in strata if group]
     text = PRELUDE + "\n".join(r.srl() for r in rule_list) + "\n"
     oracle = oracle_infer(set(base), [[r.oracle() for r in group] for group in strata], set(data))
-    actual = _from_rdflib(parse_ruleset(text, validate=False).infer(_to_rdflib(base)))
+    actual = _from_graph(parse_ruleset(text, validate=False).infer(_to_graph(base)))
     return oracle, actual
 
 
@@ -243,7 +244,7 @@ def test_data_blocks_start_the_evaluation_graph_but_only_new_triples_are_inferre
     derive = _rule("p0", ("x", "y"), [("tp", _tp("?x", "b0", "?y"))])
     text = PRELUDE + "DATA { :a :b0 :b . :c :b0 :d . }\n" + derive.srl() + "\n"
     oracle = oracle_infer(set(base), [[derive.oracle()]], data)
-    actual = _from_rdflib(parse_ruleset(text, validate=False).infer(_to_rdflib(base)))
+    actual = _from_graph(parse_ruleset(text, validate=False).infer(_to_graph(base)))
     assert oracle == actual == {("c", "b0", "d"), ("a", "p0", "b"), ("c", "p0", "d")}
 
 
@@ -353,7 +354,29 @@ def chain_rules(draw):
     return [seed, step]
 
 
-rule_sets = st.lists(st.one_of(rules().map(lambda r: [r]), chain_rules()), min_size=1, max_size=3).map(
+@st.composite
+def doubling_rules(draw):
+    """Non-linear recursion: a rule that joins the derived predicate with itself, fed by a chain step so that new triples keep arriving in
+    later rounds. A new triple can be the first or the second atom of the join, so a loop that follows only one of them misses derivations.
+    The sibling form (``p(x,y), p(z,y)`` gives ``p(x,z)``) has no other order that derives the same pair, so it needs both; the head subject is
+    a subject in the body, so it is never a number."""
+    k = draw(st.integers(0, len(DERIVED) - 1))
+    base_pred, step_pred = draw(st.sampled_from(BASE_PREDS)), draw(st.sampled_from(BASE_PREDS))
+    head_pred = DERIVED[k]
+    seed = Rule(head_pred, ("x", "y"), (("tp", (("v", "x"), ("c", base_pred), ("v", "y"))),), True)
+    chain = Rule(head_pred, ("x", "z"), (
+        ("tp", (("v", "x"), ("c", head_pred), ("v", "y"))),
+        ("tp", (("v", "y"), ("c", step_pred), ("v", "z"))),
+    ), True)
+    first, second = (("x", "y"), ("z", "y")) if draw(st.booleans()) else (("x", "y"), ("y", "z"))
+    join = Rule(head_pred, ("x", "z"), (
+        ("tp", (("v", first[0]), ("c", head_pred), ("v", first[1]))),
+        ("tp", (("v", second[0]), ("c", head_pred), ("v", second[1]))),
+    ), True)
+    return [seed, chain, join]
+
+
+rule_sets = st.lists(st.one_of(rules().map(lambda r: [r]), chain_rules(), doubling_rules()), min_size=1, max_size=3).map(
     lambda groups: [r for group in groups for r in group]
 )
 
@@ -367,18 +390,21 @@ data_triples = st.lists(
 )
 
 
-def _to_rdflib(triples) -> Graph:
-    g = Graph()
+XSD_INTEGER = ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer")
+
+
+def _to_graph(triples) -> StarLayerGraph:
+    g = StarLayerGraph()
     for s, p, o in triples:
-        g.add((URIRef(EX + s), URIRef(EX + p), Literal(o, datatype=XSD.integer) if isinstance(o, int) else URIRef(EX + o)))
+        g.add((ox.NamedNode(EX + s), ox.NamedNode(EX + p), ox.Literal(str(o), datatype=XSD_INTEGER) if isinstance(o, int) else ox.NamedNode(EX + o)))
     return g
 
 
-def _from_rdflib(graph: Graph) -> set:
+def _from_graph(graph: StarLayerGraph) -> set:
     def term(t):
-        return int(t) if isinstance(t, Literal) else str(t)[len(EX):]
+        return int(t.value) if isinstance(t, ox.Literal) else t.value[len(EX):]
 
-    return {(term(s), term(p), term(o)) for s, p, o in graph}
+    return {(term(s), term(p), term(o)) for s, p, o in graph.triples((None, None, None))}
 
 
 SETTINGS = settings(
@@ -389,8 +415,22 @@ SETTINGS = settings(
 )
 
 
+def _vp(s, p, o):
+    return ("tp", (("v", s), ("c", p), ("v", o)))
+
+
+# Pinned: derivations of the sibling join that need a later round's triple as its second atom (a loop that follows only the first
+# atom of a join misses them). Found by running the generator against such a loop.
+SIBLING_RULES = [
+    Rule("p0", ("x", "y"), (_vp("x", "b0", "y"),), True),
+    Rule("p0", ("x", "z"), (_vp("x", "p0", "y"), _vp("y", "b1", "z")), True),
+    Rule("p0", ("x", "z"), (_vp("x", "p0", "y"), _vp("z", "p0", "y")), True),
+]
+
+
 @pytest.mark.srl_conformance
 @given(rule_sets, base_triples, data_triples)
+@example(SIBLING_RULES, [("a", "b0", "b"), ("c", "b0", "a"), ("d", "b0", "c")], [])
 @SETTINGS
 def test_infer_matches_the_independent_evaluator(rule_list, base, data):
     strata = [[r for r in rule_list if r.head_pred == p] for p in DERIVED]
@@ -400,7 +440,7 @@ def test_infer_matches_the_independent_evaluator(rule_list, base, data):
     text = PRELUDE + data_text + "\n".join(r.srl() for r in rule_list) + "\n"
 
     expected = oracle_infer(set(base), [[r.oracle() for r in group] for group in strata], set(data))
-    actual = _from_rdflib(parse_ruleset(text, validate=False).infer(_to_rdflib(base)))
+    actual = _from_graph(parse_ruleset(text, validate=False).infer(_to_graph(base)))
     assert actual == expected, (
         f"rule set:\n{text}\nbase: {sorted(base, key=str)}\n"
         f"expected - actual: {sorted(expected - actual, key=str)}\nactual - expected: {sorted(actual - expected, key=str)}"
