@@ -52,24 +52,64 @@ def normalise_regimes(regime: Any) -> frozenset:
     return frozenset(out)
 
 
+_KEPT_ATTRIBUTE = "_shacl_entailed"
+_KEPT_VIEWS = 4  # regimes (and ontology graphs) kept per data graph
+
+
+def _fingerprint(triples: Iterable[Any]) -> tuple[int, int]:
+    """How many triples there are and a hash of their set (the sum of their hashes, wrapped to 64 bits): two graphs with the same
+    triples give the same pair, any other change to the triples gives another one."""
+    count = total = 0
+    for t in triples:
+        count += 1
+        total += hash(t)
+    return count, total & 0xFFFFFFFFFFFFFFFF
+
+
 def entailed_view(data_graph: Any, regime: Any = ENTAILMENT.RDFS, ont_graph: Any = None) -> Any:
     """``data_graph`` closed under ``regime``, as an overlay; with no regime, ``data_graph`` itself. Never mutates
-    ``data_graph`` or ``ont_graph``."""
+    ``data_graph`` or ``ont_graph``.
+
+    The overlay is kept on ``data_graph`` and returned again while the triples of ``data_graph`` and ``ont_graph`` are the same
+    (compared by content, not by the wrapper's write counter, which a validation's own report graph also moves), so validating
+    unchanged data again does not run the closure again. Nothing writes to the overlay."""
     regimes = normalise_regimes(regime)
     data_graph = engine_view(data_graph)
     if not regimes:
         return data_graph
-    from starlayer.shacl.engine.graphs import new_graph
+    ont = engine_view(ont_graph, "ontology graph") if ont_graph is not None and hasattr(ont_graph, "triples") else None
+    ont_triples = ont.triples((None, None, None)) if ont is not None else ont_graph  # an iterable of triples is accepted too
+    kept = getattr(data_graph, "__dict__", None)
+    kept = kept.setdefault(_KEPT_ATTRIBUTE, {}) if kept is not None else None
+    stamp = None
+    if kept is not None:
+        ont_triples = list(ont_triples) if ont_triples is not None else None
+        stamp = (_fingerprint(data_graph.triples((None, None, None))), _fingerprint(ont_triples) if ont_triples is not None else None)
+        hit = kept.get(regimes)
+        if hit is not None and hit[0] == stamp:
+            return hit[1]
+    from starlayer.graph.entailment.infer import DEFAULT_TIMEOUT, _delta_for, _regime_iri
 
-    combined = new_graph()
-    combined.extend(list(data_graph.triples((None, None, None))))
-    if ont_graph is not None:
-        ont_triples = engine_view(ont_graph, "ontology graph").triples((None, None, None)) if hasattr(ont_graph, "triples") else ont_graph
-        combined.extend([tuple(to_engine(x) for x in t) for t in ont_triples])
-    delta = combined.infer(entailment=regimes, mode="delta")
+    from starlayer.graph.core import StarLayerGraph
+
+    names = frozenset(_regime_iri(r) for r in regimes)
+    if ont_triples is None and type(data_graph) is StarLayerGraph:
+        delta = _delta_for(data_graph, names, "hermit", DEFAULT_TIMEOUT)  # reads only: no copy of the data is needed
+    else:
+        from starlayer.shacl.engine.graphs import new_graph
+
+        combined = new_graph()
+        combined.extend(list(data_graph.triples((None, None, None))))
+        if ont_triples is not None:
+            combined.extend([tuple(to_engine(x) for x in t) for t in ont_triples])
+        delta = _delta_for(combined, names, "hermit", DEFAULT_TIMEOUT)
     view = new_overlay(data_graph)
-    for t in delta.triples((None, None, None)):
+    for t in delta:
         view.add(t)
+    if kept is not None:
+        if regimes not in kept and len(kept) >= _KEPT_VIEWS:
+            kept.pop(next(iter(kept)))
+        kept[regimes] = (stamp, view)
     return view
 
 
