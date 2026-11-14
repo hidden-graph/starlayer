@@ -340,12 +340,20 @@ def _pattern_term_text(term) -> str:
     return _sparql_term(_ox_term(term))
 
 
-def _match(run: list[srl_ast.TriplePattern], g) -> list[dict]:
+_DELTA_GRAPH = ox.NamedNode("urn:starlayer:srl:delta")
+"""The named graph, in the evaluation graph's store, that holds the triples the previous round derived (see
+``_evaluate_ruleset_at_one_instant``)."""
+
+
+def _match(run: list[srl_ast.TriplePattern], g, delta_pos: int | None = None) -> list[dict]:
     """Every solution of the basic graph pattern ``run`` against ``g`` (an ``StarLayerGraph``), found by running the pattern as a
-    SPARQL 1.2 query. Keys are ``pyoxigraph.Variable`` s, values pyoxigraph terms."""
+    SPARQL 1.2 query. Keys are ``pyoxigraph.Variable`` s, values pyoxigraph terms. With ``delta_pos``, the pattern at that
+    position must match the delta graph instead of ``g``'s own triples."""
     patterns = [
         f"{_pattern_term_text(t.subject)} {_pattern_term_text(t.predicate)} {_pattern_term_text(t.object)}" for t in run
     ]
+    if delta_pos is not None:
+        patterns[delta_pos] = f"GRAPH <{_DELTA_GRAPH.value}> {{ {patterns[delta_pos]} }}"
 
     def _solutions(body: str) -> list[dict]:
         result = g.query(f"SELECT * WHERE {{ {body} }}")
@@ -466,10 +474,10 @@ def _blank_nodes_to_vars(
     return [_sub_element(e) for e in body]
 
 
-def _eval_triple_run(run: list[srl_ast.TriplePattern], seq: list[dict], g) -> list[dict]:
+def _eval_triple_run(run: list[srl_ast.TriplePattern], seq: list[dict], g, delta_pos: int | None = None) -> list[dict]:
     """One query for a maximal consecutive run of triple-pattern elements, joined with the incoming solutions - see module
     docstring for why this is equivalent to (and more efficient than) matching them one at a time."""
-    matches = _match(run, g)
+    matches = _match(run, g, delta_pos)
     return [{**mu, **m} for mu in seq for m in matches if _compatible(mu, m)]
 
 
@@ -644,21 +652,26 @@ def _eval_group(group: srl_ast._GroupElement, seq: list[dict], g, gd) -> list[di
     return out
 
 
-def _eval_rule_elements(elements: list[srl_ast.BodyElement], seq: list[dict], g, gd) -> list[dict]:
+def _eval_rule_elements(
+    elements: list[srl_ast.BodyElement], seq: list[dict], g, gd, delta_index: int | None = None
+) -> list[dict]:
     """§6.4's ``evalRuleElements`` - processes ``elements`` against the
     incoming solution sequence ``seq``, matching ordinary triple-pattern
-    runs against ``g`` and any ``DATA``-flagged negation against ``gd``."""
+    runs against ``g`` and any ``DATA``-flagged negation against ``gd``.
+    ``delta_index`` is the position in ``elements`` of the one triple pattern that must match the delta graph."""
     seq = list(seq)
     i = 0
     n = len(elements)
     while i < n:
         elt = elements[i]
         if isinstance(elt, srl_ast.TriplePattern):
+            start = i
             run: list[srl_ast.TriplePattern] = []
             while i < n and isinstance(elements[i], srl_ast.TriplePattern):
                 run.append(elements[i])
                 i += 1
-            seq = _eval_triple_run(run, seq, g)
+            in_run = delta_index is not None and start <= delta_index < i
+            seq = _eval_triple_run(run, seq, g, delta_index - start if in_run else None)
         elif isinstance(elt, srl_ast._FilterElement):
             seq = [mu for mu in seq if _eval_ebv(elt.expr, mu)]
             i += 1
@@ -735,12 +748,13 @@ def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[
     return tuple(_graph_term(part, _sub) for part in (triple.subject, triple.predicate, triple.object))
 
 
-def _eval_rule(rule: srl_ast._Rule, g, gd) -> set[tuple]:
-    """§6.4's ``evalRule``."""
+def _eval_rule(rule: srl_ast._Rule, g, gd, delta_index: int | None = None) -> set[tuple]:
+    """§6.4's ``evalRule``. With ``delta_index``, only the solutions in which the body element at that index (a triple pattern)
+    matches the delta graph (see ``_evaluate_ruleset_at_one_instant``)."""
     used_vars = _collect_variables(rule)
     body = _blank_nodes_to_vars(rule.body, used_vars)
     if rule.evaldata:
-        seq = _eval_rule_elements(body, [{}], g, gd)
+        seq = _eval_rule_elements(body, [{}], g, gd, delta_index)
     else:
         seq = _eval_rule_elements(body, [{}], gd, gd)
 
@@ -855,17 +869,58 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
                     gi.add(t)
                     ge.add(t)
 
-        finished = False
-        while not finished:
-            finished = True
-            for rule in general_rules:
-                for t in _eval_rule(rule, ge, base_graph):
-                    if t not in ge:
-                        finished = False
-                        gi.add(t)
-                        ge.add(t)
+        _run_to_fixpoint(general_rules, ge, base_graph, gi)
 
     return gi
+
+
+def _delta_positions(rule: srl_ast._Rule, heads: list[srl_ast.TriplePattern]) -> list[int]:
+    """The indexes in ``rule.body`` of the triple patterns that can match a triple one of ``heads`` derives. Only a top-level
+    triple pattern can: a negation or group is a closed dependency, so stratification puts what it reads in a lower stratum, and a
+    ``DATA`` rule reads the base graph only."""
+    if not rule.evaldata:
+        return []
+    return [
+        i
+        for i, element in enumerate(rule.body)
+        if isinstance(element, srl_ast.TriplePattern) and any(_pattern_matches_template(element, head) for head in heads)
+    ]
+
+
+def _run_to_fixpoint(rules: list[srl_ast._Rule], ge, base_graph, gi) -> None:
+    """The general rules of one stratum, repeated until no round derives a new triple.
+
+    The first round evaluates every rule in full. After that a rule can only give a new solution if one of its triple patterns
+    matches a triple the previous round derived, so each later round runs it once per such pattern, with that pattern restricted to
+    the delta graph (the previous round's triples, kept in a named graph of ``ge``'s store, so Oxigraph does the join) and the rest
+    of the body matched against everything. A rule with no such pattern cannot change after the first round. The result is the
+    same set as re-evaluating every rule in full each round; the work per round is proportional to the delta, not to the graph."""
+    heads = [head for rule in rules for head in rule.head]
+    positions = {id(rule): _delta_positions(rule, heads) for rule in rules}
+    store = ge.as_store()
+    delta: list[tuple] | None = None  # None until the first round has run
+    try:
+        while True:
+            added: list[tuple] = []
+            for rule in rules:
+                if delta is None:
+                    derived = _eval_rule(rule, ge, base_graph)
+                else:
+                    derived = set()
+                    for position in positions[id(rule)]:
+                        derived |= _eval_rule(rule, ge, base_graph, position)
+                for t in derived:
+                    if t not in ge:
+                        gi.add(t)
+                        ge.add(t)
+                        added.append(t)
+            if not added:
+                return
+            store.clear_graph(_DELTA_GRAPH)
+            store.extend(ox.Quad(*t, _DELTA_GRAPH) for t in added)
+            delta = added
+    finally:
+        store.clear_graph(_DELTA_GRAPH)
 
 
 def _srl_infer(base_graph, ruleset: srl_ast.RuleSet):
