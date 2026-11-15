@@ -313,3 +313,30 @@ is what Oxigraph does; the spec does not address that case explicitly, but the e
 
 What remains is a usage warning: an unchecked `COPY` from a mistyped graph name wipes the target. Pinned by
 `test_copy_and_add_of_an_absent_graph_are_allowed_to_succeed` (not an xfail).
+
+## 10. Ordering comparisons (`<`, `>`, `<=`, `>=`) of two equal IRIs give a value; the spec gives an error
+
+Project note, not for posting. Checked 2026-11-14 on pyoxigraph 0.5.13; the spec text read the same day (SPARQL 1.1 Query, W3C
+Recommendation 21 March 2013). Section 17.3 (Operator Mapping) defines `<`, `>`, `<=` and `>=` only for numeric, simple literal,
+`xsd:string`, `xsd:boolean` and `xsd:dateTime` operands; `<=` and `>=` are `logical-or` of the strict comparison and the equality
+function of that row. Only `=` and `!=` have an RDF-term row (`RDFterm-equal`). There is no row for IRIs, and 17.3 says "Operators
+invoked without appropriate operands result in a type error"; a FILTER whose expression is an error removes the solution.
+
+```python
+import pyoxigraph as ox
+
+store = ox.Store()
+for expr in ["<urn:a> = <urn:a>", "<urn:a> < <urn:a>", "<urn:a> > <urn:a>", "<urn:a> <= <urn:a>", "<urn:a> >= <urn:a>", "<urn:a> >= <urn:b>"]:
+    (row,) = list(store.query(f"SELECT ({expr} AS ?r) {{}}"))
+    print(expr, "->", None if row["r"] is None else row["r"].value)
+```
+
+Expected `true`, then an error (unbound) for the other five. Actual: `true`, `false`, `false`, **`true`, `true`**, then unbound. So two
+equal IRIs are compared (equal, hence not less, not greater, less-or-equal, greater-or-equal) and only two different IRIs are an
+error. The difference shows in a FILTER only for `<=` and `>=` (a `false` and an error both remove the row), and in `!`, `||` and
+`&&`, where an error and a `false` differ. rdflib 7.6.0 returns no value for all five ordering expressions, equal IRIs or not.
+
+Where it surfaces: `SRL_HYPOTHESIS_HUNT=1` runs of the SRL independent-evaluator check
+(`tests/sparql/srl_conformance/test_sr_evaluator.py`): `RULE { ?x :p0 ?x } WHERE { ?x :b1 ?y . FILTER (?x >= ?x) }` over
+`:a :b1 :a` derives `:a :p0 :a` on the engine, nothing in the evaluator. The default run is deterministic and does not draw it.
+Recorded as the strict xfail `test_ordering_comparisons_of_iris_are_errors`.

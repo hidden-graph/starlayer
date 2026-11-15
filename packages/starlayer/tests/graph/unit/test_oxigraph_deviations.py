@@ -3,7 +3,7 @@
 Each test states the outcome the specification gives and is a strict expected failure: it fails today because Oxigraph does
 something else, and it XPASSes (a failure, ``strict=True``) when a release fixes it, which is the signal to delete the xfail and
 revisit the row in ``docs/working/non-spec-behaviour.md``. The wrapper adds no client-side patch. The write-ups, with the bare
-pyoxigraph reproductions, are sections 6 to 8 of ``docs/working/oxigraph-upstream-issues.md``. Nothing is posted anywhere.
+pyoxigraph reproductions, are sections 6 to 8 and 10 of ``docs/working/oxigraph-upstream-issues.md``. Nothing is posted anywhere.
 
 A test lists every deviation it knows in its failure message; a release that fixes only some keeps the test an expected
 failure, so the document says which cases a release must fix before the xfail goes.
@@ -46,6 +46,16 @@ def test_boolean_ordering_false_before_true():
     g = StarLayerGraph()
     cases = {"false < true": "true", "true > false": "true", "false <= true": "true", "true >= false": "true",
              "true < false": "false", "true < true": "false"}  # SPARQL 1.1 section 17.3: op:boolean-less-than / -greater-than
+    wrong = {expr: (_value(g, expr), want) for expr, want in cases.items() if _value(g, expr) != want}
+    assert not wrong, f"(got, spec gives) per expression: {wrong}"
+
+
+@pytest.mark.xfail(strict=True, reason="Oxigraph compares equal IRIs with < > <= >= (oxigraph-upstream-issues.md section 10)")
+def test_ordering_comparisons_of_iris_are_errors():
+    g = StarLayerGraph()
+    # SPARQL 1.1 section 17.3: < > <= >= have no row for IRIs, so a type error (unbound); only = and != fall back to RDFterm-equal
+    cases = {"<urn:a> = <urn:a>": "true", "<urn:a> < <urn:a>": None, "<urn:a> > <urn:a>": None,
+             "<urn:a> <= <urn:a>": None, "<urn:a> >= <urn:a>": None, "<urn:a> >= <urn:b>": None}  # equal IRIs: Oxigraph gives false, false, true, true
     wrong = {expr: (_value(g, expr), want) for expr, want in cases.items() if _value(g, expr) != want}
     assert not wrong, f"(got, spec gives) per expression: {wrong}"
 
