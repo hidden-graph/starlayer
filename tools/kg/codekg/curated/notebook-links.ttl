@@ -542,16 +542,6 @@ nl:03-f6a58c6a a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.run.query" .
 
-nl:02d-836207d8 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
-    slkg:cellId "836207d8" ;
-    slkg:cellHash "1c8fc496abb9baf5" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Converts triple terms to the basic encoding and back with interop.to_basic and from_basic." ;
-    slkg:demonstratesIdentifier
-        "starlayer.graph.interop.to_basic",
-        "starlayer.graph.interop.from_basic" .
-
 nl:05a-f58f1639 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05a-manchester-syntax.ipynb" ;
     slkg:cellId "f58f1639" ;
