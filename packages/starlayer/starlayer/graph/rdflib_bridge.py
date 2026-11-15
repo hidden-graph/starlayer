@@ -332,8 +332,36 @@ def is_rdf_triple(triple: tuple[Any, Any, Any]) -> bool:
 
     return not isinstance(triple[0], Literal) and isinstance(triple[1], URIRef)
 
+_BARE_DATATYPES = frozenset(
+    "http://www.w3.org/2001/XMLSchema#" + n for n in ("string", "integer", "decimal", "double", "boolean")
+) | {"http://www.w3.org/1999/02/22-rdf-syntax-ns#langString", "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString"}
+
+
+def _iris_of(term: Any) -> Iterator[str]:
+    """The IRIs a term uses: itself, the parts of a triple term, and a literal's datatype (unless Turtle writes the literal without one)."""
+    if isinstance(term, ox.NamedNode):
+        yield term.value
+    elif isinstance(term, ox.Triple):
+        for part in (term.subject, term.predicate, term.object):
+            yield from _iris_of(part)
+    elif isinstance(term, ox.Literal) and term.datatype.value not in _BARE_DATATYPES:
+        yield term.datatype.value
+
+
+def keep_used_prefixes(graph: Any) -> None:
+    """Drop the prefixes of ``graph`` (a ``StarLayerGraph`` or ``StarLayerDataset``) whose namespace no IRI in its data starts with. rdflib binds about
+    thirty prefixes to every graph, used or not; a graph converted from rdflib keeps the ones its data uses."""
+    iris: set[str] = set()
+    for q in graph.store:
+        for term in (q.subject, q.predicate, q.object, q.graph_name):
+            iris.update(_iris_of(term))
+    for prefix, namespace in list(graph.prefixes.items()):
+        if not any(i.startswith(str(namespace)) for i in iris):
+            del graph.prefixes[prefix]
+
+
 def graph_from_rdflib(value: Any, *, restore_directions: bool = False) -> Any:
-    """A new ``StarLayerGraph`` from an rdflib ``Graph``, with its prefixes and, when it has an IRI identifier, that identifier.
+    """A new ``StarLayerGraph`` from an rdflib ``Graph``, with the prefixes its data uses and, when it has an IRI identifier, that identifier.
 
     A term that is not an RDF term (a relative IRI ...) raises ``ValueError``; a generalized triple (a literal subject, a predicate
     that is not an IRI, as owlrl makes) is left out. Oxigraph normalises some literals on insert (``"04"^^xsd:integer`` becomes
@@ -349,13 +377,14 @@ def graph_from_rdflib(value: Any, *, restore_directions: bool = False) -> Any:
         out.bind(prefix, str(ns))
     convert = from_rdflib_term if restore_directions else foreign_to_engine
     out.extend([(convert(s), convert(p), convert(o)) for s, p, o in value.triples((None, None, None)) if is_rdf_triple((s, p, o))])
+    keep_used_prefixes(out)
     return out
 
 
 def dataset_from_rdflib(value: Any) -> Any:
     """A new ``StarLayerDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / StarLayer dataset (every graph, empty named graphs
     too, ``default_union`` kept) or from a plain graph (its triples go to the default graph, whatever its identifier). Terms are
-    converted and checked as in ``graph_from_rdflib``, and a decomposed directional literal is restored. Prefixes are copied."""
+    converted and checked as in ``graph_from_rdflib``, and a decomposed directional literal is restored. The prefixes the data uses are copied."""
     from starlayer.graph.core import StarLayerDataset
 
     if isinstance(value, (StarLayerDataset, ox.Store)) or not hasattr(value, "namespaces"):
@@ -387,4 +416,5 @@ def dataset_from_rdflib(value: Any) -> Any:
             for s, p, o in g.triples((None, None, None))
             if is_rdf_triple((s, p, o))
         )
+    keep_used_prefixes(out)
     return out

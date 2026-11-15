@@ -945,7 +945,7 @@ class StarLayerGraph(_Base):
 
     @classmethod
     def from_rdflib(cls, graph: Any) -> StarLayerGraph:
-        """A new in-memory ``StarLayerGraph`` with the triples, prefixes and (when it is an IRI) identifier of an rdflib ``Graph`` or an
+        """A new in-memory ``StarLayerGraph`` with the triples, the prefixes its data uses and (when it is an IRI) identifier of an rdflib ``Graph`` or an
         old-style ``StarLayerGraph``; a ``TripleTerm`` becomes a triple term, a directional literal in its datatype-IRI form
         (what ``to_rdflib`` writes) is restored, and the basic encoding is left as triples (``interop.from_basic`` decodes it).
         A term RDF does not allow raises ``ValueError``. An ``StarLayerGraph`` is copied.
@@ -1077,7 +1077,7 @@ class StarLayerDataset(_Base):
     @classmethod
     def from_rdflib(cls, dataset: Any) -> StarLayerDataset:
         """A new in-memory ``StarLayerDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / ``StarLayerDataset`` (every graph, empty
-        named graphs too, prefixes, ``default_union``) or from a plain graph (its triples go to the default graph). Terms as in
+        named graphs too, the prefixes its data uses, ``default_union``) or from a plain graph (its triples go to the default graph). Terms as in
         ``StarLayerGraph.from_rdflib``. An ``StarLayerDataset`` is copied."""
         if isinstance(dataset, StarLayerDataset):
             return dataset.copy()
