@@ -476,6 +476,78 @@ class _Base:
         union.touch()
         return self
 
+    # ---- Oxigraph's own store methods, so a writer keeps the write counter and a graph stays within its own graph -----------------
+    # A method that names a graph acts on this graph alone when called on a ``StarLayerGraph`` (naming another graph is a ``ValueError``);
+    # on a ``StarLayerDataset`` it is Oxigraph's. Any other ``pyoxigraph.Store`` method is reached through ``.store``.
+    def _own_graph(self, name: Any) -> Any:
+        return terms.graph_name(name)
+
+    def _to_graph(self, to_graph: Any) -> dict[str, Any]:
+        return {} if to_graph is None and not isinstance(self, StarLayerGraph) else {"to_graph": self._own_graph(to_graph)}
+
+    def load(self, input: Any = None, format: Any = None, *, path: Any = None, base_iri: str | None = None,  # noqa: A002
+             to_graph: Any = None, lenient: bool = False) -> None:
+        """Oxigraph's ``Store.load``: parse a file or stream into the store. Triples go to ``to_graph``, by default this graph (the default graph on a dataset)."""
+        try:
+            self.store.load(input, format, path=path, base_iri=base_iri, lenient=lenient, **self._to_graph(to_graph))
+        finally:
+            union.touch()
+
+    def bulk_load(self, input: Any = None, format: Any = None, *, path: Any = None, base_iri: str | None = None,  # noqa: A002
+                  to_graph: Any = None, lenient: bool = False) -> None:
+        """Oxigraph's ``Store.bulk_load``: ``load`` without a transaction, faster for a large file."""
+        try:
+            self.store.bulk_load(input, format, path=path, base_iri=base_iri, lenient=lenient, **self._to_graph(to_graph))
+        finally:
+            union.touch()
+
+    def bulk_extend(self, quads: Iterable[Any]) -> None:
+        """Oxigraph's ``Store.bulk_extend``: ``extend`` without a transaction. On a ``StarLayerGraph`` only quads of its graph are added."""
+        try:
+            self.store.bulk_extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
+        finally:
+            union.touch()
+
+    def add_graph(self, graph_name: Any = None) -> None:
+        """Create an empty named graph (a dataset); on a ``StarLayerGraph`` it creates this graph, so the graph is listed even when empty."""
+        name = self._own_graph(graph_name)
+        if not isinstance(name, ox.DefaultGraph):
+            self.store.add_graph(name)
+            union.touch()
+
+    def clear_graph(self, graph_name: Any = None) -> None:
+        """Remove the triples of a graph and keep the graph (``remove_graph`` on a dataset drops it). On a ``StarLayerGraph`` this is ``clear()``."""
+        self.store.clear_graph(self._own_graph(graph_name))
+        union.touch()
+
+    def named_graphs(self) -> Iterator[Any]:
+        """The named graphs of the whole store, empty ones included, also from a ``StarLayerGraph``."""
+        return iter(self.store.named_graphs())
+
+    def contains_named_graph(self, graph_name: Any) -> bool:
+        """Whether the store has this named graph, also from a ``StarLayerGraph``."""
+        return self.store.contains_named_graph(terms.graph_name(graph_name))
+
+    def quads_for_pattern(self, subject: Any, predicate: Any, object: Any, graph_name: Any = None) -> Iterator[ox.Quad]:  # noqa: A002
+        """Oxigraph's ``Store.quads_for_pattern`` (``None`` is a wildcard; a ``graph_name`` of ``None`` is every graph on a dataset, this graph on a ``StarLayerGraph``)."""
+        return self.store.quads_for_pattern(subject, predicate, object, graph_name)
+
+    def dump(self, output: Any = None, format: Any = None, *, from_graph: Any = None, prefixes: Any = None, base_iri: str | None = None) -> Any:  # noqa: A002
+        """Oxigraph's ``Store.dump``. ``serialize()`` is the usual way to write a graph; ``dump`` writes the store's quads as Oxigraph does."""
+        return self.store.dump(output, format, from_graph=from_graph, prefixes=prefixes, base_iri=base_iri)
+
+    def flush(self) -> None:
+        """Flush an on-disk store to disk (the whole store, also from a ``StarLayerGraph``)."""
+        self.store.flush()
+
+    def optimize(self) -> None:
+        """Oxigraph's ``Store.optimize`` (the whole store)."""
+        self.store.optimize()
+
+    def backup(self, target_directory: Any) -> None:
+        """Oxigraph's ``Store.backup``: copy an on-disk store to a directory (the whole store)."""
+        self.store.backup(os.fspath(target_directory))
+
     # ---- parse / serialize --------------------------------------------------------------------------------------
     def parse(self, source: Any = None, format: str | None = None, *, data: Any = None, file: Any = None,  # noqa: A002
               base: str | None = None, publicID: str | None = None, rename_blank_nodes: bool = True) -> Any:  # noqa: N803
@@ -983,6 +1055,17 @@ class StarLayerGraph(_Base):
 
     def _engine_graph_name(self, union: Any, default: Any) -> Any:
         return default if isinstance(self._g, ox.DefaultGraph) else self._g
+
+    def _own_graph(self, name: Any) -> Any:
+        if name is not None and terms.graph_name(name) != self._g:
+            raise ValueError(f"this StarLayerGraph holds graph {self._g}; it cannot act on graph {name}")
+        return self._g
+
+    def quads_for_pattern(self, subject: Any, predicate: Any, object: Any, graph_name: Any = None) -> Iterator[ox.Quad]:  # noqa: A002
+        return self.store.quads_for_pattern(subject, predicate, object, self._own_graph(graph_name))
+
+    def dump(self, output: Any = None, format: Any = None, *, from_graph: Any = None, prefixes: Any = None, base_iri: str | None = None) -> Any:  # noqa: A002
+        return self.store.dump(output, format, from_graph=self._own_graph(from_graph), prefixes=prefixes, base_iri=base_iri)
 
     def clear(self) -> StarLayerGraph:
         """Remove every triple of this graph only; other graphs of the store are untouched."""
