@@ -1,6 +1,6 @@
 # StarLayer User Guides
 
-*Last reviewed: 2026-11-13*
+*Last reviewed: 2026-11-14*
 
 This is the single master index for every guide notebook - every notebook's own "How to run this notebook" cell links back here, rather than repeating this list in-body (see [`STYLE_GUIDE.md`](STYLE_GUIDE.md)). Update this file when a guide is added, renamed, or reordered; no other file needs to change.
 
@@ -13,7 +13,8 @@ This is the single master index for every guide notebook - every notebook's own 
    - **2.a [Working with datasets](02a-graphs-datasets.ipynb)** - `StarLayerDataset`, multiple named graphs in one store.
    - **2.b [Inferencing](02b-graphs-inferencing.ipynb)** - RDF/RDFS/OWL 2 RL reasoning via `owlrl` (and natively for RDF), the full entailment-regime picture (what each regime means, the regime-support status table, which one to use), and a worked example of both the `infer()` and `query(entailment=...)` forms per regime.
    - **2.c [OWL 2 DL reasoning](02c-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).
-   - **2.d [The Oxigraph-backed graph](02d-oxigraph-wrapper.ipynb)** - `StarLayerGraph` / `StarLayerDataset`: the `.store` boundary to pyoxigraph, which methods are wrapped, how queries and persistence differ from raw Oxigraph, set operations, literal rewriting and RDF 1.1 output, then the everyday helpers: terms and Python values (`literal`, `to_python`, `parse_term`), RDF lists, `set` and walks, changes between graphs (`diff`, `GraphDelta`) and `profile()`.
+   - **2.d [The Oxigraph-backed graph](02d-oxigraph-wrapper.ipynb)** - `StarLayerGraph` / `StarLayerDataset` hold a `pyoxigraph.Store`: any store method can be called through `.ox` on the graph or dataset (`g.ox.load(...)`), which is better than `.store` because the wrapper records writes (the caching warning); converting to and from rdflib; what the store does to literals; RDF 1.1 output.
+   - **2.e [Working with a graph's contents](02e-graph-contents.ipynb)** - terms and Python values (`literal`, `to_python`, `parse_term`), RDF lists, `set` and walks, prefixes, set operations, `diff` and `GraphDelta`, `profile()`, `owl:imports` with a loader, and skolemization and `cbd`.
 3. **[SPARQL](03-sparql.ipynb)** - query semantics and built-in functions, your own Python functions and aggregates (`custom_functions`), and writing results as JSON, XML, CSV, TSV or RDF (`Result.serialize`).
    - **3.a [SPARQL entailment](03a-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.b already covers per regime: caching behavior (`infer=`) and detecting an inconsistency via `ASK`.
    - **3.b [SRL (SPARQL Rules)](03b-srl-sparql-rules.ipynb)** - a separate Datalog-style rules language independent of SHACL: parsing (including RDF 1.2 triple terms, annotations, `/` `^` property paths and `IMPORTS`), inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.

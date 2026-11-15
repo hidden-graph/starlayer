@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
-  "version": "1.6.0",
-  "lastUpdated": "2026-11-13",
+  "version": "1.7.0",
+  "lastUpdated": "2026-11-14",
   "canonicalSource": "docs/guides/README.md",
   "artifacts": {
     "index": [
@@ -14,6 +14,7 @@
       "docs/guides/02b-graphs-inferencing.ipynb",
       "docs/guides/02c-owl-dl-reasoning.ipynb",
       "docs/guides/02d-oxigraph-wrapper.ipynb",
+      "docs/guides/02e-graph-contents.ipynb",
       "docs/guides/03-sparql.ipynb",
       "docs/guides/03a-sparql-entailment.ipynb",
       "docs/guides/03b-srl-sparql-rules.ipynb",

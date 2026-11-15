@@ -302,8 +302,8 @@ nl:03-b337c254 a slkg:NotebookExample ;
     rdfs:comment "Runs a SPARQL 1.2 INSERT DATA with a triple term through update() on a StarLayerGraph." ;
     slkg:demonstratesIdentifier "starlayer.graph.core._Base.update" .
 
-nl:02d-0e389edf a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+nl:02e-0e389edf a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "0e389edf" ;
     slkg:cellHash "02e289f3665d74b6" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -313,8 +313,8 @@ nl:02d-0e389edf a slkg:NotebookExample ;
         "starlayer.graph.terms.to_python",
         "starlayer.graph.terms.parse_term" .
 
-nl:02d-b720f67c a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+nl:02e-b720f67c a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "b720f67c" ;
     slkg:cellHash "a32a1829c76c48b6" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -323,8 +323,8 @@ nl:02d-b720f67c a slkg:NotebookExample ;
         "starlayer.graph.rdflist.set_list",
         "starlayer.graph.rdflist.transitive_objects" .
 
-nl:02d-86299ef1 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+nl:02e-86299ef1 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "86299ef1" ;
     slkg:cellHash "c623184f857f5ee5" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -332,8 +332,8 @@ nl:02d-86299ef1 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.delta.diff" .
 
-nl:02d-33753b85 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+nl:02e-33753b85 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "33753b85" ;
     slkg:cellHash "237b445abb650b42" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -424,8 +424,8 @@ nl:04-8c133de1 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl._adapter.target_nodes" .
 
-nl:02d-a8ec380e a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+nl:02e-a8ec380e a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "a8ec380e" ;
     slkg:cellHash "ba6bd51487b21ceb" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -436,8 +436,8 @@ nl:02d-a8ec380e a slkg:NotebookExample ;
         "starlayer.graph.core._Base.unbind",
         "starlayer.graph.config.set_default_prefixes" .
 
-nl:02d-f1925477 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+nl:02e-f1925477 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "f1925477" ;
     slkg:cellHash "dde0cc65016246a9" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -446,8 +446,8 @@ nl:02d-f1925477 a slkg:NotebookExample ;
         "starlayer.graph.imports.can_resolve_import",
         "starlayer.graph.core._Base.resolve_imports" .
 
-nl:02d-df2eca05 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-oxigraph-wrapper.ipynb" ;
+nl:02e-df2eca05 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "df2eca05" ;
     slkg:cellHash "880e18b379327ca2" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
