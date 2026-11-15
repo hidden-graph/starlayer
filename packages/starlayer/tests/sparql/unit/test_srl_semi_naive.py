@@ -33,16 +33,17 @@ RULE_SETS = {
 }
 
 
-def _naive(rules, ge, base_graph, gi):
+def _naive(rules, evaluation):
     finished = False
     while not finished:
         finished = True
         for rule in rules:
-            for t in srl_eval._eval_rule(rule, ge, base_graph):
-                if t not in ge:
+            for t in srl_eval._eval_rule(rule, evaluation.ge, evaluation.base):
+                if t not in evaluation.ge:
                     finished = False
-                    gi.add(t)
-                    ge.add(t)
+                    evaluation.ge.add(t)
+                    evaluation.store.add(ox.Quad(*t, srl_eval._INFERRED_GRAPH))
+    evaluation.forget_size()
 
 
 def _graph(seed: int, nodes: int = 7, edges: int = 12) -> StarLayerGraph:
@@ -136,8 +137,11 @@ def test_which_rules_the_store_takes():
     assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . ?a :s ?b . NOT { ?a :r ?b } }", filter_first=True) is None
     assert _plan("RULE { ?a :q ?b } WHERE DATA { ?a :p ?b }") is None
     assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?b . NOT DATA { ?a :r ?b } }") is None
-    assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . SET (?b := ?x + 1) }") is None
-    assert _plan("RULE { ?a :q [] } WHERE { ?a :p ?b }") is None
+    assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . SET (?b := ?x + 1) }") is not None
+    assert _plan("RULE { ?a :q [] } WHERE { ?a :p ?b }") is not None
+    assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . SET (?b := BNODE(STR(?x))) }") is None  # a node of its own on each call
+    assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . SET (?b := ?x + 1) FILTER(?b > 1) }") is not None  # the assignment binds ?b first
+    assert _plan("RULE { ?a :q ?s } WHERE { GROUP BY ?a { ?a :p ?v } [ ?s := SUM(?v) ] }") is None
 
 
 def test_a_filter_before_its_variable_is_bound_keeps_the_in_order_meaning():
@@ -157,18 +161,18 @@ def test_the_delta_graph_is_gone_afterwards():
     ge_stores = []
     real = srl_eval._run_to_fixpoint
 
-    def spy(rules, ge, base_graph, gi):
-        real(rules, ge, base_graph, gi)
-        ge_stores.append(ge.as_store())
+    def spy(rules, evaluation):
+        real(rules, evaluation)
+        ge_stores.append(evaluation.store)
 
     srl_eval._run_to_fixpoint = spy
     try:
         ruleset.infer(graph)
     finally:
         srl_eval._run_to_fixpoint = real
-    scratch = (srl_eval._DELTA_GRAPH, srl_eval._CANDIDATE_GRAPH, srl_eval._NEW_GRAPH, srl_eval._INFERRED_GRAPH)
+    scratch = (srl_eval._DELTA_GRAPH, srl_eval._CANDIDATE_GRAPH)
     assert ge_stores and all(not list(s.quads_for_pattern(None, None, None, g)) for s in ge_stores for g in scratch)
-    assert not any(list(graph.as_store().quads_for_pattern(None, None, None, g)) for g in scratch)
+    assert not any(list(graph.as_store().quads_for_pattern(None, None, None, g)) for g in (*scratch, srl_eval._INFERRED_GRAPH))
 
 
 def test_a_long_chain_is_not_cubic():

@@ -32,6 +32,7 @@ node-per-solution head instantiation (§6.4).
 from __future__ import annotations
 
 import datetime
+import re
 from contextvars import ContextVar
 from dataclasses import dataclass
 
@@ -830,6 +831,12 @@ def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):
     Raises:
         SRLImportsNotSupportedError: If ``ruleset.imports`` is non-empty.
     """
+    return _evaluate(base_graph, ruleset).inferred_graph()
+
+
+def _evaluate(base_graph, ruleset: srl_ast.RuleSet) -> _Evaluation:
+    """The rule set run to its end, as the :class:`_Evaluation` that holds the evaluation graph (the base graph and the rule
+    set's own data, with everything the rules derived) and, apart, the derived triples."""
     token = _NOW.set(_NOW.get() or datetime.datetime.now(datetime.timezone.utc))
     rendered = _RENDERED.set({})
     try:
@@ -839,7 +846,7 @@ def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):
         _NOW.reset(token)
 
 
-def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
+def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet) -> _Evaluation:
     from starlayer.shacl.engine.graphs import new_graph
 
     base_graph = flatten_dataset(base_graph)
@@ -861,27 +868,13 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet):
                 raise SRLEvalError(f"SRL: a DATA block has a triple that is not an RDF triple (literal subject or non-IRI predicate): {t}")
             d.add(triple)
 
-    from starlayer.graph.core import StarLayerGraph
-
-    gi = StarLayerGraph(prefixes={})  # the caller binds the prefixes it wants on the result
-    for t in d:
-        if t not in base_graph:
-            gi.add(t)
-
-    ge = new_graph()
-    ge.extend(_default_quads(base_graph))
-    ge.extend(_default_quads(d))
-
+    evaluation = _Evaluation(base_graph, [t for t in d if t not in base_graph])
     for once_rules, general_rules in _stratify(ruleset):
         for rule in once_rules:
-            for t in _eval_rule(rule, ge, base_graph):
-                if t not in ge:
-                    gi.add(t)
-                    ge.add(t)
+            _derive_once([rule], evaluation)
+        _run_to_fixpoint(general_rules, evaluation)
 
-        _run_to_fixpoint(general_rules, ge, base_graph, gi)
-
-    return gi
+    return evaluation
 
 
 def _delta_positions(rule: srl_ast._Rule, heads: list[srl_ast.TriplePattern]) -> list[int]:
@@ -898,10 +891,9 @@ def _delta_positions(rule: srl_ast._Rule, heads: list[srl_ast.TriplePattern]) ->
 
 
 _CANDIDATE_GRAPH = ox.NamedNode("urn:starlayer:srl:candidate")
-_NEW_GRAPH = ox.NamedNode("urn:starlayer:srl:new")
 _INFERRED_GRAPH = ox.NamedNode("urn:starlayer:srl:inferred")
-"""Named graphs in the evaluation graph's store that a round of ``_run_to_fixpoint`` works in: what the rules derived (the
-candidates), the part of that which is new, and everything derived so far."""
+"""Named graphs in the evaluation graph's store that a run works in: what the rules derived in a round (the candidates), and
+everything derived so far. With ``_DELTA_GRAPH`` they are the only graphs ``_Evaluation`` adds to the store."""
 
 
 def _has_blank_node(term) -> bool:
@@ -910,37 +902,80 @@ def _has_blank_node(term) -> bool:
     return isinstance(term, TripleTermNode) and any(_has_blank_node(part) for part in _triple_term_parts(term))
 
 
+_NOT_IN_THE_STORE = re.compile(r"(?i)\bBNODE\s*\(")
+"""An expression the store would not evaluate as ``_eval_expr`` does: ``BNODE(str)`` names its node by the label, so the store
+gives one node to every solution that has the label, where the draft wants a different blank node on each call."""
+
+
 @dataclass
 class _StorePlan:
-    """A general rule the store can evaluate by itself: ``INSERT { GRAPH <candidate> { head } } WHERE { body }``."""
+    """A rule the store can evaluate by itself, as ``INSERT { GRAPH <candidate> { head } } WHERE { body }`` (or, for some rules
+    in a pass that needs no rounds, directly into the evaluation graph: see :meth:`direct`)."""
 
-    head: str
-    parts: list[tuple[str, int, str]]  # ("triple" | "filter" | "not", index in the rule's body, SPARQL text)
+    heads: list[str]  # the head's triples, each written as a template (a blank node has a label of its own for the rule)
+    parts: list[tuple[str, int, str]]  # ("triple" | "filter" | "bind" | "not", index in the rule's body, SPARQL text)
+    fresh: bool  # the head has a blank node: every solution gives triples that are not in the graph
+    linked: bool  # the head has a variable, so a MINUS can compare a head triple with the graph
+
+    @property
+    def head(self) -> str:
+        return " ".join(self.heads)
+
+    def _where(self, delta_index: int | None) -> str:
+        where = ""
+        for kind, index, text in self.parts:
+            if kind == "triple":
+                where += f"GRAPH <{_DELTA_GRAPH.value}> {{ {text} }} " if index == delta_index else f"{text} . "
+            elif kind == "filter":
+                where += f"FILTER({text}) "
+            elif kind == "bind":
+                # a group's filter applies to the whole group, so the one that drops a solution whose assignment is an error
+                # (the variable is not bound) must close a group, or a pattern after it that binds the variable would let it pass
+                where = f"{{ {where}{text} }} "
+            else:
+                where += f"FILTER NOT EXISTS {{ {text} }} "
+        return where
 
     def update(self, delta_index: int | None) -> str:
         """The update; with ``delta_index`` the triple pattern at that body index matches the delta graph only."""
-        where = []
-        for kind, index, text in self.parts:
-            if kind == "triple":
-                where.append(f"GRAPH <{_DELTA_GRAPH.value}> {{ {text} }} " if index == delta_index else f"{text} . ")
-            elif kind == "filter":
-                where.append(f"FILTER({text}) ")
-            else:
-                where.append(f"FILTER NOT EXISTS {{ {text} }} ")
-        return f"INSERT {{ GRAPH <{_CANDIDATE_GRAPH.value}> {{ {self.head} }} }} WHERE {{ {''.join(where)}}}"
+        return f"INSERT {{ GRAPH <{_CANDIDATE_GRAPH.value}> {{ {self.head} }} }} WHERE {{ {self._where(delta_index)}}}"
+
+    def direct(self) -> str | None:
+        """An update that puts what the rule derives, and is not in the graph yet, in the evaluation graph and the inferred
+        graph, or ``None`` when that cannot be told in one update: a rule with a blank node in the head always gives new triples;
+        one with a single head triple has the graph's own copies taken away by a ``MINUS`` (which compares nothing if the triple
+        has no variable)."""
+        if self.fresh:
+            minus = ""
+        elif len(self.heads) == 1 and self.linked:
+            minus = f"MINUS {{ {self.head} }} "
+        else:
+            return None
+        return f"INSERT {{ {self.head} GRAPH <{_INFERRED_GRAPH.value}> {{ {self.head} }} }} WHERE {{ {self._where(None)}{minus}}}"
+
+
+def _head_term_text(term, labels: dict) -> str | None:
+    """A head term as a template writes it; ``None`` for a blank node inside a triple term, which the store is not given."""
+    if isinstance(term, BNode):
+        return "_:" + labels.setdefault(term, f"srlb{len(labels)}")
+    if _has_blank_node(term):
+        return None
+    return _pattern_term_text(term)
 
 
 def _store_plan(rule: srl_ast._Rule) -> _StorePlan | None:
     """The plan for evaluating ``rule`` inside the store, or ``None`` when the rule needs the element-by-element evaluation: the
     store would give a different answer, or this is not worth the risk. The body is read in order and each element must see
     only what the elements before it bound, as ``_eval_rule_elements`` does, whereas a SPARQL group scopes a filter over
-    everything in it; so a filter, or a negation, may use only variables a triple pattern before it binds (a negation's variables
-    that no triple pattern uses are its own). Only triple patterns, filters and negations of plain triple patterns are handled,
-    for a rule that reads the evaluation graph (not ``WHERE DATA``)."""
+    everything in it; so a filter, an assignment's expression, or a negation, may use only variables a triple pattern or an
+    assignment before it binds (a negation's variables that nothing else binds are its own). Only triple patterns, filters,
+    assignments and negations of plain triple patterns are handled, for a rule that reads the evaluation graph (not ``WHERE
+    DATA``). An assignment whose expression is an error drops the solution, as it does in the element-by-element evaluation."""
     if not rule.evaldata:
         return None
     body = _blank_nodes_to_vars(rule.body, _collect_variables(rule))
     in_patterns = {v for e in body if isinstance(e, srl_ast.TriplePattern) for term in (e.subject, e.predicate, e.object) for v in _term_variables(term)}
+    in_patterns |= {e.var for e in body if isinstance(e, srl_ast._AssignmentElement)}
     bound: set = set()
     parts: list[tuple[str, int, str]] = []
     for index, element in enumerate(body):
@@ -953,6 +988,12 @@ def _store_plan(rule: srl_ast._Rule) -> _StorePlan | None:
             if "EXISTS" in text.upper() or not set(expr_variables(element.expr)) <= bound:
                 return None
             parts.append(("filter", index, text))
+        elif isinstance(element, srl_ast._AssignmentElement):
+            text = _expression_text(element.expr)
+            if "EXISTS" in text.upper() or _NOT_IN_THE_STORE.search(text) or element.var in bound or not set(expr_variables(element.expr)) <= bound:
+                return None
+            parts.append(("bind", index, f"BIND({text} AS ?{element.var.value}) FILTER(BOUND(?{element.var.value}))"))
+            bound.add(element.var)
         elif isinstance(element, srl_ast._NegationElement):
             if not element.evaldata or not all(isinstance(i, srl_ast.TriplePattern) for i in element.inner) or not element.inner:
                 return None
@@ -967,26 +1008,18 @@ def _store_plan(rule: srl_ast._Rule) -> _StorePlan | None:
             return None
     if not any(kind == "triple" for kind, _, _ in parts):
         return None
-    head = []
+    heads = []
+    labels: dict = {}
+    head_variables: set = set()
     for template in rule.head:
         terms = (template.subject, template.predicate, template.object)
-        if any(_has_blank_node(t) for t in terms) or not {v for t in terms for v in _term_variables(t)} <= bound:
-            return None  # the element-by-element evaluation makes the blank node, or raises for the unbound variable
-        head.append(" ".join(_pattern_term_text(t) for t in terms) + " .")
-    return _StorePlan(" ".join(head), parts)
-
-
-def _derive_into_candidates(rule: srl_ast._Rule, plan: _StorePlan | None, position: int | None, ge, base_graph, store) -> None:
-    """Put what ``rule`` derives (with its pattern at ``position`` restricted to the delta graph, if given) in the candidate graph."""
-    if plan is not None:
-        try:
-            store.update(plan.update(position))
-            return
-        except RuntimeError:
-            pass  # the engine cannot evaluate this one (see ``_match``): do it element by element
-    derived = _eval_rule(rule, ge, base_graph, position)
-    if derived:
-        store.extend(ox.Quad(*t, _CANDIDATE_GRAPH) for t in derived)
+        texts = [_head_term_text(t, labels) for t in terms]
+        variables = {v for t in terms for v in _term_variables(t)}
+        if None in texts or not variables <= bound:
+            return None  # the element-by-element evaluation raises for the unbound variable
+        head_variables |= variables
+        heads.append(" ".join(texts) + " .")
+    return _StorePlan(heads, parts, bool(labels), bool(head_variables))
 
 
 _MINUS_FROM = 12
@@ -996,73 +1029,172 @@ Python (about 4 microseconds each, against 10 to 20 for ``FILTER NOT EXISTS``, w
 on pyoxigraph 0.5.13, graphs of 1,000 to 60,000 triples."""
 
 
-def _count(store, graph: ox.NamedNode) -> int:
-    (row,) = store.query(f"SELECT (COUNT(*) AS ?n) WHERE {{ GRAPH <{graph.value}> {{ ?s ?p ?o }} }}")
+def _count(store, graph: ox.NamedNode | None = None) -> int:
+    """How many triples ``graph`` has (the default graph if none is given)."""
+    pattern = "?s ?p ?o" if graph is None else f"GRAPH <{graph.value}> {{ ?s ?p ?o }}"
+    (row,) = store.query(f"SELECT (COUNT(*) AS ?n) WHERE {{ {pattern} }}")
     return int(row["n"].value)
 
 
-def _commit_round(store, size: int) -> int:
-    """Keep the candidates that are not in the evaluation graph yet (which has ``size`` triples): they go in the graph, in the
-    inferred graph, and become the delta graph. Returns how many there were (0 is the fixpoint)."""
-    candidates = _count(store, _CANDIDATE_GRAPH)
-    if candidates * _MINUS_FROM <= size:
-        fresh = []
-        for q in store.quads_for_pattern(None, None, None, _CANDIDATE_GRAPH):
-            triple = ox.Quad(q.subject, q.predicate, q.object)
-            if triple not in store:
-                fresh.append(triple)
-        store.clear_graph(_CANDIDATE_GRAPH)
-        store.clear_graph(_DELTA_GRAPH)
-        store.extend(fresh)
-        store.extend(ox.Quad(q.subject, q.predicate, q.object, _INFERRED_GRAPH) for q in fresh)
-        store.extend(ox.Quad(q.subject, q.predicate, q.object, _DELTA_GRAPH) for q in fresh)
-        return len(fresh)
-    cand, new, inf, delta = (f"<{g.value}>" for g in (_CANDIDATE_GRAPH, _NEW_GRAPH, _INFERRED_GRAPH, _DELTA_GRAPH))
-    store.update(
-        f"INSERT {{ GRAPH {new} {{ ?s ?p ?o }} }} WHERE {{ {{ GRAPH {cand} {{ ?s ?p ?o }} }} MINUS {{ ?s ?p ?o }} }}; "
-        f"CLEAR SILENT GRAPH {cand}; "
-        f"INSERT {{ ?s ?p ?o . GRAPH {inf} {{ ?s ?p ?o }} }} WHERE {{ GRAPH {new} {{ ?s ?p ?o }} }}; "
-        f"CLEAR SILENT GRAPH {delta}; MOVE SILENT {new} TO {delta}"
-    )
-    return _count(store, _DELTA_GRAPH)
+class _Evaluation:
+    """One run of a rule set. ``ge`` is the evaluation graph: the base graph, the rule set's own data and what the rules have
+    derived; ``base`` is the base graph (what ``WHERE DATA`` reads). The store behind ``ge`` also holds, in named graphs, every
+    triple derived so far (``_INFERRED_GRAPH``) and the work of the round in progress (``_CANDIDATE_GRAPH``, ``_DELTA_GRAPH``),
+    so the rules can run in the store (see ``_run_to_fixpoint``) and the base graph is copied once, in."""
+
+    def __init__(self, base_graph, data: list[tuple]):
+        """``data`` is the triples of the rule set's own DATA blocks that the base graph does not have."""
+        from starlayer.shacl.engine.graphs import new_graph
+
+        self.base = base_graph
+        self.ge = new_graph()
+        self.store = self.ge.as_store()  # written to directly: the graph is this run's own, and the wrapper would look at each quad
+        self.store.extend(_default_quads(base_graph))
+        self.store.extend(ox.Quad(*t) for t in data)
+        self._size: int | None = len(self.store)
+        self.store.extend(ox.Quad(*t, _INFERRED_GRAPH) for t in data)
+
+    @property
+    def size(self) -> int:
+        """The number of triples in the evaluation graph (counted again only after the store has changed it unseen)."""
+        if self._size is None:
+            self._size = _count(self.store)
+        return self._size
+
+    def forget_size(self) -> None:
+        self._size = None
+
+    def refresh(self) -> None:
+        """The store changes under ``ge``'s wrapper; whatever the wrapper kept about the union is stale."""
+        self.ge.as_store()
+
+    def insert_directly(self, plan: _StorePlan) -> bool:
+        """Run ``plan`` as one update into the evaluation graph and the inferred graph; ``False`` if the plan has no such form or
+        the engine cannot evaluate it (nothing is changed then)."""
+        text = plan.direct()
+        if text is None:
+            return False
+        self.refresh()
+        try:
+            self.store.update(text)
+        except RuntimeError:
+            return False  # the engine cannot evaluate this one (see ``_match``)
+        self.forget_size()
+        return True
+
+    def commit(self, delta: bool) -> int:
+        """Keep the candidates that are not in the evaluation graph yet: they go in the graph and the inferred graph, and, with
+        ``delta``, become the delta graph (the previous one is dropped). With ``delta`` it returns how many there were (0 is the
+        fixpoint)."""
+        store = self.store
+        candidates = _count(store, _CANDIDATE_GRAPH)
+        if not candidates:
+            if delta:
+                store.clear_graph(_DELTA_GRAPH)
+            return 0
+        if candidates * _MINUS_FROM <= self.size:
+            fresh = []
+            for q in store.quads_for_pattern(None, None, None, _CANDIDATE_GRAPH):
+                triple = ox.Quad(q.subject, q.predicate, q.object)
+                if triple not in store:
+                    fresh.append(triple)
+            store.clear_graph(_CANDIDATE_GRAPH)
+            if delta:
+                store.clear_graph(_DELTA_GRAPH)
+            store.extend(fresh)
+            store.extend(ox.Quad(q.subject, q.predicate, q.object, _INFERRED_GRAPH) for q in fresh)
+            if delta:
+                store.extend(ox.Quad(q.subject, q.predicate, q.object, _DELTA_GRAPH) for q in fresh)
+            self._size = self.size + len(fresh)
+            return len(fresh)
+        cand, inf, new = (f"<{g.value}>" for g in (_CANDIDATE_GRAPH, _INFERRED_GRAPH, _DELTA_GRAPH))
+        targets = f"?s ?p ?o . GRAPH {inf} {{ ?s ?p ?o }}" + (f" GRAPH {new} {{ ?s ?p ?o }}" if delta else "")
+        store.update(
+            (f"CLEAR SILENT GRAPH {new}; " if delta else "")
+            + f"INSERT {{ {targets} }} WHERE {{ GRAPH {cand} {{ ?s ?p ?o }} MINUS {{ ?s ?p ?o }} }}; CLEAR SILENT GRAPH {cand}"
+        )
+        if delta:
+            added = _count(store, _DELTA_GRAPH)
+            self._size = self.size + added
+            return added
+        self.forget_size()
+        return candidates
+
+    def clear_scratch(self) -> None:
+        for graph in (_CANDIDATE_GRAPH, _DELTA_GRAPH):
+            self.store.clear_graph(graph)
+
+    def inferred_graph(self):
+        """Everything the rules derived, as a graph of its own (never a triple the base graph has)."""
+        from starlayer.graph.core import StarLayerGraph
+
+        gi = StarLayerGraph(prefixes={})  # the caller binds the prefixes it wants on the result
+        gi.as_store().extend([ox.Quad(q.subject, q.predicate, q.object) for q in self.store.quads_for_pattern(None, None, None, _INFERRED_GRAPH)])
+        gi.as_store()  # (the wrapper hears of the write)
+        return gi
 
 
-def _run_to_fixpoint(rules: list[srl_ast._Rule], ge, base_graph, gi) -> None:
+def _derive_into_candidates(rule: srl_ast._Rule, plan: _StorePlan | None, position: int | None, evaluation: _Evaluation) -> None:
+    """Put what ``rule`` derives (with its pattern at ``position`` restricted to the delta graph, if given) in the candidate graph."""
+    if plan is not None:
+        try:
+            evaluation.store.update(plan.update(position))
+            return
+        except RuntimeError:
+            pass  # the engine cannot evaluate this one (see ``_match``): do it element by element
+    derived = _eval_rule(rule, evaluation.ge, evaluation.base, position)
+    if derived:
+        evaluation.store.extend(ox.Quad(*t, _CANDIDATE_GRAPH) for t in derived)
+
+
+def _derive_once(rules: list[srl_ast._Rule], evaluation: _Evaluation, plans: dict | None = None) -> None:
+    """One pass of ``rules`` over the evaluation graph, with nothing to repeat: a rule that ``_StorePlan.direct`` can express
+    writes its new triples in the store at once; the others go through the candidate graph. Used for the run-once rules (each
+    sees what the one before it derived) and for the general rules of a stratum that no rule of the stratum feeds."""
+    evaluation.refresh()
+    pending = False
+    for rule in rules:
+        plan = plans[id(rule)] if plans is not None else _store_plan(rule)
+        if plan is not None and evaluation.insert_directly(plan):
+            continue
+        _derive_into_candidates(rule, plan, None, evaluation)
+        pending = True
+    if pending:
+        evaluation.commit(delta=False)
+
+
+def _run_to_fixpoint(rules: list[srl_ast._Rule], evaluation: _Evaluation) -> None:
     """The general rules of one stratum, repeated until no round derives a new triple.
 
     The first round evaluates every rule in full. After that a rule can only give a new solution if one of its triple patterns
     matches a triple the previous round derived, so each later round runs it once per such pattern, with that pattern restricted to
-    the delta graph (the previous round's triples, kept in a named graph of ``ge``'s store, so Oxigraph does the join) and the rest
-    of the body matched against everything. A rule with no such pattern cannot change after the first round. The result is the
-    same set as re-evaluating every rule in full each round; the work per round is proportional to the delta, not to the graph.
+    the delta graph (the previous round's triples, kept in a named graph of the evaluation graph's store, so Oxigraph does the
+    join) and the rest of the body matched against everything. A rule with no such pattern cannot change after the first round, so
+    a stratum in which no rule has one takes the one pass (``_derive_once``). The result is the same set as re-evaluating every
+    rule in full each round; the work per round is proportional to the delta, not to the graph.
 
     A round does its work in the store: a rule ``_store_plan`` accepts is one ``INSERT ... WHERE`` into the candidate graph, and
     the new triples are what the candidates have that the graph has not, found by one more update, so no triple is made into a
     Python object on the way. Every rule in a round reads the graph as it was at the start of the round. A rule the store cannot
-    evaluate by itself is evaluated element by element and its triples are put in the candidate graph. What was derived reaches
-    ``gi`` once, at the end."""
+    evaluate by itself is evaluated element by element and its triples are put in the candidate graph."""
     heads = [head for rule in rules for head in rule.head]
     positions = {id(rule): _delta_positions(rule, heads) for rule in rules}
     plans = {id(rule): _store_plan(rule) for rule in rules}
-    store = ge.as_store()
-    scratch = (_CANDIDATE_GRAPH, _NEW_GRAPH, _INFERRED_GRAPH, _DELTA_GRAPH)
     try:
+        if not any(positions.values()):
+            _derive_once(rules, evaluation, plans)
+            return
         first = True
-        size = len(store)  # the evaluation graph's triples (the scratch graphs are empty); kept up to date below
         while True:
-            ge.as_store()  # the evaluation graph changes under its wrapper; whatever it kept about the union is stale
+            evaluation.refresh()  # the evaluation graph changes under its wrapper; whatever it kept about the union is stale
             for rule in rules:
                 for position in [None] if first else positions[id(rule)]:
-                    _derive_into_candidates(rule, plans[id(rule)], position, ge, base_graph, store)
-            added = _commit_round(store, size)
-            if not added:
+                    _derive_into_candidates(rule, plans[id(rule)], position, evaluation)
+            if not evaluation.commit(delta=True):
                 break
-            size += added
             first = False
-        gi.extend([ox.Quad(q.subject, q.predicate, q.object) for q in store.quads_for_pattern(None, None, None, _INFERRED_GRAPH)])
     finally:
-        for graph in scratch:
-            store.clear_graph(graph)
+        evaluation.clear_scratch()
 
 
 def _srl_infer(base_graph, ruleset: srl_ast.RuleSet):
@@ -1106,13 +1238,8 @@ def _srl_query(base_graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.Tripl
     Returns:
         One ``dict[Variable, term]`` solution per match, the terms pyoxigraph terms.
     """
-    from starlayer.shacl.engine.graphs import new_graph
-
     base_graph = flatten_dataset(base_graph)
-    gi = _evaluate_ruleset(base_graph, ruleset)
-    combined = new_graph()
-    combined.extend(_default_quads(base_graph))
-    combined.extend(_default_quads(gi))
+    combined = _evaluate(base_graph, ruleset).ge  # the evaluation graph is the base graph and the inferred triples already
 
     goal_vars = {
         v for term in (goal_pattern.subject, goal_pattern.predicate, goal_pattern.object) for v in _term_variables(term)

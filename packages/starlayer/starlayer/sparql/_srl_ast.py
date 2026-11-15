@@ -517,8 +517,8 @@ class RuleSet:
         from starlayer.shacl.engine.graphs import new_graph
 
         evaluation = new_graph()
-        evaluation.extend(list(base_graph))
-        evaluation.extend(list(inferred))
+        evaluation.extend(srl_eval._default_quads(base_graph))
+        evaluation.extend(srl_eval._default_quads(inferred))
         validation = resolved_schema.validate(data_graph=evaluation)
         result = RulesResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation)
         self._with_own_prefixes(result.inferred_graph)
