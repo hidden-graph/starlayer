@@ -163,7 +163,7 @@ def test_an_empty_update_does_nothing(make, text):
 
 @pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
 def test_one_blank_node_label_in_two_operations_is_rejected(make):
-    with pytest.raises(SyntaxError, match="shared by multiple blocks"):
+    with pytest.raises(SyntaxError, match="shared by multiple blocks|already used"):  # Oxigraph's wording, or the parser's on a graph (update_scope.py)
         make().update("INSERT DATA { _:a <http://e/p> 1 } ; INSERT DATA { _:a <http://e/p> 3 }")
     # different labels, and one label repeated inside one operation, are fine
     g = make()

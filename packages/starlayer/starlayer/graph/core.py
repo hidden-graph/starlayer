@@ -19,6 +19,7 @@ from starlayer.graph._detached import detached
 from starlayer.graph._versions import require_supported_pyoxigraph
 from starlayer.graph.execution import run, union
 from starlayer.graph.execution.result import Result
+from starlayer.graph.ox_store import OxStore
 
 require_supported_pyoxigraph()
 
@@ -476,77 +477,16 @@ class _Base:
         union.touch()
         return self
 
-    # ---- Oxigraph's own store methods, so a writer keeps the write counter and a graph stays within its own graph -----------------
-    # A method that names a graph acts on this graph alone when called on a ``StarLayerGraph`` (naming another graph is a ``ValueError``);
-    # on a ``StarLayerDataset`` it is Oxigraph's. Any other ``pyoxigraph.Store`` method is reached through ``.store``.
-    def _own_graph(self, name: Any) -> Any:
-        return terms.graph_name(name)
+    # ---- Oxigraph's own store methods: ``g.ox.<method>(...)`` (``ox_store.py``); ``read_only`` makes a store ------------------------
+    def _scope(self) -> Any:
+        """The one graph this object may touch through ``.ox`` (a ``StarLayerGraph``), or ``None`` (a dataset: any graph)."""
+        return None
 
-    def _to_graph(self, to_graph: Any) -> dict[str, Any]:
-        return {} if to_graph is None and not isinstance(self, StarLayerGraph) else {"to_graph": self._own_graph(to_graph)}
-
-    def load(self, input: Any = None, format: Any = None, *, path: Any = None, base_iri: str | None = None,  # noqa: A002
-             to_graph: Any = None, lenient: bool = False) -> None:
-        """Oxigraph's ``Store.load``: parse a file or stream into the store. Triples go to ``to_graph``, by default this graph (the default graph on a dataset)."""
-        try:
-            self.store.load(input, format, path=path, base_iri=base_iri, lenient=lenient, **self._to_graph(to_graph))
-        finally:
-            union.touch()
-
-    def bulk_load(self, input: Any = None, format: Any = None, *, path: Any = None, base_iri: str | None = None,  # noqa: A002
-                  to_graph: Any = None, lenient: bool = False) -> None:
-        """Oxigraph's ``Store.bulk_load``: ``load`` without a transaction, faster for a large file."""
-        try:
-            self.store.bulk_load(input, format, path=path, base_iri=base_iri, lenient=lenient, **self._to_graph(to_graph))
-        finally:
-            union.touch()
-
-    def bulk_extend(self, quads: Iterable[Any]) -> None:
-        """Oxigraph's ``Store.bulk_extend``: ``extend`` without a transaction. On a ``StarLayerGraph`` only quads of its graph are added."""
-        try:
-            self.store.bulk_extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
-        finally:
-            union.touch()
-
-    def add_graph(self, graph_name: Any = None) -> None:
-        """Create an empty named graph (a dataset); on a ``StarLayerGraph`` it creates this graph, so the graph is listed even when empty."""
-        name = self._own_graph(graph_name)
-        if not isinstance(name, ox.DefaultGraph):
-            self.store.add_graph(name)
-            union.touch()
-
-    def clear_graph(self, graph_name: Any = None) -> None:
-        """Remove the triples of a graph and keep the graph (``remove_graph`` on a dataset drops it). On a ``StarLayerGraph`` this is ``clear()``."""
-        self.store.clear_graph(self._own_graph(graph_name))
-        union.touch()
-
-    def named_graphs(self) -> Iterator[Any]:
-        """The named graphs of the whole store, empty ones included, also from a ``StarLayerGraph``."""
-        return iter(self.store.named_graphs())
-
-    def contains_named_graph(self, graph_name: Any) -> bool:
-        """Whether the store has this named graph, also from a ``StarLayerGraph``."""
-        return self.store.contains_named_graph(terms.graph_name(graph_name))
-
-    def quads_for_pattern(self, subject: Any, predicate: Any, object: Any, graph_name: Any = None) -> Iterator[ox.Quad]:  # noqa: A002
-        """Oxigraph's ``Store.quads_for_pattern`` (``None`` is a wildcard; a ``graph_name`` of ``None`` is every graph on a dataset, this graph on a ``StarLayerGraph``)."""
-        return self.store.quads_for_pattern(subject, predicate, object, graph_name)
-
-    def dump(self, output: Any = None, format: Any = None, *, from_graph: Any = None, prefixes: Any = None, base_iri: str | None = None) -> Any:  # noqa: A002
-        """Oxigraph's ``Store.dump``. ``serialize()`` is the usual way to write a graph; ``dump`` writes the store's quads as Oxigraph does."""
-        return self.store.dump(output, format, from_graph=from_graph, prefixes=prefixes, base_iri=base_iri)
-
-    def flush(self) -> None:
-        """Flush an on-disk store to disk (the whole store, also from a ``StarLayerGraph``)."""
-        self.store.flush()
-
-    def optimize(self) -> None:
-        """Oxigraph's ``Store.optimize`` (the whole store)."""
-        self.store.optimize()
-
-    def backup(self, target_directory: Any) -> None:
-        """Oxigraph's ``Store.backup``: copy an on-disk store to a directory (the whole store)."""
-        self.store.backup(os.fspath(target_directory))
+    @classmethod
+    def read_only(cls, path: Any, **kw: Any) -> Any:
+        """Oxigraph's ``Store.read_only``: open an existing on-disk store for reading (a write raises ``RuntimeError``). Close any writer of the path first.
+        ``kw`` is what the class takes besides the store (``identifier=`` or ``prefixes=``; ``default_union=`` or ``prefixes=``)."""
+        return cls(store=ox.Store.read_only(os.fspath(path)), **kw)
 
     # ---- parse / serialize --------------------------------------------------------------------------------------
     def parse(self, source: Any = None, format: str | None = None, *, data: Any = None, file: Any = None,  # noqa: A002
@@ -844,14 +784,14 @@ class _Base:
 
     def update(self, text: str, initNs: Mapping[str, str] | None = None, base: str | None = None, *,  # noqa: N803
                custom_functions: Mapping[Any, Any] | None = None, custom_aggregate_functions: Mapping[Any, Any] | None = None) -> None:
-        """Run SPARQL Update ``text`` on the store (``custom_functions`` and ``custom_aggregate_functions`` as for ``query()``). It acts on the whole store, also from a ``StarLayerGraph`` of a named graph (use ``WITH <g>``
-        or ``GRAPH`` in the text to aim it). On a ``default_union`` dataset the ``WHERE`` of an ``INSERT`` / ``DELETE`` operation
-        reads the union of all graphs, as ``query()`` does (done by adding ``USING`` clauses; see
-        ``run.union_update_text`` for how, and its limits)."""
+        """Run SPARQL Update ``text`` (``custom_functions`` and ``custom_aggregate_functions`` as for ``query()``). On a ``StarLayerGraph`` the update stays within
+        its graph: what it leaves unqualified is aimed at the graph (``INSERT DATA`` triples, ``WITH`` / ``USING``, ``CLEAR ALL``) and an update that names another graph
+        raises ``ValueError`` (``execution/update_scope.py``). On a dataset it acts on the whole store. On a ``default_union`` dataset the ``WHERE`` of an ``INSERT`` /
+        ``DELETE`` operation reads the union of all graphs, as ``query()`` does (done by adding ``USING`` clauses; see ``run.union_update_text`` for how, and its limits)."""
         try:
             run.update(self.store, text, prefixes=self.prefixes, init_ns=initNs, base=base, union=self._union,
                        overlap=self._overlap if self._union else None, custom_functions=custom_functions,
-                       custom_aggregate_functions=custom_aggregate_functions)
+                       custom_aggregate_functions=custom_aggregate_functions, scope=self._scope())
         finally:
             union.touch()
 
@@ -965,6 +905,12 @@ class _Base:
     def __eq__(self, other: Any) -> bool:
         return self is other
 
+    @property
+    def ox(self) -> OxStore:
+        """Oxigraph's own store methods, as Oxigraph defines them: ``g.ox.add(quad)``, ``g.ox.load(...)``, ``g.ox.flush()``. A method that
+        writes keeps the write counter; on a ``StarLayerGraph`` a call that would reach another graph raises ``ValueError``. See ``ox_store.py``."""
+        return OxStore(self)
+
 
 def _rdflib_bridge(what: str) -> Any:
     """The ``rdflib_bridge`` module, or an ``ImportError`` that says how to install rdflib (the core itself never imports it)."""
@@ -1056,16 +1002,21 @@ class StarLayerGraph(_Base):
     def _engine_graph_name(self, union: Any, default: Any) -> Any:
         return default if isinstance(self._g, ox.DefaultGraph) else self._g
 
-    def _own_graph(self, name: Any) -> Any:
-        if name is not None and terms.graph_name(name) != self._g:
-            raise ValueError(f"this StarLayerGraph holds graph {self._g}; it cannot act on graph {name}")
+    def _scope(self) -> Any:
         return self._g
 
-    def quads_for_pattern(self, subject: Any, predicate: Any, object: Any, graph_name: Any = None) -> Iterator[ox.Quad]:  # noqa: A002
-        return self.store.quads_for_pattern(subject, predicate, object, self._own_graph(graph_name))
+    def remove_graph(self) -> StarLayerGraph:
+        """Drop this graph from its store with its triples (the default graph is emptied). Oxigraph's own form: ``ox.remove_graph(name)``."""
+        if isinstance(self._g, ox.DefaultGraph):
+            self.store.clear_graph(self._g)
+        else:
+            self.store.remove_graph(self._g)
+        union.touch()
+        return self
 
-    def dump(self, output: Any = None, format: Any = None, *, from_graph: Any = None, prefixes: Any = None, base_iri: str | None = None) -> Any:  # noqa: A002
-        return self.store.dump(output, format, from_graph=self._own_graph(from_graph), prefixes=prefixes, base_iri=base_iri)
+    def named_graphs(self) -> Iterator[Any]:
+        """The names of the named graphs of the whole store, this one and the others, empty ones included. Oxigraph's own form: ``ox.named_graphs()``."""
+        return iter(self.store.named_graphs())
 
     def clear(self) -> StarLayerGraph:
         """Remove every triple of this graph only; other graphs of the store are untouched."""
@@ -1180,6 +1131,32 @@ class StarLayerDataset(_Base):
     def _pretty_source(self, fmt: ox.RdfFormat) -> Any:
         return self if fmt in formats.QUAD_FORMATS else list(self._serial_items(fmt))
 
+    def named_graphs(self) -> Iterator[Any]:
+        """The names of the named graphs of the store, empty ones included (``graphs()`` makes a graph object of each). Oxigraph's own form: ``ox.named_graphs()``."""
+        return iter(self.store.named_graphs())
+
+    def add_graph(self, identifier: Any) -> StarLayerDataset:
+        """Create an empty named graph, so it is listed before it holds a triple. Oxigraph's own form: ``ox.add_graph(name)``."""
+        self.store.add_graph(terms.graph_name(identifier))
+        union.touch()
+        return self
+
+    def clear_graph(self, identifier: Any = None) -> StarLayerDataset:
+        """Remove the triples of one graph (the default graph when ``identifier`` is None) and keep the graph; ``remove_graph`` drops it. Oxigraph's own form: ``ox.clear_graph(name)``."""
+        self.store.clear_graph(terms.graph_name(identifier))
+        union.touch()
+        return self
+
+    def remove_graph(self, identifier: Any) -> StarLayerDataset:
+        """Remove a named graph with its triples (the default graph is emptied). ``ox.remove_graph(name)`` is Oxigraph's own form."""
+        name = terms.graph_name(identifier)
+        if isinstance(name, ox.DefaultGraph):
+            self.store.clear_graph(name)
+        else:
+            self.store.remove_graph(name)
+        union.touch()
+        return self
+
     def remove(self, pattern: tuple) -> StarLayerDataset:
         """Remove every quad matching ``(s, p, o[, graph])`` (``None`` is a wildcard).
 
@@ -1251,16 +1228,6 @@ class StarLayerDataset(_Base):
         """Whether ``identifier`` names a graph of the dataset; the default graph always exists."""
         name = terms.graph_name(identifier)
         return isinstance(name, ox.DefaultGraph) or name in set(self.store.named_graphs())
-
-    def remove_graph(self, identifier: Any) -> StarLayerDataset:
-        """Remove a named graph with its triples (the default graph is emptied)."""
-        name = terms.graph_name(identifier)
-        if isinstance(name, ox.DefaultGraph):
-            self.store.clear_graph(name)
-        else:
-            self.store.remove_graph(name)
-        union.touch()
-        return self
 
     def clear(self) -> StarLayerDataset:
         """Remove every quad and every named graph."""

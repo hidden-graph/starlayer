@@ -170,7 +170,7 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
 
 def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any = None,
            base: str | None = None, union: bool = False, overlap: Any = None, custom_functions: Mapping[Any, Any] | None = None,
-           custom_aggregate_functions: Mapping[Any, Any] | None = None) -> None:
+           custom_aggregate_functions: Mapping[Any, Any] | None = None, scope: Any = None) -> None:
     """Run SPARQL update text on a store, optionally with the default graph read as the union of all graphs.
 
     Args:
@@ -191,6 +191,10 @@ def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, in
     if base:
         kwargs["base_iri"] = base
     kwargs.update(custom_function_kwargs(custom_functions, custom_aggregate_functions))
+    if scope is not None:  # a StarLayerGraph: the update stays within its graph (update_scope.py)
+        from starlayer.graph.execution.update_scope import scope_update
+
+        text = scope_update(text, scope, base=base, prefixes=pfx)
     if not union:
         store.update(text, **kwargs)
         return
