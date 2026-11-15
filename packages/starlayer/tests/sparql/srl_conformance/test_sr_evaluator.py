@@ -37,6 +37,9 @@ EX = "http://example.org/"
 # Terms: str for IRIs (local names), int for integer literals. A pattern slot is ("v", name) or ("c", term).
 
 
+IRI_ORDERING = {">": False, "<": False, ">=": True, "<=": True}  # what Oxigraph gives for two equal IRIs
+
+
 class Err(Exception):
     """An expression evaluation error (the draft: an error drops the solution)."""
 
@@ -70,6 +73,10 @@ def eval_expr(e, mu):
     if tag == "var":
         return mu[e[1]]
     op, left, right = e[1], eval_expr(e[2], mu), eval_expr(e[3], mu)
+    if isinstance(left, str) and left == right and op in IRI_ORDERING:
+        # Follows Oxigraph, not the spec (17.3 has no IRI row, so an error): two equal IRIs are compared. Remove this branch when
+        # ``test_ordering_comparisons_of_iris_are_errors`` (tests/graph/unit/test_oxigraph_deviations.py) starts to pass.
+        return IRI_ORDERING[op]
     if not (isinstance(left, int) and isinstance(right, int)):
         raise Err  # IRI used as a number: a type error, so the solution is dropped
     return {"+": left + right, "-": left - right, "*": left * right,

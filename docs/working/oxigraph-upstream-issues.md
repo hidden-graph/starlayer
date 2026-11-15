@@ -339,4 +339,6 @@ error. The difference shows in a FILTER only for `<=` and `>=` (a `false` and an
 Where it surfaces: `SRL_HYPOTHESIS_HUNT=1` runs of the SRL independent-evaluator check
 (`tests/sparql/srl_conformance/test_sr_evaluator.py`): `RULE { ?x :p0 ?x } WHERE { ?x :b1 ?y . FILTER (?x >= ?x) }` over
 `:a :b1 :a` derives `:a :p0 :a` on the engine, nothing in the evaluator. The default run is deterministic and does not draw it.
-Recorded as the strict xfail `test_ordering_comparisons_of_iris_are_errors`.
+Recorded as the strict xfail `test_ordering_comparisons_of_iris_are_errors`. Decision (2026-11-14): StarLayer follows Oxigraph's behaviour
+until it changes, so the SRL check's oracle (`eval_expr`, `IRI_ORDERING`) gives Oxigraph's values for two equal IRIs; remove that branch
+when the xfail starts to pass.
