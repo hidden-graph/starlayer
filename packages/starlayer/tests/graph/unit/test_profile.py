@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pyoxigraph as ox
+import pytest
 from starlayer.graph import (
     RDF,
     XSD,
@@ -84,3 +85,51 @@ def test_it_is_a_snapshot():
     p = g.profile()
     g.add((EX.z, RDF.type, EX.Person))
     assert p.classes[EX.Person] == 2 and g.profile().classes[EX.Person] == 3
+
+
+# ---- a dataset's profile lists its graphs ------------------------------------------------------------------------------
+def _dataset(default_union: bool):
+    from starlayer.graph import RDF, StarLayerDataset
+
+    ex = lambda name: ox.NamedNode("http://example.org/" + name)  # noqa: E731
+    d = StarLayerDataset(default_union=default_union)
+    d.default_graph.add((ex("d1"), RDF.type, ex("Thing")))
+    d.graph(ex("g")).add((ex("a"), RDF.type, ex("Person")))
+    d.graph(ex("g")).add((ex("a"), ex("name"), ex("n1")))
+    d.graph(ex("h")).add((ex("b"), RDF.type, ex("Person")))
+    d.graph(ex("h")).add((ex("b"), ex("age"), ex("n2")))
+    d.ox.add_graph(ex("empty"))
+    return d, ex
+
+
+@pytest.mark.parametrize("default_union", [True, False])
+def test_a_dataset_profile_has_the_profile_of_every_graph_whatever_default_union_is(default_union):
+    d, ex = _dataset(default_union)
+    p = d.profile()
+    assert list(p.graphs) == [ox.DefaultGraph(), ex("empty"), ex("g"), ex("h")]  # the default graph first, the named graphs by name
+    assert p.graphs[ex("g")].classes == {ex("Person"): 1} and p.graphs[ex("h")].classes == {ex("Person"): 1}
+    assert p.graphs[ox.DefaultGraph()].classes == {ex("Thing"): 1} and p.graphs[ex("empty")].classes == {}
+    assert p.graphs[ex("g")].classes == d.graph(ex("g")).profile().classes  # the same as profiling that graph alone
+    # the profile itself is the union of all the graphs, whatever default_union is
+    assert p.classes == {ex("Person"): 2, ex("Thing"): 1} and set(p.properties) == {ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), ex("name"), ex("age")}
+
+
+def test_a_triple_held_by_several_graphs_counts_once_in_a_dataset_profile():
+    from starlayer.graph import RDF, StarLayerDataset
+
+    d = StarLayerDataset(default_union=False)
+    a, thing = ox.NamedNode("http://example.org/a"), ox.NamedNode("http://example.org/Thing")
+    for name in ("g", "h"):
+        d.graph(ox.NamedNode("http://example.org/" + name)).add((a, RDF.type, thing))
+    p = d.profile()
+    assert p.classes == {thing: 1} and p.properties == {RDF.type: 1}
+    assert all(gp.classes == {thing: 1} for name, gp in p.graphs.items() if name != ox.DefaultGraph())
+
+
+def test_a_graph_profile_has_itself_under_its_own_name():
+    from starlayer.graph import StarLayerGraph
+
+    g = StarLayerGraph(identifier=ox.NamedNode("http://example.org/g"))
+    p = g.profile()
+    assert list(p.graphs) == [ox.NamedNode("http://example.org/g")] and p.graphs[ox.NamedNode("http://example.org/g")] is p
+    assert list(StarLayerGraph().profile().graphs) == [ox.DefaultGraph()]

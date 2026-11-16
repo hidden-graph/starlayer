@@ -3,8 +3,8 @@
 Each class with its number of instances (the subjects of ``rdf:type`` triples whose object is an IRI), each property with its number of
 triples, and for any set of nodes the properties they use: how many of the nodes have the property, the most values one node has, the
 datatypes of its literal values and the kinds of value it has (``"iri"``, ``"blank"``, ``"literal"``, ``"triple"``). A profile is a snapshot:
-it is not updated when the graph changes, so build another (the caller decides when; there is no cache here). A dataset is profiled by
-its ``triples()`` (the union of its graphs when ``default_union``).
+it is not updated when the graph changes, so build another (the caller decides when; there is no cache here). A dataset is profiled as the union of
+all its graphs (a triple that several graphs hold counts once), whatever ``default_union`` is, and ``profile.graphs`` has the profile of each graph.
 
 ``graph.profile()`` is the same. Terms are pyoxigraph terms.
 """
@@ -29,10 +29,12 @@ class PropertyUse(NamedTuple):
 
 
 class GraphProfile:
-    """The profile of a graph: ``classes``, ``properties``, ``subjects``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``."""
+    """The profile of a graph: ``classes``, ``properties``, ``subjects``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)``,
+    ``properties_of(nodes)`` and ``graphs``."""
 
-    def __init__(self, by_node: dict, types: dict, predicates: dict) -> None:
+    def __init__(self, by_node: dict, types: dict, predicates: dict, graphs: dict | None = None) -> None:
         """Built by ``profile()``; ``by_node`` maps node -> {property: [triples, datatypes, kinds]}."""
+        self._graphs = graphs if graphs is not None else {}
         self._by_node = by_node
         self._types = types
         self._predicates = predicates
@@ -41,6 +43,12 @@ class GraphProfile:
             for cls in kinds:
                 instances.setdefault(cls, []).append(node)
         self._instances = instances
+
+    @property
+    def graphs(self) -> dict[Any, GraphProfile]:
+        """``{graph name: the profile of that graph}`` for every graph of a dataset, the default graph (``DefaultGraph``) and empty named graphs
+        included. For a graph, its own name and this profile."""
+        return dict(self._graphs)
 
     @property
     def classes(self) -> dict[Any, int]:
@@ -82,12 +90,23 @@ class GraphProfile:
         return self.properties_of(self._instances.get(cls, ()))
 
 
+def _union(dataset: Any) -> Any:
+    seen: set = set()
+    for q in dataset.quads():
+        key = (q.subject, q.predicate, q.object)
+        if key not in seen:
+            seen.add(key)
+            yield key
+
+
 def profile(graph: Any) -> GraphProfile:
-    """Profile ``graph`` (a ``StarLayerGraph`` or ``StarLayerDataset``) in one pass over its triples."""
+    """Profile ``graph`` (a ``StarLayerGraph`` or ``StarLayerDataset``) in one pass over its triples; a dataset's graphs are profiled one by one as well."""
+    from starlayer.graph.core import StarLayerDataset
+
     types: dict = {}
     by_node: dict = {}
     predicates: dict = {}
-    for s, p, o in graph.triples():
+    for s, p, o in (_union(graph) if isinstance(graph, StarLayerDataset) else graph.triples()):
         predicates[p] = predicates.get(p, 0) + 1
         if p == RDF_TYPE and isinstance(o, ox.NamedNode):
             types.setdefault(s, set()).add(o)
@@ -97,4 +116,10 @@ def profile(graph: Any) -> GraphProfile:
         use[2].add(kind)
         if kind == "literal":
             use[1].add(o.datatype)
-    return GraphProfile(by_node, types, predicates)
+    result = GraphProfile(by_node, types, predicates)
+    if isinstance(graph, StarLayerDataset):
+        names = [ox.DefaultGraph(), *sorted(graph.store.named_graphs(), key=str)]
+        result._graphs = {name: profile(graph.graph(name)) for name in names}
+    else:
+        result._graphs = {graph.identifier: result}
+    return result
