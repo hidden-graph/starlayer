@@ -10,6 +10,7 @@ pyoxigraph's own classes, re-exported so that a program needs one import for the
 from pyoxigraph import BaseDirection, BlankNode, Literal, NamedNode, Triple
 
 from starlayer.graph import config, reification
+from starlayer.graph.bnode_align import Alignment, BlankNodePair, align_blank_nodes
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.config import DEFAULT_PREFIXES, set_default_prefixes
 from starlayer.graph.core import StarLayerDataset, StarLayerGraph, as_store
@@ -36,8 +37,10 @@ from starlayer.graph.profile import GraphProfile, PropertyUse, profile
 from starlayer.graph.terms import literal, parse_term, to_python
 
 __all__ = [
+    "Alignment",
     "BaseDirection",
     "BlankNode",
+    "BlankNodePair",
     "DCAT",
     "DCTERMS",
     "DEFAULT_PREFIXES",
@@ -64,6 +67,7 @@ __all__ = [
     "GraphProfile",
     "PropertyUse",
     "StarLayerGraph",
+    "align_blank_nodes",
     "as_store",
     "can_resolve_import",
     "config",
