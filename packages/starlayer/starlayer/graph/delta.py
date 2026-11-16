@@ -3,7 +3,8 @@
 ``diff(old, new)`` is the delta that turns ``old`` into ``new``; ``delta.apply(graph)`` makes the change, ``delta.inverse()`` undoes
 it and ``a.then(b)`` is the net effect of ``a`` followed by ``b``. Triples are compared as they are written, so a blank node is the
 same node when it has the same label: use ``starlayer.graph.isomorphic`` to ask whether two graphs are the same up to blank node
-names. A dataset is compared by its triples (the union of its graphs when ``default_union``).
+names. A delta holds triples and keeps no graph name, so ``diff`` and ``apply`` refuse a dataset (``TypeError``): use one graph of it,
+``dataset.graph(name)``.
 """
 
 from __future__ import annotations
@@ -15,6 +16,13 @@ from typing import Any
 from starlayer.graph import terms
 
 Triple = tuple[Any, Any, Any]
+
+
+def _refuse_a_dataset(*objects: Any) -> None:
+    from starlayer.graph.core import StarLayerDataset
+
+    if any(isinstance(o, StarLayerDataset) for o in objects):
+        raise TypeError("a delta compares triples and keeps no graph names, so it takes a graph, not a dataset: use one graph of the dataset, dataset.graph(name)")
 
 
 def _triples(items: Iterable[Any]) -> frozenset[Triple]:
@@ -54,17 +62,20 @@ class GraphDelta:
 
     def apply(self, graph: Any) -> Any:
         """Remove ``removed`` from ``graph`` and add ``added``; returns ``graph``."""
+        _refuse_a_dataset(graph)
         for triple in self.removed:
             graph.remove(triple)
         graph.extend(self.added)
         return graph
 
-    def applied_to(self, graph: Any) -> frozenset[Triple]:
-        """The triples ``graph`` would hold after ``apply``, without changing it."""
-        return (frozenset(graph.triples()) - self.removed) | self.added
+    def applied_to(self, graph: Any) -> Any:
+        """A copy of ``graph`` with the delta applied, to look at the result without changing ``graph``."""
+        _refuse_a_dataset(graph)
+        return self.apply(graph.copy())
 
 
 def diff(old: Any, new: Any) -> GraphDelta:
     """The delta that turns ``old`` into ``new``: the triples only ``new`` has are added, the triples only ``old`` has are removed."""
+    _refuse_a_dataset(old, new)
     before, after = frozenset(old.triples()), frozenset(new.triples())
     return GraphDelta(added=after - before, removed=before - after)

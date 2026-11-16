@@ -107,7 +107,9 @@ def test_a_delta_turns_one_graph_into_another_and_back():
     new.extend([(EX.a, EX.p, EX.c), (EX.a, EX.q, EX.b)])
     delta = diff(old, new)
     assert delta.added == {(EX.a, EX.p, EX.c)} and delta.removed == {(EX.a, EX.p, EX.b)} and delta and len(delta) == 2
-    assert delta.applied_to(old) == frozenset(new.triples()) and len(old) == 2  # applied_to leaves the graph alone
+    preview = delta.applied_to(old)  # a copy with the change made: old is left alone
+    assert isinstance(preview, StarLayerGraph) and preview is not old
+    assert set(preview.triples()) == set(new.triples()) and len(old) == 2 and set(old.triples()) != set(new.triples())
     assert set(delta.apply(old).triples()) == set(new.triples())
     assert set(delta.inverse().apply(old).triples()) == {(EX.a, EX.p, EX.b), (EX.a, EX.q, EX.b)}
 
@@ -123,3 +125,27 @@ def test_deltas_compose_to_their_net_effect():
 def test_a_triple_in_both_sets_is_no_change():
     d = GraphDelta(added=[(EX.s, EX.p, EX.o)], removed=[(EX.s, EX.p, EX.o)])
     assert not d and d.added == frozenset()
+
+
+def test_a_delta_refuses_a_dataset_and_works_on_one_graph_of_it():
+    import pytest
+    from starlayer.graph import StarLayerDataset
+
+    t = (EX.a, EX.p, EX.b)
+    d1, d2 = StarLayerDataset(), StarLayerDataset()
+    d1.graph(EX.g).add(t)
+    d2.graph(EX.h).add(t)  # the same triple in another graph: a triple-based diff would see no difference
+    for call in (lambda: diff(d1, d2), lambda: diff(StarLayerGraph(), d1), lambda: diff(d1, StarLayerGraph())):
+        with pytest.raises(TypeError, match="not a dataset"):
+            call()
+    delta = GraphDelta(added=[(EX.x, EX.p, EX.y)])
+    with pytest.raises(TypeError, match="dataset.graph"):
+        delta.apply(d1)
+    with pytest.raises(TypeError):
+        delta.applied_to(d1)
+    assert set(d1.quads()) == {ox.Quad(*t, EX.g)}  # nothing was changed
+    # one graph of a dataset is a graph: the delta changes that graph and no other
+    view = d1.graph(EX.g)
+    delta.apply(view)
+    assert set(view.triples()) == {t, (EX.x, EX.p, EX.y)} and len(d1.default_graph) == 0
+    assert not diff(view, d1.graph(EX.g))
