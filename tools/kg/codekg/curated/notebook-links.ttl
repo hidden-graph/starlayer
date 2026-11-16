@@ -305,8 +305,8 @@ nl:03-b337c254 a slkg:NotebookExample ;
 nl:02e-0e389edf a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "0e389edf" ;
-    slkg:cellHash "02e289f3665d74b6" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "1888abe5aa7fc46f" ;
+    slkg:reviewedOn "2026-11-15"^^xsd:date ;
     rdfs:comment "Makes literals from Python values, reads them back with to_python and reads Turtle terms with parse_term." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.terms.literal",
@@ -316,18 +316,28 @@ nl:02e-0e389edf a slkg:NotebookExample ;
 nl:02e-b720f67c a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "b720f67c" ;
-    slkg:cellHash "a32a1829c76c48b6" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Writes and replaces an RDF list with set_list, keeps one value with set and follows a predicate with transitive_objects and transitive_subjects." ;
+    slkg:cellHash "43f01db56bf23458" ;
+    slkg:reviewedOn "2026-11-15"^^xsd:date ;
+    rdfs:comment "Writes an RDF list with add_list, removes its list nodes with remove_list and replaces it with set_list, reading the members back with items." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.rdflist.set_list",
+        "starlayer.graph.rdflist.add_list",
+        "starlayer.graph.rdflist.remove_list",
+        "starlayer.graph.rdflist.set_list" .
+
+nl:02e-a2e50006 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
+    slkg:cellId "a2e50006" ;
+    slkg:cellHash "bae7dc46cc49ec48" ;
+    slkg:reviewedOn "2026-11-15"^^xsd:date ;
+    rdfs:comment "Follows rdfs:subClassOf through a cycle with transitive_objects and transitive_subjects." ;
+    slkg:demonstratesIdentifier
         "starlayer.graph.rdflist.transitive_objects" .
 
 nl:02e-86299ef1 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "86299ef1" ;
-    slkg:cellHash "c623184f857f5ee5" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "d69f0e4fbbab132e" ;
+    slkg:reviewedOn "2026-11-16"^^xsd:date ;
     rdfs:comment "Takes the difference of two graphs as a GraphDelta, applies it and applies its inverse." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.delta.diff" .
@@ -335,8 +345,8 @@ nl:02e-86299ef1 a slkg:NotebookExample ;
 nl:02e-33753b85 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "33753b85" ;
-    slkg:cellHash "237b445abb650b42" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "970a6a4b80143552" ;
+    slkg:reviewedOn "2026-11-16"^^xsd:date ;
     rdfs:comment "Profiles a graph: classes with counts and the properties their instances use." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.profile.profile" .
@@ -427,35 +437,60 @@ nl:04-8c133de1 a slkg:NotebookExample ;
 nl:02e-a8ec380e a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "a8ec380e" ;
-    slkg:cellHash "ba6bd51487b21ceb" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Binds, lists, expands and unbinds prefixes and sets the default prefixes of new graphs." ;
+    slkg:cellHash "74386f6173c39054" ;
+    slkg:reviewedOn "2026-11-15"^^xsd:date ;
+    rdfs:comment "Adds prefixes with the constructor, bind and parse, removes one with unbind and sets the default prefixes of new graphs." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.core._Base.expand_curie",
-        "starlayer.graph.core._Base.used_prefixes",
         "starlayer.graph.core._Base.unbind",
         "starlayer.graph.config.set_default_prefixes" .
+
+nl:02e-a2e50007 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
+    slkg:cellId "a2e50007" ;
+    slkg:cellHash "68712ece2858d9e3" ;
+    slkg:reviewedOn "2026-11-16"^^xsd:date ;
+    rdfs:comment "Lists the bound and used prefixes, expands a prefixed name, splits an IRI into its parts and writes a term with the graph's prefixes." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.core._Base.expand_curie",
+        "starlayer.graph.core._Base.used_prefixes" .
+
+nl:02e-a2e5000d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
+    slkg:cellId "a2e5000d" ;
+    slkg:cellHash "069d2fd589aaff9b" ;
+    slkg:reviewedOn "2026-11-16"^^xsd:date ;
+    rdfs:comment "Pairs the blank nodes of a changed graph with those of the original so that diff finds only the real change, and lists how each blank node was paired." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.bnode_align.align_blank_nodes" .
+
+nl:02e-a2e50011 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
+    slkg:cellId "a2e50011" ;
+    slkg:cellHash "b6b82c847c7e8ab3" ;
+    slkg:reviewedOn "2026-11-16"^^xsd:date ;
+    rdfs:comment "Profiles a dataset as a whole and lists the profile of each of its graphs, the empty one included." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.profile.GraphProfile.graphs" .
 
 nl:02e-f1925477 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "f1925477" ;
-    slkg:cellHash "dde0cc65016246a9" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Lists a graph's owl:imports and resolves them with a loader you supply." ;
+    slkg:cellHash "2495d67f6a556090" ;
+    slkg:reviewedOn "2026-11-16"^^xsd:date ;
+    rdfs:comment "Lists a graph's owl:imports and resolves them with a loader you supply, merged and as a delta." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.imports.can_resolve_import",
+        "starlayer.graph.core._Base.owl_imports",
         "starlayer.graph.core._Base.resolve_imports" .
 
 nl:02e-df2eca05 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02e-graph-contents.ipynb" ;
     slkg:cellId "df2eca05" ;
-    slkg:cellHash "880e18b379327ca2" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Skolemizes and de-skolemizes blank nodes, makes an empty graph like another and takes a concise bounded description." ;
+    slkg:cellHash "37590ad3b474de84" ;
+    slkg:reviewedOn "2026-11-16"^^xsd:date ;
+    rdfs:comment "Skolemizes blank nodes into IRIs with a chosen authority and path, and turns them back into blank nodes with de_skolemize." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.rewrite.skolemize",
-        "starlayer.graph.rewrite.de_skolemize",
-        "starlayer.graph.rewrite.empty_like" .
+        "starlayer.graph.rewrite.de_skolemize" .
 
 nl:03-5da96c84 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
