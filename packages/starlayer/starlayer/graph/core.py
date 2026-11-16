@@ -187,7 +187,7 @@ class _Base:
             raise ValueError("give a store or a path, not both")
         self.store = as_store(store) if store is not None else ox.Store(os.fspath(path) if path is not None else None)
         self._path = os.fspath(path) if path is not None else None
-        self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
+        self.prefixes = dict(prefixes) if prefixes is not None else config.new_prefix_dict()
 
     # ---- a graph held by an endpoint (``StarLayerGraph(endpoint=...)``) ---------------------------------------------
     def sync(self) -> Any:
@@ -747,7 +747,7 @@ class _Base:
         if isinstance(self, StarLayerDataset):
             copy: Any = StarLayerDataset(store=store, default_union=self._union, prefixes=dict(self.prefixes))
             for name in self.store.named_graphs():
-                view = StarLayerGraph(self.store, identifier=name, prefixes=self.prefixes)
+                view = _sharing(StarLayerGraph(self.store, identifier=name), self.prefixes)
                 if len(view):
                     per_graph = self._entailed_triples(regime, infer, of=view, scope=name, **kw)
                     store.extend(copy._quad(t, name) for t in per_graph)
@@ -912,6 +912,13 @@ class _Base:
         return OxStore(self)
 
 
+def _sharing(graph: Any, prefixes: dict[str, str]) -> Any:
+    """``graph`` with the prefix dict of the dataset it is a view of: a view and its dataset keep one set of prefixes. (A graph made with
+    ``prefixes=`` copies the dict it is given.)"""
+    graph.prefixes = prefixes
+    return graph
+
+
 def _rdflib_bridge(what: str) -> Any:
     """The ``rdflib_bridge`` module, or an ``ImportError`` that says how to install rdflib (the core itself never imports it)."""
     from starlayer.graph import rdflib_bridge
@@ -939,7 +946,7 @@ class StarLayerGraph(_Base):
 
             self.store = BackedStore(endpoint, self._g, max_age=max_age, path=path, pull=pull)
             self._path = os.fspath(path) if path is not None else None
-            self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
+            self.prefixes = dict(prefixes) if prefixes is not None else config.new_prefix_dict()
         else:
             self._init_store(store, path, prefixes)
 
@@ -1068,7 +1075,7 @@ class StarLayerDataset(_Base):
 
             self.store = BackedStore(endpoint, dataset=True, max_age=max_age, path=path, pull=pull)
             self._path = os.fspath(path) if path is not None else None
-            self.prefixes = prefixes if prefixes is not None else config.new_prefix_dict()
+            self.prefixes = dict(prefixes) if prefixes is not None else config.new_prefix_dict()
         else:
             self._init_store(store, path, prefixes)
         self._union = default_union
@@ -1171,7 +1178,7 @@ class StarLayerDataset(_Base):
     @property
     def default_graph(self) -> StarLayerGraph:
         """The dataset's default graph as a ``StarLayerGraph`` (re-made on each access; it shares this dataset's ``prefixes``)."""
-        return StarLayerGraph(self.store, prefixes=self.prefixes)
+        return _sharing(StarLayerGraph(self.store), self.prefixes)
 
     def to_graph(self) -> StarLayerGraph:
         """Every triple of every graph merged into one new in-memory ``StarLayerGraph`` (provenance by graph is lost; equal triples
@@ -1214,11 +1221,11 @@ class StarLayerDataset(_Base):
         name = terms.graph_name(identifier)
         if not isinstance(name, ox.DefaultGraph):
             self.store.add_graph(name)
-        return StarLayerGraph(self.store, identifier=name, prefixes=self.prefixes)
+        return _sharing(StarLayerGraph(self.store, identifier=name), self.prefixes)
 
     def graphs(self) -> list[StarLayerGraph]:
         """The default graph, then every named graph (empty ones included)."""
-        return [self.graph(None), *(StarLayerGraph(self.store, identifier=n, prefixes=self.prefixes) for n in self.store.named_graphs())]
+        return [self.graph(None), *(_sharing(StarLayerGraph(self.store, identifier=n), self.prefixes) for n in self.store.named_graphs())]
 
     def graph_names(self) -> list[Any]:
         """The names of the named graphs, empty ones included (the default graph is not listed)."""

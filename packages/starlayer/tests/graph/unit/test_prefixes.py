@@ -216,3 +216,15 @@ def test_a_reduced_copy_of_a_named_graph_keeps_its_name() -> None:
     named = d.graph(_EX.g)
     named.add((_EX.a, _EX.p, _EX.b))
     assert _reduced(named).identifier == _EX.g
+
+
+def test_a_graph_copies_the_prefixes_it_is_given():
+    from starlayer.graph import StarLayerDataset, StarLayerGraph
+
+    for make in (StarLayerGraph, StarLayerDataset):
+        mine = {"ex": "http://example.org/"}
+        g = make(prefixes=mine)
+        g.bind("x", "http://x.example/")
+        assert mine == {"ex": "http://example.org/"}  # bind does not change the caller's dict
+        mine["y"] = "http://y.example/"
+        assert "y" not in g.prefixes  # and a later change to it does not reach the graph
