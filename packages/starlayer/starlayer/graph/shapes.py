@@ -154,7 +154,7 @@ def _remove_rdf_list(g: Any, node: Any) -> None:
 
 
 def _clear_list_valued(g: Any, node: Any, pred: Any) -> None:
-    """Remove ``pred``'s value from ``node``, freeing its list cells too when it is list-valued and nothing else uses them."""
+    """Remove ``pred``'s value from ``node``, freeing its list nodes too when it is list-valued and nothing else uses them."""
     old = g.value(node, pred)
     if old is None:
         return

@@ -399,7 +399,7 @@ class _Base:
         return rdflist.add_list(self, items, head)
 
     def remove_list(self, head: Any) -> Any:
-        """Remove the cells of the list starting at ``head``; see ``rdflist.remove_list``."""
+        """Remove the list nodes of the list starting at ``head``; see ``rdflist.remove_list``."""
         from starlayer.graph import rdflist
 
         return rdflist.remove_list(self, head)

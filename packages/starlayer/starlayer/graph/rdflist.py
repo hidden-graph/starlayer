@@ -1,5 +1,7 @@
-"""RDF lists and graph walks, as thin functions on a graph (bound as methods of ``StarLayerGraph`` / ``StarLayerDataset``):
-``add_list`` writes the cells of a list (``rdf:first`` / ``rdf:rest`` on fresh blank nodes), ``remove_list`` takes them away,
+"""RDF lists and graph walks, as thin functions on a graph (bound as methods of ``StarLayerGraph`` / ``StarLayerDataset``).
+A list is a chain of list nodes: blank nodes that each have one ``rdf:first`` (the member) and one ``rdf:rest`` (the next list node, or
+``rdf:nil``); its head is the first list node, and ``rdf:nil`` alone is the empty list.
+``add_list`` writes the list nodes of a list (``rdf:first`` / ``rdf:rest`` on fresh blank nodes), ``remove_list`` takes them away,
 ``set_list`` replaces a property's list, and ``transitive_objects`` / ``transitive_subjects`` follow a predicate to a fixpoint.
 Reading a list is ``graph.items(head)``. Terms are pyoxigraph terms.
 """
@@ -16,7 +18,7 @@ from starlayer.graph.terms import RDF_FIRST, RDF_NIL, RDF_REST
 
 
 def add_list(graph: Any, items: Iterable[Any], head: Any = None) -> Any:
-    """Write ``items`` as an RDF list and return its head: ``rdf:nil`` for no items, else the first cell (``head``, a node the caller
+    """Write ``items`` as an RDF list and return its head: ``rdf:nil`` for no items, else the first list node (``head``, a node the caller
     names, or a fresh blank node). An item that is a 3-tuple is a triple term. Nothing points at the head yet: add that triple
     yourself, or use ``set_list``."""
     members = [terms.term(i) for i in items]
@@ -32,7 +34,7 @@ def add_list(graph: Any, items: Iterable[Any], head: Any = None) -> Any:
 
 
 def list_cells(graph: Any, head: Any) -> list[Any]:
-    """The cell nodes of the list that starts at ``head``, in order (empty for ``rdf:nil``). Raises ``ValueError`` for a cycle or a cell
+    """The list nodes of the list that starts at ``head``, in order (empty for ``rdf:nil``). Raises ``ValueError`` for a cycle or a list node
     without exactly one ``rdf:rest``."""
     cells: list[Any] = []
     seen: set[Any] = set()
@@ -50,7 +52,7 @@ def list_cells(graph: Any, head: Any) -> list[Any]:
 
 
 def remove_list(graph: Any, head: Any) -> Any:
-    """Remove the cells of the list that starts at ``head`` (their ``rdf:first`` and ``rdf:rest`` triples). Members are not touched and
+    """Remove the list nodes of the list that starts at ``head`` (their ``rdf:first`` and ``rdf:rest`` triples). Members are not touched and
     the triple that points at the head stays; ``graph`` is returned."""
     for cell in list_cells(graph, head):
         graph.remove((cell, RDF_FIRST, None))
@@ -59,7 +61,7 @@ def remove_list(graph: Any, head: Any) -> Any:
 
 
 def set_list(graph: Any, subject: Any, predicate: Any, items: Iterable[Any]) -> Any:
-    """Make ``items`` the one list that ``subject`` has for ``predicate``: remove what was there (a list's cells too, when the value is
+    """Make ``items`` the one list that ``subject`` has for ``predicate``: remove what was there (a list's list nodes too, when the value is
     one) and write the new list. Returns its head."""
     subject, predicate = terms.term(subject), terms.term(predicate)
     for old in list(graph.objects(subject, predicate)):
