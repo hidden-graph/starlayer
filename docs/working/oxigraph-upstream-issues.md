@@ -342,3 +342,30 @@ Where it surfaces: `SRL_HYPOTHESIS_HUNT=1` runs of the SRL independent-evaluator
 Recorded as the strict xfail `test_ordering_comparisons_of_iris_are_errors`. Decision (2026-11-14): StarLayer follows Oxigraph's behaviour
 until it changes, so the SRL check's oracle (`eval_expr`, `IRI_ORDERING`) gives Oxigraph's values for two equal IRIs; remove that branch
 when the xfail starts to pass.
+
+## 11. RDFC-1.0 canonicalisation has no work limit (RDFC-1.0 section 7.1, "Dataset Poisoning")
+
+Project note, not for posting. Checked 2026-11-16 on pyoxigraph 0.5.13; the spec text is RDFC-1.0 (W3C Recommendation), section 7.1:
+an implementation that can be given a dataset it will not finish MUST terminate early, for example by capping the number of
+calls of the N-degree hashing step, and raise an exception. `Dataset.canonicalize` has no such cap. The W3C negative test `test074`
+(a 10-blank-node clique) does not finish.
+
+```python
+import itertools, pyoxigraph as ox
+
+p = ox.NamedNode("urn:p")
+b = [ox.BlankNode(f"b{i}") for i in range(10)]
+ds = ox.Dataset(ox.Quad(x, p, y, ox.DefaultGraph()) for x, y in itertools.permutations(b, 2))
+ds.canonicalize(ox.CanonicalizationAlgorithm.RDFC_1_0)  # does not return in any useful time
+```
+
+It is not only cliques. A path or cycle of blank nodes that the quads around them cannot tell apart takes about the cube of its
+length (path of 500: 4.5 s; cycle of 1000: 40 s; binary tree of 511: 6.5 s), a random 3-regular graph of 36 nodes 29 s, a K(6,6)
+or a 6 x 6 torus does not finish.
+
+What would fix it: a cap on the N-degree hashing calls inside the Rust implementation (a parameter on `canonicalize`, raising an
+error), which is the spec's own suggestion and the only exact defence. Until then StarLayer guesses the cost from the graph's
+shape before calling it (`rdfc_native.check_complexity`: a cycle-rank limit on tied groups after colour refinement and a size
+limit on groups of identical blank nodes). That guess refuses a few quick inputs (a 5 x 5 torus 0.5 s, a 6 x 6 grid 0.2 s) and
+cannot be proven to catch every slow one.
+

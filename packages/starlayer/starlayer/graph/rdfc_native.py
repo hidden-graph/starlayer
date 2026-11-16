@@ -9,8 +9,8 @@
   that draft and may change with it. RDFC-1.0 has no triple-term rule of its own.
 
 Dataset poisoning (RDFC-1.0 section 7.1, the W3C poison test074): Oxigraph's canonicaliser has no denial-of-service defence,
-and a highly symmetric dataset (a clique of 10 blank nodes, a 6 x 6 torus of blank nodes) does not finish. Before every
-canonicalisation :func:`check_complexity` runs a cheap colour refinement and raises
+and a highly symmetric dataset (a clique of 10 blank nodes, a 6 x 6 torus of blank nodes) does not finish, nor does a path or
+cycle of hundreds of identical blank nodes in reasonable time. Before every canonicalisation :func:`check_complexity` runs a cheap colour refinement and raises
 :class:`CanonicalizationComplexityError` for such a structure. It is a heuristic, not a proof of termination (see its docstring).
 """
 
@@ -26,8 +26,12 @@ __all__ = ["isomorphic", "canonical_quads", "canonical_nquads", "canonical_hash"
 
 # The largest cyclomatic number (edges - nodes + 1) that a connected group of mutually indistinguishable blank nodes may have.
 # Measured on pyoxigraph 0.5.13 (RDFC-1.0 time): a 7-blank-node clique (15) 1.3 s, a 5 x 5 complete bipartite graph (16) 3 s,
-# a 4 x 4 torus (17) 0.2 s, a 200-node cycle (1) 1.4 s; an 8-clique (21) 13 s, K(6,6) (25) and a 6 x 6 torus (37) do not finish.
-MAX_SYMMETRIC_CYCLE_RANK = 20
+# a 4 x 4 torus (17) 0.2 s, a 200-node cycle (1) 1.4 s, a random 3-regular graph of 30 nodes (16) 6 s; of 36 nodes (19) 29 s, an 8-clique (21) 13 s, K(6,6) (25) and a 6 x 6 torus (37) do not finish.
+MAX_SYMMETRIC_CYCLE_RANK = 18
+# The most blank nodes that the quads around them cannot tell apart (first-degree hash) that may be linked to each other in one
+# group. Even a path, a cycle or a tree of such nodes takes about n cubed steps: 500 nodes 4.5 s, 1000 nodes 40 s, a binary tree
+# of 511 nodes 6.5 s (pyoxigraph 0.5.13; its two halves are groups of 255, since the root has no twin), a path of 200 0.3 s.
+MAX_TIED_NODES = 200
 
 
 class CanonicalizationComplexityError(RuntimeError):
@@ -81,12 +85,14 @@ def _bnode_in_triple_term(quads: list[ox.Quad]) -> bool:
     return False
 
 
-def check_complexity(quads: list[ox.Quad], *, max_cycle_rank: int = MAX_SYMMETRIC_CYCLE_RANK) -> None:
+def check_complexity(quads: list[ox.Quad], *, max_cycle_rank: int = MAX_SYMMETRIC_CYCLE_RANK, max_tied_nodes: int = MAX_TIED_NODES) -> None:
     """Raise :class:`CanonicalizationComplexityError` if ``quads`` hold a blank-node structure that canonicalisation would not
     finish: colour refinement (every blank node is coloured by its quads, neighbours by their colours, until stable), then
     the blank nodes still sharing a colour are linked by the quads that join two of them; a connected group of them with
     more than ``max_cycle_rank`` independent cycles (edges - nodes + 1) is the symmetric, densely tied structure the
-    algorithm's permutation step explodes on. Paths, trees, plain cycles, any number of interchangeable leaf blank nodes
+    algorithm's permutation step explodes on. A second, polynomial test: a connected group of more than ``max_tied_nodes``
+    blank nodes that the quads around them do not tell apart (a long path, cycle or tree of identical blank nodes) is refused,
+    because the algorithm takes about the cube of the group's size on it. Any number of interchangeable leaf blank nodes
     and a hub with many identical blank children never count. Linear in the quads (times the refinement rounds).
 
     A heuristic: it rejects every clique of 8 or more blank nodes and every grid-like symmetric graph that was seen to
@@ -121,6 +127,7 @@ def check_complexity(quads: list[ox.Quad], *, max_cycle_rank: int = MAX_SYMMETRI
         return str(t)
 
     classes = 1
+    first: list[int] | None = None
     for _ in range(64):
         sigs: list[list[str]] = [[] for _ in nodes]
         for q, acc in rows:
@@ -129,38 +136,51 @@ def check_complexity(quads: list[ox.Quad], *, max_cycle_rank: int = MAX_SYMMETRI
         palette: dict[tuple, int] = {}
         new = [palette.setdefault((color[i], tuple(sorted(sigs[i]))), len(palette)) for i in range(len(nodes))]
         color = new
+        if first is None:
+            first = new  # what the quads touching a node say about it, as the algorithm's first-degree hash does
         if len(palette) == classes:
             break
         classes = len(palette)
-    size: dict[int, int] = {}
-    for c in color:
-        size[c] = size.get(c, 0) + 1
-    parent = list(range(len(nodes)))
 
-    def find(x: int) -> int:
-        while parent[x] != x:
-            parent[x] = parent[parent[x]]
-            x = parent[x]
-        return x
+    def tied_groups(colors: list[int]) -> list[tuple[int, int]]:
+        """(blank nodes, quads joining two of them) of each connected group of blank nodes that share a colour with another."""
+        size: dict[int, int] = {}
+        for c in colors:
+            size[c] = size.get(c, 0) + 1
+        parent = list(range(len(nodes)))
 
-    edges: set[tuple[int, int]] = set()
-    for _, acc in rows:
-        tied = sorted({i for i in acc if size[color[i]] > 1})
-        for k, a in enumerate(tied):
-            for b in tied[k + 1:]:
-                edges.add((a, b))
-                parent[find(a)] = find(b)
-    count_nodes: dict[int, set[int]] = {}
-    count_edges: dict[int, int] = {}
-    for a, b in edges:
-        r = find(a)
-        count_nodes.setdefault(r, set()).update((a, b))
-        count_edges[r] = count_edges.get(r, 0) + 1
-    for r, e in count_edges.items():
-        rank = e - len(count_nodes[r]) + 1
+        def find(x: int) -> int:
+            while parent[x] != x:
+                parent[x] = parent[parent[x]]
+                x = parent[x]
+            return x
+
+        edges: set[tuple[int, int]] = set()
+        for _, acc in rows:
+            tied = sorted({i for i in acc if size[colors[i]] > 1})
+            for k, a in enumerate(tied):
+                for b in tied[k + 1:]:
+                    edges.add((a, b))
+                    parent[find(a)] = find(b)
+        count_nodes: dict[int, set[int]] = {}
+        count_edges: dict[int, int] = {}
+        for a, b in edges:
+            r = find(a)
+            count_nodes.setdefault(r, set()).update((a, b))
+            count_edges[r] = count_edges.get(r, 0) + 1
+        return [(len(count_nodes[r]), e) for r, e in count_edges.items()]
+
+    for n, _ in tied_groups(first):
+        if n > max_tied_nodes:
+            raise CanonicalizationComplexityError(
+                f"canonicalisation refused: {n} blank nodes that the quads around them cannot tell apart are linked to each "
+                f"other (more than {max_tied_nodes}); RDFC-1.0 takes about the cube of that many steps on a chain, cycle or tree"
+            )
+    for n, e in tied_groups(color):
+        rank = e - n + 1
         if rank > max_cycle_rank:
             raise CanonicalizationComplexityError(
-                f"canonicalisation refused: {len(count_nodes[r])} indistinguishable blank nodes are tied together by {e} "
+                f"canonicalisation refused: {n} indistinguishable blank nodes are tied together by {e} "
                 f"statements (cycle rank {rank} > {max_cycle_rank}); RDFC-1.0 takes exponential time on such a structure"
             )
 

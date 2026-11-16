@@ -15,6 +15,7 @@ from starlayer.graph.rdfc_native import (
     canonical_hash,
     canonical_nquads,
     canonical_quads,
+    check_complexity,
     isomorphic,
 )
 
@@ -128,6 +129,34 @@ def test_large_but_harmless_blank_node_structures_are_accepted():
         assert isomorphic(data, relabel(data, random.Random(1)))
     assert isomorphic(seven, relabel(seven, random.Random(1)))
     assert canonical_nquads(cycle)
+
+
+def _chain(n, closed=False):
+    p = ox.NamedNode("http://e/p")
+    return [q(B(f"c{i}"), p, B(f"c{(i + 1) % n}")) for i in range(n if closed else n - 1)]
+
+
+def _tree(depth):
+    p = ox.NamedNode("http://e/p")
+    return [q(B(f"t{i}"), p, B(f"t{c}")) for i in range(2 ** depth - 1) for c in (2 * i + 1, 2 * i + 2) if c < 2 ** depth - 1]
+
+
+@pytest.mark.parametrize("data", [_chain(300), _chain(400, closed=True), _tree(9)], ids=["path-300", "cycle-300", "tree-511-in-two-groups-of-255"])
+def test_a_long_group_of_identical_blank_nodes_is_refused_before_it_takes_cubic_time(data):
+    with pytest.raises(CanonicalizationComplexityError, match="cube"):
+        check_complexity(data)
+    with pytest.raises(CanonicalizationComplexityError):
+        canonical_nquads(data)
+
+
+def test_the_size_limit_is_a_parameter_and_counts_nodes_the_quads_cannot_tell_apart():
+    assert check_complexity(_chain(150)) is None
+    with pytest.raises(CanonicalizationComplexityError):
+        check_complexity(_chain(150), max_tied_nodes=100)
+    # a long chain whose links differ is not a group of identical nodes, whatever its length
+    v = ox.NamedNode("http://e/v")
+    distinct = _chain(1000) + [q(B(f"c{i}"), v, ox.Literal(str(i))) for i in range(1000)]
+    assert check_complexity(distinct) is None
 
 
 # ----------------------------------------------------------------------------------------- spec examples
