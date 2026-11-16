@@ -31,7 +31,7 @@ reuses `graph/query/direct.py` (`_guard`) and `graph/backends/native.py` (`check
 | Prefixes | `prefixes` (plain dict), `bind`, `unbind`, `used_prefixes()` |
 | SPARQL | `query(text, initNs, initBindings, base)` and `update(text, initNs, base)`, sent to Oxigraph as text |
 | Operators | `+ - & ^` (`graph/setops.py`), `+=`, `copy()`, `__eq__` by identity |
-| RDF 1.2 | `add_reification`, `reifiers`, `reifications`, `reifier_annotations`, `reified_triples` (methods and `reification.*` functions) |
+| RDF 1.2 | `add_reification`, `remove_reification`, `reifiers(tt)`, `reified_triples(reifier)`, `annotations(tt)` (methods and `reification.*` functions; `reifications()` and `reifier_annotations()` were folded into the last two on 2026-11-13) |
 | Engine | `engine_terms`, `preserves_lexical_forms = False`, `native_sparql`, `sparql_query`, `engine_view()` |
 
 ### Decisions made while building
@@ -228,7 +228,7 @@ accepted. Tests: `tests/graph/unit/test_migration_gaps.py` and `test_oxigraph_de
 | Old API | OxGraph / OxDataset equivalent |
 |---|---|
 | `reduce_prefixes(keep=())` | `used_prefixes()` lists what the data uses; `for p in set(g.prefixes) - {p for p, _ in g.used_prefixes()} - set(keep): g.unbind(p)`; or `serialize(only_used=True)` for output only |
-| `add_reifier_annotation(pred, obj, name=None)` | `r = name or BlankNode(); g.add((r, pred, obj)); g.add_reification(r, triple_term)`; read back with `reifier_annotations(TT)` |
+| `add_reifier_annotation(pred, obj, name=None)` | `r = name or BlankNode(); g.add((r, pred, obj)); g.add_reification(r, triple_term)`; read back with `annotations(TT)` |
 | prepared-query objects (`prepareQuery`, the cache) | pass the text to `query()` / `update()` (`initNs=`, `initBindings=`); there is no cache to warm |
 | tuple wildcards for triple terms (`triples((None, None, (None, None, None)))`) | `triple_terms(s, p, o)` (wildcards allowed), or a SPARQL pattern; a full `ox.Triple` in a pattern matches that exact term |
 | `triples_choices` | loop over `triples()`, or `VALUES` in SPARQL |

@@ -28,6 +28,18 @@ RULE_SETS = {
     "RULE { ?a :lonely :yes } WHERE { ?a :edge ?x . NOT { ?a :reach ?a } }",
     "a rule that reads the base graph only (WHERE DATA)": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\n"
     "RULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }\nRULE { ?a :seen :base } WHERE DATA { ?a :edge ?b }",
+    "a closure with the edge on the right": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }",
+    "a closure with the patterns the other way round": "RULE { ?a :reach ?c } WHERE { ?b :edge ?c . ?a :reach ?b }\nRULE { ?a :reach ?b } WHERE { ?a :edge ?b }",
+    "a closure fed by a rule of its own stratum": "RULE { ?a :r ?b } WHERE { ?a :edge ?b }\nRULE { ?b :r ?a } WHERE { ?a :edge ?b . ?b :edge ?c }\n"
+    "RULE { ?a :r ?c } WHERE { ?a :r ?b . ?b :r ?c }",
+    "a closure whose edge is derived by another rule of its stratum": "RULE { ?a :edge ?b } WHERE { ?a :same ?b }\nRULE { ?a :reach ?b } WHERE { ?a :sg ?b }\n"
+    "RULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }",
+    "a closure whose edge is derived by the closure's own kind of rule": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { ?a :edge ?c } WHERE { ?a :reach ?b . ?b :edge ?c }\n"
+    "RULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }",
+    "a closure that needs an edge from a node to itself": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { ?a :reach ?c } WHERE { ?a :edge ?a . ?a :reach ?c }",
+    "a transitive rule whose ends are the same node": "RULE { ?a :r ?a } WHERE { ?a :r ?b . ?b :r ?a }\nRULE { ?a :r ?b } WHERE { ?a :edge ?b }",
+    "a closure over a constant": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { :n0 :reach ?c } WHERE { :n0 :reach ?b . ?b :edge ?c }",
+    "a closure with a variable predicate": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b ?p ?c }",
     "two strata": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }\n"
     "RULE { ?a :far ?c } WHERE { ?a :reach ?b . ?b :reach ?c . NOT { ?a :edge ?c } }",
 }
@@ -52,6 +64,9 @@ def _graph(seed: int, nodes: int = 7, edges: int = 12) -> StarLayerGraph:
     names = [ox.NamedNode(f"{EX}n{i}") for i in range(nodes)]
     for _ in range(edges):
         g.add((rng.choice(names), ox.NamedNode(EX + "edge"), rng.choice(names)))
+    for predicate in ("reach", "r", "same", "sg", "even", "odd"):  # a few of what the rules derive, in the graph already
+        for _ in range(rng.randrange(3)):
+            g.add((rng.choice(names), ox.NamedNode(EX + predicate), rng.choice(names)))
     return g
 
 
@@ -73,7 +88,7 @@ def test_each_round_from_the_new_triples_gives_what_full_rounds_give(name, monke
 
 def test_the_comparison_notices_a_missed_derivation(monkeypatch):
     """Mutation check: a round that ignores the delta (here, one that derives nothing after the first round) must not pass."""
-    ruleset = srl.parse_ruleset(PRELUDE + RULE_SETS["transitive closure"])
+    ruleset = srl.parse_ruleset(PRELUDE + RULE_SETS["mutual recursion"])
     graph = _graph(3)
     real = srl_eval._StorePlan.update
 
@@ -84,6 +99,22 @@ def test_the_comparison_notices_a_missed_derivation(monkeypatch):
     broken = _inferred(ruleset, graph)
     monkeypatch.undo()
     assert broken != _inferred(ruleset, graph)
+
+
+@pytest.mark.parametrize("name", RULE_SETS)
+def test_the_rounds_give_what_full_rounds_give_when_no_closure_is_recognised(name, monkeypatch):
+    """A closure of the shapes ``_closure_of`` knows is computed by one update, so the rounds would not run for those rule sets
+    above: switch the recognition off and compare the rounds as well."""
+    ruleset = srl.parse_ruleset(PRELUDE + RULE_SETS[name])
+    for seed in range(25):
+        graph = _graph(seed)
+        with monkeypatch.context() as m:
+            m.setattr(srl_eval, "_closure_of", lambda rules, positions: None)
+            rounds = _inferred(ruleset, graph)
+        with monkeypatch.context() as m:
+            m.setattr(srl_eval, "_run_to_fixpoint", _naive)
+            slow = _inferred(ruleset, graph)
+        assert rounds == slow, f"seed {seed}: {len(rounds ^ slow)} triples differ"
 
 
 @pytest.mark.parametrize("name", RULE_SETS)
@@ -187,3 +218,68 @@ def test_a_long_chain_is_not_cubic():
     inferred = ruleset.infer(g)
     assert len(inferred) == 120 * 121 // 2  # every reach pair
     assert time.perf_counter() - start < 10
+
+
+def _closure(rules_text: str):
+    ruleset = srl.parse_ruleset(PRELUDE + rules_text)
+    heads = [head for rule in ruleset.rules for head in rule.head]
+    positions = {id(rule): srl_eval._delta_positions(rule, heads) for rule in ruleset.rules}
+    found = srl_eval._closure_of(ruleset.rules, positions)
+    return None if found is None else found[1].split("WHERE", 1)[1].strip()
+
+
+@pytest.mark.parametrize(
+    ("rules", "path"),
+    [
+        ("RULE { ?a :q ?b } WHERE { ?a :p ?b }\nRULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :q ?c }", "{ ?a <http://example.org/q>+ ?c }"),
+        ("RULE { ?a :q ?c } WHERE { ?b :q ?c . ?a :q ?b }", "{ ?a <http://example.org/q>+ ?c }"),
+        ("RULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c }", "{ ?a <http://example.org/q> ?b . ?b <http://example.org/p>* ?c }"),
+        ("RULE { ?a :q ?c } WHERE { ?b :p ?c . ?a :q ?b }", "{ ?a <http://example.org/q> ?b . ?b <http://example.org/p>* ?c }"),
+        ("RULE { ?a :q ?c } WHERE { ?a :p ?b . ?b :q ?c }", "{ ?b <http://example.org/q> ?c . ?a <http://example.org/p>* ?b }"),
+        ("RULE { ?a :p ?b } WHERE { ?a :s ?b }\nRULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c }", "{ ?a <http://example.org/q> ?b . ?b <http://example.org/p>* ?c }"),  # p derived by a rule that nothing feeds
+        ("RULE { ?a :q ?b } WHERE { ?a :s ?b }\nRULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c }", "{ ?a <http://example.org/q> ?b . ?b <http://example.org/p>* ?c }"),
+    ],
+)
+def test_the_closures_oxigraph_computes_by_itself(rules, path):
+    assert _closure(rules) == path
+
+
+@pytest.mark.parametrize(
+    "rules",
+    [
+        "RULE { ?a :q ?a } WHERE { ?a :q ?b . ?b :q ?a }",  # the ends are one node
+        "RULE { ?a :q ?c } WHERE { ?a :q ?a . ?a :q ?c }",  # the middle is the start
+        "RULE { ?a :q ?c } WHERE { ?a :p ?a . ?a :q ?c }",  # the same, with the edge first
+        "RULE { :a :q ?c } WHERE { :a :q ?b . ?b :p ?c }",  # a constant end
+        "RULE { ?a :q ?c } WHERE { ?a :q ?b . ?b ?p ?c }",  # a variable predicate
+        "RULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c . FILTER (?a != ?c) }",  # three elements
+        "RULE { ?a :q ?c } WHERE { ?a :q ?b . ?c :p ?b }",  # the edge the wrong way
+        "RULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c }\nRULE { ?a :p ?c } WHERE { ?a :p ?b . ?b :q ?c }",  # p grows with q
+        "RULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c }\nRULE { ?a :s ?c } WHERE { ?a :s ?b . ?b :s ?c }",  # a second repeating rule
+        "RULE { ?a :q ?c . ?a :t ?c } WHERE { ?a :q ?b . ?b :p ?c }",  # two head triples
+        "RULE { ?a :q ?c } WHERE DATA { ?a :q ?b . ?b :p ?c }",  # reads the base graph only
+    ],
+)
+def test_the_rules_that_are_not_such_closures(rules):
+    assert _closure(rules) is None
+
+
+def test_a_long_closure_is_computed_by_the_store_in_one_update():
+    """The closure of a chain of 300 takes one update, not 300 rounds: the delta graph is never written."""
+    ruleset = srl.parse_ruleset(PRELUDE + RULE_SETS["transitive closure"])
+    g = StarLayerGraph()
+    g.extend((ox.NamedNode(f"{EX}n{i}"), ox.NamedNode(EX + "edge"), ox.NamedNode(f"{EX}n{i + 1}")) for i in range(300))
+    real = srl_eval._Evaluation.commit
+    deltas = []
+
+    def spy(self, delta):
+        deltas.append(delta)
+        return real(self, delta)
+
+    srl_eval._Evaluation.commit = spy
+    try:
+        inferred = ruleset.infer(g)
+    finally:
+        srl_eval._Evaluation.commit = real
+    assert len(inferred) == 300 * 301 // 2
+    assert deltas and not any(deltas)

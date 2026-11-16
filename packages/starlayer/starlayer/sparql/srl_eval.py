@@ -32,7 +32,9 @@ node-per-solution head instantiation (§6.4).
 from __future__ import annotations
 
 import datetime
+import itertools
 import re
+import sys
 from contextvars import ContextVar
 from dataclasses import dataclass
 
@@ -914,7 +916,7 @@ class _StorePlan:
 
     heads: list[str]  # the head's triples, each written as a template (a blank node has a label of its own for the rule)
     parts: list[tuple[str, int, str]]  # ("triple" | "filter" | "bind" | "not", index in the rule's body, SPARQL text)
-    fresh: bool  # the head has a blank node: every solution gives triples that are not in the graph
+    fresh: bool  # every triple of the head has a blank node: every solution gives triples that are not in the graph
     linked: bool  # the head has a variable, so a MINUS can compare a head triple with the graph
 
     @property
@@ -942,9 +944,9 @@ class _StorePlan:
 
     def direct(self) -> str | None:
         """An update that puts what the rule derives, and is not in the graph yet, in the evaluation graph and the inferred
-        graph, or ``None`` when that cannot be told in one update: a rule with a blank node in the head always gives new triples;
-        one with a single head triple has the graph's own copies taken away by a ``MINUS`` (which compares nothing if the triple
-        has no variable)."""
+        graph, or ``None`` when that cannot be told in one update: a rule whose every head triple has a blank node always gives new
+        triples (one with a blank node in some of them has the others to check); one with a single head triple has the graph's own
+        copies taken away by a ``MINUS`` (which compares nothing if the triple has no variable)."""
         if self.fresh:
             minus = ""
         elif len(self.heads) == 1 and self.linked:
@@ -1011,15 +1013,17 @@ def _store_plan(rule: srl_ast._Rule) -> _StorePlan | None:
     heads = []
     labels: dict = {}
     head_variables: set = set()
+    with_blank = []
     for template in rule.head:
         terms = (template.subject, template.predicate, template.object)
+        with_blank.append(any(_has_blank_node(t) for t in terms))
         texts = [_head_term_text(t, labels) for t in terms]
         variables = {v for t in terms for v in _term_variables(t)}
         if None in texts or not variables <= bound:
             return None  # the element-by-element evaluation raises for the unbound variable
         head_variables |= variables
         heads.append(" ".join(texts) + " .")
-    return _StorePlan(heads, parts, bool(labels), bool(head_variables))
+    return _StorePlan(heads, parts, all(with_blank), bool(head_variables))
 
 
 _MINUS_FROM = 12
@@ -1085,26 +1089,34 @@ class _Evaluation:
     def commit(self, delta: bool) -> int:
         """Keep the candidates that are not in the evaluation graph yet: they go in the graph and the inferred graph, and, with
         ``delta``, become the delta graph (the previous one is dropped). With ``delta`` it returns how many there were (0 is the
-        fixpoint)."""
+        fixpoint).
+
+        Up to ``size / _MINUS_FROM`` candidates are read and checked in Python; reading one more than that shows the round is
+        large, and a ``MINUS`` update does it. (Reading them is how a small round is told from a large one: a count would be a query
+        of its own, a quarter of a millisecond, which a chain of hundreds of tiny rounds pays each time.)"""
         store = self.store
-        candidates = _count(store, _CANDIDATE_GRAPH)
-        if not candidates:
+        limit = self.size // _MINUS_FROM if _MINUS_FROM else sys.maxsize - 1  # (0 is never MINUS, which the tests use)
+        rows = list(itertools.islice(store.quads_for_pattern(None, None, None, _CANDIDATE_GRAPH), limit + 1))
+        if not rows:
             if delta:
                 store.clear_graph(_DELTA_GRAPH)
             return 0
-        if candidates * _MINUS_FROM <= self.size:
+        if len(rows) <= limit:
             fresh = []
-            for q in store.quads_for_pattern(None, None, None, _CANDIDATE_GRAPH):
+            for q in rows:
                 triple = ox.Quad(q.subject, q.predicate, q.object)
                 if triple not in store:
                     fresh.append(triple)
             store.clear_graph(_CANDIDATE_GRAPH)
             if delta:
                 store.clear_graph(_DELTA_GRAPH)
-            store.extend(fresh)
-            store.extend(ox.Quad(q.subject, q.predicate, q.object, _INFERRED_GRAPH) for q in fresh)
-            if delta:
-                store.extend(ox.Quad(q.subject, q.predicate, q.object, _DELTA_GRAPH) for q in fresh)
+            store.extend(
+                itertools.chain(
+                    fresh,
+                    (ox.Quad(q.subject, q.predicate, q.object, _INFERRED_GRAPH) for q in fresh),
+                    (ox.Quad(q.subject, q.predicate, q.object, _DELTA_GRAPH) for q in fresh) if delta else (),
+                )
+            )
             self._size = self.size + len(fresh)
             return len(fresh)
         cand, inf, new = (f"<{g.value}>" for g in (_CANDIDATE_GRAPH, _INFERRED_GRAPH, _DELTA_GRAPH))
@@ -1118,7 +1130,7 @@ class _Evaluation:
             self._size = self.size + added
             return added
         self.forget_size()
-        return candidates
+        return len(rows)
 
     def clear_scratch(self) -> None:
         for graph in (_CANDIDATE_GRAPH, _DELTA_GRAPH):
@@ -1163,6 +1175,53 @@ def _derive_once(rules: list[srl_ast._Rule], evaluation: _Evaluation, plans: dic
         evaluation.commit(delta=False)
 
 
+def _closure_of(rules: list[srl_ast._Rule], positions: dict) -> tuple[srl_ast._Rule, str] | None:
+    """When the one rule of a stratum that repeats is a closure Oxigraph computes by itself, that rule and the update that derives
+    everything it would in the rounds, into the candidate graph; otherwise ``None``. The shapes, with ``q`` and ``p`` IRIs and
+    ``x``, ``y``, ``z`` three different variables, and the rule's body exactly two triple patterns:
+
+    - ``q(x, z) <- q(x, y), q(y, z)``, or the same with the patterns the other way round: ``?x q+ ?z``;
+    - ``q(x, z) <- q(x, y), p(y, z)``: what ``q`` has, followed by ``p`` any number of times;
+    - ``q(x, z) <- p(x, y), q(y, z)``: ``p`` any number of times, followed by what ``q`` has.
+
+    Every other rule of the stratum must have no pattern a head of the stratum can feed (``positions`` is empty for it), so nothing
+    in the stratum changes what it derives and they can run once before; a rule that derives ``p`` is one of them, and the
+    closure then follows the ``p`` triples it made."""
+    repeating = [rule for rule in rules if positions[id(rule)]]
+    if len(repeating) != 1:
+        return None
+    (rule,) = repeating
+    if not rule.evaldata or len(rule.head) != 1 or len(rule.body) != 2 or not all(isinstance(e, srl_ast.TriplePattern) for e in rule.body):
+        return None
+    head = rule.head[0]
+    q = head.predicate
+    if not isinstance(q, ox.NamedNode) or not isinstance(head.subject, Variable) or not isinstance(head.object, Variable):
+        return None
+    x, z = head.subject, head.object
+    first, second = rule.body
+    if any(not isinstance(t.predicate, ox.NamedNode) or not isinstance(t.subject, Variable) or not isinstance(t.object, Variable) for t in (first, second)):
+        return None
+    iri = _pattern_term_text
+    for left, right in ((first, second), (second, first)):
+        y = left.object
+        if left.subject != x or right.subject != y or right.object != z or len({x, y, z}) != 3:
+            continue
+        if left.predicate == q and right.predicate == q:
+            where = f"{iri(x)} {iri(q)}+ {iri(z)}"
+        elif left.predicate == q and right.predicate != q:
+            where = f"{iri(x)} {iri(q)} {iri(y)} . {iri(y)} {iri(right.predicate)}* {iri(z)}"
+        else:
+            continue
+        return rule, f"INSERT {{ GRAPH <{_CANDIDATE_GRAPH.value}> {{ {iri(x)} {iri(q)} {iri(z)} }} }} WHERE {{ {where} }}"
+    # p(x, y), q(y, z): the pattern with the head's subject is the p one
+    for left, right in ((first, second), (second, first)):
+        y = left.object
+        if left.subject == x and right.subject == y and right.object == z and len({x, y, z}) == 3 and right.predicate == q and left.predicate != q:
+            where = f"{iri(y)} {iri(q)} {iri(z)} . {iri(x)} {iri(left.predicate)}* {iri(y)}"
+            return rule, f"INSERT {{ GRAPH <{_CANDIDATE_GRAPH.value}> {{ {iri(x)} {iri(q)} {iri(z)} }} }} WHERE {{ {where} }}"
+    return None
+
+
 def _run_to_fixpoint(rules: list[srl_ast._Rule], evaluation: _Evaluation) -> None:
     """The general rules of one stratum, repeated until no round derives a new triple.
 
@@ -1184,6 +1243,18 @@ def _run_to_fixpoint(rules: list[srl_ast._Rule], evaluation: _Evaluation) -> Non
         if not any(positions.values()):
             _derive_once(rules, evaluation, plans)
             return
+        closure = _closure_of(rules, positions)
+        if closure is not None:
+            rule, update = closure
+            _derive_once([r for r in rules if r is not rule], evaluation, plans)
+            evaluation.refresh()
+            try:
+                evaluation.store.update(update)
+            except RuntimeError:
+                pass  # the engine cannot evaluate this one: the rounds do it
+            else:
+                evaluation.commit(delta=False)
+                return
         first = True
         while True:
             evaluation.refresh()  # the evaluation graph changes under its wrapper; whatever it kept about the union is stale

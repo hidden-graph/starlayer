@@ -27,6 +27,8 @@ RULE_SETS = {
     "assignments in a chain, then a filter on the last": "RULE { ?a :big ?w } WHERE { ?a :val ?v . SET (?z := ?v + 1) SET (?w := ?z * 2) FILTER (?w > 6) }",
     "an assignment after a negation": "RULE { ?a :free ?d } WHERE { ?a :val ?v . NOT { ?a :edge ?a } SET (?d := ?v - 1) }",
     "a blank node in the head, shared by the head's triples": "RULE { [] :from ?a ; :to ?b } WHERE { ?a :edge ?b }",
+    "a blank node in one head triple and a triple the graph may have": "RULE { ?a :copy ?v . ?a :tag [] } WHERE { ?a :val ?v . SET (?z := 1) }",
+    "a blank node in one head triple of a general rule": "RULE { ?a :copy ?v . [] :for ?a } WHERE { ?a :val ?v }",
     "a blank node and an assignment": "RULE { [ :of ?a ; :twice ?d ] a :Twin } WHERE { ?a :val ?v . SET (?d := ?v * 2) }",
     "a run-once rule that feeds a general one of its stratum": "RULE { ?a :link ?d } WHERE { ?a :val ?v . SET (?d := IRI(CONCAT(\"http://example.org/n\", STR(?v)))) }\n"
     "RULE { ?a :reach ?b } WHERE { ?a :link ?b }\nRULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :link ?c }",
@@ -128,6 +130,8 @@ def test_which_rules_can_write_straight_into_the_graph():
     assert "MINUS" in direct("RULE { ?a :q ?b } WHERE { ?a :p ?b }")
     assert "MINUS" not in direct("RULE { [] :from ?a } WHERE { ?a :p ?b }")  # a new node in every solution: nothing to take away
     assert direct("RULE { ?a :q ?b . ?b :q ?a } WHERE { ?a :p ?b }") is None  # one MINUS cannot compare two triples
+    assert direct("RULE { ?a :q ?b . ?a :r [] } WHERE { ?a :p ?b }") is None  # the first triple may be in the graph already
+    assert "MINUS" not in direct("RULE { [] :from ?a . [] :to ?b } WHERE { ?a :p ?b }")
     assert direct("RULE { :x :seen :yes } WHERE { ?a :p ?b }") is None  # a MINUS with no variable in common takes nothing away
 
 

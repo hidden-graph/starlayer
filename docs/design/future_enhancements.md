@@ -434,3 +434,17 @@ Explored with the owner and set aside. Nothing here is decided. Today `infer()` 
 - Every Python API found takes rdflib graphs, so using one from pyoxigraph terms means a round trip through N-Triples text (linear, and it loses RDF 1.2 triple terms), plus a compiled dependency per platform. Worth running `reasonable` and TurbOWL against `owlrl` on a real ontology (output equality, time, inconsistency reporting) before choosing.
 
 **Not changed.** RDFS stays native. OWL-RL stays on `owlrl` in `starlayer-reasoning` until one of the above is tried.
+
+
+## What rdflib had that StarLayer could still offer (2026-11-15)
+
+From the review of what the move to pyoxigraph gave up. The aim is rdflib's capabilities over pyoxigraph terms, not its class shape (the 2026-11-06 decision that fidelity to the old class is not a goal stands). Not done; in order of value.
+
+1. **`custom_functions` (and aggregates) on `query()` and `update()`.** pyoxigraph takes them already, so this passes one argument through. Without it there is no way to extend SPARQL.
+2. **`Result.serialize(format)`** over `QuerySolutions.serialize`: standard CSV, TSV, JSON and XML results.
+3. **A small public term toolkit in `starlayer.graph`:** `literal(py_value)`, `to_python(term)`, `iri()`. The workbench rebuilt these; the library should own them.
+4. **Public RDF list helpers** (`list_items`, `add_list`) in a home next to the graph, not inside the engine. `transitive_objects` / `transitive_subjects` only if wanted; property paths already cover the use.
+5. **A short SALG-to-SQE migration note**, once the coverage is confirmed.
+
+Not worth bringing back: subclassing `rdflib.Graph`, rdflib stores and plugins, `Resource` and slicing, the old algebra patches, the extra file formats.
+
