@@ -870,6 +870,39 @@ class _Base:
         self.extend(other.quads() if isinstance(self, StarLayerDataset) else other.triples())
         return self
 
+    def _items(self) -> list[Any]:
+        return list(self.quads() if isinstance(self, StarLayerDataset) else self.triples())
+
+    def _discard(self, items: Iterable[Any]) -> None:
+        g = self._add_graph()
+        try:
+            for item in list(items):  # a list: ``items`` may come from this very graph
+                self.store.remove(self._quad(item, g))
+        finally:
+            union.touch()
+
+    # The in-place forms change this graph itself, as ``+=`` does and as rdflib's ``-=`` and a Python set's ``-=``, ``&=``, ``^=`` do. Without
+    # them Python would run ``a = a - b``, which makes a new in-memory graph and leaves every other reference to ``a`` (and a graph on disk) unchanged.
+    def __isub__(self, other: Any) -> Any:
+        if type(other) is not type(self):
+            return NotImplemented
+        self._discard(other._items())
+        return self
+
+    def __iand__(self, other: Any) -> Any:
+        if type(other) is not type(self):
+            return NotImplemented
+        self._discard((self - other)._items())
+        return self
+
+    def __ixor__(self, other: Any) -> Any:
+        if type(other) is not type(self):
+            return NotImplemented
+        common, only_other = self & other, other - self
+        self._discard(common._items())
+        self.extend(only_other._items())
+        return self
+
     def _combine(self, fn: Any, other: Any) -> Any:
         raise NotImplementedError
 

@@ -168,3 +168,58 @@ def test_large_graphs_stream() -> None:
     assert len(intersection(a, b)) == n - n // 2
     assert len(union(a, b)) == n + n // 2
     assert time.perf_counter() - start < 20
+
+
+# ---- the in-place operators ------------------------------------------------------------------------------------------
+def _graph(*objs):
+    g = StarLayerGraph()
+    for o in objs:
+        g.add((ox.NamedNode(E + "a"), ox.NamedNode(E + "p"), ox.NamedNode(E + o)))
+    return g
+
+
+def _objs(g):
+    return {t[2].value[len(E):] for t in g.triples((None, None, None))}
+
+
+@pytest.mark.parametrize("op, expected", [("-=", {"x"}), ("&=", {"y"}), ("^=", {"x", "z"})])
+def test_in_place_operators_change_the_graph_itself(op, expected):
+    from starlayer.graph.execution import union
+
+    a, other = _graph("x", "y"), _graph("y", "z")
+    alias = a  # another reference to the same graph
+    before = union.current()
+    exec(f"a {op} other")
+    assert a is alias and _objs(alias) == expected
+    assert _objs(other) == {"y", "z"}  # the right-hand side is not changed
+    assert union.current() > before
+
+
+def test_in_place_operators_with_the_graph_itself():
+    a = _graph("x", "y")
+    a -= a
+    assert len(a) == 0
+    a = _graph("x", "y")
+    a &= a
+    assert _objs(a) == {"x", "y"}
+    a ^= a
+    assert len(a) == 0
+
+
+def test_in_place_operators_on_a_dataset_compare_quads():
+    d, other = StarLayerDataset(), StarLayerDataset()
+    d.graph(ox.NamedNode(E + "g")).add((ox.NamedNode(E + "a"), ox.NamedNode(E + "p"), ox.NamedNode(E + "x")))
+    other.graph(ox.NamedNode(E + "h")).add((ox.NamedNode(E + "a"), ox.NamedNode(E + "p"), ox.NamedNode(E + "x")))
+    d -= other  # the same triple in another graph is another quad, so nothing is removed
+    assert d.has_graph(ox.NamedNode(E + "g")) and len(d.graph(ox.NamedNode(E + "g"))) == 1
+    other.graph(ox.NamedNode(E + "g")).add((ox.NamedNode(E + "a"), ox.NamedNode(E + "p"), ox.NamedNode(E + "x")))
+    d -= other
+    assert len(d.graph(ox.NamedNode(E + "g"))) == 0
+
+
+def test_in_place_operators_need_the_same_kind_on_both_sides():
+    a = _graph("x")
+    for op in ("-=", "&=", "^="):
+        with pytest.raises(TypeError):
+            exec(f"a {op} StarLayerDataset()")
+    assert _objs(a) == {"x"}
