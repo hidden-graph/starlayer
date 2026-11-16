@@ -35,7 +35,9 @@ def test_text_with_a_datatype_a_language_and_a_direction():
     assert literal(5, XSD.long) == ox.Literal("5", datatype=XSD.long)
     assert literal("a", lang="en") == ox.Literal("a", language="en")
     assert literal("a", lang="ar", direction="rtl") == ox.Literal("a", language="ar", direction=ox.BaseDirection.RTL)
-    assert literal("a", XSD.string, lang="en") == ox.Literal("a", language="en")  # a language tag wins over a datatype
+    assert literal("a", XSD.string, lang="en") == ox.Literal("a", language="en")  # xsd:string is what a plain string already is
+    with pytest.raises(ValueError, match="not both"):
+        literal("5", XSD.integer, lang="en")  # the datatype cannot be kept, so it is an error, not dropped
     with pytest.raises(ValueError, match="language"):
         literal("a", direction="ltr")
     with pytest.raises(ValueError, match="direction"):

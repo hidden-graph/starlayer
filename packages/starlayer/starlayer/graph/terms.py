@@ -72,14 +72,21 @@ _INTEGER_TYPES = frozenset(
 )
 
 
+_LANGUAGE_DATATYPES = frozenset({XSD + "string", "http://www.w3.org/1999/02/22-rdf-syntax-ns#langString", "http://www.w3.org/1999/02/22-rdf-syntax-ns#dirLangString"})
+
+
 def literal(value: Any, datatype: Any = None, *, lang: str | None = None, direction: str | None = None) -> ox.Literal:
     """A literal from a Python value, or from text with a ``datatype`` (a ``NamedNode`` or IRI text), a language ``lang`` and a base
     ``direction`` (``"ltr"`` or ``"rtl"``, with ``lang``).
 
     A ``bool`` is ``xsd:boolean``, an ``int`` ``xsd:integer``, a ``float`` ``xsd:double``, a ``Decimal`` ``xsd:decimal``, a ``datetime`` /
-    ``date`` / ``time`` ``xsd:dateTime`` / ``xsd:date`` / ``xsd:time``, a ``str`` a plain string. ``lang`` takes precedence over
-    ``datatype``, as in RDF. A Python value with a ``datatype`` is written as its own lexical form (``literal(5, XSD.long)``)."""
+    ``date`` / ``time`` ``xsd:dateTime`` / ``xsd:date`` / ``xsd:time``, a ``str`` a plain string. A language-tagged literal has the datatype
+    ``rdf:langString`` (``rdf:dirLangString`` with a ``direction``), so a ``datatype`` given with ``lang`` must be ``xsd:string`` or one of those;
+    any other raises ``ValueError``, as the datatype cannot be kept. A Python value with a ``datatype`` is written as its own lexical form
+    (``literal(5, XSD.long)``)."""
     if lang is not None:
+        if datatype is not None and str(getattr(datatype, "value", datatype)) not in _LANGUAGE_DATATYPES:
+            raise ValueError(f"a literal has a language tag or a datatype, not both: lang={lang!r} with datatype {datatype}")
         if direction is not None and direction not in ("ltr", "rtl"):
             raise ValueError(f"direction must be 'ltr' or 'rtl', not {direction!r}")
         return Literal(str(value), language=lang, **({"direction": ox.BaseDirection.LTR if direction == "ltr" else ox.BaseDirection.RTL} if direction else {}))
