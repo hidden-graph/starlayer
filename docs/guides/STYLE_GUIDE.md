@@ -40,7 +40,7 @@ Always the **third** cell, immediately after the title — never preceded by a s
 
 > This guide assumes StarLayer has been pip installed — see [Getting Started](01-getting-started.ipynb) if not. Run cells from top to bottom; later sections may reuse variables from earlier ones.
 
-Append, don't replace, when a guide has a real extra prerequisite (a JVM, a running Oxigraph/Fuseki instance, an optional extra like `pyshacl`/`rdflib-sqlalchemy`) — state it plainly and say what happens if it's missing (`02c-owl-dl-reasoning.ipynb`'s HermiT/Java note is the right length and specificity). State every real prerequisite here, not scattered across later sections (`06b`'s own `!pip install -q rdflib-sqlalchemy` buried mid-notebook is the anti-example).
+Append, don't replace, when a guide has a real extra prerequisite (a JVM, a running Oxigraph/Fuseki instance, an optional extra like `pyshacl`/`rdflib-sqlalchemy`) — state it plainly and say what happens if it's missing (`02f-owl-dl-reasoning.ipynb`'s HermiT/Java note is the right length and specificity). State every real prerequisite here, not scattered across later sections (`06b`'s own `!pip install -q rdflib-sqlalchemy` buried mid-notebook is the anti-example).
 
 ## 4. Section numbering
 
@@ -54,7 +54,7 @@ Append, don't replace, when a guide has a real extra prerequisite (a JVM, a runn
 
 ## 5. Opening paragraph (per guide, not just the title tagline)
 
-One paragraph, not an essay, stating what's covered and why it matters (see §2) — then move into numbered sections. A reference-style table summarizing the whole topic (`02b-graphs-inferencing.ipynb`'s entailment-regime table) is fine as part of the opening when the guide is genuinely reference-shaped, but state the orienting sentence first, table second — never the reverse.
+One paragraph, not an essay, stating what's covered and why it matters (see §2) — then move into numbered sections. A reference-style table summarizing the whole topic (`02e-graphs-inferencing.ipynb`'s entailment-regime table) is fine as part of the opening when the guide is genuinely reference-shaped, but state the orienting sentence first, table second — never the reverse.
 
 ## 6. Closing: one section, only when there's something to say
 
@@ -86,7 +86,7 @@ Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A 
 
 ## 10. Cross-referencing
 
-- **Sibling guides**: always a real markdown link with descriptive text, `[Topic](NNx-filename.ipynb)`, optionally with a heading anchor (`02b-graphs-inferencing.ipynb#2.4-Detecting-inconsistencies`) when pointing at one specific subsection rather than a whole guide.
+- **Sibling guides**: always a real markdown link with descriptive text, `[Topic](NNx-filename.ipynb)`, optionally with a heading anchor (`02e-graphs-inferencing.ipynb#2.4-Detecting-inconsistencies`) when pointing at one specific subsection rather than a whole guide.
 - **Deeper project docs** (`CLAUDE.md` files, the gap-matrix): also real markdown links from now on, not bare backtick-quoted paths — e.g. `[shacl12-gap-matrix.md](../../docs/design/shacl/shacl12-gap-matrix.md)`, not `` `docs/design/shacl/shacl12-gap-matrix.md` ``. A bare path isn't clickable in a rendered notebook; a link is, and costs nothing extra. This is a deliberate change from the currently-dominant-but-inconsistent practice, not a continuation of it.
 
 ## 11. No leftover authoring notes, ever

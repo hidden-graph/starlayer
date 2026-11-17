@@ -1,7 +1,7 @@
-# 02c OWL 2 DL Reasoning: material removed from the guide
+# 02f OWL 2 DL Reasoning: material removed from the guide
 
 Not part of the guide, and not run or linked. This is the text and code that the simplification of
-[02c](02c-owl-dl-reasoning.ipynb) removed or rewrote, in their original order, kept until we decide what to promote to an
+[02f](02f-owl-dl-reasoning.ipynb) removed or rewrote, in their original order, kept until we decide what to promote to an
 appendix and what to drop. The cell ids are the ids the cells had in the notebook. The statements about RustDL (the hang risk, what it
 leaves out) were written for an earlier version of `rustdl` and have not been re-verified against 0.4.x.
 
@@ -9,7 +9,7 @@ leaves out) were written for an earlier version of `rustdl` and have not been re
 
 # 02c OWL 2 DL Reasoning
 
-The [Graph Inferencing guide](02b-graphs-inferencing.ipynb) covers RDFS and OWL 2 RL reasoning via `infer()`, both backed by `owlrl`, a Python rule engine. `infer()` here is the method of `StarLayerGraph`.
+The [Graph Inferencing guide](02e-graphs-inferencing.ipynb) covers RDFS and OWL 2 RL reasoning via `infer()`, both backed by `owlrl`, a Python rule engine. `infer()` here is the method of `StarLayerGraph`.
 
 This guide covers a third, separate `infer()` entailment regime instead: `entailment=ENTAILMENT['OWL-Direct']`, genuine OWL 2 DL reasoning. OWL DL reasoning requires one of two separate pluggable reasoners: 
 
@@ -322,7 +322,7 @@ owlrl also concludes this: False
 
 ## 3. Detecting inconsistencies
 
-Every car must be electric or gas-powered; `ex:mycar` is asserted to be neither — a genuine contradiction, but not one of `owlrl`'s fixed local violation patterns (Inferencing guide [section 3.5](02b-graphs-inferencing.ipynb#3.5-Detecting-inconsistencies)), so it passes through `owlrl` silently. `entailment=ENTAILMENT['OWL-Direct']`'s consistency check is sound and complete, and raises `starlayer.graph.entailment.owl_dl.InconsistentOntologyError` outright rather than leaving it for you to notice.
+Every car must be electric or gas-powered; `ex:mycar` is asserted to be neither — a genuine contradiction, but not one of `owlrl`'s fixed local violation patterns (Inferencing guide [section 3.5](02e-graphs-inferencing.ipynb#3.5-Detecting-inconsistencies)), so it passes through `owlrl` silently. `entailment=ENTAILMENT['OWL-Direct']`'s consistency check is sound and complete, and raises `starlayer.graph.entailment.owl_dl.InconsistentOntologyError` outright rather than leaving it for you to notice.
 
 ---
 

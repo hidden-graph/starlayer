@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
-  "version": "1.7.0",
-  "lastUpdated": "2026-11-14",
+  "version": "1.8.0",
+  "lastUpdated": "2026-11-16",
   "canonicalSource": "docs/guides/README.md",
   "artifacts": {
     "index": [
@@ -11,10 +11,11 @@
       "docs/guides/01-getting-started.ipynb",
       "docs/guides/02-graphs.ipynb",
       "docs/guides/02a-graphs-datasets.ipynb",
-      "docs/guides/02b-graphs-inferencing.ipynb",
-      "docs/guides/02c-owl-dl-reasoning.ipynb",
-      "docs/guides/02d-oxigraph-wrapper.ipynb",
-      "docs/guides/02e-graph-contents.ipynb",
+      "docs/guides/02b-oxigraph-wrapper.ipynb",
+      "docs/guides/02c-graph-content.ipynb",
+      "docs/guides/02d-combining-comparing-graphs.ipynb",
+      "docs/guides/02e-graphs-inferencing.ipynb",
+      "docs/guides/02f-owl-dl-reasoning.ipynb",
       "docs/guides/03-sparql.ipynb",
       "docs/guides/03a-sparql-entailment.ipynb",
       "docs/guides/03b-srl-sparql-rules.ipynb",

@@ -1,6 +1,6 @@
 # StarLayer User Guides
 
-*Last reviewed: 2026-11-14*
+*Last reviewed: 2026-11-16*
 
 This is the single master index for every guide notebook - every notebook's own "How to run this notebook" cell links back here, rather than repeating this list in-body (see [`STYLE_GUIDE.md`](STYLE_GUIDE.md)). Update this file when a guide is added, renamed, or reordered; no other file needs to change.
 
@@ -11,12 +11,13 @@ This is the single master index for every guide notebook - every notebook's own 
 1. **[Getting Started](01-getting-started.ipynb)** - install, first parse, first query, first validate.
 2. **[Graphs](02-graphs.ipynb)** - RDF 1.2 triple terms, reifiers, annotations and directional language strings, and the Turtle 1.2 syntax for them.
    - **2.a [Working with datasets](02a-graphs-datasets.ipynb)** - `StarLayerDataset`, multiple named graphs in one store.
-   - **2.b [Inferencing](02b-graphs-inferencing.ipynb)** - RDF/RDFS/OWL 2 RL reasoning via `owlrl` (and natively for RDF), the full entailment-regime picture (what each regime means, the regime-support status table, which one to use), and a worked example of both the `infer()` and `query(entailment=...)` forms per regime.
-   - **2.c [OWL 2 DL reasoning](02c-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).
-   - **2.d [The Oxigraph-backed graph](02d-oxigraph-wrapper.ipynb)** - `StarLayerGraph` / `StarLayerDataset` hold a `pyoxigraph.Store`: any store method can be called through `.ox` on the graph or dataset (`g.ox.load(...)`), which is better than `.store` because the wrapper records writes (the caching warning); converting to and from rdflib.
-   - **2.e [Working with a graph's contents](02e-graph-contents.ipynb)** - terms and Python values (`literal`, `to_python`, `parse_term`), RDF lists, single values and walks, prefixes, set operations, `diff` and `GraphDelta`, matching blank nodes (`align_blank_nodes`), `profile()` of a graph or dataset, `owl:imports` with a loader, and skolemizing blank nodes.
+   - **2.b [The Oxigraph-backed graph](02b-oxigraph-wrapper.ipynb)** - `StarLayerGraph` / `StarLayerDataset` hold a `pyoxigraph.Store`: any store method can be called through `.ox` on the graph or dataset (`g.ox.load(...)`), which is better than `.store` because the wrapper records writes (the caching warning); converting to and from rdflib.
+   - **2.c [Reading and building graph content](02c-graph-content.ipynb)** - terms and Python values (`literal`, `to_python`, `parse_term`), RDF lists, single values and walks, prefixes, and `profile()` of a graph or dataset.
+   - **2.d [Combining and comparing graphs](02d-combining-comparing-graphs.ipynb)** - set operations, `diff` and `GraphDelta`, matching blank nodes (`align_blank_nodes`), `owl:imports` with a loader, and skolemizing blank nodes.
+   - **2.e [Inferencing](02e-graphs-inferencing.ipynb)** - RDF/RDFS/OWL 2 RL reasoning via `owlrl` (and natively for RDF), the full entailment-regime picture (what each regime means, the regime-support status table, which one to use), and a worked example of both the `infer()` and `query(entailment=...)` forms per regime.
+   - **2.f [OWL 2 DL reasoning](02f-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).
 3. **[SPARQL](03-sparql.ipynb)** - query semantics and built-in functions, your own Python functions and aggregates (`custom_functions`), and writing results as JSON, XML, CSV, TSV or RDF (`Result.serialize`).
-   - **3.a [SPARQL entailment](03a-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.b already covers per regime: caching behavior (`infer=`) and detecting an inconsistency via `ASK`.
+   - **3.a [SPARQL entailment](03a-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.e already covers per regime: caching behavior (`infer=`) and detecting an inconsistency via `ASK`.
    - **3.b [SRL (SPARQL Rules)](03b-srl-sparql-rules.ipynb)** - a separate Datalog-style rules language independent of SHACL: parsing (including RDF 1.2 triple terms, annotations, `/` `^` property paths and `IMPORTS`), inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.
 4. **[SHACL shapes](04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`), reading a validation result and the errors (`ValidationResult`, `validate_each`, `ShapeError`), entailment during validation, and deriving a shapes graph from data (`derive_shape()`).
    - **4.a [SHACL node expressions](04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.

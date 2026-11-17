@@ -2,7 +2,7 @@
 tests/unit/test_infer.py
 
 Coverage for StarLayerGraph.infer(), which formalizes the manual
-owlrl.DeductiveClosure workflow shown in docs/guides/02b-graphs-inferencing.ipynb
+owlrl.DeductiveClosure workflow shown in docs/guides/02e-graphs-inferencing.ipynb
 into real API. Per this project's own testing discipline (starlayer.sparql/CLAUDE.md:
 "any new query/update shape needs an execution-comparison test, not just a
 structural one"), every test here compares infer()'s output against owlrl

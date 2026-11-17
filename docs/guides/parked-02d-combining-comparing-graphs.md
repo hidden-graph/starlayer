@@ -1,6 +1,6 @@
-# 02e Working with a Graph's Contents: material removed from section 8 (Matching blank nodes)
+# 02d Combining and Comparing Graphs: material removed from section 3 (Matching blank nodes)
 
-Parked 2026-11-16. Section 8 of [02e](02e-graph-contents.ipynb) was cut to one introduction and one example. This is the rest: the first example (a document parsed twice, `isomorphic`, `rename_blank_nodes=False`), what "the same blank node" means, `min_overlap` and `max_changes`, and what the result guarantees. The details are also in the docstring of `starlayer.graph.bnode_align`. The cell ids are the ids the cells had in the notebook.
+Parked 2026-11-16. Section 3 of [02d](02d-combining-comparing-graphs.ipynb) was cut to one introduction and one example. This is the rest: the first example (a document parsed twice, `isomorphic`, `rename_blank_nodes=False`), what "the same blank node" means, `min_overlap` and `max_changes`, and what the result guarantees. The details are also in the docstring of `starlayer.graph.bnode_align`. The cell ids are the ids the cells had in the notebook.
 
 <!-- old cell a2e5000a, code -->
 
