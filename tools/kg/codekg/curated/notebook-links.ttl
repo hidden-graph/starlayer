@@ -78,8 +78,8 @@ nl:02f-b87b0ce5 a slkg:NotebookExample ;
 nl:03-2e4d34f3 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "2e4d34f3" ;
-    slkg:cellHash "c0b93e1a4a103855" ;
-    slkg:reviewedOn "2026-11-02"^^xsd:date ;
+    slkg:cellHash "7c209c6e17fde574" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "A SPARQL 1.2 query that binds the terms inside a triple term, run with query()." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.query" .
@@ -354,8 +354,8 @@ nl:02c-33753b85 a slkg:NotebookExample ;
 nl:03-e79f89e7 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "e79f89e7" ;
-    slkg:cellHash "5e056093e58c6ad9" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "a68ee7c1ebd9e8b2" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "Passes a Python function and a Python aggregate to query() as custom_functions and custom_aggregate_functions." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.query" .
@@ -363,8 +363,8 @@ nl:03-e79f89e7 a slkg:NotebookExample ;
 nl:03-4a5c50bb a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "4a5c50bb" ;
-    slkg:cellHash "72ae726acc8e6ff9" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "cabd5664aa83c788" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "Writes a SELECT result as CSV and TSV, an ASK result as JSON and a CONSTRUCT result as N-Triples." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.result.Result.serialize" .
@@ -495,11 +495,19 @@ nl:02d-df2eca05 a slkg:NotebookExample ;
 nl:03-5da96c84 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "5da96c84" ;
-    slkg:cellHash "9c68d49090c256f5" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Checks query text with check_query and takes the triples an answer depends on with relevant_subgraph." ;
+    slkg:cellHash "c4caf0dd3da88518" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
+    rdfs:comment "Checks query text with check_query in its three forms: on its own, with the prefixes of a graph, and with the custom functions the text calls." ;
     slkg:demonstratesIdentifier
-        "starlayer.sparql.check.check_query",
+        "starlayer.sparql.check.check_query" .
+
+nl:03-a4b5c6d7 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+    slkg:cellId "a4b5c6d7" ;
+    slkg:cellHash "fd6a07dbcb9d990e" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
+    rdfs:comment "Takes the triples that the answer to a SELECT query depends on with a graph's relevant_subgraph method, and the quads with a dataset's." ;
+    slkg:demonstratesIdentifier
         "starlayer.sparql.relevant.relevant_subgraph" .
 
 nl:04g-64f05da5 a slkg:NotebookExample ;
@@ -562,18 +570,18 @@ nl:04g-55975daa a slkg:NotebookExample ;
 nl:03-32f5f2c6 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "32f5f2c6" ;
-    slkg:cellHash "6fcc4da5b18dfbc5" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Prepares a query once with StarQuery and runs it against two graphs, with and without an entailment override." ;
+    slkg:cellHash "a87bc7dd45e0cca9" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
+    rdfs:comment "Prepares queries once with StarQuery, bound with initNs and initBindings, and runs one against two graphs with and without an entailment override." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.star_query.StarQuery" .
 
 nl:03-f6a58c6a a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "f6a58c6a" ;
-    slkg:cellHash "488cbb8c9166df92" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Shows the warning for a VERSION directive that does not match the query text." ;
+    slkg:cellHash "3d58edd0e9e047df" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
+    rdfs:comment "Shows a VERSION directive that matches the query text, and the error for one that does not." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.run.query" .
 
