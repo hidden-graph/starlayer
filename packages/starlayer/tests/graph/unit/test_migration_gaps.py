@@ -368,7 +368,7 @@ def test_the_rdf_conformance_warning_class_is_gone():
     from starlayer.graph.execution import version_conformance as conformance
 
     assert not hasattr(conformance, "RDF12ConformanceWarning")
-    assert hasattr(conformance, "SPARQL12ConformanceWarning")
+    assert hasattr(conformance, "SPARQL12ConformanceError")
 
 
 # ---- O4: a plain turtle parse does not adopt the basic encoding --------------------------------------------------------------

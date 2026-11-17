@@ -13,6 +13,7 @@ import xml.etree.ElementTree as ET
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
+from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
 from starlayer.graph.pretty import pretty_turtle
 from starlayer.graph.rdflib_model.dirlangstring import (
     DIRLANG_NS,
@@ -132,8 +133,9 @@ def test_version_1_1_arithmetic_double_minus_is_not_a_directional_literal():
     assert not _warns('VERSION "1.1" SELECT ?x WHERE { BIND(5--3 AS ?x) }')
 
 
-def test_version_1_1_still_warns_for_directional_literal():
-    assert _warns('VERSION "1.1" SELECT * WHERE { ?s ?p "x"@en--ltr }')
+def test_version_1_1_rejects_a_directional_literal():
+    with pytest.raises(SPARQL12ConformanceError):
+        StarLayerGraph().query('VERSION "1.1" SELECT * WHERE { ?s ?p "x"@en--ltr }')
 
 
 def test_pretty_keep_bnode_labels_no_collision():

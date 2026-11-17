@@ -2,7 +2,7 @@
 sec 4.3: ``Prologue ::= ( BaseDecl | PrefixDecl | VersionDecl )*``, in any order, repeatable) and pre-binding a variable by a
 ``VALUES`` clause when the engine's ``substitutions`` cannot.
 
-Oxigraph reads ``VERSION`` natively, so the text is sent unmodified; the check only surfaces the conformance warning the engine
+Oxigraph reads ``VERSION`` natively, so the text is sent unmodified; the check only surfaces the conformance error the engine
 never raises.
 """
 
@@ -79,16 +79,16 @@ _DIRLANG_TAG = re.compile(r'@[A-Za-z]+(?:-[A-Za-z0-9]+)*--(?:ltr|rtl)(?![A-Za-z0
 
 
 def check_native_version_conformance(text: str) -> None:
-    """Warn (``SPARQL12ConformanceWarning``) when a ``VERSION`` directive in raw SPARQL text does not match what the text uses.
+    """Raise ``SPARQL12ConformanceError`` when a ``VERSION`` directive in raw SPARQL text does not match what the text uses.
 
     Oxigraph reads ``VERSION`` natively, so the text is sent unmodified, but the engine returns no signal for a mismatch; this
-    is the only place the warning comes from. The directive is not stripped.
+    is the only place the error comes from, and it is raised before the text is run or sent to a store. The directive is not stripped.
 
     Args:
         text: The raw SPARQL query or update text to check.
     """
     from starlayer.graph.execution.version_conformance import (
-        SPARQL12ConformanceWarning,
+        SPARQL12ConformanceError,
         check_version_conformance,
     )
 
@@ -109,7 +109,7 @@ def check_native_version_conformance(text: str) -> None:
         ),
         uses_dirlangstring=bool(_DIRLANG_TAG.search(text)),
         context='SPARQL query',
-        warning_class=SPARQL12ConformanceWarning,
+        error_class=SPARQL12ConformanceError,
     )
 
 

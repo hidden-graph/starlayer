@@ -1,5 +1,5 @@
 """
-End-to-end tests for VERSION-directive handling and SPARQL12ConformanceWarning.
+End-to-end tests for VERSION-directive handling and SPARQL12ConformanceError.
 
 RDF 1.2 Concepts sec 2.1 and SPARQL 1.2 Query sec 4.3 define three version
 labels - "1.2" (full), "1.2-basic" (excludes triple terms and dirLangString),
@@ -8,7 +8,7 @@ processor "is not required to reject features that are outside the
 announced version (but could signal them with a warning)". StarLayer signals
 via a warning, never a hard error - see starlayer.graph/model/conformance.py.
 
-A SPARQL query/update's own VERSION directive can warn (SPARQL12ConformanceWarning). An RDF document's VERSION label
+A SPARQL query/update's own VERSION directive can be rejected (SPARQL12ConformanceError). An RDF document's VERSION label
 never does (the RDF warning was dropped, 2026-11-06): it is a hint, and a mismatch is not signalled.
 
 Also regression-tests a real bug found while checking this against the live
@@ -22,7 +22,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.execution.sparql_text import check_native_version_conformance
-from starlayer.graph.execution.version_conformance import SPARQL12ConformanceWarning
+from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
 from tests.support.terms import NamedNode
 
 EX = 'http://example.org/'
@@ -45,23 +45,22 @@ class TestSparqlVersionDirective:
         r = g.query("VERSION '1.2'\nSELECT * WHERE { ?s ?p ?o }")
         assert list(r) == []
 
-    def test_version_1_2_basic_with_triple_term_warns(self):
+    def test_version_1_2_basic_with_triple_term_is_rejected(self):
         g = StarLayerGraph()
         q = f"""VERSION "1.2-basic"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
         """
-        with pytest.warns(SPARQL12ConformanceWarning, match='1.2-basic'):
+        with pytest.raises(SPARQL12ConformanceError, match='1.2-basic'):
             g.query(q)
 
-    def test_version_1_2_basic_without_triple_term_does_not_warn(self, recwarn):
+    def test_version_1_2_basic_without_triple_term_is_accepted(self):
         g = StarLayerGraph()
         q = f'VERSION "1.2-basic"\nPREFIX : <{EX}>\nSELECT * WHERE {{ ?s ?p ?o }}'
         g.query(q)
-        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
-    def test_version_1_2_full_with_triple_term_does_not_warn(self, recwarn):
+    def test_version_1_2_full_with_triple_term_is_accepted(self):
         g = StarLayerGraph()
         q = f"""VERSION "1.2"
             PREFIX : <{EX}>
@@ -69,20 +68,18 @@ class TestSparqlVersionDirective:
             SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
         """
         g.query(q)
-        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
-    def test_unrecognized_version_label_warns(self):
+    def test_unrecognized_version_label_is_rejected(self):
         g = StarLayerGraph()
         q = 'VERSION "9.9"\nSELECT * WHERE { ?s ?p ?o }'
-        with pytest.warns(SPARQL12ConformanceWarning, match='unrecognized'):
+        with pytest.raises(SPARQL12ConformanceError, match='unrecognized'):
             g.query(q)
 
-    def test_no_version_directive_does_not_warn(self, recwarn):
+    def test_no_version_directive_is_accepted(self):
         g = StarLayerGraph()
         g.query('SELECT * WHERE { ?s ?p ?o }')
-        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
-    def test_version_1_1_with_triple_term_warns(self):
+    def test_version_1_1_with_triple_term_is_rejected(self):
         # "1.1" means plain RDF 1.1 syntax/semantics - it excludes triple
         # terms/dirLangString at least as strictly as "1.2-basic" does, so a
         # query declaring "1.1" but using a triple term should warn too, not
@@ -93,7 +90,7 @@ class TestSparqlVersionDirective:
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
         """
-        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+        with pytest.raises(SPARQL12ConformanceError, match='1.1'):
             g.query(q)
 
 
@@ -116,34 +113,33 @@ class TestSparqlUpdateVersionDirective:
         g.update('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
         assert (ex('a'), ex('b'), ex('c')) in g
 
-    def test_update_version_1_1_with_triple_term_warns(self):
+    def test_update_version_1_1_with_triple_term_is_rejected(self):
         g = StarLayerGraph()
         u = f"""VERSION "1.1"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
         """
-        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+        with pytest.raises(SPARQL12ConformanceError, match='1.1'):
             g.update(u)
 
-    def test_update_no_version_directive_does_not_warn(self, recwarn):
+    def test_update_no_version_directive_is_accepted(self):
         g = StarLayerGraph()
         g.update('PREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
-        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
     def test_dataset_update_version_directive_no_longer_raises(self):
         ds = StarLayerDataset()
         ds.update('VERSION "1.2"\nPREFIX ex: <http://example.org/>\nINSERT DATA { ex:a ex:b ex:c }')
         assert (ex('a'), ex('b'), ex('c')) in ds.default_graph
 
-    def test_dataset_update_version_1_1_with_triple_term_warns(self):
+    def test_dataset_update_version_1_1_with_triple_term_is_rejected(self):
         ds = StarLayerDataset()
         u = f"""VERSION "1.1"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
         """
-        with pytest.warns(SPARQL12ConformanceWarning, match='1.1'):
+        with pytest.raises(SPARQL12ConformanceError, match='1.1'):
             ds.update(u)
 
 
@@ -161,7 +157,7 @@ class TestNativeBackendVersionConformance:
     execute a VERSION "1.2-basic" + <<( )>> query normally (HTTP 200) with
     no warning or error signal anywhere in the response - so without this
     fix, a native-backend StarLayerGraph would silently never emit
-    SPARQL12ConformanceWarning for the identical query the default in-memory
+    SPARQL12ConformanceError for the identical query the default in-memory
     backend does warn on, an inconsistency this project otherwise takes
     care to avoid (see tests/integration/test_cross_backend_parity.py).
 
@@ -171,26 +167,24 @@ class TestNativeBackendVersionConformance:
     live backend.
     """
 
-    def test_1_2_basic_with_triple_term_warns(self):
+    def test_1_2_basic_with_triple_term_is_rejected(self):
         q = f"""VERSION "1.2-basic"
             PREFIX : <{EX}>
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
         """
-        with pytest.warns(SPARQL12ConformanceWarning, match='1.2-basic'):
+        with pytest.raises(SPARQL12ConformanceError, match='1.2-basic'):
             check_native_version_conformance(q)
 
-    def test_1_2_basic_without_triple_term_does_not_warn(self, recwarn):
+    def test_1_2_basic_without_triple_term_is_accepted(self):
         q = f'VERSION "1.2-basic"\nPREFIX : <{EX}>\nSELECT * WHERE {{ ?s ?p ?o }}'
         check_native_version_conformance(q)
-        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
-    def test_no_version_directive_does_not_warn(self, recwarn):
+    def test_no_version_directive_is_accepted(self):
         check_native_version_conformance('SELECT * WHERE { ?s ?p ?o }')
-        assert not any(issubclass(w.category, SPARQL12ConformanceWarning) for w in recwarn.list)
 
-    def test_unrecognized_version_label_warns(self):
-        with pytest.warns(SPARQL12ConformanceWarning, match='unrecognized'):
+    def test_unrecognized_version_label_is_rejected(self):
+        with pytest.raises(SPARQL12ConformanceError, match='unrecognized'):
             check_native_version_conformance('VERSION "9.9"\nSELECT * WHERE { ?s ?p ?o }')
 
 

@@ -133,20 +133,15 @@ def test_describe_type_with_hash_in_prefix_iri():
 
 
 # ---- VERSION "1.1" conformance check ignores strings, IRIs and comments -------------------------------------------------
-def test_version_warning_ignores_dashes_and_tilde_in_strings():
-    import warnings
+def test_version_check_ignores_dashes_and_tilde_in_strings():
+    from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
 
     g = StarLayerGraph()
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
-        g.query('VERSION "1.1" SELECT * { ?s ?p "a--b" }')
-        g.query('VERSION "1.1" SELECT * { ?s ?p ?o FILTER(CONTAINS(?o, "x~y")) }')
-        g.query('VERSION "1.1" SELECT * { ?s <http://x/a~b--c> ?o } # ~ --')
-    assert [x for x in w if "onformance" in x.category.__name__] == []
-    with warnings.catch_warnings(record=True) as w:
-        warnings.simplefilter("always")
+    g.query('VERSION "1.1" SELECT * { ?s ?p "a--b" }')
+    g.query('VERSION "1.1" SELECT * { ?s ?p ?o FILTER(CONTAINS(?o, "x~y")) }')
+    g.query('VERSION "1.1" SELECT * { ?s <http://x/a~b--c> ?o } # ~ --')
+    with pytest.raises(SPARQL12ConformanceError):
         g.query('VERSION "1.1" SELECT * { ?s ?p "a"@en--ltr }')
-    assert [x for x in w if "onformance" in x.category.__name__]
 
 
 # ---- parse(source="file:///...") ------------------------------------------------------------------------------------------
