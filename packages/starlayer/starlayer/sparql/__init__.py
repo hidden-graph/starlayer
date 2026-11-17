@@ -1,6 +1,6 @@
 """SPARQL 1.2 query checking, query-as-RDF trees, SPARQL Rules and relevant-subgraph extraction.
 
-The public names (`check_query`, `QueryCheck`, `QueryProblem`, `StarQuery`, `relevant_subgraph`) load lazily from their submodules.
+The public names (`check_query`, `QueryCheck`, `QueryProblem`, `StarQuery`) load lazily from their submodules.
 `srl`, `srl_eval` and `sqe` are reached as submodules (`from starlayer.sparql import srl`), not flattened here.
 """
 # This package imports nothing eagerly; every public name is imported from its submodule on first access (PEP 562).
@@ -14,7 +14,6 @@ _LAZY = {
     "QueryCheck": "check",
     "QueryProblem": "check",
     "StarQuery": "star_query",
-    "relevant_subgraph": "relevant",
 }
 
 
@@ -57,5 +56,4 @@ __all__ = [
     "QueryCheck",
     "QueryProblem",
     "StarQuery",
-    "relevant_subgraph",
 ]

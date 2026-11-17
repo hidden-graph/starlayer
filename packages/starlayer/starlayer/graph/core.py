@@ -782,6 +782,32 @@ class _Base:
     def _query_default_graph(self) -> Any:
         return None
 
+    def relevant_subgraph(
+        self, query: str, init_bindings: Mapping[Any, Any] | None = None, init_ns: Mapping[str, str] | None = None
+    ) -> Any:
+        """The triples of this graph that the answer of ``query`` depends on, as a new graph (for a dataset the quads, as a new
+        dataset); the query may use the prefixes, and ``init_ns`` overrides them (see ``starlayer.sparql.relevant``)."""
+        from starlayer.sparql.relevant import relevant_subgraph
+
+        return relevant_subgraph(self, query, init_bindings, {**self.prefixes, **(init_ns or {})})
+
+    def check_query(
+        self,
+        text: str,
+        *,
+        custom_functions: Mapping[Any, Any] | None = None,
+        custom_aggregate_functions: Mapping[Any, Any] | None = None,
+    ) -> Any:
+        """``starlayer.sparql.check_query`` for text that will run against this graph or dataset, so its prefixes count as declared."""
+        from starlayer.sparql.check import check_query
+
+        return check_query(
+            text,
+            prefixes=self.prefixes,
+            custom_functions=custom_functions,
+            custom_aggregate_functions=custom_aggregate_functions,
+        )
+
     def update(self, text: str, initNs: Mapping[str, str] | None = None, base: str | None = None, *,  # noqa: N803
                custom_functions: Mapping[Any, Any] | None = None, custom_aggregate_functions: Mapping[Any, Any] | None = None) -> None:
         """Run SPARQL Update ``text`` (``custom_functions`` and ``custom_aggregate_functions`` as for ``query()``). On a ``StarLayerGraph`` the update stays within

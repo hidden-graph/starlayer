@@ -137,3 +137,12 @@ def test_check_query_flags_distinct_in_an_extension_function_call_in_a_text_oxig
     check = check_query(update)
     assert check.form == "UPDATE" and check.ok
     assert [p.kind for p in check.warnings] == ["shape"] and "DISTINCT" in check.warnings[0].message
+
+
+def test_a_graph_checks_a_query_with_its_own_prefixes():
+    from starlayer.graph import StarLayerGraph
+
+    graph = StarLayerGraph(prefixes={"ex": "http://example.org/"})
+    text = "SELECT ?s WHERE { ?s ex:name ?n }"
+    assert check_query(text).warnings[0].kind == "prefix"
+    assert graph.check_query(text).problems == ()

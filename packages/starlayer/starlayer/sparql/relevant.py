@@ -1,6 +1,6 @@
 """The relevant subgraph of a SPARQL query: the triples of a graph that the query's answer depends on.
 
-``relevant_subgraph(graph, query)`` returns a ``StarLayerGraph`` ``F`` of triples taken from ``graph`` such that the query gives the
+``graph.relevant_subgraph(query)`` returns a ``StarLayerGraph`` ``F`` of triples taken from ``graph`` such that the query gives the
 same answer on ``F`` as on ``graph``: the same solutions (with their multiplicity) for ``SELECT``, the same truth value for
 ``ASK``, the same triples for ``CONSTRUCT``. Oxigraph cannot report the triples a query read, so they are computed by queries:
 
@@ -30,6 +30,13 @@ of its own, for all its rows), ``EXISTS`` and ``MINUS`` inside ``OPTIONAL`` and 
 and triples). Not computable this way: ``GRAPH``, and ``EXISTS`` outside the ``WHERE`` group (``HAVING``, ``ORDER BY``, a projection). For those the result is every
 triple that matches some triple pattern of the query (constants and pre-bound variables fixed, other variables free): larger,
 never smaller. ``relevant_triples`` returns which was used.
+
+A ``StarLayerDataset`` gives a ``StarLayerDataset`` of quads (``relevant_quads``). Each support query also says which graph its patterns were
+read in: a pattern in ``GRAPH <g>`` or ``GRAPH ?g`` the graph it matched in, and a pattern outside any ``GRAPH`` block the default graph, or
+every graph that holds the triple when the dataset is ``default_union`` (or the ``FROM`` graphs; ``FROM NAMED`` limits ``GRAPH ?g`` by the query
+itself). A property path, and a negation (``FILTER (NOT) EXISTS``, ``MINUS``) inside a ``GRAPH`` block, are read in that graph. Not computable
+on a dataset: a sub-select under a ``FROM`` clause (it reads a dataset its own queries would not name); that, and the other cases above, give
+every quad that matches a pattern in a graph the pattern can read.
 """
 
 from __future__ import annotations
@@ -60,23 +67,25 @@ class _NotComputable(Exception):
 def relevant_subgraph(
     graph: Any, query: str, init_bindings: Mapping[str, Any] | None = None, init_ns: Mapping[str, str] | None = None
 ) -> Any:
-    """The triples of ``graph`` that the answer of ``query`` depends on, as a new ``StarLayerGraph``.
+    """The triples of ``graph`` that the answer of ``query`` depends on, as a new ``StarLayerGraph``; for a ``StarLayerDataset`` the
+    quads, as a new ``StarLayerDataset`` with the same ``default_union``.
 
     Every derivation is kept and nothing is chosen between them (see the module docstring). ``init_ns`` (prefix to namespace)
     declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
 
-    Raises ``TypeError`` for a ``StarLayerDataset`` (name one of its graphs, or merge them: ``to_graph()``), ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
+    Raises ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
     depends on a remote graph, so it cannot be reproduced from a subgraph of this one)."""
     from starlayer.graph import StarLayerDataset, StarLayerGraph
 
-    if isinstance(graph, StarLayerDataset):
-        raise TypeError(
-            "relevant_subgraph takes one graph, not a dataset: the subgraph does not say which graph a triple came from. "
-            "Use dataset.default_graph, dataset.graph(name) or dataset.to_graph() (every graph merged)."
-        )
     bindings = dict(init_bindings or {})
     if init_ns:
         query = "".join(f"PREFIX {p}: <{ns}> " for p, ns in init_ns.items()) + query
+
+    if isinstance(graph, StarLayerDataset):
+        quads, _exact = relevant_quads(graph, query, bindings)
+        out_dataset = StarLayerDataset(default_union=graph.default_union)
+        out_dataset.store.extend(sorted(quads, key=repr))  # a fixed insertion order
+        return out_dataset
 
     def run(text: str) -> Iterable[Any]:
         return graph.query(text, initBindings=bindings)
@@ -88,21 +97,44 @@ def relevant_subgraph(
     return out
 
 
-def relevant_triples(
-    graph: Any, query: str, init_bindings: Mapping[str, Any], run: Runner | None
-) -> tuple[set[_Triple], bool]:
-    """``(triples, supported)``: the relevant triples, and whether the support queries were used (else the pattern fallback)."""
+def relevant_quads(dataset: Any, query: str, init_bindings: Mapping[str, Any]) -> tuple[set[ox.Quad], bool]:
+    """``(quads, supported)`` for a dataset: the relevant quads, and whether the support queries were used (else the pattern fallback).
+
+    Each support query also says which graph each triple was read from: a pattern in ``GRAPH <g>`` or ``GRAPH ?g`` the graph it
+    matched in, and a pattern outside any ``GRAPH`` block the default graph, or every graph that holds the triple when the dataset
+    is ``default_union`` (or the ``FROM`` graphs). A triple held in several graphs that the query reads as one is kept in all of them.
+    """
+    return relevant_triples(dataset, query, init_bindings, lambda text: dataset.query(text, initBindings=init_bindings))  # type: ignore[return-value]
+
+
+def _is_dataset(target: Any) -> bool:
+    from starlayer.graph import StarLayerDataset
+
+    return isinstance(target, StarLayerDataset)
+
+
+def _parse_checked(query: str) -> Node:
+    """The parsed query, which has to be a SELECT, ASK or CONSTRUCT without ``SERVICE``."""
     ast = parse_sparql(query)
     if ast.kind not in ("SelectQuery", "AskQuery", "ConstructQuery"):
         raise ValueError(f"relevant_subgraph needs a SELECT, ASK or CONSTRUCT query, not {ast.kind}")
     if any(_word(t) == "SERVICE" for t in tokenize(query)):
         raise ValueError("relevant_subgraph does not support SERVICE: the answer depends on a remote graph that no subgraph of this one holds")
+    return ast
+
+
+def relevant_triples(
+    graph: Any, query: str, init_bindings: Mapping[str, Any], run: Runner | None
+) -> tuple[set[_Triple], bool]:
+    """``(triples, supported)``: the relevant triples, and whether the support queries were used (else the pattern fallback)."""
+    ast = _parse_checked(query)
+    fallback = _pattern_quads if _is_dataset(graph) else _pattern_triples
     if run is None:
-        return _pattern_triples(graph, ast, init_bindings), False
+        return fallback(graph, ast, init_bindings), False
     try:
         return _supports(graph, query, ast, run, init_bindings), True
     except _NotComputable:
-        return _pattern_triples(graph, ast, init_bindings), False
+        return fallback(graph, ast, init_bindings), False
 
 
 # ---------------------------------------------------------------------------------------------------- the support queries
@@ -167,19 +199,19 @@ class _Parts:
     def __init__(self) -> None:
         self.cuts: list[tuple[int, int]] = []  # (first token, last token)
         # each group whose matches are evidence: ("filter" | "minus", token indexes of the braces of the group whose solutions it is
-        # evaluated against, its text)
-        self.evidence: list[tuple[str, int, int, str]] = []
+        # evaluated against, its text, the term text of the GRAPH block around it or None)
+        self.evidence: list[tuple[str, int, int, str, str | None]] = []
         self.subselects: list[str] = []  # the text of each sub-select, from its SELECT to the end of its body
 
 
-def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
+def _scan(query: str, toks: list[Tok], lo: int, hi: int, quads: bool = False) -> _Parts:
     parts = _Parts()
     stack: list[tuple[str, int]] = []  # (kind, index of the opening brace) of the groups around the token
     i = lo + 1
     while i < hi:
         t = toks[i]
         word = _word(t)
-        if word in ("GRAPH", "SERVICE", "SELECT"):
+        if word in ("SERVICE", "SELECT") or (word == "GRAPH" and not quads):
             raise _NotComputable(word)
         if t.kind == "P" and t.text == "{" and _word(toks[i + 1]) == "SELECT":
             close = _match(toks, i)
@@ -187,7 +219,8 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
             i = close
         elif t.kind == "P" and t.text == "{":
             prev = _word(toks[i - 1])
-            stack.append(("optional" if prev == "OPTIONAL" else "plain", i))
+            in_graph = i >= 2 and _word(toks[i - 2]) == "GRAPH"
+            stack.append(("graph" if in_graph else "optional" if prev == "OPTIONAL" else "plain", i))
         elif t.kind == "P" and t.text == "}":
             stack.pop()
         elif word in ("FILTER", "MINUS"):
@@ -205,6 +238,8 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
                 # OPTIONAL. MINUS removes solutions of the group it sits in.
                 around = stack[:-1] if (word == "FILTER" and stack and stack[-1][0] == "optional") else stack
                 group_lo, group_hi = (around[-1][1], _match(toks, around[-1][1])) if around else (lo, hi)
+                # the negation's group is read in the graph of the GRAPH block around it: the term before that block's brace
+                graph_text = next((query[toks[b - 1].pos : toks[b - 1].pos + len(toks[b - 1].text)] for kind, b in reversed(around) if kind == "graph"), None)
                 for k in range(i, end + 1):
                     if _word(toks[k]) == "EXISTS" or (word == "MINUS" and k == i):
                         inner_open = k + 1
@@ -213,7 +248,7 @@ def _scan(query: str, toks: list[Tok], lo: int, hi: int) -> _Parts:
                         if any(_word(s) in ("EXISTS", "MINUS", "OPTIONAL", "SELECT", "GRAPH", "SERVICE") for s in inner[1:-1]):
                             raise _NotComputable("nested negation or OPTIONAL inside an EXISTS / MINUS group")
                         kind = "minus" if word == "MINUS" else "filter"
-                        parts.evidence.append((kind, group_lo, group_hi, query[inner[0].pos : inner[-1].pos + 1]))
+                        parts.evidence.append((kind, group_lo, group_hi, query[inner[0].pos : inner[-1].pos + 1], graph_text))
                 i = end
         i += 1
     return parts
@@ -275,11 +310,11 @@ def _nullable(path: Any) -> bool:
 
 
 def _edges(path: Any, a: str, b: str, fresh: _Fresh) -> list[tuple[list[str], list[str]]]:
-    """``(template lines, guard conjuncts)`` pairs whose ``CONSTRUCT`` over a group joined with the guards gives the edges the path
+    """``(template triples as (subject, predicate, object) texts, guard conjuncts)`` pairs whose ``CONSTRUCT`` over a group joined with the guards gives the edges the path
     walks from ``a`` to ``b`` (term texts). The guards bind the intermediate variables the template uses and keep them on walks
     that really connect the endpoints."""
     if isinstance(path, ox.NamedNode):
-        return [([f"{a} {path} {b} ."], [])]
+        return [([(a, str(path), b)], [])]
     k = path.kind
     if k == "InvPath":
         return _edges(path.f["arg"], b, a, fresh)
@@ -308,12 +343,15 @@ def _edges(path: Any, a: str, b: str, fresh: _Fresh) -> list[tuple[list[str], li
     raise _NotComputable(f"path {k}")
 
 
-def _patterns(ast: Node) -> tuple[list[str], list[tuple[str, Any, str]]]:
-    """The triple-pattern template lines of a parsed group, and its property-path patterns as ``(subject text, path, object text)``."""
-    lines: list[str] = []
-    paths: list[tuple[str, Any, str]] = []
+def _patterns(
+    ast: Node, graph: str | None = None
+) -> tuple[list[tuple[str, str, str, str | None]], list[tuple[str, Any, str, str | None]]]:
+    """The triple patterns of a parsed group as ``(subject, predicate, object, graph)`` texts, and its property-path patterns as
+    ``(subject text, path, object text, graph)``; ``graph`` is the term of the ``GRAPH`` block around the pattern, else the given ``graph``."""
+    lines: list[tuple[str, str, str, str | None]] = []
+    paths: list[tuple[str, Any, str, str | None]] = []
 
-    def walk(item: Any) -> None:
+    def walk(item: Any, graph: str | None) -> None:
         if isinstance(item, Node):
             if item.kind == "SubSelect":
                 return  # its patterns belong to the sub-select's own support queries
@@ -321,17 +359,34 @@ def _patterns(ast: Node) -> tuple[list[str], list[tuple[str, Any, str]]]:
                 p = item.f["p"]
                 s_text, o_text = _term_text(item.f["s"]), _term_text(item.f["o"])
                 if isinstance(p, Node):
-                    paths.append((s_text, p, o_text))
+                    paths.append((s_text, p, o_text, graph))
                 else:
-                    lines.append(f"{s_text} {_term_text(p)} {o_text} .")
+                    lines.append((s_text, _term_text(p), o_text, graph))
+            inner = _term_text(item.f["term"]) if item.kind == "Graph" else graph
             for value in item.f.values():
-                walk(value)
+                walk(value, inner)
         elif isinstance(item, (list, tuple)):
             for value in item:
-                walk(value)
+                walk(value, graph)
 
-    walk(ast)
+    walk(ast, graph)
     return list(dict.fromkeys(lines)), paths
+
+
+#: the predicate of the template triple ``graph MARK <<( s p o )>>`` that a support query on a dataset gives for a pattern it read
+_QUAD_MARK = ox.NamedNode("urn:starlayer:relevant:quad")
+#: the graph of that triple for a pattern outside any ``GRAPH`` block
+_DEFAULT_MARK = ox.NamedNode("urn:starlayer:relevant:default")
+
+
+def _holders(dataset: Any, triple: _Triple, graph: Any, from_graphs: list[Any]) -> list[ox.Quad]:
+    """The quads of ``dataset`` for a triple a support query read from ``graph`` (``_DEFAULT_MARK``: the graph the query reads by default)."""
+    s, p, o = triple
+    if graph != _DEFAULT_MARK:
+        return list(dataset.quads((s, p, o, graph)))
+    if from_graphs:
+        return [q for name in from_graphs for q in dataset.quads((s, p, o, name))]
+    return list(dataset.quads((s, p, o, None if dataset.default_union else ox.DefaultGraph())))
 
 
 def _without_labelled_blank_nodes(query: str) -> str:
@@ -351,6 +406,15 @@ def _mentions(graph: Any, node: Any) -> list[_Triple]:
     """Every triple of ``graph`` that has ``node`` as subject or object: each is a way for the node to exist in the graph, and the
     result must not depend on which one a store happens to list first."""
     return [(t[0], t[1], t[2]) for pattern in ((node, None, None), (None, None, node)) for t in graph.triples(pattern)]
+
+
+def _quad_mentions(dataset: Any, node: Any, graph: Any, from_graphs: list[Any]) -> list[ox.Quad]:
+    """``_mentions`` on a dataset: the quads that have ``node`` as subject or object in the graph the query read it from."""
+    out: list[ox.Quad] = []
+    for pattern in ((node, None, None), (None, None, node)):
+        for q in _holders(dataset, (pattern[0], pattern[1], pattern[2]), graph, from_graphs):
+            out.append(q)
+    return out
 
 
 _ELEMENT_WORDS = {"OPTIONAL", "MINUS", "FILTER", "BIND", "VALUES", "GRAPH", "SERVICE"}
@@ -426,19 +490,26 @@ def _variables(text: str) -> set[str]:
     return {t.text[1:] for t in tokenize(text) if t.kind == "VAR"}
 
 
-def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[str, Any]) -> set[_Triple]:
+def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[str, Any]) -> set[Any]:
+    """The triples of ``graph`` the support queries find; for a dataset (``quads``) the quads, each pattern read in the graph it names."""
+    quads = _is_dataset(graph)
     query = _without_labelled_blank_nodes(_without_anonymous_blank_nodes(_without_collections(query)))
     toks = tokenize(query)
     lo, hi = _where_group(toks)
     form = next(k for k, t in enumerate(toks) if _word(t) in ("SELECT", "ASK", "CONSTRUCT"))
     prologue = query[: toks[form].pos]
+    datasets = list(ast.f.get("datasets") or []) if quads else []  # (named, iri) of each FROM / FROM NAMED
+    from_graphs = [iri for named, iri in datasets if not named]
+    if any(_word(t) == "EXISTS" for k, t in enumerate(toks) if k < lo or k > hi) or (any(_word(t) == "FROM" for t in toks) and not quads):
+        raise _NotComputable("EXISTS outside the WHERE group, or a dataset clause")
+    if datasets and any(_word(toks[k]) == "SELECT" for k in range(lo + 1, hi)):
+        raise _NotComputable("a sub-select under a FROM clause: it reads the same dataset, which its own queries would not name")
     if _word(toks[lo + 1]) == "SELECT":  # the whole body is a sub-select: its rows are the outer query's rows
         inner = prologue + query[toks[lo + 1].pos : toks[hi].pos]
         return relevant_triples(graph, inner, bindings, run)[0]
-    if any(_word(t) in ("EXISTS", "FROM") for k, t in enumerate(toks) if k < lo or k > hi):
-        raise _NotComputable("EXISTS outside the WHERE group, or a dataset clause")
 
-    parts = _scan(query, toks, lo, hi)
+    parts = _scan(query, toks, lo, hi, quads)
+    dataset_clause = " ".join(("FROM NAMED " if named else "FROM ") + str(iri) for named, iri in datasets)
 
     def cut_text(first_brace: int, last_brace: int) -> str:
         """The text between two braces with the relaxed parts (the cuts inside them) removed."""
@@ -459,40 +530,59 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[
     fresh = _Fresh()
     queries: list[str] = []
 
-    def add(lines: list[str], paths: list[tuple[str, Any, str]], where: str) -> None:
+    def template(s: str, p: str, o: str, graph_text: str | None) -> str:
+        """One template triple: the pattern itself, or on a dataset ``graph MARK <<( s p o )>>`` (a triple term is an object only)."""
+        if not quads:
+            return f"{s} {p} {o} ."
+        return f"{graph_text or _DEFAULT_MARK} {_QUAD_MARK} <<( {s} {p} {o} )>> ."
+
+    def construct(lines: list[str], where: str) -> str:
+        return f"{prologue} CONSTRUCT {{ {' '.join(lines)} }} {dataset_clause} WHERE {{ {where} }}"
+
+    def add(
+        lines: list[tuple[str, str, str, str | None]], paths: list[tuple[str, Any, str, str | None]], where: str
+    ) -> None:
         if lines:
-            queries.append(f"{prologue} CONSTRUCT {{ {' '.join(lines)} }} WHERE {{ {where} }}")
-        for s_text, path, o_text in paths:
+            queries.append(construct([template(*line) for line in lines], where))
+        for s_text, path, o_text, graph_text in paths:
             if _nullable(path):
                 # a walk of length zero matches a node that is in the graph, so where the two ends are the same node it is one way
                 # the row exists: the node has to stay in the graph
-                queries.append(
-                    f"{prologue} CONSTRUCT {{ <{_NODE_MARK.value}> <{_NODE_MARK.value}> {s_text} }} "
-                    f"WHERE {{ {where} FILTER(sameTerm({s_text}, {o_text})) }}"
-                )
-            for template, guards in _edges(path, s_text, o_text, fresh):
-                queries.append(f"{prologue} CONSTRUCT {{ {' '.join(template)} }} WHERE {{ {where} {' '.join(guards)} }}")
+                mark = f"<{_NODE_MARK.value}>"
+                queries.append(construct([template(mark, mark, s_text, graph_text)], f"{where} FILTER(sameTerm({s_text}, {o_text}))"))
+            for edges, guards in _edges(path, s_text, o_text, fresh):
+                guard_text = " ".join(guards)
+                if graph_text is not None and guards:
+                    guard_text = f"GRAPH {graph_text} {{ {guard_text} }}"  # the walk is read in the graph of its pattern
+                queries.append(construct([template(*edge, graph_text) for edge in edges], f"{where} {guard_text}"))
 
     body_lines, body_paths = _patterns(parsed(relaxed))
     add(body_lines, body_paths, f"{{ {relaxed} }}")
-    for kind, group_lo, group_hi, group in parts.evidence:
+    for kind, group_lo, group_hi, group, graph_text in parts.evidence:
         context = cut_text(group_lo, group_hi)
         if kind == "minus" and not _variables(group) & _variables("{" + context + "}"):
             continue  # MINUS compares on the variables shared with the group's solutions; with none shared it removes nothing
-        inner_lines, inner_paths = _patterns(parsed(group))
-        add(inner_lines, inner_paths, f"{{ {context} }} {group}")
+        inner_lines, inner_paths = _patterns(parsed(group), graph_text)
+        where = f"{{ {context} }} {group}"
+        add(inner_lines, inner_paths, f"GRAPH {graph_text} {{ {where} }}" if graph_text else where)
 
-    found: set[_Triple] = set()
-    nodes: list[Any] = []
+    found: set[Any] = set()
+    nodes: list[tuple[Any, Any]] = []
     for text in queries:
         for t in run(text):
-            triple = (t[0], t[1], t[2])
+            if quads:
+                inner = t[2]  # the triple term <<( s p o )>>
+                triple, read_in = (inner.subject, inner.predicate, inner.object), t[0]
+            else:
+                triple, read_in = (t[0], t[1], t[2]), None
             if triple[1] == _NODE_MARK:
-                nodes.append(triple[2])
+                nodes.append((triple[2], read_in))
+            elif quads:
+                found.update(_holders(graph, triple, read_in, from_graphs))
             elif triple in graph:
                 found.add(triple)
-    for node in nodes:  # a zero-length walk needs the node in the graph: every triple that mentions it is a way to have it
-        found.update(_mentions(graph, node))
+    for node, read_in in nodes:  # a zero-length walk needs the node in the graph: every triple that mentions it is a way to have it
+        found.update(_quad_mentions(graph, node, read_in, from_graphs) if quads else _mentions(graph, node))
     for sub in parts.subselects:
         found |= relevant_triples(graph, prologue + sub, bindings, run)[0]
     return found
@@ -501,21 +591,30 @@ def _supports(graph: Any, query: str, ast: Node, run: Runner, bindings: Mapping[
 # ------------------------------------------------------------------------------------------------------ the fallback
 
 
-def _pattern_triples(graph: Any, ast: Node, bindings: Mapping[str, Any]) -> set[_Triple]:
-    """Every triple of ``graph`` that matches some triple pattern of the query (a superset of what the query reads)."""
-    patterns: list[Node] = []
+_DEFAULT = object()  #: the graph a pattern outside any ``GRAPH`` block reads
 
-    def walk(item: Any) -> None:
+
+def _read_patterns(ast: Node) -> list[tuple[Node, Any]]:
+    """Every triple pattern of the query with the graph it reads: ``_DEFAULT``, or the term of the ``GRAPH`` block around it."""
+    found: list[tuple[Node, Any]] = []
+
+    def walk(item: Any, graph: Any) -> None:
         if isinstance(item, Node):
             if item.kind == "TriplePattern":
-                patterns.append(item)
+                found.append((item, graph))
+            inner = item.f["term"] if item.kind == "Graph" else graph
             for value in item.f.values():
-                walk(value)
+                walk(value, inner)
         elif isinstance(item, (list, tuple)):
             for value in item:
-                walk(value)
+                walk(value, graph)
 
-    walk(ast)
+    walk(ast, _DEFAULT)
+    return found
+
+
+def _spo_patterns(pattern: Node, bindings: Mapping[str, Any]) -> list[tuple[Any, Any, Any]]:
+    """The ``(s, p, o)`` patterns a triple pattern can read, ``None`` for any: constants and pre-bound variables are fixed."""
 
     def fixed(term: Any) -> Any:
         if isinstance(term, (ox.NamedNode, ox.Literal)):
@@ -524,15 +623,41 @@ def _pattern_triples(graph: Any, ast: Node, bindings: Mapping[str, Any]) -> set[
             return bindings[term.value]
         return None  # a free variable, a path, a triple term: any
 
+    if isinstance(pattern.f.get("p"), Node):  # a path walks through nodes the pattern does not name: every edge of its predicates
+        predicates = [] if _nullable(pattern.f["p"]) else _path_predicates(pattern.f["p"])  # a zero-length walk: every node
+        return [(None, predicate, None) for predicate in predicates or [None]]
+    return [tuple(fixed(pattern.f.get(k)) for k in ("s", "p", "o"))]  # type: ignore[misc]
+
+
+def _pattern_triples(graph: Any, ast: Node, bindings: Mapping[str, Any]) -> set[_Triple]:
+    """Every triple of ``graph`` that matches some triple pattern of the query (a superset of what the query reads)."""
     reads: set[_Triple] = set()
-    for pattern in patterns:
-        if isinstance(pattern.f.get("p"), Node):  # a path walks through nodes the pattern does not name: every edge of its predicates
-            predicates = [] if _nullable(pattern.f["p"]) else _path_predicates(pattern.f["p"])  # a zero-length walk: every node
-            for predicate in predicates or [None]:
-                reads.update((t[0], t[1], t[2]) for t in graph.triples((None, predicate, None)))
-            continue
-        s, p, o = (fixed(pattern.f.get(k)) for k in ("s", "p", "o"))
-        reads.update((t[0], t[1], t[2]) for t in graph.triples((s, p, o)))
+    for pattern, _graph in _read_patterns(ast):
+        for spo in _spo_patterns(pattern, bindings):
+            reads.update((t[0], t[1], t[2]) for t in graph.triples(spo))
+    return reads
+
+
+def _pattern_quads(dataset: Any, ast: Node, bindings: Mapping[str, Any]) -> set[ox.Quad]:
+    """Every quad of ``dataset`` that matches some triple pattern of the query, in a graph its pattern can read.
+
+    A pattern outside a ``GRAPH`` block reads the default graph, or every graph when the dataset is ``default_union`` or the query has
+    a ``FROM`` clause. A pattern in ``GRAPH <iri>`` reads that graph, and one in ``GRAPH ?g`` every named graph (the one a pre-bound
+    ``?g`` names, if there is one).
+    """
+    restricted = bool(ast.f.get("datasets"))
+    reads: set[ox.Quad] = set()
+    for pattern, graph in _read_patterns(ast):
+        named_only = False
+        if graph is _DEFAULT:
+            scope = None if dataset.default_union or restricted else ox.DefaultGraph()
+        elif isinstance(graph, ox.Variable):
+            scope = bindings.get(graph.value)
+            named_only = scope is None
+        else:
+            scope = graph
+        for spo in _spo_patterns(pattern, bindings):
+            reads.update(q for q in dataset.quads((*spo, scope)) if not (named_only and q.graph_name == ox.DefaultGraph()))
     return reads
 
 

@@ -16,7 +16,11 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from starlayer.graph import StarLayerGraph
-from starlayer.sparql.relevant import relevant_subgraph, relevant_triples
+from starlayer.sparql.relevant import (
+    relevant_quads,
+    relevant_subgraph,
+    relevant_triples,
+)
 
 PROLOGUE = "PREFIX : <http://e/> "
 
@@ -164,11 +168,20 @@ def test_prebound_variables_apply() -> None:
     assert {t[0] for t in fragment} == {ox.NamedNode("http://e/b")}
 
 
-def test_init_ns_declares_prefixes_and_the_public_name_is_exported() -> None:
-    from starlayer.sparql import relevant_subgraph as exported
-
-    fragment = exported(DATA, "SELECT ?o WHERE { :a :p ?o }", init_ns={"": "http://e/"})
+def test_init_ns_declares_prefixes() -> None:
+    fragment = relevant_subgraph(DATA, "SELECT ?o WHERE { :a :p ?o }", init_ns={"": "http://e/"})
     assert len(fragment) == 2
+
+
+def test_the_graph_method_uses_the_graphs_prefixes_and_init_ns_overrides_them() -> None:
+    graph = DATA.copy()
+    graph.prefixes.update({"e": "http://e/"})
+    assert len(graph.relevant_subgraph("SELECT ?o WHERE { e:a e:p ?o }")) == 2
+    assert len(graph.relevant_subgraph("SELECT ?o WHERE { e:a e:p ?o }", init_ns={"e": "http://e/"})) == 2
+    assert len(graph.relevant_subgraph("SELECT ?o WHERE { e:a e:p ?o }", init_ns={"e": "http://elsewhere/"})) == 0
+    import starlayer.sparql
+
+    assert not hasattr(starlayer.sparql, "relevant_subgraph")  # a method of the graph, not a public function
 
 
 def test_service_is_refused_because_the_answer_depends_on_a_remote_graph() -> None:
@@ -181,16 +194,142 @@ def test_service_is_refused_because_the_answer_depends_on_a_remote_graph() -> No
             relevant_subgraph(DATA, PROLOGUE + query)
 
 
-def test_a_dataset_is_refused_and_one_of_its_graphs_is_accepted() -> None:
+TRIG = """@prefix : <http://e/> .
+:a :p 1 . :b :p 2 .
+:g1 { :a :p 1 . :c :p 3 }
+:g2 { :d :p 4 }"""
+
+
+def _dataset(default_union: bool):
+    from starlayer.graph import StarLayerDataset
+
+    dataset = StarLayerDataset(default_union=default_union)
+    dataset.parse(data=TRIG, format="trig")
+    return dataset
+
+
+def _rows(source, query: str) -> list[str]:
+    return sorted(str(sorted((name, str(term)) for name, term in row.items())) for row in source.query(query).bindings)
+
+
+def _graphs_of(dataset, subject: str) -> set[str]:
+    return {str(q.graph_name) for q in dataset.quads((ox.NamedNode(f"http://e/{subject}"), None, None, None))}
+
+
+def test_a_dataset_gives_a_dataset_of_quads_with_the_same_default_union() -> None:
+    for default_union in (True, False):
+        source = _dataset(default_union)
+        result = source.relevant_subgraph(PROLOGUE + "SELECT ?o WHERE { :a :p ?o }")
+        assert type(result).__name__ == "StarLayerDataset" and result.default_union is default_union
+        assert _rows(result, PROLOGUE + "SELECT ?o WHERE { :a :p ?o }") == _rows(source, PROLOGUE + "SELECT ?o WHERE { :a :p ?o }")
+
+
+def test_a_default_union_dataset_keeps_a_triple_in_every_graph_that_holds_it() -> None:
+    source = _dataset(True)
+    query = PROLOGUE + "SELECT ?s ?o WHERE { ?s :p ?o FILTER(?o > 2) }"
+    result = source.relevant_subgraph(query)
+    assert _rows(result, query) == _rows(source, query) and len(result) == 2  # :c in g1 and :d in g2
+    both = source.relevant_subgraph(PROLOGUE + "SELECT ?o WHERE { :a :p ?o }")
+    assert _graphs_of(both, "a") == {"<http://e/g1>", "DEFAULT"}  # the default graph and g1 both hold it: both stay
+
+
+def test_a_dataset_that_is_not_the_union_reads_its_default_graph_only() -> None:
+    source = _dataset(False)
+    query = PROLOGUE + "SELECT ?s WHERE { ?s :p ?o }"
+    result = source.relevant_subgraph(query)
+    assert {str(q.graph_name) for q in result.quads()} == {"DEFAULT"}
+    assert _rows(result, query) == _rows(source, query) and len(_rows(result, query)) == 2  # :a and :b, not g1 or g2
+
+
+GRAPHS = """@prefix : <http://e/> .
+:x :size 9 . :y :size 1 .
+:g1 { :a :size 2 . :b :size 9 . :c :size 1 . :a :next :b . :b :next :c . :c :next :d }
+:g2 { :e :size 9 . :e :size 20 }"""
+
+
+def _graphs_dataset():
     from starlayer.graph import StarLayerDataset
 
     dataset = StarLayerDataset()
-    dataset.parse(data="@prefix : <http://e/> . :a :p 1 .", format="turtle")
-    query = "SELECT ?o WHERE { ?s ?p ?o }"
-    with pytest.raises(TypeError, match="not a dataset"):
-        relevant_subgraph(dataset, query)
-    assert len(relevant_subgraph(dataset.to_graph(), query)) == 1
-    assert len(relevant_subgraph(dataset.default_graph, query)) == 1
+    dataset.parse(data=GRAPHS, format="trig")
+    return dataset
+
+
+def _quads(result) -> set[tuple[str, str, str, str]]:
+    return {(q.subject.value, q.predicate.value.split("/")[-1], str(q.object.value), str(q.graph_name)) for q in result.quads()}
+
+
+def test_a_graph_block_keeps_the_quads_of_the_graph_it_names_that_the_answer_needs() -> None:
+    source = _graphs_dataset()
+    query = PROLOGUE + "SELECT ?s WHERE { GRAPH :g1 { ?s :size ?n FILTER(?n > 5) } }"
+    result = source.relevant_subgraph(query)
+    assert _quads(result) == {("http://e/b", "size", "9", "<http://e/g1>")}  # not :a or :c, which the FILTER rejects
+    assert _rows(result, query) == _rows(source, query)
+    _, exact = relevant_quads(source, query, {})
+    assert exact
+
+
+def test_a_graph_variable_keeps_each_quad_in_the_graph_it_matched_in() -> None:
+    source = _graphs_dataset()
+    query = PROLOGUE + "SELECT ?g ?s WHERE { GRAPH ?g { ?s :size ?n FILTER(?n > 8) } }"
+    result = source.relevant_subgraph(query)
+    assert _quads(result) == {
+        ("http://e/b", "size", "9", "<http://e/g1>"),
+        ("http://e/e", "size", "9", "<http://e/g2>"),
+        ("http://e/e", "size", "20", "<http://e/g2>"),
+    }  # none of the default graph's quads: GRAPH ?g reads the named graphs only
+    assert _rows(result, query) == _rows(source, query)
+
+
+def test_a_query_mixing_the_default_graph_and_a_graph_block_reads_each_where_it_reads_it() -> None:
+    source = _graphs_dataset()
+    query = PROLOGUE + "SELECT ?s ?t WHERE { ?s :size ?n FILTER(?n > 5) GRAPH :g1 { ?s :next ?t } }"
+    result = source.relevant_subgraph(query)
+    assert _quads(result) == {("http://e/b", "next", "http://e/c", "<http://e/g1>"), ("http://e/b", "size", "9", "<http://e/g1>")}
+    assert _rows(result, query) == _rows(source, query)
+
+
+def test_a_property_path_in_a_graph_block_is_walked_in_that_graph() -> None:
+    source = _graphs_dataset()
+    query = PROLOGUE + "SELECT ?t WHERE { GRAPH :g1 { :a :next+ ?t } }"
+    result = source.relevant_subgraph(query)
+    assert {q[1] for q in _quads(result)} == {"next"} and len(_quads(result)) == 3
+    assert _rows(result, query) == _rows(source, query)
+
+
+def test_from_and_from_named_restrict_the_graphs_a_pattern_reads() -> None:
+    source = _graphs_dataset()
+    default = PROLOGUE + "SELECT ?s FROM :g1 WHERE { ?s :size ?n FILTER(?n > 5) }"
+    result = source.relevant_subgraph(default)
+    assert _quads(result) == {("http://e/b", "size", "9", "<http://e/g1>")} and _rows(result, default) == _rows(source, default)
+    named = PROLOGUE + "SELECT ?s FROM NAMED :g2 WHERE { GRAPH ?g { ?s :size ?n FILTER(?n > 10) } }"
+    result = source.relevant_subgraph(named)
+    assert _quads(result) == {("http://e/e", "size", "20", "<http://e/g2>")} and _rows(result, named) == _rows(source, named)
+
+
+def test_a_negation_inside_a_graph_block_is_read_in_that_graph() -> None:
+    source = _graphs_dataset()
+    for negation in ("FILTER NOT EXISTS { ?s :next ?t }", "MINUS { ?s :next ?t }", "FILTER EXISTS { ?s :next ?t }"):
+        query = PROLOGUE + f"SELECT ?s WHERE {{ GRAPH :g1 {{ ?s :size ?n {negation} }} }}"
+        result, exact = relevant_quads(source, query, {})
+        assert exact and {q.graph_name.value for q in result} == {"http://e/g1"}
+        assert _rows(source.relevant_subgraph(query), query) == _rows(source, query)
+    # :x has :next in the default graph, :e in g2: neither is the :next the negation looks for in g1
+    query = PROLOGUE + "SELECT ?s WHERE { GRAPH :g2 { ?s :size ?n FILTER NOT EXISTS { ?s :next ?t } } }"
+    assert _quads(source.relevant_subgraph(query)) == {
+        ("http://e/e", "size", "9", "<http://e/g2>"),
+        ("http://e/e", "size", "20", "<http://e/g2>"),
+    }  # g2 has no :next: nothing excludes either row, and nothing outside g2 is read
+
+
+def test_a_dataset_refuses_what_a_graph_refuses() -> None:
+    dataset = _dataset(True)
+    with pytest.raises(ValueError, match="SELECT, ASK or CONSTRUCT"):
+        dataset.relevant_subgraph(PROLOGUE + "DESCRIBE :a")
+    with pytest.raises(ValueError, match="SERVICE"):
+        dataset.relevant_subgraph(PROLOGUE + "SELECT ?s WHERE { SERVICE <http://example.org/sparql> { ?s :p ?o } }")
+    assert len(relevant_subgraph(dataset.to_graph(), PROLOGUE + "SELECT ?o WHERE { ?s ?p ?o }")) == 4
+    assert len(relevant_subgraph(dataset.default_graph, PROLOGUE + "SELECT ?o WHERE { ?s ?p ?o }")) == 2
 
 
 def test_an_update_is_refused() -> None:
