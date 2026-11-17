@@ -125,3 +125,31 @@ class TestDeclaredParametersArePreBound:
         turtle = 'ex:S a sh:NodeShape ; sh:sparql [ a sh:SPARQLConstraint ; sh:select "SELECT $this WHERE { FILTER (isIRI($currentShape) && isIRI($shapesGraph)) }" ] .'
         assert self._problems(turtle) == []
 
+
+class TestDistinctInAnExtensionFunctionCall:
+    """The grammar allows it (``ArgList ::= '(' 'DISTINCT'? ...``) and Oxigraph does not parse it (starlayer #206): a warning."""
+
+    TEXT = "SELECT (<http://x/f>(DISTINCT 1) AS ?x) {}"
+
+    def test_the_tree_is_built_and_the_shapes_report_a_warning(self):
+        from starlayer.shacl.engine.terms import SH
+        from starlayer.sparql.sqe import (
+            sqe_parse_to_tree,
+            sqe_tree_to_text,
+            sqe_validate,
+        )
+
+        tree, root = sqe_parse_to_tree(self.TEXT)
+        conforms, report, _ = sqe_validate(tree)
+        assert not conforms
+        assert [str(severity) for severity in report.objects(None, SH.resultSeverity)] == [str(SH.Warning)]
+        (message,) = [m.value for m in report.objects(None, SH.resultMessage)]
+        assert "DISTINCT in a call to http://x/f" in message and "#206" in message
+        assert "DISTINCT 1" in sqe_tree_to_text(tree, root)  # the text is kept as written
+
+    def test_an_aggregate_and_a_plain_call_are_not_flagged(self):
+        from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+
+        for text in ("SELECT (COUNT(DISTINCT ?s) AS ?n) { ?s ?p ?o }", "SELECT (<http://x/f>(1) AS ?x) {}"):
+            tree, _ = sqe_parse_to_tree(text)
+            assert sqe_validate(tree)[0]

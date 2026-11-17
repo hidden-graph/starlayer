@@ -15,6 +15,7 @@ Same overall conventions as `rdflib-upstream-issues.md`.
 | --- | --- | --- | --- |
 | 1 | SPARQL `=` panics the whole engine on any `rdf:dirLangString` term | Oxigraph core (`spareval` crate) - affects both `pyoxigraph` and `oxigraph serve` | **Yes** - [oxigraph/oxigraph#1982](https://github.com/oxigraph/oxigraph/issues/1982), filed 2026-10-17; **fixed in pyoxigraph 0.5.13 (verified 2026-10-31); project guard removed 2026-10-31, 0.5.13 is the minimum supported version** |
 | - | Literals are normalized on storage, so exact lexical forms are not preserved | Oxigraph storage layer - by design | **No report needed** - already tracked upstream as [oxigraph/oxigraph#526](https://github.com/oxigraph/oxigraph/issues/526) |
+| - | The SPARQL parser rejects `DISTINCT` in a call to an extension function, which the SPARQL 1.2 grammar allows | Oxigraph SPARQL parser (`spargebra`) | **Not reported yet** - found 2026-11-17, tracked here as [starlayer#206](https://github.com/hidden-graph/starlayer/issues/206) |
 | - | `Dataset.canonicalize` (RDFC-1.0) labels the blank nodes of a cycle through triple terms differently from call to call | Oxigraph / `pyoxigraph` canonicalisation | **Not reported yet** - found 2026-11-01 (see the last section) |
 
 ---
@@ -186,3 +187,19 @@ so a graph was not isomorphic to itself about 40 percent of the time when compar
 ### In this project
 
 Worked around in `starlayer/graph/rdfc_native.py`: data in which a triple term contains a blank node is canonicalised through the basic encoding (`interop.to_basic`), whose RDFC-1.0 input has no triple term, even with `basic=False`. Regression tests: `tests/graph/unit/hunt/test_hunt_interop.py`. To report upstream: minimise the case (it is already three quads) and file it; then add the issue number here and in `curated/upstream-issues.ttl`.
+
+---
+
+## Not yet reported - `DISTINCT` in a call to an extension function does not parse
+
+Found 2026-11-17, tracked as [starlayer#206](https://github.com/hidden-graph/starlayer/issues/206).
+
+SPARQL 1.2 grammar rules [76] and [77] (`FunctionCall ::= iri ArgList`, `ArgList ::= NIL | '(' 'DISTINCT'? Expression ( ',' Expression )* ')'`) allow `DISTINCT` in a call to any IRI function. Oxigraph 0.5.13 reads `DISTINCT` after an IRI as the start of a built-in call:
+
+```python
+import pyoxigraph as ox
+list(ox.Store().query("SELECT (<http://x/f>(DISTINCT 1) AS ?x) {}"))   # error at 1:36: expected ENCODE_FOR_URI
+list(ox.Store().query("SELECT (<http://x/f>(1) AS ?x) {}"))            # parses; fails only because f is not registered
+```
+
+**In this project.** `check_query` reports it as an `engine` problem (StarLayer's grammar accepts it, Oxigraph does not), and the `sqe:` shapes flag it as a warning (`sqe:FunctionDistinctShape`), which also covers an update, since `check_query` never runs one. `tests/graph/unit/test_oxigraph_deviations.py::test_extension_function_call_accepts_distinct` is a strict xfail: when it XPASSes, delete it and the shape.

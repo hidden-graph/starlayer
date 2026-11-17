@@ -87,3 +87,11 @@ def test_copy_and_add_of_an_absent_graph_are_allowed_to_succeed():
     assert held(ds) == 1
     ds.update(f"{P}COPY :nope TO :g1")
     assert held(ds) == 0
+
+
+@pytest.mark.xfail(strict=True, reason="Oxigraph does not parse DISTINCT in a call to an extension function, which the SPARQL 1.2 grammar allows (starlayer #206)")
+def test_extension_function_call_accepts_distinct():
+    g = StarLayerGraph()
+    # SPARQL 1.2 grammar [77]: ArgList ::= NIL | '(' 'DISTINCT'? Expression ( ',' Expression )* ')'
+    (row,) = list(g.query("SELECT (<urn:fn:f>(DISTINCT 1) AS ?x) {}", custom_functions={"urn:fn:f": lambda term: term}))
+    assert row["x"].value == "1"

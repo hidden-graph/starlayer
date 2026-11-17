@@ -56,6 +56,16 @@ _UPDATE_START = re.compile(
 )
 
 
+def _has_violation(report_graph: Any) -> bool:
+    """Whether a validation report holds a result that is not a warning or an info: those leave the tree usable."""
+    return bool(
+        report_graph.query(
+            "PREFIX sh: <http://www.w3.org/ns/shacl#> "
+            "ASK { ?result a sh:ValidationResult ; sh:resultSeverity ?severity FILTER ( ?severity NOT IN ( sh:Warning, sh:Info ) ) }"
+        )
+    )
+
+
 def sqe_parse_to_tree(
     text: str,
     graph: Any = None,
@@ -100,7 +110,8 @@ def sqe_parse_to_tree(
         SparqlSyntaxError: For text outside the SPARQL 1.2 query
             grammar; it is a ``ValueError`` with ``line``/``col``.
         SQEValidationError: If the text parses fine but the encoded tree
-            fails ``sqe:``'s own SHACL shapes.
+            violates ``sqe:``'s own SHACL shapes. A warning (such as DISTINCT in a call to an extension function, which Oxigraph
+            does not parse) does not raise: ``sqe_validate`` on the tree reports it.
     """
     from ..parse_sparql import SparqlSyntaxError, ast_to_triples, parse_sparql
     from .shapes import sqe_validate
@@ -125,6 +136,6 @@ def sqe_parse_to_tree(
     tree = StarLayerGraph(prefixes={}) if graph is None else graph
     tree.extend(triples)
     conforms, report_graph, report_text = sqe_validate(tree)
-    if not conforms:
+    if not conforms and _has_violation(report_graph):
         raise SQEValidationError(report_text, report_graph)
     return tree, root

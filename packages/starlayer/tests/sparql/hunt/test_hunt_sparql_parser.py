@@ -57,16 +57,18 @@ def test_nil_as_subject_or_object_still_parses(text):
 def test_check_query_prepare_accepts_a_valid_update():
     from starlayer.sparql.check import check_query
 
-    assert check_query("INSERT DATA { <http://e/a> <http://e/b> 1 }", prepare=True) is None
-    assert check_query("SELECT * { ?s ?p ?o }", prepare=True) is None
-    assert check_query("SELECT * { ?s ?p ?o ", prepare=True) is not None
+    assert check_query("INSERT DATA { <http://e/a> <http://e/b> 1 }").ok
+    assert check_query("SELECT * { ?s ?p ?o }").ok
+    assert not check_query("SELECT * { ?s ?p ?o ").ok
 
 
 def test_function_distinct_needs_an_argument():
     from starlayer.sparql.check import check_query
 
-    assert check_query("SELECT (<http://x/f>(DISTINCT) AS ?x) {}") is not None
-    assert check_query("SELECT (<http://x/f>(DISTINCT 1) AS ?x) {}") is None
+    assert not check_query("SELECT (<http://x/f>(DISTINCT) AS ?x) {}").ok
+    # the grammar takes DISTINCT in a function call; Oxigraph does not, which check_query reports as its own problem
+    check = check_query("SELECT (<http://x/f>(DISTINCT 1) AS ?x) {}", custom_functions={"http://x/f": lambda term: term})
+    assert [problem.kind for problem in check.errors] == ["engine"]
 
 
 @pytest.mark.parametrize(

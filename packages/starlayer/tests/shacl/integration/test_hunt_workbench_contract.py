@@ -114,9 +114,9 @@ def test_check_query_prepare_sends_no_service_request():
         from starlayer.sparql import check_query
 
         port = server.server_address[1]
-        assert check_query(f"SELECT * WHERE {{ SERVICE <http://127.0.0.1:{port}/sparql> {{ ?s ?p ?o }} }}", prepare=True) is None
+        assert check_query(f"SELECT * WHERE {{ SERVICE <http://127.0.0.1:{port}/sparql> {{ ?s ?p ?o }} }}").ok
         assert hits == []
-        assert check_query("SELECT * WHERE { ?s nope:p ?o }", prepare=True) is not None  # a plain query is still prepared
+        assert not check_query("SELECT * WHERE { ?s ?p ?o FILTER(<urn:fn:unknown>(?o)) }").ok  # a plain query is still prepared
     finally:
         server.shutdown()
 

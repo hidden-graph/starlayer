@@ -1377,3 +1377,22 @@ sqe:GraphOrDefaultShape a sh:NodeShape ;
     ] [
         sh:class sqe:DefaultGraph
     ] ) .
+
+# A warning, not a violation: the text is valid SPARQL 1.2 (ArgList ::= NIL | '(' 'DISTINCT'? Expression ... ')'), but Oxigraph does
+# not parse DISTINCT in a call to an extension function. Delete this shape when a release does (starlayer #206).
+sqe:FunctionDistinctShape a sh:NodeShape ;
+    sh:severity sh:Warning ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "DISTINCT in a call to {?iri}: the SPARQL 1.2 grammar allows it, but Oxigraph does not parse it (starlayer #206)." ;
+        sh:select """
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            SELECT $this ?iri
+            WHERE {
+                $this spexpr:distinct ?marker ;
+                    spexpr:iri ?iri .
+                FILTER ( isLiteral(?marker) )
+            }
+        """
+    ] ;
+    sh:targetClass spexpr:Function .

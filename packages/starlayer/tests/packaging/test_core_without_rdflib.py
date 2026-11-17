@@ -174,7 +174,7 @@ def test_the_sparql_facade_imports_without_rdflib():
     out = ok("""
         import starlayer.sparql
         from starlayer.sparql import StarQuery, check_query
-        assert check_query("SELECT * WHERE { ?s ?p ?o }") is None
+        assert check_query("SELECT * WHERE { ?s ?p ?o }").ok
         assert not hasattr(starlayer.sparql, "prepare_query_12")
         print("done")
     """)

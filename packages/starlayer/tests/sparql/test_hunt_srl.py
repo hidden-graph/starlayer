@@ -158,8 +158,8 @@ def test_a_signed_number_after_a_predicate_is_the_object(number):
 def test_a_path_modifier_before_a_number_still_parses_in_sparql():
     from starlayer.sparql.check import check_query
 
-    assert check_query(PRE + "SELECT * WHERE { ?s :q+ 5 }") is None
-    assert check_query(PRE + "SELECT * WHERE { ?s :q +5 }") is None
+    assert check_query(PRE + "SELECT * WHERE { ?s :q+ 5 }").ok
+    assert check_query(PRE + "SELECT * WHERE { ?s :q +5 }").ok
 
 
 # ---- well-formedness of triple terms and DATA ----------------------------------
