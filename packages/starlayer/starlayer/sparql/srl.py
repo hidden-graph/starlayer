@@ -292,7 +292,8 @@ def _check_stratification(ruleset: srl_ast.RuleSet) -> None:
     if ruleset.imports:
         warnings.warn(
             f"SRL: the evaluation order was checked on the rules in this text only; these IMPORTS are not resolved yet: {unresolved}. "
-            "resolve_imports(), plan() and infer() check the combined rule set.",
+            "Pass imports_loader= to parse_ruleset(), or resolve them with resolve_imports(), infer(), query() or plan(): "
+            "the combined rule set is checked then.",
             SRLUnresolvedImportsWarning,
             stacklevel=3,
         )

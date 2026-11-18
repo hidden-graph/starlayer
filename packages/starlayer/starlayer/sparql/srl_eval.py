@@ -856,8 +856,8 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet) -> _E
         iris = ", ".join(f"<{iri.value}>" for iri in ruleset.imports)
         raise SRLImportsNotSupportedError(
             f"SRL: this rule set has IMPORTS that are not resolved ({iris}). Pass imports_loader= to infer(), query() or plan() "
-            "to resolve them, or resolve them first with srl.resolve_imports(). A rule set with IMPORTS is never run with its "
-            "imports ignored (§4.5)."
+            "to resolve them for the call, or resolve them once with srl.resolve_imports() or parse_ruleset(imports_loader=). "
+            "A rule set with IMPORTS is never run with its imports ignored (§4.5)."
         )
 
     d = new_graph()
