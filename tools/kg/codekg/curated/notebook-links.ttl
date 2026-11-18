@@ -87,35 +87,26 @@ nl:03a-2e4d34f3 a slkg:NotebookExample ;
 nl:03d-7790f87d a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "7790f87d" ;
-    slkg:cellHash "1755a92ccaacccb0" ;
-    slkg:reviewedOn "2026-11-02"^^xsd:date ;
+    slkg:cellHash "cf4806294787657c" ;
+    slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Writes a small SRL rule set and parses it with parse_ruleset()." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl.parse_ruleset" .
 
-nl:03d-c0a10002 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
-    slkg:cellId "c0a10002" ;
-    slkg:cellHash "7726415044e17133" ;
-    slkg:reviewedOn "2026-10-19"^^xsd:date ;
-    rdfs:comment "Calls plan() on a rule set to show its strata and the dependency edges between rules." ;
-    slkg:demonstratesIdentifier
-        "starlayer.sparql._srl_ast.RuleSet.plan" .
-
 nl:03d-4d30d29d a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "4d30d29d" ;
-    slkg:cellHash "15eb9a1004e72151" ;
-    slkg:reviewedOn "2026-11-02"^^xsd:date ;
+    slkg:cellHash "119c3112510556fe" ;
+    slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Runs a rule set over a graph with infer() and prints the new triples it returns." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.infer" .
 
-nl:03d-d9a10023 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
+nl:03e-d9a10023 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03e-srl-running-rule-sets.ipynb" ;
     slkg:cellId "d9a10023" ;
     slkg:cellHash "b90862cf91a035e4" ;
-    slkg:reviewedOn "2026-10-19"^^xsd:date ;
+    slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Resolves a rule set's IMPORTS through a loader, giving a rule set that needs no loader." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl.resolve_imports" .
@@ -261,18 +252,18 @@ nl:05a-92f83318 a slkg:NotebookExample ;
 nl:03d-c0a10008 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "c0a10008" ;
-    slkg:cellHash "6f15e97e19642091" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "57f24a6502758d8f" ;
+    slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Asks a goal pattern of a rule set with query() and gets back only the matching bindings." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.query" .
 
-nl:03d-c0a10006 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
+nl:03e-c0a10006 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03e-srl-running-rule-sets.ipynb" ;
     slkg:cellId "c0a10006" ;
-    slkg:cellHash "e3c05bf0bef4601e" ;
-    slkg:reviewedOn "2026-10-19"^^xsd:date ;
-    rdfs:comment "Shows the StratificationError from srl_eval that plan() and infer() raise for a rule set with no valid evaluation order." ;
+    slkg:cellHash "d4369e795a570ef7" ;
+    slkg:reviewedOn "2026-11-18"^^xsd:date ;
+    rdfs:comment "Shows the StratificationError from srl_eval that plan() raises for rule sets with no valid evaluation order." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl_eval" .
 
