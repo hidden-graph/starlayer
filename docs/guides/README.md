@@ -20,26 +20,26 @@ This is the single master index for every guide notebook - every notebook's own 
    - **3.a [SPARQL 1.2 in queries](03a-sparql-12-queries.ipynb)** - triple functions (`TRIPLE`, `SUBJECT`, `isTRIPLE`), triple-term and annotation syntax in queries, language and direction functions, and the `VERSION` directive.
    - **3.b [Preparing, extending and checking queries](03b-preparing-extending-checking-queries.ipynb)** - the triples an answer depends on (`relevant_subgraph`), a query prepared once (`StarQuery`), your own Python functions and aggregates (`custom_functions`), and `check_query`.
    - **3.c [SPARQL entailment](03c-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.e already covers per regime: caching behavior (`recompute=`) and detecting an inconsistency via `ASK`.
-   - **3.d [SRL (SPARQL Rules)](03d-srl-sparql-rules.ipynb)** - a Datalog-style rules language independent of SHACL: a first rule, matching several patterns, rules that build on each other, `FILTER`, negation (`NOT`), computing values (`SET`), creating nodes, and asking a question of a rule set (`query()`).
-   - **3.e [SRL: how a rule set runs](03e-srl-running-rule-sets.ipynb)** - the evaluation plan, run-once rules, cycles and rejected rule sets, validation errors, running a rule set again, `DATA` blocks and `IMPORTS`.
-   - **3.f [SRL: more features](03f-srl-more-features.ipynb)** - RDF 1.2 triple terms and annotations, property paths, grouping and aggregation, and combining SRL with entailment (`inference=`) and SHACL (`schema=`).
-4. **[SHACL shapes](04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`), reading a validation result and the errors (`ValidationResult`, `validate_each`, `ShapeError`), entailment during validation, and deriving a shapes graph from data (`derive_shape()`).
-   - **4.a [SHACL node expressions](04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
-   - **4.b [SHACL and SPARQL](04b-shacl-and-sparql.ipynb)** - `sh:sparql` constraints, user-defined `sh:ConstraintComponent`.
-   - **4.c [SHACL inference rules](04c-shacl-inference-rules.ipynb)** - `sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, execution ordering, rule sets, provenance.
-   - **4.d [SHACL UI](04d-shacl-ui.ipynb)** - `shui:` widgets: fixed `shui:editor`/`shui:viewer` choices via `select_widgets()` (a dict of property shape to widget), launching a form in a browser, then `shui:WidgetScore` scoring for properties that name no widget, and `explain_widgets()` for why a widget was chosen.
-   - **4.e [SHACL profiling](04e-shacl-profiling.ipynb)** - `sh:ShapesGraph`/`sh:DataGraph`/`owl:imports` packaging conventions, and making a set of shapes self-contained (`referenced_shapes`, `rule_dependencies`).
-   - **4.f [SHACL subgraph extraction & hashing](04f-shacl-subgraph-extraction.ipynb)** - `extract_subgraph()`, `close_shape()`, and the hash-and-verify commitment pattern.
-   - **4.g [Building on SHACL](04g-building-on-shacl.ipynb)** - what an application that edits or displays shapes asks of `starlayer.shacl`: `infer_types`, `shapes_graph_members`, `sparql_query_problems`, `path_values`, `evaluate_expression` and the widget functions.
-5. **[StarLayer Schemas and Ontologies](05-starlayer-schemas-and-ontologies.ipynb)** - the vocabularies StarLayer defines for representing an artifact's own internal structure as RDF, inspectable/editable/validatable like any other graph; plus the registry that bundles all of them (including SKOS and the SHACL meta-shapes).
-   - **5.a [Manchester Syntax](05a-manchester-syntax.ipynb)** - OWL 2 Manchester Syntax's English-readable notation, via `parse()`/`serialize()` with `format="manchester"`, plus treating a document's own internal structure as an inspectable, editable RDF graph via the `manch:` ontology.
-   - **5.b [SPARQL queries as RDF](05b-sparql-query-as-rdf.ipynb)** - encoding, editing, and validating a query itself as an RDF graph, under the `sqe:` ontology.
-   - **5.c [SRL (SPARQL Rules) as RDF](05c-srl-sparql-rules-as-rdf.ipynb)** - encoding a parsed SRL rule set as RDF under the `srl:` namespace, and SHACL-validating that encoding.
-   - **5.d [The SHACL library registry](05d-shacl-library-registry.ipynb)** - loading the bundled ontologies and shapes by name, validating data against them, the StarLayer profiles that tie each shapes graph to its specification, and fetching each file directly from GitHub.
-6. **Other**
-   - **6.a [Serialization formats](06a-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
-   - **6.b [Choosing where your data lives](06b-backend-graph-databases.ipynb)** - an on-disk Oxigraph store, and reading a remote SPARQL endpoint from a query with `SERVICE`.
-   - **6.c [Canonical hashing and graph comparison](06c-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
+4. **[SRL (SPARQL Rules)](04-srl-sparql-rules.ipynb)** - a Datalog-style rules language independent of SHACL: a first rule, matching several patterns, rules that build on each other, `FILTER`, negation (`NOT`), computing values (`SET`), creating nodes, and asking a question of a rule set (`query()`).
+   - **4.a [SRL: how a rule set runs](04a-srl-running-rule-sets.ipynb)** - the evaluation plan, run-once rules, cycles and rejected rule sets, validation errors, running a rule set again, `DATA` blocks and `IMPORTS`.
+   - **4.b [SRL: more features](04b-srl-more-features.ipynb)** - RDF 1.2 triple terms and annotations, property paths, grouping and aggregation, and combining SRL with entailment (`inference=`) and SHACL (`schema=`).
+5. **[SHACL shapes](05-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`), reading a validation result and the errors (`ValidationResult`, `validate_each`, `ShapeError`), entailment during validation, and deriving a shapes graph from data (`derive_shape()`).
+   - **5.a [SHACL node expressions](05a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
+   - **5.b [SHACL and SPARQL](05b-shacl-and-sparql.ipynb)** - `sh:sparql` constraints, user-defined `sh:ConstraintComponent`.
+   - **5.c [SHACL inference rules](05c-shacl-inference-rules.ipynb)** - `sh:rule`/`sh:TripleRule`/`sh:SPARQLRule`, execution ordering, rule sets, provenance.
+   - **5.d [SHACL UI](05d-shacl-ui.ipynb)** - `shui:` widgets: fixed `shui:editor`/`shui:viewer` choices via `select_widgets()` (a dict of property shape to widget), launching a form in a browser, then `shui:WidgetScore` scoring for properties that name no widget, and `explain_widgets()` for why a widget was chosen.
+   - **5.e [SHACL profiling](05e-shacl-profiling.ipynb)** - `sh:ShapesGraph`/`sh:DataGraph`/`owl:imports` packaging conventions, and making a set of shapes self-contained (`referenced_shapes`, `rule_dependencies`).
+   - **5.f [SHACL subgraph extraction & hashing](05f-shacl-subgraph-extraction.ipynb)** - `extract_subgraph()`, `close_shape()`, and the hash-and-verify commitment pattern.
+   - **5.g [Building on SHACL](05g-building-on-shacl.ipynb)** - what an application that edits or displays shapes asks of `starlayer.shacl`: `infer_types`, `shapes_graph_members`, `sparql_query_problems`, `path_values`, `evaluate_expression` and the widget functions.
+6. **[StarLayer Schemas and Ontologies](06-starlayer-schemas-and-ontologies.ipynb)** - the vocabularies StarLayer defines for representing an artifact's own internal structure as RDF, inspectable/editable/validatable like any other graph; plus the registry that bundles all of them (including SKOS and the SHACL meta-shapes).
+   - **6.a [Manchester Syntax](06a-manchester-syntax.ipynb)** - OWL 2 Manchester Syntax's English-readable notation, via `parse()`/`serialize()` with `format="manchester"`, plus treating a document's own internal structure as an inspectable, editable RDF graph via the `manch:` ontology.
+   - **6.b [SPARQL queries as RDF](06b-sparql-query-as-rdf.ipynb)** - encoding, editing, and validating a query itself as an RDF graph, under the `sqe:` ontology.
+   - **6.c [SRL (SPARQL Rules) as RDF](06c-srl-sparql-rules-as-rdf.ipynb)** - encoding a parsed SRL rule set as RDF under the `srl:` namespace, and SHACL-validating that encoding.
+   - **6.d [The SHACL library registry](06d-shacl-library-registry.ipynb)** - loading the bundled ontologies and shapes by name, validating data against them, the StarLayer profiles that tie each shapes graph to its specification, and fetching each file directly from GitHub.
+7. **Other**
+   - **7.a [Serialization formats](07a-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
+   - **7.b [Choosing where your data lives](07b-backend-graph-databases.ipynb)** - an on-disk Oxigraph store, and reading a remote SPARQL endpoint from a query with `SERVICE`.
+   - **7.c [Canonical hashing and graph comparison](07c-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
 
 ## Appendices
 

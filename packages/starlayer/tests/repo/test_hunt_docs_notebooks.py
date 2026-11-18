@@ -50,7 +50,7 @@ def test_guide_05a_names_an_existing_validation_function():
     import starlayer.sparql as sp
     from starlayer.sparql.sqe.shapes import sqe_validate  # noqa: F401
 
-    t = _text("05a-manchester-syntax.ipynb")
+    t = _text("06a-manchester-syntax.ipynb")
     assert not hasattr(sp, "validate_query")
     assert "validate_query" not in t
 
@@ -66,11 +66,11 @@ def test_guides_have_no_empty_code_span_and_registry_functions_return_one_class(
 
     assert list(inspect.signature(so.get_ontology_graph).parameters) == ["name"]
     assert isinstance(so.get_ontology_graph("skos_owl"), StarLayerGraph)
-    assert "keyword to ask for" not in _text("04e-shacl-profiling.ipynb")
+    assert "keyword to ask for" not in _text("05e-shacl-profiling.ipynb")
 
 
 def test_guide_04_does_not_say_node_kind_delegates_to_pyshacl():
-    assert "pySHACL" not in _text("04-shacl-shapes.ipynb")
+    assert "pySHACL" not in _text("05-shacl-shapes.ipynb")
 
 
 def test_guides_02b_02c_do_not_say_query_entailment_raises():
@@ -98,7 +98,7 @@ def test_guide_04_names_the_rule_error_class_that_exists():
 
     assert not hasattr(rules, "RuleLoadError")
     assert hasattr(rules, "RuleError")
-    assert "RuleLoadError" not in _text("04-shacl-shapes.ipynb")
+    assert "RuleLoadError" not in _text("05-shacl-shapes.ipynb")
 
 
 def test_guide_06b_service_silent_row_claim_matches_behaviour():
@@ -108,11 +108,11 @@ def test_guide_06b_service_silent_row_claim_matches_behaviour():
         warnings.simplefilter("ignore")
         rows = list(StarLayerGraph().query("SELECT ?p WHERE { SERVICE SILENT <http://localhost:1/query> { ?p a <http://e.org/P> } }"))
     assert len(rows) == 1 and rows[0][0] is None
-    assert "returns no rows" not in _text("06b-backend-graph-databases.ipynb")
+    assert "returns no rows" not in _text("07b-backend-graph-databases.ipynb")
 
 
 def test_guide_04f_section_references_point_at_the_right_sections():
-    nb = _text("04f-shacl-subgraph-extraction.ipynb", ("markdown", "code"))
+    nb = _text("05f-shacl-subgraph-extraction.ipynb", ("markdown", "code"))
     heads = dict(re.findall(r"^## (\d+)\. (.*)$", nb, re.M))
     for m in re.finditer(r"[Ss]ection (\d+)(?:'s| below)? (staging pattern|commitment)|see section (\d+)\)", nb):
         n = m.group(1) or m.group(3)
@@ -128,4 +128,4 @@ def test_guide_05b_scope_matches_what_the_encoder_accepts():
     for q in ("DESCRIBE <urn:a>", "INSERT DATA { <urn:a> <urn:p> <urn:b> }", "CLEAR ALL"):
         tree, root = sqe.sqe_parse_to_tree(q, StarLayerGraph())
         assert sqe.sqe_tree_to_text(tree, root).startswith(q.split()[0])
-    assert "does not cover `DESCRIBE`" not in _text("05b-sparql-query-as-rdf.ipynb")
+    assert "does not cover `DESCRIBE`" not in _text("06b-sparql-query-as-rdf.ipynb")

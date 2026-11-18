@@ -11,7 +11,7 @@ design history this module executes.
 ``shui:editor``/``shui:viewer`` annotations (compatibility, not selection)
 are a separate, already-shipped concern - see
 ``starlayer.starontology``'s ``stsh:ShuiPredicateShapes`` and
-``docs/guides/04d-shacl-ui.ipynb``.
+``docs/guides/05d-shacl-ui.ipynb``.
 
 **Deliberately tolerant of `shui:WidgetAcceptMatcher`'s own cardinality**:
 as of the 2026-10-16 spec re-check, `shui:WidgetAcceptMatcher` has no

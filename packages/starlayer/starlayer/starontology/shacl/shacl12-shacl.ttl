@@ -85,22 +85,22 @@ shsh:xoneSubjectsShape a sh:NodeShape ;
     sh:property shsh:xoneSubjectsShapeXonePropertyShape ;
     sh:targetSubjectsOf sh:xone .
 
-shui:AutoCompleteEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:AutoCompleteEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A text input with suggestions, typically backed by shui:resourceFilter-style search against existing resources."@en ;
     sh:name "autocomplete editor"@en .
 
-shui:BlankNodeEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:BlankNodeEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A nested sub-form for editing a blank-node-valued property in place, rather than as a reference."@en ;
     sh:name "blank node editor"@en .
 
-shui:BlankNodeViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:BlankNodeViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Read-only nested display of a blank-node-valued property's own properties."@en ;
     sh:name "blank node viewer"@en .
 
-shui:BooleanEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:BooleanEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A checkbox or toggle, for xsd:boolean-typed values."@en ;
     sh:name "boolean editor"@en .
@@ -111,12 +111,12 @@ shui:ClassificationRole rdfs:comment "ignored by validation; a property role: se
     sh:description "The role of property shapes whose value nodes indicate the kind, type or category that a resource belongs to. All the values are shown."@en ;
     sh:name "classification role"@en .
 
-shui:DatePickerEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:DatePickerEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A calendar-style date picker, for xsd:date-typed values."@en ;
     sh:name "date picker"@en .
 
-shui:DateTimePickerEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:DateTimePickerEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A calendar-and-time picker, for xsd:dateTime-typed values."@en ;
     sh:name "date-time picker"@en .
@@ -133,33 +133,33 @@ shui:DescriptionRole rdfs:comment "ignored by validation; a property role: see s
     sh:description "The role of property shapes whose value nodes are textual descriptions that summarize or introduce a resource."@en ;
     sh:name "description role"@en .
 
-shui:DetailsViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:DetailsViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     rdfs:seeAlso shui:DetailsEditor ;
     sh:description "An expandable/collapsible read-only view for a complex value, the viewer counterpart to shui:DetailsEditor."@en ;
     sh:name "details viewer"@en .
 
-shui:EnumSelectEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:EnumSelectEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A dropdown/select list, for a value constrained by sh:in to a fixed set of options."@en ;
     sh:name "enum select"@en .
 
-shui:HTMLViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:HTMLViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Renders a value's content as formatted HTML rather than as plain escaped text."@en ;
     sh:name "HTML viewer"@en .
 
-shui:HyperlinkViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:HyperlinkViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Displays an IRI value as a clickable link."@en ;
     sh:name "hyperlink viewer"@en .
 
-shui:IRIEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:IRIEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A plain-text input constrained to well-formed IRIs."@en ;
     sh:name "IRI editor"@en .
 
-shui:IRIViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:IRIViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Read-only display of an IRI value, typically abbreviated with a known prefix."@en ;
     sh:name "IRI viewer"@en .
@@ -170,12 +170,12 @@ shui:IconRole rdfs:comment "ignored by validation; a property role: see shui:pro
     sh:description "The role of property shapes whose value nodes are small images displayed next to the label of a resource, often shared across instances of the same class."@en ;
     sh:name "icon role"@en .
 
-shui:ImageViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:ImageViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Renders an IRI value inline as an image, for properties known to point at image resources."@en ;
     sh:name "image viewer"@en .
 
-shui:InstancesSelectEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:InstancesSelectEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A dropdown/select list populated dynamically from existing instances of a class, rather than a fixed sh:in list."@en ;
     sh:name "instances select"@en .
@@ -186,59 +186,59 @@ shui:LabelRole rdfs:comment "ignored by validation; a property role: see shui:pr
     sh:description "The role of property shapes whose value nodes serve as human-readable display labels for a resource. A renderer applies Label Resolution to them and shows one label."@en ;
     sh:name "label role"@en .
 
-shui:LabelViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:LabelViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     rdfs:seeAlso shui:propertyRole ;
     sh:description "Displays a resource by its resolved human-readable label (e.g. via shui:LabelRole/shui:displayProvider) rather than its raw IRI."@en ;
     sh:name "label viewer"@en .
 
-shui:LangStringViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:LangStringViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Read-only display of a language-tagged literal, typically showing the language tag alongside the text."@en ;
     sh:name "language string viewer"@en .
 
-shui:LiteralViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:LiteralViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Plain read-only display of a literal value's lexical form."@en ;
     sh:name "literal viewer"@en .
 
-shui:NumberFieldEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:NumberFieldEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A numeric input, for xsd:integer/xsd:decimal/xsd:double-typed values."@en ;
     sh:name "number field"@en .
 
-shui:RichTextEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:RichTextEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A formatted (e.g. HTML/Markdown) text editor, for values meant to render with styling."@en ;
     sh:name "rich text editor"@en .
 
-shui:SubClassEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:SubClassEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     rdfs:seeAlso sh:rootClass ;
     sh:description "A class picker constrained to subclasses of a given root class — the editor-side counterpart to sh:rootClass."@en ;
     sh:name "subclass editor"@en .
 
-shui:TextAreaEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:TextAreaEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A multi-line plain-text input."@en ;
     sh:name "text area"@en .
 
-shui:TextAreaWithLangEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:TextAreaWithLangEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A multi-line text input paired with a language-tag selector."@en ;
     sh:name "text area with language"@en .
 
-shui:TextFieldEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:TextFieldEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A single-line plain-text input."@en ;
     sh:name "text field"@en .
 
-shui:TextFieldWithLangEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:TextFieldWithLangEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "A single-line text input paired with a language-tag selector, for editing one language-tagged literal."@en ;
     sh:name "text field with language"@en .
 
-shui:ValueTableViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:ValueTableViewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "Displays multiple values for a property as rows of a table, rather than a simple list."@en ;
     sh:name "value table viewer"@en .
@@ -952,19 +952,19 @@ shsh:xoneSubjectsShapeXonePropertyShape a sh:PropertyShape ;
     sh:path sh:xone ;
     sh:severity sh:Warning .
 
-shui:DetailsEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:DetailsEditor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     sh:description "An expandable/collapsible nested editor for a complex (typically shape-constrained) value."@en ;
     sh:name "details editor"@en .
 
-shui:editor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:editor rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     rdfs:seeAlso shui:viewer ;
     skos:example "sh:property [ sh:path ex:birthDate ; shui:editor shui:DatePickerEditor ]"@en ;
     sh:description "Suggests which widget a form-generating UI should use to *edit* this property shape's values — one of the built-in editors below, or a custom one."@en ;
     sh:name "editor widget"@en .
 
-shui:viewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/04d-shacl-ui.ipynb)"@en ;
+shui:viewer rdfs:comment "ignored by validation; read by starlayer.shacl.ui.widget_selection when it chooses a widget (see docs/guides/05d-shacl-ui.ipynb)"@en ;
     rdfs:isDefinedBy <https://www.w3.org/TR/shacl12-ui/> ;
     rdfs:seeAlso shui:editor ;
     skos:example "sh:property [ sh:path ex:homepage ; shui:viewer shui:HyperlinkViewer ]"@en ;
