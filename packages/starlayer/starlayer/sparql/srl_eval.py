@@ -66,10 +66,9 @@ class StratificationError(SRLEvalError):
 
 
 class SRLImportsNotSupportedError(SRLEvalError):
-    """§4.5: ``IMPORTS`` support is optional for SRL processors, but an
-    implementation that does not support it MUST reject a rule set
-    containing ``IMPORTS`` statements with an error - this project does
-    not yet resolve imports, so this is that required hard rejection."""
+    """A rule set that still has ``IMPORTS`` was run. §4.5 requires a processor to reject such a rule set, or resolve the imports,
+    and never to ignore them. StarLayer resolves imports only through a caller-supplied loader (``imports_loader=``, or
+    ``srl.resolve_imports()``), so a run without one is rejected with this error."""
 
 
 # ---------------------------------------------------------------------------
@@ -854,10 +853,11 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet) -> _E
 
     base_graph = flatten_dataset(base_graph)
     if ruleset.imports:
+        iris = ", ".join(f"<{iri.value}>" for iri in ruleset.imports)
         raise SRLImportsNotSupportedError(
-            "SRL: this implementation does not support IMPORTS - per §4.5, "
-            "an implementation without import support MUST reject a rule set "
-            "containing IMPORTS statements, rather than silently ignoring them"
+            f"SRL: this rule set has IMPORTS that are not resolved ({iris}). Pass imports_loader= to infer(), query() or plan() "
+            "to resolve them, or resolve them first with srl.resolve_imports(). A rule set with IMPORTS is never run with its "
+            "imports ignored (§4.5)."
         )
 
     d = new_graph()
