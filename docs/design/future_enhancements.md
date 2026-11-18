@@ -301,6 +301,23 @@ The differences in error policy and in the merge (graph union with `owl:versionI
 
 *Not planned:* extracting the visited-set traversal into a shared helper, and changing the OWL/SHACL skip-on-failure behavior.
 
+## Review parse and validation behavior across the project (2026-11-18)
+
+*(Added after the SRL guide review, to be done once the SRL work is finished.)* StarLayer never fetches an import by itself (reading a document has security implications), so a parse of a document with imports (`IMPORTS` in SRL, `owl:imports` in an ontology or a shapes graph) returns something that may be incomplete until the caller resolves it with a loader. A parse should say so, and each parse should check what it can on that basis.
+
+**The principle to apply**
+1. A parse checks what the text decides on its own: the grammar and every check on one rule, shape or axiom at a time.
+2. A check that needs the whole document waits until the imports are resolved, because an import may supply the missing piece.
+3. A check that an import can never undo (the text already breaks the rule, and imports only add) may run early. It is sound to fail early, with a message saying only the text was checked.
+4. A parse with imports is flagged, with the list of imports left to resolve. For SRL that is `RuleSet.imports` (empty once resolved).
+
+**To do**
+- Decide what the flag is for each parse result (SRL has `RuleSet.imports`; a graph has `owl_imports(graph)`), and whether to add a readable property such as `is_resolved`.
+- For each parse and validation, list the checks that cross the document and place them by the principle. Candidates: a shape or class that is mentioned but not defined in the text (Manchester and OWL parse, `sh:node` and `sh:property` references, rule dependencies for SRL stratification).
+- Write the contract once with the loader contract above (an item of "Rationalize the three import mechanisms").
+
+SRL, which has one cross-rule check (stratification), is the first case. See the decision of 2026-10-17 under "SRL follow-ups", which kept stratification out of `parse_ruleset()`.
+
 ## Before publishing: clean-up checklist
 
 *(Added 2026-10-17.)* Generated and hand-copied material goes stale as the code changes. Before a release or a doc publish, work through this list. None of it is automated yet; deciding which steps to fold into one script is itself a follow-up.
