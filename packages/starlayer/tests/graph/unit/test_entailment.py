@@ -23,9 +23,9 @@ typing, the fixed axiomatic triples) - see entailment_rdfs.py's own
 module docstring for exactly what's covered and why.
 entailment=ENTAILMENT["OWL-RDF-Based"] queries a materialized RDFS/OWL-RL closure (via infer()),
 cached on the graph (self._owl_rl_cache) and reused across calls according to
-the separate infer= kwarg ("changed" (default) recomputes only after a real
+the separate recompute= kwarg ("onChange" (default) recomputes only after a real
 mutation, tracked via self._mutation_generation/_on_mutated(); "always"
-never reuses the cache; "cached" reuses whatever is cached no matter what,
+recomputes on every call; "never" reuses whatever is cached no matter what,
 computing only when nothing is cached yet - see TestEntailmentOwlRlCaching).
 
 Per this project's own testing discipline (starlayer.sparql/CLAUDE.md: "any new
@@ -234,7 +234,7 @@ class TestEntailmentOwlRl:
         assert [r.x.value for r in g.query(q, entailment=ENTAILMENT["OWL-RDF-Based"])] == [EX.alice.value]
 
     def test_default_infer_changed_mode_reflects_a_mutation_in_between(self):
-        # the default infer="changed" mode recomputes after a real mutation
+        # the default recompute="onChange" mode recomputes after a real mutation
         # - no explicit "re-run reasoning" step needed after a graph edit.
         g = _graph()
         assert [r.x.value for r in g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"])] == [EX.alice.value]
@@ -253,13 +253,13 @@ class TestEntailmentOwlRlCaching:
     def test_unsupported_infer_mode_raises(self):
         g = _graph()
         with pytest.raises(ValueError, match="bogus"):
-            g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="bogus")
+            g.query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], recompute="bogus")
 
     def test_infer_kwarg_is_ignored_without_entailment_owl_rl(self):
-        # infer= is only meaningful for entailment=ENTAILMENT["OWL-RDF-Based"] - an invalid
+        # recompute= is only meaningful for entailment=ENTAILMENT["OWL-RDF-Based"] - an invalid
         # value should be silently irrelevant otherwise, not raise.
         g = _graph()
-        rows = list(g.query(_QUERY, infer="bogus"))
+        rows = list(g.query(_QUERY, recompute="bogus"))
         assert rows == []
 
 

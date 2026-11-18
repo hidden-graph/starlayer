@@ -4,9 +4,9 @@
 RDF and RDFS are a rewrite of the query (``starlayer.sparql.sqe.entailment``); the OWL regimes run the query on a temporary copy
 of the store that ``infer()`` has closed. Differences from the originals:
 
-- the OWL regimes keep no cache (a copy is made per query), so the tests of ``infer="changed" / "cached" / "always"`` reuse
-  (``_owl_rl_cache``, ``_owl_dl_cache``) and of the union-with-delta design (``_UnionForQuery``) have no counterpart; ``infer=`` is
-  still checked and a bad value raises ``ValueError``;
+- the OWL regimes copy the store on every query, but the graph keeps the entailed triples per regime and engine and ``recompute=``
+  (``"onChange"`` / ``"never"`` / ``"always"``) says when they are computed again (``TestEachRegimeKeepsItsOwnEntailedTriples``); the
+  union-with-delta design (``_UnionForQuery``) has no counterpart, and a bad ``recompute=`` value raises ``ValueError``;
 - ``entailment='native'`` / the ``rdf-1.2`` backend tests do not apply (the wrapper is always Oxigraph);
 - the OWL-Direct tests need ``owlready2`` + Java (HermiT) or ``rustdl`` and skip without them, as before.
 """
@@ -369,10 +369,10 @@ class TestEntailmentOwlRl:
 
     def test_unsupported_infer_mode_raises(self):
         with pytest.raises(ValueError, match="bogus"):
-            _graph().query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], infer="bogus")
+            _graph().query(_QUERY, entailment=ENTAILMENT["OWL-RDF-Based"], recompute="bogus")
 
     def test_infer_kwarg_is_ignored_without_an_owl_regime(self):
-        assert list(_graph().query(_QUERY, infer="bogus")) == []
+        assert list(_graph().query(_QUERY, recompute="bogus")) == []
 
     def test_engine_and_timeout_rejected_for_other_regimes(self):
         for regime in (None, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]):
@@ -422,6 +422,99 @@ class TestEntailmentDirect:
 class TestEntailmentDirectRustdl:
     def test_engine_rustdl_selectable_via_query(self):
         assert _col(_graph(_DISJUNCTIVE).query(_Q_WOMAN, entailment=ENTAILMENT["OWL-Direct"], engine="rustdl")) == _alice()
+
+
+# ---- each regime keeps its own entailed triples -------------------------------------------------------------------------
+#
+# ``recompute="never"`` uses whatever the graph kept for a regime and computes only when it kept nothing. A write after a regime was
+# queried makes its kept triples out of date, so a regime that answers from fresh data has not used them.
+
+
+def _add_bob() -> tuple:
+    return (N(EX + "bob"), N(RDF_TYPE), N(EX + "Manager"))
+
+
+_ALICE_AND_BOB = [EX + "alice", EX + "bob"]
+
+
+class TestEachRegimeKeepsItsOwnEntailedTriples:
+    def test_the_owl_rl_copy_is_not_used_by_the_rdfs_rewrite(self):
+        g = _graph()
+        rl = ENTAILMENT["OWL-RDF-Based"]
+        assert _col(g.query(_QUERY, entailment=rl)) == _alice()  # computed and kept
+        g.add(_add_bob())
+        assert _col(g.query(_QUERY, entailment=rl, recompute="never")) == _alice()  # the kept copy, out of date
+        assert _col(g.query(_QUERY, entailment=ENTAILMENT.RDFS)) == _ALICE_AND_BOB  # the rewrite reads the data as it is
+
+    @owl_dl_extra
+    @java_required
+    def test_owl_direct_does_not_use_the_owl_rl_copy_and_leaves_it_as_it_was(self):
+        g = _graph()
+        rl, direct = ENTAILMENT["OWL-RDF-Based"], ENTAILMENT["OWL-Direct"]
+        assert _col(g.query(_QUERY, entailment=rl)) == _alice()
+        g.add(_add_bob())
+        # OWL-Direct has kept nothing, so "never" computes it from the data as it is now
+        assert _col(g.query(_QUERY, entailment=direct, recompute="never")) == _ALICE_AND_BOB
+        # computing it did not replace the OWL-RL copy
+        assert _col(g.query(_QUERY, entailment=rl, recompute="never")) == _alice()
+        # and the OWL-Direct copy is now kept too: a later write does not reach it
+        g.add((N(EX + "cy"), N(RDF_TYPE), N(EX + "Manager")))
+        assert _col(g.query(_QUERY, entailment=direct, recompute="never")) == _ALICE_AND_BOB
+
+    @owl_dl_extra
+    @java_required
+    @rustdl_extra
+    def test_each_owl_direct_engine_keeps_its_own_copy(self):
+        g = _graph()
+        direct = ENTAILMENT["OWL-Direct"]
+        assert _col(g.query(_QUERY, entailment=direct, engine="hermit")) == _alice()
+        g.add(_add_bob())
+        # nothing is kept for rustdl yet, so it is computed from the data as it is now
+        assert _col(g.query(_QUERY, entailment=direct, engine="rustdl", recompute="never")) == _ALICE_AND_BOB
+        # the HermiT copy is still the one from before the write
+        assert _col(g.query(_QUERY, entailment=direct, engine="hermit", recompute="never")) == _alice()
+
+    def test_always_computes_the_entailed_triples_and_keeps_none(self):
+        g = _graph()
+        rl = ENTAILMENT["OWL-RDF-Based"]
+        assert _col(g.query(_QUERY, entailment=rl)) == _alice()  # computed and kept
+        g.add(_add_bob())
+        assert _col(g.query(_QUERY, entailment=rl, recompute="always")) == _ALICE_AND_BOB  # computed again; what was kept is dropped
+        g.add((N(EX + "cy"), N(RDF_TYPE), N(EX + "Manager")))
+        # nothing is kept, so "never" computes them from the data as it is now. A kept copy would have stopped at bob.
+        assert _col(g.query(_QUERY, entailment=rl, recompute="never")) == [*_ALICE_AND_BOB, EX + "cy"]
+
+    def test_the_copy_is_made_once_and_again_after_a_write(self):
+        g = _graph()
+        rl = ENTAILMENT["OWL-RDF-Based"]
+
+        def kept():
+            (copy,) = [entry[0] for entry in g.__dict__["_entailed"].values()]
+            return copy
+
+        list(g.query(_QUERY, entailment=rl))
+        first = kept()
+        list(g.query(_QUERY, entailment=rl))
+        assert kept() is first  # the same copy answered the second query: the store was not copied again
+        g.add(_add_bob())
+        list(g.query(_QUERY, entailment=rl))
+        assert kept() is not first  # a write: the copy was made again
+        g.clear_entailment_cache()
+        assert "_entailed" not in g.__dict__
+
+    def test_the_prefixes_bound_after_the_copy_was_made_reach_it(self):
+        g = _graph()
+        rl = ENTAILMENT["OWL-RDF-Based"]
+        list(g.query(_QUERY, entailment=rl))
+        g.prefixes["e"] = EX
+        assert _col(g.query("SELECT ?x WHERE { ?x a e:Employee }", entailment=rl, recompute="never")) == _alice()
+
+    def test_the_default_recomputes_each_regime_after_a_write(self):
+        g = _graph()
+        rl = ENTAILMENT["OWL-RDF-Based"]
+        assert _col(g.query(_QUERY, entailment=rl)) == _alice()
+        g.add(_add_bob())
+        assert _col(g.query(_QUERY, entailment=rl)) == _ALICE_AND_BOB  # recompute="onChange": a write since the copy was made
 
 
 # ---- StarQuery -----------------------------------------------------------------------------------------------------------

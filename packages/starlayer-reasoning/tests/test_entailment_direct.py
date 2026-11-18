@@ -4,7 +4,7 @@ tests/unit/test_entailment_direct.py
 Coverage for StarLayerGraph.query(..., entailment=ENTAILMENT['OWL-Direct']) - the
 query-time counterpart to StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine=...):
 query() a throwaway copy of the store plus the entailed triples, which the graph keeps between calls
-(infer= says when they are computed again), as for entailment=ENTAILMENT['OWL-RDF-Based'].
+(recompute= says when they are computed again), as for entailment=ENTAILMENT['OWL-RDF-Based'].
 
 `owlready2`/`rustdl` are both optional extras of this package (`pip install
 starlayer-reasoning[hermit]`/`[rustdl]`) - the skip markers below are copied
@@ -129,33 +129,26 @@ class TestEntailmentDirectRustdl:
 
 @owl_dl_extra
 @java_required
-class TestEntailmentDirectInferArgumentWithHermit:
-    """With the real reasoner: every ``infer=`` value gives the right answer, and a write is seen."""
+class TestEntailmentDirectRecomputeArgumentWithHermit:
+    """With the real reasoner: every ``recompute=`` value gives the right answer, and a write is seen."""
 
-    @pytest.mark.parametrize("infer", ["always", "cached", "changed"])
-    def test_every_documented_value_gives_the_same_answer(self, infer):
+    @pytest.mark.parametrize("recompute", ["always", "never", "onChange"])
+    def test_every_documented_value_gives_the_same_answer(self, recompute):
         g = _disjunctive_graph()
-        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer=infer))
+        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], recompute=recompute))
         assert [r.x.value for r in rows] == [EX.alice.value]
 
     def test_a_mutation_is_seen_by_the_next_query(self):
         g = _disjunctive_graph()
-        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
+        list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], recompute="onChange"))
         g.add((EX.carol, RDF.type, EX.Person))
-        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="changed"))
+        rows = list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], recompute="onChange"))
         assert [r.x.value for r in rows] == [EX.alice.value]
 
     def test_an_unknown_value_is_rejected(self):
         g = _disjunctive_graph()
-        with pytest.raises(ValueError, match="infer must be one of"):
-            g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], infer="sometimes")
-
-    def test_a_session_answers_with_the_real_reasoner_until_it_is_closed(self):
-        g = _disjunctive_graph()
-        with g.entailment_session(ENTAILMENT['OWL-Direct']) as session:
-            for _ in range(2):
-                assert [r.x.value for r in session.query(_Q_WOMAN)] == [EX.alice.value]
-        assert session.closed
+        with pytest.raises(ValueError, match="recompute must be one of"):
+            g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], recompute="sometimes")
 
 
 _ALICE, _WOMAN = ox.NamedNode(EX.alice.value), ox.NamedNode(EX.Woman.value)
@@ -175,7 +168,7 @@ def calls(monkeypatch):
     return asked
 
 
-class TestEntailedTriplesAreKept:
+class TestEntailedTriplesAreKept:  # the copy of the store with the entailed triples added
     @staticmethod
     def _graph():
         g = StarLayerGraph()
@@ -196,24 +189,24 @@ class TestEntailedTriplesAreKept:
     @pytest.mark.parametrize("regime", _REGIMES)
     def test_changed_reasons_again_after_a_write(self, calls, regime):
         g = self._graph()
-        self._who(g, entailment=regime, infer="changed")
+        self._who(g, entailment=regime, recompute="onChange")
         g.add((EX.carol, RDF.type, EX.Person))
-        self._who(g, entailment=regime, infer="changed")
+        self._who(g, entailment=regime, recompute="onChange")
         assert len(calls) == 2
 
     @pytest.mark.parametrize("regime", _REGIMES)
     def test_always_reasons_on_every_call(self, calls, regime):
         g = self._graph()
         for _ in range(3):
-            self._who(g, entailment=regime, infer="always")
+            self._who(g, entailment=regime, recompute="always")
         assert len(calls) == 3
 
-    def test_cached_keeps_the_entailed_triples_but_reads_the_current_data(self, calls):
+    def test_never_reuses_the_kept_copy_data_included(self, calls):
         g = self._graph()
         regime = ENTAILMENT["OWL-Direct"]
-        self._who(g, entailment=regime, infer="cached")
+        self._who(g, entailment=regime, recompute="never")
         g.add((EX.carol, RDF.type, EX.Woman))
-        assert self._who(g, entailment=regime, infer="cached") == [EX.alice.value, EX.carol.value]
+        assert self._who(g, entailment=regime, recompute="never") == [EX.alice.value]  # the copy as it was made, without carol
         assert len(calls) == 1
 
     def test_each_engine_and_regime_has_its_own_kept_triples(self, calls):
@@ -248,10 +241,7 @@ class TestEntailedTriplesAreKept:
         assert len(calls) == 1
 
 
-class TestEntailmentSession:
-    DIRECT = ENTAILMENT["OWL-Direct"]
-    RL = ENTAILMENT["OWL-RDF-Based"]
-
+class TestClearEntailmentCache:
     @staticmethod
     def _graph():
         g = StarLayerGraph()
@@ -259,89 +249,47 @@ class TestEntailmentSession:
         return g
 
     @staticmethod
-    def _who(source, query=_Q_WOMAN):
-        return sorted(r.x.value for r in source.query(query))
+    def _who(g, **kw):
+        return sorted(r.x.value for r in g.query(_Q_WOMAN, **kw))
 
-    @pytest.mark.parametrize("regime", [DIRECT, RL])
-    def test_queries_run_on_one_copy_and_ask_the_reasoner_once(self, calls, regime):
+    @pytest.mark.parametrize("regime", _REGIMES)
+    def test_the_next_query_reasons_again_after_clearing(self, calls, regime):
         g = self._graph()
-        with g.entailment_session(regime) as session:
-            assert [self._who(session) for _ in range(3)] == [[EX.alice.value]] * 3
+        self._who(g, entailment=regime)
+        self._who(g, entailment=regime)
         assert len(calls) == 1
+        assert g.clear_entailment_cache() is g
+        self._who(g, entailment=regime)
+        assert len(calls) == 2
 
-    def test_the_session_is_open_and_not_stale_when_made(self, calls):
-        session = self._graph().entailment_session(self.DIRECT)
-        assert not session.closed and not session.stale
-        session.close()
-
-    def test_a_write_makes_it_stale_but_it_keeps_answering_from_the_data_it_has(self, calls):
+    def test_a_cleared_cache_reads_the_current_data_even_for_never(self, calls):
         g = self._graph()
-        with g.entailment_session(self.DIRECT) as session:
-            g.add((EX.carol, RDF.type, EX.Woman))
-            assert session.stale
-            assert self._who(session) == [EX.alice.value]
-            assert self._who(g) == [EX.carol.value]  # the graph has the new fact, and none of the entailed ones
+        regime = ENTAILMENT["OWL-Direct"]
+        self._who(g, entailment=regime, recompute="never")
+        g.add((EX.carol, RDF.type, EX.Woman))
+        assert self._who(g, entailment=regime, recompute="never") == [EX.alice.value]
+        g.clear_entailment_cache()
+        assert self._who(g, entailment=regime, recompute="never") == [EX.alice.value, EX.carol.value]
 
-    def test_refresh_reads_the_current_data_and_reasons_again_only_if_the_graph_changed(self, calls):
+    def test_clearing_drops_every_regime_and_engine(self, calls):
         g = self._graph()
-        with g.entailment_session(self.DIRECT) as session:
-            session.refresh()
-            assert len(calls) == 1 and not session.stale  # nothing was written
-            g.add((EX.carol, RDF.type, EX.Woman))
-            session.refresh()
-            assert len(calls) == 2 and not session.stale
-            assert self._who(session) == [EX.alice.value, EX.carol.value]
+        direct = ENTAILMENT["OWL-Direct"]
+        self._who(g, entailment=direct, engine="hermit")
+        self._who(g, entailment=direct, engine="rustdl")
+        self._who(g, entailment=ENTAILMENT["OWL-RDF-Based"])
+        assert len(g.__dict__["_entailed"]) == 3
+        g.clear_entailment_cache()
+        assert "_entailed" not in g.__dict__
 
-    def test_refresh_cached_keeps_the_entailed_triples_but_reads_new_data(self, calls):
+    def test_clearing_a_graph_with_nothing_kept_does_nothing(self, calls):
         g = self._graph()
-        with g.entailment_session(self.DIRECT) as session:
-            g.add((EX.carol, RDF.type, EX.Woman))
-            session.refresh("cached")
-            assert len(calls) == 1
-            assert self._who(session) == [EX.alice.value, EX.carol.value]
+        assert g.clear_entailment_cache() is g
 
-    def test_close_empties_the_copy_and_later_use_raises(self, calls):
-        g = self._graph()
-        session = g.entailment_session(self.DIRECT)
-        copy = session._copy
-        assert len(copy.store) > 0
-        session.close()
-        assert session.closed and len(copy.store) == 0
-        session.close()  # a second close does nothing
-        for use in (lambda: session.query(_Q_WOMAN), lambda: session.refresh(), lambda: session.stale):
-            with pytest.raises(RuntimeError, match="closed"):
-                use()
-        assert set(g.triples()) == {(ox.NamedNode(EX.bob.value), ox.NamedNode(RDF.type.value), ox.NamedNode(EX.Person.value))}
-
-    def test_leaving_the_with_block_closes_it_even_after_an_error(self, calls):
-        g = self._graph()
-        with pytest.raises(KeyError), g.entailment_session(self.DIRECT) as session:
-            raise KeyError("boom")
-        assert session.closed
-
-    @pytest.mark.parametrize("regime", [ENTAILMENT.RDF, ENTAILMENT.RDFS])
-    def test_rdf_and_rdfs_have_nothing_to_hold(self, calls, regime):
-        with pytest.raises(ValueError, match="rewrite the query"):
-            self._graph().entailment_session(regime)
-
-    def test_engine_and_timeout_are_for_owl_direct_only(self, calls):
-        g = self._graph()
-        with pytest.raises(ValueError, match="only meaningful"):
-            g.entailment_session(self.RL, engine="rustdl")
-        with pytest.raises(ValueError, match="infer must be"):
-            g.entailment_session(self.DIRECT, infer="sometimes")
-
-    def test_a_dataset_can_open_one(self, calls):
+    def test_a_dataset_clears_too(self, calls):
         d = StarLayerDataset()
         d.add((EX.bob, RDF.type, EX.Person))
-        with d.entailment_session(self.DIRECT) as session:
-            assert self._who(session) == [EX.alice.value]
-
-    def test_a_star_query_runs_on_a_session(self, calls):
-        from starlayer.sparql import StarQuery
-
-        g = self._graph()
-        with g.entailment_session(self.DIRECT) as session:
-            assert [r.x.value for r in StarQuery(_Q_WOMAN).run(session)] == [EX.alice.value]
-            with pytest.raises(ValueError, match="already applies"):
-                StarQuery(_Q_WOMAN, entailment=self.DIRECT).run(session)
+        regime = ENTAILMENT["OWL-Direct"]
+        self._who(d, entailment=regime)
+        d.clear_entailment_cache()
+        self._who(d, entailment=regime)
+        assert len(calls) == 2

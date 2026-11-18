@@ -194,11 +194,9 @@ def test_entailment_copy_keeps_empty_named_graphs():  # bug 16
     rl = ENTAILMENT["OWL-RDF-Based"]
     plain = sorted(str(r[0]) for r in d.query(q))
     assert sorted(str(r[0]) for r in d.query(q, entailment=rl)) == plain
-    s = d.entailment_session(rl)
-    try:
-        assert sorted(str(r[0]) for r in s.query(q)) == plain
-    finally:
-        s.close()
+    assert sorted(str(r[0]) for r in d.query(q, entailment=rl)) == plain  # the kept copy keeps them too
+    d.clear_entailment_cache()
+    assert sorted(str(r[0]) for r in d.query(q, entailment=rl)) == plain
 
 
 def test_rdf_entailment_types_only_real_container_membership_properties():  # bug 17

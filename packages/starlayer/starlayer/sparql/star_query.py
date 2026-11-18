@@ -25,7 +25,7 @@ from typing import Any
 # with) that default's actual numeric value.
 _TIMEOUT_NOT_BOUND = object()
 
-_OVERRIDABLE = frozenset({"initNs", "initBindings", "entailment", "infer", "engine", "timeout", "base"})
+_OVERRIDABLE = frozenset({"initNs", "initBindings", "entailment", "recompute", "engine", "timeout", "base"})
 
 
 class StarQuery:
@@ -42,7 +42,7 @@ class StarQuery:
         initNs: Mapping[str, Any] | None = None,
         initBindings: Mapping[str, Any] | None = None,
         entailment: Any | None = None,
-        infer: str = "changed",
+        recompute: str = "onChange",
         engine: str = "hermit",
         timeout: Any = _TIMEOUT_NOT_BOUND,
     ) -> None:
@@ -60,7 +60,7 @@ class StarQuery:
                 call, unless overridden per call - see
                 ``StarLayerGraph.query()``'s own ``entailment=`` for the
                 full set of accepted values.
-            infer: Passed through to ``StarLayerGraph.query()`` - only
+            recompute: Passed through to ``StarLayerGraph.query()`` - only
                 consulted for the two entailment regimes that cache a
                 delta (``OWL-RDF-Based``/``OWL-Direct``).
             engine: Passed through to ``StarLayerGraph.query()`` - only
@@ -79,7 +79,7 @@ class StarQuery:
         self.initNs = initNs
         self.initBindings = initBindings
         self.entailment = entailment
-        self.infer = infer
+        self.recompute = recompute
         self.engine = engine
         self.timeout = timeout
 
@@ -95,7 +95,7 @@ class StarQuery:
                 else ``StarLayerGraph.query()``'s own ``query_object``
                 parameter already accepts a prepared ``Query`` against).
             **overrides: Any of ``initNs``/``initBindings``/``entailment``/
-                ``infer``/``engine``/``timeout``/``base``, overriding the bound
+                ``recompute``/``engine``/``timeout``/``base``, overriding the bound
                 value (or ``StarLayerGraph.query()``'s own default) for this
                 call only. Any other name raises ``TypeError``.
 
@@ -106,7 +106,7 @@ class StarQuery:
             initNs=self.initNs,
             initBindings=self.initBindings,
             entailment=self.entailment,
-            infer=self.infer,
+            recompute=self.recompute,
             engine=self.engine,
         )
         if self.timeout is not _TIMEOUT_NOT_BOUND:
@@ -115,13 +115,6 @@ class StarQuery:
         if unknown:
             raise TypeError(f"StarQuery.run() got unexpected option(s): {', '.join(unknown)}")
         kwargs.update(overrides)
-
-        from starlayer.graph.execution.session import EntailmentSession
-
-        if isinstance(graph, EntailmentSession):
-            if kwargs["entailment"] is not None:
-                raise ValueError("a session already applies its own entailment regime: run a StarQuery with no entailment= on it.")
-            return graph.query(self._text, initNs=kwargs["initNs"], initBindings=kwargs["initBindings"], base=kwargs.get("base", self._base))
 
         from starlayer.graph.inputs import as_oxigraph
 
@@ -135,7 +128,7 @@ class StarQuery:
             initBindings=kwargs["initBindings"],
             base=kwargs.get("base", self._base),
             entailment=kwargs["entailment"],
-            infer=kwargs["infer"],
+            recompute=kwargs["recompute"],
             engine=kwargs["engine"],
             timeout=kwargs.get("timeout"),
         )

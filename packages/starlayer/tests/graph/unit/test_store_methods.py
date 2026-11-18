@@ -173,9 +173,9 @@ def test_a_write_through_ox_refreshes_a_cached_entailment():
     g = StarLayerGraph()
     g.ox.load(b"<http://e/A> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://e/B> . <http://e/x> a <http://e/A> .", ox.RdfFormat.TURTLE)
     q = "ASK { <http://e/x> a <http://e/C> }"
-    assert not g.query(q, entailment=ENTAILMENT.RDFS, infer="changed").askAnswer
+    assert not g.query(q, entailment=ENTAILMENT.RDFS, recompute="onChange").askAnswer
     g.ox.bulk_load(b"<http://e/B> <http://www.w3.org/2000/01/rdf-schema#subClassOf> <http://e/C> .", ox.RdfFormat.TURTLE)
-    assert g.query(q, entailment=ENTAILMENT.RDFS, infer="changed").askAnswer
+    assert g.query(q, entailment=ENTAILMENT.RDFS, recompute="onChange").askAnswer
 
 
 def test_remove_graph_is_on_the_dataset_and_on_ox(pair):

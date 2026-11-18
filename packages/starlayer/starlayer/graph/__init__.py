@@ -18,7 +18,6 @@ from starlayer.graph.delta import GraphDelta, diff
 from starlayer.graph.endpoint import Endpoint, EndpointError
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.execution.result import Result, Row
-from starlayer.graph.execution.session import EntailmentSession
 from starlayer.graph.imports import can_resolve_import
 from starlayer.graph.namespaces import (
     DCAT,
@@ -47,7 +46,6 @@ __all__ = [
     "ENTAILMENT",
     "Endpoint",
     "EndpointError",
-    "EntailmentSession",
     "FOAF",
     "Literal",
     "Namespace",
