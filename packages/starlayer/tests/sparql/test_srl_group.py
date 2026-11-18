@@ -231,7 +231,7 @@ TREE_RULES = [
     "RULE { ?x :n ?n } WHERE { ?x rdf:type :C . GROUP BY ?x { ?x :p ?v } [ ?n := COUNT(*) ] }",
     "RULE { :s :n ?n ; :t ?t } WHERE { GROUP { ?s :p ?o } [ ?n := COUNT(DISTINCT ?o) , ?t := SUM(?o) ] }",
     "RULE { ?s :m ?m } WHERE { ?s :q :z GROUP BY ?s { ?s :p ?o FILTER(?o > 1) SET(?z := ?o + 1) } [ ?m := MIN(?z) ] }",
-    "RULE { :s :p :o } WHERE { GROUP { ?s :p ?o } [] }",
+    "RULE { :s :q :o } WHERE { GROUP { ?s :p ?o } [] }",
 ]
 
 

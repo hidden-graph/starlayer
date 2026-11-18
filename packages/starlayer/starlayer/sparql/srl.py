@@ -197,6 +197,11 @@ class SRLImportError(SRLError):
     either case)."""
 
 
+class SRLUnresolvedImportsWarning(UserWarning):
+    """A check made on a rule set that has ``IMPORTS`` that are not resolved yet may be incomplete: the imported rules can add what the
+    check was looking for. Raised as a warning by :func:`parse_ruleset` (stratification is checked on the rules in the text only)."""
+
+
 def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) -> srl_ast.RuleSet:
     """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
@@ -245,7 +250,29 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
         raise SRLParseError(f"SRL: rule set is not well-formed per §4.2: {summary}")
     if validate:
         _check_against_shapes(ruleset)
+        _check_stratification(ruleset)
     return ruleset
+
+
+def _check_stratification(ruleset: srl_ast.RuleSet) -> None:
+    """Raise ``StratificationError`` if the rules of ``ruleset`` cannot be ordered, and warn when ``IMPORTS`` are not resolved, since
+    the check then covers only the rules in the text."""
+    from .srl_eval import StratificationError, _stratify
+
+    unresolved = ", ".join(f"<{_T.iri_text(iri)}>" for iri in ruleset.imports)
+    try:
+        _stratify(ruleset)
+    except StratificationError as error:
+        if ruleset.imports:
+            raise StratificationError(f"{error} (checked on the rules in this text; not yet resolved: {unresolved})") from error
+        raise
+    if ruleset.imports:
+        warnings.warn(
+            f"SRL: the evaluation order was checked on the rules in this text only; these IMPORTS are not resolved yet: {unresolved}. "
+            "resolve_imports(), plan() and infer() check the combined rule set.",
+            SRLUnresolvedImportsWarning,
+            stacklevel=3,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -670,6 +697,7 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
     Raises:
         SRLImportError: If the loader fails for an import, or returns text that is
             not a valid rule set.
+        StratificationError: If the rules of the combined rule set cannot be ordered.
     """
     visited: set[str] = {str(location)} if location else set()
 
@@ -703,7 +731,10 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
                 raise SRLImportError(f"SRL: cannot read the import <{import_iri}>: {reason}") from exc
             if isinstance(loaded, str):
                 try:
-                    loaded = parse_ruleset(loaded, base=_T.iri_text(import_iri))
+                    with warnings.catch_warnings():
+                        # the imports of an import are resolved by this very call
+                        warnings.simplefilter("ignore", SRLUnresolvedImportsWarning)
+                        loaded = parse_ruleset(loaded, base=_T.iri_text(import_iri))
                 except SRLParseError as exc:
                     raise SRLImportError(f"SRL: the import <{import_iri}> is not a valid rule set: {exc}") from exc
             sub_rules, sub_data = _merge(loaded, renamed=True)
@@ -712,7 +743,9 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
         return rules, data
 
     rules, data = _merge(ruleset, renamed=False)
-    return srl_ast.RuleSet(rules=rules, data=data, imports=[], prefixes=dict(ruleset.prefixes))
+    resolved = srl_ast.RuleSet(rules=rules, data=data, imports=[], prefixes=dict(ruleset.prefixes))
+    _check_stratification(resolved)  # now the whole rule set: an import can add a dependency the text alone does not have
+    return resolved
 
 
 # ---------------------------------------------------------------------------

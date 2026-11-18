@@ -47,7 +47,8 @@ def test_stratifier_unifies_repeated_variables():
 
 def test_stratifier_keeps_a_real_dependency_with_repeated_variables():
     rs = srl.parse_ruleset(
-        PRE + "RULE { ?x :ok ?x } WHERE { ?x :q ?o NOT { ?x :bad ?x } }\nRULE { ?s :bad ?s } WHERE { ?s :ok ?s }\n"
+        PRE + "RULE { ?x :ok ?x } WHERE { ?x :q ?o NOT { ?x :bad ?x } }\nRULE { ?s :bad ?s } WHERE { ?s :ok ?s }\n",
+        validate=False,  # it cannot be ordered, and infer() is what is tested
     )
     with pytest.raises(srl.SRLError):
         list(rs.infer(_data(":a :q :b")))

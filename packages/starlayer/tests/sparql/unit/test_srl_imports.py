@@ -171,3 +171,48 @@ def test_the_importing_rule_set_comes_first_then_its_imports_in_order():
     )
     heads = [r.head[0].predicate for r in resolve_imports(root, _Loader(docs)).rules]
     assert heads == [ox.NamedNode(EX + name) for name in ("own", "one", "two")]
+
+
+class TestStratificationAtParseTime:
+    """``parse_ruleset()`` checks the rules in its text have an evaluation order; with ``IMPORTS`` that is only the rules in the text,
+    and a warning says so. ``resolve_imports()`` checks the combined rule set."""
+
+    P = "PREFIX ex: <http://example.org/>\n"
+    SELF_NOT = "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y . NOT { ?x ex:a ?y } }"
+
+    def test_a_rule_set_that_cannot_be_ordered_is_rejected_at_parse(self):
+        from starlayer.sparql.srl_eval import StratificationError
+
+        with pytest.raises(StratificationError):
+            parse_ruleset(self.P + self.SELF_NOT)
+
+    def test_validate_false_skips_the_check(self):
+        assert parse_ruleset(self.P + self.SELF_NOT, validate=False).rules
+
+    def test_the_rules_in_the_text_are_checked_when_there_are_imports(self):
+        from starlayer.sparql.srl_eval import StratificationError
+
+        with pytest.raises(StratificationError, match="not yet resolved: <http://example.org/lib>"):
+            parse_ruleset("IMPORTS <http://example.org/lib>\n" + self.P + self.SELF_NOT)
+
+    def test_a_rule_set_with_imports_that_passes_warns_and_says_it_is_not_resolved(self):
+        from starlayer.sparql.srl import SRLUnresolvedImportsWarning
+
+        with pytest.warns(SRLUnresolvedImportsWarning, match="http://example.org/lib"):
+            ruleset = parse_ruleset("IMPORTS <http://example.org/lib>\n" + self.P + "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y }")
+        assert not ruleset.is_resolved
+
+    def test_no_warning_without_imports(self, recwarn):
+        ruleset = parse_ruleset(self.P + "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y }")
+        assert ruleset.is_resolved
+        assert not [w for w in recwarn if "IMPORTS" in str(w.message)]
+
+    def test_an_import_that_adds_the_cycle_is_caught_when_the_imports_are_resolved(self):
+        from starlayer.sparql.srl import SRLUnresolvedImportsWarning, resolve_imports
+        from starlayer.sparql.srl_eval import StratificationError
+
+        library = self.P + "RULE { ?x ex:b ?y } WHERE { ?x ex:c ?y . NOT { ?x ex:a ?y } }"
+        with pytest.warns(SRLUnresolvedImportsWarning):
+            ruleset = parse_ruleset("IMPORTS <http://example.org/lib>\n" + self.P + "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y }")
+        with pytest.raises(StratificationError):
+            resolve_imports(ruleset, lambda iri: library)

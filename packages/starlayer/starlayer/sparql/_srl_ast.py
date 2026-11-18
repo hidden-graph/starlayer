@@ -404,6 +404,12 @@ class RuleSet:
     Informative only: names in the rules are already absolute IRIs, and it takes no part in equality. ``infer()`` on an
     Oxigraph graph gives these prefixes to the result."""
 
+    @property
+    def is_resolved(self) -> bool:
+        """True when no ``IMPORTS`` are left to resolve (``imports`` is empty). A rule set with imports is incomplete: the checks made when
+        it was parsed covered only the rules in its own text, until :func:`~starlayer.sparql.srl.resolve_imports` resolves it."""
+        return not self.imports
+
     def _with_imports_resolved(self, imports_loader) -> RuleSet:
         """This rule set with its ``IMPORTS`` resolved by ``imports_loader``, or ``self``
         when no loader is given (then ``infer()`` rejects any imports, as §4.5 requires

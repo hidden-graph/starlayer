@@ -186,7 +186,7 @@ def test_stratification_error_on_closed_self_cycle():
     PREFIX : <{EX}>
     RULE {{ ?x :p true }} WHERE {{ ?x :q true . NOT {{ ?x :p true }} }}
     """
-    ruleset = parse_ruleset(text)
+    ruleset = parse_ruleset(text, validate=False)  # parse_ruleset() would raise it
     with pytest.raises(StratificationError):
         _stratify(ruleset)
 
@@ -435,7 +435,7 @@ def test_plan_shows_strata_and_dependency_edges_for_the_worked_example():
 
 def test_plan_raises_stratification_error_without_running_anything():
     ruleset = parse_ruleset(
-        f"PREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . NOT {{ ?x :p ?y }} }}"
+        f"PREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . NOT {{ ?x :p ?y }} }}", validate=False
     )
     with pytest.raises(StratificationError):
         ruleset.plan()
@@ -492,7 +492,8 @@ def test_where_data_rule_has_no_dependencies_and_matches_only_the_base_graph():
 def test_plain_not_over_the_rules_own_output_is_still_a_stratification_error():
     ruleset = parse_ruleset(
         f"PREFIX : <{EX}>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
-        "RULE { ?x :km ?k } WHERE { ?x :miles ?m . NOT { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }"
+        "RULE { ?x :km ?k } WHERE { ?x :miles ?m . NOT { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }",
+        validate=False,
     )
     with pytest.raises(StratificationError):
         ruleset.plan()
@@ -632,9 +633,12 @@ class TestQueryRunsOnlyWhatTheGoalNeeds:
         assert {rule.head[0].predicate for rule in derived} == {ox.NamedNode(EX + "grandparentOf"), ox.NamedNode(EX + "ancestorOf")}
 
     def test_a_rule_set_that_does_not_stratify_is_still_rejected(self):
-        ruleset = parse_ruleset(f"PREFIX ex: <{EX}>\nRULE {{ ?x ex:a ?y }} WHERE {{ ?x ex:b ?y . NOT {{ ?x ex:a ?y }} }}\nRULE {{ ?x ex:c ?y }} WHERE {{ ?x ex:d ?y }}")
         from starlayer.sparql.srl_eval import StratificationError
 
+        ruleset = parse_ruleset(
+            f"PREFIX ex: <{EX}>\nRULE {{ ?x ex:a ?y }} WHERE {{ ?x ex:b ?y . NOT {{ ?x ex:a ?y }} }}\nRULE {{ ?x ex:c ?y }} WHERE {{ ?x ex:d ?y }}",
+            validate=False,
+        )
         with pytest.raises(StratificationError):
             ruleset.query(self._graph(), "?x ex:c ?y")
 
