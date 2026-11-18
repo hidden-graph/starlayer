@@ -8,7 +8,8 @@ merge of graphs is a set, and so is an ``StarLayerDataset`` with ``default_union
 Decision (measurements in that note): a dataset holding a triple in more than one graph runs its queries against a
 deduplicated copy of the store (``Overlap.store``): the same named graphs and a default graph that is the set of the triples of
 every graph. A dataset without such a triple runs on the store itself. The copy is cached and dropped when a write made through
-this package happens (``touch``; ``as_store()``, which hands out the raw store, calls it too). A write made on the raw store
+this package happens to its store (``touch``; ``as_store()``, which hands out the raw store, calls it too; a write to another store
+does not drop it). A write made on the raw store
 through a reference kept from before is not seen: call ``touch()`` after it (checking ``len(store)`` on every query would be O(n),
 about 70 ms on the code-KG data). SPARQL Update reads a copy of the union kept in a scratch graph (see
 ``run.update``). A query with its own ``FROM`` clauses is not changed: it names the graphs to merge itself.
@@ -116,15 +117,19 @@ class Overlap:
 
     def __init__(self) -> None:
         """Start unscanned, so the first overlapping() or store() call scans."""
-        self._stamp: int | None = None
+        self._stamp: tuple[int, int] | None = None
+        self._watch: StoreVersion | None = None  # held, so the count the stamp came from is the one a later write adds to
         self._overlapping = False
         self._copy: ox.Store | None = None
         self._lock = threading.RLock()  # one scan and one copy at a time; a thread never records a stamp older than its data
 
     def overlapping(self, store: ox.Store) -> bool:
-        """Whether a triple is in more than one graph of ``store``, rescanning after any write made through the wrapper."""
+        """Whether a triple is in more than one graph of ``store``, rescanning after any write made through the wrapper to this store."""
         with self._lock:
-            stamp = current()  # taken before the scan: a write that lands during it leaves the stamp behind, so the next call rescans
+            if self._watch is None or self._watch.store is not store:
+                self._watch = version_of(store)
+                self._stamp = None
+            stamp = self._watch.stamp()  # taken before the scan: a write that lands during it leaves the stamp behind, so the next call rescans
             if self._stamp != stamp:
                 self._overlapping = has_overlap(store)
                 self._copy = None

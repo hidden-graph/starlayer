@@ -694,7 +694,7 @@ class _Base:
         when it is made again: ``"onChange"`` (default) after a write made through this package since it was made
         (``as_store()`` counts; a write on a raw store reference kept from before is not seen, call ``union.touch()`` after it),
         ``"always"`` on every call (and then keeps none, dropping what was kept), ``"never"`` only when none is kept (it
-        may then be out of date, data included). A write to any store counts, so it can recompute when it need not.
+        may then be out of date, data included). A write to another store does not count.
         ``clear_entailment_cache()`` drops the copies. ``engine`` /
         ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
         Anything else raises ``NotImplementedError``.
@@ -736,21 +736,22 @@ class _Base:
     def _entailed_copy(self, regime: str, recompute: str, *, engine: str, timeout: Any) -> Any:
         """The copy of the whole store (every graph, empty named ones too) with the ``regime`` entailed triples added to the graph
         this wrapper reads, for query-time OWL entailment, kept per regime (and engine, for ``OWL-Direct``, whose engines can
-        differ) with the write number it was made at; ``recompute`` says when to make it again. This wrapper's store is not
+        differ) with the write count of this store it was made at; ``recompute`` says when to make it again. This wrapper's store is not
         changed."""
         from starlayer.graph.entailment import infer as ent
 
         kept = self.__dict__.setdefault("_entailed", {})
         key = (regime, engine if regime == ent.OWL_DIRECT_REGIME else None)
         hit = kept.get(key)
-        if hit is not None and recompute != "always" and (recompute == "never" or hit[1] == union.current()):
+        if hit is not None and recompute != "always" and (recompute == "never" or hit[1] == union.version_of(self.store).stamp()):
             return hit[0]
-        stamp = union.current()  # taken first: a write that lands while the reasoner runs makes the copy stale
+        version = union.version_of(self.store)  # held in the entry, so the count it keeps is the one a later write adds to
+        stamp = version.stamp()  # taken first: a write that lands while the reasoner runs makes the copy stale
         copy = self._build_entailed_copy(regime, engine=engine, timeout=timeout)
         if recompute == "always":
             kept.pop(key, None)  # "always" keeps nothing: what was kept is dropped and this copy lives only for the query
         else:
-            kept[key] = (copy, stamp)
+            kept[key] = (copy, stamp, version)
         return copy
 
     def _build_entailed_copy(self, regime: str, *, engine: str, timeout: Any) -> Any:

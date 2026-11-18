@@ -517,6 +517,63 @@ class TestEachRegimeKeepsItsOwnEntailedTriples:
         assert _col(g.query(_QUERY, entailment=rl)) == _ALICE_AND_BOB  # recompute="onChange": a write since the copy was made
 
 
+class TestEntailedCopyFollowsItsOwnStore:
+    """``recompute="onChange"`` compares the write count of the store of the graph: a write to another store does not make the copy
+    again, a write to the same store does (through any wrapper of it), and so does a write on a raw store reference (``touch()``)."""
+
+    @staticmethod
+    def _count_builds(monkeypatch) -> list:
+        from starlayer.graph import core
+
+        builds: list = []
+        real = core._Base._build_entailed_copy
+
+        def counting(self, *a, **kw):
+            builds.append(1)
+            return real(self, *a, **kw)
+
+        monkeypatch.setattr(core._Base, "_build_entailed_copy", counting)
+        return builds
+
+    def _kept(self, monkeypatch):
+        g = _graph()
+        builds = self._count_builds(monkeypatch)
+        rl = ENTAILMENT["OWL-RDF-Based"]
+        assert _col(g.query(_QUERY, entailment=rl)) == _alice()
+        assert _col(g.query(_QUERY, entailment=rl)) == _alice()
+        assert len(builds) == 1  # kept
+        return g, rl, builds
+
+    def test_a_write_to_another_store_does_not_make_it_again(self, monkeypatch):
+        g, rl, builds = self._kept(monkeypatch)
+        _graph().add(_add_bob())
+        StarLayerDataset().add((N(EX + "s"), N(EX + "p"), N(EX + "o"), N(EX + "g")))
+        assert _col(g.query(_QUERY, entailment=rl)) == _alice()
+        assert len(builds) == 1
+
+    def test_a_write_through_another_wrapper_of_the_same_store_makes_it_again(self, monkeypatch):
+        dataset = StarLayerDataset()
+        dataset.parse(data=_DATA, format="turtle")
+        graph = StarLayerGraph(dataset.as_store())
+        builds = self._count_builds(monkeypatch)
+        rl = ENTAILMENT["OWL-RDF-Based"]
+        assert _col(graph.query(_QUERY, entailment=rl)) == _alice()
+        graph.query(_QUERY, entailment=rl)
+        assert len(builds) == 1
+        dataset.add(_add_bob() + (ox.DefaultGraph(),))
+        assert _col(graph.query(_QUERY, entailment=rl)) == _ALICE_AND_BOB
+        assert len(builds) == 2
+
+    def test_a_write_that_names_no_store_makes_it_again(self, monkeypatch):
+        from starlayer.graph.execution import union
+
+        g, rl, builds = self._kept(monkeypatch)
+        g.store.add(ox.Quad(*_add_bob(), ox.DefaultGraph()))  # a raw store reference
+        union.touch()
+        assert _col(g.query(_QUERY, entailment=rl)) == _ALICE_AND_BOB
+        assert len(builds) == 2
+
+
 # ---- StarQuery -----------------------------------------------------------------------------------------------------------
 class TestStarQueryOnOxGraph:
     def test_bound_entailment_is_used_and_can_be_overridden(self):
