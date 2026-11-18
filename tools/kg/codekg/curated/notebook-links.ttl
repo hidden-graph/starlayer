@@ -87,7 +87,7 @@ nl:03a-2e4d34f3 a slkg:NotebookExample ;
 nl:04-7790f87d a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04-srl-sparql-rules.ipynb" ;
     slkg:cellId "7790f87d" ;
-    slkg:cellHash "cf4806294787657c" ;
+    slkg:cellHash "df0be795383955e4" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Writes a small SRL rule set and parses it with parse_ruleset()." ;
     slkg:demonstratesIdentifier
@@ -96,7 +96,7 @@ nl:04-7790f87d a slkg:NotebookExample ;
 nl:04-4d30d29d a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04-srl-sparql-rules.ipynb" ;
     slkg:cellId "4d30d29d" ;
-    slkg:cellHash "119c3112510556fe" ;
+    slkg:cellHash "a3f9a91f91d99d28" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Runs a rule set over a graph with infer() and prints the new triples it returns." ;
     slkg:demonstratesIdentifier
