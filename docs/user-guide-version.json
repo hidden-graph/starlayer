@@ -1,7 +1,7 @@
 {
   "guide": "StarLayer User Guides",
-  "version": "1.8.0",
-  "lastUpdated": "2026-11-16",
+  "version": "1.9.0",
+  "lastUpdated": "2026-11-17",
   "canonicalSource": "docs/guides/README.md",
   "artifacts": {
     "index": [
@@ -17,8 +17,10 @@
       "docs/guides/02e-graphs-inferencing.ipynb",
       "docs/guides/02f-owl-dl-reasoning.ipynb",
       "docs/guides/03-sparql.ipynb",
-      "docs/guides/03a-sparql-entailment.ipynb",
-      "docs/guides/03b-srl-sparql-rules.ipynb",
+      "docs/guides/03a-sparql-12-queries.ipynb",
+      "docs/guides/03b-preparing-extending-checking-queries.ipynb",
+      "docs/guides/03c-sparql-entailment.ipynb",
+      "docs/guides/03d-srl-sparql-rules.ipynb",
       "docs/guides/04-shacl-shapes.ipynb",
       "docs/guides/04a-shacl-node-expressions.ipynb",
       "docs/guides/04b-shacl-and-sparql.ipynb",

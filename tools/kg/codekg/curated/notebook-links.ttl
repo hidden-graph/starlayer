@@ -75,17 +75,17 @@ nl:02f-b87b0ce5 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.entailment.infer.infer" .
 
-nl:03-2e4d34f3 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03a-2e4d34f3 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03a-sparql-12-queries.ipynb" ;
     slkg:cellId "2e4d34f3" ;
-    slkg:cellHash "7c209c6e17fde574" ;
+    slkg:cellHash "10d99c7f6a5dce41" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "A SPARQL 1.2 query that binds the terms inside a triple term, run with query()." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.query" .
 
-nl:03b-7790f87d a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+nl:03d-7790f87d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "7790f87d" ;
     slkg:cellHash "1755a92ccaacccb0" ;
     slkg:reviewedOn "2026-11-02"^^xsd:date ;
@@ -93,8 +93,8 @@ nl:03b-7790f87d a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl.parse_ruleset" .
 
-nl:03b-c0a10002 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+nl:03d-c0a10002 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "c0a10002" ;
     slkg:cellHash "7726415044e17133" ;
     slkg:reviewedOn "2026-10-19"^^xsd:date ;
@@ -102,8 +102,8 @@ nl:03b-c0a10002 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.plan" .
 
-nl:03b-4d30d29d a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+nl:03d-4d30d29d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "4d30d29d" ;
     slkg:cellHash "15eb9a1004e72151" ;
     slkg:reviewedOn "2026-11-02"^^xsd:date ;
@@ -111,8 +111,8 @@ nl:03b-4d30d29d a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.infer" .
 
-nl:03b-d9a10023 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+nl:03d-d9a10023 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "d9a10023" ;
     slkg:cellHash "b90862cf91a035e4" ;
     slkg:reviewedOn "2026-10-19"^^xsd:date ;
@@ -258,8 +258,8 @@ nl:05a-92f83318 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.manchester.__init__" .
 
-nl:03b-c0a10008 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+nl:03d-c0a10008 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "c0a10008" ;
     slkg:cellHash "6f15e97e19642091" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -267,8 +267,8 @@ nl:03b-c0a10008 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.query" .
 
-nl:03b-c0a10006 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-srl-sparql-rules.ipynb" ;
+nl:03d-c0a10006 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03d-srl-sparql-rules.ipynb" ;
     slkg:cellId "c0a10006" ;
     slkg:cellHash "e3c05bf0bef4601e" ;
     slkg:reviewedOn "2026-10-19"^^xsd:date ;
@@ -297,8 +297,8 @@ nl:06b-252791c5 a slkg:NotebookExample ;
 nl:03-b337c254 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "b337c254" ;
-    slkg:cellHash "369e65b117ade53b" ;
-    slkg:reviewedOn "2026-11-04"^^xsd:date ;
+    slkg:cellHash "484e896a49096b89" ;
+    slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "Runs a SPARQL 1.2 INSERT DATA with a triple term through update() on a StarLayerGraph." ;
     slkg:demonstratesIdentifier "starlayer.graph.core._Base.update" .
 
@@ -351,10 +351,10 @@ nl:02c-33753b85 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.profile.profile" .
 
-nl:03-e79f89e7 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03b-e79f89e7 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "e79f89e7" ;
-    slkg:cellHash "a68ee7c1ebd9e8b2" ;
+    slkg:cellHash "ac65df47b7b5ab1f" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "Passes a Python function and a Python aggregate to query() as custom_functions and custom_aggregate_functions." ;
     slkg:demonstratesIdentifier
@@ -363,7 +363,7 @@ nl:03-e79f89e7 a slkg:NotebookExample ;
 nl:03-4a5c50bb a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
     slkg:cellId "4a5c50bb" ;
-    slkg:cellHash "cabd5664aa83c788" ;
+    slkg:cellHash "1cb8c89f0921fa05" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "Writes a SELECT result as CSV and TSV, an ASK result as JSON and a CONSTRUCT result as N-Triples." ;
     slkg:demonstratesIdentifier
@@ -492,8 +492,8 @@ nl:02d-df2eca05 a slkg:NotebookExample ;
         "starlayer.graph.rewrite.skolemize",
         "starlayer.graph.rewrite.de_skolemize" .
 
-nl:03-5da96c84 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03b-5da96c84 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "5da96c84" ;
     slkg:cellHash "c4caf0dd3da88518" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -501,8 +501,8 @@ nl:03-5da96c84 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.check.check_query" .
 
-nl:03-a4b5c6d7 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03b-a4b5c6d7 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "a4b5c6d7" ;
     slkg:cellHash "fd6a07dbcb9d990e" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -567,8 +567,8 @@ nl:04g-55975daa a slkg:NotebookExample ;
         "starlayer.shacl.ui.property_roles.property_shapes_for_role",
         "starlayer.shacl.ui.widget_selection.select_widget" .
 
-nl:03-32f5f2c6 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03b-32f5f2c6 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "32f5f2c6" ;
     slkg:cellHash "a87bc7dd45e0cca9" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -576,10 +576,10 @@ nl:03-32f5f2c6 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.star_query.StarQuery" .
 
-nl:03-f6a58c6a a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03a-f6a58c6a a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03a-sparql-12-queries.ipynb" ;
     slkg:cellId "f6a58c6a" ;
-    slkg:cellHash "3d58edd0e9e047df" ;
+    slkg:cellHash "8c333368f9d473e9" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
     rdfs:comment "Shows a VERSION directive that matches the query text, and the error for one that does not." ;
     slkg:demonstratesIdentifier

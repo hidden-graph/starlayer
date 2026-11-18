@@ -1,6 +1,6 @@
 # StarLayer User Guides
 
-*Last reviewed: 2026-11-16*
+*Last reviewed: 2026-11-17*
 
 This is the single master index for every guide notebook - every notebook's own "How to run this notebook" cell links back here, rather than repeating this list in-body (see [`STYLE_GUIDE.md`](STYLE_GUIDE.md)). Update this file when a guide is added, renamed, or reordered; no other file needs to change.
 
@@ -16,9 +16,11 @@ This is the single master index for every guide notebook - every notebook's own 
    - **2.d [Combining and comparing graphs](02d-combining-comparing-graphs.ipynb)** - set operations, `diff` and `GraphDelta`, matching blank nodes (`align_blank_nodes`), `owl:imports` with a loader, and skolemizing blank nodes.
    - **2.e [Inferencing](02e-graphs-inferencing.ipynb)** - RDF/RDFS/OWL 2 RL reasoning via `owlrl` (and natively for RDF), the full entailment-regime picture (what each regime means, the regime-support status table, which one to use), and a worked example of both the `infer()` and `query(entailment=...)` forms per regime.
    - **2.f [OWL 2 DL reasoning](02f-owl-dl-reasoning.ipynb)** - `infer(entailment=ENTAILMENT["OWL-Direct"])`, genuine DL reasoning via HermiT (default, needs a real JVM) or RustDL (pure Rust, no JVM, with its own tradeoffs).
-3. **[SPARQL](03-sparql.ipynb)** - query semantics and built-in functions, your own Python functions and aggregates (`custom_functions`), and writing results as JSON, XML, CSV, TSV or RDF (`Result.serialize`).
-   - **3.a [SPARQL entailment](03a-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.e already covers per regime: caching behavior (`infer=`) and detecting an inconsistency via `ASK`.
-   - **3.b [SRL (SPARQL Rules)](03b-srl-sparql-rules.ipynb)** - a separate Datalog-style rules language independent of SHACL: parsing (including RDF 1.2 triple terms, annotations, `/` `^` property paths and `IMPORTS`), inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.
+3. **[SPARQL](03-sparql.ipynb)** - running a query and reading its result, prefixes, `DESCRIBE`, writing results as JSON, XML, CSV, TSV or RDF (`Result.serialize`), and SPARQL Update on a graph and on a dataset.
+   - **3.a [SPARQL 1.2 in queries](03a-sparql-12-queries.ipynb)** - triple functions (`TRIPLE`, `SUBJECT`, `isTRIPLE`), triple-term and annotation syntax in queries, language and direction functions, and the `VERSION` directive.
+   - **3.b [Preparing, extending and checking queries](03b-preparing-extending-checking-queries.ipynb)** - the triples an answer depends on (`relevant_subgraph`), a query prepared once (`StarQuery`), your own Python functions and aggregates (`custom_functions`), and `check_query`.
+   - **3.c [SPARQL entailment](03c-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what 2.e already covers per regime: caching behavior (`recompute=`) and detecting an inconsistency via `ASK`.
+   - **3.d [SRL (SPARQL Rules)](03d-srl-sparql-rules.ipynb)** - a separate Datalog-style rules language independent of SHACL: parsing (including RDF 1.2 triple terms, annotations, `/` `^` property paths and `IMPORTS`), inference, the evaluation plan (strata and dependency edges), querying, and well-formedness checking.
 4. **[SHACL shapes](04-shacl-shapes.ipynb)** - what starshacl adds over pySHACL, an overview of its four processing modes (`validate()`, `apply_rules()`, `evaluate()`, `extract_subgraph()`), reading a validation result and the errors (`ValidationResult`, `validate_each`, `ShapeError`), entailment during validation, and deriving a shapes graph from data (`derive_shape()`).
    - **4.a [SHACL node expressions](04a-shacl-node-expressions.ipynb)** - the `shnex:`/`sparql:` node-expression vocabulary, `sh:values`/`sh:expression`, custom functions.
    - **4.b [SHACL and SPARQL](04b-shacl-and-sparql.ipynb)** - `sh:sparql` constraints, user-defined `sh:ConstraintComponent`.
