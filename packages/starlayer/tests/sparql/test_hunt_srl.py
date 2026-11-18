@@ -179,7 +179,8 @@ def test_a_nested_triple_term_in_object_position_is_fine():
 
 
 def test_a_data_triple_with_a_literal_subject_is_an_srl_error():
-    rs = srl.parse_ruleset(PRE + "DATA { \"a\" :p :b }")
+    # the srl: shapes reject it at parse; with validate=False it is still caught when the rules run
+    rs = srl.parse_ruleset(PRE + "DATA { \"a\" :p :b }", validate=False)
     with pytest.raises(srl.SRLError):
         rs.infer(StarLayerGraph())
 

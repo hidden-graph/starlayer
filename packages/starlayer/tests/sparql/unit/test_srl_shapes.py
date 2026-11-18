@@ -203,3 +203,43 @@ def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_met
     graph, _root = srl_parse_to_tree(text)
     assert srl_validate(graph)[0]
     assert called == []
+
+
+from starlayer.sparql import srl  # noqa: E402
+
+
+class TestALiteralIsNotASubject:
+    """A literal cannot be the subject of a triple, so a pattern or a head template with a constant literal subject can never match or
+    produce one: the srl: shapes reject it (variables are encoded as literals of datatype spexpr:Variable and stay valid)."""
+
+    H = "PREFIX ex: <http://example.org/> PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            "RULE { 5 ex:p ?x } WHERE { ?x ex:age ?a }",
+            'RULE { "x" ex:p ?x } WHERE { ?x ex:age ?a }',
+            'RULE { "5"^^xsd:integer ex:p ?x } WHERE { ?x ex:age ?a }',
+            'RULE { "x"@en ex:p ?x } WHERE { ?x ex:age ?a }',
+            "RULE { ?x ex:p ?a } WHERE { ?x ex:age ?a . 5 ex:q ?x }",
+            "DATA { 5 ex:p ex:o } RULE { ?x ex:p ?a } WHERE { ?x ex:age ?a }",
+        ],
+    )
+    def test_a_constant_literal_subject_is_rejected_at_parse(self, rule):
+        with pytest.raises(srl.SRLParseError, match="literal cannot be the subject"):
+            srl.parse_ruleset(self.H + rule)
+
+    def test_validate_false_skips_the_check(self):
+        assert srl.parse_ruleset(self.H + "RULE { 5 ex:p ?x } WHERE { ?x ex:age ?a }", validate=False).rules
+
+    @pytest.mark.parametrize(
+        "rule",
+        [
+            "RULE { ?a ex:p ?x } WHERE { ?x ex:age ?a }",
+            "RULE { ex:s ex:p ?x . _:b ex:q ?x } WHERE { ?x ex:age ?a }",
+            "RULE { ?x ex:p 5 . ?x ex:q \"x\" } WHERE { ?x ex:age ?a }",
+            "RULE { ?x ex:p <<( ?x ex:q ex:r )>> } WHERE { ?x ex:age ?a }",
+        ],
+    )
+    def test_variables_iris_blank_nodes_and_literal_objects_are_valid(self, rule):
+        assert srl.parse_ruleset(self.H + rule).rules

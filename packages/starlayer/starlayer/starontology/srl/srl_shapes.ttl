@@ -339,7 +339,7 @@ srl:AggregationShape a sh:NodeShape ;
     sh:targetClass srl:Aggregation .
 
 srl:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member srl:GroupElementShape, srl:GroupKeysListShape, srl:GroupPatternListShape, srl:AggregationListShape, srl:AggregationShape, srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:NegationElementShape, srl:RuleShape ;
+    rdfs:member srl:GroupElementShape, srl:GroupKeysListShape, srl:GroupPatternListShape, srl:AggregationListShape, srl:AggregationShape, srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:SubjectOrVariableShape, srl:NegationElementShape, srl:RuleShape ;
     owl:imports spexpr:ShapesGraph .
 
 srl:TermOrVariableShape a sh:NodeShape ;
@@ -351,6 +351,16 @@ srl:TermOrVariableShape a sh:NodeShape ;
         sh:datatype spexpr:Variable
     ] [
         sh:nodeKind sh:Literal
+    ] ) .
+
+srl:SubjectOrVariableShape a sh:NodeShape ;
+    sh:message "a literal cannot be the subject of a triple; it must be an IRI, a blank node or a variable" ;
+    sh:or ( [
+        sh:nodeKind sh:IRI
+    ] [
+        sh:nodeKind sh:BlankNode
+    ] [
+        sh:datatype spexpr:Variable
     ] ) .
 
 srl:TripleListShape a sh:NodeShape ;
@@ -390,7 +400,7 @@ srl:TriplePatternShape a sh:NodeShape ;
         sh:maxCount 1 ;
         sh:message "srl:TriplePattern must have exactly one srl:subject" ;
         sh:minCount 1 ;
-        sh:node srl:TermOrVariableShape ;
+        sh:node srl:SubjectOrVariableShape ;
         sh:path srl:subject
     ] ;
     sh:targetClass srl:TriplePattern .
