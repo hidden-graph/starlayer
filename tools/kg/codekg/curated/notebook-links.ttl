@@ -105,7 +105,7 @@ nl:04-4d30d29d a slkg:NotebookExample ;
 nl:04a-d9a10023 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04a-srl-running-rule-sets.ipynb" ;
     slkg:cellId "d9a10023" ;
-    slkg:cellHash "b90862cf91a035e4" ;
+    slkg:cellHash "f3b29728acf6a7a1" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Resolves a rule set's IMPORTS through a loader, giving a rule set that needs no loader." ;
     slkg:demonstratesIdentifier
