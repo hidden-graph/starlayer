@@ -179,7 +179,7 @@ class OxStore:
                 return method(*args, **kw)
             finally:
                 if writes:
-                    union.touch()
+                    union.touch(owner.store)
 
         call.__name__ = name
         call.__doc__ = getattr(method, "__doc__", None)

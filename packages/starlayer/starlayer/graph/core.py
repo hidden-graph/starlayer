@@ -197,7 +197,7 @@ class _Base:
         return self
 
     def as_store(self) -> ox.Store:
-        union.touch()  # the caller may write to it: a deduplicated copy of the union is stale from now on
+        union.touch(self.store)  # the caller may write to it: a deduplicated copy of the union is stale from now on
         return self.store
 
     # ---- StarLayer helpers (thin delegates; the code lives in graph/) -------------------------------------
@@ -445,7 +445,7 @@ class _Base:
 
     def add(self, triple: Any) -> Any:
         self.store.add(self._quad(triple, self._add_graph()))
-        union.touch()
+        union.touch(self.store)
         return self
 
     def extend(self, triples: Iterable[Any]) -> Any:
@@ -454,7 +454,7 @@ class _Base:
         try:
             self.store.extend(self._quad(t, g) for t in triples)
         finally:
-            union.touch()
+            union.touch(self.store)
         return self
 
     def addN(self, quads: Iterable[Any]) -> Any:  # noqa: N802
@@ -462,7 +462,7 @@ class _Base:
         try:
             self.store.extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
         finally:
-            union.touch()
+            union.touch(self.store)
         return self
 
     def _accepts(self, quad: ox.Quad) -> bool:
@@ -474,7 +474,7 @@ class _Base:
         doomed = list(self._quads_in(*pattern[:3], terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else ...))
         for q in doomed:
             self.store.remove(q)
-        union.touch()
+        union.touch(self.store)
         return self
 
     # ---- Oxigraph's own store methods: ``g.ox.<method>(...)`` (``ox_store.py``); ``read_only`` makes a store ------------------------
@@ -518,7 +518,7 @@ class _Base:
                     move = self._retarget(self._add_graph())
                     self.store.extend(move(q) for q in parser)
             finally:
-                union.touch()
+                union.touch(self.store)
         except SyntaxError as e:
             if "named graph" in str(e).lower():
                 raise ValueError("the document has named graphs; parse it into an StarLayerDataset") from e
@@ -825,7 +825,7 @@ class _Base:
                        overlap=self._overlap if self._union else None, custom_functions=custom_functions,
                        custom_aggregate_functions=custom_aggregate_functions, scope=self._scope())
         finally:
-            union.touch()
+            union.touch(self.store)
 
     # ---- RDF 1.2 reifiers (thin functions in reification.py) -----------------------------------------------------
     def add_reification(self, reifier: Any, triple_term: Any) -> Any:
@@ -911,7 +911,7 @@ class _Base:
             for item in list(items):  # a list: ``items`` may come from this very graph
                 self.store.remove(self._quad(item, g))
         finally:
-            union.touch()
+            union.touch(self.store)
 
     # The in-place forms change this graph itself, as ``+=`` does and as rdflib's ``-=`` and a Python set's ``-=``, ``&=``, ``^=`` do. Without
     # them Python would run ``a = a - b``, which makes a new in-memory graph and leaves every other reference to ``a`` (and a graph on disk) unchanged.
@@ -1083,7 +1083,7 @@ class StarLayerGraph(_Base):
             self.store.clear_graph(self._g)
         else:
             self.store.remove_graph(self._g)
-        union.touch()
+        union.touch(self.store)
         return self
 
     def named_graphs(self) -> Iterator[Any]:
@@ -1093,7 +1093,7 @@ class StarLayerGraph(_Base):
     def clear(self) -> StarLayerGraph:
         """Remove every triple of this graph only; other graphs of the store are untouched."""
         self.store.clear_graph(self._g)
-        union.touch()
+        union.touch(self.store)
         return self
 
     def _combine(self, fn: Any, other: StarLayerGraph) -> StarLayerGraph:
@@ -1210,13 +1210,13 @@ class StarLayerDataset(_Base):
     def add_graph(self, identifier: Any) -> StarLayerDataset:
         """Create an empty named graph, so it is listed before it holds a triple. Oxigraph's own form: ``ox.add_graph(name)``."""
         self.store.add_graph(terms.graph_name(identifier))
-        union.touch()
+        union.touch(self.store)
         return self
 
     def clear_graph(self, identifier: Any = None) -> StarLayerDataset:
         """Remove the triples of one graph (the default graph when ``identifier`` is None) and keep the graph; ``remove_graph`` drops it. Oxigraph's own form: ``ox.clear_graph(name)``."""
         self.store.clear_graph(terms.graph_name(identifier))
-        union.touch()
+        union.touch(self.store)
         return self
 
     def remove_graph(self, identifier: Any) -> StarLayerDataset:
@@ -1226,7 +1226,7 @@ class StarLayerDataset(_Base):
             self.store.clear_graph(name)
         else:
             self.store.remove_graph(name)
-        union.touch()
+        union.touch(self.store)
         return self
 
     def remove(self, pattern: tuple) -> StarLayerDataset:
@@ -1237,7 +1237,7 @@ class StarLayerDataset(_Base):
         g = terms.graph_name(pattern[3]) if len(pattern) > 3 and pattern[3] is not None else self._pattern_graph()
         for q in list(self._quads(s, p, o, g)):
             self.store.remove(q)
-        union.touch()
+        union.touch(self.store)
         return self
 
     @property
@@ -1304,7 +1304,7 @@ class StarLayerDataset(_Base):
     def clear(self) -> StarLayerDataset:
         """Remove every quad and every named graph."""
         self.store.clear()
-        union.touch()
+        union.touch(self.store)
         return self
 
     def _engine_graph_name(self, union: Any, default: Any) -> Any:

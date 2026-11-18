@@ -686,6 +686,32 @@ class TestMaterialize:
         assert not kept.stale
         assert kept.query("ex:a ex:anc ex:d")
 
+    def test_a_write_to_another_graph_does_not_make_it_stale(self):
+        kept = parse_ruleset(self.RULES).materialize(self._base())
+        other = self._base()
+        other.add((_p("x"), _p("p"), _p("y")))
+        assert not kept.stale
+
+    def test_a_write_to_the_store_of_the_graph_makes_it_stale_through_any_wrapper_of_it(self):
+        from starlayer.graph import StarLayerDataset, StarLayerGraph
+
+        dataset = StarLayerDataset()
+        graph = StarLayerGraph(dataset.as_store(), identifier=ox.NamedNode(EX + "g"))
+        graph.add((_p("a"), _p("p"), _p("b")))
+        kept = parse_ruleset(self.RULES).materialize(graph)
+        assert not kept.stale
+        dataset.add((_p("c"), _p("p"), _p("d"), ox.NamedNode(EX + "other")))  # another graph of the same store
+        assert kept.stale
+
+    def test_a_write_that_names_no_store_makes_every_materialization_stale(self):
+        from starlayer.graph.execution import union
+
+        kept = parse_ruleset(self.RULES).materialize(self._base())
+        union.touch()  # what a write on a raw store reference has to call
+        assert kept.stale
+        kept.refresh()
+        assert not kept.stale
+
     def test_close_drops_what_was_kept(self):
         kept = parse_ruleset(self.RULES).materialize(self._base())
         kept.close()

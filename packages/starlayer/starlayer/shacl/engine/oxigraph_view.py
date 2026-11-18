@@ -198,7 +198,7 @@ class OxigraphGraph:
         self.store.add(ox.Quad(*(to_ox(t) for t in triple), g))
         from starlayer.graph.execution import union
 
-        union.touch()  # a dataset over this store drops its deduplicated copy
+        union.touch(self.store)  # a dataset over this store drops its deduplicated copy
 
     # ---- GraphView ----------------------------------------------------------------------------------------------
     def _quads(self, s: Any, p: Any, o: Any) -> Iterator[ox.Quad]:

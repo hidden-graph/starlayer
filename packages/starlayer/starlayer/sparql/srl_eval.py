@@ -1360,29 +1360,38 @@ class Materialization:
         self._imports_loader = imports_loader
         self._evaluation: _Evaluation | None = None
         self._inferred = None
-        self._stamp = -1
+        self._watch = None
+        self._stamp = None
         self.refresh()
 
     def refresh(self) -> None:
         """Run the rules again on the graph as it is now, replacing what was kept."""
-        from starlayer.graph.execution import union
-
+        stamp = self._stamp_now()  # taken first: a write that lands while the rules run makes the result stale
         base = flatten_dataset(self._source)
         if self._inference is not None:
             base = base.infer(entailment=self._inference, mode="full")
         self._evaluation = _evaluate(base, self.ruleset._with_imports_resolved(self._imports_loader))
         self._inferred = None
-        # taken after the run: the run writes to its own graphs, and those writes count (so a write that lands from elsewhere while
-        # the rules run is not noticed)
-        self._stamp = union.current()
+        self._stamp = stamp
+
+    def _stamp_now(self):
+        """What identifies the state of the graph: the write count of its store (every graph and dataset on that store counts, and no
+        other store), or, for a source that is not on a store of its own, the count of every write made through StarLayer."""
+        from starlayer.graph.execution import union
+
+        store = self._source if isinstance(self._source, ox.Store) else getattr(self._source, "store", None)
+        if isinstance(store, ox.Store):
+            if self._watch is None:
+                self._watch = union.version_of(store)  # held, so the count it keeps is the one a later write adds to
+            return self._watch.stamp()
+        return ("every store", union.current())
 
     @property
     def stale(self) -> bool:
-        """True once anything has been written through StarLayer since the rules were run. (A write to any graph counts, so this
-        can be true when this graph is unchanged; a write made on a raw store reference needs ``union.touch()``.)"""
-        from starlayer.graph.execution import union
-
-        return self._stamp != union.current()
+        """True once something has been written to the store of the graph through StarLayer since the rules were run (a write to
+        another graph of that store counts, a write to another store does not). A write made on a raw store reference needs
+        ``union.touch()`` to be seen."""
+        return self._stamp != self._stamp_now()
 
     @property
     def inferred(self):
