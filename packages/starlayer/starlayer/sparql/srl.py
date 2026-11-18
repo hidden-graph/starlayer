@@ -74,9 +74,8 @@ sibling files:
   own docstring note above already applies to ``ontology_graph()``/
   ``shapes_graph()``. The rest (``_Rule``/``_Data``/``_FilterElement``/
   ``_AssignmentElement``/``_NegationElement``) are private: no public
-  function or method requires any of them directly (unlike
-  ``TriplePattern``, needed as ``RuleSet.query()``'s own ``goal_pattern``
-  parameter type) - the only way a caller would touch one is by walking
+  function or method requires any of them directly (``TriplePattern`` is
+  still re-exported, but ``RuleSet.query()`` takes its goal as SPARQL text, so a caller does not need it) - the only way a caller would touch one is by walking
   ``RuleSet.rules``/``Rule.head``/``Rule.body``, an inspection/editing
   concern this API doesn't cover yet.
 - ``srl_eval.py`` (``RuleSet.infer()``/``.query()``, implemented as thin

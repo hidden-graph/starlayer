@@ -65,6 +65,23 @@ def _coerce_term(value: Any) -> Any:
     return value
 
 
+def goal_from_text(text: str, prefixes: dict[str, str]) -> TriplePattern:
+    """The triple pattern written in ``text`` (SPARQL syntax, without the ``.``), with ``prefixes`` (prefix to namespace) declared.
+
+    Raises:
+        SRLParseError: If the text is not exactly one triple pattern, or uses an undeclared prefix.
+    """
+    from .parse_srl import parse_srl
+    from .srl import SRLParseError
+
+    header = "".join(f"PREFIX {prefix}: <{namespace}>\n" for prefix, namespace in prefixes.items())
+    # the text is parsed as the body of a rule, so it gets the parser, the prefixes and the term syntax of a rule body
+    body = parse_srl(f"{header}RULE {{ {text} }} WHERE {{ {text} }}").rules[0].body
+    if len(body) != 1 or not isinstance(body[0], TriplePattern):
+        raise SRLParseError(f"a goal is one triple pattern, such as '?who ex:ancestorOf ex:carol'; got {text!r}")
+    return body[0]
+
+
 def check_goal_pattern(goal_pattern: Any) -> TriplePattern:
     """``goal_pattern`` as a ``TriplePattern`` of pyoxigraph terms, raising instead of letting a wrong-typed term match nothing.
 
@@ -541,7 +558,7 @@ class RuleSet:
     def query(
         self,
         base_graph: Any,
-        goal_pattern: TriplePattern,
+        goal_pattern: str,
         *,
         inference: Any | None = None,
         imports_loader: Any | None = None,
@@ -552,8 +569,9 @@ class RuleSet:
 
         Args:
             base_graph: The graph to run the rule set against.
-            goal_pattern: The triple pattern to match against the union of
-                ``base_graph`` and the inferred triples.
+            goal_pattern: One triple pattern in SPARQL syntax, such as ``"?who ex:ancestorOf ex:carol"``, to match against the union
+                of ``base_graph`` and the inferred triples. A prefix is the graph's own, else this rule set's. (A ``TriplePattern``
+                is accepted too.)
             inference: Same meaning as :meth:`infer`'s own ``inference=`` -
                 applied to ``base_graph`` before the rule set runs. There
                 is no ``schema=`` here - this method returns rows, not a
@@ -565,10 +583,14 @@ class RuleSet:
             results (``result.vars``), and the values pyoxigraph terms.
 
         Raises:
-            TypeError: If a position of ``goal_pattern`` is not an RDF term or variable (nothing is silently matched).
+            SRLParseError: If ``goal_pattern`` text is not exactly one triple pattern, or uses an undeclared prefix.
+            TypeError: If a position of a ``TriplePattern`` goal is not an RDF term or variable (nothing is silently matched).
         """
         from . import srl_eval
 
+        if isinstance(goal_pattern, str):
+            prefixes = {**self.prefixes, **{str(k): str(v) for k, v in dict(getattr(base_graph, "prefixes", {})).items()}}
+            goal_pattern = goal_from_text(goal_pattern, prefixes)
         goal_pattern = check_goal_pattern(goal_pattern)
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:

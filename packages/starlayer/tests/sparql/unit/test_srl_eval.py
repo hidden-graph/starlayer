@@ -220,6 +220,54 @@ def test_query_matches_goal_pattern_against_base_and_inferred():
     assert solutions == {_p("db"), _p("app"), _p("frontend")}
 
 
+class TestQueryGoalText:
+    """``query()`` takes the goal as one triple pattern in SPARQL syntax."""
+
+    RULES = f"""
+    PREFIX ex: <{EX}>
+    RULE {{ ?x ex:anc ?y }} WHERE {{ ?x ex:p ?y }}
+    RULE {{ ?x ex:anc ?z }} WHERE {{ ?x ex:anc ?y . ?y ex:p ?z }}
+    """
+
+    def _base(self):
+        from starlayer.graph import StarLayerGraph
+
+        base = StarLayerGraph()
+        base.parse(data=f"@prefix ex: <{EX}> . ex:a ex:p ex:b . ex:b ex:p ex:c .", format="turtle")
+        return base
+
+    def test_graph_prefixes_resolve_the_goal(self):
+        rows = parse_ruleset(self.RULES).query(self._base(), "?who ex:anc ex:c")
+        assert {r[ox.Variable("who")] for r in rows} == {_p("a"), _p("b")}
+
+    def test_text_gives_the_rows_of_the_same_goal_as_a_pattern(self):
+        ruleset, base = parse_ruleset(self.RULES), self._base()
+        goal = ruleset.rules[0].head[0]
+        assert ruleset.query(base, "?x ex:anc ?y") == ruleset.query(base, goal)
+
+    def test_goal_without_variables_gives_one_empty_row_or_none(self):
+        ruleset, base = parse_ruleset(self.RULES), self._base()
+        assert ruleset.query(base, "ex:a ex:anc ex:c") == [{}]
+        assert ruleset.query(base, "ex:c ex:anc ex:a") == []
+
+    def test_rule_set_prefix_when_the_graph_has_none(self):
+        from starlayer.graph import StarLayerGraph
+
+        base = StarLayerGraph(prefixes={})
+        base.parse(data=f"<{EX}a> <{EX}p> <{EX}b> .", format="ntriples")
+        assert parse_ruleset(self.RULES).query(base, "ex:a ex:anc ?y")
+
+    @pytest.mark.parametrize(
+        "goal",
+        ["?a ex:anc ?b . ?b ex:anc ?c", "?s ex:anc << ex:a ex:p ex:b >>", "?x ex:anc+ ?y", "?x nope:anc ?y", ""],
+    )
+    def test_a_goal_that_is_not_one_triple_pattern_raises(self, goal):
+        from starlayer.sparql.srl import SRLParseError
+
+        with pytest.raises(SRLParseError):
+            parse_ruleset(self.RULES).query(self._base(), goal)
+
+
 class TestInferAndQueryInferenceParameter:
     """``inference=`` pre-entails base_graph (via StarLayerGraph.infer())
     before the rule set runs against it - a per-call parameter, not stored

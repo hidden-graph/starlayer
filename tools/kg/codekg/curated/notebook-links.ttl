@@ -252,7 +252,7 @@ nl:06a-92f83318 a slkg:NotebookExample ;
 nl:04-c0a10008 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04-srl-sparql-rules.ipynb" ;
     slkg:cellId "c0a10008" ;
-    slkg:cellHash "57f24a6502758d8f" ;
+    slkg:cellHash "6a5e8200b8887846" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
     rdfs:comment "Asks a goal pattern of a rule set with query() and gets back only the matching bindings." ;
     slkg:demonstratesIdentifier
