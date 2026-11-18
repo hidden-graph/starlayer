@@ -10,6 +10,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.sparql import srl, srl_eval
+from starlayer.sparql._srl_ast import goal_from_text
 
 EX = "http://e/"
 PREDICATES = ["a", "b", "c", "d"]
@@ -106,3 +107,32 @@ def test_the_fast_paths_give_what_the_plain_evaluation_gives(seed, monkeypatch):
             assert fast == plain, text
         else:
             assert len(fast) == len(plain) and isomorphic(fast, plain), f"{text}\n{sorted(map(str, fast))}\n{sorted(map(str, plain))}"
+
+
+def _normal(rows) -> list:
+    """Solutions with a blank node's name left out (each run names its own), as a sorted list."""
+    return sorted(str(sorted((v.value, "_:" if isinstance(t, ox.BlankNode) else str(t)) for v, t in row.items())) for row in rows)
+
+
+@pytest.mark.parametrize("seed", range(SEEDS))
+def test_query_gives_what_infer_and_a_match_of_the_goal_give(seed):
+    """``query()`` runs only the rules the goal depends on: the rows are those of the goal matched against the base graph and
+    everything ``infer()`` derives."""
+    rng = random.Random(seed)
+    try:
+        text = "PREFIX : <http://e/>\n" + "\n".join(_rule(rng) for _ in range(rng.choice([2, 3, 4, 5])))
+        ruleset = srl.parse_ruleset(text)
+        ruleset.plan()
+    except Exception:  # noqa: BLE001  (not a well-formed or stratifiable rule set: nothing to compare)
+        pytest.skip("not a valid rule set")
+    graph = _graph(random.Random(seed))
+    try:
+        inferred = ruleset.infer(graph)
+    except Exception as error:  # noqa: BLE001
+        pytest.skip(f"does not run: {type(error).__name__}")
+    everything = StarLayerGraph(prefixes={})
+    everything.extend(list(graph) + list(inferred))
+    goals = [f"?s :{p} ?o" for p in (*PREDICATES, "h")] + [f":{NODES[0]} :{PREDICATES[0]} ?o", "?s ?p :n1"]
+    for goal in goals:
+        expected = _normal(srl_eval._match_goal(everything, goal_from_text(goal, {"": EX})))
+        assert _normal(ruleset.query(graph, goal)) == expected, f"{text}\n{goal}"

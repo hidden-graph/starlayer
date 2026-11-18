@@ -595,3 +595,109 @@ def _ast_ruleset(rules):
     from starlayer.sparql.srl import RuleSet
 
     return RuleSet(rules=rules)
+
+
+class TestQueryRunsOnlyWhatTheGoalNeeds:
+    """``query()`` evaluates the rules the goal depends on, not the rest of the rule set."""
+
+    RULES = f"""
+    PREFIX ex: <{EX}>
+    RULE {{ ?a ex:grandparentOf ?c }} WHERE {{ ?a ex:p ?b . ?b ex:p ?c }}
+    RULE {{ ?a ex:ancestorOf ?c }} WHERE {{ ?a ex:grandparentOf ?c }}
+    RULE {{ ?x ex:unrelated ?y }} WHERE {{ ?x ex:q ?y }}
+    RULE {{ ?x ex:alsoUnrelated ?y }} WHERE {{ ?x ex:unrelated ?y }}
+    """
+
+    def test_the_cone_is_the_rules_the_goal_depends_on(self):
+        from starlayer.sparql import srl_eval
+        from starlayer.sparql._srl_ast import goal_from_text
+
+        ruleset = parse_ruleset(self.RULES)
+        goal = goal_from_text("?x ex:ancestorOf ?y", ruleset.prefixes)
+        cone = srl_eval._rules_for_goal(ruleset, goal)
+        assert [r for r in cone.rules] == ruleset.rules[:2]
+        assert srl_eval._rules_for_goal(ruleset, goal_from_text("?x ?p ?y", ruleset.prefixes)) is ruleset  # a variable predicate
+
+    def test_a_rule_outside_the_cone_is_not_run(self, monkeypatch):
+        from starlayer.graph import StarLayerGraph
+        from starlayer.sparql import srl_eval
+
+        base = StarLayerGraph()
+        base.parse(data=f"@prefix ex: <{EX}> . ex:a ex:p ex:b . ex:b ex:p ex:c . ex:x ex:q ex:y .", format="turtle")
+        derived = []
+        original = srl_eval._run_to_fixpoint
+        monkeypatch.setattr(srl_eval, "_run_to_fixpoint", lambda rules, evaluation: (derived.extend(rules), original(rules, evaluation))[1])
+        rows = parse_ruleset(self.RULES).query(base, "?x ex:ancestorOf ?y")
+        assert len(rows) == 1
+        assert {rule.head[0].predicate for rule in derived} == {ox.NamedNode(EX + "grandparentOf"), ox.NamedNode(EX + "ancestorOf")}
+
+    def test_a_rule_set_that_does_not_stratify_is_still_rejected(self):
+        ruleset = parse_ruleset(f"PREFIX ex: <{EX}>\nRULE {{ ?x ex:a ?y }} WHERE {{ ?x ex:b ?y . NOT {{ ?x ex:a ?y }} }}\nRULE {{ ?x ex:c ?y }} WHERE {{ ?x ex:d ?y }}")
+        from starlayer.sparql.srl_eval import StratificationError
+
+        with pytest.raises(StratificationError):
+            ruleset.query(self._graph(), "?x ex:c ?y")
+
+    def _graph(self):
+        from starlayer.graph import StarLayerGraph
+
+        return StarLayerGraph()
+
+
+class TestMaterialize:
+    RULES = f"""
+    PREFIX ex: <{EX}>
+    RULE {{ ?a ex:anc ?b }} WHERE {{ ?a ex:p ?b }}
+    RULE {{ ?a ex:anc ?c }} WHERE {{ ?a ex:anc ?b . ?b ex:p ?c }}
+    """
+
+    def _base(self):
+        from starlayer.graph import StarLayerGraph
+
+        base = StarLayerGraph()
+        base.parse(data=f"@prefix ex: <{EX}> . ex:a ex:p ex:b . ex:b ex:p ex:c .", format="turtle")
+        return base
+
+    def test_it_answers_like_query_and_infer(self):
+        ruleset, base = parse_ruleset(self.RULES), self._base()
+        kept = ruleset.materialize(base)
+        assert kept.query("?x ex:anc ex:c") == ruleset.query(base, "?x ex:anc ex:c")
+        assert len(kept.inferred) == len(ruleset.infer(base)) == 3
+
+    def test_it_does_not_run_the_rules_again_for_a_goal(self, monkeypatch):
+        from starlayer.sparql import srl_eval
+
+        kept = parse_ruleset(self.RULES).materialize(self._base())
+        monkeypatch.setattr(srl_eval, "_evaluate", lambda *a, **k: pytest.fail("the rules were run again"))
+        assert kept.query("?x ex:anc ex:c") and kept.query("ex:a ex:anc ?y")
+
+    def test_it_is_a_snapshot_that_says_when_it_is_stale_and_refresh_updates_it(self):
+        ruleset, base = parse_ruleset(self.RULES), self._base()
+        kept = ruleset.materialize(base)
+        assert not kept.stale
+        base.add((_p("c"), _p("p"), _p("d")))
+        assert kept.stale
+        assert not kept.query("ex:a ex:anc ex:d")
+        kept.refresh()
+        assert not kept.stale
+        assert kept.query("ex:a ex:anc ex:d")
+
+    def test_close_drops_what_was_kept(self):
+        kept = parse_ruleset(self.RULES).materialize(self._base())
+        kept.close()
+        with pytest.raises(ValueError, match="closed"):
+            kept.query("?x ex:anc ?y")
+        kept.refresh()
+        assert kept.query("?x ex:anc ?y")
+
+    def test_inference_is_applied_to_the_base_graph_first(self):
+        from starlayer.graph import ENTAILMENT, StarLayerGraph
+
+        base = StarLayerGraph()
+        base.parse(
+            data=f"@prefix ex: <{EX}> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . ex:Dog rdfs:subClassOf ex:Animal . ex:rex a ex:Dog .",
+            format="turtle",
+        )
+        ruleset = parse_ruleset(f"PREFIX ex: <{EX}>\nRULE {{ ?x ex:seen true }} WHERE {{ ?x a ex:Animal }}")
+        assert not ruleset.materialize(base).query("ex:rex ex:seen ?v")
+        assert ruleset.materialize(base, inference=ENTAILMENT.RDFS).query("ex:rex ex:seen ?v")

@@ -827,3 +827,12 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
             max_validation_depth=100,
         )
     return result.conforms, result.report_graph, result.report_text
+
+
+def __getattr__(name: str) -> Any:
+    """``srl.Materialization``, the result of ``RuleSet.materialize()``; ``srl_eval`` imports this module, so it is reached lazily."""
+    if name == "Materialization":
+        from .srl_eval import Materialization
+
+        return Materialization
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

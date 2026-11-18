@@ -31,6 +31,7 @@ node-per-solution head instantiation (§6.4).
 
 from __future__ import annotations
 
+import dataclasses
 import datetime
 import itertools
 import re
@@ -1289,16 +1290,45 @@ def _srl_infer(base_graph, ruleset: srl_ast.RuleSet):
     return _evaluate_ruleset(base_graph, ruleset)
 
 
-def _srl_query(base_graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.TriplePattern) -> list[dict]:
-    """§4.1's top-level ``Query`` operation, v1: "equivalent to infer +
-    matching the goal pattern against base ∪ GI" - the spec's own stated
-    equivalence, implemented directly on top of :func:`_srl_infer` rather
-    than the selective-rule-evaluation optimization it also permits (a
-    documented future enhancement, not required for a correct result).
+def _rules_for_goal(ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.TriplePattern) -> srl_ast.RuleSet:
+    """The part of ``ruleset`` that can change the answer to ``goal_pattern``: the rules with a head template the goal can match,
+    and every rule those depend on, followed on (§4.1 allows an implementation to evaluate only what a query needs).
 
-    Private: the one real public API is ``RuleSet.infer()``/``.query()``
-    (``_srl_ast.py``); this function is the plumbing ``RuleSet.query()``
-    delegates to.
+    The set is closed under dependencies, so each rule in it has the stratum, and the open or closed dependencies, it has in the
+    whole rule set. The whole rule set is still stratified, so one that ``infer()`` rejects is rejected here too.
+    """
+    _stratify(ruleset)
+    depends_on: dict[int, list[int]] = {}
+    for edge in _build_dependency_graph(ruleset):
+        depends_on.setdefault(id(edge.source), []).append(id(edge.target))
+    by_id = {id(r): r for r in ruleset.rules}
+    needed = {id(r) for r in ruleset.rules if any(_pattern_matches_template(goal_pattern, head) for head in r.head)}
+    queue = list(needed)
+    while queue:
+        for dependency in depends_on.get(queue.pop(), ()):
+            if dependency not in needed:
+                needed.add(dependency)
+                queue.append(dependency)
+    if len(needed) == len(by_id):
+        return ruleset
+    return dataclasses.replace(ruleset, rules=[r for r in ruleset.rules if id(r) in needed])
+
+
+def _match_goal(combined, goal_pattern: srl_ast.TriplePattern) -> list[dict]:
+    """The solutions of ``goal_pattern`` on ``combined`` (the base graph and the inferred triples), one per match."""
+    goal_vars = {
+        v for term in (goal_pattern.subject, goal_pattern.predicate, goal_pattern.object) for v in _term_variables(term)
+    }
+    return [{v: m[v] for v in goal_vars if v in m} for m in _match([goal_pattern], combined)]
+
+
+def _srl_query(base_graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.TriplePattern) -> list[dict]:
+    """§4.1's top-level ``Query`` operation: the rules the goal depends on (:func:`_rules_for_goal`) are run on the base graph and
+    the goal pattern is matched against the base graph and what they derived, the same answer as ``infer`` and a match of the goal
+    against base ∪ GI (the spec's stated equivalence) from less work.
+
+    Private: the one real public API is ``RuleSet.infer()``/``.query()`` (``_srl_ast.py``); this function is the plumbing
+    ``RuleSet.query()`` delegates to.
 
     Args:
         base_graph: The graph to run the rule set against.
@@ -1310,9 +1340,70 @@ def _srl_query(base_graph, ruleset: srl_ast.RuleSet, goal_pattern: srl_ast.Tripl
         One ``dict[Variable, term]`` solution per match, the terms pyoxigraph terms.
     """
     base_graph = flatten_dataset(base_graph)
-    combined = _evaluate(base_graph, ruleset).ge  # the evaluation graph is the base graph and the inferred triples already
+    # the evaluation graph is the base graph and the inferred triples already
+    return _match_goal(_evaluate(base_graph, _rules_for_goal(ruleset, goal_pattern)).ge, goal_pattern)
 
-    goal_vars = {
-        v for term in (goal_pattern.subject, goal_pattern.predicate, goal_pattern.object) for v in _term_variables(term)
-    }
-    return [{v: m[v] for v in goal_vars if v in m} for m in _match([goal_pattern], combined)]
+
+class Materialization:
+    """The triples a rule set derives from a graph, kept: ask goals of it as often as you like without running the rules again.
+
+    ``ruleset.materialize(graph)`` makes one. It is a snapshot: it does not change when ``graph`` does, ``stale`` says that it
+    would, and ``refresh()`` runs the rules again. It holds the base graph and the derived triples in memory until ``close()`` (or
+    the object) goes. A rule set with a blank node in a head, or a function such as ``UUID()``, derives different nodes each run, so a
+    kept result keeps the ones it made.
+    """
+
+    def __init__(self, ruleset: srl_ast.RuleSet, base_graph, *, inference=None, imports_loader=None):
+        self.ruleset = ruleset
+        self._source = base_graph
+        self._inference = inference
+        self._imports_loader = imports_loader
+        self._evaluation: _Evaluation | None = None
+        self._inferred = None
+        self._stamp = -1
+        self.refresh()
+
+    def refresh(self) -> None:
+        """Run the rules again on the graph as it is now, replacing what was kept."""
+        from starlayer.graph.execution import union
+
+        base = flatten_dataset(self._source)
+        if self._inference is not None:
+            base = base.infer(entailment=self._inference, mode="full")
+        self._evaluation = _evaluate(base, self.ruleset._with_imports_resolved(self._imports_loader))
+        self._inferred = None
+        # taken after the run: the run writes to its own graphs, and those writes count (so a write that lands from elsewhere while
+        # the rules run is not noticed)
+        self._stamp = union.current()
+
+    @property
+    def stale(self) -> bool:
+        """True once anything has been written through StarLayer since the rules were run. (A write to any graph counts, so this
+        can be true when this graph is unchanged; a write made on a raw store reference needs ``union.touch()``.)"""
+        from starlayer.graph.execution import union
+
+        return self._stamp != union.current()
+
+    @property
+    def inferred(self):
+        """The derived triples as a graph (never a triple the base graph has), with the prefixes ``RuleSet.infer`` gives."""
+        evaluation = self._open()
+        if self._inferred is None:
+            self._inferred = self.ruleset._with_own_prefixes(self.ruleset._with_prefixes_of(evaluation.inferred_graph(), self._source))
+        return self._inferred
+
+    def query(self, goal_pattern: str) -> list[dict]:
+        """The solutions of ``goal_pattern`` (one triple pattern in SPARQL syntax, as for ``RuleSet.query``) on the base graph and
+        the kept triples, without running a rule."""
+        goal = self.ruleset._goal_pattern(goal_pattern, self._source)
+        return _match_goal(self._open().ge, goal)
+
+    def close(self) -> None:
+        """Drop the kept triples and the copy of the base graph. ``refresh()`` makes them again."""
+        self._evaluation = None
+        self._inferred = None
+
+    def _open(self) -> _Evaluation:
+        if self._evaluation is None:
+            raise ValueError("this Materialization is closed; refresh() runs the rules again")
+        return self._evaluation

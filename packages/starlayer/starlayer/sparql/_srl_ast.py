@@ -555,6 +555,30 @@ class RuleSet:
             graph.bind(prefix, str(namespace), override=False)
         return graph
 
+    def _goal_pattern(self, goal: Any, graph: Any) -> TriplePattern:
+        """``goal`` (SPARQL text, or a ``TriplePattern``) as a checked ``TriplePattern``; a prefix in text is the graph's, else this
+        rule set's."""
+        if isinstance(goal, str):
+            prefixes = {**self.prefixes, **{str(k): str(v) for k, v in dict(getattr(graph, "prefixes", {})).items()}}
+            goal = goal_from_text(goal, prefixes)
+        return check_goal_pattern(goal)
+
+    def materialize(self, base_graph: Any, *, inference: Any | None = None, imports_loader: Any | None = None):
+        """Runs this rule set on ``base_graph`` once and keeps what it derives, as a :class:`~starlayer.sparql.srl.Materialization`.
+
+        Where ``query()`` runs the rules each time, a materialization answers any number of goals from the kept triples
+        (``materialization.query(goal)``), and ``materialization.inferred`` is the derived graph, the same as ``infer()``. It does
+        not follow changes to ``base_graph``: ``stale`` tells you it has gone out of date and ``refresh()`` runs the rules again.
+
+        Args:
+            base_graph: The graph to run the rule set against.
+            inference: As for :meth:`infer`.
+            imports_loader: As for :meth:`infer`.
+        """
+        from . import srl_eval
+
+        return srl_eval.Materialization(self, base_graph, inference=inference, imports_loader=imports_loader)
+
     def query(
         self,
         base_graph: Any,
@@ -588,10 +612,7 @@ class RuleSet:
         """
         from . import srl_eval
 
-        if isinstance(goal_pattern, str):
-            prefixes = {**self.prefixes, **{str(k): str(v) for k, v in dict(getattr(base_graph, "prefixes", {})).items()}}
-            goal_pattern = goal_from_text(goal_pattern, prefixes)
-        goal_pattern = check_goal_pattern(goal_pattern)
+        goal_pattern = self._goal_pattern(goal_pattern, base_graph)
         base_graph = srl_eval.flatten_dataset(base_graph)
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
