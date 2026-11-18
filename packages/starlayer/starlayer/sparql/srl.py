@@ -202,7 +202,9 @@ class SRLUnresolvedImportsWarning(UserWarning):
     check was looking for. Raised as a warning by :func:`parse_ruleset` (stratification is checked on the rules in the text only)."""
 
 
-def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) -> srl_ast.RuleSet:
+def parse_ruleset(
+    text: str, base: str | None = None, *, validate: bool = True, imports_loader: Any | None = None
+) -> srl_ast.RuleSet:
     """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
 
@@ -223,11 +225,27 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
     order of 150 ms, against a few ms for parsing alone, so a caller parsing
     many rule sets that it already trusts can pass ``validate=False``.
 
+    The rules are also checked to have an evaluation order (the stratification of §4.4),
+    and ``StratificationError`` is raised if they do not. A rule set with ``IMPORTS`` is
+    only checked on the rules in its own text: the imported rules can add a dependency
+    that makes the combined rule set impossible to order, so a rule set that passes
+    gets an :class:`SRLUnresolvedImportsWarning`, and :func:`resolve_imports`,
+    ``plan()`` and ``infer()`` check the combined rule set again. A check on
+    the rules in the text is sound, because an import only adds rules. ``validate=False``
+    skips this check too, to look at a rule set that cannot be ordered.
+
+    With ``imports_loader`` (as for :func:`resolve_imports`) the ``IMPORTS`` are resolved while the
+    text is parsed, and the result is the resolved rule set (``is_resolved`` is true), checked as
+    a whole, with no warning. ``base`` is then also the IRI the text was read from, so a
+    document that imports itself is not read again.
+
     Args:
         text: The SRL rule-set text to parse.
         base: Base IRI for resolving relative IRIs, if any.
-        validate: Also validate the rule set against the ``srl:`` shapes.
-            Defaults to ``True``.
+        validate: Also validate the rule set against the ``srl:`` shapes and check
+            that its rules can be ordered. Defaults to ``True``.
+        imports_loader: ``loader(iri) -> str | RuleSet``, as for :func:`resolve_imports`. Without
+            one, a rule set with ``IMPORTS`` is returned with them unresolved.
 
     Returns:
         The parsed, well-formed ``RuleSet``.
@@ -236,6 +254,8 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
         SRLParseError: For malformed SRL text, text that parses but fails a
             §4.2 well-formedness check, or (with ``validate=True``) a rule set
             that does not conform to the ``srl:`` shapes.
+        StratificationError: With ``validate=True``, if the rules cannot be ordered.
+        SRLImportError: With ``imports_loader``, as for :func:`resolve_imports`.
     """
     from .parse_srl import parse_srl
 
@@ -250,6 +270,9 @@ def parse_ruleset(text: str, base: str | None = None, *, validate: bool = True) 
         raise SRLParseError(f"SRL: rule set is not well-formed per §4.2: {summary}")
     if validate:
         _check_against_shapes(ruleset)
+    if imports_loader is not None and ruleset.imports:
+        return _resolve_imports(ruleset, imports_loader, location=base, check=validate)
+    if validate:
         _check_stratification(ruleset)
     return ruleset
 
@@ -699,6 +722,11 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
             not a valid rule set.
         StratificationError: If the rules of the combined rule set cannot be ordered.
     """
+    return _resolve_imports(ruleset, loader, location=location, check=True)
+
+
+def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, check: bool) -> srl_ast.RuleSet:
+    """``resolve_imports``; ``check=False`` leaves the stratification of the combined rule set unchecked (``parse_ruleset(validate=False)``)."""
     visited: set[str] = {str(location)} if location else set()
 
     def _merge(rs: srl_ast.RuleSet, renamed: bool) -> tuple[list, list]:
@@ -744,7 +772,8 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
 
     rules, data = _merge(ruleset, renamed=False)
     resolved = srl_ast.RuleSet(rules=rules, data=data, imports=[], prefixes=dict(ruleset.prefixes))
-    _check_stratification(resolved)  # now the whole rule set: an import can add a dependency the text alone does not have
+    if check:
+        _check_stratification(resolved)  # now the whole rule set: an import can add a dependency the text alone does not have
     return resolved
 
 

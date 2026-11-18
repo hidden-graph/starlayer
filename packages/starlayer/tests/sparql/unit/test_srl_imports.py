@@ -216,3 +216,42 @@ class TestStratificationAtParseTime:
             ruleset = parse_ruleset("IMPORTS <http://example.org/lib>\n" + self.P + "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y }")
         with pytest.raises(StratificationError):
             resolve_imports(ruleset, lambda iri: library)
+
+
+class TestParseWithAnImportsLoader:
+    P = "PREFIX ex: <http://example.org/>\n"
+    LIB = P + "RULE { ?x ex:e ?v } WHERE { ?x ex:h ?v }"
+    TEXT = "IMPORTS <http://example.org/lib>\n" + P + "RULE { ?x ex:s ?v } WHERE { ?x ex:e ?v }"
+
+    def test_it_returns_the_resolved_rule_set_without_a_warning(self, recwarn):
+        ruleset = parse_ruleset(self.TEXT, imports_loader=lambda iri: self.LIB)
+        assert ruleset.is_resolved
+        assert len(ruleset.rules) == 2
+        assert not [w for w in recwarn if "IMPORTS" in str(w.message)]
+
+    def test_it_runs_without_a_loader_afterwards(self):
+        base = Graph()
+        base.parse(data="@prefix ex: <http://example.org/> . ex:a ex:h ex:b .", format="turtle")
+        ruleset = parse_ruleset(self.TEXT, imports_loader=lambda iri: self.LIB)
+        assert len(ruleset.infer(base)) == 2
+
+    def test_the_combined_rule_set_is_checked(self):
+        from starlayer.sparql.srl_eval import StratificationError
+
+        library = self.P + "RULE { ?x ex:e ?y } WHERE { ?x ex:h ?y . NOT { ?x ex:s ?y } }"
+        with pytest.raises(StratificationError):
+            parse_ruleset(self.TEXT, imports_loader=lambda iri: library)
+        assert parse_ruleset(self.TEXT, imports_loader=lambda iri: library, validate=False).is_resolved
+
+    def test_the_loader_is_not_called_when_there_are_no_imports(self):
+        def loader(iri):
+            raise AssertionError("no import to read")
+
+        assert parse_ruleset(self.LIB, imports_loader=loader).is_resolved
+
+    def test_a_loader_that_fails_is_an_import_error(self):
+        def loader(iri):
+            raise KeyError(iri)
+
+        with pytest.raises(SRLImportError, match="not found"):
+            parse_ruleset(self.TEXT, imports_loader=loader)
