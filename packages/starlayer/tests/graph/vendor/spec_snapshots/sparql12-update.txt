@@ -1,7 +1,7 @@
 SPARQL 1.2 Update
 Snapshot source: https://www.w3.org/TR/sparql12-update/
-Status at fetch time: W3C Working Draft 25 October 2026
-Published: 2026-10-25
+Status at fetch time: W3C Working Draft 19 November 2026
+Published: 2026-11-19
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
 See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
@@ -11,12 +11,12 @@ See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used an
 
 # SPARQL 1.2 Update
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 25 October 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 19 November 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-sparql12-update-20261025/>
+     <https://www.w3.org/TR/2026/WD-sparql12-update-20261119/>
 Latest published version:
      <https://www.w3.org/TR/sparql12-update/>
 Latest editor's draft:
@@ -887,7 +887,7 @@ Data before:
     
     # Graph: http://example/people
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-    PREFIX rdf:  >http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     
     _:a  rdf:type        foaf:Person .
     _:a  foaf:name       "Alice" .
@@ -905,7 +905,7 @@ Data after:
     
     # Graph: http://example/people
     PREFIX foaf: <http://xmlns.com/foaf/0.1/>
-    PREFIX rdf:  >http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+    PREFIX rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
     
     _:a  rdf:type        foaf:Person .
     _:a  foaf:name       "Alice" .
@@ -947,7 +947,7 @@ This example request first copies triples from one named graph to another named 
      { ?book ?p ?v }
     WHERE
      { ?book dc:date ?date ;
-             dc:type dcmitype:PhysicalObject .
+             a dcmitype:PhysicalObject .
        FILTER ( ?date < "2000-01-01T00:00:00-02:00"^^xsd:dateTime )
        ?book ?p ?v
      }
@@ -958,6 +958,7 @@ Data before:
     # Graph: http://example/bookStore
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX dcmitype: <http://purl.org/dc/dcmitype/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
     
     <http://example/book1> dc:title "Fundamentals of Compiler Design" .
     <http://example/book1> dc:date "1996-01-01T00:00:00-02:00"^^xsd:dateTime .
@@ -984,6 +985,7 @@ Data after:
     # Graph: http://example/bookStore2
     PREFIX dc: <http://purl.org/dc/elements/1.1/>
     PREFIX dcmitype: <http://purl.org/dc/dcmitype/>
+    PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
     
     <http://example/book1> dc:title "Fundamentals of Compiler Design" .
     <http://example/book1> dc:date "1996-01-01T00:00:00-02:00"^^xsd:dateTime .
@@ -1685,7 +1687,10 @@ Subtype name:
 Required parameters:
     None
 Optional parameters:
-    None
+    
+
+`version`
+     If present, acceptable values of `version` are defined in [Version Labels](https://www.w3.org/TR/sparql12-query/#versionLabels) in [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). 
 Encoding considerations:
     The syntax of the SPARQL Update Language is expressed over code points in Unicode [UNICODE]. The encoding is always UTF-8 [RFC3629].
     Unicode code points may also be expressed using an \uXXXX (U+0 to U+FFFF) or \UXXXXXXXX syntax (for U+10000 onwards) where X is a hexadecimal digit [0-9A-F]
@@ -1786,6 +1791,7 @@ TODO
     * TriplesTemplate
     * UsingClause
     * VarOrIri
+    * Version Labels
 
 
 
@@ -1794,7 +1800,7 @@ TODO
 ### F.1 Normative references
 
 [RDF12-CONCEPTS]
-     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
+     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin; Andy Seaborne. W3C. 16 November 2026. CRD. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RDF12-SEMANTICS]
      [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RFC2119]
@@ -1810,9 +1816,9 @@ TODO
 [SPARQL12-GRAPH-STORE-PROTOCOL]
      [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 24 September 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
 [SPARQL12-PROTOCOL]
-     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 16 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 11 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 16 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [UNICODE]
      [The Unicode Standard](https://www.unicode.org/versions/latest/). Unicode Consortium. URL: <https://www.unicode.org/versions/latest/>
 
@@ -1821,19 +1827,19 @@ TODO
 [JSON-LD11]
      [JSON-LD 1.1](https://www.w3.org/TR/json-ld11/). Gregg Kellogg; Pierre-Antoine Champin; Dave Longley. W3C. 16 July 2020. W3C Recommendation. URL: <https://www.w3.org/TR/json-ld11/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [SPARQL12-CONCEPTS]
      [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 16 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
      [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
-     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 18 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 
 ↑
 
@@ -2141,6 +2147,14 @@ TODO
 
   * § 3.1.1 INSERT DATA
   * § 4.2.3 Dataset ( QuadPattern, μ, DS, GS ) (2) (3)
+
+
+
+[Permalink](https://www.w3.org/TR/sparql12-query/#versionLabels)
+
+**Referenced in:**
+
+  * § 7. Internet Media Type and File Extension
 
 
   *[W3C]: World Wide Web Consortium
