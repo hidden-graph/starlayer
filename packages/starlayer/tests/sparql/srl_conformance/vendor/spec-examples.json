@@ -37,11 +37,11 @@
  },
  {
   "block": 26,
-  "text": "RULE  { ?x :distanceKilometers ?kilometers }\nWHERE {\n    ?x :distanceMiles ?miles .\n    NOT DATA { ?x :distanceKilometers ?km }\n    SET ( ?kilometers := xsd:integer(?miles * 1.60934))\n}"
+  "text": "RULE  { ?x :distanceKilometers ?kilometers }\nWHERE {\n    ?x :distanceMiles ?miles .\n    NOT GROUND { ?x :distanceKilometers ?km }\n    SET ( ?kilometers := xsd:integer(?miles * 1.60934))\n}"
  },
  {
   "block": 28,
-  "text": "RULE  { ?x :distanceKilometers ?kilometers }\nWHERE DATA {\n    ?x :distanceMiles ?miles .\n    NOT { ?x :distanceKilometers ?km }\n    SET ( ?kilometers := xsd:integer(?miles * 1.60934))\n}"
+  "text": "RULE  { ?x :distanceKilometers ?kilometers }\nWHERE GROUND {\n    ?x :distanceMiles ?miles .\n    NOT { ?x :distanceKilometers ?km }\n    SET ( ?kilometers := xsd:integer(?miles * 1.60934))\n}"
  },
  {
   "block": 29,

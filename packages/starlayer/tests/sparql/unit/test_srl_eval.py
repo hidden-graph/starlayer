@@ -155,19 +155,19 @@ def test_where_data_matches_only_the_original_base_graph():
     *original* base graph, as `evalRule`'s own `GD` parameter - not the
     algorithm's separate `GD = G0 ∪ D` variable despite the name
     collision, and not the accumulating evaluation graph `GE` either).
-    A `WHERE DATA {...}`-scoped rule can therefore only ever match the
+    A `WHERE GROUND {...}`-scoped rule can therefore only ever match the
     original base graph - not the rule set's own top-level `DATA {}`
     blocks, and not anything any rule (including itself) infers. The
     `DATA {}` block's own triple still appears in the output graph
     (`GI = {t in D | t not in G0}` unconditionally seeds it in) - it's
-    just invisible to `WHERE DATA` rule *matching* specifically.
+    just invisible to `WHERE GROUND` rule *matching* specifically.
     """
     base = Graph()
     base.parse(data=f"@prefix : <{EX}> . :a :seed :b .", format="turtle")
     text = f"""
     PREFIX : <{EX}>
     DATA {{ :b :seed :c . }}
-    RULE {{ ?x :derived ?y }} WHERE DATA {{ ?x :seed ?y . }}
+    RULE {{ ?x :derived ?y }} WHERE GROUND {{ ?x :seed ?y . }}
     """
     ruleset = parse_ruleset(text)
     gi = ruleset.infer(base)
@@ -441,7 +441,7 @@ def test_plan_raises_stratification_error_without_running_anything():
         ruleset.plan()
 
 
-# --- SRL 2026-10-14: base-graph matching (WHERE DATA / NOT DATA) ---------
+# --- SRL 2026-10-14: base-graph matching (WHERE GROUND / NOT GROUND) ---------
 # The spec's Examples 9 and 10 (kilometres from miles), as written. They need
 # xsd:integer() of a decimal, which starlayer.graph's operator patches fix in rdflib.
 
@@ -467,11 +467,11 @@ def _km_triples(graph):
 
 def test_not_data_does_not_count_as_a_dependency_on_the_rules_own_output():
     """Spec Example 9: a default-value rule negates a pattern over the same predicate it
-    produces. ``NOT DATA`` matches only the base graph, so it adds no dependency edge and
+    produces. ``NOT GROUND`` matches only the base graph, so it adds no dependency edge and
     the rule set stratifies (a plain ``NOT`` here is a StratificationError)."""
     ruleset = parse_ruleset(
         f"PREFIX : <{EX}>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
-        "RULE { ?x :km ?k } WHERE { ?x :miles ?m . NOT DATA { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }"
+        "RULE { ?x :km ?k } WHERE { ?x :miles ?m . NOT GROUND { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }"
     )
     assert ruleset.plan().edges == []
     assert _km_triples(ruleset.infer(_default_value_base())) == {
@@ -480,10 +480,10 @@ def test_not_data_does_not_count_as_a_dependency_on_the_rules_own_output():
 
 
 def test_where_data_rule_has_no_dependencies_and_matches_only_the_base_graph():
-    """Spec Example 10: every pattern of a ``WHERE DATA`` rule matches the base graph only."""
+    """Spec Example 10: every pattern of a ``WHERE GROUND`` rule matches the base graph only."""
     ruleset = parse_ruleset(
         f"PREFIX : <{EX}>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
-        "RULE { ?x :km ?k } WHERE DATA { ?x :miles ?m . NOT { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }"
+        "RULE { ?x :km ?k } WHERE GROUND { ?x :miles ?m . NOT { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }"
     )
     assert ruleset.plan().edges == []
     assert _km_triples(ruleset.infer(_default_value_base())) == {("B", 16)}
@@ -500,11 +500,11 @@ def test_plain_not_over_the_rules_own_output_is_still_a_stratification_error():
 
 
 def test_a_positive_pattern_in_a_rule_with_not_data_is_still_a_dependency():
-    """Only the NOT DATA body is exempt; the rest of the rule still depends on what it matches."""
+    """Only the NOT GROUND body is exempt; the rest of the rule still depends on what it matches."""
     ruleset = parse_ruleset(
         f"PREFIX : <{EX}>\n"
         "RULE { ?x :a ?y } WHERE { ?x :base ?y }\n"
-        "RULE { ?x :b ?y } WHERE { ?x :a ?y . NOT DATA { ?x :b ?y } }"
+        "RULE { ?x :b ?y } WHERE { ?x :a ?y . NOT GROUND { ?x :b ?y } }"
     )
     assert {(e.source, e.target, e.label) for e in ruleset.plan().edges} == {
         (1, 0, "open")

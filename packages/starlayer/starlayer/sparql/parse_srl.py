@@ -3,7 +3,7 @@
 SRL (SPARQL Rules) text -> the ``_srl_ast`` tree, on the same tokenizer and productions as
 :mod:`starlayer.sparql.parse_sparql`. SRL reuses SPARQL's triple syntax (``TriplesSameSubject`` with every RDF 1.2
 addition), ``Constraint`` and ``Expression``, so :class:`_SrlParser` subclasses the query parser and adds only what is
-new in the SRL grammar (``RULE``, ``DATA``, ``WHERE [DATA]``, ``NOT [DATA]``, ``SET(?v := expr)``, ``GROUP [BY] { } [ ... ]``, ``IMPORTS``).
+new in the SRL grammar (``RULE``, ``DATA``, ``WHERE [GROUND]``, ``NOT [GROUND]``, ``SET(?v := expr)``, ``GROUP [BY] { } [ ... ]``, ``IMPORTS``).
 
 ``parse_srl(text, base)`` returns a ``RuleSet`` of pyoxigraph terms whose expressions are the parser's own ``Node`` trees,
 the form the SRL evaluator and the ``srl:`` tree encoder consume.
@@ -134,9 +134,15 @@ class _SrlParser(_Parser):
         self.expect_kw("FILTER")
         return srl_ast._FilterElement(expr=_convert(self.constraint()))
 
+    def _ground(self) -> bool:
+        """``GROUND`` after ``WHERE`` or ``NOT``: match the base graph only. The draft called it ``DATA`` until 2026-11-19."""
+        if self.at_kw("DATA"):
+            self.err("'DATA' after WHERE or NOT is now 'GROUND' (SPARQL-RL draft of 2026-11-19); a 'DATA { }' block is unchanged")
+        return self.accept_kw("GROUND")
+
     def _negation(self) -> srl_ast._NegationElement:
         self.expect_kw("NOT")
-        data = self.accept_kw("DATA")
+        ground = self._ground()
         self.expect_p("{")
         inner: list = []
         pending: list[Node] = []
@@ -152,7 +158,7 @@ class _SrlParser(_Parser):
                 self._group(pending, True)
         inner.extend(_triples(pending))
         self.expect_p("}")
-        return srl_ast._NegationElement(inner=inner, evaldata=not data)
+        return srl_ast._NegationElement(inner=inner, evaldata=not ground)
 
     def _assign_op(self) -> None:
         """``:=``, one token in the grammar: nothing (whitespace, a comment) between the ':' and the '='."""
@@ -258,9 +264,9 @@ class _SrlParser(_Parser):
         rule_id = self.iri() if self.at_iri() else None
         head = _triples(self._block(False))
         self.expect_kw("WHERE")
-        data = self.accept_kw("DATA")
+        ground = self._ground()
         body = self._body()
-        return srl_ast._Rule(head=head, body=body, evaldata=not data, id=rule_id)
+        return srl_ast._Rule(head=head, body=body, evaldata=not ground, id=rule_id)
 
     def parse_ruleset(self) -> srl_ast.RuleSet:
         imports: list[ox.NamedNode] = []

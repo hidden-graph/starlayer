@@ -16,12 +16,15 @@ bound variable" condition parses *and evaluates* with zero error, just
 silently rebinding the variable to the wrong value.
 
 Implements the spec's own formalism directly and verbatim (not an
-approximation): for a sequence of rule elements given an initial variable
-set V0, ``Vi`` is V0 plus every variable contributed by elements before
-position i, and ``Vall`` is V0 plus every variable contributed by the whole
-sequence. A rule is well-formed iff its body is a well-formed sequence
-(V0 = empty set) and every variable in a head triple template is in the
-body's own ``Vall``. See each check function's docstring for the exact
+approximation): for a sequence of rule elements given initial variables V0
+and initial in-use variables U0, ``inScope`` is V0 plus every variable
+contributed by the elements before position i, and ``inUse`` is U0 plus the
+variables used inside a negation or group pattern that are not in scope
+outside it (a name in use may not be set again, which is the rule that
+variable names are not reused in a rule; SPARQL-RL draft of 2026-11-10). A
+rule is well-formed iff its body is a well-formed sequence (V0 and U0 empty)
+and every variable in a head triple template is in the body's final
+``inScope``. See each check function's docstring for the exact
 per-element-kind condition it enforces.
 """
 
@@ -45,7 +48,7 @@ class _SRLWellFormednessIssue:
     kind: str  # "unbound_filter_variable" | "unbound_assignment_expr_variable"
     # | "reused_assignment_variable" | "unbound_head_variable" | "aggregate_in_expression"
     # | "triple_term_in_subject" | "triple_term_in_predicate" | "variable_in_data" | "unsupported_variable_name"
-    # | "group_key_unbound" | "aggregation_variable_in_scope" | "duplicate_aggregation_variable" | "unbound_aggregation_argument"
+    # | "variable_in_use" | "group_key_unbound" | "aggregation_variable_in_scope" | "duplicate_aggregation_variable" | "unbound_aggregation_argument"
     variable: Variable | None  # None when the issue is not about one variable
     context: str
 
@@ -82,87 +85,91 @@ def _has_aggregate(expr) -> bool:
 def _check_sequence(
     elements: list[srl_ast.BodyElement],
     v0: set[Variable],
+    u0: set[Variable],
     rule: srl_ast._Rule,
     issues: list[_SRLWellFormednessIssue],
-) -> set[Variable]:
-    """Checks ``elements`` as a well-formed sequence given initial variables
-    ``v0``, per the spec's own §4.2 definition.
+) -> tuple[set[Variable], set[Variable]]:
+    """Checks ``elements`` as a well-formed sequence given initial variables ``v0`` and initial in-use variables ``u0``, per the
+    spec's own §4.2 definition (``inScope`` and ``inUse``).
+
+    A variable is *in scope* when it has a value at that point; it is *in use* when the rule has used it where its value is not
+    visible (inside a negation or a group pattern, or a variable that was in scope before a group and is not one of its keys).
+    A name that is in use may not be set again, by a later element or inside a negation or group.
 
     Args:
         elements: The body elements to check, in sequence order.
-        v0: The variables bound before ``elements`` begins.
+        v0: The variables in scope before ``elements`` begins.
+        u0: The variables already in use before ``elements`` begins.
         rule: The enclosing rule, attached to any issue found.
         issues: Violations found are appended here.
 
     Returns:
-        ``Vall`` - ``v0`` plus every variable contributed by the whole
-        sequence.
+        ``(inScope, inUse)`` after the whole sequence.
     """
-    v_current = set(v0)
+    scope = set(v0)
+    use = set(u0)
     for elt in elements:
         if isinstance(elt, srl_ast.TriplePattern):
-            # varsi = variables occurring in the triple pattern element.
-            v_current |= _triple_vars(elt)
+            variables = _triple_vars(elt)
+            for v in sorted(variables & use, key=lambda x: x.value):
+                issues.append(_SRLWellFormednessIssue(rule, "variable_in_use", v, "triple pattern"))
+            scope |= variables
         elif isinstance(elt, srl_ast._FilterElement):
-            # "every variable mentioned in a filter element is an element
-            # of Vi-1" - checked against v_current *before* this element's
-            # own (empty) varsi contribution.
-            for v in _expr_vars(elt.expr) - v_current:
+            for v in _expr_vars(elt.expr) - scope:
                 issues.append(_SRLWellFormednessIssue(rule, "unbound_filter_variable", v, "FILTER"))
             if _has_aggregate(elt.expr):
                 issues.append(_SRLWellFormednessIssue(rule, "aggregate_in_expression", None, "FILTER"))
-            # varsi = {} for a filter element - v_current unchanged.
         elif isinstance(elt, srl_ast._AssignmentElement):
-            for v in _expr_vars(elt.expr) - v_current:
+            for v in _expr_vars(elt.expr) - scope:
                 issues.append(_SRLWellFormednessIssue(rule, "unbound_assignment_expr_variable", v, "SET(...)"))
             if _has_aggregate(elt.expr):
                 issues.append(_SRLWellFormednessIssue(rule, "aggregate_in_expression", None, "SET(...)"))
-            if elt.var in v_current:
+            if elt.var in scope or elt.var in use:
                 issues.append(_SRLWellFormednessIssue(rule, "reused_assignment_variable", elt.var, "SET(...)"))
-            # varsi = {the assignment variable}, regardless of whether the
-            # reuse condition above was violated - the spec still counts it
-            # as bound going forward (matches evalRuleElements' own
-            # behaviour: a successful assignment always extends mu).
-            v_current = v_current | {elt.var}
+            scope = scope | {elt.var}
         elif isinstance(elt, srl_ast._NegationElement):
-            # "the sequence of rule elements in the negation element body
-            # is a well-formed sequence given the set of variables Vi-1."
-            _check_sequence(elt.inner, v_current, rule, issues)
-            # varsi = {} for a negation element - v_current unchanged (a
-            # variable first bound only inside a negation is NOT visible
-            # afterwards, matching ordinary SPARQL NOT EXISTS/MINUS scoping).
+            # The body is a well-formed sequence given the variables in scope and in use here. What it binds is not in scope
+            # afterwards, but it is in use: no later element may set it.
+            inner_scope, inner_use = _check_sequence(elt.inner, scope, use, rule, issues)
+            use = use | ((inner_scope | inner_use) - scope)
         elif isinstance(elt, srl_ast._GroupElement):
-            v_current = _check_group(elt, v_current, rule, issues)
+            scope, use = _check_group(elt, scope, use, rule, issues)
         else:  # pragma: no cover - srl_ast.BodyElement is exhaustive
             raise TypeError(f"unrecognized rule body element: {elt!r}")
-    return v_current
+    return scope, use
 
 
 def _check_group(
-    group: srl_ast._GroupElement, v_in: set[Variable], rule: srl_ast._Rule, issues: list[_SRLWellFormednessIssue]
-) -> set[Variable]:
-    """§4.2 for a group element ``GRP``, with ``V_in`` the variables before it and ``GK_in = GRP.keys ∩ V_in``: the group pattern
-    is a well-formed sequence given ``GK_in`` (so it sees only the keys that are already bound, not the other variables); every
-    group key is in ``vars(GRP.pattern, GK_in)``; no aggregation variable is in ``vars(GRP.pattern, GK_in) ∪ V_in`` and none is
-    repeated; an aggregation argument that is a variable is in ``vars(GRP.pattern, GK_in)``.
+    group: srl_ast._GroupElement,
+    v_in: set[Variable],
+    u_in: set[Variable],
+    rule: srl_ast._Rule,
+    issues: list[_SRLWellFormednessIssue],
+) -> tuple[set[Variable], set[Variable]]:
+    """§4.2 for a group element ``GRP``, with ``V_in`` and ``U_in`` the variables in scope and in use before it. The group pattern
+    sees only the keys that are already bound (``GK_in = GRP.keys ∩ V_in``); the other variables in scope before the group are in
+    use inside it (``GU_in = U_in ∪ (V_in − GRP.keys)``), so the pattern may not reuse them. It is a well-formed sequence given
+    those; every group key is in scope after it; no aggregation variable is in ``V_in ∪ U_in`` or in scope or in use in the
+    pattern and none is repeated; an aggregation argument that is a variable is in scope in the pattern.
 
-    Returns the variables in scope after the group: ``V_in ∪ GRP.keys ∪ aggVars`` (what the pattern binds beyond the keys is not
-    in scope after it)."""
+    Returns the variables in scope and in use after the group: scope is ``V_in ∪ GRP.keys ∪ aggVars`` (what the pattern binds
+    beyond the keys is not in scope after it, but it is in use)."""
     keys = set(group.keys)
-    pattern_vars = _check_sequence(group.pattern, keys & v_in, rule, issues)
+    pattern_scope, pattern_use = _check_sequence(group.pattern, keys & v_in, u_in | (v_in - keys), rule, issues)
     for key in group.keys:
-        if key not in pattern_vars:
+        if key not in pattern_scope:
             issues.append(_SRLWellFormednessIssue(rule, "group_key_unbound", key, "GROUP BY"))
     seen: set[Variable] = set()
     for agg in group.aggregations:
-        if agg.var in pattern_vars or agg.var in v_in:
+        if agg.var in pattern_scope or agg.var in pattern_use or agg.var in v_in or agg.var in u_in:
             issues.append(_SRLWellFormednessIssue(rule, "aggregation_variable_in_scope", agg.var, "GROUP aggregation"))
         if agg.var in seen:
             issues.append(_SRLWellFormednessIssue(rule, "duplicate_aggregation_variable", agg.var, "GROUP aggregation"))
         seen.add(agg.var)
-        if agg.argument is not None and agg.argument not in pattern_vars:
+        if agg.argument is not None and agg.argument not in pattern_scope:
             issues.append(_SRLWellFormednessIssue(rule, "unbound_aggregation_argument", agg.argument, "GROUP aggregation"))
-    return v_in | keys | {agg.var for agg in group.aggregations}
+    scope = v_in | keys | {agg.var for agg in group.aggregations}
+    return scope, u_in | ((pattern_scope | pattern_use) - scope)
 
 
 def _triples_of(rule: srl_ast._Rule) -> list[srl_ast.TriplePattern]:
@@ -247,7 +254,7 @@ def _check_rule(rule: srl_ast._Rule) -> list[_SRLWellFormednessIssue]:
     issues: list[_SRLWellFormednessIssue] = []
     _check_triple_term_positions(rule, _triples_of(rule), issues)
     _check_variable_names(rule, issues)
-    v_all = _check_sequence(rule.body, set(), rule, issues)
+    v_all, _ = _check_sequence(rule.body, set(), set(), rule, issues)
     for template in rule.head:
         for v in _triple_vars(template):
             if v not in v_all:

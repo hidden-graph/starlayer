@@ -3,10 +3,10 @@
 The oracle below is deliberately small and shares no code with the implementation: plain Python sets of
 ``(s, p, o)`` tuples, its own matcher and its own tiny expression evaluator. It follows the draft's section 6.4
 (``evalRuleElements`` / ``evalRule``) and 6.5 (stratum-by-stratum evaluation to a fixpoint, ``GI``/``GE``/``G0``,
-``WHERE DATA`` and ``NOT DATA`` matching only the base graph) line by line.
+``WHERE GROUND`` and ``NOT GROUND`` matching only the base graph) line by line.
 
 Scope, chosen so the oracle stays simple and obviously right: positive and negated triple patterns, FILTER and
-SET over integers, ``DATA`` blocks, ``WHERE DATA`` / ``NOT DATA``, recursion (including mutual) and
+SET over integers, ``DATA`` blocks, ``WHERE GROUND`` / ``NOT GROUND``, recursion (including mutual) and
 stratified negation. Not covered: blank nodes in heads (run-once rules), triple terms, aggregation (undecided in
 the draft), imports.
 
@@ -183,7 +183,7 @@ def test_oracle_reproduces_the_drafts_worked_example():
 
 
 def test_oracle_where_data_matches_only_the_base_graph():
-    """Section 6.5 passes G0, not the growing evaluation graph, for WHERE DATA / NOT DATA."""
+    """Section 6.5 passes G0, not the growing evaluation graph, for WHERE GROUND / NOT GROUND."""
     base = {("a", "q", "b")}
     derive = ([_tp("?x", "r", "?y")], [("tp", _tp("?x", "q", "?y"))], True)
     # only matches the base graph, so it must NOT see the triple derived by `derive`
@@ -196,7 +196,7 @@ def test_oracle_where_data_matches_only_the_base_graph():
 # ---------------------------------------------------------------------------------------------------------
 # A mutation check of this file found that the random test alone never notices a missing fixpoint (random rule
 # sets almost never contain a recursive join that needs several passes) and needs many examples to notice
-# WHERE DATA / NOT DATA mistakes. These cases pin each semantic point with an answer worked out on paper.
+# WHERE GROUND / NOT GROUND mistakes. These cases pin each semantic point with an answer worked out on paper.
 
 def _run(rule_list, base, data=()):
     """(oracle result, implementation result) for rules given as Rule objects (one stratum per head predicate)."""
@@ -225,7 +225,7 @@ def test_recursion_runs_to_a_fixpoint():
 
 
 def test_where_data_sees_only_the_base_graph():
-    """Draft 6.5 passes G0 for WHERE DATA, so a rule that matches a *derived* predicate with it finds nothing."""
+    """Draft 6.5 passes G0 for WHERE GROUND, so a rule that matches a *derived* predicate with it finds nothing."""
     base = {("a", "b0", "b")}
     derive = _rule("p0", ("x", "y"), [("tp", _tp("?x", "b0", "?y"))])
     from_data = _rule("p1", ("x", "y"), [("tp", _tp("?x", "p0", "?y"))], evaldata=False)
@@ -234,7 +234,7 @@ def test_where_data_sees_only_the_base_graph():
 
 
 def test_not_succeeds_or_fails_depending_on_the_graph_it_looks_at():
-    """NOT is evaluated after p0 is derived (stratification), so it fails; NOT DATA looks at the base graph,
+    """NOT is evaluated after p0 is derived (stratification), so it fails; NOT GROUND looks at the base graph,
     which has no p0, so it succeeds."""
     base = {("a", "b0", "b")}
     derive = _rule("p0", ("x", "y"), [("tp", _tp("?x", "b0", "?y"))])
@@ -292,10 +292,10 @@ class Rule:
             if el[0] == "set":
                 return f"SET (?{el[1]} := {expr(el[2])})"
             inner = " ".join(element(i) for i in el[1])
-            return f"NOT {'' if el[2] else 'DATA '}{{ {inner} }}"
+            return f"NOT {'' if el[2] else 'GROUND '}{{ {inner} }}"
 
         head = f"?{self.head[0]} :{self.head_pred} ?{self.head[1]} ."
-        return f"RULE {{ {head} }} WHERE {'' if self.evaldata else 'DATA '}{{ {' '.join(element(e) for e in self.body)} }}"
+        return f"RULE {{ {head} }} WHERE {'' if self.evaldata else 'GROUND '}{{ {' '.join(element(e) for e in self.body)} }}"
 
     def oracle(self):
         head = [(("v", self.head[0]), ("c", self.head_pred), ("v", self.head[1]))]

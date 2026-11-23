@@ -26,8 +26,8 @@ RULE_SETS = {
     "RULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c . FILTER(?a != ?c) }",
     "negation of a lower stratum": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }\n"
     "RULE { ?a :lonely :yes } WHERE { ?a :edge ?x . NOT { ?a :reach ?a } }",
-    "a rule that reads the base graph only (WHERE DATA)": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\n"
-    "RULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }\nRULE { ?a :seen :base } WHERE DATA { ?a :edge ?b }",
+    "a rule that reads the base graph only (WHERE GROUND)": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\n"
+    "RULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }\nRULE { ?a :seen :base } WHERE GROUND { ?a :edge ?b }",
     "a closure with the edge on the right": "RULE { ?a :reach ?b } WHERE { ?a :edge ?b }\nRULE { ?a :reach ?c } WHERE { ?a :reach ?b . ?b :edge ?c }",
     "a closure with the patterns the other way round": "RULE { ?a :reach ?c } WHERE { ?b :edge ?c . ?a :reach ?b }\nRULE { ?a :reach ?b } WHERE { ?a :edge ?b }",
     "a closure fed by a rule of its own stratum": "RULE { ?a :r ?b } WHERE { ?a :edge ?b }\nRULE { ?b :r ?a } WHERE { ?a :edge ?b . ?b :edge ?c }\n"
@@ -166,8 +166,8 @@ def test_which_rules_the_store_takes():
     # an element that reads a variable a later pattern binds: in order it sees it unbound, in a SPARQL group it would see the value
     assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . ?a :r ?b . FILTER(?x != ?b) }", filter_first=True) is None
     assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . ?a :s ?b . NOT { ?a :r ?b } }", filter_first=True) is None
-    assert _plan("RULE { ?a :q ?b } WHERE DATA { ?a :p ?b }") is None
-    assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?b . NOT DATA { ?a :r ?b } }") is None
+    assert _plan("RULE { ?a :q ?b } WHERE GROUND { ?a :p ?b }") is None
+    assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?b . NOT GROUND { ?a :r ?b } }") is None
     assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . SET (?b := ?x + 1) }") is not None
     assert _plan("RULE { ?a :q [] } WHERE { ?a :p ?b }") is not None
     assert _plan("RULE { ?a :q ?b } WHERE { ?a :p ?x . SET (?b := BNODE(STR(?x))) }") is None  # a node of its own on each call
@@ -257,7 +257,7 @@ def test_the_closures_oxigraph_computes_by_itself(rules, path):
         "RULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c }\nRULE { ?a :p ?c } WHERE { ?a :p ?b . ?b :q ?c }",  # p grows with q
         "RULE { ?a :q ?c } WHERE { ?a :q ?b . ?b :p ?c }\nRULE { ?a :s ?c } WHERE { ?a :s ?b . ?b :s ?c }",  # a second repeating rule
         "RULE { ?a :q ?c . ?a :t ?c } WHERE { ?a :q ?b . ?b :p ?c }",  # two head triples
-        "RULE { ?a :q ?c } WHERE DATA { ?a :q ?b . ?b :p ?c }",  # reads the base graph only
+        "RULE { ?a :q ?c } WHERE GROUND { ?a :q ?b . ?b :p ?c }",  # reads the base graph only
     ],
 )
 def test_the_rules_that_are_not_such_closures(rules):

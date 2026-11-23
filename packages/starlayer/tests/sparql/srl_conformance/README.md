@@ -98,20 +98,20 @@ the rule, body and head structure; the **expression subtrees are barely constrai
 `test_sr_evaluator.py` contains an evaluator that shares no code with the implementation (plain Python sets, its
 own matcher and expression evaluator), following the draft's section 6.4 `evalRuleElements` / `evalRule` and
 6.5 stratum-by-stratum evaluation line by line. Scope: positive and negated triple patterns, `FILTER` and `SET`
-over integers, `DATA` blocks, `WHERE DATA` / `NOT DATA`, recursion and stratified negation. Out of scope:
+over integers, `DATA` blocks, `WHERE GROUND` / `NOT GROUND`, recursion and stratified negation. Out of scope:
 blank nodes in heads (run-once rules), triple terms, aggregation (undecided in the draft), imports.
 
 The oracle is grounded without the implementation: it reproduces the draft's worked example (section 6.6) and the
-`G0`-only rule for `WHERE DATA`. Against `RuleSet.infer()`: **no disagreement in 3,000 unseeded generated cases**
-(recursive chains, mutual recursion, negation, `NOT DATA`, `SET`, `DATA` blocks), nor in four hand-derived known
-answers (transitive closure, `WHERE DATA`, `NOT` against `NOT DATA`, `DATA` blocks). So the stratifier and
+`G0`-only rule for `WHERE GROUND`. Against `RuleSet.infer()`: **no disagreement in 3,000 unseeded generated cases**
+(recursive chains, mutual recursion, negation, `NOT GROUND`, `SET`, `DATA` blocks), nor in four hand-derived known
+answers (transitive closure, `WHERE GROUND`, `NOT` against `NOT GROUND`, `DATA` blocks). So the stratifier and
 evaluator are consistent with the draft's pseudocode on this subset.
 
 **How much does a passing comparison prove?** I checked, by deliberately breaking the oracle five ways (`WHERE
-DATA` matching the evaluation graph; `NOT DATA` ignored; no fixpoint within a stratum; errors keeping the
+DATA` matching the evaluation graph; `NOT GROUND` ignored; no fixpoint within a stratum; errors keeping the
 solution; `DATA` not added to the evaluation graph). The first version of the generated test caught only one:
 random rule sets almost never contain a recursive join needing several passes, and 60 examples rarely hit
-`WHERE DATA`. Fixes: a generator that builds recursive chains, and the deterministic known-answer tests. All
+`WHERE GROUND`. Fixes: a generator that builds recursive chains, and the deterministic known-answer tests. All
 five mutations are now caught. Lesson recorded for the other suites: a generated comparison should be
 mutation-tested before it is trusted.
 

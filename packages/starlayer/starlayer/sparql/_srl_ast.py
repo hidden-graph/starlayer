@@ -181,9 +181,9 @@ NegationBodyElement = TriplePattern | _FilterElement
 
 @dataclass(frozen=True)
 class _NegationElement:
-    """§4.1 "Negation element" - ``NOT DATA? { ... }``. ``evaldata`` is the
+    """§4.1 "Negation element" - ``NOT GROUND? { ... }``. ``evaldata`` is the
     spec's own flag (``negation.evaldata``): true (a plain ``NOT { }``) matches
-    the negated pattern against the evaluation graph, false (``NOT DATA { }``)
+    the negated pattern against the evaluation graph, false (``NOT GROUND { }``)
     against the base graph only, per §6.4's ``evalRuleElements`` pseudocode
     (``if N.evaldata: ... G, GD else ... GD, GD``).
 
@@ -193,7 +193,7 @@ class _NegationElement:
         inner: The negated body elements (triple patterns and filters only
             - see ``NegationBodyElement``).
         evaldata: True to match ``inner`` against the evaluation graph (a
-            plain ``NOT``); False to match only the base graph (``NOT DATA``).
+            plain ``NOT``); False to match only the base graph (``NOT GROUND``).
     """
 
     inner: list[NegationBodyElement] = field(default_factory=list)
@@ -256,7 +256,7 @@ class _Rule:
     """§4.1 "Rule" - ``head`` + ``body``, optional ``id`` (an IRI naming the
     rule), and ``evaldata`` (the spec's own ``rule.evaldata``: true matches the
     body's triple patterns against the evaluation graph; false matches the base
-    graph only - the grammar's ``WHERE DATA { ... }``).
+    graph only - the grammar's ``WHERE GROUND { ... }``).
 
     Private: the test applied project-wide to every SRL AST type is
     whether any public function or method signature requires this type

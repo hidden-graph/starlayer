@@ -155,7 +155,7 @@ _TRIPLES = SRL["triples"]
 # negation.evaldata), and "data" for a third (ruleset.data) - each gets its own
 # predicate URI to avoid a same-URI-different-shape collision within one shared
 # graph. The flag is the spec's own: true = match the evaluation graph (plain
-# WHERE / NOT), false = match the base graph only (WHERE DATA / NOT DATA).
+# WHERE / NOT), false = match the base graph only (WHERE GROUND / NOT GROUND).
 _RULE_EVALDATA_FLAG = SRL["ruleEvaldata"]
 _RULE_ID = SRL["id"]
 _EXPR = SRL["expr"]
@@ -633,8 +633,8 @@ def _body_element_text(element: srl_ast.BodyElement, prefixes: dict) -> str:
         return f"SET ({_term_text(element.var, prefixes)} := {_expr_text(element.expr, prefixes)})"
     if isinstance(element, srl_ast._NegationElement):
         inner = " ".join(_body_element_text(e, prefixes) for e in element.inner)
-        data = "" if element.evaldata else "DATA "
-        return f"NOT {data}{{ {inner} }}"
+        ground = "" if element.evaldata else "GROUND "
+        return f"NOT {ground}{{ {inner} }}"
     if isinstance(element, srl_ast._GroupElement):
         keys = "BY " + " ".join(_term_text(k, prefixes) for k in element.keys) + " " if element.keys else ""
         inner = " ".join(_body_element_text(e, prefixes) for e in element.pattern)
@@ -657,8 +657,8 @@ def _rule_text(rule: srl_ast._Rule, prefixes: dict) -> str:
     rule_id = f"{_term_text(rule.id, prefixes)} " if rule.id is not None else ""
     head = _block_text(rule.head, prefixes)
     body = " ".join(_body_element_text(e, prefixes) for e in rule.body)
-    data = "" if rule.evaldata else "DATA "
-    return f"RULE {rule_id}{{ {head} }} WHERE {data}{{ {body} }}"
+    ground = "" if rule.evaldata else "GROUND "
+    return f"RULE {rule_id}{{ {head} }} WHERE {ground}{{ {body} }}"
 
 
 # ---------------------------------------------------------------------------
