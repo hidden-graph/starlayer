@@ -28,9 +28,10 @@ from it). Never edit it; additions go in their own file. It replaces the SHACL 1
 `sh:ShapesGraph`, `sh:RulesGraph`, the node-expression classes and others.
 
 - Source: https://github.com/w3c/data-shapes/blob/gh-pages/shacl12-vocabularies/shacl.ttl
-- Upstream commit this copy matches: `9d7caf1` (2026-11-11, "Role class defs (#1414)", the latest commit that touches the file)
-- Fetched: 2026-11-11
-- SHA-256 of the file: `63e0f9d813350bd9a15c1d153984fe34dfdbc657adceba3a49e56790f43978ce`
+- Upstream commit this copy matches: `4c9f7dd` (2026-11-18, "changing to shui:parentGroup", the latest commit that touches the file; checked against the branch tip `1ca8692` of 2026-11-23)
+- Fetched: 2026-11-23
+- SHA-256 of the file: `45b228e937a776b0debd5525e96bf588fdcde38dd9054fec77d6dc0b15611654`
+- Since the 2026-11-11 copy: `sh:IRIExpression`, `sh:LiteralExpression` and `sh:TripleTermExpression` (node expression function names), `sh:values` (domain `sh:PropertyShape`), and the domain of two report properties is `sh:ValidationActivity` (was `sh:ValidationReport`).
 - Since the 2026-10-14 copy: `sh:dataGraph` (domain `sh:ShapesGraph`, range `sh:DataGraph`) and the role-class wording ("graphs acting in the role of").
 - Headed "THIS VERSION IS UNDER DEVELOPMENT"; it is moving.
 
@@ -42,6 +43,7 @@ matchers and scores, property roles, `shui:suggestedValues`). It is a base of th
 next to `w3c-shacl.ttl`. Never edit it. The namespace is `http://www.w3.org/ns/shacl-ui/` (slash), as in the published SHACL UI draft.
 
 - Source: https://github.com/w3c/data-shapes/blob/gh-pages/shacl12-vocabularies/shacl-ui.ttl
-- Upstream commit this copy matches: `40231df` (2026-11-06, "[UI] initial text for shui:suggestedValues (#1338)", the latest commit that touches the file)
-- Fetched: 2026-11-11
-- SHA-256 of the file: `986903f9332547569cc1ebb09fbefef55e92c7f89909f46faf31e8649517fa29`
+- Upstream commit this copy matches: `4c9f7dd` (2026-11-18, "changing to shui:parentGroup", the latest commit that touches the file; checked against the branch tip `1ca8692` of 2026-11-23)
+- Fetched: 2026-11-23
+- SHA-256 of the file: `dae2e8876027344ae7d2faa68c7e02bb4871a70525d40702b61bbd2923bb908a`
+- Since the 2026-11-11 copy: `shui:parentGroup` (a property group nested in another).
