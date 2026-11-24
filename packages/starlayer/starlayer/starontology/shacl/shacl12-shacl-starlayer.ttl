@@ -1,5 +1,5 @@
 # The StarLayer layer on top of shacl_shacl (private: not in the starontology registry, loaded by starontology._load_private): meta-shapes that call StarLayer's own SPARQL extension
-# functions (stsh:regexProblem, stsh:sparqlProblem; starlayer/shacl/engine/builtin_functions.py). Hand-edited.
+# functions (stsh:regexProblem, stsh:sparqlProblem, stsh:timeZoneProblem; starlayer/shacl/engine/builtin_functions.py). Hand-edited.
 #
 # LAYERING. shacl_shacl uses standard SHACL and standard SPARQL only, so any SHACL 1.2 processor can load it and run it on a shapes graph. These two checks
 # are about the text of a literal, which standard SPARQL cannot judge (SPARQL's REGEX and the XPath expressions of SHACL disagree on valid patterns; the
@@ -17,8 +17,9 @@
 @prefix owl:  <http://www.w3.org/2002/07/owl#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix shui: <http://www.w3.org/ns/shacl-ui/> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
-@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix xsd:<http://www.w3.org/2001/XMLSchema#> .
 
 # The prefixes the two queries below use (sh:prefixes), declared the way SHACL asks, never by the file's @prefix lines.
 stsh:StarLayerMetaShapesPrefixes a owl:Ontology ;
@@ -109,6 +110,26 @@ stsh:SPARQLQueryTextShape a sh:NodeShape ;
                     GROUP BY $this ?value ?path
                 }
                 FILTER BOUND(?message)
+            }
+        """ ;
+    ] .
+
+# A shui:timeZone the platform's time-zone database does not know (SHACL UI 3.4: it SHOULD be an IANA identifier, so a Warning). The identifier's form is checked by
+# stsh:ConfigurationShape in shacl_shacl_ui; this one asks the machine, and says nothing on a machine that has no database.
+stsh:TimeZoneShape a sh:NodeShape ;
+    rdfs:label "A shui:timeZone is a time zone the platform's database knows"@en ;
+    sh:targetSubjectsOf shui:timeZone ;
+    sh:severity sh:Warning ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:prefixes stsh:StarLayerMetaShapesPrefixes ;
+        sh:select """
+            SELECT $this ?value ?path ?message
+            WHERE {
+                $this shui:timeZone ?value .
+                BIND (shui:timeZone AS ?path)
+                BIND (stsh:timeZoneProblem(?value) AS ?message)
+                FILTER (BOUND(?message))
             }
         """ ;
     ] .

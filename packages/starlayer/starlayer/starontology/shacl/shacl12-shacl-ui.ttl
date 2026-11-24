@@ -36,56 +36,61 @@ sh:disjoint stsh:nodePrimary false .
 sh:equals stsh:nodePrimary false .
 sh:hasValue stsh:nodePrimary false .
 sh:in stsh:nodePrimary false .
-stsh:DataGraphLinksShape sh:property _:c7981c4346b57e8e0bbed286aee3025 .
-_:c7981c4346b57e8e0bbed286aee3025 sh:nodeKind sh:IRI ;
+stsh:DataGraphLinksShape sh:property _:c3e7150d0d5f88d84b2c70afc47a79eb .
+_:c3e7150d0d5f88d84b2c70afc47a79eb sh:nodeKind sh:IRI ;
 	sh:path sh:conformsToShapesGraph .
-stsh:DataGraphLinksShape sh:property _:d7ad5ce9ddd3d64fc8c6bd2c2dee54d1 .
-_:d7ad5ce9ddd3d64fc8c6bd2c2dee54d1 sh:nodeKind sh:IRI ;
+stsh:DataGraphLinksShape sh:property _:a36f378bb995ee8139768376e5217b7e .
+_:a36f378bb995ee8139768376e5217b7e sh:nodeKind sh:IRI ;
 	sh:path sh:suggestedShapesGraph .
-stsh:DataGraphLinksShape sh:property _:f2ade61511cf5801ae42ade2e8c2e7c8 .
-_:f2ade61511cf5801ae42ade2e8c2e7c8 sh:nodeKind sh:IRI ;
+stsh:DataGraphLinksShape sh:property _:fd95cbaf42314245d98cd09e703dbc57 .
+_:fd95cbaf42314245d98cd09e703dbc57 sh:nodeKind sh:IRI ;
 	sh:path sh:shapesGraph .
 stsh:DataGraphLinksShape sh:targetSubjectsOf sh:conformsToShapesGraph , sh:suggestedShapesGraph , sh:shapesGraph ;
 	rdfs:label "Well-formedness rules for the shapes graphs a data graph names"@en ;
 	a sh:NodeShape .
-stsh:ConfigurationShape sh:property _:a2371d6ceeb2c62022d0a0e9f2dbc53 .
-_:fdb9e3aba39b5e22be543f6eb5e79dd5 rdf:rest rdf:nil ;
-	rdf:first _:bd01797ac8548eb219423603e65ed32 .
-_:bd01797ac8548eb219423603e65ed32 sh:datatype xsd:integer .
-_:c4e2774135b011eb91dbfb569f9720ba rdf:rest _:fdb9e3aba39b5e22be543f6eb5e79dd5 ;
-	rdf:first _:a050f3a4407a12c78fb20fe1a64f1b96 .
-_:a050f3a4407a12c78fb20fe1a64f1b96 sh:datatype xsd:decimal .
-_:a2371d6ceeb2c62022d0a0e9f2dbc53 sh:or _:c4e2774135b011eb91dbfb569f9720ba ;
+stsh:ConfigurationShape sh:property _:f967f864d561389a03bcb3da542a5412 .
+_:f9e33928c5ca6dcebf019bbba5ec91da rdf:rest rdf:nil ;
+	rdf:first _:c1c76f1e8680f4c2991a5828f1c9300e .
+_:c1c76f1e8680f4c2991a5828f1c9300e sh:datatype xsd:integer .
+_:fe4c1a15376bc44674e17e53f6879d19 rdf:rest _:f9e33928c5ca6dcebf019bbba5ec91da ;
+	rdf:first _:f0c5c79cd7c328a02fe86261f6230954 .
+_:f0c5c79cd7c328a02fe86261f6230954 sh:datatype xsd:decimal .
+_:f967f864d561389a03bcb3da542a5412 sh:or _:fe4c1a15376bc44674e17e53f6879d19 ;
 	sh:maxCount 1 ;
 	sh:path shui:defaultWidgetScore .
-stsh:ConfigurationShape sh:property _:a5de21f42b6fcedde6f92ec36a1c05b6 .
-_:ac24df666c0d42482f25a0a1da97dd2d rdf:rest rdf:nil ;
-	rdf:first _:a4d97d7da6d96d057a4ca24916710f66 .
-_:a4d97d7da6d96d057a4ca24916710f66 sh:datatype xsd:integer .
-_:a7d612e27eb38afe61572d91d42649fb rdf:rest _:ac24df666c0d42482f25a0a1da97dd2d ;
-	rdf:first _:c3507d35f16885347b289fb7490d3826 .
-_:c3507d35f16885347b289fb7490d3826 sh:datatype xsd:decimal .
-_:a5de21f42b6fcedde6f92ec36a1c05b6 sh:or _:a7d612e27eb38afe61572d91d42649fb ;
+stsh:ConfigurationShape sh:property _:e1c017e8b541f516cc2137e0c6575ec5 .
+_:bff6c58ea4586d6cc02b082db412abc9 rdf:rest rdf:nil ;
+	rdf:first _:d674ae3cb18c8721287294ddc93e06ca .
+_:d674ae3cb18c8721287294ddc93e06ca sh:datatype xsd:integer .
+_:b2fc93f0d8e7574d5cc779f8aca6522d rdf:rest _:bff6c58ea4586d6cc02b082db412abc9 ;
+	rdf:first _:d0dafb27b860b01768a4bf33db519a44 .
+_:d0dafb27b860b01768a4bf33db519a44 sh:datatype xsd:decimal .
+_:e1c017e8b541f516cc2137e0c6575ec5 sh:or _:b2fc93f0d8e7574d5cc779f8aca6522d ;
 	sh:maxCount 1 ;
 	sh:path shui:defaultOrder .
-stsh:ConfigurationShape sh:property _:b0acfbc61c69bfb196666dcdf2f9153c .
-_:b0acfbc61c69bfb196666dcdf2f9153c sh:datatype xsd:string ;
+stsh:ConfigurationShape sh:property _:b5b7d37c0b2b037c73deec789aa94c1b .
+_:b5b7d37c0b2b037c73deec789aa94c1b sh:message "The value of shui:timeZone should be an IANA time-zone identifier such as \"Europe/Vienna\""@en ;
+	sh:pattern "^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$" ;
+	sh:severity sh:Warning ;
+	sh:path shui:timeZone .
+stsh:ConfigurationShape sh:property _:adecdae8c966df0cad442d06a1af1288 .
+_:adecdae8c966df0cad442d06a1af1288 sh:datatype xsd:string ;
 	sh:maxCount 1 ;
 	sh:path shui:timeZone .
-stsh:ConfigurationShape sh:property _:d95d079ff61d1c1d27b815d436a00c25 .
-_:d95d079ff61d1c1d27b815d436a00c25 sh:memberShape shsh:PathShape ;
+stsh:ConfigurationShape sh:property _:f32402900c2f1e8a21d248b06e1cbcdd .
+_:f32402900c2f1e8a21d248b06e1cbcdd sh:memberShape shsh:PathShape ;
 	sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:maxCount 1 ;
 	sh:path shui:labelPreference .
-stsh:ConfigurationShape sh:property _:c991f6303a4cc986b86ae54b1f05dc6a .
-_:c991f6303a4cc986b86ae54b1f05dc6a sh:memberShape _:be624bc0f9a8ce56e6dfaf6fd25e5acf .
-_:be624bc0f9a8ce56e6dfaf6fd25e5acf sh:datatype xsd:string ;
+stsh:ConfigurationShape sh:property _:cef8f948c99e8c1c98e54470b0d42855 .
+_:cef8f948c99e8c1c98e54470b0d42855 sh:memberShape _:d525fc29ce51a0ad858af4c0806c9076 .
+_:d525fc29ce51a0ad858af4c0806c9076 sh:datatype xsd:string ;
 	a sh:NodeShape .
-_:c991f6303a4cc986b86ae54b1f05dc6a sh:nodeKind sh:BlankNodeOrIRI ;
+_:cef8f948c99e8c1c98e54470b0d42855 sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:maxCount 1 ;
 	sh:path shui:languagePreference .
-stsh:ConfigurationShape sh:property _:a9c01b499fc6d6af6bf547646bc3f9e7 .
-_:a9c01b499fc6d6af6bf547646bc3f9e7 sh:message "The value of shui:defaultNamespace should be a literal that is an absolute IRI such as \"http://example.com/ns#\""@en ;
+stsh:ConfigurationShape sh:property _:ccde69b1233fcfdb7c8809e06ddfa78b .
+_:ccde69b1233fcfdb7c8809e06ddfa78b sh:message "The value of shui:defaultNamespace should be a literal that is an absolute IRI such as \"http://example.com/ns#\""@en ;
 	sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^\\s<>\"{}|\\\\^`]*$" ;
 	sh:nodeKind sh:Literal ;
 	sh:maxCount 1 ;
@@ -93,89 +98,89 @@ _:a9c01b499fc6d6af6bf547646bc3f9e7 sh:message "The value of shui:defaultNamespac
 stsh:ConfigurationShape sh:targetSubjectsOf shui:defaultWidgetScore , shui:defaultOrder , shui:timeZone , shui:labelPreference , shui:languagePreference , shui:defaultNamespace ;
 	rdfs:label "Well-formedness rules for the settings of a shui:Configuration"@en ;
 	a sh:NodeShape .
-stsh:WidgetScoreShape sh:property _:ac0e91505183b1a59a2ab39649474f70 .
-_:ac0e91505183b1a59a2ab39649474f70 sh:nodeKind sh:BlankNodeOrIRI ;
+stsh:WidgetScoreShape sh:property _:a3e587468603cf2099701c58f621bbc9 .
+_:a3e587468603cf2099701c58f621bbc9 sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:maxCount 1 ;
 	sh:path shui:shapesGraphShape .
-stsh:WidgetScoreShape sh:property _:c8daf48802d800439ffa9b8cc16f15ac .
-_:c8daf48802d800439ffa9b8cc16f15ac sh:nodeKind sh:BlankNodeOrIRI ;
+stsh:WidgetScoreShape sh:property _:ad5b818596dff22140c06c68dc24a7d1 .
+_:ad5b818596dff22140c06c68dc24a7d1 sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:maxCount 1 ;
 	sh:path shui:dataGraphShape .
-stsh:WidgetScoreShape sh:property _:c933161eff2fe7e7ee869785038bcb91 .
-_:ba2feaa0d63be7f1b9a634755fd077a1 rdf:rest rdf:nil ;
-	rdf:first _:c1a5caf305984b57e67bfee30e2c8d6d .
-_:c1a5caf305984b57e67bfee30e2c8d6d sh:datatype xsd:integer .
-_:f171d71237e91863e785291247edc47d rdf:rest _:ba2feaa0d63be7f1b9a634755fd077a1 ;
-	rdf:first _:f392b597b45986722766508b065b2d1b .
-_:f392b597b45986722766508b065b2d1b sh:datatype xsd:decimal .
-_:c933161eff2fe7e7ee869785038bcb91 sh:or _:f171d71237e91863e785291247edc47d ;
+stsh:WidgetScoreShape sh:property _:d7dbff7783d7423ab9cca90ed750a14a .
+_:c09e55d8015f8faec2041cebaabdaaad rdf:rest rdf:nil ;
+	rdf:first _:a31a7d7e672ac2ca77c2b0ae4a4f45aa .
+_:a31a7d7e672ac2ca77c2b0ae4a4f45aa sh:datatype xsd:integer .
+_:b2ed900cb417006eea8610002fd1836f rdf:rest _:c09e55d8015f8faec2041cebaabdaaad ;
+	rdf:first _:a6ebdd1d3d33c196b1098eee93123b96 .
+_:a6ebdd1d3d33c196b1098eee93123b96 sh:datatype xsd:decimal .
+_:d7dbff7783d7423ab9cca90ed750a14a sh:or _:b2ed900cb417006eea8610002fd1836f ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:path shui:score .
-stsh:WidgetScoreShape sh:property _:be19ac98e78b106b5dbcb46ab53bd2b7 .
-_:be19ac98e78b106b5dbcb46ab53bd2b7 sh:nodeKind sh:BlankNodeOrIRI ;
+stsh:WidgetScoreShape sh:property _:ed2e8461afcc28ca03a9fb76b97384dc .
+_:ed2e8461afcc28ca03a9fb76b97384dc sh:nodeKind sh:BlankNodeOrIRI ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:path shui:widget .
 stsh:WidgetScoreShape sh:targetClass shui:WidgetScore ;
 	rdfs:label "Well-formedness rules for shui:WidgetScore"@en ;
 	a sh:NodeShape .
-stsh:SuggestedValuesShape sh:property _:dcf79b84f589d83c1051e5246ef5ccef .
-_:dcf79b84f589d83c1051e5246ef5ccef sh:nodeKind sh:IRIOrLiteral .
-_:d62d1c7f4509015c3fe4986386513dfe rdf:rest rdf:nil .
-_:e14633423b97ce12f081fe5f7a610b1f rdf:rest _:d62d1c7f4509015c3fe4986386513dfe .
-_:d62d1c7f4509015c3fe4986386513dfe rdf:first rdf:first .
-_:e14633423b97ce12f081fe5f7a610b1f rdf:first _:c1ee9bf3edd0b8360b942baee95400a9 .
-_:c1ee9bf3edd0b8360b942baee95400a9 sh:zeroOrMorePath rdf:rest .
-_:eb4ef903a18c8a7c01a14e04c0b2b3c7 rdf:rest _:e14633423b97ce12f081fe5f7a610b1f .
-_:dcf79b84f589d83c1051e5246ef5ccef sh:path _:eb4ef903a18c8a7c01a14e04c0b2b3c7 .
-_:eb4ef903a18c8a7c01a14e04c0b2b3c7 rdf:first shui:suggestedValues .
-stsh:SuggestedValuesShape sh:property _:dbdbf2e27b19161122ae8d5e36d8fdf0 .
-_:dbdbf2e27b19161122ae8d5e36d8fdf0 sh:minListLength 0 ;
+stsh:SuggestedValuesShape sh:property _:cc06189e6e91dc97ef67a84b5ce7447b .
+_:cc06189e6e91dc97ef67a84b5ce7447b sh:nodeKind sh:IRIOrLiteral .
+_:e777cc3079b32f1a0857226073e8e190 rdf:rest rdf:nil .
+_:a49048f43aef04adc50272c275e578f7 rdf:rest _:e777cc3079b32f1a0857226073e8e190 .
+_:e777cc3079b32f1a0857226073e8e190 rdf:first rdf:first .
+_:a49048f43aef04adc50272c275e578f7 rdf:first _:adf88c017a70b1b692231a15adfb2bf0 .
+_:adf88c017a70b1b692231a15adfb2bf0 sh:zeroOrMorePath rdf:rest .
+_:f6627b610294b4f64927434fb488e198 rdf:rest _:a49048f43aef04adc50272c275e578f7 .
+_:cc06189e6e91dc97ef67a84b5ce7447b sh:path _:f6627b610294b4f64927434fb488e198 .
+_:f6627b610294b4f64927434fb488e198 rdf:first shui:suggestedValues .
+stsh:SuggestedValuesShape sh:property _:cd003a0c872a0cd725361a9aaeba3472 .
+_:cd003a0c872a0cd725361a9aaeba3472 sh:minListLength 0 ;
 	sh:maxCount 1 ;
 	sh:path shui:suggestedValues .
 stsh:SuggestedValuesShape sh:targetSubjectsOf shui:suggestedValues ;
 	rdfs:label "Well-formedness rules for shui:suggestedValues"@en ;
 	a sh:NodeShape .
-stsh:SearchQueryShape sh:property _:ac854d7ce9c75ba1f1dde015b1e983ba .
-_:ac854d7ce9c75ba1f1dde015b1e983ba sh:maxCount 1 ;
+stsh:SearchQueryShape sh:property _:fb132cdc1a66afb5cdab6d684b6548d .
+_:fb132cdc1a66afb5cdab6d684b6548d sh:maxCount 1 ;
 	sh:datatype xsd:string ;
 	sh:path shui:searchQuery .
-stsh:SearchQueryShape sh:property _:cd61146cbcd4ffe0c6bb50e5689e1c3f .
-_:cd61146cbcd4ffe0c6bb50e5689e1c3f sh:minCount 1 ;
+stsh:SearchQueryShape sh:property _:cd5ee9b3b9e27fc4f05e9303b798702a .
+_:cd5ee9b3b9e27fc4f05e9303b798702a sh:minCount 1 ;
 	sh:path sh:path .
 stsh:SearchQueryShape sh:targetSubjectsOf shui:searchQuery ;
 	rdfs:label "Well-formedness rules for shui:searchQuery"@en ;
 	a sh:NodeShape .
-stsh:ShuiPredicateShapes sh:property _:d3072af114cd4672863059940723da9c .
-_:a0081fd0db309111c34d2bddf53ecc0a rdf:rest rdf:nil ;
-	rdf:first _:c5027c5d3d0b0fc34141eacdbe4f5be2 .
-_:c5027c5d3d0b0fc34141eacdbe4f5be2 sh:property _:f508133cd383c8470c7a30eaf18ce292 .
-_:f43f73fc9287d36f0f8dd401f5820aa2 rdf:rest rdf:nil ;
-	rdf:first _:cf87bb95968ad457a68b54dcc8da2224 .
-_:cf87bb95968ad457a68b54dcc8da2224 sh:datatype xsd:decimal .
-_:d99f15da349b81950f48427b96f13707 rdf:rest _:f43f73fc9287d36f0f8dd401f5820aa2 ;
-	rdf:first _:ac352e21f06c2f3a22887d57e17fb79a .
-_:ac352e21f06c2f3a22887d57e17fb79a sh:datatype xsd:integer .
-_:f508133cd383c8470c7a30eaf18ce292 sh:or _:d99f15da349b81950f48427b96f13707 ;
+stsh:ShuiPredicateShapes sh:property _:eccebb4f009f9dee5915239195938f71 .
+_:b5c3137229de80246193bfba7917edc rdf:rest rdf:nil ;
+	rdf:first _:cd271d99ee50fe27fcd14bc0f9db89ff .
+_:cd271d99ee50fe27fcd14bc0f9db89ff sh:property _:df2600d8cb81db2b54290044c5088559 .
+_:eb8f29b8cbd3b7d5f400a14c10c16b22 rdf:rest rdf:nil ;
+	rdf:first _:dd619ed7a83800bb3de49d7737750550 .
+_:dd619ed7a83800bb3de49d7737750550 sh:datatype xsd:decimal .
+_:aa8e1b460f8eba38a6db70cd6c2405d4 rdf:rest _:eb8f29b8cbd3b7d5f400a14c10c16b22 ;
+	rdf:first _:cff59a350e12a168fa4cf1c8d0171b99 .
+_:cff59a350e12a168fa4cf1c8d0171b99 sh:datatype xsd:integer .
+_:df2600d8cb81db2b54290044c5088559 sh:or _:aa8e1b460f8eba38a6db70cd6c2405d4 ;
 	sh:maxCount 1 ;
 	sh:path sh:order .
-_:c5027c5d3d0b0fc34141eacdbe4f5be2 sh:property _:a316704580f80738464251fd866caa42 .
-_:a316704580f80738464251fd866caa42 sh:nodeKind sh:IRI ;
+_:cd271d99ee50fe27fcd14bc0f9db89ff sh:property _:fa4ab19d7a72c70d644227ada4366bae .
+_:fa4ab19d7a72c70d644227ada4366bae sh:nodeKind sh:IRI ;
 	sh:maxCount 1 ;
 	sh:minCount 1 ;
 	sh:path shui:propertyRole .
-_:c5027c5d3d0b0fc34141eacdbe4f5be2 sh:nodeKind sh:BlankNode .
-_:fccb33faf0a0bdbe7521c011de70c6a4 rdf:rest _:a0081fd0db309111c34d2bddf53ecc0a ;
-	rdf:first _:a638a0b8668cd5649b2c45fd753459c2 .
-_:a638a0b8668cd5649b2c45fd753459c2 sh:nodeKind sh:IRI .
-_:d3072af114cd4672863059940723da9c sh:or _:fccb33faf0a0bdbe7521c011de70c6a4 ;
+_:cd271d99ee50fe27fcd14bc0f9db89ff sh:nodeKind sh:BlankNode .
+_:ef5b7c3e1e663b1585790f410a506b87 rdf:rest _:b5c3137229de80246193bfba7917edc ;
+	rdf:first _:ac637f8ff662c080ea5e1f6f47fa2dc9 .
+_:ac637f8ff662c080ea5e1f6f47fa2dc9 sh:nodeKind sh:IRI .
+_:eccebb4f009f9dee5915239195938f71 sh:or _:ef5b7c3e1e663b1585790f410a506b87 ;
 	sh:path shui:propertyRole .
-stsh:ShuiPredicateShapes sh:property _:edf7d334546c9662b693db941e629f09 .
-_:edf7d334546c9662b693db941e629f09 sh:nodeKind sh:IRI ;
+stsh:ShuiPredicateShapes sh:property _:ef3c1cc59571378fbee73541155446e .
+_:ef3c1cc59571378fbee73541155446e sh:nodeKind sh:IRI ;
 	sh:path shui:viewer .
-stsh:ShuiPredicateShapes sh:property _:b80404e61e7869ecee49a702b2450e3e .
-_:b80404e61e7869ecee49a702b2450e3e sh:nodeKind sh:IRI ;
+stsh:ShuiPredicateShapes sh:property _:e4f004a2398bf08827e8f8b083d00996 .
+_:e4f004a2398bf08827e8f8b083d00996 sh:nodeKind sh:IRI ;
 	sh:path shui:editor .
 stsh:ShuiPredicateShapes sh:targetSubjectsOf shui:propertyRole , shui:viewer , shui:editor ;
 	rdfs:label "Well-formedness rules for shui: predicates"@en ;
@@ -289,114 +294,114 @@ sh:ask stsh:multiline true ;
 sh:select stsh:multiline true ;
 	stsh:formMaxCount 1 ;
 	sh:nodeKind sh:Literal .
-_:d292436583f5ddd5a69ce54ad22f5e7e rdf:rest rdf:nil .
-_:c7fd79f503f6135d00ee80b3246282bd rdf:rest _:d292436583f5ddd5a69ce54ad22f5e7e .
-_:d292436583f5ddd5a69ce54ad22f5e7e rdf:first shui:score .
-stsh:WidgetScoreForm stsh:formRequired _:c7fd79f503f6135d00ee80b3246282bd .
-_:c7fd79f503f6135d00ee80b3246282bd rdf:first shui:widget .
-_:d5f58b66ade9890b5a0f04dcf6748b78 rdf:rest rdf:nil .
-_:bb6f12669e68019214e426f68b058a97 rdf:rest _:d5f58b66ade9890b5a0f04dcf6748b78 .
-_:d5f58b66ade9890b5a0f04dcf6748b78 rdf:first rdfs:comment .
-_:f38a515213fd203290593135734b075b rdf:rest _:bb6f12669e68019214e426f68b058a97 .
-_:bb6f12669e68019214e426f68b058a97 rdf:first rdfs:label .
-_:dee35a2668ff3cdad4f2ae0bb1325069 rdf:rest _:f38a515213fd203290593135734b075b .
-_:f38a515213fd203290593135734b075b rdf:first shui:dataGraphShape .
-_:a8299b6c938043495f7ab28eaef8093d rdf:rest _:dee35a2668ff3cdad4f2ae0bb1325069 .
-_:dee35a2668ff3cdad4f2ae0bb1325069 rdf:first shui:shapesGraphShape .
-_:cba0db7e2498cb722ccb49faf3bc65be rdf:rest _:a8299b6c938043495f7ab28eaef8093d .
-_:a8299b6c938043495f7ab28eaef8093d rdf:first shui:score .
-_:a84acfc2838e15c634b46c6364c3f01b rdf:rest _:cba0db7e2498cb722ccb49faf3bc65be .
-_:cba0db7e2498cb722ccb49faf3bc65be rdf:first shui:widget .
-stsh:WidgetScoreForm stsh:formFields _:a84acfc2838e15c634b46c6364c3f01b .
-_:a84acfc2838e15c634b46c6364c3f01b rdf:first rdf:type .
+_:ae509e7d36866058694e299458ee3c2a rdf:rest rdf:nil .
+_:aca8362e1e455573239f5a386e08e04 rdf:rest _:ae509e7d36866058694e299458ee3c2a .
+_:ae509e7d36866058694e299458ee3c2a rdf:first shui:score .
+stsh:WidgetScoreForm stsh:formRequired _:aca8362e1e455573239f5a386e08e04 .
+_:aca8362e1e455573239f5a386e08e04 rdf:first shui:widget .
+_:d680a11335b5b7539665521f4effb60b rdf:rest rdf:nil .
+_:e65d999d9152522e7c97593e7d0d86f2 rdf:rest _:d680a11335b5b7539665521f4effb60b .
+_:d680a11335b5b7539665521f4effb60b rdf:first rdfs:comment .
+_:d756f306501aee7994f25c7f41c683cb rdf:rest _:e65d999d9152522e7c97593e7d0d86f2 .
+_:e65d999d9152522e7c97593e7d0d86f2 rdf:first rdfs:label .
+_:db3c77d51810bc5033d243e18991ba2c rdf:rest _:d756f306501aee7994f25c7f41c683cb .
+_:d756f306501aee7994f25c7f41c683cb rdf:first shui:dataGraphShape .
+_:f04fc0168378e7129e3786dcd8166ed4 rdf:rest _:db3c77d51810bc5033d243e18991ba2c .
+_:db3c77d51810bc5033d243e18991ba2c rdf:first shui:shapesGraphShape .
+_:c9d9eb730de05129dba8dadec884d15a rdf:rest _:f04fc0168378e7129e3786dcd8166ed4 .
+_:f04fc0168378e7129e3786dcd8166ed4 rdf:first shui:score .
+_:ea97ddd51ca96ca95d57b3d824a56dad rdf:rest _:c9d9eb730de05129dba8dadec884d15a .
+_:c9d9eb730de05129dba8dadec884d15a rdf:first shui:widget .
+stsh:WidgetScoreForm stsh:formFields _:ea97ddd51ca96ca95d57b3d824a56dad .
+_:ea97ddd51ca96ca95d57b3d824a56dad rdf:first rdf:type .
 stsh:WidgetScoreForm stsh:formFor shui:WidgetScore ;
 	a sh:NodeShape .
-_:f13e0022570cca97838f3bf4bc627f4d rdf:rest rdf:nil .
-stsh:SPARQLTargetForm stsh:formRequired _:f13e0022570cca97838f3bf4bc627f4d .
-_:f13e0022570cca97838f3bf4bc627f4d rdf:first sh:select .
-_:aa1b8c5eeb35bdf17bc11478b64d0322 rdf:rest rdf:nil .
-_:e06e3731c116881ce7a1965c77baabb7 rdf:rest _:aa1b8c5eeb35bdf17bc11478b64d0322 .
-_:aa1b8c5eeb35bdf17bc11478b64d0322 rdf:first rdfs:comment .
-_:db6c2d29072a2286092918434cb6f614 rdf:rest _:e06e3731c116881ce7a1965c77baabb7 .
-_:e06e3731c116881ce7a1965c77baabb7 rdf:first rdfs:label .
-_:dd507a67e494e36e72c9091295635ff2 rdf:rest _:db6c2d29072a2286092918434cb6f614 .
-_:db6c2d29072a2286092918434cb6f614 rdf:first sh:prefixes .
-_:b6072ad04385df999095b387bd9fb8ce rdf:rest _:dd507a67e494e36e72c9091295635ff2 .
-_:dd507a67e494e36e72c9091295635ff2 rdf:first sh:select .
-stsh:SPARQLTargetForm stsh:formFields _:b6072ad04385df999095b387bd9fb8ce .
-_:b6072ad04385df999095b387bd9fb8ce rdf:first rdf:type .
+_:bba44550d81d44048c095e385b357519 rdf:rest rdf:nil .
+stsh:SPARQLTargetForm stsh:formRequired _:bba44550d81d44048c095e385b357519 .
+_:bba44550d81d44048c095e385b357519 rdf:first sh:select .
+_:a4ec1137816aed44257736a82af32916 rdf:rest rdf:nil .
+_:bd405b203feb830a218a87efbf122eb9 rdf:rest _:a4ec1137816aed44257736a82af32916 .
+_:a4ec1137816aed44257736a82af32916 rdf:first rdfs:comment .
+_:efd92e8a04c03af2c29d8f4cf841f7d9 rdf:rest _:bd405b203feb830a218a87efbf122eb9 .
+_:bd405b203feb830a218a87efbf122eb9 rdf:first rdfs:label .
+_:a00194d88a842baeab0fce1cde778908 rdf:rest _:efd92e8a04c03af2c29d8f4cf841f7d9 .
+_:efd92e8a04c03af2c29d8f4cf841f7d9 rdf:first sh:prefixes .
+_:fc8397e0ea23ed13d5ae3a17e1545ba4 rdf:rest _:a00194d88a842baeab0fce1cde778908 .
+_:a00194d88a842baeab0fce1cde778908 rdf:first sh:select .
+stsh:SPARQLTargetForm stsh:formFields _:fc8397e0ea23ed13d5ae3a17e1545ba4 .
+_:fc8397e0ea23ed13d5ae3a17e1545ba4 rdf:first rdf:type .
 stsh:SPARQLTargetForm stsh:formFor sh:SPARQLTarget ;
 	a sh:NodeShape .
-_:e64cd997b82fee620cb366fb6d6bab26 rdf:rest rdf:nil .
-_:d6777aa1b07af688b8acb9d21207cce2 rdf:rest _:e64cd997b82fee620cb366fb6d6bab26 .
-_:e64cd997b82fee620cb366fb6d6bab26 rdf:first rdfs:comment .
-_:c0ddffd0c6fd77dc9b5c829634e5bb38 rdf:rest _:d6777aa1b07af688b8acb9d21207cce2 .
-_:d6777aa1b07af688b8acb9d21207cce2 rdf:first rdfs:label .
-_:eb0348dfe2b607d5371a5078142702d5 rdf:rest _:c0ddffd0c6fd77dc9b5c829634e5bb38 .
-_:c0ddffd0c6fd77dc9b5c829634e5bb38 rdf:first sh:returnType .
-_:f68868d05601c345118f53a89100827a rdf:rest _:eb0348dfe2b607d5371a5078142702d5 .
-_:eb0348dfe2b607d5371a5078142702d5 rdf:first sh:parameter .
-_:bc594615c3fb812f90a197b59dbc464a rdf:rest _:f68868d05601c345118f53a89100827a .
-_:f68868d05601c345118f53a89100827a rdf:first sh:prefixes .
-_:c6c980f46068c30725e11a74e7c8a81b rdf:rest _:bc594615c3fb812f90a197b59dbc464a .
-_:bc594615c3fb812f90a197b59dbc464a rdf:first sh:ask .
-_:a6f607528ce670ed9bdb5b2870704330 rdf:rest _:c6c980f46068c30725e11a74e7c8a81b .
-_:c6c980f46068c30725e11a74e7c8a81b rdf:first sh:select .
-stsh:SPARQLFunctionForm stsh:formFields _:a6f607528ce670ed9bdb5b2870704330 .
-_:a6f607528ce670ed9bdb5b2870704330 rdf:first rdf:type .
+_:fcd97c8beb86fb7bb7404148f68c453e rdf:rest rdf:nil .
+_:fee325b136d5480b74a9925725c0c684 rdf:rest _:fcd97c8beb86fb7bb7404148f68c453e .
+_:fcd97c8beb86fb7bb7404148f68c453e rdf:first rdfs:comment .
+_:c734cade8a61fb663494884ea473b0c3 rdf:rest _:fee325b136d5480b74a9925725c0c684 .
+_:fee325b136d5480b74a9925725c0c684 rdf:first rdfs:label .
+_:fd12aea7dedc956dc6a7637e93b24755 rdf:rest _:c734cade8a61fb663494884ea473b0c3 .
+_:c734cade8a61fb663494884ea473b0c3 rdf:first sh:returnType .
+_:afdb7e2a6a5bafe7d290a6ec5d40b3f6 rdf:rest _:fd12aea7dedc956dc6a7637e93b24755 .
+_:fd12aea7dedc956dc6a7637e93b24755 rdf:first sh:parameter .
+_:dc5f589dc9400b2b211dd0b9c4a17460 rdf:rest _:afdb7e2a6a5bafe7d290a6ec5d40b3f6 .
+_:afdb7e2a6a5bafe7d290a6ec5d40b3f6 rdf:first sh:prefixes .
+_:dd1703c84618219f4bfa7315a7064843 rdf:rest _:dc5f589dc9400b2b211dd0b9c4a17460 .
+_:dc5f589dc9400b2b211dd0b9c4a17460 rdf:first sh:ask .
+_:d3bdd9c4f246060f5c42f6c490af5c43 rdf:rest _:dd1703c84618219f4bfa7315a7064843 .
+_:dd1703c84618219f4bfa7315a7064843 rdf:first sh:select .
+stsh:SPARQLFunctionForm stsh:formFields _:d3bdd9c4f246060f5c42f6c490af5c43 .
+_:d3bdd9c4f246060f5c42f6c490af5c43 rdf:first rdf:type .
 stsh:SPARQLFunctionForm stsh:formFor sh:SPARQLFunction ;
 	a sh:NodeShape .
-_:b6b1675763140c613a5ef049731e460f rdf:rest rdf:nil .
-_:df8fb334bd3ef0bd121bedb88c83fbf rdf:rest _:b6b1675763140c613a5ef049731e460f .
-_:b6b1675763140c613a5ef049731e460f rdf:first rdfs:comment .
-_:cffe9e2df076a4177f5e943216dd8e14 rdf:rest _:df8fb334bd3ef0bd121bedb88c83fbf .
-_:df8fb334bd3ef0bd121bedb88c83fbf rdf:first rdfs:label .
-_:e34ec926f13b24db2d4f9ee72982ba24 rdf:rest _:cffe9e2df076a4177f5e943216dd8e14 .
-_:cffe9e2df076a4177f5e943216dd8e14 rdf:first sh:returnType .
-_:fd820efafbc671a7bc80b532d6a252f3 rdf:rest _:e34ec926f13b24db2d4f9ee72982ba24 .
-_:e34ec926f13b24db2d4f9ee72982ba24 rdf:first sh:parameter .
-stsh:FunctionForm stsh:formFields _:fd820efafbc671a7bc80b532d6a252f3 .
-_:fd820efafbc671a7bc80b532d6a252f3 rdf:first rdf:type .
+_:ac1254354adfc40132dbfbfa8c4169f0 rdf:rest rdf:nil .
+_:f730db3adc9c9373d28aba25c755a605 rdf:rest _:ac1254354adfc40132dbfbfa8c4169f0 .
+_:ac1254354adfc40132dbfbfa8c4169f0 rdf:first rdfs:comment .
+_:f674d745e4eb218c340af8316a23137f rdf:rest _:f730db3adc9c9373d28aba25c755a605 .
+_:f730db3adc9c9373d28aba25c755a605 rdf:first rdfs:label .
+_:ae622d5f0d94895db561f92a78b84a80 rdf:rest _:f674d745e4eb218c340af8316a23137f .
+_:f674d745e4eb218c340af8316a23137f rdf:first sh:returnType .
+_:f142058ca269a7f01b04d3badaac7be8 rdf:rest _:ae622d5f0d94895db561f92a78b84a80 .
+_:ae622d5f0d94895db561f92a78b84a80 rdf:first sh:parameter .
+stsh:FunctionForm stsh:formFields _:f142058ca269a7f01b04d3badaac7be8 .
+_:f142058ca269a7f01b04d3badaac7be8 rdf:first rdf:type .
 stsh:FunctionForm stsh:formFor sh:Function ;
 	a sh:NodeShape .
-_:d6170bac3c59e38e976f166c7da12087 rdf:rest rdf:nil .
-stsh:SelectValidatorForm stsh:formRequired _:d6170bac3c59e38e976f166c7da12087 .
-_:d6170bac3c59e38e976f166c7da12087 rdf:first sh:select .
-_:cfa5bb8bd8d67c2bc3233231fc29b948 rdf:rest rdf:nil .
-_:a39f7ad8f90f0198fdc1f100cc436b47 rdf:rest _:cfa5bb8bd8d67c2bc3233231fc29b948 .
-_:cfa5bb8bd8d67c2bc3233231fc29b948 rdf:first sh:message .
-_:ef5aca82a346c5d3ff8ac7692182d5ce rdf:rest _:a39f7ad8f90f0198fdc1f100cc436b47 .
-_:a39f7ad8f90f0198fdc1f100cc436b47 rdf:first rdfs:comment .
-_:aec4baccd78e752c8e00f1d5fae0de39 rdf:rest _:ef5aca82a346c5d3ff8ac7692182d5ce .
-_:ef5aca82a346c5d3ff8ac7692182d5ce rdf:first rdfs:label .
-_:c0db19972cf507e8b4d36d3f686ada34 rdf:rest _:aec4baccd78e752c8e00f1d5fae0de39 .
-_:aec4baccd78e752c8e00f1d5fae0de39 rdf:first sh:resultAnnotation .
-_:b8a24e827fbcc413fdb33daac09531da rdf:rest _:c0db19972cf507e8b4d36d3f686ada34 .
-_:c0db19972cf507e8b4d36d3f686ada34 rdf:first sh:prefixes .
-_:c1982b22812546d385b8b3332be87e59 rdf:rest _:b8a24e827fbcc413fdb33daac09531da .
-_:b8a24e827fbcc413fdb33daac09531da rdf:first sh:select .
-stsh:SelectValidatorForm stsh:formFields _:c1982b22812546d385b8b3332be87e59 .
-_:c1982b22812546d385b8b3332be87e59 rdf:first rdf:type .
+_:bce2d0de2e8080bf24ea8c1c9d111a4 rdf:rest rdf:nil .
+stsh:SelectValidatorForm stsh:formRequired _:bce2d0de2e8080bf24ea8c1c9d111a4 .
+_:bce2d0de2e8080bf24ea8c1c9d111a4 rdf:first sh:select .
+_:c2f6f6612feedce1c0752589e3b779ae rdf:rest rdf:nil .
+_:be7f9a29e849e78651ed3a35141370a7 rdf:rest _:c2f6f6612feedce1c0752589e3b779ae .
+_:c2f6f6612feedce1c0752589e3b779ae rdf:first sh:message .
+_:a1db35c3580714d2486b24271278d38a rdf:rest _:be7f9a29e849e78651ed3a35141370a7 .
+_:be7f9a29e849e78651ed3a35141370a7 rdf:first rdfs:comment .
+_:dcdfc0854b20924b0057eb70e83c0fea rdf:rest _:a1db35c3580714d2486b24271278d38a .
+_:a1db35c3580714d2486b24271278d38a rdf:first rdfs:label .
+_:e16cbc8adace8438fa34611e7e0e568a rdf:rest _:dcdfc0854b20924b0057eb70e83c0fea .
+_:dcdfc0854b20924b0057eb70e83c0fea rdf:first sh:resultAnnotation .
+_:d8a70c348e5be44ae35e7b087c29d0c9 rdf:rest _:e16cbc8adace8438fa34611e7e0e568a .
+_:e16cbc8adace8438fa34611e7e0e568a rdf:first sh:prefixes .
+_:e8f279514669eb0dfb9a82cd47a69c59 rdf:rest _:d8a70c348e5be44ae35e7b087c29d0c9 .
+_:d8a70c348e5be44ae35e7b087c29d0c9 rdf:first sh:select .
+stsh:SelectValidatorForm stsh:formFields _:e8f279514669eb0dfb9a82cd47a69c59 .
+_:e8f279514669eb0dfb9a82cd47a69c59 rdf:first rdf:type .
 stsh:SelectValidatorForm stsh:formFor sh:SPARQLSelectValidator ;
 	a sh:NodeShape .
-_:bb6ca03036f090db7142b54638f6f929 rdf:rest rdf:nil .
-stsh:AskValidatorForm stsh:formRequired _:bb6ca03036f090db7142b54638f6f929 .
-_:bb6ca03036f090db7142b54638f6f929 rdf:first sh:ask .
-_:b4e074fb14ce4997efb60847dca8aa0 rdf:rest rdf:nil .
-_:c4133b717c96a9f809dd61eee1ed7882 rdf:rest _:b4e074fb14ce4997efb60847dca8aa0 .
-_:b4e074fb14ce4997efb60847dca8aa0 rdf:first sh:message .
-_:c0fba6d04b6e027be246d8577007273d rdf:rest _:c4133b717c96a9f809dd61eee1ed7882 .
-_:c4133b717c96a9f809dd61eee1ed7882 rdf:first rdfs:comment .
-_:b23fa2749b23f4e9aef5c908e0eb1e04 rdf:rest _:c0fba6d04b6e027be246d8577007273d .
-_:c0fba6d04b6e027be246d8577007273d rdf:first rdfs:label .
-_:ab9b0d720847a5bcab5401d79926019a rdf:rest _:b23fa2749b23f4e9aef5c908e0eb1e04 .
-_:b23fa2749b23f4e9aef5c908e0eb1e04 rdf:first sh:resultAnnotation .
-_:cc22adf60e36c17efca00ea8ace36d99 rdf:rest _:ab9b0d720847a5bcab5401d79926019a .
-_:ab9b0d720847a5bcab5401d79926019a rdf:first sh:prefixes .
-_:a2499068bce35ae8e0f8fb6d9540d21b rdf:rest _:cc22adf60e36c17efca00ea8ace36d99 .
-_:cc22adf60e36c17efca00ea8ace36d99 rdf:first sh:ask .
-stsh:AskValidatorForm stsh:formFields _:a2499068bce35ae8e0f8fb6d9540d21b .
-_:a2499068bce35ae8e0f8fb6d9540d21b rdf:first rdf:type .
+_:bdd2d2acbf8357318b3e4c8c1c870914 rdf:rest rdf:nil .
+stsh:AskValidatorForm stsh:formRequired _:bdd2d2acbf8357318b3e4c8c1c870914 .
+_:bdd2d2acbf8357318b3e4c8c1c870914 rdf:first sh:ask .
+_:b5f555429f58651f62fccc4ffb9fd7b0 rdf:rest rdf:nil .
+_:adad670af616bf281e6ffd79759595dd rdf:rest _:b5f555429f58651f62fccc4ffb9fd7b0 .
+_:b5f555429f58651f62fccc4ffb9fd7b0 rdf:first sh:message .
+_:c68cae9f39a4d38aebd78e49769cc230 rdf:rest _:adad670af616bf281e6ffd79759595dd .
+_:adad670af616bf281e6ffd79759595dd rdf:first rdfs:comment .
+_:a2600e949dfebb2a54bc8dc5c2944e44 rdf:rest _:c68cae9f39a4d38aebd78e49769cc230 .
+_:c68cae9f39a4d38aebd78e49769cc230 rdf:first rdfs:label .
+_:f225aae8a0f8a65c67db7e39040847c rdf:rest _:a2600e949dfebb2a54bc8dc5c2944e44 .
+_:a2600e949dfebb2a54bc8dc5c2944e44 rdf:first sh:resultAnnotation .
+_:b0fee295e8ac4222c51c5aac5c292915 rdf:rest _:f225aae8a0f8a65c67db7e39040847c .
+_:f225aae8a0f8a65c67db7e39040847c rdf:first sh:prefixes .
+_:f1d0818434205cbcb5c9c0dfa1811e62 rdf:rest _:b0fee295e8ac4222c51c5aac5c292915 .
+_:b0fee295e8ac4222c51c5aac5c292915 rdf:first sh:ask .
+stsh:AskValidatorForm stsh:formFields _:f1d0818434205cbcb5c9c0dfa1811e62 .
+_:f1d0818434205cbcb5c9c0dfa1811e62 rdf:first rdf:type .
 stsh:AskValidatorForm stsh:formFor sh:SPARQLAskValidator ;
 	a sh:NodeShape .
 sh:keyParameter stsh:formHeldBy sh:NamedParameterExpressionFunction .
@@ -410,168 +415,168 @@ stsh:formFieldsExcept rdfs:comment "The predicates of the form named by stsh:for
 stsh:formFieldsOf rdfs:comment "A form that has the fields of the form of this class (node shape or property shape), besides its own stsh:formFields, less stsh:formFieldsExcept."@en ;
 	rdfs:label "form fields of"@en ;
 	a rdf:Property .
-_:f77749fa534c2615f3280589bc35d329 rdf:rest rdf:nil .
-stsh:ParameterForm stsh:formRequired _:f77749fa534c2615f3280589bc35d329 .
-_:f77749fa534c2615f3280589bc35d329 rdf:first sh:path .
-_:a2a033788c08eaa7fd69abab0c42a04a rdf:rest rdf:nil .
-_:b87d4adc57e67240ceb7d557177b1aeb rdf:rest _:a2a033788c08eaa7fd69abab0c42a04a .
-_:a2a033788c08eaa7fd69abab0c42a04a rdf:first sh:group .
-_:db59f638d4880ebbe9fba99712c6ef9c rdf:rest _:b87d4adc57e67240ceb7d557177b1aeb .
-_:b87d4adc57e67240ceb7d557177b1aeb rdf:first sh:order .
-_:e19429e9fbe1a51556da57b490540f73 rdf:rest _:db59f638d4880ebbe9fba99712c6ef9c .
-_:db59f638d4880ebbe9fba99712c6ef9c rdf:first sh:nodeKind .
-_:a4263785e3b656d4c3f44ba39526f8ff rdf:rest _:e19429e9fbe1a51556da57b490540f73 .
-_:e19429e9fbe1a51556da57b490540f73 rdf:first sh:datatype .
-_:ed7ec297f608882a16f55a0087fda3f0 rdf:rest _:a4263785e3b656d4c3f44ba39526f8ff .
-_:a4263785e3b656d4c3f44ba39526f8ff rdf:first sh:class .
-_:d8aff0bf24dbe96ea813ef9ae5843d13 rdf:rest _:ed7ec297f608882a16f55a0087fda3f0 .
-_:ed7ec297f608882a16f55a0087fda3f0 rdf:first sh:defaultValue .
-_:cc6e3111c5c90ba0f1256d83c9d60944 rdf:rest _:d8aff0bf24dbe96ea813ef9ae5843d13 .
-_:d8aff0bf24dbe96ea813ef9ae5843d13 rdf:first sh:keyParameter .
-_:c8dd0468e09090457514688d0bef5add rdf:rest _:cc6e3111c5c90ba0f1256d83c9d60944 .
-_:cc6e3111c5c90ba0f1256d83c9d60944 rdf:first sh:optional .
-_:b5029878d6583e7a60322a36800a9c04 rdf:rest _:c8dd0468e09090457514688d0bef5add .
-_:c8dd0468e09090457514688d0bef5add rdf:first sh:path .
-_:d29198e4eb0e224fddf6a0a559c4fd95 rdf:rest _:b5029878d6583e7a60322a36800a9c04 .
-_:b5029878d6583e7a60322a36800a9c04 rdf:first sh:description .
-_:d3411c9910ed240d6ac3bcc56e3f4dc rdf:rest _:d29198e4eb0e224fddf6a0a559c4fd95 .
-_:d29198e4eb0e224fddf6a0a559c4fd95 rdf:first sh:name .
-stsh:ParameterForm stsh:formFields _:d3411c9910ed240d6ac3bcc56e3f4dc .
-_:d3411c9910ed240d6ac3bcc56e3f4dc rdf:first rdf:type .
+_:beb5cc334eeb817af8cec1207474f6a4 rdf:rest rdf:nil .
+stsh:ParameterForm stsh:formRequired _:beb5cc334eeb817af8cec1207474f6a4 .
+_:beb5cc334eeb817af8cec1207474f6a4 rdf:first sh:path .
+_:a83de42882dbca54183e05729ece29a6 rdf:rest rdf:nil .
+_:d0285a23a79fe1143db16df8900c2dcf rdf:rest _:a83de42882dbca54183e05729ece29a6 .
+_:a83de42882dbca54183e05729ece29a6 rdf:first sh:group .
+_:a31a87ad452f3742d83e2994602d9537 rdf:rest _:d0285a23a79fe1143db16df8900c2dcf .
+_:d0285a23a79fe1143db16df8900c2dcf rdf:first sh:order .
+_:f29218fc010b661bc670b19967c4d5f8 rdf:rest _:a31a87ad452f3742d83e2994602d9537 .
+_:a31a87ad452f3742d83e2994602d9537 rdf:first sh:nodeKind .
+_:dd67ad82f8f3d1c91a6054706ec8cd8c rdf:rest _:f29218fc010b661bc670b19967c4d5f8 .
+_:f29218fc010b661bc670b19967c4d5f8 rdf:first sh:datatype .
+_:c5bcd38b574666464ec0d578081d9963 rdf:rest _:dd67ad82f8f3d1c91a6054706ec8cd8c .
+_:dd67ad82f8f3d1c91a6054706ec8cd8c rdf:first sh:class .
+_:bef9088cfab3841f2ea56df527c00fdc rdf:rest _:c5bcd38b574666464ec0d578081d9963 .
+_:c5bcd38b574666464ec0d578081d9963 rdf:first sh:defaultValue .
+_:fcb3b3a13545c1e82704f1aa87444395 rdf:rest _:bef9088cfab3841f2ea56df527c00fdc .
+_:bef9088cfab3841f2ea56df527c00fdc rdf:first sh:keyParameter .
+_:dc91e2b359849614d619d063e7a01207 rdf:rest _:fcb3b3a13545c1e82704f1aa87444395 .
+_:fcb3b3a13545c1e82704f1aa87444395 rdf:first sh:optional .
+_:c35da60c5118ddec27d39f6306ee168f rdf:rest _:dc91e2b359849614d619d063e7a01207 .
+_:dc91e2b359849614d619d063e7a01207 rdf:first sh:path .
+_:a4f4e521fdbaf06c26e2eacd7e95e442 rdf:rest _:c35da60c5118ddec27d39f6306ee168f .
+_:c35da60c5118ddec27d39f6306ee168f rdf:first sh:description .
+_:c56581b53033705a3b99233bec465c5a rdf:rest _:a4f4e521fdbaf06c26e2eacd7e95e442 .
+_:a4f4e521fdbaf06c26e2eacd7e95e442 rdf:first sh:name .
+stsh:ParameterForm stsh:formFields _:c56581b53033705a3b99233bec465c5a .
+_:c56581b53033705a3b99233bec465c5a rdf:first rdf:type .
 stsh:ParameterForm stsh:formFor sh:Parameter ;
 	a sh:NodeShape .
-_:ff6c0e829de41ddb9e7d563d82131450 rdf:rest rdf:nil .
-stsh:ConstraintComponentForm stsh:formRequired _:ff6c0e829de41ddb9e7d563d82131450 .
-_:ff6c0e829de41ddb9e7d563d82131450 rdf:first sh:parameter .
-_:d7b6b3b5068883c0eb5523e2471e5301 rdf:rest rdf:nil .
-_:b8416df8d9ebca034c7c4becb8775ce8 rdf:rest _:d7b6b3b5068883c0eb5523e2471e5301 .
-_:d7b6b3b5068883c0eb5523e2471e5301 rdf:first rdfs:comment .
-_:c22b2591e66e4cee0aa525479cc14fa1 rdf:rest _:b8416df8d9ebca034c7c4becb8775ce8 .
-_:b8416df8d9ebca034c7c4becb8775ce8 rdf:first rdfs:label .
-_:fb826d16a936ddbcbcb69791220abd39 rdf:rest _:c22b2591e66e4cee0aa525479cc14fa1 .
-_:c22b2591e66e4cee0aa525479cc14fa1 rdf:first sh:labelTemplate .
-_:da9792fd0d6c66d4cca8b2829bf6e2e1 rdf:rest _:fb826d16a936ddbcbcb69791220abd39 .
-_:fb826d16a936ddbcbcb69791220abd39 rdf:first sh:propertyValidator .
-_:b170744ad41a43b60602ad2a6d435d79 rdf:rest _:da9792fd0d6c66d4cca8b2829bf6e2e1 .
-_:da9792fd0d6c66d4cca8b2829bf6e2e1 rdf:first sh:nodeValidator .
-_:e85535190cbeeef28f3196c5d7e5db08 rdf:rest _:b170744ad41a43b60602ad2a6d435d79 .
-_:b170744ad41a43b60602ad2a6d435d79 rdf:first sh:validator .
-_:c18311a877e25e1f4094a54dd153227a rdf:rest _:e85535190cbeeef28f3196c5d7e5db08 .
-_:e85535190cbeeef28f3196c5d7e5db08 rdf:first sh:parameter .
-stsh:ConstraintComponentForm stsh:formFields _:c18311a877e25e1f4094a54dd153227a .
-_:c18311a877e25e1f4094a54dd153227a rdf:first rdf:type .
+_:dabdeda1ceaf6832d3411c8077c434d9 rdf:rest rdf:nil .
+stsh:ConstraintComponentForm stsh:formRequired _:dabdeda1ceaf6832d3411c8077c434d9 .
+_:dabdeda1ceaf6832d3411c8077c434d9 rdf:first sh:parameter .
+_:be27147a458e2e28eba3858670bf3874 rdf:rest rdf:nil .
+_:b05eefd016562786db11e99430b71a81 rdf:rest _:be27147a458e2e28eba3858670bf3874 .
+_:be27147a458e2e28eba3858670bf3874 rdf:first rdfs:comment .
+_:a3ce9191ff3d67f1b89e440fe63e9b70 rdf:rest _:b05eefd016562786db11e99430b71a81 .
+_:b05eefd016562786db11e99430b71a81 rdf:first rdfs:label .
+_:b29d9cd4a1a72474e90e6d1740efcfa2 rdf:rest _:a3ce9191ff3d67f1b89e440fe63e9b70 .
+_:a3ce9191ff3d67f1b89e440fe63e9b70 rdf:first sh:labelTemplate .
+_:d48206027d9d6efe58fcaf8a0d11a717 rdf:rest _:b29d9cd4a1a72474e90e6d1740efcfa2 .
+_:b29d9cd4a1a72474e90e6d1740efcfa2 rdf:first sh:propertyValidator .
+_:a00acbd7565072d852fc1aba4861b98d rdf:rest _:d48206027d9d6efe58fcaf8a0d11a717 .
+_:d48206027d9d6efe58fcaf8a0d11a717 rdf:first sh:nodeValidator .
+_:c14b8c2c060a4ff8178a2f6b588bfbe1 rdf:rest _:a00acbd7565072d852fc1aba4861b98d .
+_:a00acbd7565072d852fc1aba4861b98d rdf:first sh:validator .
+_:a9e63f663a33c24c5cbbc9fa99647bd6 rdf:rest _:c14b8c2c060a4ff8178a2f6b588bfbe1 .
+_:c14b8c2c060a4ff8178a2f6b588bfbe1 rdf:first sh:parameter .
+stsh:ConstraintComponentForm stsh:formFields _:a9e63f663a33c24c5cbbc9fa99647bd6 .
+_:a9e63f663a33c24c5cbbc9fa99647bd6 rdf:first rdf:type .
 stsh:ConstraintComponentForm stsh:formFor sh:ConstraintComponent ;
 	a sh:NodeShape .
-_:d66a68a0bf139efc0ebc1118c968bd1c rdf:rest rdf:nil .
-stsh:SPARQLRuleTemplateForm stsh:formRequired _:d66a68a0bf139efc0ebc1118c968bd1c .
-_:d66a68a0bf139efc0ebc1118c968bd1c rdf:first sh:construct .
-_:ef390950eeca5c4edcf03c58f91be274 rdf:rest rdf:nil .
-_:b83c0c4315489ceb07cb1bbc97f84d06 rdf:rest _:ef390950eeca5c4edcf03c58f91be274 .
-_:ef390950eeca5c4edcf03c58f91be274 rdf:first rdfs:comment .
-_:d0b88b6fe8e68899397021a7328d2b14 rdf:rest _:b83c0c4315489ceb07cb1bbc97f84d06 .
-_:b83c0c4315489ceb07cb1bbc97f84d06 rdf:first rdfs:label .
-_:e6eee668686b9f6150e6ee3b379f5447 rdf:rest _:d0b88b6fe8e68899397021a7328d2b14 .
-_:d0b88b6fe8e68899397021a7328d2b14 rdf:first sh:parameter .
-_:fe5bb946ad63f8693b7ce861f18a3a6d rdf:rest _:e6eee668686b9f6150e6ee3b379f5447 .
-_:e6eee668686b9f6150e6ee3b379f5447 rdf:first sh:prefixes .
-_:ecaf56c8897c784cf3ca811425a12fd1 rdf:rest _:fe5bb946ad63f8693b7ce861f18a3a6d .
-_:fe5bb946ad63f8693b7ce861f18a3a6d rdf:first sh:construct .
-_:dd1dde821343ff034a0b4313b9784287 rdf:rest _:ecaf56c8897c784cf3ca811425a12fd1 .
-_:ecaf56c8897c784cf3ca811425a12fd1 rdf:first rdfs:subClassOf .
-stsh:SPARQLRuleTemplateForm stsh:formFields _:dd1dde821343ff034a0b4313b9784287 .
-_:dd1dde821343ff034a0b4313b9784287 rdf:first rdf:type .
+_:b92332cdaec4d7e7b64e202fb452b1bf rdf:rest rdf:nil .
+stsh:SPARQLRuleTemplateForm stsh:formRequired _:b92332cdaec4d7e7b64e202fb452b1bf .
+_:b92332cdaec4d7e7b64e202fb452b1bf rdf:first sh:construct .
+_:d49236ec9827520b231038e82fd12578 rdf:rest rdf:nil .
+_:ec9011b901370f261011504545fe1792 rdf:rest _:d49236ec9827520b231038e82fd12578 .
+_:d49236ec9827520b231038e82fd12578 rdf:first rdfs:comment .
+_:dddd24aed75c3c20b5658c5b01f017c7 rdf:rest _:ec9011b901370f261011504545fe1792 .
+_:ec9011b901370f261011504545fe1792 rdf:first rdfs:label .
+_:b4a985edd6b6f5901e305f08cf22a118 rdf:rest _:dddd24aed75c3c20b5658c5b01f017c7 .
+_:dddd24aed75c3c20b5658c5b01f017c7 rdf:first sh:parameter .
+_:a5c28001f3c15528cc86471b940dba48 rdf:rest _:b4a985edd6b6f5901e305f08cf22a118 .
+_:b4a985edd6b6f5901e305f08cf22a118 rdf:first sh:prefixes .
+_:deff406139dceb3677b6e47760936512 rdf:rest _:a5c28001f3c15528cc86471b940dba48 .
+_:a5c28001f3c15528cc86471b940dba48 rdf:first sh:construct .
+_:f40ef997a9ee8556a2ed405efed3b7d9 rdf:rest _:deff406139dceb3677b6e47760936512 .
+_:deff406139dceb3677b6e47760936512 rdf:first rdfs:subClassOf .
+stsh:SPARQLRuleTemplateForm stsh:formFields _:f40ef997a9ee8556a2ed405efed3b7d9 .
+_:f40ef997a9ee8556a2ed405efed3b7d9 rdf:first rdf:type .
 stsh:SPARQLRuleTemplateForm stsh:formFor sh:SPARQLRuleTemplate ;
 	a sh:NodeShape .
-_:a40e83b8e652e2b092301dcdab06db12 rdf:rest rdf:nil .
-_:c93d767b7ac8ae1046cb760cf5d8430e rdf:rest _:a40e83b8e652e2b092301dcdab06db12 .
-_:a40e83b8e652e2b092301dcdab06db12 rdf:first sh:deactivated .
-_:f3b84210f510cfaee6c8b75085598826 rdf:rest _:c93d767b7ac8ae1046cb760cf5d8430e .
-_:c93d767b7ac8ae1046cb760cf5d8430e rdf:first sh:order .
-_:a7fd5cc5bab685ce3e71cd622025301a rdf:rest _:f3b84210f510cfaee6c8b75085598826 .
-_:f3b84210f510cfaee6c8b75085598826 rdf:first rdfs:comment .
-_:aa807c86dd20376de45e8bf48f05bc4e rdf:rest _:a7fd5cc5bab685ce3e71cd622025301a .
-_:a7fd5cc5bab685ce3e71cd622025301a rdf:first rdfs:label .
-_:b3448fd94617dc49ea3f7a86c93209c3 rdf:rest _:aa807c86dd20376de45e8bf48f05bc4e .
-_:aa807c86dd20376de45e8bf48f05bc4e rdf:first sh:ruleProcessor .
-_:eb35d3afb5b6a46f85d30d018db3e26e rdf:rest _:b3448fd94617dc49ea3f7a86c93209c3 .
-_:b3448fd94617dc49ea3f7a86c93209c3 rdf:first sh:expectedPredicate .
-_:f696a491789fcf24f0345f53e6879ce4 rdf:rest _:eb35d3afb5b6a46f85d30d018db3e26e .
-_:eb35d3afb5b6a46f85d30d018db3e26e rdf:first sh:runOnce .
-_:f97f514a4b3185bfdc3dd487036699ac rdf:rest _:f696a491789fcf24f0345f53e6879ce4 .
-_:f696a491789fcf24f0345f53e6879ce4 rdf:first sh:layer .
-_:bb3dbfe70dadf0acbc2acf32a4f4bf09 rdf:rest _:f97f514a4b3185bfdc3dd487036699ac .
-_:f97f514a4b3185bfdc3dd487036699ac rdf:first sh:condition .
-_:e62632b389add654fd648a30d7839311 rdf:rest _:bb3dbfe70dadf0acbc2acf32a4f4bf09 .
-_:bb3dbfe70dadf0acbc2acf32a4f4bf09 rdf:first sh:object .
-_:be94a2bdf7324b89769219812cdde991 rdf:rest _:e62632b389add654fd648a30d7839311 .
-_:e62632b389add654fd648a30d7839311 rdf:first sh:predicate .
-_:ecf3e7c70dce3a73958556ce134f07ff rdf:rest _:be94a2bdf7324b89769219812cdde991 .
-_:be94a2bdf7324b89769219812cdde991 rdf:first sh:subject .
-stsh:TripleRuleForm stsh:formFields _:ecf3e7c70dce3a73958556ce134f07ff .
-_:ecf3e7c70dce3a73958556ce134f07ff rdf:first rdf:type .
+_:e2ba708c3e8eeff49c915385430663a8 rdf:rest rdf:nil .
+_:b7cf49213f5da7aeaf3b9e527c8317cc rdf:rest _:e2ba708c3e8eeff49c915385430663a8 .
+_:e2ba708c3e8eeff49c915385430663a8 rdf:first sh:deactivated .
+_:bf8405fae9b561201c8aa055b0ada98c rdf:rest _:b7cf49213f5da7aeaf3b9e527c8317cc .
+_:b7cf49213f5da7aeaf3b9e527c8317cc rdf:first sh:order .
+_:d1043ef3b4cf8f95f3388715e3916f6c rdf:rest _:bf8405fae9b561201c8aa055b0ada98c .
+_:bf8405fae9b561201c8aa055b0ada98c rdf:first rdfs:comment .
+_:f6a598618e4f67db677f586db6426f61 rdf:rest _:d1043ef3b4cf8f95f3388715e3916f6c .
+_:d1043ef3b4cf8f95f3388715e3916f6c rdf:first rdfs:label .
+_:cf2a7e1ccf3bb50205ff1b5af46f5239 rdf:rest _:f6a598618e4f67db677f586db6426f61 .
+_:f6a598618e4f67db677f586db6426f61 rdf:first sh:ruleProcessor .
+_:dd425ba1761a21d5f1ce12d1dd323720 rdf:rest _:cf2a7e1ccf3bb50205ff1b5af46f5239 .
+_:cf2a7e1ccf3bb50205ff1b5af46f5239 rdf:first sh:expectedPredicate .
+_:d35ab2c1e9ac95ec0b7c7c585a3ad0b9 rdf:rest _:dd425ba1761a21d5f1ce12d1dd323720 .
+_:dd425ba1761a21d5f1ce12d1dd323720 rdf:first sh:runOnce .
+_:f843254a71d2727fdc31c5bbd201fe44 rdf:rest _:d35ab2c1e9ac95ec0b7c7c585a3ad0b9 .
+_:d35ab2c1e9ac95ec0b7c7c585a3ad0b9 rdf:first sh:layer .
+_:ea975df4e22d1ac2972e25b4085d142c rdf:rest _:f843254a71d2727fdc31c5bbd201fe44 .
+_:f843254a71d2727fdc31c5bbd201fe44 rdf:first sh:condition .
+_:e20f92c24309e40cfef0b0af17f51a93 rdf:rest _:ea975df4e22d1ac2972e25b4085d142c .
+_:ea975df4e22d1ac2972e25b4085d142c rdf:first sh:object .
+_:c80cfc3702323bf94fe2d61001fae122 rdf:rest _:e20f92c24309e40cfef0b0af17f51a93 .
+_:e20f92c24309e40cfef0b0af17f51a93 rdf:first sh:predicate .
+_:c9a05093205433334a3f860d6510033a rdf:rest _:c80cfc3702323bf94fe2d61001fae122 .
+_:c80cfc3702323bf94fe2d61001fae122 rdf:first sh:subject .
+stsh:TripleRuleForm stsh:formFields _:c9a05093205433334a3f860d6510033a .
+_:c9a05093205433334a3f860d6510033a rdf:first rdf:type .
 stsh:TripleRuleForm stsh:formFor sh:TripleRule ;
 	a sh:NodeShape .
-_:e14bfb75192cf99fd2a7dac84cd1b322 rdf:rest rdf:nil .
-stsh:SPARQLRuleForm stsh:formRequired _:e14bfb75192cf99fd2a7dac84cd1b322 .
-_:e14bfb75192cf99fd2a7dac84cd1b322 rdf:first sh:construct .
-_:e4a41eff5ea559d59b325a39bc71a1f4 rdf:rest rdf:nil .
-_:a808bfa7212557dd81ebff65ccf0520b rdf:rest _:e4a41eff5ea559d59b325a39bc71a1f4 .
-_:e4a41eff5ea559d59b325a39bc71a1f4 rdf:first sh:deactivated .
-_:e3ed7075108a15ed4e51feb2f4de8e7c rdf:rest _:a808bfa7212557dd81ebff65ccf0520b .
-_:a808bfa7212557dd81ebff65ccf0520b rdf:first sh:order .
-_:f561f1801137f7a9448fba094a8be4bf rdf:rest _:e3ed7075108a15ed4e51feb2f4de8e7c .
-_:e3ed7075108a15ed4e51feb2f4de8e7c rdf:first rdfs:comment .
-_:e2669a20d3c489f6d356cd0a1211f952 rdf:rest _:f561f1801137f7a9448fba094a8be4bf .
-_:f561f1801137f7a9448fba094a8be4bf rdf:first rdfs:label .
-_:e39c8329d42090704d93df7e4d92505a rdf:rest _:e2669a20d3c489f6d356cd0a1211f952 .
-_:e2669a20d3c489f6d356cd0a1211f952 rdf:first sh:ruleProcessor .
-_:db15953e082ccd846c4802ded474e523 rdf:rest _:e39c8329d42090704d93df7e4d92505a .
-_:e39c8329d42090704d93df7e4d92505a rdf:first sh:expectedPredicate .
-_:a2ec64a773dc1b9b566e679bbf1871de rdf:rest _:db15953e082ccd846c4802ded474e523 .
-_:db15953e082ccd846c4802ded474e523 rdf:first sh:runOnce .
-_:e95b25b67ed234a36fe42d1d788fa599 rdf:rest _:a2ec64a773dc1b9b566e679bbf1871de .
-_:a2ec64a773dc1b9b566e679bbf1871de rdf:first sh:layer .
-_:c7af066a3843e2b79997ad033fb6a3ef rdf:rest _:e95b25b67ed234a36fe42d1d788fa599 .
-_:e95b25b67ed234a36fe42d1d788fa599 rdf:first sh:condition .
-_:bf2d95615aff54337c62afc55d2634bf rdf:rest _:c7af066a3843e2b79997ad033fb6a3ef .
-_:c7af066a3843e2b79997ad033fb6a3ef rdf:first sh:prefixes .
-_:c9be315227afee34e825db52579ce582 rdf:rest _:bf2d95615aff54337c62afc55d2634bf .
-_:bf2d95615aff54337c62afc55d2634bf rdf:first sh:construct .
-stsh:SPARQLRuleForm stsh:formFields _:c9be315227afee34e825db52579ce582 .
-_:c9be315227afee34e825db52579ce582 rdf:first rdf:type .
+_:e4a486b9cd930201e4b76ef6507b9d9e rdf:rest rdf:nil .
+stsh:SPARQLRuleForm stsh:formRequired _:e4a486b9cd930201e4b76ef6507b9d9e .
+_:e4a486b9cd930201e4b76ef6507b9d9e rdf:first sh:construct .
+_:e5e5c947fce74e87c37f6143ab8a0258 rdf:rest rdf:nil .
+_:b3ab30e2a6ba878be46302254543ac8a rdf:rest _:e5e5c947fce74e87c37f6143ab8a0258 .
+_:e5e5c947fce74e87c37f6143ab8a0258 rdf:first sh:deactivated .
+_:b6c34dfced2384e08b183dae5fe0dde7 rdf:rest _:b3ab30e2a6ba878be46302254543ac8a .
+_:b3ab30e2a6ba878be46302254543ac8a rdf:first sh:order .
+_:fa356832b48cac3e08fe0776d205f090 rdf:rest _:b6c34dfced2384e08b183dae5fe0dde7 .
+_:b6c34dfced2384e08b183dae5fe0dde7 rdf:first rdfs:comment .
+_:b3249a59c643005b84bf5edda02376df rdf:rest _:fa356832b48cac3e08fe0776d205f090 .
+_:fa356832b48cac3e08fe0776d205f090 rdf:first rdfs:label .
+_:eeb5e73c7e5ca98a3f4a39d04b7656a rdf:rest _:b3249a59c643005b84bf5edda02376df .
+_:b3249a59c643005b84bf5edda02376df rdf:first sh:ruleProcessor .
+_:a28fb92f57ea6fbeb80a46b26bde5260 rdf:rest _:eeb5e73c7e5ca98a3f4a39d04b7656a .
+_:eeb5e73c7e5ca98a3f4a39d04b7656a rdf:first sh:expectedPredicate .
+_:b900812fa0d3edfbf4ff9b8dbcb646a3 rdf:rest _:a28fb92f57ea6fbeb80a46b26bde5260 .
+_:a28fb92f57ea6fbeb80a46b26bde5260 rdf:first sh:runOnce .
+_:e666f9be025982f5d8c0a67caf000f78 rdf:rest _:b900812fa0d3edfbf4ff9b8dbcb646a3 .
+_:b900812fa0d3edfbf4ff9b8dbcb646a3 rdf:first sh:layer .
+_:a068995a811e3782b734ddce9fc44b77 rdf:rest _:e666f9be025982f5d8c0a67caf000f78 .
+_:e666f9be025982f5d8c0a67caf000f78 rdf:first sh:condition .
+_:b5f341c06a09b42f5b43c17037a31801 rdf:rest _:a068995a811e3782b734ddce9fc44b77 .
+_:a068995a811e3782b734ddce9fc44b77 rdf:first sh:prefixes .
+_:e3c1b744ae2b068485b503d5c1db2e3e rdf:rest _:b5f341c06a09b42f5b43c17037a31801 .
+_:b5f341c06a09b42f5b43c17037a31801 rdf:first sh:construct .
+stsh:SPARQLRuleForm stsh:formFields _:e3c1b744ae2b068485b503d5c1db2e3e .
+_:e3c1b744ae2b068485b503d5c1db2e3e rdf:first rdf:type .
 stsh:SPARQLRuleForm stsh:formFor sh:SPARQLRule ;
 	a sh:NodeShape .
-_:ec569550a4a339dffa93d0b3d40cbe9d rdf:rest rdf:nil .
-stsh:ResultAnnotationForm stsh:formRequired _:ec569550a4a339dffa93d0b3d40cbe9d .
-_:ec569550a4a339dffa93d0b3d40cbe9d rdf:first sh:annotationProperty .
-_:ec266ca95cb075f688d6923f9f677c63 rdf:rest rdf:nil .
-_:f69308cadfc95241322bc61b763dd2cc rdf:rest _:ec266ca95cb075f688d6923f9f677c63 .
-_:ec266ca95cb075f688d6923f9f677c63 rdf:first rdfs:comment .
-_:c457da4ed21cedc7b99bfd282790c877 rdf:rest _:f69308cadfc95241322bc61b763dd2cc .
-_:f69308cadfc95241322bc61b763dd2cc rdf:first rdfs:label .
-_:ed077196897a96040f37da198661364 rdf:rest _:c457da4ed21cedc7b99bfd282790c877 .
-_:c457da4ed21cedc7b99bfd282790c877 rdf:first sh:annotationValue .
-_:e2da26acfa0d38def6946546c0198dd6 rdf:rest _:ed077196897a96040f37da198661364 .
-_:ed077196897a96040f37da198661364 rdf:first sh:annotationVarName .
-_:c4ddf636ae7f5d32016c47d92c9d5b29 rdf:rest _:e2da26acfa0d38def6946546c0198dd6 .
-_:e2da26acfa0d38def6946546c0198dd6 rdf:first sh:annotationProperty .
-stsh:ResultAnnotationForm stsh:formFields _:c4ddf636ae7f5d32016c47d92c9d5b29 .
-_:c4ddf636ae7f5d32016c47d92c9d5b29 rdf:first rdf:type .
+_:cdbef1abe489404bdde0a45ba76452f rdf:rest rdf:nil .
+stsh:ResultAnnotationForm stsh:formRequired _:cdbef1abe489404bdde0a45ba76452f .
+_:cdbef1abe489404bdde0a45ba76452f rdf:first sh:annotationProperty .
+_:ebc0a65fb42f9db6fe031a3e3e44cd6a rdf:rest rdf:nil .
+_:f3c334f899e4ae4acb162fd5677e53c0 rdf:rest _:ebc0a65fb42f9db6fe031a3e3e44cd6a .
+_:ebc0a65fb42f9db6fe031a3e3e44cd6a rdf:first rdfs:comment .
+_:f18023f35f73c64da77dd500b1eb9e60 rdf:rest _:f3c334f899e4ae4acb162fd5677e53c0 .
+_:f3c334f899e4ae4acb162fd5677e53c0 rdf:first rdfs:label .
+_:ca26dfdb4032efa1f3404235f0439b16 rdf:rest _:f18023f35f73c64da77dd500b1eb9e60 .
+_:f18023f35f73c64da77dd500b1eb9e60 rdf:first sh:annotationValue .
+_:fd7b84af7f484c00ec302925b582594c rdf:rest _:ca26dfdb4032efa1f3404235f0439b16 .
+_:ca26dfdb4032efa1f3404235f0439b16 rdf:first sh:annotationVarName .
+_:bf52a687dde6d6c920c9f430d5550929 rdf:rest _:fd7b84af7f484c00ec302925b582594c .
+_:fd7b84af7f484c00ec302925b582594c rdf:first sh:annotationProperty .
+stsh:ResultAnnotationForm stsh:formFields _:bf52a687dde6d6c920c9f430d5550929 .
+_:bf52a687dde6d6c920c9f430d5550929 rdf:first rdf:type .
 stsh:ResultAnnotationForm stsh:formFor sh:ResultAnnotation ;
 	a sh:NodeShape .
-_:ea2f9203544eb105a471861837fbaa8c rdf:rest rdf:nil .
-_:d1ac32fb8d7c3d9d2fc099223208eba rdf:rest _:ea2f9203544eb105a471861837fbaa8c .
-_:ea2f9203544eb105a471861837fbaa8c rdf:first rdfs:comment .
-_:b439fc482ee87223f279402f4d7589d rdf:rest _:d1ac32fb8d7c3d9d2fc099223208eba .
-_:d1ac32fb8d7c3d9d2fc099223208eba rdf:first rdfs:label .
-_:f71d0f065c0f622e61c72fa15bf992db rdf:rest _:b439fc482ee87223f279402f4d7589d .
-_:b439fc482ee87223f279402f4d7589d rdf:first sh:ruleProcessor .
-_:fe26cd15cef2216593cf37c6e590b585 rdf:rest _:f71d0f065c0f622e61c72fa15bf992db .
-_:f71d0f065c0f622e61c72fa15bf992db rdf:first sh:includesRuleSet .
-_:e9eebe0705c550c54a8fa1a78aab94d6 rdf:rest _:fe26cd15cef2216593cf37c6e590b585 .
-_:fe26cd15cef2216593cf37c6e590b585 rdf:first sh:hasRule .
-stsh:RuleSetForm stsh:formFields _:e9eebe0705c550c54a8fa1a78aab94d6 .
-_:e9eebe0705c550c54a8fa1a78aab94d6 rdf:first rdf:type .
+_:eb304d4f2bc3923e6928ae5c0f5cee87 rdf:rest rdf:nil .
+_:dc4098b3207c69151bf2f2db551fdfff rdf:rest _:eb304d4f2bc3923e6928ae5c0f5cee87 .
+_:eb304d4f2bc3923e6928ae5c0f5cee87 rdf:first rdfs:comment .
+_:a451add277bc4d35e7c2fb14b4b0c878 rdf:rest _:dc4098b3207c69151bf2f2db551fdfff .
+_:dc4098b3207c69151bf2f2db551fdfff rdf:first rdfs:label .
+_:a5ceb3cb437b5d77ee1be791590b28f rdf:rest _:a451add277bc4d35e7c2fb14b4b0c878 .
+_:a451add277bc4d35e7c2fb14b4b0c878 rdf:first sh:ruleProcessor .
+_:bb98f1062d9f5b73fc19dd03de3f314d rdf:rest _:a5ceb3cb437b5d77ee1be791590b28f .
+_:a5ceb3cb437b5d77ee1be791590b28f rdf:first sh:includesRuleSet .
+_:e1617d7973f3b439619d7dc640ec861e rdf:rest _:bb98f1062d9f5b73fc19dd03de3f314d .
+_:bb98f1062d9f5b73fc19dd03de3f314d rdf:first sh:hasRule .
+stsh:RuleSetForm stsh:formFields _:e1617d7973f3b439619d7dc640ec861e .
+_:e1617d7973f3b439619d7dc640ec861e rdf:first rdf:type .
 stsh:RuleSetForm stsh:formFor sh:RuleSet ;
 	a sh:NodeShape .
 stsh:formOnlyFor rdfs:comment "On a predicate: the field is for a node of this class (a graph that is a sh:DataGraph). A tool shows it only then."@en ;
@@ -580,208 +585,208 @@ stsh:formOnlyFor rdfs:comment "On a predicate: the field is for a node of this c
 stsh:formForSubclasses rdfs:comment "On a form: it is also the form of a node whose type is a subclass of the class it is for (a data graph, a single editor), besides the forms of the subclass itself."@en ;
 	rdfs:label "form for subclasses"@en ;
 	a rdf:Property .
-_:c6ec5ebeebc528c28c2a1008831c3f4a rdf:rest rdf:nil .
-_:fa91a847b0b95005f7dc2fbe082b3b7e rdf:rest _:c6ec5ebeebc528c28c2a1008831c3f4a .
-_:c6ec5ebeebc528c28c2a1008831c3f4a rdf:first sh:conformsToShapesGraph .
-_:cdab3eb820f104b1e7d83d29f97ab615 rdf:rest _:fa91a847b0b95005f7dc2fbe082b3b7e .
-_:fa91a847b0b95005f7dc2fbe082b3b7e rdf:first sh:suggestedShapesGraph .
-_:aaab42b56bcf9decc62dccb24771f0ff rdf:rest _:cdab3eb820f104b1e7d83d29f97ab615 .
-_:cdab3eb820f104b1e7d83d29f97ab615 rdf:first sh:shapesGraph .
-_:ee8c6b460ac90a028de054d5f080eca9 rdf:rest _:aaab42b56bcf9decc62dccb24771f0ff .
-_:aaab42b56bcf9decc62dccb24771f0ff rdf:first shui:defaultWidgetScore .
-_:bf8f31e790ccf11303705e633d007b2b rdf:rest _:ee8c6b460ac90a028de054d5f080eca9 .
-_:ee8c6b460ac90a028de054d5f080eca9 rdf:first shui:defaultOrder .
-_:e2643f27e9308a99ca52355d5921b266 rdf:rest _:bf8f31e790ccf11303705e633d007b2b .
-_:bf8f31e790ccf11303705e633d007b2b rdf:first shui:timeZone .
-_:e3ec0fc46c5c2784e3cac32d24147073 rdf:rest _:e2643f27e9308a99ca52355d5921b266 .
-_:e2643f27e9308a99ca52355d5921b266 rdf:first shui:labelPreference .
-_:d2dafa85cea2add85aaff3dff82da6d8 rdf:rest _:e3ec0fc46c5c2784e3cac32d24147073 .
-_:e3ec0fc46c5c2784e3cac32d24147073 rdf:first shui:languagePreference .
-_:baba58a07a7d7b6ed8fb53a501070a86 rdf:rest _:d2dafa85cea2add85aaff3dff82da6d8 .
-_:d2dafa85cea2add85aaff3dff82da6d8 rdf:first shui:defaultNamespace .
-_:bf550b4ea79df2aa841cdd8dde23cdf5 rdf:rest _:baba58a07a7d7b6ed8fb53a501070a86 .
-_:baba58a07a7d7b6ed8fb53a501070a86 rdf:first sh:entailment .
-_:bfa7c5b63d6183cc2b3da522d9970d5e rdf:rest _:bf550b4ea79df2aa841cdd8dde23cdf5 .
-_:bf550b4ea79df2aa841cdd8dde23cdf5 rdf:first sh:declare .
-_:b791dba162b06d7a51dd61df92de8fd6 rdf:rest _:bfa7c5b63d6183cc2b3da522d9970d5e .
-_:bfa7c5b63d6183cc2b3da522d9970d5e rdf:first owl:imports .
-_:c81699e8f16f9097f7ad8b1a8a02d0da rdf:rest _:b791dba162b06d7a51dd61df92de8fd6 .
-_:b791dba162b06d7a51dd61df92de8fd6 rdf:first rdfs:member .
-_:e7ca3340037a2ecdab891e34f3866cfe rdf:rest _:c81699e8f16f9097f7ad8b1a8a02d0da .
-_:c81699e8f16f9097f7ad8b1a8a02d0da rdf:first rdfs:comment .
-_:c4f857e40570e0e6519ef2d81500b895 rdf:rest _:e7ca3340037a2ecdab891e34f3866cfe .
-_:e7ca3340037a2ecdab891e34f3866cfe rdf:first rdfs:label .
-stsh:GraphForm stsh:formFields _:c4f857e40570e0e6519ef2d81500b895 .
-_:c4f857e40570e0e6519ef2d81500b895 rdf:first rdf:type .
+_:fd53dd60251d200cede4ed623afa4d0f rdf:rest rdf:nil .
+_:bcd9379d447fe18376833a4cf7ec82 rdf:rest _:fd53dd60251d200cede4ed623afa4d0f .
+_:fd53dd60251d200cede4ed623afa4d0f rdf:first sh:conformsToShapesGraph .
+_:d5e2e187255e0672c48ca40dc4d9178 rdf:rest _:bcd9379d447fe18376833a4cf7ec82 .
+_:bcd9379d447fe18376833a4cf7ec82 rdf:first sh:suggestedShapesGraph .
+_:cdede2f5e134a211840c090ebe54d7ee rdf:rest _:d5e2e187255e0672c48ca40dc4d9178 .
+_:d5e2e187255e0672c48ca40dc4d9178 rdf:first sh:shapesGraph .
+_:f35e339b41b84774b90c8058a6ec11a1 rdf:rest _:cdede2f5e134a211840c090ebe54d7ee .
+_:cdede2f5e134a211840c090ebe54d7ee rdf:first shui:defaultWidgetScore .
+_:f25742c759a75ab4d9e6f6a8384315a2 rdf:rest _:f35e339b41b84774b90c8058a6ec11a1 .
+_:f35e339b41b84774b90c8058a6ec11a1 rdf:first shui:defaultOrder .
+_:b4a671ccdce6fc7efe78042ed2476cb7 rdf:rest _:f25742c759a75ab4d9e6f6a8384315a2 .
+_:f25742c759a75ab4d9e6f6a8384315a2 rdf:first shui:timeZone .
+_:aec0e0b47116e96a15512a2a0025ffe5 rdf:rest _:b4a671ccdce6fc7efe78042ed2476cb7 .
+_:b4a671ccdce6fc7efe78042ed2476cb7 rdf:first shui:labelPreference .
+_:bcbb9931a4c427b4937da916abbddb85 rdf:rest _:aec0e0b47116e96a15512a2a0025ffe5 .
+_:aec0e0b47116e96a15512a2a0025ffe5 rdf:first shui:languagePreference .
+_:a2681543d1d91e756ec68b84f97266fe rdf:rest _:bcbb9931a4c427b4937da916abbddb85 .
+_:bcbb9931a4c427b4937da916abbddb85 rdf:first shui:defaultNamespace .
+_:cb21f3c6513b30e3ec025133d1e7803d rdf:rest _:a2681543d1d91e756ec68b84f97266fe .
+_:a2681543d1d91e756ec68b84f97266fe rdf:first sh:entailment .
+_:c695ad43cead3d3829337de6495a629c rdf:rest _:cb21f3c6513b30e3ec025133d1e7803d .
+_:cb21f3c6513b30e3ec025133d1e7803d rdf:first sh:declare .
+_:ad337c75dd258fc0a072df7ffec4c09a rdf:rest _:c695ad43cead3d3829337de6495a629c .
+_:c695ad43cead3d3829337de6495a629c rdf:first owl:imports .
+_:df758d413845cb8c7de3f627806ead0 rdf:rest _:ad337c75dd258fc0a072df7ffec4c09a .
+_:ad337c75dd258fc0a072df7ffec4c09a rdf:first rdfs:member .
+_:b035c6f8cf1584f7a4247d52e458f2c5 rdf:rest _:df758d413845cb8c7de3f627806ead0 .
+_:df758d413845cb8c7de3f627806ead0 rdf:first rdfs:comment .
+_:a242bf79f2760a517155b49e957fcaaf rdf:rest _:b035c6f8cf1584f7a4247d52e458f2c5 .
+_:b035c6f8cf1584f7a4247d52e458f2c5 rdf:first rdfs:label .
+stsh:GraphForm stsh:formFields _:a242bf79f2760a517155b49e957fcaaf .
+_:a242bf79f2760a517155b49e957fcaaf rdf:first rdf:type .
 stsh:GraphForm stsh:formForSubclasses true ;
 	stsh:formFor sh:Graph ;
 	a sh:NodeShape .
-_:b1789145a7970ccf4e1b06f3dad5ded4 rdf:rest rdf:nil .
-_:c91909b885b2aefca3194ae3bab6ce1 rdf:rest _:b1789145a7970ccf4e1b06f3dad5ded4 .
-_:b1789145a7970ccf4e1b06f3dad5ded4 rdf:first rdfs:comment .
-_:b06e96a38ae529a2804b58b8e0f4c7d5 rdf:rest _:c91909b885b2aefca3194ae3bab6ce1 .
-_:c91909b885b2aefca3194ae3bab6ce1 rdf:first rdfs:label .
-_:d350744369f1f67bac5d0afc0f73c884 rdf:rest _:b06e96a38ae529a2804b58b8e0f4c7d5 .
-_:b06e96a38ae529a2804b58b8e0f4c7d5 rdf:first shui:defaultWidgetScore .
-_:caeba38f7abeb0c960422eff3c4bed00 rdf:rest _:d350744369f1f67bac5d0afc0f73c884 .
-_:d350744369f1f67bac5d0afc0f73c884 rdf:first shui:defaultOrder .
-_:b960ed68c1f067d43e1c83d3c60476e6 rdf:rest _:caeba38f7abeb0c960422eff3c4bed00 .
-_:caeba38f7abeb0c960422eff3c4bed00 rdf:first shui:timeZone .
-_:e8a16ef8920d4b15697b67b5ac6c3fe5 rdf:rest _:b960ed68c1f067d43e1c83d3c60476e6 .
-_:b960ed68c1f067d43e1c83d3c60476e6 rdf:first shui:labelPreference .
-_:fb12a9fad6208e2c53a2a56ffb062130 rdf:rest _:e8a16ef8920d4b15697b67b5ac6c3fe5 .
-_:e8a16ef8920d4b15697b67b5ac6c3fe5 rdf:first shui:languagePreference .
-_:d0ff4734da2d3b3d9a7e3097b7ba9160 rdf:rest _:fb12a9fad6208e2c53a2a56ffb062130 .
-_:fb12a9fad6208e2c53a2a56ffb062130 rdf:first shui:defaultNamespace .
-stsh:ConfigurationForm stsh:formFields _:d0ff4734da2d3b3d9a7e3097b7ba9160 .
-_:d0ff4734da2d3b3d9a7e3097b7ba9160 rdf:first rdf:type .
+_:cb91f754ab4f4f6b4c4a6972e8867b66 rdf:rest rdf:nil .
+_:cb7195f4f991d8a65910662b7926ea6f rdf:rest _:cb91f754ab4f4f6b4c4a6972e8867b66 .
+_:cb91f754ab4f4f6b4c4a6972e8867b66 rdf:first rdfs:comment .
+_:bb09b3b5c5e0b5c02cc405eb2020afd3 rdf:rest _:cb7195f4f991d8a65910662b7926ea6f .
+_:cb7195f4f991d8a65910662b7926ea6f rdf:first rdfs:label .
+_:b4216e4fc5570ea2621c819c66d73a83 rdf:rest _:bb09b3b5c5e0b5c02cc405eb2020afd3 .
+_:bb09b3b5c5e0b5c02cc405eb2020afd3 rdf:first shui:defaultWidgetScore .
+_:c7b58329c05c59b663c6645ff2d4de7 rdf:rest _:b4216e4fc5570ea2621c819c66d73a83 .
+_:b4216e4fc5570ea2621c819c66d73a83 rdf:first shui:defaultOrder .
+_:b08eb848b886e8178613965d9ef788ea rdf:rest _:c7b58329c05c59b663c6645ff2d4de7 .
+_:c7b58329c05c59b663c6645ff2d4de7 rdf:first shui:timeZone .
+_:a186bba92753ee88f4f771e53a33ee2f rdf:rest _:b08eb848b886e8178613965d9ef788ea .
+_:b08eb848b886e8178613965d9ef788ea rdf:first shui:labelPreference .
+_:e67d36b0b4b3526085eb29039866d6be rdf:rest _:a186bba92753ee88f4f771e53a33ee2f .
+_:a186bba92753ee88f4f771e53a33ee2f rdf:first shui:languagePreference .
+_:c44a59dbcd83305919bbd57c8ae38d1e rdf:rest _:e67d36b0b4b3526085eb29039866d6be .
+_:e67d36b0b4b3526085eb29039866d6be rdf:first shui:defaultNamespace .
+stsh:ConfigurationForm stsh:formFields _:c44a59dbcd83305919bbd57c8ae38d1e .
+_:c44a59dbcd83305919bbd57c8ae38d1e rdf:first rdf:type .
 stsh:ConfigurationForm stsh:formFor shui:Configuration ;
 	a sh:NodeShape .
-_:f8b15213211dac47c984daad5b7bb0ad rdf:rest rdf:nil .
-stsh:WidgetAcceptMatcherForm stsh:formRequired _:f8b15213211dac47c984daad5b7bb0ad .
-_:f8b15213211dac47c984daad5b7bb0ad rdf:first shui:widget .
-_:ed01a5dbc5da0d9069862520c518ed9d rdf:rest rdf:nil .
-_:e44e92c179b38be2a10927f9cc2d4e55 rdf:rest _:ed01a5dbc5da0d9069862520c518ed9d .
-_:ed01a5dbc5da0d9069862520c518ed9d rdf:first rdfs:comment .
-_:d483480ba0336835d51463d460b34b79 rdf:rest _:e44e92c179b38be2a10927f9cc2d4e55 .
-_:e44e92c179b38be2a10927f9cc2d4e55 rdf:first rdfs:label .
-_:d4b26dfc22db873b76140d2f2c2b9c2e rdf:rest _:d483480ba0336835d51463d460b34b79 .
-_:d483480ba0336835d51463d460b34b79 rdf:first shui:dataGraphShape .
-_:e9a30a517bb5af56638b63256f091ead rdf:rest _:d4b26dfc22db873b76140d2f2c2b9c2e .
-_:d4b26dfc22db873b76140d2f2c2b9c2e rdf:first shui:shapesGraphShape .
-_:f1073c9ed4e131afa4e8011c54d0f816 rdf:rest _:e9a30a517bb5af56638b63256f091ead .
-_:e9a30a517bb5af56638b63256f091ead rdf:first shui:widget .
-stsh:WidgetAcceptMatcherForm stsh:formFields _:f1073c9ed4e131afa4e8011c54d0f816 .
-_:f1073c9ed4e131afa4e8011c54d0f816 rdf:first rdf:type .
+_:a1ad9874d21a2c6d0599f54d3a5e631e rdf:rest rdf:nil .
+stsh:WidgetAcceptMatcherForm stsh:formRequired _:a1ad9874d21a2c6d0599f54d3a5e631e .
+_:a1ad9874d21a2c6d0599f54d3a5e631e rdf:first shui:widget .
+_:d19a240ba33ad1c64dee270437377c8d rdf:rest rdf:nil .
+_:e3009ac9c7d9e487acc379ab9511b487 rdf:rest _:d19a240ba33ad1c64dee270437377c8d .
+_:d19a240ba33ad1c64dee270437377c8d rdf:first rdfs:comment .
+_:c8172201d730b033da71087ce366568a rdf:rest _:e3009ac9c7d9e487acc379ab9511b487 .
+_:e3009ac9c7d9e487acc379ab9511b487 rdf:first rdfs:label .
+_:f7786747be053e6a95f5a1473dd7c1c1 rdf:rest _:c8172201d730b033da71087ce366568a .
+_:c8172201d730b033da71087ce366568a rdf:first shui:dataGraphShape .
+_:b6735ba2f1549d7888f53b6a753f9c38 rdf:rest _:f7786747be053e6a95f5a1473dd7c1c1 .
+_:f7786747be053e6a95f5a1473dd7c1c1 rdf:first shui:shapesGraphShape .
+_:d738d8028d68e83d26dd3e067e67f9e4 rdf:rest _:b6735ba2f1549d7888f53b6a753f9c38 .
+_:b6735ba2f1549d7888f53b6a753f9c38 rdf:first shui:widget .
+stsh:WidgetAcceptMatcherForm stsh:formFields _:d738d8028d68e83d26dd3e067e67f9e4 .
+_:d738d8028d68e83d26dd3e067e67f9e4 rdf:first rdf:type .
 stsh:WidgetAcceptMatcherForm stsh:formFor shui:WidgetAcceptMatcher ;
 	a sh:NodeShape .
-_:f7f838c872fcac58625dc7b85c0842b3 rdf:rest rdf:nil .
-_:b85362bde867bdcf30b82d4a6eae37a5 rdf:rest _:f7f838c872fcac58625dc7b85c0842b3 .
-_:f7f838c872fcac58625dc7b85c0842b3 rdf:first rdfs:comment .
-_:eb94a6dd501ed5fa3a45f2951618851f rdf:rest _:b85362bde867bdcf30b82d4a6eae37a5 .
-_:b85362bde867bdcf30b82d4a6eae37a5 rdf:first rdfs:label .
-stsh:WidgetForm stsh:formFields _:eb94a6dd501ed5fa3a45f2951618851f .
-_:eb94a6dd501ed5fa3a45f2951618851f rdf:first rdf:type .
+_:d9c40b8a8ed330aa76a5bae83395c44c rdf:rest rdf:nil .
+_:f4c69d30c6bb45af17fa0af8eb03df94 rdf:rest _:d9c40b8a8ed330aa76a5bae83395c44c .
+_:d9c40b8a8ed330aa76a5bae83395c44c rdf:first rdfs:comment .
+_:b60a5d467798eae574391de48522f2e0 rdf:rest _:f4c69d30c6bb45af17fa0af8eb03df94 .
+_:f4c69d30c6bb45af17fa0af8eb03df94 rdf:first rdfs:label .
+stsh:WidgetForm stsh:formFields _:b60a5d467798eae574391de48522f2e0 .
+_:b60a5d467798eae574391de48522f2e0 rdf:first rdf:type .
 stsh:WidgetForm stsh:formForSubclasses true ;
 	stsh:formFor shui:Widget ;
 	a sh:NodeShape .
-_:b4aacb7e03f0355185a7bc2c8899f6bd rdf:rest rdf:nil .
-stsh:ListParameterExpressionFunctionForm stsh:formRequired _:b4aacb7e03f0355185a7bc2c8899f6bd .
-_:b4aacb7e03f0355185a7bc2c8899f6bd rdf:first sh:bodyExpression .
-_:c5243b74a129008a3258be20f5cb0e29 rdf:rest rdf:nil .
-_:c161eafbd55af3ad614b8b194d3cf357 rdf:rest _:c5243b74a129008a3258be20f5cb0e29 .
-_:c5243b74a129008a3258be20f5cb0e29 rdf:first rdfs:comment .
-_:e67f4e7c1ac7302beedaf78f9ed99971 rdf:rest _:c161eafbd55af3ad614b8b194d3cf357 .
-_:c161eafbd55af3ad614b8b194d3cf357 rdf:first rdfs:label .
-_:fd21a9f2d511392b8a099f68f2a89bb4 rdf:rest _:e67f4e7c1ac7302beedaf78f9ed99971 .
-_:e67f4e7c1ac7302beedaf78f9ed99971 rdf:first sh:bodyExpression .
-_:f24a934817099cc7da350d87a2b3a184 rdf:rest _:fd21a9f2d511392b8a099f68f2a89bb4 .
-_:fd21a9f2d511392b8a099f68f2a89bb4 rdf:first sh:parameter .
-stsh:ListParameterExpressionFunctionForm stsh:formFields _:f24a934817099cc7da350d87a2b3a184 .
-_:f24a934817099cc7da350d87a2b3a184 rdf:first rdf:type .
+_:ede62115c887ef06bc9038ed70da106d rdf:rest rdf:nil .
+stsh:ListParameterExpressionFunctionForm stsh:formRequired _:ede62115c887ef06bc9038ed70da106d .
+_:ede62115c887ef06bc9038ed70da106d rdf:first sh:bodyExpression .
+_:fe5576edf8a2c453b011f29623cd7c9a rdf:rest rdf:nil .
+_:b372c15f4d46c35942ae7b454730e153 rdf:rest _:fe5576edf8a2c453b011f29623cd7c9a .
+_:fe5576edf8a2c453b011f29623cd7c9a rdf:first rdfs:comment .
+_:ac913bd5726cdb5c78956092a6598a8a rdf:rest _:b372c15f4d46c35942ae7b454730e153 .
+_:b372c15f4d46c35942ae7b454730e153 rdf:first rdfs:label .
+_:ff0e2c84d144b7805c4cc7488b75d9b2 rdf:rest _:ac913bd5726cdb5c78956092a6598a8a .
+_:ac913bd5726cdb5c78956092a6598a8a rdf:first sh:bodyExpression .
+_:a649a112f7c04641b6c6e1c189f014da rdf:rest _:ff0e2c84d144b7805c4cc7488b75d9b2 .
+_:ff0e2c84d144b7805c4cc7488b75d9b2 rdf:first sh:parameter .
+stsh:ListParameterExpressionFunctionForm stsh:formFields _:a649a112f7c04641b6c6e1c189f014da .
+_:a649a112f7c04641b6c6e1c189f014da rdf:first rdf:type .
 stsh:ListParameterExpressionFunctionForm stsh:formFor sh:ListParameterExpressionFunction ;
 	a sh:NodeShape .
-_:f9ba19833d16555e8aab1fc3c00973d3 rdf:rest rdf:nil .
-stsh:NamedParameterExpressionFunctionForm stsh:formRequired _:f9ba19833d16555e8aab1fc3c00973d3 .
-_:f9ba19833d16555e8aab1fc3c00973d3 rdf:first sh:bodyExpression .
-_:a07bfc971e8538580786259142598a74 rdf:rest rdf:nil .
-_:c0844eefe78e7fa9d0d822f1b96e1f30 rdf:rest _:a07bfc971e8538580786259142598a74 .
-_:a07bfc971e8538580786259142598a74 rdf:first rdfs:comment .
-_:e5c7273476f797b717b41e60ab078ba2 rdf:rest _:c0844eefe78e7fa9d0d822f1b96e1f30 .
-_:c0844eefe78e7fa9d0d822f1b96e1f30 rdf:first rdfs:label .
-_:b6584eb43d2bf414a26c7cefafbf03dc rdf:rest _:e5c7273476f797b717b41e60ab078ba2 .
-_:e5c7273476f797b717b41e60ab078ba2 rdf:first sh:bodyExpression .
-_:b1304a645bb322a78123b9deecf77cf6 rdf:rest _:b6584eb43d2bf414a26c7cefafbf03dc .
-_:b6584eb43d2bf414a26c7cefafbf03dc rdf:first sh:parameter .
-stsh:NamedParameterExpressionFunctionForm stsh:formFields _:b1304a645bb322a78123b9deecf77cf6 .
-_:b1304a645bb322a78123b9deecf77cf6 rdf:first rdf:type .
+_:a389fee5d88c0b76fd825574cbd21722 rdf:rest rdf:nil .
+stsh:NamedParameterExpressionFunctionForm stsh:formRequired _:a389fee5d88c0b76fd825574cbd21722 .
+_:a389fee5d88c0b76fd825574cbd21722 rdf:first sh:bodyExpression .
+_:fa497c0a284d5cab5c4839ff629abae0 rdf:rest rdf:nil .
+_:ec49f81df8a2bf100dffae7adf246a54 rdf:rest _:fa497c0a284d5cab5c4839ff629abae0 .
+_:fa497c0a284d5cab5c4839ff629abae0 rdf:first rdfs:comment .
+_:bb47e1179c95ab993dcec36fcb724530 rdf:rest _:ec49f81df8a2bf100dffae7adf246a54 .
+_:ec49f81df8a2bf100dffae7adf246a54 rdf:first rdfs:label .
+_:e83659f2aaf132742436bacc65d06c4 rdf:rest _:bb47e1179c95ab993dcec36fcb724530 .
+_:bb47e1179c95ab993dcec36fcb724530 rdf:first sh:bodyExpression .
+_:f2fdc4bd60d202d6a845d20ed70e92f rdf:rest _:e83659f2aaf132742436bacc65d06c4 .
+_:e83659f2aaf132742436bacc65d06c4 rdf:first sh:parameter .
+stsh:NamedParameterExpressionFunctionForm stsh:formFields _:f2fdc4bd60d202d6a845d20ed70e92f .
+_:f2fdc4bd60d202d6a845d20ed70e92f rdf:first rdf:type .
 stsh:NamedParameterExpressionFunctionForm stsh:formFor sh:NamedParameterExpressionFunction ;
 	a sh:NodeShape .
-_:be9f4cec075fc028875a04d9749c3d3b rdf:rest rdf:nil .
-stsh:SPARQLConstraintForm stsh:formRequired _:be9f4cec075fc028875a04d9749c3d3b .
-_:be9f4cec075fc028875a04d9749c3d3b rdf:first sh:select .
-_:e309edb40da3f492d92f8d5b813c917a rdf:rest rdf:nil .
-_:bf267805bcc92f43b7cdc29034ee21aa rdf:rest _:e309edb40da3f492d92f8d5b813c917a .
-_:e309edb40da3f492d92f8d5b813c917a rdf:first sh:deactivated .
-_:a3197cb2310b584d3df0738d6dbe751c rdf:rest _:bf267805bcc92f43b7cdc29034ee21aa .
-_:bf267805bcc92f43b7cdc29034ee21aa rdf:first sh:severity .
-_:f0de6c2db7fe727fdee7a7a937f8cbc9 rdf:rest _:a3197cb2310b584d3df0738d6dbe751c .
-_:a3197cb2310b584d3df0738d6dbe751c rdf:first sh:message .
-_:c40a92012e30dce42e390399d6f23de1 rdf:rest _:f0de6c2db7fe727fdee7a7a937f8cbc9 .
-_:f0de6c2db7fe727fdee7a7a937f8cbc9 rdf:first rdfs:comment .
-_:c63ea46cebc1713d8e96c0ac84fc1965 rdf:rest _:c40a92012e30dce42e390399d6f23de1 .
-_:c40a92012e30dce42e390399d6f23de1 rdf:first rdfs:label .
-_:cf89fa8571156a07a19f776cbc9c79db rdf:rest _:c63ea46cebc1713d8e96c0ac84fc1965 .
-_:c63ea46cebc1713d8e96c0ac84fc1965 rdf:first sh:resultAnnotation .
-_:eda4cd30031d6071fdd5e48facbf2cf6 rdf:rest _:cf89fa8571156a07a19f776cbc9c79db .
-_:cf89fa8571156a07a19f776cbc9c79db rdf:first sh:prefixes .
-_:bb35302294abb57e6cf23ce544787991 rdf:rest _:eda4cd30031d6071fdd5e48facbf2cf6 .
-_:eda4cd30031d6071fdd5e48facbf2cf6 rdf:first sh:select .
-stsh:SPARQLConstraintForm stsh:formFields _:bb35302294abb57e6cf23ce544787991 .
-_:bb35302294abb57e6cf23ce544787991 rdf:first rdf:type .
+_:b6fde0a5551dcd65db2ccd8e287322c6 rdf:rest rdf:nil .
+stsh:SPARQLConstraintForm stsh:formRequired _:b6fde0a5551dcd65db2ccd8e287322c6 .
+_:b6fde0a5551dcd65db2ccd8e287322c6 rdf:first sh:select .
+_:d3fc2882ab66c809fe3c6b5a3cc109e2 rdf:rest rdf:nil .
+_:c08a34dff95ae959c47e972bebf2a00f rdf:rest _:d3fc2882ab66c809fe3c6b5a3cc109e2 .
+_:d3fc2882ab66c809fe3c6b5a3cc109e2 rdf:first sh:deactivated .
+_:a8b5464d3f4f29390e340775eb886371 rdf:rest _:c08a34dff95ae959c47e972bebf2a00f .
+_:c08a34dff95ae959c47e972bebf2a00f rdf:first sh:severity .
+_:e3615f370263221abf5d6f657be65379 rdf:rest _:a8b5464d3f4f29390e340775eb886371 .
+_:a8b5464d3f4f29390e340775eb886371 rdf:first sh:message .
+_:daaa30e56a4bf4f02a442f13465a9610 rdf:rest _:e3615f370263221abf5d6f657be65379 .
+_:e3615f370263221abf5d6f657be65379 rdf:first rdfs:comment .
+_:f835604b931393e8a2e5d5647b6e8a5b rdf:rest _:daaa30e56a4bf4f02a442f13465a9610 .
+_:daaa30e56a4bf4f02a442f13465a9610 rdf:first rdfs:label .
+_:f417b657b1ae7e90216ec8d08bf4d90a rdf:rest _:f835604b931393e8a2e5d5647b6e8a5b .
+_:f835604b931393e8a2e5d5647b6e8a5b rdf:first sh:resultAnnotation .
+_:f5a313918b1742ed7bcc089e3071a2d4 rdf:rest _:f417b657b1ae7e90216ec8d08bf4d90a .
+_:f417b657b1ae7e90216ec8d08bf4d90a rdf:first sh:prefixes .
+_:bcfdba3eada7d77321ac6a49683dbe74 rdf:rest _:f5a313918b1742ed7bcc089e3071a2d4 .
+_:f5a313918b1742ed7bcc089e3071a2d4 rdf:first sh:select .
+stsh:SPARQLConstraintForm stsh:formFields _:bcfdba3eada7d77321ac6a49683dbe74 .
+_:bcfdba3eada7d77321ac6a49683dbe74 rdf:first rdf:type .
 stsh:SPARQLConstraintForm stsh:formFor sh:SPARQLConstraint ;
 	a sh:NodeShape .
-_:fdc1df29113f2fe89360ab9200a9c004 rdf:rest rdf:nil .
-_:a911c36e73d10b5cea84c29403f2260e rdf:rest _:fdc1df29113f2fe89360ab9200a9c004 .
-_:fdc1df29113f2fe89360ab9200a9c004 rdf:first sh:namespace .
-stsh:PrefixDeclarationForm stsh:formRequired _:a911c36e73d10b5cea84c29403f2260e .
-_:a911c36e73d10b5cea84c29403f2260e rdf:first sh:prefix .
-_:c3f8ddc1ce3dee8ad3ae36ffcbb48f80 rdf:rest rdf:nil .
-_:f7c4a3f31d7de4c32ee96519cee90ff1 rdf:rest _:c3f8ddc1ce3dee8ad3ae36ffcbb48f80 .
-_:c3f8ddc1ce3dee8ad3ae36ffcbb48f80 rdf:first sh:namespace .
-_:a709e1b7a241b173141c39cc77becd7d rdf:rest _:f7c4a3f31d7de4c32ee96519cee90ff1 .
-_:f7c4a3f31d7de4c32ee96519cee90ff1 rdf:first sh:prefix .
-_:c4b2241ac4489ff905ffb03fd2f3bf3b rdf:rest _:a709e1b7a241b173141c39cc77becd7d .
-_:a709e1b7a241b173141c39cc77becd7d rdf:first rdfs:comment .
-_:aa5d7048db61d9e1c685151c247c9b8 rdf:rest _:c4b2241ac4489ff905ffb03fd2f3bf3b .
-_:c4b2241ac4489ff905ffb03fd2f3bf3b rdf:first rdfs:label .
-stsh:PrefixDeclarationForm stsh:formFields _:aa5d7048db61d9e1c685151c247c9b8 .
-_:aa5d7048db61d9e1c685151c247c9b8 rdf:first rdf:type .
+_:ef96c2f89d7166d95995d27a63352f49 rdf:rest rdf:nil .
+_:b922fc83cdfd069e8be5f5f77a25a9be rdf:rest _:ef96c2f89d7166d95995d27a63352f49 .
+_:ef96c2f89d7166d95995d27a63352f49 rdf:first sh:namespace .
+stsh:PrefixDeclarationForm stsh:formRequired _:b922fc83cdfd069e8be5f5f77a25a9be .
+_:b922fc83cdfd069e8be5f5f77a25a9be rdf:first sh:prefix .
+_:e83d9c9c8fdd3f96efc7ee9f4fb8e91b rdf:rest rdf:nil .
+_:d4ad0015452be08eef42ada10f0e94c3 rdf:rest _:e83d9c9c8fdd3f96efc7ee9f4fb8e91b .
+_:e83d9c9c8fdd3f96efc7ee9f4fb8e91b rdf:first sh:namespace .
+_:b9f6703a905fe721c72ad432efc7102 rdf:rest _:d4ad0015452be08eef42ada10f0e94c3 .
+_:d4ad0015452be08eef42ada10f0e94c3 rdf:first sh:prefix .
+_:d434cc70c179d6b50817ede012a4f246 rdf:rest _:b9f6703a905fe721c72ad432efc7102 .
+_:b9f6703a905fe721c72ad432efc7102 rdf:first rdfs:comment .
+_:affa32c584079bf1bf6e8c63c378277e rdf:rest _:d434cc70c179d6b50817ede012a4f246 .
+_:d434cc70c179d6b50817ede012a4f246 rdf:first rdfs:label .
+stsh:PrefixDeclarationForm stsh:formFields _:affa32c584079bf1bf6e8c63c378277e .
+_:affa32c584079bf1bf6e8c63c378277e rdf:first rdf:type .
 stsh:PrefixDeclarationForm stsh:formFor sh:PrefixDeclaration ;
 	a sh:NodeShape .
-_:d1299bc2b27227a7e285e166fba94fea rdf:rest rdf:nil .
-_:e9fcbe24d3698b702f5bc71366102199 rdf:rest _:d1299bc2b27227a7e285e166fba94fea .
-_:d1299bc2b27227a7e285e166fba94fea rdf:first sh:declare .
-_:abea63bef0966a7ab22b0f2dde2ae024 rdf:rest _:e9fcbe24d3698b702f5bc71366102199 .
-_:e9fcbe24d3698b702f5bc71366102199 rdf:first rdfs:comment .
-_:fd7029843bd3869f43e1dcb115b734d2 rdf:rest _:abea63bef0966a7ab22b0f2dde2ae024 .
-_:abea63bef0966a7ab22b0f2dde2ae024 rdf:first rdfs:label .
-stsh:PrefixSetForm stsh:formFields _:fd7029843bd3869f43e1dcb115b734d2 .
-_:fd7029843bd3869f43e1dcb115b734d2 rdf:first rdf:type .
+_:b3dacc8f45b03a1b0e33d16793230907 rdf:rest rdf:nil .
+_:e3cdc6e9e7424bedc2ed34013085270c rdf:rest _:b3dacc8f45b03a1b0e33d16793230907 .
+_:b3dacc8f45b03a1b0e33d16793230907 rdf:first sh:declare .
+_:ea948f378e707106bf6aae8b2e2d2159 rdf:rest _:e3cdc6e9e7424bedc2ed34013085270c .
+_:e3cdc6e9e7424bedc2ed34013085270c rdf:first rdfs:comment .
+_:df8243fad604e05e5dc962f27916cf80 rdf:rest _:ea948f378e707106bf6aae8b2e2d2159 .
+_:ea948f378e707106bf6aae8b2e2d2159 rdf:first rdfs:label .
+stsh:PrefixSetForm stsh:formFields _:df8243fad604e05e5dc962f27916cf80 .
+_:df8243fad604e05e5dc962f27916cf80 rdf:first rdf:type .
 stsh:PrefixSetForm stsh:formFor stsh:PrefixSet ;
 	a sh:NodeShape .
-_:b88cdfbe17f16e8204e2ccda02ef49e0 rdf:rest rdf:nil .
-_:e1e5b2f27ab1c0141d9f9e1c2908676e rdf:rest _:b88cdfbe17f16e8204e2ccda02ef49e0 .
-_:b88cdfbe17f16e8204e2ccda02ef49e0 rdf:first sh:declare .
-_:fa91f04723e751c5b298f555d1c8369a rdf:rest _:e1e5b2f27ab1c0141d9f9e1c2908676e .
-_:e1e5b2f27ab1c0141d9f9e1c2908676e rdf:first sh:entailment .
-_:f7cf9fba960bfe78b13cb9da2d0f3603 rdf:rest _:fa91f04723e751c5b298f555d1c8369a .
-_:fa91f04723e751c5b298f555d1c8369a rdf:first owl:imports .
-_:b972ada145a050a2dd68a2bb059eeded rdf:rest _:f7cf9fba960bfe78b13cb9da2d0f3603 .
-_:f7cf9fba960bfe78b13cb9da2d0f3603 rdf:first rdfs:member .
-_:b8e5e47e0fc1835f74f7e60f1f6efb95 rdf:rest _:b972ada145a050a2dd68a2bb059eeded .
-_:b972ada145a050a2dd68a2bb059eeded rdf:first rdfs:comment .
-_:d37025666e90b5aaaab900df76f0377c rdf:rest _:b8e5e47e0fc1835f74f7e60f1f6efb95 .
-_:b8e5e47e0fc1835f74f7e60f1f6efb95 rdf:first rdfs:label .
-stsh:ShapesGraphForm stsh:formFields _:d37025666e90b5aaaab900df76f0377c .
-_:d37025666e90b5aaaab900df76f0377c rdf:first rdf:type .
+_:fc204ad3d000df7ffea50f0ad83df677 rdf:rest rdf:nil .
+_:eae18e51298796a496ab4e3c4d149cbf rdf:rest _:fc204ad3d000df7ffea50f0ad83df677 .
+_:fc204ad3d000df7ffea50f0ad83df677 rdf:first sh:declare .
+_:abd61d2424dbb0a4497a0876328a8a9e rdf:rest _:eae18e51298796a496ab4e3c4d149cbf .
+_:eae18e51298796a496ab4e3c4d149cbf rdf:first sh:entailment .
+_:dd8e42ab541bf03b6615c47b41082c8c rdf:rest _:abd61d2424dbb0a4497a0876328a8a9e .
+_:abd61d2424dbb0a4497a0876328a8a9e rdf:first owl:imports .
+_:dc1cd5f04c3be2c4496fede244cc2b69 rdf:rest _:dd8e42ab541bf03b6615c47b41082c8c .
+_:dd8e42ab541bf03b6615c47b41082c8c rdf:first rdfs:member .
+_:f435a3c911006466d117f06039fb6897 rdf:rest _:dc1cd5f04c3be2c4496fede244cc2b69 .
+_:dc1cd5f04c3be2c4496fede244cc2b69 rdf:first rdfs:comment .
+_:c4a4988c7c78873e5a44a15a1e3e134d rdf:rest _:f435a3c911006466d117f06039fb6897 .
+_:f435a3c911006466d117f06039fb6897 rdf:first rdfs:label .
+stsh:ShapesGraphForm stsh:formFields _:c4a4988c7c78873e5a44a15a1e3e134d .
+_:c4a4988c7c78873e5a44a15a1e3e134d rdf:first rdf:type .
 stsh:ShapesGraphForm stsh:formFor sh:ShapesGraph ;
 	a sh:NodeShape .
-_:c1ed92f767a24fdd7d25b31927736140 rdf:rest rdf:nil .
-_:e52a8673a0914e1950d29cba81f29086 rdf:rest _:c1ed92f767a24fdd7d25b31927736140 .
-_:c1ed92f767a24fdd7d25b31927736140 rdf:first rdfs:isDefinedBy .
-_:cca5508011e6c4ade3adb304395e41c rdf:rest _:e52a8673a0914e1950d29cba81f29086 .
-_:e52a8673a0914e1950d29cba81f29086 rdf:first sh:order .
-_:b11002f71b40c5a20e5c506dcd860887 rdf:rest _:cca5508011e6c4ade3adb304395e41c .
-_:cca5508011e6c4ade3adb304395e41c rdf:first rdfs:comment .
-_:f9a42b53cfa6afdd818035ebe079ffb6 rdf:rest _:b11002f71b40c5a20e5c506dcd860887 .
-_:b11002f71b40c5a20e5c506dcd860887 rdf:first rdfs:label .
-_:a85848a07f5620c77ce4fec172d90449 rdf:rest _:f9a42b53cfa6afdd818035ebe079ffb6 .
-_:f9a42b53cfa6afdd818035ebe079ffb6 rdf:first sh:description .
-_:a40c9f34160ceab00bb1c5a820b18104 rdf:rest _:a85848a07f5620c77ce4fec172d90449 .
-_:a85848a07f5620c77ce4fec172d90449 rdf:first sh:name .
-stsh:PropertyGroupForm stsh:formFields _:a40c9f34160ceab00bb1c5a820b18104 .
-_:a40c9f34160ceab00bb1c5a820b18104 rdf:first rdf:type .
+_:c664e74ef2844a1e779f469af5c0006e rdf:rest rdf:nil .
+_:d94060fb30ecf47aa99b2ac43cb8aff rdf:rest _:c664e74ef2844a1e779f469af5c0006e .
+_:c664e74ef2844a1e779f469af5c0006e rdf:first rdfs:isDefinedBy .
+_:eb3706cfb0fab75575e7377e17559b1d rdf:rest _:d94060fb30ecf47aa99b2ac43cb8aff .
+_:d94060fb30ecf47aa99b2ac43cb8aff rdf:first sh:order .
+_:eb4b8ac077b7e06656f9c2af53ae5045 rdf:rest _:eb3706cfb0fab75575e7377e17559b1d .
+_:eb3706cfb0fab75575e7377e17559b1d rdf:first rdfs:comment .
+_:d8f11fc8d2cc613a25b2fce10d4ba1a6 rdf:rest _:eb4b8ac077b7e06656f9c2af53ae5045 .
+_:eb4b8ac077b7e06656f9c2af53ae5045 rdf:first rdfs:label .
+_:ab0ee1064c743f3ce9579f95c1d4c9a9 rdf:rest _:d8f11fc8d2cc613a25b2fce10d4ba1a6 .
+_:d8f11fc8d2cc613a25b2fce10d4ba1a6 rdf:first sh:description .
+_:c9050e1ab45fd82c11b6ec7d2548862c rdf:rest _:ab0ee1064c743f3ce9579f95c1d4c9a9 .
+_:ab0ee1064c743f3ce9579f95c1d4c9a9 rdf:first sh:name .
+stsh:PropertyGroupForm stsh:formFields _:c9050e1ab45fd82c11b6ec7d2548862c .
+_:c9050e1ab45fd82c11b6ec7d2548862c rdf:first rdf:type .
 stsh:PropertyGroupForm stsh:formFor sh:PropertyGroup ;
 	a sh:NodeShape .
 stsh:formRequired rdfs:comment "The predicates of stsh:formFields that a node of this kind must have: each field gets sh:minCount 1."@en ;
@@ -932,6 +937,98 @@ sh:maxInclusive stsh:propertyFormField true ;
 sh:minInclusive stsh:propertyFormField true ;
 	stsh:formMaxCount 1 ;
 	stsh:nodeFormField true .
+_:f5e9192af54df834256d9e414386f28a rdf:rest rdf:nil .
+_:a55952b56141d9c72501af1d89515b05 rdf:rest _:f5e9192af54df834256d9e414386f28a .
+_:f5e9192af54df834256d9e414386f28a rdf:first sh:TripleTerm .
+_:b6cd7b7c8e050a7de27d0271ee3de829 rdf:rest _:a55952b56141d9c72501af1d89515b05 .
+_:a55952b56141d9c72501af1d89515b05 rdf:first sh:IRIOrLiteral .
+_:d1a5257f01ce70a56fcffff2e2eca058 rdf:rest _:b6cd7b7c8e050a7de27d0271ee3de829 .
+_:b6cd7b7c8e050a7de27d0271ee3de829 rdf:first sh:BlankNodeOrLiteral .
+_:b3d68b3e84871d3216efad6ba4b2238c rdf:rest _:d1a5257f01ce70a56fcffff2e2eca058 .
+_:d1a5257f01ce70a56fcffff2e2eca058 rdf:first sh:BlankNodeOrIRI .
+_:f9277d5bb28a56a258017d512a54e8ac rdf:rest _:b3d68b3e84871d3216efad6ba4b2238c .
+_:b3d68b3e84871d3216efad6ba4b2238c rdf:first sh:Literal .
+_:ee866a688ff4c97e9de71d881e6680b2 rdf:rest _:f9277d5bb28a56a258017d512a54e8ac .
+_:f9277d5bb28a56a258017d512a54e8ac rdf:first sh:BlankNode .
+sh:nodeKind sh:in _:ee866a688ff4c97e9de71d881e6680b2 .
+_:ee866a688ff4c97e9de71d881e6680b2 rdf:first sh:IRI .
+_:ef21b96dd6a6293cd09d3a1422b752e0 rdf:rest rdf:nil .
+_:e5f8c6a6f4e5de05e9ee04584a4ba883 rdf:rest _:ef21b96dd6a6293cd09d3a1422b752e0 .
+_:ef21b96dd6a6293cd09d3a1422b752e0 rdf:first rdf:langString .
+_:c896dc897587f801383e3b4942083e0b rdf:rest _:e5f8c6a6f4e5de05e9ee04584a4ba883 .
+_:e5f8c6a6f4e5de05e9ee04584a4ba883 rdf:first xsd:positiveInteger .
+_:c9336ef098e87e731c43ecd67920dccb rdf:rest _:c896dc897587f801383e3b4942083e0b .
+_:c896dc897587f801383e3b4942083e0b rdf:first xsd:nonNegativeInteger .
+_:aa8e4510d5b76720314744a997c13cca rdf:rest _:c9336ef098e87e731c43ecd67920dccb .
+_:c9336ef098e87e731c43ecd67920dccb rdf:first xsd:int .
+_:ad0cb63becd2a7ccda645fbb3a3d28c8 rdf:rest _:aa8e4510d5b76720314744a997c13cca .
+_:aa8e4510d5b76720314744a997c13cca rdf:first xsd:long .
+_:e220cde1f682015531b66ffa1988fec rdf:rest _:ad0cb63becd2a7ccda645fbb3a3d28c8 .
+_:ad0cb63becd2a7ccda645fbb3a3d28c8 rdf:first xsd:gYear .
+_:ee120c3e5924d1ee0f2d3defb8533116 rdf:rest _:e220cde1f682015531b66ffa1988fec .
+_:e220cde1f682015531b66ffa1988fec rdf:first xsd:anyURI .
+_:d914c1b729464c2c238634322433884f rdf:rest _:ee120c3e5924d1ee0f2d3defb8533116 .
+_:ee120c3e5924d1ee0f2d3defb8533116 rdf:first xsd:time .
+_:fe11d15060398304932154f2b9db3905 rdf:rest _:d914c1b729464c2c238634322433884f .
+_:d914c1b729464c2c238634322433884f rdf:first xsd:dateTime .
+_:fe9adf89ceecea74ad9d89393ec3f073 rdf:rest _:fe11d15060398304932154f2b9db3905 .
+_:fe11d15060398304932154f2b9db3905 rdf:first xsd:date .
+_:b019dda1406721e5b35ff02afaf632c7 rdf:rest _:fe9adf89ceecea74ad9d89393ec3f073 .
+_:fe9adf89ceecea74ad9d89393ec3f073 rdf:first xsd:float .
+_:fc2dfedfc37142bff54165bad373e72a rdf:rest _:b019dda1406721e5b35ff02afaf632c7 .
+_:b019dda1406721e5b35ff02afaf632c7 rdf:first xsd:double .
+_:b1c38735e832a59bb62b293b32dca965 rdf:rest _:fc2dfedfc37142bff54165bad373e72a .
+_:fc2dfedfc37142bff54165bad373e72a rdf:first xsd:decimal .
+_:a162d54175a185a7bf3dd7b5f29d82c3 rdf:rest _:b1c38735e832a59bb62b293b32dca965 .
+_:b1c38735e832a59bb62b293b32dca965 rdf:first xsd:integer .
+_:dd7b892232dc4fc293eed7e1e439613f rdf:rest _:a162d54175a185a7bf3dd7b5f29d82c3 .
+_:a162d54175a185a7bf3dd7b5f29d82c3 rdf:first xsd:boolean .
+sh:returnType shui:suggestedValues _:dd7b892232dc4fc293eed7e1e439613f .
+_:dd7b892232dc4fc293eed7e1e439613f rdf:first xsd:string .
+_:e9e4917d5d1cb79713ea2375c098f3ae rdf:rest rdf:nil .
+_:ff37a89eff233bce529aedfce030e42d rdf:rest _:e9e4917d5d1cb79713ea2375c098f3ae .
+_:e9e4917d5d1cb79713ea2375c098f3ae rdf:first rdf:langString .
+_:c9741041cc2f0d3ed28ae18b59e503aa rdf:rest _:ff37a89eff233bce529aedfce030e42d .
+_:ff37a89eff233bce529aedfce030e42d rdf:first xsd:positiveInteger .
+_:ddb3660a0760b7377f2d5c3d63fb3d0e rdf:rest _:c9741041cc2f0d3ed28ae18b59e503aa .
+_:c9741041cc2f0d3ed28ae18b59e503aa rdf:first xsd:nonNegativeInteger .
+_:d615bf1965d46ab08e8fed5149b4a09c rdf:rest _:ddb3660a0760b7377f2d5c3d63fb3d0e .
+_:ddb3660a0760b7377f2d5c3d63fb3d0e rdf:first xsd:int .
+_:c34ced3619a409fb9be50e8eac48762b rdf:rest _:d615bf1965d46ab08e8fed5149b4a09c .
+_:d615bf1965d46ab08e8fed5149b4a09c rdf:first xsd:long .
+_:a6030afa76d39688cfe8a70b4e1f8947 rdf:rest _:c34ced3619a409fb9be50e8eac48762b .
+_:c34ced3619a409fb9be50e8eac48762b rdf:first xsd:gYear .
+_:bc602d4e7ec237d40ffae261736cb047 rdf:rest _:a6030afa76d39688cfe8a70b4e1f8947 .
+_:a6030afa76d39688cfe8a70b4e1f8947 rdf:first xsd:anyURI .
+_:f067e74c35b5d8b9bf41a0893d77bb18 rdf:rest _:bc602d4e7ec237d40ffae261736cb047 .
+_:bc602d4e7ec237d40ffae261736cb047 rdf:first xsd:time .
+_:a9203ec009daf890f5359e1d7e675877 rdf:rest _:f067e74c35b5d8b9bf41a0893d77bb18 .
+_:f067e74c35b5d8b9bf41a0893d77bb18 rdf:first xsd:dateTime .
+_:b1cf9f1f2922af1a06224fb95b5b128e rdf:rest _:a9203ec009daf890f5359e1d7e675877 .
+_:a9203ec009daf890f5359e1d7e675877 rdf:first xsd:date .
+_:e89088818376c1afd4773ef77a3e9885 rdf:rest _:b1cf9f1f2922af1a06224fb95b5b128e .
+_:b1cf9f1f2922af1a06224fb95b5b128e rdf:first xsd:float .
+_:e194250b3103d7d5fa92bff2501df4c7 rdf:rest _:e89088818376c1afd4773ef77a3e9885 .
+_:e89088818376c1afd4773ef77a3e9885 rdf:first xsd:double .
+_:f52fb8d46f42aabfb6e65b41560e96e rdf:rest _:e194250b3103d7d5fa92bff2501df4c7 .
+_:e194250b3103d7d5fa92bff2501df4c7 rdf:first xsd:decimal .
+_:c7dff5b3b44e23fa18ece0d89c1fa616 rdf:rest _:f52fb8d46f42aabfb6e65b41560e96e .
+_:f52fb8d46f42aabfb6e65b41560e96e rdf:first xsd:integer .
+_:a094b5cb9c0a691d9c0f8ce89f86a882 rdf:rest _:c7dff5b3b44e23fa18ece0d89c1fa616 .
+_:c7dff5b3b44e23fa18ece0d89c1fa616 rdf:first xsd:boolean .
+sh:datatype shui:suggestedValues _:a094b5cb9c0a691d9c0f8ce89f86a882 .
+_:a094b5cb9c0a691d9c0f8ce89f86a882 rdf:first xsd:string .
+_:abfab7f2e2358fb5b40fa2f54e6235c5 rdf:rest rdf:nil .
+_:fb024247e2ef6b2e5d12c3ab0f39e2fa rdf:rest _:abfab7f2e2358fb5b40fa2f54e6235c5 .
+_:abfab7f2e2358fb5b40fa2f54e6235c5 rdf:first sh:Trace .
+_:b6a5b9f2e7122ed0bf31e15518b3f99b rdf:rest _:fb024247e2ef6b2e5d12c3ab0f39e2fa .
+_:fb024247e2ef6b2e5d12c3ab0f39e2fa rdf:first sh:Debug .
+_:f6d946f7384c62020ae50cde70fb12e4 rdf:rest _:b6a5b9f2e7122ed0bf31e15518b3f99b .
+_:b6a5b9f2e7122ed0bf31e15518b3f99b rdf:first sh:Info .
+_:e76f018235f7a066e698f1003f83e45f rdf:rest _:f6d946f7384c62020ae50cde70fb12e4 .
+_:f6d946f7384c62020ae50cde70fb12e4 rdf:first sh:Warning .
+sh:severity shui:suggestedValues _:e76f018235f7a066e698f1003f83e45f .
+_:e76f018235f7a066e698f1003f83e45f rdf:first sh:Violation .
 sh:datatype stsh:propertyFormField true ;
 	stsh:formMaxCount 1 ;
 	stsh:nodeFormField true .
@@ -1493,6 +1590,7 @@ stsh:NodeShapeForm_sh_datatype a sh:PropertyShape ;
 	sh:group stsh:ValueTypeGroup ;
 	sh:order 3 ;
 	stsh:secondary true ;
+	shui:suggestedValues _:a094b5cb9c0a691d9c0f8ce89f86a882 ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI .
 stsh:NodeShapeForm sh:property stsh:NodeShapeForm_sh_deactivated .
@@ -1662,20 +1760,8 @@ stsh:NodeShapeForm_sh_nodeKind a sh:PropertyShape ;
 	sh:path sh:nodeKind ;
 	sh:group stsh:ValueTypeGroup ;
 	sh:order 4 ;
-	sh:in _:b13210c04cb3056c1cde143701107f7a .
-_:b13210c04cb3056c1cde143701107f7a rdf:first sh:BlankNode ;
-	rdf:rest _:a7ea2f255455f23c127a7fa2f7739820 .
-_:a7ea2f255455f23c127a7fa2f7739820 rdf:first sh:IRI ;
-	rdf:rest _:df81216da4fd4b2ef8590e47fa6dc5c0 .
-_:df81216da4fd4b2ef8590e47fa6dc5c0 rdf:first sh:Literal ;
-	rdf:rest _:b48f63dd23a7932f3cae7ed4c1d5480e .
-_:b48f63dd23a7932f3cae7ed4c1d5480e rdf:first sh:BlankNodeOrIRI ;
-	rdf:rest _:f9d1516a73e2e8ec155e3f015707aad5 .
-_:f9d1516a73e2e8ec155e3f015707aad5 rdf:first sh:BlankNodeOrLiteral ;
-	rdf:rest _:ece4424364a5ec783015b7d4479ff1f1 .
-_:ece4424364a5ec783015b7d4479ff1f1 rdf:first sh:IRIOrLiteral ;
-	rdf:rest rdf:nil .
-stsh:NodeShapeForm_sh_nodeKind sh:maxCount 1 ;
+	sh:in _:ee866a688ff4c97e9de71d881e6680b2 ;
+	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI .
 stsh:NodeShapeForm sh:property stsh:NodeShapeForm_sh_not .
 stsh:NodeShapeForm_sh_not a sh:PropertyShape ;
@@ -1729,6 +1815,7 @@ stsh:NodeShapeForm_sh_severity a sh:PropertyShape ;
 	sh:path sh:severity ;
 	sh:group stsh:NamingGroup ;
 	sh:order 6 ;
+	shui:suggestedValues _:e76f018235f7a066e698f1003f83e45f ;
 	sh:nodeKind sh:IRI ;
 	sh:maxCount 1 .
 stsh:NodeShapeForm sh:property stsh:NodeShapeForm_sh_singleLine .
@@ -1884,6 +1971,7 @@ stsh:PropertyShapeForm_sh_datatype a sh:PropertyShape ;
 	sh:path sh:datatype ;
 	sh:group stsh:ValueTypeGroup ;
 	sh:order 3 ;
+	shui:suggestedValues _:a094b5cb9c0a691d9c0f8ce89f86a882 ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI .
 stsh:PropertyShapeForm sh:property stsh:PropertyShapeForm_sh_deactivated .
@@ -2073,7 +2161,7 @@ stsh:PropertyShapeForm_sh_nodeKind a sh:PropertyShape ;
 	sh:path sh:nodeKind ;
 	sh:group stsh:ValueTypeGroup ;
 	sh:order 4 ;
-	sh:in _:b13210c04cb3056c1cde143701107f7a ;
+	sh:in _:ee866a688ff4c97e9de71d881e6680b2 ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI .
 stsh:PropertyShapeForm sh:property stsh:PropertyShapeForm_sh_not .
@@ -2175,6 +2263,7 @@ stsh:PropertyShapeForm_sh_severity a sh:PropertyShape ;
 	sh:path sh:severity ;
 	sh:group stsh:NamingGroup ;
 	sh:order 6 ;
+	shui:suggestedValues _:e76f018235f7a066e698f1003f83e45f ;
 	sh:nodeKind sh:IRI ;
 	sh:maxCount 1 .
 stsh:PropertyShapeForm sh:property stsh:PropertyShapeForm_sh_singleLine .
@@ -2477,6 +2566,7 @@ stsh:FunctionForm_sh_returnType a sh:PropertyShape ;
 	sh:group stsh:DefinitionGroup ;
 	sh:order 7 ;
 	sh:maxCount 1 ;
+	shui:suggestedValues _:dd7b892232dc4fc293eed7e1e439613f ;
 	sh:nodeKind sh:IRI .
 stsh:FunctionForm sh:property stsh:FunctionForm_rdfs_label .
 stsh:FunctionForm_rdfs_label a sh:PropertyShape ;
@@ -2722,6 +2812,7 @@ stsh:ParameterForm_sh_datatype a sh:PropertyShape ;
 	sh:path sh:datatype ;
 	sh:group stsh:ValueTypeGroup ;
 	sh:order 3 ;
+	shui:suggestedValues _:a094b5cb9c0a691d9c0f8ce89f86a882 ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI .
 stsh:ParameterForm sh:property stsh:ParameterForm_sh_nodeKind .
@@ -2729,7 +2820,7 @@ stsh:ParameterForm_sh_nodeKind a sh:PropertyShape ;
 	sh:path sh:nodeKind ;
 	sh:group stsh:ValueTypeGroup ;
 	sh:order 4 ;
-	sh:in _:b13210c04cb3056c1cde143701107f7a ;
+	sh:in _:ee866a688ff4c97e9de71d881e6680b2 ;
 	sh:maxCount 1 ;
 	sh:nodeKind sh:IRI .
 stsh:ParameterForm sh:property stsh:ParameterForm_sh_order .
@@ -2982,6 +3073,7 @@ stsh:SPARQLConstraintForm_sh_severity a sh:PropertyShape ;
 	sh:path sh:severity ;
 	sh:group stsh:NamingGroup ;
 	sh:order 6 ;
+	shui:suggestedValues _:e76f018235f7a066e698f1003f83e45f ;
 	sh:nodeKind sh:IRI ;
 	sh:maxCount 1 .
 stsh:SPARQLConstraintForm sh:property stsh:SPARQLConstraintForm_sh_deactivated .
@@ -3032,6 +3124,7 @@ stsh:SPARQLFunctionForm_sh_returnType a sh:PropertyShape ;
 	sh:group stsh:DefinitionGroup ;
 	sh:order 7 ;
 	sh:maxCount 1 ;
+	shui:suggestedValues _:dd7b892232dc4fc293eed7e1e439613f ;
 	sh:nodeKind sh:IRI .
 stsh:SPARQLFunctionForm sh:property stsh:SPARQLFunctionForm_rdfs_label .
 stsh:SPARQLFunctionForm_rdfs_label a sh:PropertyShape ;

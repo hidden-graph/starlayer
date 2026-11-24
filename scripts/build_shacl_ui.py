@@ -192,6 +192,10 @@ def build_shacl_ui_graph(overlay: Graph | None = None, shacl_shacl: Graph | None
         for term in (SH.datatype, SH.nodeKind, SH["class"]):
             if list(overlay.objects(predicate, term)):
                 found[term] = list(overlay.objects(predicate, term))  # a constraint the overlay gives: where shacl_shacl has none, or a stricter one (a form may be stricter than validation)
+        if list(overlay.objects(predicate, SH["in"])):
+            found[SH["in"]] = list(overlay.objects(predicate, SH["in"]))  # a closed set the form offers where shacl_shacl's own list is narrower (sh:nodeKind lacks sh:TripleTerm there)
+        for head in overlay.objects(predicate, SHUI.suggestedValues):
+            out.add((field, SHUI.suggestedValues, head))  # an open set: offered, never required (the list itself is already copied from the overlay)
         for term, values in found.items():
             for value in values:
                 out.add((field, term, value))

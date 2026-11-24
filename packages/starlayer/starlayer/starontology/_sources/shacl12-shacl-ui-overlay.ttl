@@ -539,6 +539,17 @@ sh:nodeKind stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormFie
 sh:class    stsh:nodeFormField true ;                       stsh:propertyFormField true .
 sh:datatype stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
 
+# What a form offers for a field (the generator copies these onto every field of the predicate). An OPEN set (any IRI is allowed, a few are
+# common) is only a shui:suggestedValues, which the SHACL UI draft says "do not constrain": sh:severity (any IRI is a severity, Core 3.1.4 names
+# five) and the datatypes of sh:datatype / sh:returnType. A CLOSED set is a real constraint and also what the form's sh:in lists: sh:nodeKind,
+# whose seven values include sh:TripleTerm, which the Working Group's six-value rule (deactivated, replaced in the validation shapes) lacks.
+sh:severity   shui:suggestedValues ( sh:Violation sh:Warning sh:Info sh:Debug sh:Trace ) .
+sh:datatype   shui:suggestedValues ( xsd:string xsd:boolean xsd:integer xsd:decimal xsd:double xsd:float xsd:date xsd:dateTime xsd:time xsd:anyURI
+                                     xsd:gYear xsd:long xsd:int xsd:nonNegativeInteger xsd:positiveInteger rdf:langString ) .
+sh:returnType shui:suggestedValues ( xsd:string xsd:boolean xsd:integer xsd:decimal xsd:double xsd:float xsd:date xsd:dateTime xsd:time xsd:anyURI
+                                     xsd:gYear xsd:long xsd:int xsd:nonNegativeInteger xsd:positiveInteger rdf:langString ) .
+sh:nodeKind   sh:in ( sh:IRI sh:BlankNode sh:Literal sh:BlankNodeOrIRI sh:BlankNodeOrLiteral sh:IRIOrLiteral sh:TripleTerm ) .
+
 # Value range — both
 sh:minInclusive stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
 sh:maxInclusive stsh:nodeFormField true ; stsh:formMaxCount 1 ; stsh:propertyFormField true .
@@ -1069,6 +1080,10 @@ stsh:ConfigurationShape
 	sh:property [ sh:path shui:languagePreference ; sh:maxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI ; sh:memberShape [ a sh:NodeShape ; sh:datatype xsd:string ] ] ;
 	sh:property [ sh:path shui:labelPreference ; sh:maxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI ; sh:memberShape shsh:PathShape ] ;   # a list, each member a SHACL path (SHACL UI 3.4); sh:memberShape also rejects a value that is not a list
 	sh:property [ sh:path shui:timeZone ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
+	# SHACL UI 3.4: the value "SHOULD be an IANA time-zone identifier", so a Warning. The shape of the identifier: segments of letters, digits, _, + and -
+	# separated by / (Europe/Vienna, America/Argentina/Buenos_Aires, Etc/GMT+5, UTC). Whether the zone exists is a StarLayer check (shacl_shacl_starlayer).
+	sh:property [ sh:path shui:timeZone ; sh:severity sh:Warning ; sh:pattern "^[A-Za-z0-9_+-]+(/[A-Za-z0-9_+-]+)*$" ;
+		sh:message "The value of shui:timeZone should be an IANA time-zone identifier such as \"Europe/Vienna\""@en ] ;
 	sh:property [ sh:path shui:defaultOrder ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] ;
 	sh:property [ sh:path shui:defaultWidgetScore ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] .
 

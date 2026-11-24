@@ -11,6 +11,7 @@ from starlayer.shacl.engine.builtin_functions import (
     BUILTIN_FUNCTIONS,
     REGEX_PROBLEM,
     SPARQL_PROBLEM,
+    TIME_ZONE_PROBLEM,
 )
 from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.meta_shapes import meta_validate
@@ -104,7 +105,7 @@ def test_the_layer_passes_its_own_check():
 # --- the functions -------------------------------------------------------------------------------------------------------------
 
 def test_the_functions_are_registered():
-    assert set(BUILTIN_FUNCTIONS) == {REGEX_PROBLEM, SPARQL_PROBLEM}
+    assert set(BUILTIN_FUNCTIONS) == {REGEX_PROBLEM, SPARQL_PROBLEM, TIME_ZONE_PROBLEM}
     assert REGEX_PROBLEM.value == STSH + "regexProblem" and SPARQL_PROBLEM.value == STSH + "sparqlProblem"
 
 

@@ -20,6 +20,7 @@ from starlayer.shacl.engine.terms import XSD, Literal, NamedNode
 STSH = "https://github.com/hidden-graph/starlayer/ns/shacl#"
 REGEX_PROBLEM = NamedNode(STSH + "regexProblem")
 SPARQL_PROBLEM = NamedNode(STSH + "sparqlProblem")
+TIME_ZONE_PROBLEM = NamedNode(STSH + "timeZoneProblem")
 
 _PREFIX_LINE = re.compile(r"^\s*PREFIX\s+([^\s:]*):\s*<([^>]*)>\s*$", re.IGNORECASE | re.MULTILINE)
 
@@ -67,7 +68,22 @@ def sparql_problem_function(query_text: Any, predicate: Any, prefixes: Any = Non
     return Literal(problem) if problem else None
 
 
+def time_zone_problem_function(value: Any) -> Literal | None:
+    """``stsh:timeZoneProblem(value)``: says so when the platform's time-zone database does not know the identifier, else no value. A machine without
+    a database (an empty list, as on a system without tzdata) gives no value for any identifier, or every zone would be reported as unknown."""
+    import zoneinfo
+
+    name = _string(value)
+    if name is None:
+        return None
+    known = zoneinfo.available_timezones()
+    if not known or name in known:
+        return None
+    return Literal("The platform's time-zone database does not know the time zone \"" + name + "\"")
+
+
 BUILTIN_FUNCTIONS: dict[NamedNode, Callable[..., Literal | None]] = {
     REGEX_PROBLEM: regex_problem_function,
     SPARQL_PROBLEM: sparql_problem_function,
+    TIME_ZONE_PROBLEM: time_zone_problem_function,
 }
