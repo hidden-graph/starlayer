@@ -214,3 +214,11 @@ def test_report_analysis_is_public_and_reads_a_report_without_the_report_graph()
     (result,) = report_results(report.report_graph)
     assert isinstance(result, ReportResult) and report.for_field(EX.a, EX.p) == (result,) and report.counts() == {"Violation": 1, "total": 1}
     assert diff_reports(report, report) == ReportDiff(added=(), fixed=(), unchanged=(result,))
+
+
+def test_the_graph_protocols_the_diagnostics_type_and_the_role_helper_are_internal():
+    """They are typing aids, the type of ``ValidationReport.diagnostics`` and a helper nothing public uses; they stay importable from their modules."""
+    import starlayer.shacl as shacl
+
+    for name in ("StarLayerGraphProtocol", "MutableStarLayerGraphProtocol", "ExecutionDiagnostics", "property_shapes_for_role"):
+        assert not hasattr(shacl, name) and name not in shacl.__all__

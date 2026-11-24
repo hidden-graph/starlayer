@@ -35,11 +35,7 @@ from starlayer.shacl.report_results import (
     diff_reports,
     report_results,
 )
-from starlayer.shacl.results import (
-    ExecutionDiagnostics,
-    RulesResult,
-    ValidationReport,
-)
+from starlayer.shacl.results import RulesResult, ValidationReport
 from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.shapes_graphs import (
     close_shape,
@@ -49,8 +45,6 @@ from starlayer.shacl.shapes_graphs import (
     shapes_graph_members,
 )
 from starlayer.shacl.subgraph_extraction import extract_subgraph
-from starlayer.shacl.types import MutableStarLayerGraphProtocol, StarLayerGraphProtocol
-from starlayer.shacl.ui.property_roles import property_shapes_for_role
 from starlayer.shacl.ui.widget_selection import (
     WidgetCondition,
     WidgetReport,
@@ -92,11 +86,10 @@ def __getattr__(name: str):
 
 # Everything an application needs is importable from here: apps do not reach into submodules (a need to is a missing
 # public component). Processing modes: validate / validate_each / apply_rules / evaluate / extract_subgraph, with the
-# result classes (ValidationReport / RulesResult / ExecutionDiagnostics), StarShaclProcessor and target_nodes. Shapes graphs: close_shape, extract_shapes_graph. Shapes graph
+# result classes (ValidationReport / RulesResult), StarShaclProcessor and target_nodes. Shapes graphs: close_shape, extract_shapes_graph. Shapes graph
 # introspection: infer_types, shapes_graph_members, path_values, is_inverse.
 # Node expressions: evaluate_expression, node_expression_functions, node_expression_operators. SHACL UI: select_widget(s).
 # Deriving a shape from data (a StarLayer feature, not SHACL): derive_shape.
-# Graph protocols: StarLayerGraphProtocol / MutableStarLayerGraphProtocol.
 #
 # Profiling (SHACL 1.2 Profiling): derive_conforms_to, declared_conformance_profile and the CONFORMANCE namespace; `profiling` is still importable as a
 # submodule. Checking shapes: meta_validate, meta_scope.
@@ -120,7 +113,6 @@ __all__ = [
     "derive_conforms_to",
     "declared_conformance_profile",
     "CONFORMANCE",
-    "ExecutionDiagnostics",
     "ValidationReport",
     "ReportResult",
     "ReportDiff",
@@ -140,7 +132,6 @@ __all__ = [
     "FormField",
     "FormValue",
     "FieldConstraints",
-    "property_shapes_for_role",
     "select_widget",
     "select_widgets",
     "WidgetReport",
@@ -148,8 +139,6 @@ __all__ = [
     "WidgetTrace",
     "WidgetTraceCandidate",
     "explain_widgets",
-    "StarLayerGraphProtocol",
-    "MutableStarLayerGraphProtocol",
     "evaluate_expression",
     "node_expression_functions",
     "node_expression_operators",

@@ -4,9 +4,13 @@ the ``shui:propertyRole`` annotation (direct, qualified, RDF 1.2 triple annotati
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import property_shapes_for_role, validate
+from starlayer.shacl import validate
 from starlayer.shacl.engine.terms import NS
-from starlayer.shacl.ui.property_roles import CLASSIFICATION_ROLE, LABEL_ROLE
+from starlayer.shacl.ui.property_roles import (
+    CLASSIFICATION_ROLE,
+    LABEL_ROLE,
+    property_shapes_for_role,
+)
 
 EX = NS("http://example.org/")
 PREFIXES = (
