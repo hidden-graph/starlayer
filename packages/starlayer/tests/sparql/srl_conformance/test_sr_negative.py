@@ -92,6 +92,14 @@ WELL_FORMEDNESS = [
 ]
 
 
+# SRL has no way to supply a function of its own (the draft lists the built-ins and the XSD casts), so a call by IRI is refused when the
+# rule is parsed, even where the grammar (FunctionCall with NIL, iriOrFunction with an ArgList) would allow it.
+UNSUPPORTED_FUNCTIONS = [
+    ("function-by-iri-nil", rule("?x :p ?y", "?x :q ?y FILTER :f()")),
+    ("function-by-iri-two-args", rule("?x :p ?y", "?x :q ?y FILTER (:f(?y, 2) > 0)")),
+]
+
+
 def _check(case_id, text, request):
     if case_id in NEGATIVE_FAILURES:
         request.applymarker(pytest.mark.xfail(reason=NEGATIVE_FAILURES[case_id], strict=True))
@@ -135,3 +143,9 @@ def test_non_stratifiable_rule_sets_are_refused(case_id, text, request):
         request.applymarker(pytest.mark.xfail(reason=NEGATIVE_FAILURES[case_id], strict=True))
     with pytest.raises(StratificationError):  # the grammar cannot see a cycle, but parse_ruleset() stratifies the rules
         parse_ruleset(PRELUDE + text)
+
+
+@pytest.mark.srl_conformance
+@pytest.mark.parametrize(("case_id", "text"), UNSUPPORTED_FUNCTIONS, ids=[c[0] for c in UNSUPPORTED_FUNCTIONS])
+def test_a_function_called_by_iri_is_refused(case_id, text, request):
+    _check(case_id, text, request)
