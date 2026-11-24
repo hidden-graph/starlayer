@@ -549,11 +549,10 @@ nl:05g-5839b261 a slkg:NotebookExample ;
 nl:05g-55975daa a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05g-building-on-shacl.ipynb" ;
     slkg:cellId "55975daa" ;
-    slkg:cellHash "bb158442e8fa7281" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
-    rdfs:comment "Finds the property shapes with a shui:propertyRole and selects a widget for one." ;
+    slkg:cellHash "c534379a539dad85" ;
+    slkg:reviewedOn "2026-11-24"^^xsd:date ;
+    rdfs:comment "Selects the editor widget for one property shape." ;
     slkg:demonstratesIdentifier
-        "starlayer.shacl.ui.property_roles.property_shapes_for_role",
         "starlayer.shacl.ui.widget_selection.select_widget" .
 
 nl:03b-32f5f2c6 a slkg:NotebookExample ;
