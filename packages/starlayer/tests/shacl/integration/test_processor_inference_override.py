@@ -9,6 +9,7 @@ import pytest
 from starlayer.graph import ENTAILMENT, StarLayerGraph
 from starlayer.graph.entailment import infer as infer_module
 from starlayer.shacl import StarShaclProcessor
+from tests.support.datasets import dataset_of
 
 PFX = (
     "@prefix ex: <http://example.org/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . "
@@ -91,9 +92,9 @@ def test_the_shapes_graphs_own_sh_entailment_still_applies_with_inference_none()
 
 def test_validate_each_accepts_inference():
     proc = StarShaclProcessor(g(SHAPES), inference=RDFS)
-    out = proc.validate_each([g(DATA), g(DATA)], inference=OWL)
+    out = proc.validate_each(dataset_of([g(DATA), g(DATA)]), inference=OWL)
     assert [focus(r) for r in out.values()] == [{A, REX}, {A, REX}]
-    out = proc.validate_each([g(DATA)], inference=None)
+    out = proc.validate_each(dataset_of([g(DATA)]), inference=None)
     assert [focus(r) for r in out.values()] == [set()]
 
 

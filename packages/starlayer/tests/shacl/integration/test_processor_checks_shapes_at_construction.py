@@ -14,6 +14,7 @@ from starlayer.shacl import (
     _adapter,
 )
 from starlayer.shacl.engine.plan import Plan
+from tests.support.datasets import dataset_of
 
 PREFIXES = """
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -157,7 +158,7 @@ def test_validate_each_reuses_the_compiled_plan(monkeypatch: pytest.MonkeyPatch)
     built = []
     original_init = Plan.__post_init__
     monkeypatch.setattr(Plan, "__post_init__", lambda self: built.append(self) or original_init(self))
-    reports = processor.validate_each([g(DATA), g(DATA)])
+    reports = processor.validate_each(dataset_of([g(DATA), g(DATA)]))
     assert all(r.conforms for r in reports.values())
     assert built == []
 

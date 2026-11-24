@@ -13,6 +13,7 @@ from starlayer.shacl import evaluate as old_evaluate
 from starlayer.shacl import validate as old_validate
 from starlayer.shacl.engine import evaluate as new_evaluate
 from starlayer.shacl.engine import validate, validate_each
+from tests.support.datasets import dataset_of, name_of
 
 PFX = (
     "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -181,12 +182,13 @@ GRAPHS = ["ex:a a ex:T ; ex:p 1 .", "ex:a a ex:T . ex:b a ex:T .", "ex:z a ex:U 
 def test_validate_each_matches_the_old_function() -> None:
     from starlayer.shacl import validate_each as old_each
 
-    old = old_each([g(x) for x in GRAPHS], g(SHAPES), meta_shacl=False, ignore_imports=True)
+    old = old_each(dataset_of([g(x) for x in GRAPHS]), g(SHAPES), meta_shacl=False, ignore_imports=True)
     new = validate_each([g(x) for x in GRAPHS], g(SHAPES))
-    assert list(new) == list(old) == [0, 1, 2]
-    for i in old:
-        assert new[i].conforms == old[i].conforms
-        assert len(new[i].results) == len(list(old[i].report_graph.objects(None, URIRef("http://www.w3.org/ns/shacl#result"))))
+    assert list(new) == [0, 1, 2]
+    assert list(old) == [name_of(i) for i in range(3)]
+    for i in new:
+        assert new[i].conforms == old[name_of(i)].conforms
+        assert len(new[i].results) == len(list(old[name_of(i)].report_graph.objects(None, URIRef("http://www.w3.org/ns/shacl#result"))))
     assert [new[i].conforms for i in new] == [True, False, True]
 
 

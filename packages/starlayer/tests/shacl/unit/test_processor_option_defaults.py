@@ -10,6 +10,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import MetaShaclError, RuleError, ShapeError, StarShaclProcessor
 from tests.shacl.integration._shape_loader import load_shape
+from tests.support.datasets import dataset_of
 from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
@@ -140,9 +141,9 @@ def test_constructor_loader() -> None:
 
 
 def test_constructor_loader_and_ignore_imports_in_validate_each() -> None:
-    results = importing(shapes_graph_loader=loader).validate_each([g(DATA), g(DATA)])
+    results = importing(shapes_graph_loader=loader).validate_each(dataset_of([g(DATA), g(DATA)]))
     assert [r.conforms for r in results.values()] == [False, False]
-    assert all(r.conforms for r in importing(ignore_imports=True).validate_each([g(DATA)]).values())
+    assert all(r.conforms for r in importing(ignore_imports=True).validate_each(dataset_of([g(DATA)])).values())
 
 
 # --- max_validation_depth ---------------------------------------------------------------------------------------------------

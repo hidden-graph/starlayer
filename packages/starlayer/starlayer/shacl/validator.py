@@ -7,8 +7,11 @@ graph and an entailment regime) once and offers the same operations as methods.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+import sys
+from collections.abc import Callable, Iterable
 from typing import Any
+
+import pyoxigraph as ox
 
 from starlayer.shacl import _adapter
 from starlayer.shacl.candidates import Candidates
@@ -89,34 +92,45 @@ def validate(
     )
 
 
-def _each_items(data_graphs: Any) -> list[tuple[Any, Any]]:
-    """The ``(key, graph)`` pairs ``validate_each`` validates: a dataset's graphs (``None`` for a default graph that holds triples,
-    then the named graphs by name), a mapping's items, or a sequence's graphs by position."""
+def _each_items(dataset: Any) -> list[tuple[Any, Any]]:
+    """The ``(key, graph)`` pairs ``validate_each`` validates: the dataset's graphs, ``None`` for a default graph that holds triples,
+    then the named graphs by name. Only a dataset (a ``pyoxigraph.Store`` is wrapped as one) is taken: a list or mapping of graphs
+    has no one place to say what the graphs are called, so it is a ``TypeError`` that shows how to build the dataset."""
     from starlayer.graph import StarLayerDataset
+    from starlayer.graph.inputs import as_oxigraph
 
-    if isinstance(data_graphs, StarLayerDataset):
-        default = data_graphs.default_graph
-        return ([(None, default)] if len(default) else []) + [
-            (name, data_graphs.graph(name)) for name in sorted(data_graphs.graph_names(), key=str)
-        ]
-    if isinstance(data_graphs, Mapping):
-        return list(data_graphs.items())
-    return list(enumerate(data_graphs))
+    if not isinstance(dataset, StarLayerDataset):
+        if isinstance(dataset, ox.Store):
+            dataset = StarLayerDataset(store=dataset)
+        else:
+            rdflib = sys.modules.get("rdflib")
+            if rdflib is not None and isinstance(dataset, rdflib.Graph):
+                as_oxigraph(dataset, "dataset of validate_each()")  # raises the TypeError that names from_rdflib
+            raise TypeError(
+                f"validate_each() takes a dataset (a StarLayerDataset or pyoxigraph Store), not {type(dataset).__name__}: "
+                "validate a single graph with validate(graph, shacl_graph); to validate several graphs one by one, add them to "
+                "a StarLayerDataset, one graph per name, for example ds = StarLayerDataset(); ds.graph('urn:g:1').extend(graph_1) "
+                "(from a mapping: for name, g in graphs.items(): ds.graph(name).extend(g)), then validate_each(ds, shacl_graph)"
+            )
+    default = dataset.default_graph
+    return ([(None, default)] if len(default) else []) + [
+        (name, dataset.graph(name)) for name in sorted(dataset.graph_names(), key=str)
+    ]
 
 
 def validate_each(
-    data_graphs: Iterable[Any] | Mapping[Any, Any] | Any,
+    dataset: Any,
     shacl_graph: Any | None = None,
     ont_graph: Any | None = None,
     **kwargs: Any,
 ) -> dict[Any, ValidationReport]:
-    """Validates each graph of ``data_graphs`` on its own against the same ``shacl_graph`` / ``ont_graph``; the shapes are parsed once
+    """Validates each graph of ``dataset`` on its own against the same ``shacl_graph`` / ``ont_graph``; the shapes are parsed once
     for the whole batch. ``kwargs`` are those of :func:`validate`.
 
-    ``data_graphs`` is a sequence of graphs (the result is keyed by position), a mapping (keyed as given) or a ``StarLayerDataset``,
-    whose graphs are each validated alone: the result is keyed by graph name, plus ``None`` for the default graph when it holds any
-    triples. Validating a dataset *as a whole* is :func:`validate`, which sees the union of its graphs."""
-    items = _each_items(data_graphs)
+    The result is keyed by graph name, plus ``None`` for the default graph when it holds any triples. Only a ``StarLayerDataset``
+    (or a ``pyoxigraph.Store``) is taken, so every graph has a name to be reported under; validating the dataset *as a whole* is
+    :func:`validate`, which sees the union of its graphs."""
+    items = _each_items(dataset)
     with _adapter.shared_plans():
         return {key: validate(data_graph, shacl_graph, ont_graph, **kwargs) for key, data_graph in items}
 
@@ -182,7 +196,9 @@ def apply_rules(
     rule_set: Any | None = None,
     **kwargs: Any,
 ) -> RulesResult:
-    """Executes the SHACL rules of ``shacl_graph`` against a working copy of ``data_graph``, then validates the result.
+    """Executes the SHACL rules of ``shacl_graph`` over ``data_graph`` until nothing new is inferred, then validates the data with what they inferred.
+
+    The rules write to an overlay on top of the data, so a rule sees what another inferred and ``data_graph`` is not copied or changed.
 
     Covers ``sh:TripleRule`` and ``sh:SPARQLRule`` (shape-attached, in rule sets, or global) and ``sh:sourceRule`` provenance.
     ``data_graph`` is never changed.
@@ -935,15 +951,14 @@ class StarShaclProcessor:
             checked=self._checked,
         )
 
-    def validate_each(self, data_graphs: Iterable[Any] | Mapping[Any, Any] | Any | None = None, **kwargs: Any) -> dict[Any, ValidationReport]:
-        """Validates each graph of ``data_graphs`` (default: just the bound data graph) with :meth:`validate`; the shapes are parsed
-        once for the whole batch. ``data_graphs`` is as for the module function :func:`validate_each` (a sequence, a mapping or a
-        ``StarLayerDataset``); the result is keyed the same way. The keywords of :meth:`validate`, ``inference`` included, apply
-        to every graph."""
-        if data_graphs is None:
-            data_graphs = (self.data_graph,)
+    def validate_each(self, dataset: Any | None = None, **kwargs: Any) -> dict[Any, ValidationReport]:
+        """Validates each graph of ``dataset`` (default: the bound data graph, which must then be a dataset) with :meth:`validate`; the
+        shapes are parsed once for the whole batch. ``dataset`` and the result's keys are as for the module function
+        :func:`validate_each`. The keywords of :meth:`validate`, ``inference`` included, apply to every graph."""
+        if dataset is None:
+            dataset = self.data_graph
         with _adapter.shared_plans():
-            return {key: self.validate(data_graph, **kwargs) for key, data_graph in _each_items(data_graphs)}
+            return {key: self.validate(data_graph, **kwargs) for key, data_graph in _each_items(dataset)}
 
     def apply_rules(
         self,

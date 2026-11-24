@@ -10,6 +10,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclProcessor, extract_subgraph
 from starlayer.shacl.engine.terms import NS as Namespace
+from tests.support.datasets import dataset_of, name_of
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -457,7 +458,7 @@ class TestShapesGraphOnOtherMethods:
         missing_name.parse(data="@prefix ex: <http://example.org/> . ex:other a ex:Company .", format="turtle")
 
         results = schema.validate_each(
-            data_graphs=(conforming, missing_name), meta_shacl=False, shapes_graph_resource=EX.ModuleB
+            dataset_of([conforming, missing_name]), meta_shacl=False, shapes_graph_resource=EX.ModuleB
         )
-        assert results[0].conforms is True
-        assert results[1].conforms is False
+        assert results[name_of(0)].conforms is True
+        assert results[name_of(1)].conforms is False

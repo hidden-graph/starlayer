@@ -8,7 +8,7 @@ import pytest
 
 pytest.importorskip("pyoxigraph")
 
-from starlayer.graph import StarLayerGraph  # noqa: E402
+from starlayer.graph import StarLayerDataset, StarLayerGraph  # noqa: E402
 from starlayer.shacl import (  # noqa: E402
     StarShaclProcessor,
     apply_rules,
@@ -28,6 +28,15 @@ def _graph(text):
     with warnings.catch_warnings():  # the warning at load is not the one under test
         warnings.simplefilter("ignore", StarLayerFidelityWarning)
         return StarLayerGraph().parse(data=text, format="turtle")
+
+
+def _dataset(text):
+    """A dataset with the text parsed into one named graph (copying triples would drop the lexical form the warning is about)."""
+    dataset = StarLayerDataset()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", StarLayerFidelityWarning)
+        dataset.graph("urn:test:graph:0").parse(data=text, format="turtle")
+    return dataset
 
 
 def _engine_graph(text):
@@ -51,10 +60,10 @@ def _record(call):
 
 ENTRY_POINTS = {
     "module validate": lambda: validate(_graph(DATA), _graph(SHAPES)),
-    "module validate_each": lambda: validate_each([_graph(DATA)], _graph(SHAPES)),
+    "module validate_each": lambda: validate_each(_dataset(DATA), _graph(SHAPES)),
     "module apply_rules": lambda: apply_rules(_graph(DATA), _graph(SHAPES)),
     "processor validate": lambda: StarShaclProcessor(_graph(SHAPES)).validate(_graph(DATA)),
-    "processor validate_each": lambda: StarShaclProcessor(_graph(SHAPES)).validate_each([_graph(DATA)]),
+    "processor validate_each": lambda: StarShaclProcessor(_graph(SHAPES)).validate_each(_dataset(DATA)),
     "processor apply_rules": lambda: StarShaclProcessor(_graph(SHAPES)).apply_rules(_graph(DATA)),
     "engine api.validate": lambda: api.validate(_engine_graph(DATA), _engine_graph(SHAPES)),
 }

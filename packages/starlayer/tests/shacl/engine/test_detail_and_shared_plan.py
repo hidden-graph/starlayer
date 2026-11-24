@@ -11,6 +11,7 @@ from starlayer.shacl import StarShaclProcessor, validate_each
 from starlayer.shacl.engine import api
 from starlayer.shacl.engine.plan import Plan
 from starlayer.shacl.engine.terms import SH
+from tests.support.datasets import dataset_of, name_of
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 
@@ -93,22 +94,22 @@ def _batch():
 
 def test_module_validate_each_builds_one_plan(plan_builds) -> None:
     shapes = g(SHAPES)
-    out = validate_each(_batch(), shapes)
-    assert [out[i].conforms for i in range(3)] == [False, True, False]
+    out = validate_each(dataset_of(_batch()), shapes)
+    assert [out[name_of(i)].conforms for i in range(3)] == [False, True, False]
     assert len(plan_builds) == 1
 
 
 def test_schema_validate_each_builds_one_plan(plan_builds) -> None:
     schema = StarShaclProcessor(shacl_graph=g(SHAPES))
-    out = schema.validate_each(_batch())
-    assert [out[i].conforms for i in range(3)] == [False, True, False]
+    out = schema.validate_each(dataset_of(_batch()))
+    assert [out[name_of(i)].conforms for i in range(3)] == [False, True, False]
     assert len(plan_builds) == 1
 
 
 def test_plain_rdflib_shapes_graph_is_shared_too(plan_builds) -> None:
     shapes = Graph()
     shapes.parse(data=PFX + SHAPES, format="turtle")
-    validate_each(_batch(), shapes)
+    validate_each(dataset_of(_batch()), shapes)
     assert len(plan_builds) == 1
 
 

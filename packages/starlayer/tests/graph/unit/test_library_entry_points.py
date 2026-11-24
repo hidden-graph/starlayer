@@ -10,6 +10,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import ENTAILMENT, StarLayerDataset, StarLayerGraph
+from tests.support.datasets import dataset_of, name_of
 
 EX = "http://example.org/"
 SHAPES = """
@@ -119,8 +120,8 @@ def test_apply_rules_takes_oxigraph_graphs(kind):
 def test_validate_each_takes_oxigraph_graphs():
     from starlayer.shacl import validate_each
 
-    results = validate_each([_ox(StarLayerGraph, DATA), _ox(StarLayerDataset, FIXED_DATA)], shacl_graph=_ox(StarLayerGraph, SHAPES))
-    assert {k: r.conforms for k, r in results.items()} == {0: False, 1: True}
+    results = validate_each(dataset_of([_ox(StarLayerGraph, DATA), _ox(StarLayerGraph, FIXED_DATA)]), shacl_graph=_ox(StarLayerGraph, SHAPES))
+    assert {k: r.conforms for k, r in results.items()} == {name_of(0): False, name_of(1): True}
 
 
 def test_extract_subgraph_takes_one_graph_and_refuses_a_dataset(kind):

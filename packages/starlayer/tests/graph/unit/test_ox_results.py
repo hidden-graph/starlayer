@@ -11,6 +11,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
+from tests.support.datasets import dataset_of
 
 SHAPES = """
 @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -86,7 +87,7 @@ def test_schema_validate_and_validate_each():
 
     schema = StarShaclProcessor(shacl_graph=_ox(SHAPES))
     assert_ox(schema.validate(data_graph=_ox(DATA)).report_graph)
-    assert all(isinstance(r.report_graph, StarLayerGraph) for r in schema.validate_each([_ox(DATA)]).values())
+    assert all(isinstance(r.report_graph, StarLayerGraph) for r in schema.validate_each(dataset_of([_ox(DATA)])).values())
 
 
 @pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])

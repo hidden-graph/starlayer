@@ -1,8 +1,15 @@
 
+import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError
-from starlayer.shacl.validator import StarShaclProcessor, evaluate, validate, validate_each
+from starlayer.shacl.validator import (
+    StarShaclProcessor,
+    evaluate,
+    validate,
+    validate_each,
+)
+from tests.support.datasets import dataset_of, name_of
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -66,10 +73,10 @@ class TestBareFunctionsWorkWithoutStarShaclProcessor:
         violating = StarLayerGraph()
         violating.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
 
-        results = validate_each([violating, conforming], shapes, meta_shacl=False)
+        results = validate_each(dataset_of({ox.NamedNode("urn:test:violating"): violating, ox.NamedNode("urn:test:conforming"): conforming}), shapes, meta_shacl=False)
 
-        assert results[0].conforms is False
-        assert results[1].conforms is True
+        assert results[ox.NamedNode("urn:test:violating")].conforms is False
+        assert results[ox.NamedNode("urn:test:conforming")].conforms is True
 
     def test_bare_evaluate_computes_sh_values(self) -> None:
         shapes = StarLayerGraph()
@@ -126,10 +133,10 @@ def test_module_level_validate_each_matches_starlayershacl_method() -> None:
     violating = StarLayerGraph()
     violating.parse(data="@prefix ex: <http://example.org/> . ex:bob a ex:Person .", format="turtle")
 
-    results = validate_each([conforming, violating], shacl_graph=shapes)
+    results = validate_each(dataset_of([conforming, violating]), shacl_graph=shapes)
 
-    assert results[0].conforms is True
-    assert results[1].conforms is False
+    assert results[name_of(0)].conforms is True
+    assert results[name_of(1)].conforms is False
 
 
 
@@ -542,9 +549,9 @@ class TestBoundDataGraphAndInference:
         schema.evaluate(inference=None)  # accepted (it was a TypeError before)
 
     def test_validate_each_falls_back_to_bound_data_graph(self) -> None:
-        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=dataset_of([self._data(name_present=True)]))
         results = schema.validate_each()
-        assert results[0].conforms is True
+        assert results[name_of(0)].conforms is True
 
 
 
