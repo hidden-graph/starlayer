@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -35,7 +35,7 @@ def test_conforms_when_reifier_has_full_provenance() -> None:
         format="turtle12",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -52,7 +52,7 @@ def test_violates_when_no_reifier_present() -> None:
         format="turtle12",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -76,7 +76,7 @@ def test_violates_when_reifier_missing_required_provenance_property() -> None:
         format="turtle12",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -111,4 +111,4 @@ def test_reification_required_string_literal_false_is_rejected_not_silently_enab
     )
 
     with pytest.raises(ValueError, match="xsd:boolean literal"):
-        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)

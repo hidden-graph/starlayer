@@ -7,7 +7,7 @@ from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema, validate_each
+from starlayer.shacl import StarShaclProcessor, validate_each
 from starlayer.shacl.engine import api
 from starlayer.shacl.engine.plan import Plan
 from starlayer.shacl.engine.terms import SH
@@ -99,7 +99,7 @@ def test_module_validate_each_builds_one_plan(plan_builds) -> None:
 
 
 def test_schema_validate_each_builds_one_plan(plan_builds) -> None:
-    schema = StarShaclSchema(shacl_graph=g(SHAPES))
+    schema = StarShaclProcessor(shacl_graph=g(SHAPES))
     out = schema.validate_each(_batch())
     assert [out[i].conforms for i in range(3)] == [False, True, False]
     assert len(plan_builds) == 1

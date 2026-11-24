@@ -15,6 +15,7 @@ from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from typing import Any
 
+from starlayer.shacl.engine.builtin_functions import BUILTIN_FUNCTIONS
 from starlayer.shacl.engine.components.registry import Violation
 from starlayer.shacl.engine.interface import Solutions
 from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, ShapeError, Term
@@ -203,7 +204,8 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
     (SPARQL Extensions 7.3: "SHOULD register a function"). The call's arguments become the scope ``0, 1, ...`` of the
     body expression, which must have exactly one output node, else the call is a SPARQL error (the function call gives no
     value). The (function, body) pairs are read once per plan (the shapes graph does not change during a run); the callables
-    close over ``ctx`` and so are made once per run, because a plan can be shared by several data graphs."""
+    close over ``ctx`` and so are made once per run, because a plan can be shared by several data graphs. StarLayer's own functions
+    (``builtin_functions.BUILTIN_FUNCTIONS``, ``stsh:``) are added to them, so a constraint a user writes can call them too."""
     cache = ctx.cache
     functions = cache.get(("shacl-functions",))
     if functions is not None:
@@ -235,7 +237,7 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
 
         return call
 
-    functions = cache[("shacl-functions",)] = {fn: make(fn, body) for fn, body in pairs}
+    functions = cache[("shacl-functions",)] = {**{fn: make(fn, body) for fn, body in pairs}, **BUILTIN_FUNCTIONS}
     return functions
 
 

@@ -1,5 +1,5 @@
 """Named bundles of validator options ("validation"/"rules"/"debug" presets
-for meta_shacl/advanced/inplace/etc.), selected via validate(mode=...).
+for meta_shacl/rules/inplace/etc.), selected via validate(mode=...).
 
 Not related to the SHACL 1.2 Profiling spec (see starlayer.shacl's
 profiling.py for that) - "profile" is reserved project-wide for that spec
@@ -22,23 +22,16 @@ class ValidationMode:
     options: dict[str, Any]
 
 
+# A preset names only what it changes from the built-in defaults (``inplace`` off, ``meta_shacl`` off ...): a preset beats a
+# StarShaclProcessor's constructor options, so a restated default would silently undo one.
 _MODE_OPTIONS: dict[str, dict[str, Any]] = {
-    "validation": {
-        "advanced": True,
-        "inplace": False,
-        "meta_shacl": False,
-    },
+    "validation": {},
     "rules": {
-        "advanced": True,
-        "iterate_rules": True,
+        "rules": True,
         "inplace": True,
-        "meta_shacl": False,
     },
     "debug": {
-        "advanced": True,
-        "inplace": False,
         "debug": True,
-        "meta_shacl": False,
     },
 }
 
@@ -63,6 +56,7 @@ def resolve_mode_options(
     mode: str | ValidationMode | None = None,
     *,
     overrides: Mapping[str, Any] | None = None,
+    defaults: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build the validator options for a mode, with caller overrides applied on top.
 
@@ -71,6 +65,7 @@ def resolve_mode_options(
     Args:
         mode: A mode name or a ValidationMode; None means the "validation" mode.
         overrides: Options that replace the mode's value for the same key, or add keys the mode lacks.
+        defaults: Lowest precedence: a processor's constructor options. The mode's value for the same key replaces them.
     """
     if mode is None:
         base = dict(_MODE_OPTIONS["validation"])
@@ -79,6 +74,8 @@ def resolve_mode_options(
     else:
         base = dict(get_mode(mode).options)
 
+    if defaults:
+        base = {**defaults, **base}
     if overrides:
         base.update(dict(overrides))
 

@@ -26,6 +26,13 @@ def report_node(graph):
     return next(graph.subjects(RDF.type, SH.ValidationReport))
 
 
+def activity_node(graph):
+    """The sh:ValidationActivity that prov:generated the report: provenance is there, not on the report node."""
+    n = next(graph.subjects(RDF.type, SH.ValidationActivity))
+    assert (n, URIRef("http://www.w3.org/ns/prov#generated"), report_node(graph)) in graph
+    return n
+
+
 def results_of(graph):
     return len(list(graph.objects(report_node(graph), SH.result)))
 
@@ -48,19 +55,21 @@ def test_used_graphs_match_the_old_validator() -> None:
     kw = {"data_graph_iri": EX + "d", "shapes_graph_iri": EX + "s"}
     old, new = both(GOOD, SHAPES, **kw)
     for r in (old.report_graph, new.report_graph):
-        n = report_node(r)
+        n = activity_node(r)
+        assert not list(r.triples((report_node(r), SH.usedDataGraph, None)))
         assert set(r.objects(n, SH.usedDataGraph)) == {URIRef(EX + "d")}
         assert set(r.objects(n, SH.usedShapesGraph)) == {URIRef(EX + "s")}
-    # both graph identities known, conforming: the Profiling sh:conformsTo rule fired in both
-    assert (URIRef(EX + "d"), SH.conformsTo, URIRef(EX + "s")) in old.report_graph
-    assert (URIRef(EX + "d"), SH.conformsTo, URIRef(EX + "s")) in new.report_graph
+    # both graph identities known, conforming: the Profiling sh:conformsToShapesGraph rule fired in both
+    assert (URIRef(EX + "d"), SH.conformsToShapesGraph, URIRef(EX + "s")) in old.report_graph
+    assert (URIRef(EX + "d"), SH.conformsToShapesGraph, URIRef(EX + "s")) in new.report_graph
 
 
 def test_graph_identifier_is_the_fallback() -> None:
     old = old_validate(g(GOOD, EX + "dd"), g(SHAPES, EX + "ss"), meta_shacl=False, ignore_imports=True)
     new = new_validate(g(GOOD, EX + "dd"), g(SHAPES, EX + "ss"))
     for r in (old.report_graph, new.report_graph):
-        n = report_node(r)
+        n = activity_node(r)
+        assert not list(r.triples((report_node(r), SH.usedDataGraph, None)))
         assert set(r.objects(n, SH.usedDataGraph)) == {URIRef(EX + "dd")}
         assert set(r.objects(n, SH.usedShapesGraph)) == {URIRef(EX + "ss")}
 
@@ -76,9 +85,9 @@ def test_no_identity_no_provenance() -> None:
 def test_used_configuration() -> None:
     old, new = both(BAD, SHAPES, include_used_configuration=True)
     for r in (old.report_graph, new.report_graph):
-        cfg = next(r.objects(report_node(r), SH.usedConfiguration))
+        cfg = next(r.objects(activity_node(r), SH.usedConfiguration))
         assert (cfg, RDF.type, SH.ProcessorConfiguration) in r
-    cfg = next(new.report_graph.objects(report_node(new.report_graph), SH.usedConfiguration))
+    cfg = next(new.report_graph.objects(activity_node(new.report_graph), SH.usedConfiguration))
     assert len(list(new.report_graph.predicate_objects(cfg))) > 1  # the new engine records the run's options too
 
 
@@ -96,7 +105,7 @@ def test_shapes_graph_resource_selects_a_module() -> None:
     new = new_validate(g(data), g(MODULES), shapes_graph_resource=URIRef(EX + "M1"))
     assert old.conforms is new.conforms is True
     for r in (old.report_graph, new.report_graph):
-        assert set(r.objects(report_node(r), SH.usedShapesGraph)) == {URIRef(EX + "M1")}
+        assert set(r.objects(activity_node(r), SH.usedShapesGraph)) == {URIRef(EX + "M1")}
     old2 = old_validate(g(data), g(MODULES), shapes_graph_resource=EX + "M2", meta_shacl=False, ignore_imports=True)
     new2 = new_validate(g(data), g(MODULES), shapes_graph_resource=URIRef(EX + "M2"))
     assert old2.conforms is new2.conforms is False
@@ -107,7 +116,7 @@ def test_shapes_graph_resource_not_a_module_is_a_tag() -> None:
     new = new_validate(g(BAD), g(SHAPES), shapes_graph_resource=URIRef(EX + "tag"))
     assert old.conforms is new.conforms is False
     for r in (old.report_graph, new.report_graph):
-        assert set(r.objects(report_node(r), SH.usedShapesGraph)) == {URIRef(EX + "tag")}
+        assert set(r.objects(activity_node(r), SH.usedShapesGraph)) == {URIRef(EX + "tag")}
 
 
 def test_shapes_graph_resource_needs_a_shapes_graph() -> None:
@@ -232,3 +241,57 @@ def test_inplace_adds_entailed_triples_to_the_data_graph() -> None:
     out = new_validate(data, g(SHAPES), inference=ENTAILMENT.RDFS, inplace=True)
     assert out.data_graph is data
     assert (URIRef(EX + "a"), RDF.type, URIRef(EX + "U")) in data
+
+
+# --- rules= replaces the deprecated advanced= ---------------------------------------------------------------------------------------
+_RULE_SHAPES = """
+@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> .
+ex:S a sh:NodeShape ; sh:targetClass ex:C ;
+  sh:rule [ a sh:TripleRule ; sh:subject [ <http://www.w3.org/ns/shacl-node-expr#var> "focusNode" ] ; sh:predicate ex:tag ; sh:object ex:yes ] ;
+  sh:property [ sh:path ex:tag ; sh:minCount 1 ] .
+"""
+
+
+def _run_rules_case(**options):
+    from starlayer.graph import StarLayerGraph
+    from starlayer.shacl import validate
+
+    shapes, data = StarLayerGraph(), StarLayerGraph()
+    shapes.parse(data=_RULE_SHAPES, format="turtle")
+    data.parse(data="@prefix ex: <http://example.org/> . ex:a a ex:C .", format="turtle")
+    return validate(data, shacl_graph=shapes, meta_shacl=False, **options).conforms
+
+
+def test_rules_true_runs_the_rules_and_false_does_not_without_a_warning() -> None:
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        assert _run_rules_case(rules=True) is True
+        assert _run_rules_case(rules=False) is False
+
+
+def test_advanced_false_still_disables_rules_and_warns_at_the_callers_line() -> None:
+    with pytest.warns(DeprecationWarning, match="rules=False instead of advanced=False") as caught:
+        assert _run_rules_case(advanced=False) is False
+    assert caught[0].filename == __file__
+
+
+def test_advanced_true_warns_and_changes_nothing() -> None:
+    with pytest.warns(DeprecationWarning, match="advanced=True is the default"):
+        with_option = _run_rules_case(advanced=True)
+    assert with_option == _run_rules_case()
+
+
+def test_rules_wins_when_advanced_is_also_given() -> None:
+    with pytest.warns(DeprecationWarning):
+        assert _run_rules_case(advanced=False, rules=True) is True
+
+
+def test_a_mode_preset_emits_no_warning() -> None:
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("error")
+        for mode in ("validation", "rules", "debug"):
+            _run_rules_case(mode=mode)

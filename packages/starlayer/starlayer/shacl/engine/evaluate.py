@@ -38,6 +38,9 @@ def evaluate(
     ont_graph: Any = None,
     *,
     inference: Any = None,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
     focus_nodes: Iterable[Any] | None = None,
     properties: Iterable[Any] | None = None,
     rules_entailment: bool = False,
@@ -57,7 +60,9 @@ def evaluate(
 
     data_graph = engine_view(data_graph, "data graph")
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
-    view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
+    view = resolve_data_view(
+        data_graph, shapes, inference=inference, ont_graph=ont_graph, engine=engine, timeout=timeout, recompute=recompute
+    )
     if rules_entailment:
         from starlayer.shacl.engine.rules import apply_rules, entailment_selection
 

@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclSchema, apply_rules, evaluate, validate
+from starlayer.shacl import ShapeError, StarShaclProcessor, apply_rules, evaluate, validate
 from tests.support.terms import RDF, Namespace
 
 pytestmark = pytest.mark.shacl
@@ -156,7 +156,7 @@ class TestModuleLevelValidateKeywords:
         assert validate(g(data), g(MODULES)).conforms is False
         assert validate(g(data), g(MODULES), shapes_graph_resource=EX.M1).conforms is True
         assert validate(g(data), g(MODULES), shapes_graph_resource=EX.M2).conforms is False
-        schema = StarShaclSchema(shacl_graph=g(MODULES))
+        schema = StarShaclProcessor(shacl_graph=g(MODULES))
         assert schema.validate(g(data), shapes_graph_resource=EX.M1).conforms is True
 
     def test_shapes_graph_resource_without_a_shapes_graph_raises(self) -> None:
@@ -167,9 +167,9 @@ class TestModuleLevelValidateKeywords:
         with pytest.raises(TypeError, match="bogus_option"):
             validate(g("ex:a a ex:Dog ."), g(MODULES), bogus_option=1)
 
-    def test_unknown_keyword_raises_on_the_schema_method_too(self) -> None:
+    def test_unknown_keyword_raises_on_the_processor_method_too(self) -> None:
         with pytest.raises(TypeError, match="bogus_option"):
-            StarShaclSchema(shacl_graph=g(MODULES)).validate(g("ex:a a ex:Dog ."), bogus_option=1)
+            StarShaclProcessor(shacl_graph=g(MODULES)).validate(g("ex:a a ex:Dog ."), bogus_option=1)
 
     def test_known_pyshacl_keyword_is_accepted(self) -> None:
         assert validate(g("ex:a a ex:Dog ."), g(MODULES), shapes_graph_resource=EX.M1, abort_on_first=True).conforms
@@ -183,7 +183,7 @@ class TestModuleMemberWithNamedPropertyShapeOutsideTheModule:
     """
 
     def test_validation_of_the_module_does_not_crash(self) -> None:
-        schema = StarShaclSchema(shacl_graph=g(self.SHAPES))
+        schema = StarShaclProcessor(shacl_graph=g(self.SHAPES))
         assert schema.validate(g("ex:a a ex:Dog ."), shapes_graph_resource=EX.M1).conforms is True
         assert validate(g("ex:a a ex:Dog ."), g(self.SHAPES), shapes_graph_resource=EX.M1).conforms is True
 
@@ -192,7 +192,7 @@ class TestModuleMemberWithNamedPropertyShapeOutsideTheModule:
 
     def test_a_member_named_property_shape_is_still_checked(self) -> None:
         shapes = self.SHAPES + "ex:PS rdfs:isDefinedBy ex:M1 ."
-        schema = StarShaclSchema(shacl_graph=g(shapes))
+        schema = StarShaclProcessor(shacl_graph=g(shapes))
         assert schema.validate(g("ex:a a ex:Dog ."), shapes_graph_resource=EX.M1).conforms is False
 
 

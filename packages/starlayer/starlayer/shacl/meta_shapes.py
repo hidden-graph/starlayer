@@ -10,8 +10,7 @@ fixes something we override. Editing the validation shapes or updating the pinne
 re-run.
 
 This module also holds what the preflight needs besides the shapes: the per-parameter value shapes of SPARQL-based constraint
-components (``parameter_value_shapes``) and the checks of the SPARQL text a shapes graph embeds (``check_sparql_query_text``,
-``sparql_query_problems``).
+components (``parameter_value_shapes``) and the checks of the SPARQL text a shapes graph embeds (``sparql_query_problems``).
 """
 
 from __future__ import annotations
@@ -24,6 +23,7 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.shacl.engine.graphs import new_graph
+from starlayer.shacl.engine.meta_scope import MetaScope
 from starlayer.shacl.engine.terms import (
     RDF,
     SH,
@@ -34,7 +34,7 @@ from starlayer.shacl.engine.terms import (
     to_engine,
 )
 
-# check_sparql_query_text()'s own sqe structural-validation result cache: validating an encoded query is a real SHACL
+# sparql_query_problems()'s own sqe structural-validation result cache: validating an encoded query is a real SHACL
 # validation pass, not cheap, and otherwise uncached. Keyed directly on the exact inputs that determine its result
 # (predicate, the literal query text, and its resolved prefix map), which are already directly, stably hashable. Same bounded-LRU
 # shape as _META_VALIDATE_CACHE, kept as a separate cache since it's keyed on different things (one query's text+prefixes, not a
@@ -171,7 +171,8 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
     no effect on validation until the file is regenerated. A test compares the stored
     file with a fresh build and fails on drift.
 
-    The file is parsed once per process by ``starontology`` and cached there;
+    The private layer ``shacl_shacl_starlayer`` (the two checks that call StarLayer-internal SPARQL functions) is merged in; ``shacl_shacl`` alone
+    holds only standard SHACL and SPARQL. The files are parsed once per process by ``starontology`` and cached there;
     each call returns a fresh ``StarLayerGraph`` copy, so ``extra_graphs`` can be added (plain
     triple addition) without affecting later calls.
     """
@@ -181,6 +182,8 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
     stored = starontology.get_ontology_graph("shacl_shacl")
     graph = new_graph(stored)
     graph.extend(list(stored.triples((None, None, None))))
+    # The layer of shapes that call StarLayer's own SPARQL functions; shacl_shacl alone stays standard SHACL and SPARQL.
+    graph.extend(list(starontology._load_private("shacl_shacl_starlayer").triples((None, None, None))))
     for extra in extra_graphs:
         triples = engine_view(extra, "extra meta-shapes graph").triples((None, None, None)) if hasattr(extra, "triples") else extra
         graph.extend([tuple(to_engine(x) for x in triple) for triple in triples])
@@ -189,14 +192,36 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
 
 
 
-def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwargs: Any) -> tuple[bool, Any, str]:
+def meta_validate(
+    shapes_graph: Any,
+    *,
+    add: Iterable[Any] = (),
+    remove: Iterable[Any] = (),
+    nodes: Iterable[Any] | None = None,
+    with_dependents: bool = True,
+    extra_graphs: Iterable[Any] = (),
+    **kwargs: Any,
+) -> tuple[bool, Any, str]:
     """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
 
-    Returns ``(conforms, report_graph, report_text)`` and raises ``MetaShaclError`` (message starting "SHACL File does not validate
-    against the SHACL Shapes SHACL (MetaSHACL) file.") when the shapes graph does not conform. A warning-severity meta-shape is
+    Returns ``(conforms, report_graph, report_text)`` and raises ``MetaShaclError`` (message starting "The shapes graph is not valid SHACL",
+    then one line per problem naming the shape, the property and what is wrong; ``problems``, ``report_text`` and ``scope`` hold the same) when the
+    shapes graph does not conform. A warning-severity meta-shape is
     advice: it appears in the report but does not make the graph invalid (``allow_warnings=True``; pass ``allow_warnings=False`` to
     count warnings, ``allow_infos=True`` to tolerate infos only). ``extra_graphs`` are added to the meta-shapes. The report is
-    an ``StarLayerGraph``."""
+    an ``StarLayerGraph``.
+
+    With none of ``add``, ``remove`` and ``nodes`` the whole graph is checked, at about 3 ms per node shape. For a check after every
+    edit, pass the edit before applying it: ``add`` and ``remove`` are triples ``(s, p, o)``; the check runs on a copy of the graph
+    as it would be after the edit (removals first, then additions; ``shapes_graph`` itself is not changed) and reports only the
+    nodes the edit touches. The whole graph stays visible to the check, so a node that is not covered is simply not reported, not
+    checked against a cut-down graph. ``nodes`` checks those nodes of the graph as it is (alone or together with an edit; the caller
+    then owns the decision that nothing else is affected, and a full check before saving or publishing is still the safe default).
+    ``with_dependents`` adds the shapes that refer to a covered node (``sh:node``, ``sh:and`` / ``sh:or`` / ``sh:xone``, ``sh:not``,
+    ``sh:property``, ``sh:qualifiedValueShape`` ...; the references ``referenced_shapes`` follows, read in reverse, and the owner of a
+    blank node), one step only. An edit that other nodes inherit from (prefix declarations, components and their parameters, rule
+    templates, ``rdf:type`` and ``rdfs:subClassOf`` triples) is checked in full; ``meta_scope`` says which it was and why.
+    A result whose focus node is not covered is not reported, even when the check saw it."""
     from starlayer.shacl.engine.meta import meta_validate as engine_meta_validate
 
     result = engine_meta_validate(
@@ -204,11 +229,31 @@ def meta_validate(shapes_graph: Any, *, extra_graphs: Iterable[Any] = (), **kwar
         extra=extra_graphs,
         allow_warnings=kwargs.pop("allow_warnings", True),
         allow_infos=kwargs.pop("allow_infos", None),
+        add=add,
+        remove=remove,
+        nodes=nodes,
+        with_dependents=with_dependents,
     )
     if kwargs:
         raise TypeError(f"unknown option(s) {', '.join(sorted(kwargs))}")
     result.raise_if_invalid()
     return result.conforms, result.report_graph, result.report_text
+
+
+def meta_scope(
+    shapes_graph: Any,
+    *,
+    add: Iterable[Any] = (),
+    remove: Iterable[Any] = (),
+    nodes: Iterable[Any] | None = None,
+    with_dependents: bool = True,
+) -> MetaScope:
+    """What ``meta_validate`` with the same arguments covers and why, as a ``MetaScope``: ``full`` (the edit is one that other nodes
+    inherit from, or nothing was named), the focus ``nodes`` and ``reasons``. It does not validate or copy anything (a few
+    milliseconds on thousands of shapes), so an editor can show it next to a valid result, which has no error to carry it."""
+    from starlayer.shacl.engine.meta import meta_scope as engine_meta_scope
+
+    return engine_meta_scope(shapes_graph, add=add, remove=remove, nodes=nodes, with_dependents=with_dependents)
 
 
 def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str]:
@@ -218,13 +263,10 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
     ``sparql_support.prefixes_of`` (``sh:prefixes`` with its ``owl:imports`` closure, or the ``sh:ShapesGraph`` / ontology
     declarations when there is no ``sh:prefixes``) on a plain shapes graph.
 
-    Only ``sh:prefixes`` / ``sh:declare`` declare prefixes (SHACL SPARQL Extensions); there is no ambient lookup.
+    Only ``sh:prefixes`` / ``sh:declare`` declare prefixes (SHACL SPARQL Extensions); there is no ambient lookup, not even for ``rdf:``,
+    ``rdfs:`` and ``owl:``: the engine binds none when it runs the query, so a check that assumed them would pass what then fails.
     """
-    prefixes: dict[str, str] = {
-        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
-        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
-        "owl": "http://www.w3.org/2002/07/owl#",
-    }
+    prefixes: dict[str, str] = {}
 
     from starlayer.shacl.engine.plan import ShapeError
     from starlayer.shacl.engine.sparql_support import prefixes_of
@@ -234,17 +276,6 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
     except ShapeError:  # a malformed declaration is reported by the meta-shapes, not here
         pass
     return prefixes
-
-
-def _sparql_structure_cache_key(predicate: Any, text_literal: Any, prefixes: dict, declared: frozenset[str] = frozenset()) -> tuple:
-    """Cache key for one query's structural-validation outcome: the predicate that carried it, the literal text, its resolved prefix
-    map (the same text can mean different things under different prefix bindings) and the parameter names its owner declares."""
-    return (
-        predicate,
-        text(text_literal),
-        tuple(sorted(prefixes.items())),
-        tuple(sorted(declared)),
-    )
 
 
 # SHACL-SPARQL's own pre-bound pseudo-variables are supplied externally by
@@ -313,65 +344,6 @@ def _parse_embedded_query(query_text: str, prefixes: dict[str, str]) -> Any:
     return parse_sparql(query_text, None, prefixes)
 
 
-def check_sparql_query_text(shapes_graph: Any) -> None:
-    """Preflight: every ``sh:select``/``sh:ask``/``sh:construct`` literal
-    anywhere in ``shapes_graph`` must be syntactically valid SPARQL text,
-    and must not have a defect a bare parse can't catch - most notably an
-    unbound projected variable (a query that compiles and runs, just
-    silently never binds one of its own ``SELECT`` variables).
-
-    The meta-shapes graph already checks these structurally (cardinality,
-    ``xsd:string`` datatype), but never actually parses the string -
-    confirmed live that ``sh:ask "this is not valid SPARQL at all !!!"``
-    conforms cleanly under the structural check alone. This is a
-    Python-level check, not another SHACL shape, because "is this string
-    valid SPARQL" isn't RDF-structural - no shape can express it.
-
-    A literal that parses is additionally encoded as an ``sqe:`` (SPARQL-query-as-RDF) tree and validated against
-    ``sqe:``'s own shapes - which have a real check for the unbound-projected-
-    variable case. This
-    is real extra validation work (SHACL validation, not just a
-    parse), so results are cached per distinct (predicate, text, prefixes)
-    - repeated calls against the same shapes graph only pay this once per
-    distinct embedded query, the same reason ``meta_validate()`` itself
-    caches its own, larger structural pass.
-
-    Scans the whole graph for these three predicates directly rather than
-    walking ``sh:sparql``/``sh:validator``/``sh:selectValidator``-style
-    parent structures individually - ``sh:select``/``sh:ask``/
-    ``sh:construct`` are the same predicates regardless of which kind of
-    parent node carries them (an ordinary ``sh:sparql`` constraint, or a
-    custom ``sh:ConstraintComponent``'s validator node), so one direct
-    scan covers every case uniformly.
-
-    ``$this``/``$value``/``$PATH``-style pre-bound variables need no
-    special handling for the parse step - they parse as ordinary ``Var``
-    tokens regardless of whether they're bound, which only matters at
-    execution time. They *do* need special handling for the structural
-    step above: the ``sqe:`` unbound-variable checks have no SHACL
-    awareness, so a perfectly valid ``$this``-only validator (e.g.
-    ``SELECT $this WHERE { FILTER(...) }``, never referencing ``$this``
-    directly in its own pattern - these variables are bound externally by
-    pySHACL itself, not by anything in the query text) would otherwise be
-    a false positive - confirmed live. See
-    ``_is_prebound_variable_only_report``'s own docstring for exactly
-    which violations this suppresses (only ones naming exactly one of
-    these three pre-bound names; anything else still raises). Prefixes do
-    matter at parse time (an unresolved ``PrefixedName`` is a real parse
-    error), so each query's prefix map is resolved the same way real
-    execution would (see ``_collect_query_prefixes``).
-
-    Args:
-        shapes_graph: The shapes graph to scan.
-
-    Raises ``ShapeError`` naming the offending predicate and the underlying parse error, or the ``sqe:`` structural-validation report.
-    """
-    from starlayer.shacl.errors import ShapeError
-
-    for _node, _predicate, message in sparql_query_problems(shapes_graph):
-        raise ShapeError(message)
-
-
 # shui:searchQuery (SHACL UI, Search Query): a SELECT with at least one projected variable (the parser requires a projection or *), on a
 # property shape, with the prefixes of sh:declare / sh:prefixes like any embedded query. The $searchTerm and $language it uses are
 # ordinary variables of the text; the renderer substitutes them before it runs the query.
@@ -383,51 +355,55 @@ _QUERY_FORMS = {
     SH.construct: ("ConstructQuery", "CONSTRUCT"),
     SHUI_SEARCH_QUERY: ("SelectQuery", "SELECT"),
 }
+_QUERY_NAMES = {SH.select: "sh:select", SH.ask: "sh:ask", SH.construct: "sh:construct", SHUI_SEARCH_QUERY: "shui:searchQuery"}
 
 
-def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
-    """Each defect of an embedded query as ``(the node that holds it, sh:select/sh:ask/sh:construct/shui:searchQuery, what is wrong)``: text that is not SPARQL,
-    a query of another form than the predicate says (a SELECT in ``sh:construct``), or one that fails the SPARQL structure check (see
-    ``check_sparql_query_text``, which raises the first). A tool shows these next to the other problems of a shapes graph."""
+def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str], declared: frozenset[str] = frozenset()) -> str | None:
+    """What is wrong with one embedded query, or None: text that is not SPARQL, a query of another form than ``predicate`` says (a SELECT in
+    ``sh:construct``), or one that fails the SPARQL structure check. This is the verdict of ``stsh:sparqlProblem`` (``engine/builtin_functions.py``) and of
+    ``sparql_query_problems``, so the shapes of ``shacl_shacl_starlayer`` and a tool that lists problems cannot disagree."""
     from starlayer.sparql.parse_sparql import SparqlSyntaxError, ast_to_triples
     from starlayer.sparql.sqe.shapes import sqe_validate
 
+    name = _QUERY_NAMES[predicate]
+    try:
+        query = _parse_embedded_query(query_text, prefixes)
+    except (SparqlSyntaxError, ValueError) as exc:
+        return f"{name} value is not valid SPARQL: {exc}"
+    algebra_name, form = _QUERY_FORMS[predicate]
+    if query.kind != algebra_name:
+        actual = next((f for n, f in _QUERY_FORMS.values() if n == query.kind), query.kind)
+        return f"{name} must hold a {form} query, but this is a {actual} query"
+    cache_key = (predicate, query_text, tuple(sorted(prefixes.items())), tuple(sorted(declared)))
+    cached = _SPARQL_STRUCTURE_CACHE.get(cache_key)
+    if cached is not None:
+        conforms, report_text = cached
+    else:
+        from starlayer.graph.core import StarLayerGraph
+
+        encoded_graph = StarLayerGraph(prefixes={})
+        encoded_graph.extend(ast_to_triples(query)[0])
+        conforms, report_graph, report_text = sqe_validate(encoded_graph)
+        bound = declared | (_SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset())
+        if not conforms and _is_prebound_variable_only_report(report_graph, bound, _SHACL_PREBOUND_VARIABLE_NAMES):
+            conforms = True
+        _SPARQL_STRUCTURE_CACHE[cache_key] = (conforms, report_text)
+        _SPARQL_STRUCTURE_CACHE.move_to_end(cache_key)
+        if len(_SPARQL_STRUCTURE_CACHE) > _SPARQL_STRUCTURE_CACHE_MAXSIZE:
+            _SPARQL_STRUCTURE_CACHE.popitem(last=False)
+    return None if conforms else f"{name} value fails SPARQL structural validation:\n{report_text}"
+
+
+def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
+    """Each defect of an embedded query as ``(the node that holds it, sh:select/sh:ask/sh:construct/shui:searchQuery, what is wrong)``, read straight from
+    the graph with ``sparql_text_problem``. ``meta_validate`` gets the same defects from the ``shacl_shacl_starlayer`` shapes; this is for a tool that has no report to read."""
     shapes_graph = engine_view(shapes_graph, "shapes graph")
-    for predicate in (SH.select, SH.ask, SH.construct, SHUI_SEARCH_QUERY):
-        name = shapes_graph.qname_term(predicate)
+    for predicate in _QUERY_FORMS:
         for query_node, text_literal in shapes_graph.subject_objects(predicate):
             if not isinstance(text_literal, ox.Literal) or not (text_literal.language or text_literal.datatype == XSD.string):
                 continue  # not xsd:string - already caught by the meta-shapes structural check
             # Only sh:declare / sh:prefixes, as the engine does: a prefix the file merely binds (@prefix) is not resolved at run time.
-            prefixes = _collect_query_prefixes(shapes_graph, query_node)
-            try:
-                query = _parse_embedded_query(text_literal.value, prefixes)
-            except (SparqlSyntaxError, ValueError) as exc:
-                yield query_node, predicate, f"{name} value is not valid SPARQL: {exc}"
-                continue
-            algebra_name, form = _QUERY_FORMS[predicate]
-            if query.kind != algebra_name:
-                actual = next((f for n, f in _QUERY_FORMS.values() if n == query.kind), query.kind)
-                yield query_node, predicate, f"{name} must hold a {form} query, but this is a {actual} query"
-                continue
-
-            declared = _declared_parameter_names(shapes_graph, query_node)
-            cache_key = _sparql_structure_cache_key(predicate, text_literal, prefixes, declared)
-            cached = _SPARQL_STRUCTURE_CACHE.get(cache_key)
-            if cached is not None:
-                conforms, report_text = cached
-            else:
-                from starlayer.graph.core import StarLayerGraph
-
-                encoded_graph = StarLayerGraph(prefixes={})
-                encoded_graph.extend(ast_to_triples(query)[0])
-                conforms, report_graph, report_text = sqe_validate(encoded_graph)
-                bound = declared | (_SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset())
-                if not conforms and _is_prebound_variable_only_report(report_graph, bound, _SHACL_PREBOUND_VARIABLE_NAMES):
-                    conforms = True
-                _SPARQL_STRUCTURE_CACHE[cache_key] = (conforms, report_text)
-                _SPARQL_STRUCTURE_CACHE.move_to_end(cache_key)
-                if len(_SPARQL_STRUCTURE_CACHE) > _SPARQL_STRUCTURE_CACHE_MAXSIZE:
-                    _SPARQL_STRUCTURE_CACHE.popitem(last=False)
-            if not conforms:
-                yield query_node, predicate, f"{name} value fails SPARQL structural validation:\n{report_text}"
+            problem = sparql_text_problem(predicate, text_literal.value, _collect_query_prefixes(shapes_graph, query_node),
+                                          _declared_parameter_names(shapes_graph, query_node))
+            if problem:
+                yield query_node, predicate, problem

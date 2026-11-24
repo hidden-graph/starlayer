@@ -1,8 +1,8 @@
-from starlayer.shacl.results import ExecutionDiagnostics, RulesResult, ValidationResult
+from starlayer.shacl.results import ExecutionDiagnostics, RulesResult, ValidationReport
 
 
 def test_validation_result_shape() -> None:
-    result = ValidationResult(
+    result = ValidationReport(
         conforms=True,
         report_graph={"report": "ok"},
         report_text="ok",
@@ -20,7 +20,7 @@ def test_validation_result_shape() -> None:
 def test_rules_result_shape() -> None:
     result = RulesResult(
         inferred_graph={"d": 1},
-        validation=ValidationResult(
+        validation=ValidationReport(
             conforms=False,
             report_graph={"r": 1},
             report_text="failed",

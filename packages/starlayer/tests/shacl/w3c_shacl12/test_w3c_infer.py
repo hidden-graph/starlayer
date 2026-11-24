@@ -1,6 +1,6 @@
 """Phase 3 of docs/w3c-shacl12-test-suite-plan.md: run every sht:Infer entry
 from the vendored W3C SHACL 1.2 suite (tests/sparql/rules/) against
-StarShaclSchema.apply_rules().
+StarShaclProcessor.apply_rules().
 
 Format (per docs/w3c-shacl12-test-suite-plan.md's "Test-format notes", derived
 from the vendored tests/sparql/rules/*.ttl fixtures themselves): mf:action
@@ -35,7 +35,7 @@ from pathlib import Path
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema  # noqa: E402
+from starlayer.shacl import StarShaclProcessor  # noqa: E402
 from starlayer.shacl.engine.rules import RuleError  # noqa: E402
 
 from .ids import portable_id  # noqa: E402
@@ -137,13 +137,13 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph, new_graph)
     if next(entry.graph.objects(entry.iri, MF.result), None) == SHT.Failure:  # rule processing must fail (an unknown rule type, a bad rule)
         with pytest.raises(RuleError):
-            StarShaclSchema(shacl_graph=shapes_graph).apply_rules(data_graph=data_graph, meta_shacl=False)
+            StarShaclProcessor(shacl_graph=shapes_graph).apply_rules(data_graph=data_graph, meta_shacl=False)
         return
     expected = _expected_triples(entry)
 
     before = set(data_graph.triples((None, None, None)))
 
-    validator = StarShaclSchema(shacl_graph=shapes_graph)
+    validator = StarShaclProcessor(shacl_graph=shapes_graph)
     result = validator.apply_rules(data_graph=data_graph, meta_shacl=False)
 
     after = set(result.inferred_graph.triples((None, None, None)))

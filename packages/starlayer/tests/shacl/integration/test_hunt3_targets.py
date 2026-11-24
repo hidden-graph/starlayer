@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, apply_rules, target_nodes, validate
+from starlayer.shacl import StarShaclProcessor, apply_rules, target_nodes, validate
 from tests.support.terms import NamedNode, Namespace
 
 pytestmark = pytest.mark.shacl
@@ -48,7 +48,7 @@ FORMS = {
 
 
 def _validated_focus_nodes(data: StarLayerGraph, shapes: StarLayerGraph) -> set:
-    result = validate(data, shapes, advanced=True)
+    result = validate(data, shapes)
     return {o for _, _, o in result.report_graph.triples((None, SH.focusNode, None))}
 
 
@@ -59,7 +59,7 @@ def test_target_nodes_equals_the_focus_nodes_validate_reports_on(name: str) -> N
     expected = _validated_focus_nodes(g(DATA), shapes)
     assert expected, "the fixture must target something, or the comparison proves nothing"
     assert set(target_nodes(data_graph=g(DATA), shacl_graph=shapes, shape_node=shape)) == expected
-    assert set(StarShaclSchema(shapes, data_graph=g(DATA)).target_nodes(shape_node=shape)) == expected
+    assert set(StarShaclProcessor(shapes, data_graph=g(DATA)).target_nodes(shape_node=shape)) == expected
 
 
 def test_expression_target_is_not_the_blank_node_itself() -> None:

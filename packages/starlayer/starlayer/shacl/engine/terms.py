@@ -125,8 +125,9 @@ INVALID_BNODE_PREFIX = "starlayer-invalid-bnode-"  # + hex of the UTF-8 id
 
 
 class StarLayerFidelityWarning(UserWarning):
-    """The data graph does not preserve literal lexical forms and the shapes use constraints that depend on them (see
-    ``fidelity.py``). Filter it with ``warnings.simplefilter("ignore", StarLayerFidelityWarning)``. StarLayer issue #190."""
+    """A literal was stored in a different form than written (raised by the load, see ``graph/lexical.py``), or data like that is validated
+    against shapes that use constraints which depend on the form (``fidelity.py``). Filter it with
+    ``warnings.simplefilter("ignore", StarLayerFidelityWarning)``. StarLayer issue #190."""
 
 
 def to_engine(term: Any) -> Any:

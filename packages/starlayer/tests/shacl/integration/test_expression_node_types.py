@@ -7,7 +7,7 @@ argument lists had none, so a tool that finds shapes by target found nothing for
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.shape_types import infer_types
 from tests.support.terms import RDF, BlankNode, Namespace
 
@@ -61,7 +61,7 @@ def test_every_node_under_sh_values_has_a_shape_that_targets_it_once_typed() -> 
         typed.add(triple)
     for triple in infer_types(graph):
         typed.add(triple)
-    schema = StarShaclSchema(shacl_graph=starontology.get_ontology_graph("shacl_shacl"), data_graph=typed)
+    schema = StarShaclProcessor(shacl_graph=starontology.get_ontology_graph("shacl_shacl"), data_graph=typed)
     covered = set()
     for shape in (EX_SHACL("NodeExpressionShape"), EX_SHACL("ExpressionArgumentListShape")):
         covered.update(schema.target_nodes(shape_node=shape))

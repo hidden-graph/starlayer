@@ -1,7 +1,7 @@
 """tests/shacl/integration/test_sh_entailment.py
 
 End-to-end coverage for sh:entailment (SHACL 1.2 Core §1.4), via
-StarShaclSchema.validate()/apply_rules() - see starlayer.shacl.entailment's
+StarShaclProcessor.validate()/apply_rules() - see starlayer.shacl.entailment's
 own module docstring for the spec citations this is built from.
 
 Deliberately NOT testing plain rdfs:subClassOf-driven class membership
@@ -15,7 +15,7 @@ to take effect - a real, not vacuous, exercise of this feature.
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.shacl import StarShaclSchema, target_nodes
+from starlayer.shacl import StarShaclProcessor, target_nodes
 from starlayer.shacl.engine.terms import to_engine
 from tests.support.terms import RDF, Namespace
 
@@ -52,14 +52,14 @@ def _data() -> StarLayerGraph:
 
 class TestValidateRespectsShEntailment:
     def test_without_sh_entailment_alice_is_not_targeted(self) -> None:
-        result = StarShaclSchema(shacl_graph=_shapes()).validate(data_graph=_data(), meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=_shapes()).validate(data_graph=_data(), meta_shacl=False)
         assert result.conforms is True
 
     def test_with_sh_entailment_alice_becomes_a_target_and_violates(self) -> None:
         shapes = _shapes()
         shapes.add((EX.EmployeeShape, SH.entailment, ENTAILMENT.RDFS))
 
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False)
 
         assert result.conforms is False
         assert "ex:alice" in result.report_text or "alice" in result.report_text
@@ -76,7 +76,7 @@ class TestValidateRespectsShEntailment:
         data = _data()
         before = set(data)
 
-        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         assert set(data) == before
         assert (EX.alice, RDF.type, EX.Employee) not in data
@@ -86,7 +86,7 @@ class TestValidateRespectsShEntailment:
         shapes.add((EX.EmployeeShape, SH.entailment, ENTAILMENT.D))
 
         with pytest.raises(ValueError, match="Unsupported entailment regime"):
-            StarShaclSchema(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False)
+            StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False)
 
 
 class TestApplyRulesSeesEntailmentBeforeRulesRun:
@@ -121,7 +121,7 @@ class TestApplyRulesSeesEntailmentBeforeRulesRun:
         )
         data = _data()
 
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
         assert (EX.alice, RDF.type, EX.Employee) not in result.inferred_graph
         assert any(result.inferred_graph.triples((EX.alice, EX.flagged, None)))
@@ -164,7 +164,7 @@ class TestApplyRulesValidatesGlobalRuleOutput:
             format="turtle",
         )
 
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
         assert (EX.bob, RDF.type, EX.HasFriend) in result.inferred_graph
         assert result.validation.conforms is False
@@ -226,6 +226,6 @@ class TestTargetNodesRespectsEntailment:
         data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice ex:worksAt ex:Acme .", format="turtle")
 
-        schema = StarShaclSchema(shacl_graph=_shapes(), ont_graph=ont, inference=ENTAILMENT.RDFS)
+        schema = StarShaclProcessor(shacl_graph=_shapes(), ont_graph=ont, inference=ENTAILMENT.RDFS)
         nodes = schema.target_nodes(data_graph=data, shape_node=EX.EmployeeShape)
         assert nodes == (to_engine(EX.alice),)

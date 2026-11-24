@@ -2,19 +2,19 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError
-from starlayer.shacl.validator import StarShaclSchema, evaluate, validate, validate_each
+from starlayer.shacl.validator import StarShaclProcessor, evaluate, validate, validate_each
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
 
 
-class TestBareFunctionsWorkWithoutStarShaclSchema:
+class TestBareFunctionsWorkWithoutStarShaclProcessor:
     """validate()/validate_each()/evaluate() are now the real
-    implementations, not thin wrappers around StarShaclSchema (2026-10-07
-    - see starlayer/shacl/CLAUDE.md's dated entry; StarShaclSchema's own
+    implementations, not thin wrappers around StarShaclProcessor (2026-10-07
+    - see starlayer/shacl/CLAUDE.md's dated entry; StarShaclProcessor's own
     methods are untouched for now, step 2 of a two-step flip). These
-    tests call the bare functions directly, with no StarShaclSchema
+    tests call the bare functions directly, with no StarShaclProcessor
     instance involved anywhere, confirming step 1 stands on its own."""
 
     def _shapes(self) -> StarLayerGraph:
@@ -53,7 +53,7 @@ class TestBareFunctionsWorkWithoutStarShaclSchema:
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
 
         bare_result = validate(data, shapes, meta_shacl=False)
-        method_result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        method_result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
         assert bare_result.conforms == method_result.conforms is False
 
@@ -196,7 +196,7 @@ def test_validate_reification_required_violation_when_no_reifier_exists() -> Non
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -265,8 +265,8 @@ def test_validate_reifier_shape_violation_survives_advanced_mode() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
-    result = validator.validate(data_graph=data, meta_shacl=False, advanced=True)
+    validator = StarShaclProcessor(shacl_graph=shapes)
+    result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert any(
@@ -302,7 +302,7 @@ def test_validate_reification_required_conforms_when_reifier_exists() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -341,7 +341,7 @@ def test_validate_reifier_shape_violation_when_reifier_does_not_conform() -> Non
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -384,7 +384,7 @@ def test_validate_reifier_shape_conforms_when_reifier_conforms() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -410,9 +410,8 @@ def test_validate_hard_fails_when_reification_path_is_not_simple_iri() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
-    with pytest.raises(ShapeError, match="IRI path"):
-        _ = validator.validate(data_graph=data, meta_shacl=False)
+    with pytest.raises(ShapeError, match="IRI path"):  # found when the processor is built, not at validate()
+        StarShaclProcessor(shacl_graph=shapes)
 
 
 def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
@@ -449,7 +448,7 @@ def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedAdultFriends, None))}
@@ -459,7 +458,7 @@ def test_apply_rules_evaluates_shnex_filter_shape_in_a_rule() -> None:
 
 
 class TestBoundDataGraphAndInference:
-    """2026-10-08: StarShaclSchema gained two new constructor-only
+    """2026-10-08: StarShaclProcessor gained two new constructor-only
     parameters - data_graph (an optional default every processing
     method's own data_graph parameter now falls back to) and inference
     (moved here from a per-method inference= keyword every processing
@@ -489,15 +488,15 @@ class TestBoundDataGraphAndInference:
         return g
 
     def test_validate_uses_bound_data_graph_when_omitted(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
         assert schema.validate().conforms is True
 
     def test_target_nodes_uses_bound_data_graph_when_omitted(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
         assert tuple(n for n in schema.target_nodes(shape_node=EX.PersonShape)) == (EX.alice,)
 
     def test_per_call_data_graph_overrides_the_bound_default(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
         assert schema.validate(self._data(name_present=False)).conforms is False
         # the bound default is untouched - a later call with no argument
         # still uses it, not whatever was last passed explicitly.
@@ -506,14 +505,14 @@ class TestBoundDataGraphAndInference:
     def test_multiple_methods_share_one_bound_data_graph(self) -> None:
         """The motivating use case: construct once, call several
         different processing methods, none of them repeating data_graph."""
-        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
         assert schema.validate().conforms is True
         assert tuple(n for n in schema.target_nodes(shape_node=EX.PersonShape)) == (EX.alice,)
         assert schema.evaluate() is not None
         assert schema.apply_rules().validation.conforms is True
 
     def test_no_data_graph_anywhere_raises_a_clear_error(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._shapes())
+        schema = StarShaclProcessor(shacl_graph=self._shapes())
         with pytest.raises(ValueError, match="No data_graph given"):
             schema.validate()
 
@@ -530,23 +529,20 @@ class TestBoundDataGraphAndInference:
             """,
             format="turtle",
         )
-        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=data, inference=ENTAILMENT.RDFS)
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=data, inference=ENTAILMENT.RDFS)
         # ex:alice only becomes a target of PersonShape via RDFS domain
         # inference, and then fails it (no ex:name) - without inference
         # bound at construction, this would trivially conform instead.
         assert schema.validate().conforms is False
 
-    def test_inference_passed_per_call_raises_type_error(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
-        with pytest.raises(TypeError, match="inference"):
-            schema.validate(inference=None)
-        with pytest.raises(TypeError):
-            schema.evaluate(inference=None)
-        with pytest.raises(TypeError):
-            schema.target_nodes(shape_node=EX.PersonShape, inference=None)
+    def test_inference_passed_per_call_is_accepted_by_validate_target_nodes_and_evaluate(self) -> None:
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        assert schema.validate(inference=None).conforms is True
+        assert tuple(schema.target_nodes(shape_node=EX.PersonShape, inference=None)) == (EX.alice,)
+        schema.evaluate(inference=None)  # accepted (it was a TypeError before)
 
     def test_validate_each_falls_back_to_bound_data_graph(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
+        schema = StarShaclProcessor(shacl_graph=self._shapes(), data_graph=self._data(name_present=True))
         results = schema.validate_each()
         assert results[0].conforms is True
 
@@ -572,10 +568,14 @@ class TestInputsAndHelpers:
         with pytest.raises(TypeError, match=r"data_graph must be an StarLayerGraph"):
             apply_rules(((EX.s, EX.p, EX.o),))
 
-    def test_the_schema_rejects_inference_per_call(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._graph(self.SHAPES))
-        with pytest.raises(TypeError, match="no longer accepts inference"):
-            schema.validate(data_graph=self._graph("@prefix ex: <http://example.org/> ."), inference="x")
+    def test_the_schema_accepts_inference_per_call_and_refuses_an_unknown_keyword(self) -> None:
+        schema = StarShaclProcessor(shacl_graph=self._graph(self.SHAPES))
+        empty = self._graph("@prefix ex: <http://example.org/> .")
+        assert schema.validate(data_graph=empty, inference=None).conforms  # the per-call regime: see test_processor_inference_override.py
+        with pytest.raises(ValueError, match="Unsupported entailment regime"):
+            schema.validate(data_graph=empty, inference="x")
+        with pytest.raises(TypeError):
+            schema.validate(data_graph=empty, inferrence=None)
 
     def test_target_nodes_reads_the_shapes_from_the_data_graph_when_there_are_none(self) -> None:
         from starlayer.shacl import target_nodes
@@ -584,7 +584,7 @@ class TestInputsAndHelpers:
         assert tuple(n for n in target_nodes(data_graph=both, shape_node=EX.S)) == (EX.alice,)
 
     def test_the_schema_resolves_target_nodes_over_its_bound_shapes(self) -> None:
-        schema = StarShaclSchema(shacl_graph=self._graph(self.SHAPES))
+        schema = StarShaclProcessor(shacl_graph=self._graph(self.SHAPES))
         data = self._graph("@prefix ex: <http://example.org/> . ex:alice a ex:Person . ex:bob a ex:Person .")
         assert {n for n in schema.target_nodes(data_graph=data, shape_node=EX.S)} == {EX.alice, EX.bob}
 

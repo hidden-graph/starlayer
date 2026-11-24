@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, StarShaclSchema
+from starlayer.shacl import RuleError, StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -38,7 +38,7 @@ def test_condition_admits_conforming_focus_node_only() -> None:
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
     derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
@@ -65,7 +65,7 @@ def test_condition_over_rdf12_triple_term_valued_property() -> None:
         ex:HasClaimShape a sh:NodeShape ; sh:property [ sh:path ex:claims ; sh:minCount 1 ] .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
     derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.flagged, None))}
     assert derived == {EX.alice}
 
@@ -105,7 +105,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
         ex:AdultShape sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
     derived = {s for s, _, _ in result.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived == {EX.alice}
 
@@ -125,7 +125,7 @@ def test_condition_shape_does_not_need_explicit_typing() -> None:
         ex:ActiveShape sh:class ex:Active .
     """, format="turtle")
 
-    result2 = StarShaclSchema(shacl_graph=list_shapes).apply_rules(data_graph=data)
+    result2 = StarShaclProcessor(shacl_graph=list_shapes).apply_rules(data_graph=data)
     derived2 = {s for s, _, _ in result2.inferred_graph.triples((None, EX.eligibleForVoting, None))}
     assert derived2 == {EX.alice}
 
@@ -151,7 +151,7 @@ def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
         ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
     derived = list(result.inferred_graph.triples((None, EX.eligibleForVoting, None)))
     assert derived == []
 
@@ -183,4 +183,4 @@ def test_property_rule_sh_values_is_not_implemented() -> None:
     """, format="turtle")
 
     with pytest.raises(RuleError):
-        StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)

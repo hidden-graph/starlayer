@@ -9,7 +9,7 @@ in any of three ways, and all three are honored:
 - ``<graph> owl:imports <other>`` where ``<other>`` is itself a ``sh:ShapesGraph`` in the same graph: the other module's members
   count too, transitively (2.6). Only modules already in the graph are followed; nothing is fetched.
 
-``StarShaclSchema.extract_shapes_graph()`` is built on these. Terms are pyoxigraph terms.
+``StarShaclProcessor.extract_shapes_graph()`` is built on these. Terms are pyoxigraph terms.
 """
 
 from __future__ import annotations
@@ -19,7 +19,15 @@ from typing import Any
 from starlayer.shacl.engine import shapes_graphs as _engine
 from starlayer.shacl.engine.terms import RDF, SH, engine_view, text, to_engine
 
-__all__ = ["shapes_graphs", "graph_nodes", "shapes_graph_members", "referenced_shapes", "rule_dependencies"]
+__all__ = [
+    "shapes_graphs",
+    "graph_nodes",
+    "shapes_graph_members",
+    "referenced_shapes",
+    "rule_dependencies",
+    "close_shape",
+    "extract_shapes_graph",
+]
 
 
 def shapes_graphs(graph: Any) -> list[Any]:
@@ -75,3 +83,27 @@ def rule_dependencies(graph: Any, starting_points: Any) -> set[Any]:
     Named nodes only, starting points not included; with ``referenced_shapes`` it is the set to copy to make shapes and their rules
     self-contained."""
     return _engine.rule_dependencies(engine_view(graph, "graph"), [to_engine(n) for n in starting_points])
+
+
+def close_shape(shapes_graph: Any, shape: Any) -> Any:
+    """A copy of the whole ``shapes_graph`` in which ``shape`` and the shapes it reaches as a value node's complete description
+    (``sh:node``, ``sh:qualifiedValueShape``, the members of ``sh:and`` / ``sh:or`` / ``sh:xone``) are ``sh:closed true``: the strict form
+    an ``extract_subgraph`` fragment is checked against. Shapes that are not reached stay as they are; nothing is removed. The method of the
+    same name of ``StarShaclProcessor`` does this on its bound shapes graph."""
+    from starlayer.shacl import _adapter
+    from starlayer.shacl.normalization import normalize_to_starlayer_graph
+
+    return _adapter.close_shape(normalize_to_starlayer_graph(shapes_graph, name="shapes_graph"), shape)
+
+
+def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
+    """The ``sh:ShapesGraph`` named ``shapes_graph_iri`` as a standalone graph (its members, with their blank-node closures and the declared
+    prefixes), or ``None`` when ``shapes_graph`` has no such resource. With ``include_referenced=True`` the extract also holds every shape the
+    members reference, so it can be validated on its own. The method of the same name of ``StarShaclProcessor`` does this on its bound shapes
+    graph."""
+    from starlayer.shacl import _adapter
+    from starlayer.shacl.normalization import normalize_to_starlayer_graph
+
+    return _adapter.extract_shapes_graph(
+        normalize_to_starlayer_graph(shapes_graph, name="shapes_graph"), shapes_graph_iri, include_referenced=include_referenced
+    )

@@ -2,7 +2,7 @@
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclSchema
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.paths import is_inverse, path_values
 from starlayer.shacl.shapes_graphs import shapes_graph_members, shapes_graphs
@@ -131,7 +131,7 @@ def test_an_import_cycle_terminates() -> None:
 
 def test_extract_shapes_graph_agrees_with_the_members() -> None:
     graph = _graph(PACKAGED)
-    extracted = StarShaclSchema(shacl_graph=graph).extract_shapes_graph(EX.G1)
+    extracted = StarShaclProcessor(shacl_graph=graph).extract_shapes_graph(EX.G1)
     for member in shapes_graph_members(graph, EX.G1):
         assert (member, None, None) in extracted
     assert (EX.Loose, None, None) not in extracted and (EX.Other, None, None) not in extracted

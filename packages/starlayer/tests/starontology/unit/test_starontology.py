@@ -239,7 +239,7 @@ class TestGetResourceIri:
     """get_resource_iri() exists so a caller can give validate()'s own
     shapes_graph_resource= the exact same identity the conformance-profiles
     mapping document asserts prof:isProfileOf on - otherwise
-    derive_conforms_to()'s second rule can never fire (its WHERE clause
+    derive_conforms_to()'s second (S5.8) rule can never fire (its WHERE clause
     requires the same IRI in both places)."""
 
     def test_matches_the_artifact_listed_in_the_profile(self):
@@ -346,7 +346,7 @@ class TestPublishedFiles:
         not just that the two pieces exist independently. The full,
         unfiltered mapping graph works fine here - derive_conforms_to()'s
         own WHERE clause already filters by the exact shapes-graph IRI."""
-        from starlayer.shacl import StarShaclSchema
+        from starlayer.shacl import StarShaclProcessor
         from starlayer.shacl.profiling import derive_conforms_to
         from tests.support.terms import DCTERMS, NamedNode
 
@@ -361,7 +361,7 @@ class TestPublishedFiles:
             format="turtle",
         )
         shapes = starontology.get_ontology_graph("skos_shacl")
-        result = StarShaclSchema(shacl_graph=shapes).validate(
+        result = StarShaclProcessor(shacl_graph=shapes).validate(
             data_graph=data,
             meta_shacl=False,
             data_graph_iri="http://example.org/graphs/mydata",

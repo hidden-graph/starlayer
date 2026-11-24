@@ -9,7 +9,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
     RuleError,
     ShapeError,
-    StarShaclSchema,
+    StarShaclProcessor,
     apply_rules,
     extract_subgraph,
     validate,
@@ -41,7 +41,7 @@ def test_closed_form_accepts_the_fragment_of_a_logical_shape(keyword, q_min):
     data = _graph(P + "ex:n a ex:C ; ex:p 1 ; ex:z 2 .")
     fragment = extract_subgraph(data, shapes)
     assert len(fragment) > 0
-    closed = StarShaclSchema(shacl_graph=shapes).close_shape(EX.S)
+    closed = StarShaclProcessor(shacl_graph=shapes).close_shape(EX.S)
     assert validate(fragment, closed, meta_shacl=False).conforms
     # the closed form is still strict: the whole data graph (with ex:z) does not conform
     assert not validate(data, closed, meta_shacl=False).conforms
@@ -54,7 +54,7 @@ def test_closed_form_accepts_the_fragment_of_complex_paths_and_equals():
     )
     data = _graph(P + "ex:n a ex:C ; ex:p 1 ; ex:q 1 ; ex:r ex:m ; ex:z 2 . ex:m ex:s 3 .")
     fragment = extract_subgraph(data, shapes)
-    closed = StarShaclSchema(shacl_graph=shapes).close_shape(EX.S)
+    closed = StarShaclProcessor(shacl_graph=shapes).close_shape(EX.S)
     assert validate(fragment, closed, meta_shacl=False).conforms
 
 

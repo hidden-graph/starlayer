@@ -47,17 +47,28 @@ class ComponentSpec:
     # components: the non-optional parameters)
     queries: Callable[..., list] | None = None  # SPARQL-based components: (ctx, shape, present, focus, values) -> the
     # (query text, pre-bound variables) pairs ``fn`` runs, for extract_subgraph to find the triples they depend on
+    check: Callable[..., Iterable[Term] | None] | None = None  # (shapes graph, shape, present parameters) -> shape nodes the
+    # parameters refer to (or None). Reads the parameters with the helpers ``fn`` uses, so a malformed one raises the same
+    # ShapeError when the plan is compiled (``Plan.compile``), not only when a focus node reaches the constraint.
 
 
 REGISTRY: dict[URIRef, ComponentSpec] = {}
 
 
-def component(iri: URIRef, *predicates: URIRef):
-    """Register ``fn`` under a component IRI. ``fn`` receives engine (pyoxigraph) terms."""
+def words(ctx: Any):
+    """The ``text.Words`` of this run (data and shapes terms worded for a message); imported late, ``text`` needs the executor."""
+    from starlayer.shacl.engine.text import Words
+
+    return Words(ctx.data, ctx.shapes)
+
+
+def component(iri: URIRef, *predicates: URIRef, check: Callable[..., Iterable[Term] | None] | None = None):
+    """Register ``fn`` under a component IRI. ``fn`` receives engine (pyoxigraph) terms. ``check`` is the optional
+    ``ComponentSpec.check`` parameter check."""
 
     def deco(fn):
         iri_ = to_engine(iri)
-        REGISTRY[iri_] = ComponentSpec(iri_, tuple(to_engine(p) for p in predicates), fn)
+        REGISTRY[iri_] = ComponentSpec(iri_, tuple(to_engine(p) for p in predicates), fn, check=check)
         return fn
 
     return deco

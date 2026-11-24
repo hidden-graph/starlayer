@@ -1,4 +1,4 @@
-"""StarShaclSchema.evaluate() - a third, independent processing mode
+"""StarShaclProcessor.evaluate() - a third, independent processing mode
 alongside validate() (checks conformance, never mutates) and apply_rules()
 (executes sh:rule, materializes real triples).
 
@@ -21,7 +21,7 @@ result is documented as not meant to be persisted.
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace, lit, py, text
 
 EX = Namespace("http://example.org/")
@@ -54,7 +54,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert [py(v) for v in result.objects(EX.alice, EX.friendCount)] == [2]
 
     def test_original_data_graph_never_mutated(self) -> None:
@@ -73,7 +73,7 @@ class TestBasicComputation:
             format="turtle",
         )
         before = set(data)
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert set(data) == before  # untouched
         assert result is not data  # a genuinely different object
         assert (EX.alice, EX.friendCount, None) not in [(s, p, None) for s, p, _o in data]
@@ -97,7 +97,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert [py(v) for v in result.objects(EX.alice, EX.friendCount)] == [2]
         assert [py(v) for v in result.objects(EX.dave, EX.friendCount)] == [1]
 
@@ -116,7 +116,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert set(result.objects(EX.alice, EX.friendEcho)) == {EX.bob, EX.carol}
 
     def test_standalone_property_shape_with_its_own_direct_target(self) -> None:
@@ -137,7 +137,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert [py(v) for v in result.objects(EX.alice, EX.friendCount)] == [2]
 
     def test_sh_values_unions_with_a_conflicting_stored_value_not_replaces_it(self) -> None:
@@ -172,7 +172,7 @@ class TestBasicComputation:
         # validate() sees the UNION {99, 2} - sh:hasValue 2 conforms because
         # 2 (the computed value) is a member of that set, not because 99 (the
         # real stored value) was ever discarded.
-        validate_result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        validate_result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert validate_result.conforms is True
 
         # sh:hasValue 99 (the *real* stored value) must equally conform -
@@ -189,10 +189,10 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        validate_result_99 = StarShaclSchema(shacl_graph=shapes_99).validate(data_graph=data, meta_shacl=False)
+        validate_result_99 = StarShaclProcessor(shacl_graph=shapes_99).validate(data_graph=data, meta_shacl=False)
         assert validate_result_99.conforms is True
 
-        eval_result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        eval_result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert sorted(py(v) for v in eval_result.objects(EX.alice, EX.friendCount)) == [2, 99]
         # The original data_graph itself is still untouched either way.
         assert list(data.objects(EX.alice, EX.friendCount)) == [lit(99)]
@@ -217,7 +217,7 @@ class TestBasicComputation:
             data=PREFIXES + "ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:name ] .",
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert set(result) == set()
         assert result is not data
 
@@ -239,7 +239,7 @@ class TestBasicComputation:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert set(result) == set()
 
     def test_falls_back_to_data_graph_as_its_own_shapes_graph(self) -> None:
@@ -250,7 +250,7 @@ class TestBasicComputation:
         so the result is simply empty, not an error."""
         data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:alice a ex:Person .", format="turtle")
-        result = StarShaclSchema(shacl_graph=None).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=None).evaluate(data_graph=data)
         assert set(result) == set()
 
 
@@ -280,7 +280,7 @@ class TestReturnedGraphIsShapeDrivenSubgraph:
             format="turtle",
         )
 
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
 
         assert set(result) == {(EX.alice, EX.name, lit("Alice"))}
 
@@ -302,7 +302,7 @@ class TestReturnedGraphIsShapeDrivenSubgraph:
             format="turtle",
         )
 
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
 
         assert set(result) == {(EX.alice, EX.age, lit(30))}
 
@@ -332,7 +332,7 @@ class TestIsolationFromApplyRules:
             """,
             format="turtle",
         )
-        rule_result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        rule_result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
         assert list(rule_result.inferred_graph.objects(EX.alice, EX.echoedCount)) == []
         assert list(rule_result.inferred_graph.triples((None, EX.friendCount, None))) == []
 
@@ -349,7 +349,7 @@ class TestIsolationFromApplyRules:
             """,
             format="turtle",
         )
-        rule_result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        rule_result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
         assert [py(v) for v in rule_result.inferred_graph.objects(EX.alice, EX.friendCount)] == [2]
 
     def test_evaluate_and_apply_rules_compose_without_interference(self) -> None:
@@ -372,8 +372,8 @@ class TestIsolationFromApplyRules:
             """,
             format="turtle",
         )
-        eval_result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
-        rule_result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        eval_result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
+        rule_result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
         assert [py(v) for v in eval_result.objects(EX.alice, EX.friendCount)] == [2]
         assert list(eval_result.objects(EX.alice, EX.greeting)) == []  # evaluate() never runs rules
@@ -417,7 +417,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert list(result.objects(EX.carol, EX.nickname)) == [lit("Anonymous")]
         assert list(data.objects(EX.carol, EX.nickname)) == []  # original graph untouched
 
@@ -438,7 +438,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert list(result.objects(EX.bob, EX.nickname)) == [lit("Bobby")]
 
     def test_default_value_is_skipped_once_a_real_stored_value_exists(self) -> None:
@@ -461,7 +461,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert list(result.objects(EX.dave, EX.nickname)) == [lit("Davey")]
 
     def test_default_value_alone_with_no_sh_values_at_all_still_works(self) -> None:
@@ -480,7 +480,7 @@ class TestDefaultValueFallback:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert list(result.objects(EX.erin, EX.role)) == [lit("guest")]
 
 
@@ -507,7 +507,7 @@ class TestDefaultValueAsNodeExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert list(result.objects(EX.alice, EX.nickname)) == [lit("Alexandra")]
 
     def test_default_value_as_a_path_expression_is_skipped_once_a_real_value_exists(self) -> None:
@@ -528,7 +528,7 @@ class TestDefaultValueAsNodeExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert list(result.objects(EX.bob, EX.nickname)) == [lit("Bobby")]
 
 
@@ -551,7 +551,7 @@ class TestShapesGraphIsNotModified:
     def test_schema_method_leaves_the_shapes_graph_alone(self):
         data, shapes = self._graphs()
         before = set(shapes)
-        StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert set(shapes) == before
 
     def test_bare_function_leaves_the_shapes_graph_alone(self):
@@ -566,7 +566,7 @@ class TestShapesGraphIsNotModified:
         data, _ = self._graphs()
         data.parse(data=self._SHAPES, format="turtle12")
         before = set(data)
-        StarShaclSchema().evaluate(data_graph=data)
+        StarShaclProcessor().evaluate(data_graph=data)
         assert set(data) == before
 
 
@@ -592,7 +592,7 @@ class TestFunctionArgumentWithoutAList:
             + f" ex:S a sh:NodeShape ; sh:targetNode ex:alice ; sh:property [ sh:path ex:out ; sh:values {values} ] .",
             format="turtle12",
         )
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         return sorted(text(o) for o in result.objects(EX.alice, EX.out))
 
     def test_list_form_works(self):
@@ -653,35 +653,35 @@ class TestRestrictToFocusNodesAndProperties:
 
     def test_everything_by_default(self):
         data, shapes = self._graphs()
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)
         assert self._labels(result) == {"a": "Ann Lee", "b": "Bo Ng", "c": "Cy Ox"}
 
     def test_one_focus_node(self):
         data, shapes = self._graphs()
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.b])
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.b])
         assert self._labels(result) == {"b": "Bo Ng"}
         assert set(result.subjects()) == {EX.b}
 
     def test_several_focus_nodes(self):
         data, shapes = self._graphs()
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes={EX.a, EX.c})
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes={EX.a, EX.c})
         assert self._labels(result) == {"a": "Ann Lee", "c": "Cy Ox"}
 
     def test_a_node_the_shapes_do_not_target_is_not_evaluated(self):
         data, shapes = self._graphs()
         data.parse(data="@prefix ex: <http://example.org/> . ex:z ex:first \"Zed\" ; ex:last \"Yu\" .", format="turtle12")
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.z])
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.z])
         assert len(result) == 0
 
     def test_one_property(self):
         data, shapes = self._graphs()
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, properties=[EX.label])
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data, properties=[EX.label])
         assert self._labels(result) == {"a": "Ann Lee", "b": "Bo Ng", "c": "Cy Ox"}
         assert not list(result.triples((None, EX.first, None)))
 
     def test_one_property_of_one_node(self):
         data, shapes = self._graphs()
-        result = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.a], properties=[EX.label])
+        result = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data, focus_nodes=[EX.a], properties=[EX.label])
         assert set(result) == {(EX.a, EX.label, lit("Ann Lee"))}
 
     def test_the_bare_function_takes_them_too(self):
@@ -693,6 +693,6 @@ class TestRestrictToFocusNodesAndProperties:
 
     def test_a_restricted_result_is_a_subset_of_the_full_one(self):
         data, shapes = self._graphs()
-        schema = StarShaclSchema(shacl_graph=shapes)
+        schema = StarShaclProcessor(shacl_graph=shapes)
         full = set(schema.evaluate(data_graph=data))
         assert set(schema.evaluate(data_graph=data, focus_nodes=[EX.a, EX.b])) <= full

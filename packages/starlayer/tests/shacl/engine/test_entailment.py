@@ -157,6 +157,6 @@ def test_closure_performance_5k_triples() -> None:
     t = time.perf_counter()
     view = entailed_view(g, ENTAILMENT.RDFS)
     elapsed = time.perf_counter() - t
-    print(f"5k-triple RDFS closure: {elapsed:.2f}s, {len(view.inferred)} inferred")
+    print(f"5k-triple RDFS closure: {elapsed:.2f}s, {len(view) - len(g)} inferred")
     assert (EX.p5, RDF.type, EX.Employee) in view
     assert elapsed < 60

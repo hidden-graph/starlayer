@@ -30,6 +30,7 @@
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
+@prefix shsh: <http://www.w3.org/ns/shacl-shacl#> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 
 # No root-level rdfs:label/rdfs:comment here by design - see
@@ -1017,6 +1018,7 @@ stsh:SuggestedValuesShape
 	sh:property [
 		sh:path shui:suggestedValues ;
 		sh:maxCount 1 ;                          # suggestedValues-maxCount
+		sh:minListLength 0 ;                     # suggestedValues-list: the value is a well-formed list, possibly empty (a single term is not one)
 	] ;
 	sh:property [
 		sh:path ( shui:suggestedValues [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ;
@@ -1058,9 +1060,14 @@ stsh:ConfigurationShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for the settings of a shui:Configuration"@en ;
 	sh:targetSubjectsOf shui:defaultNamespace, shui:languagePreference, shui:labelPreference, shui:timeZone, shui:defaultOrder, shui:defaultWidgetScore ;
-	sh:property [ sh:path shui:defaultNamespace ; sh:maxCount 1 ; sh:nodeKind sh:Literal ] ;
+	# SHACL UI 3.4: the value is a literal "whose value is a valid IRI". SHACL cannot test IRI validity exactly, so sh:pattern
+	# approximates it: a scheme, a colon, then none of the characters an IRI may not contain. It refuses every non-IRI such as
+	# "not an iri" or "", and lets through only some invalid ones (a bad percent escape); a valid absolute IRI is never refused.
+	sh:property [ sh:path shui:defaultNamespace ; sh:maxCount 1 ; sh:nodeKind sh:Literal ;
+		sh:pattern "^[A-Za-z][A-Za-z0-9+.-]*:[^\\s<>\"{}|\\\\^`]*$" ;
+		sh:message "The value of shui:defaultNamespace should be a literal that is an absolute IRI such as \"http://example.com/ns#\""@en ] ;
 	sh:property [ sh:path shui:languagePreference ; sh:maxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI ; sh:memberShape [ a sh:NodeShape ; sh:datatype xsd:string ] ] ;
-	sh:property [ sh:path shui:labelPreference ; sh:maxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI ] ;
+	sh:property [ sh:path shui:labelPreference ; sh:maxCount 1 ; sh:nodeKind sh:BlankNodeOrIRI ; sh:memberShape shsh:PathShape ] ;   # a list, each member a SHACL path (SHACL UI 3.4); sh:memberShape also rejects a value that is not a list
 	sh:property [ sh:path shui:timeZone ; sh:maxCount 1 ; sh:datatype xsd:string ] ;
 	sh:property [ sh:path shui:defaultOrder ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] ;
 	sh:property [ sh:path shui:defaultWidgetScore ; sh:maxCount 1 ; sh:or ( [ sh:datatype xsd:decimal ] [ sh:datatype xsd:integer ] ) ] .

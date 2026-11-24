@@ -1270,7 +1270,7 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
 
     Returns:
         ``(conforms, results_graph, results_text)``, unpacked from
-        ``starlayer.shacl``'s own ``ValidationResult``.
+        ``starlayer.shacl``'s own ``ValidationReport``.
     """
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
@@ -1286,7 +1286,6 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
         shacl_graph=get_ontology_graph("manchester_shacl"),
         ont_graph=get_ontology_graph("manchester_owl"),
         inference=ENTAILMENT.RDFS,
-        advanced=True,
         max_validation_depth=100,
     )
     if not problems:

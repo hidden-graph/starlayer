@@ -1,6 +1,6 @@
 import pyoxigraph as ox
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
@@ -82,7 +82,7 @@ def test_node_expression_path_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=PATH_SHAPE, format="turtle12")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
@@ -99,7 +99,7 @@ def test_node_expression_union_carries_mixed_values() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=UNION_SHAPE, format="turtle12")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
@@ -116,7 +116,7 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=INTERSECTION_SHAPE, format="turtle12")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
@@ -139,7 +139,7 @@ def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=INTERSECTION_SHAPE, format="turtle12")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
@@ -154,7 +154,7 @@ def test_node_expression_shacl_function_carries_triple_term_value() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=FUNCTION_SHAPE, format="turtle12")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True

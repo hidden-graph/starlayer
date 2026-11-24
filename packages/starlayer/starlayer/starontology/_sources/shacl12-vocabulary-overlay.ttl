@@ -12,6 +12,7 @@
 #
 # baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
 
+@prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
@@ -223,3 +224,16 @@ stsh:ShapesGraphUses a sh:PropertyShape ;
     sh:path rdfs:member ;
     sh:order 100 .
 
+# SHACL 1.2 terms the vendored vocabulary does not list yet. The meta check warns about an IRI in the SHACL namespace outside the
+# vocabulary, so a shapes graph that uses one of these (as shipped shapes do) would be warned about a real term.
+sh:values a rdf:Property ;
+    rdfs:label "values"@en ;
+    rdfs:comment "SHACL 1.2 Node Expressions: the node expression that computes the values of a property shape's sh:path for the focus node."@en ;
+    rdfs:domain sh:PropertyShape ;
+    rdfs:isDefinedBy sh: .
+
+sh:usedConfiguration a rdf:Property ;
+    rdfs:label "used configuration"@en ;
+    rdfs:comment "The configuration a validation report was generated with (the Working Group's shapes for shapes allow at most one)."@en ;
+    rdfs:domain sh:ValidationReport ;
+    rdfs:isDefinedBy sh: .

@@ -9,7 +9,7 @@ import starlayer.shacl
 import starlayer.sparql
 
 _SOURCE_BY_NAME = {
-    "StarShaclSchema": starlayer.shacl,
+    "StarShaclProcessor": starlayer.shacl,
     "StarQuery": starlayer.sparql,
 }
 
@@ -60,7 +60,7 @@ def test_all_matches_actual_module_exports() -> None:
 
 
 def test_graph_and_validator_work_together_through_the_single_import() -> None:
-    from starlayer import StarLayerGraph, StarShaclSchema
+    from starlayer import StarLayerGraph, StarShaclProcessor
     from tests.support.terms import Namespace
 
     ex = Namespace("http://example.org/")
@@ -77,5 +77,5 @@ def test_graph_and_validator_work_together_through_the_single_import() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True

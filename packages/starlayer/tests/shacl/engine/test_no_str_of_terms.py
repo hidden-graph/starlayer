@@ -41,7 +41,7 @@ TERM_ATTRS = {
 PLAIN_FUNCS = {
     "stringify_node", "_prefixed", "_var_name", "_rdflib_text", "fspath", "term_text", "text_of", "args_of", "_local", "_local_name", "_n3", "dn", "sn",
     "text", "lexical", "iri_text", "n3", "local_name", "len", "int", "float", "bool", "repr", "hex", "sorted", "min", "max",
-    "sum", "abs", "round", "ord", "chr", "type_name", "_show",
+    "sum", "abs", "round", "ord", "chr", "type_name", "_show", "short", "describe", "_path_name", "locate",
 }  # fmt: skip
 PLAIN_METHODS = {
     "join", "format", "lower", "upper", "strip", "lstrip", "rstrip", "replace", "split", "rsplit", "title", "casefold", "hex",

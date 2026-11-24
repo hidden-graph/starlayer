@@ -1,0 +1,114 @@
+# The StarLayer layer on top of shacl_shacl (private: not in the starontology registry, loaded by starontology._load_private): meta-shapes that call StarLayer's own SPARQL extension
+# functions (stsh:regexProblem, stsh:sparqlProblem; starlayer/shacl/engine/builtin_functions.py). Hand-edited.
+#
+# LAYERING. shacl_shacl uses standard SHACL and standard SPARQL only, so any SHACL 1.2 processor can load it and run it on a shapes graph. These two checks
+# are about the text of a literal, which standard SPARQL cannot judge (SPARQL's REGEX and the XPath expressions of SHACL disagree on valid patterns; the
+# text of a query needs a SPARQL parser), so each is a sh:sparql constraint that asks a function and reports what it says. They live here, not in
+# shacl_shacl: a processor given shacl_shacl alone simply has no such check. load_meta_shapes_graph(), meta_validate() and meta_shacl=True merge this graph
+# in, and since the results are ordinary validation results (sh:sourceShape is one of the shapes below, sh:sourceConstraintComponent is
+# sh:SPARQLConstraintComponent) they can be switched off with sh:deactivated true in a meta_shapes_extra graph, or extended like any other shape.
+# A processor that loads this graph without the functions gets a SPARQL error from the constraint, as it does for any function it does not know.
+#
+# What a result looks like: the focus node is the node that holds the pattern or the query, sh:resultPath the predicate that holds it (sh:pattern, sh:flags,
+# sh:select, sh:ask, sh:construct or shui:searchQuery), sh:value the text, and the message says what is wrong.
+#
+# baseURI: https://github.com/hidden-graph/starlayer/ns/shacl#
+
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:   <http://www.w3.org/ns/shacl#> .
+@prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# The prefixes the two queries below use (sh:prefixes), declared the way SHACL asks, never by the file's @prefix lines.
+stsh:StarLayerMetaShapesPrefixes a owl:Ontology ;
+    sh:declare
+        [ sh:prefix "owl" ; sh:namespace "http://www.w3.org/2002/07/owl#"^^xsd:anyURI ] ,
+        [ sh:prefix "rdf" ; sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ] ,
+        [ sh:prefix "sh" ; sh:namespace "http://www.w3.org/ns/shacl#"^^xsd:anyURI ] ,
+        [ sh:prefix "shui" ; sh:namespace "http://www.w3.org/ns/shacl-ui/"^^xsd:anyURI ] ,
+        [ sh:prefix "stsh" ; sh:namespace "https://github.com/hidden-graph/starlayer/ns/shacl#"^^xsd:anyURI ] ,
+        [ sh:prefix "xsd" ; sh:namespace "http://www.w3.org/2001/XMLSchema#"^^xsd:anyURI ] .
+
+# A sh:pattern or sh:flags the engine cannot compile. The pattern is tried with the node's sh:flags, unless the flags are the problem (they have their own result).
+stsh:RegexShape a sh:NodeShape ;
+    rdfs:label "A sh:pattern and its sh:flags are a regular expression the engine can compile"@en ;
+    sh:targetSubjectsOf sh:pattern, sh:flags ;
+    sh:severity sh:Violation ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:prefixes stsh:StarLayerMetaShapesPrefixes ;
+        sh:select """
+            SELECT $this ?value ?path ?message
+            WHERE {
+                {
+                    $this sh:flags ?value .
+                    BIND (sh:flags AS ?path)
+                    BIND (stsh:regexProblem("", ?value) AS ?message)
+                } UNION {
+                    $this sh:pattern ?value .
+                    BIND (sh:pattern AS ?path)
+                    OPTIONAL { $this sh:flags ?flags . FILTER (datatype(?flags) = xsd:string) }
+                    BIND (stsh:regexProblem(?value, COALESCE(?flags, "")) AS ?message)
+                }
+                FILTER (datatype(?value) = xsd:string && BOUND(?message))
+            }
+        """ ;
+    ] .
+
+# The text of a query (sh:select, sh:ask, sh:construct, shui:searchQuery) is not SPARQL the engine can run, is a query of another form than its predicate says, or
+# fails the structure check. The function reads the query under the prefixes of the node's sh:prefixes (with their owl:imports, and owl:versionIRI) as
+# sh:declare gives them; without sh:prefixes, those of the sh:ShapesGraph, sh:DataGraph and sh:RulesGraph nodes, and of an owl:Ontology for a prefix they do not
+# declare. The variables the owner's sh:parameter declarations bind (a validator of a constraint component) are passed so they are not reported as unbound.
+stsh:SPARQLQueryTextShape a sh:NodeShape ;
+    rdfs:label "The SPARQL a shape embeds is a query of the right form that the engine can run"@en ;
+    sh:targetSubjectsOf sh:select, sh:ask, sh:construct, <http://www.w3.org/ns/shacl-ui/searchQuery> ;
+    sh:severity sh:Violation ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:prefixes stsh:StarLayerMetaShapesPrefixes ;
+        sh:select """
+            SELECT $this ?value ?path ?message
+            WHERE {
+                {
+                    SELECT $this ?value ?path
+                           (stsh:sparqlProblem(?value, ?path,
+                                               COALESCE(GROUP_CONCAT(DISTINCT ?line; separator="\\n"), ""),
+                                               COALESCE(GROUP_CONCAT(DISTINCT ?parameter; separator=" "), "")) AS ?message)
+                    WHERE {
+                        VALUES ?path { sh:select sh:ask sh:construct shui:searchQuery }
+                        $this ?path ?value .
+                        FILTER (isLiteral(?value) && (datatype(?value) = xsd:string || datatype(?value) = rdf:langString))
+                        OPTIONAL {
+                            {
+                                $this sh:prefixes/(^owl:versionIRI)?/(owl:imports/(^owl:versionIRI)?)* ?holder .
+                                ?holder sh:declare ?declaration .
+                                ?declaration sh:prefix ?prefix ; sh:namespace ?namespace .
+                            } UNION {
+                                FILTER NOT EXISTS { $this sh:prefixes ?any }
+                                VALUES ?type { sh:DataGraph sh:ShapesGraph sh:RulesGraph }
+                                ?holder a ?type ; sh:declare ?declaration .
+                                ?declaration sh:prefix ?prefix ; sh:namespace ?namespace .
+                            } UNION {
+                                FILTER NOT EXISTS { $this sh:prefixes ?any }
+                                ?holder a owl:Ontology ; sh:declare ?declaration .
+                                ?declaration sh:prefix ?prefix ; sh:namespace ?namespace .
+                                FILTER NOT EXISTS {
+                                    VALUES ?type { sh:DataGraph sh:ShapesGraph sh:RulesGraph }
+                                    ?primary a ?type ; sh:declare/sh:prefix ?prefix .
+                                }
+                            }
+                            BIND (CONCAT("PREFIX ", STR(?prefix), ": <", STR(?namespace), ">") AS ?line)
+                        }
+                        OPTIONAL {
+                            $this (^sh:validator|^sh:nodeValidator|^sh:propertyValidator)?/sh:parameter/sh:path ?parameterPath .
+                            FILTER isIRI(?parameterPath)
+                            BIND (REPLACE(STR(?parameterPath), "^.*[#/]", "") AS ?parameter)
+                        }
+                    }
+                    GROUP BY $this ?value ?path
+                }
+                FILTER BOUND(?message)
+            }
+        """ ;
+    ] .

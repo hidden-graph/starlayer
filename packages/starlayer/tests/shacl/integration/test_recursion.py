@@ -11,7 +11,7 @@ import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.engine.terms import text
 
 PREFIXES = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -30,7 +30,7 @@ def _graph(ttl: str) -> StarLayerGraph:
 def _validate(shapes: str, data: str):
     with warnings.catch_warnings():
         warnings.simplefilter("error")  # any ShapeRecursionWarning fails the test
-        return StarShaclSchema(shacl_graph=_graph(shapes)).validate(data_graph=_graph(data), meta_shacl=False, ignore_imports=True)
+        return StarShaclProcessor(shacl_graph=_graph(shapes)).validate(data_graph=_graph(data), meta_shacl=False, ignore_imports=True)
 
 
 def _chain(length: int, *, last_has_name: bool, cycle: bool = False) -> str:
@@ -111,7 +111,7 @@ def test_recursion_through_the_logical_constraints_finds_the_violation(shape) ->
 def test_no_shape_recursion_warning_is_raised() -> None:
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
-        StarShaclSchema(shacl_graph=_graph(RECURSIVE)).validate(
+        StarShaclProcessor(shacl_graph=_graph(RECURSIVE)).validate(
             data_graph=_graph(_chain(8, last_has_name=False, cycle=True)), meta_shacl=False, ignore_imports=True
         )
     assert not [w for w in caught if "Recursive" in str(w.message)]
@@ -127,7 +127,7 @@ def test_a_nested_shapes_graph_is_checked_against_shacl_shacl_at_depth() -> None
         return f"ex:S a sh:NodeShape ; sh:and ( {shape} ) ."
 
     for depth in (0, 2, 4, 6):
-        result = StarShaclSchema(shacl_graph=starontology.get_ontology_graph("shacl_shacl")).validate(
+        result = StarShaclProcessor(shacl_graph=starontology.get_ontology_graph("shacl_shacl")).validate(
             data_graph=_graph(nested(depth)), meta_shacl=False, ignore_imports=True
         )
         assert not result.conforms

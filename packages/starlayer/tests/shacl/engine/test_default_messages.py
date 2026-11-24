@@ -43,11 +43,11 @@ CASES = [
     ("ex:n ex:p 7 .", "sh:maxInclusive 5", ["Value 7 should be at most 5"]),
     ("ex:n ex:p 'a' .", "sh:pattern '^b'", ["Value \"a\" should match the pattern '^b'"]),
     ("ex:n ex:p 'a'@fr .", "sh:languageIn ('en' 'de')", ['Value "a"@fr should have a language tag in "en", "de"']),
-    ("ex:n ex:p 'a'@en, 'b'@en .", "sh:uniqueLang true", ["Values for ex:p should not share a language tag"]),
-    ("ex:n ex:p 1 ; ex:q 2 .", "sh:equals ex:q", ["Value 1 should also be a value of ex:q", "Value 2 should also be a value of ex:q"]),
+    ("ex:n ex:p 'a'@en, 'b'@en .", "sh:uniqueLang true", ["Allows at most 1 value for ex:p with the language tag en, found 2"]),
+    ("ex:n ex:p 1 ; ex:q 2 .", "sh:equals ex:q", ["Value 1 for ex:p is not also a value of ex:q", "Value 2 for ex:q is not also a value of ex:p"]),
     ("ex:n ex:p 1 ; ex:q 1 .", "sh:disjoint ex:q", ["Value 1 should not also be a value of ex:q"]),
-    ("ex:n ex:p 5 ; ex:q 1 .", "sh:lessThan ex:q", ["Value 5 should be less than every value of ex:q"]),
-    ("ex:n ex:p 5 ; ex:q 1 .", "sh:lessThanOrEquals ex:q", ["Value 5 should be at most every value of ex:q"]),
+    ("ex:n ex:p 5 ; ex:q 1 .", "sh:lessThan ex:q", ["Value 5 should be less than the value 1 of ex:q"]),
+    ("ex:n ex:p 5 ; ex:q 1 .", "sh:lessThanOrEquals ex:q", ["Value 5 should be at most the value 1 of ex:q"]),
     ("ex:n ex:p 9 .", "sh:in (1 2)", ["Value 9 should be one of 1, 2"]),
     ("ex:n ex:p 9 .", "sh:not [ sh:minInclusive 5 ]", [None]),
     ("ex:n ex:p 9 .", "sh:or ( [ sh:maxInclusive 5 ] [ sh:datatype xsd:string ] )", [None]),
@@ -65,7 +65,7 @@ def test_default_message(data, constraint, want):
 
 def test_closed_names_the_property():
     got = messages("ex:n ex:q 1 .", "sh:closed true ; sh:property [ sh:path ex:p ]", node_level=True)
-    assert got == ["The property ex:q is not allowed here, because the shape is closed"]
+    assert got == ["ex:n has the property ex:q, which the closed shape does not allow"]
 
 
 def test_node_shape_value_message_has_no_path_phrase():

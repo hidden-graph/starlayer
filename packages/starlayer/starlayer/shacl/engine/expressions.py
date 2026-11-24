@@ -534,7 +534,7 @@ def _instances_of(ctx, expr, focus, scope):
     for cls in _eval(ctx, _one(ctx, expr, _n("instancesOf")), focus, scope):
         if not isinstance(cls, URIRef):
             raise EvaluationFailure(f"shnex:instancesOf: {text(cls)!r} is not an IRI")
-        for c in _class_closure(ctx.data, cls):
+        for c in _class_closure(ctx.data, cls, ctx.subclasses_of):
             for inst in ctx.data.subjects(RDF.type, c):
                 out.setdefault(inst, None)
     return list(out)

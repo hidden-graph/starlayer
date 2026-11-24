@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, validate
+from starlayer.shacl import StarShaclProcessor, validate
 from starlayer.shacl import evaluate as _evaluate
 from tests.support.terms import Namespace, lit, py
 
@@ -67,7 +67,7 @@ class TestGate:
 
     def test_method_matches_function(self) -> None:
         data, shapes = _g(DATA), _g(SHAPES)
-        by_method = StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data, validate=True)
+        by_method = StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data, validate=True)
         assert set(by_method) == set(evaluate(data, shapes, validate=True))
 
     def test_focus_nodes_and_properties_still_restrict(self) -> None:

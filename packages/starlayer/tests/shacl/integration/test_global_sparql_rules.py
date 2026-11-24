@@ -8,7 +8,7 @@ silently never executes.
 """
 
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -38,7 +38,7 @@ def test_global_rule_runs_once_against_whole_graph() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.Caren, EX.friend, EX.Bob) in result.inferred_graph
     assert (EX.Debbie, EX.friend, EX.Caren) in result.inferred_graph
@@ -72,7 +72,7 @@ def test_global_rule_discovered_from_data_graph_itself_when_shacl_graph_is_none(
         format="turtle",
     )
 
-    result = StarShaclSchema().apply_rules(data_graph=data_with_embedded_rule, meta_shacl=False)
+    result = StarShaclProcessor().apply_rules(data_graph=data_with_embedded_rule, meta_shacl=False)
 
     assert (EX.Caren, EX.friend, EX.Bob) in result.inferred_graph
     assert (EX.Debbie, EX.friend, EX.Caren) in result.inferred_graph
@@ -104,7 +104,7 @@ def test_global_rule_deactivated_produces_nothing() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.Caren, EX.friend, EX.Bob) not in result.inferred_graph
 
@@ -145,7 +145,7 @@ def test_shape_attached_rule_still_works_alongside_a_global_one() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.Bob, EX.reverseFriend, EX.Alice) in result.inferred_graph
 

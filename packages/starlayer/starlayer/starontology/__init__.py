@@ -527,10 +527,27 @@ def _named_graph(context_iri: Any) -> Any:
 
 def _load(name: str) -> Any:
     """A fresh ``StarLayerGraph`` of the named entry, its identifier the entry's resource IRI: without it a caller who forgot to pass
-    ``validate(..., shapes_graph_resource=...)`` gets no ``sh:usedShapesGraph`` / ``sh:conformsTo`` / ``dcterms:conformsTo`` at all
+    ``validate(..., shapes_graph_resource=...)`` gets no ``sh:usedShapesGraph`` / ``sh:conformsToShapesGraph`` / ``dcterms:conformsTo`` at all
     (``validate()``'s own ``.identifier`` fallback recovers it from the graph). The import of ``StarLayerGraph`` is lazy (inside
     ``_named_graph``) so that importing ``starontology`` first cannot deadlock on the ``starlayer.graph`` package."""
     return _named_graph(_resource_iri(name))
+
+
+# Not registered, so not listed, not reachable through get_ontology_graph() and not exported: a layer of meta-shapes that ask StarLayer-internal
+# SPARQL functions, merged into shacl_shacl by shacl/meta_shapes.py. The file ships with the package (starontology/*/*.ttl).
+_PRIVATE_FILENAME_BY_NAME: dict[str, str] = {
+    "shacl_shacl_starlayer": "shacl/shacl12-shacl-starlayer.ttl",
+}
+
+
+def _load_private(name: str) -> Any:
+    """A fresh ``StarLayerGraph`` of a private file, read as ``_load`` reads a registered one but with no resource IRI of its own."""
+    from starlayer.graph.core import StarLayerGraph
+
+    source, used = _file_graph(_PRIVATE_FILENAME_BY_NAME[name])
+    graph = StarLayerGraph(prefixes=dict(used))
+    graph.extend(list(source))
+    return graph
 
 
 def get_ontology_list() -> tuple[OntologyInfo, ...]:
@@ -637,7 +654,7 @@ def get_resource_iri(name: str) -> Any:
     `prof:isProfileOf` subject), not merely some other identity for "the same" file:
 
     >>> shapes = starontology.get_ontology_graph("skos_shacl")
-    >>> result = StarShaclSchema(shacl_graph=shapes).validate(
+    >>> result = StarShaclProcessor(shacl_graph=shapes).validate(
     ...     data_graph=my_data,
     ...     data_graph_iri="http://example.org/graphs/mydata",
     ...     shapes_graph_resource=starontology.get_resource_iri("skos_shacl"),

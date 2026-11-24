@@ -8,7 +8,7 @@ named after the local name of its ``sh:path``. A required parameter without a va
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, StarShaclSchema
+from starlayer.shacl import RuleError, StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -28,7 +28,7 @@ def _graph(turtle: str) -> StarLayerGraph:
 
 
 def _apply(shapes: str, data: str, **kwargs):
-    return StarShaclSchema(shacl_graph=_graph(shapes)).apply_rules(data_graph=_graph(data), meta_shacl=False, **kwargs)
+    return StarShaclProcessor(shacl_graph=_graph(shapes)).apply_rules(data_graph=_graph(data), meta_shacl=False, **kwargs)
 
 
 SYMMETRIC = """
@@ -140,7 +140,7 @@ class TestTemplates:
         shapes = _graph(SYMMETRIC + "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule ex:R . ex:R a ex:SymmetricPropertyRule ; ex:property ex:knows .")
         before = set(shapes)
 
-        StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=_graph("ex:a ex:knows ex:b ."), meta_shacl=False)
+        StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=_graph("ex:a ex:knows ex:b ."), meta_shacl=False)
 
         assert set(shapes) == before
 
@@ -210,4 +210,4 @@ class TestRuleProcessor:
         shapes = self.RULE + " ex:Set a sh:RuleSet ; sh:hasRule ex:R ; sh:ruleProcessor ex:Engine . ex:G a sh:ShapesGraph ; sh:entailment ex:Set ."
 
         with pytest.raises(RuleError, match="sh:ruleProcessor"):
-            StarShaclSchema(shacl_graph=_graph(shapes)).validate(data_graph=_graph("ex:n ex:m true ."))
+            StarShaclProcessor(shacl_graph=_graph(shapes)).validate(data_graph=_graph("ex:n ex:m true ."))

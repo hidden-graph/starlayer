@@ -36,7 +36,7 @@ def ok(code: str) -> str:
 def test_imports():
     ok("""
         import starlayer, starlayer.graph, starlayer.shacl, starlayer.sparql, starlayer.starontology
-        from starlayer import StarLayerGraph, StarLayerDataset, StarShaclSchema, StarQuery
+        from starlayer import StarLayerGraph, StarLayerDataset, StarShaclProcessor, StarQuery
         from starlayer.graph import ENTAILMENT, isomorphic, interop, setops, rdfc_native
         from starlayer.shacl import validate, apply_rules, evaluate, extract_subgraph
         import starlayer.shacl.profiling.conformance
@@ -87,7 +87,7 @@ def test_query_and_update():
 def test_shacl_validate_and_rules():
     out = ok("""
         from starlayer.graph import StarLayerGraph
-        from starlayer.shacl import validate, apply_rules, StarShaclSchema
+        from starlayer.shacl import validate, apply_rules, StarShaclProcessor
         shapes = StarLayerGraph(); shapes.parse(format="turtle12", data='''
             @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix : <http://e/> .
             :S a sh:NodeShape ; sh:targetClass :C ;
@@ -99,7 +99,7 @@ def test_shacl_validate_and_rules():
         assert not result.conforms and 'MinCountConstraintComponent' in result.report_text
         rules = apply_rules(data, shapes)
         assert len(rules.inferred_graph) >= 1
-        schema = StarShaclSchema(shacl_graph=shapes)
+        schema = StarShaclProcessor(shacl_graph=shapes)
         assert not schema.validate(data).conforms
         print("done")
     """)

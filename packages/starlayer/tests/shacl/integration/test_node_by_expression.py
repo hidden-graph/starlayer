@@ -6,7 +6,7 @@ notion of this predicate at all.
 """
 
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -37,7 +37,7 @@ def test_node_by_expression_at_node_shape_violates_when_value_does_not_conform()
         format="turtle12",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))} == {EX.Invalid}
@@ -74,7 +74,7 @@ def test_node_by_expression_at_property_shape_violates_when_value_does_not_confo
         format="turtle12",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert {o for _, _, o in rd(result.report_graph).triples((None, SH.focusNode, None))} == {EX.Issue1}
@@ -105,6 +105,6 @@ def test_node_by_expression_conforms_when_value_conforms() -> None:
         format="turtle12",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True

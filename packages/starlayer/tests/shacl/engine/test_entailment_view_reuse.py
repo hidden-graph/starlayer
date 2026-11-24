@@ -1,13 +1,16 @@
-"""Validating the same data again does not run the entailment closure again: ``entailed_view`` keeps its overlay on the data graph and
-returns it while the triples (of the data and of ``ont_graph``) are the same. The test of that is a change, of any kind and made any
-way, being noticed: a stale overlay would give a wrong report."""
+"""Validating the same data again does not run the entailment closure again: ``entailed_view`` returns the entailed copy that
+``graph/entailment/cache.py`` keeps on the store, until the store is written to through the package (the write count; a write straight
+to the store needs ``union.touch()``). The tests here are about a change, made through the package, being noticed: a stale copy would
+give a wrong report."""
 
 from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import ENTAILMENT, StarLayerGraph
+from starlayer.graph.entailment import cache as cache_module
 from starlayer.graph.entailment import infer as infer_module
+from starlayer.graph.execution import union
 from starlayer.shacl import validate
 from starlayer.shacl.engine import entailment as ent
 
@@ -63,11 +66,13 @@ def test_a_write_through_the_wrapper_is_noticed(closures):
     assert ox.NamedNode(EX + "Agent") not in types_of(before, "a")
 
 
-def test_a_write_straight_to_the_store_is_noticed(closures):
-    """The wrapper's own write counter does not see this one; the content comparison does."""
+def test_a_write_straight_to_the_store_is_noticed_only_after_touch(closures):
+    """The write count is the only invalidation: a raw store write is not seen until ``union.touch()`` (documented)."""
     d = data()
     before = ent.entailed_view(d, ENTAILMENT.RDFS)
     d.store.add(ox.Quad(ox.NamedNode(EX + "c"), RDF_TYPE, ox.NamedNode(EX + "Employee"), ox.DefaultGraph()))
+    assert ent.entailed_view(d, ENTAILMENT.RDFS) is before and len(closures) == 1  # not noticed
+    union.touch(d.store)
     after = ent.entailed_view(d, ENTAILMENT.RDFS)
     assert after is not before and len(closures) == 2
     assert ox.NamedNode(EX + "Person") in types_of(after, "c")
@@ -107,20 +112,21 @@ def test_each_regime_is_kept_separately(closures):
     assert ent.entailed_view(d, ENTAILMENT.RDFS) is rdfs and ent.entailed_view(d, ENTAILMENT.RDF) is rdf
 
 
-def test_the_kept_overlays_are_bounded():
+def test_the_kept_copies_are_bounded():
     d = data()
     for i in range(10):
         d_ont = g(f"ex:K{i} a ex:Employee .")
         ent.entailed_view(d, ENTAILMENT.RDFS, d_ont)
-    assert len(d.__dict__[ent._KEPT_ATTRIBUTE]) <= ent._KEPT_VIEWS
+    assert len(union.version_of(d.store).entailed.entries) <= cache_module.MAX_ENTRIES
 
 
-def test_the_view_holds_what_the_closure_adds_and_the_data_is_untouched():
+def test_the_view_holds_the_data_and_what_the_closure_adds_and_the_data_is_untouched():
     d = data()
     before = set(d.triples((None, None, None)))
     view = ent.entailed_view(d, ENTAILMENT.RDFS)
     assert set(d.triples((None, None, None))) == before
-    assert set(view.inferred) == set(d.infer(entailment=ENTAILMENT.RDFS, mode="delta").triples((None, None, None)))
+    assert set(view.triples((None, None, None))) - before == set(d.infer(entailment=ENTAILMENT.RDFS, mode="delta").triples((None, None, None)))
+    assert before <= set(view.triples((None, None, None)))
 
 
 def test_a_repeated_validation_gives_the_same_report_and_follows_a_change():
@@ -144,10 +150,10 @@ def test_inplace_adds_the_inferred_triples_and_the_next_call_sees_them():
     assert validate(d, shapes, inference=ENTAILMENT.RDFS).conforms
 
 
-def test_a_constant_fingerprint_would_serve_a_stale_overlay(monkeypatch):
-    """Mutation check for the tests above: with a comparison that sees no change, the overlay is stale after a write."""
-    monkeypatch.setattr(ent, "_fingerprint", lambda triples: (0, 0))
+def test_a_constant_stamp_would_serve_a_stale_copy(monkeypatch):
+    """Mutation check for the tests above: with a write count that never moves, the copy is stale after a write."""
     d = data()
+    monkeypatch.setattr(type(union.version_of(d.store)), "stamp", lambda self: (0, 0))
     before = ent.entailed_view(d, ENTAILMENT.RDFS)
     d.add((ox.NamedNode(EX + "Person"), ox.NamedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf"), ox.NamedNode(EX + "Agent")))
     stale = ent.entailed_view(d, ENTAILMENT.RDFS)

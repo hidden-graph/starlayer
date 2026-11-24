@@ -1,10 +1,10 @@
 """Hunt 3 (GitHub issues #130 and #131): widget conditions decide on the node asked about, not on the whole graph;
-a malformed score or an ``owl:imports`` in the catalog does not stop the selection; ``StarShaclSchema`` sees edits
+a malformed score or an ``owl:imports`` in the catalog does not stop the selection; ``StarShaclProcessor`` sees edits
 made to the graphs it was given."""
 
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.ui.widget_selection import select_widget, select_widgets
 from tests.support.terms import RDF, XSD, Namespace
 
@@ -126,10 +126,10 @@ def _plain(text):
     return g
 
 
-def test_schema_sees_removed_constraint():
+def test_processor_sees_removed_constraint():
     sg = _plain("ex:S a sh:NodeShape ; sh:targetClass ex:C ; sh:property ex:P . ex:P sh:path ex:p ; sh:datatype xsd:string .")
     dg = _plain("ex:a a ex:C ; ex:p 1 .")
-    schema = StarShaclSchema(sg, data_graph=dg)
+    schema = StarShaclProcessor(sg, data_graph=dg)
     assert schema.validate().conforms is False
     sg.remove((EX.P, SH.datatype, None))
     assert schema.validate().conforms is True

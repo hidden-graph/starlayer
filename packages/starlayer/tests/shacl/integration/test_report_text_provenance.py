@@ -1,4 +1,4 @@
-"""``ValidationResult.report_text`` agrees with ``report_graph``: a ``Provenance:`` line
+"""``ValidationReport.report_text`` agrees with ``report_graph``: a ``Provenance:`` line
 appears only when the report knows the thing it states (the whole block is left out when
 nothing is known, with no "Not specified" placeholders), and its ``Conforms:`` line matches
 the recomputed conformance."""
@@ -49,7 +49,7 @@ def test_both_identities_give_both_lines_and_the_conforms_to_statement():
     ).report_text
     assert "Used Data Graph: ex:data1" in text
     assert "Used Shapes Graph: ex:shapes1" in text
-    assert "ex:data1 sh:conformsTo ex:shapes1 ." in text
+    assert "ex:data1 sh:conformsToShapesGraph ex:shapes1 ." in text
 
 
 def test_a_non_conforming_result_makes_no_conforms_to_statement():

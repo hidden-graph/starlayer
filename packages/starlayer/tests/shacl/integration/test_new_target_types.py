@@ -1,5 +1,5 @@
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -37,7 +37,7 @@ def test_shape_target_only_targets_nodes_with_explicit_sh_shape_triple() -> None
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -60,7 +60,7 @@ def test_shape_target_conforms_when_target_node_has_required_property() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -80,7 +80,7 @@ def test_implicit_class_target_validates_shapes_own_instances() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -106,7 +106,7 @@ def test_shape_class_implicit_target_validates_shapes_own_instances() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -157,7 +157,7 @@ def test_shape_class_implicit_target_follows_rdfs_subclassof_and_needs_no_separa
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -199,7 +199,7 @@ def test_select_based_target_node_targets_query_results() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -223,7 +223,7 @@ def test_target_where_only_targets_conforming_nodes() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -272,7 +272,7 @@ def test_target_where_candidate_not_excluded_by_unrelated_focus_node_data() -> N
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -296,7 +296,7 @@ def test_target_where_conforms_when_targeted_node_satisfies_outer_shape() -> Non
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True

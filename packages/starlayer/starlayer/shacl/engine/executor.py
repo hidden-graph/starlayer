@@ -11,6 +11,7 @@ from typing import Any
 
 from starlayer.shacl.engine.deactivation import any_true, deactivated_at
 from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
+from starlayer.shacl.engine.naming import add_where
 from starlayer.shacl.engine.paths import eval_path
 from starlayer.shacl.engine.plan import (
     SH,
@@ -22,7 +23,7 @@ from starlayer.shacl.engine.plan import (
     most_severe,
 )
 from starlayer.shacl.engine.targets import focus_nodes
-from starlayer.shacl.engine.terms import engine_view, unmask
+from starlayer.shacl.engine.terms import RDFS, engine_view, unmask
 
 
 @dataclass(frozen=True)
@@ -62,6 +63,7 @@ class Context:
     _peak: int = 0  # deepest ``_depth`` at which a shape was entered since the enclosing conforms() started
     memoize: bool = True  # False: every conformance check is evaluated, so every triple it reads is read (extract_subgraph records reads)
     _assumed: int = 0  # how many times a re-entry assumed 'conforms' (the greatest-fixpoint reading) so far
+    subclass_of_in_shapes_graph: bool = False  # SHACL 1.2 Core "Graph for rdfs:subClassOf Triples": read rdfs:subClassOf from the shapes graph too
 
     def __post_init__(self) -> None:
         """Wrap the data graph in the engine's term view."""
@@ -71,6 +73,19 @@ class Context:
     def shapes(self) -> Any:
         """The plan's shapes graph, as an engine term view."""
         return self.plan.shapes_graph
+
+    def superclasses_of(self, cls: Term) -> Iterator[Term]:
+        """The direct ``rdfs:subClassOf`` objects of ``cls``: in the data view, and with ``subclass_of_in_shapes_graph`` in the
+        shapes graph too. ``rdf:type`` is always read from the data view alone."""
+        yield from self.data.objects(cls, RDFS.subClassOf)
+        if self.subclass_of_in_shapes_graph:
+            yield from self.shapes.objects(cls, RDFS.subClassOf)
+
+    def subclasses_of(self, cls: Term) -> Iterator[Term]:
+        """The direct ``rdfs:subClassOf`` subjects of ``cls``, read as :meth:`superclasses_of` reads."""
+        yield from self.data.subjects(RDFS.subClassOf, cls)
+        if self.subclass_of_in_shapes_graph:
+            yield from self.shapes.subjects(RDFS.subClassOf, cls)
 
     def shape(self, node: Term) -> Shape:
         """The built shape for ``node``; delegates to the plan."""
@@ -150,6 +165,8 @@ class Context:
                 shape.targets,
                 self.conforms,
                 lambda expr, shape_node=shape.node: self.target_expression(expr, shape_node),
+                self.subclasses_of,
+                self.shape,
             )
         return self._focus_cache[shape.node]
 
@@ -199,7 +216,10 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
         ctx._peak = ctx._depth
     ctx._depth += 1
     try:
-        return _validate_shape_at(ctx, shape, focus)
+        try:
+            return _validate_shape_at(ctx, shape, focus)
+        except ShapeError as error:
+            raise add_where(error, ctx.plan.shapes_graph, shape.node) from None
     finally:
         ctx._depth -= 1
 
@@ -230,19 +250,15 @@ def _effective(spec: Any, shape: Shape, triples: list) -> tuple[Term, tuple, tup
     return severity, messages, exprs
 
 
-def _shape_components(ctx: Context, shape: Shape) -> list:
+def constraints_of(plan: Any, shape: Shape) -> list:
     """The ``(spec, present parameters, severity, messages, deactivation expressions)`` constraints that apply to ``shape``:
-    independent of the focus node, so computed once per shape per run (the expressions are evaluated per focus node).
+    independent of the focus node (the expressions are evaluated per focus node).
 
     A component with several parameters is one constraint, annotated on any of its triples (a literal ``sh:deactivated`` on one
     of them deactivates it). A component with one parameter has one constraint per value, so values with different annotations
     run separately and values with equal annotations run together."""
-    key = ("components", shape.node)
-    cached = ctx.cache.get(key)
-    if cached is not None:
-        return cached
     out = []
-    for spec in ctx.plan.components():
+    for spec in plan.components():
         present = {p: shape.params[p] for p in spec.predicates if shape.params.get(p)}
         if not present or not all(r in present for r in spec.required):
             continue
@@ -258,8 +274,16 @@ def _shape_components(ctx: Context, shape: Shape) -> list:
             if not _deactivated(shape, pred, v):
                 groups.setdefault(_effective(spec, shape, [(pred, v)]), []).append(v)
         out.extend((spec, {pred: tuple(vs)}, *eff) for eff, vs in groups.items())
-    ctx.cache[key] = out
     return out
+
+
+def _shape_components(ctx: Context, shape: Shape) -> list:
+    """``constraints_of`` the shape, computed once per shape per run."""
+    key = ("components", shape.node)
+    cached = ctx.cache.get(key)
+    if cached is None:
+        cached = ctx.cache[key] = constraints_of(ctx.plan, shape)
+    return cached
 
 
 def _restated(details: tuple, shape: Shape, severity: Term, messages: tuple) -> tuple:
@@ -350,14 +374,26 @@ def run(
     abort_on_first: bool = False,
     max_validation_depth: int | None = None,
     stats: dict | None = None,
+    subclass_of_in_shapes_graph: bool = False,
+    focus_filter: Any = None,
 ) -> list[Result]:
     """Validate every declared shape. ``stats`` (optional) receives ``recursion_revisits`` for the run's diagnostics.
+
+    ``focus_filter`` (a set of nodes) keeps only the focus nodes in it, after each shape's targets are resolved: resolving them is
+    what decides which nodes a shape reaches (a node-expression target is evaluated over the whole graph), so cutting the targets
+    earlier would change what is checked. Cross-node components still see the whole target set.
 
     Each shape nesting level costs several interpreter frames, so the recursion limit is raised to fit the documented
     ``max_validation_depth`` (``None``: a generous fixed allowance): the bound, not the interpreter's default limit, is
     what stops a deep chain. A chain that still exhausts the stack is a ShapeError, not a RecursionError.
     """
-    ctx = Context(data=data, plan=plan, abort_on_first=abort_on_first, max_validation_depth=max_validation_depth)
+    ctx = Context(
+        data=data,
+        plan=plan,
+        abort_on_first=abort_on_first,
+        max_validation_depth=max_validation_depth,
+        subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+    )
     results: list[Result] = []
     wanted = _UNBOUNDED_RECURSION_LIMIT if max_validation_depth is None else max_validation_depth * _FRAMES_PER_SHAPE_LEVEL + 1000
     try:
@@ -367,6 +403,8 @@ def run(
                 if shape.deactivated:
                     continue
                 for focus in ctx.shape_focus(shape):
+                    if focus_filter is not None and focus not in focus_filter:
+                        continue
                     results.extend(validate_shape_at(ctx, shape, focus))
                     if results and abort_on_first:
                         return results

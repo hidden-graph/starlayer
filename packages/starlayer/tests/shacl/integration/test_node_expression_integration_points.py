@@ -13,13 +13,13 @@ target) rather than working or erroring clearly. This file locks in the
 three real bugs found and fixed as a result:
 
 1. sh:targetNode holding a node expression (not sh:select-wrapped) was never
-   evaluated at all - see StarShaclSchema._augment_shapes_with_new_target_types.
+   evaluated at all - see StarShaclProcessor._augment_shapes_with_new_target_types.
 2. sh:expression's scope never bound "value" (the current value node), and
    its "focusNode" binding was actually the *value* node on property shapes
    (pySHACL's own bug) - see _patch_expression_constraint_for_value_scope.
 3. sh:deactivated holding a node expression crashed shape loading outright
    (pySHACL hard-requires a Literal) - see
-   StarShaclSchema._strip_deactivated_node_expressions. A first fix
+   StarShaclProcessor._strip_deactivated_node_expressions. A first fix
    (2026-09-05) evaluated the expression once *globally* (no focus node at
    all), based on the node-expr document's own single passing mention of
    sh:deactivated - wrong, caught by a direct user question: SHACL 1.2
@@ -36,7 +36,7 @@ test_shnex_node_expressions.py and test_node_by_expression.py).
 
 from rdflib import Namespace
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 
 EX = Namespace("http://example.org/")
 
@@ -75,7 +75,7 @@ class TestTargetNodeExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is False
         assert "ex:acme" in result.report_text or str(EX.acme) in result.report_text
 
@@ -103,7 +103,7 @@ class TestTargetNodeExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is False
 
     def test_empty_result_removes_target_entirely(self) -> None:
@@ -122,7 +122,7 @@ class TestTargetNodeExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
 
     def test_targetwhere_still_works_unaffected(self) -> None:
@@ -154,7 +154,7 @@ class TestTargetNodeExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         # ex:bob is targeted (an adult) and has no ex:votedFor -> violation.
         # ex:alice is also an adult and does have ex:votedFor -> no violation.
         assert result.conforms is False
@@ -174,7 +174,7 @@ class TestExpressionScope:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
 
     def test_focusnode_is_the_real_focus_not_the_value(self) -> None:
@@ -189,7 +189,7 @@ class TestExpressionScope:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
 
     def test_focusnode_still_wrong_would_fail_this(self) -> None:
@@ -207,7 +207,7 @@ class TestExpressionScope:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is False
 
     def test_spec_iban_worked_example(self) -> None:
@@ -238,7 +238,7 @@ class TestExpressionScope:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is False
         assert result.report_text.count("Focus Node:") == 1
         assert "InvalidGermanAccount" in result.report_text
@@ -274,7 +274,7 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         # ex:alice (legacy) is excluded despite being 12 - no violation for her.
         # ex:dave (not legacy) is still checked and correctly violates.
         assert result.conforms is False
@@ -305,7 +305,7 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is False  # shape active - "x" is too short
 
     def test_global_condition_deactivates_every_target_uniformly(self) -> None:
@@ -338,7 +338,7 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        result_off = StarShaclSchema(shacl_graph=shapes).validate(data_graph=flag_off, meta_shacl=False)
+        result_off = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=flag_off, meta_shacl=False)
         assert result_off.conforms is True
 
         flag_on = StarLayerGraph()
@@ -351,7 +351,7 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        result_on = StarShaclSchema(shacl_graph=shapes).validate(data_graph=flag_on, meta_shacl=False)
+        result_on = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=flag_on, meta_shacl=False)
         assert result_on.conforms is False
         assert result_on.report_text.count("Focus Node:") == 2
 
@@ -376,5 +376,5 @@ class TestDeactivatedExpression:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True

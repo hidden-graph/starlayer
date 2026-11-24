@@ -18,7 +18,7 @@ merge-after behavior.
 
 import pyoxigraph as ox
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.engine.terms import NS as Namespace
 
 EX = Namespace("http://example.org/")
@@ -32,7 +32,7 @@ def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
     data.parse(data=data_ttl, format="turtle")
     shapes = Graph()
     shapes.parse(data=shapes_ttl, format="turtle")
-    return StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, **kwargs)
+    return StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, **kwargs)
 
 
 def _validate_rdf12(data_ttl12: str, shapes_ttl: str, **kwargs):
@@ -45,7 +45,7 @@ def _validate_rdf12(data_ttl12: str, shapes_ttl: str, **kwargs):
     data.parse(data=data_ttl12, format="turtle12")
     shapes = StarLayerGraph()
     shapes.parse(data=shapes_ttl, format="turtle")
-    return StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, **kwargs)
+    return StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, **kwargs)
 
 
 # alice has a cat, not a duck: sh:someValue(ex:Duck) directly VIOLATES.

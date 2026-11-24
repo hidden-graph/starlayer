@@ -8,7 +8,7 @@ from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl import evaluate as old_evaluate
 from starlayer.shacl import validate as old_validate
 from starlayer.shacl.engine import evaluate as new_evaluate
@@ -297,4 +297,4 @@ def test_diagnostics() -> None:
 
 def test_schema_evaluate_is_the_module_function() -> None:
     data, shapes = g(FRIENDS), g(CASES["count"][1])
-    assert set(StarShaclSchema(shacl_graph=shapes).evaluate(data_graph=data)) == set(new_evaluate(data, shapes))
+    assert set(StarShaclProcessor(shacl_graph=shapes).evaluate(data_graph=data)) == set(new_evaluate(data, shapes))

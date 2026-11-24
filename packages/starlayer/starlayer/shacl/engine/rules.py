@@ -36,6 +36,7 @@ from typing import Any
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.interface import Solutions, Term
+from starlayer.shacl.engine.naming import locate
 from starlayer.shacl.engine.plan import SH, Plan, ShapeError
 from starlayer.shacl.engine.sparql_support import (
     check_query,
@@ -177,6 +178,11 @@ class InferredView:
     # -- SPARQL: through the materialised union
     def materialised(self) -> Any:
         """An ``StarLayerGraph`` holding the base and the inferred triples (built once, then kept in step by ``add`` / ``remove``)."""
+        if self._mat is None and not self._inferred:
+            from starlayer.graph.core import StarLayerGraph
+
+            if isinstance(self.base, StarLayerGraph):
+                return self.base  # nothing inferred yet: the base itself (the shared entailed copy). Not kept in ``_mat``: ``add`` writes there
         if self._mat is None:
             from starlayer.shacl.engine.graphs import new_graph
 
@@ -640,6 +646,11 @@ def _groups(rules: list[Rule]) -> list[list[Rule]]:
     return [by[o] for o in sorted(by)]
 
 
+def _renamed(error: RuleError, message: str) -> RuleError:
+    error.args = (message,)
+    return error
+
+
 def apply_rules(
     data_graph: Any,
     shapes_graph: Any = None,
@@ -649,6 +660,7 @@ def apply_rules(
     max_triples: int | None = None,
     raise_on_failure: bool = True,
     source_rules: bool = False,
+    subclass_of_in_shapes_graph: bool = False,
 ) -> RuleResult:
     """Run the rules of ``shapes_graph`` (default: ``data_graph`` itself) over ``data_graph``.
 
@@ -673,9 +685,9 @@ def apply_rules(
             iterating = [r for r in in_layer if not r.run_once]
             expected = {p for r in in_layer for p in r.expected_predicates}
             if expected:
-                run.compute_derived(Context(data=view, plan=plan), expected)
+                run.compute_derived(Context(data=view, plan=plan, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph), expected)
             for group in _groups(once):
-                ctx = Context(data=view, plan=plan)
+                ctx = Context(data=view, plan=plan, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph)
                 run.add_inferred(run.run_group(ctx, group))
             changed = bool(iterating)
             while changed:
@@ -684,15 +696,16 @@ def apply_rules(
                     raise RuleError(f"rules did not reach a fixpoint within {max_iterations} iterations")
                 changed = False
                 for group in _groups(iterating):
-                    ctx = Context(data=view, plan=plan)
+                    ctx = Context(data=view, plan=plan, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph)
                     if run.add_inferred(run.run_group(ctx, group)):
                         changed = True
             run.end_layer()
         run.delete_temp_triples()
     except (RuleError, ShapeError) as exc:
+        message = locate(shapes, str(exc))  # the shape, rule or expression it is about, named, not its blank node label
         if raise_on_failure:
-            raise exc if isinstance(exc, RuleError) else RuleError(str(exc)) from exc
-        failures.append(str(exc))
+            raise (RuleError(message) if not isinstance(exc, RuleError) else _renamed(exc, message)) from exc
+        failures.append(message)
     kept = set(view.inferred)  # temporary triples are gone: a rule's record follows its triple
     recorded = tuple(dict.fromkeys((t, rule) for t, rule in (run.source_rules or ()) if t in kept))
     return RuleResult(

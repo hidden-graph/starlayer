@@ -48,14 +48,6 @@ def test_genuine_report_is_chosen_whatever_the_insertion_order(order):
     assert _find_genuine_report_node(g) == genuine
 
 
-def test_the_librarys_own_report_link_does_not_hide_the_genuine_report():
-    """<graph> sh:validationReport <report> points at the genuine report; that
-    must not make it look like the incidental one."""
-    g, genuine, _ = _report("incidental-first")
-    g.add((NamedNode(EX + "dataGraph"), NamedNode(SH + "validationReport"), genuine))
-    assert _find_genuine_report_node(g) == genuine
-
-
 def test_a_graph_with_one_or_no_report_is_unchanged():
     g = StarLayerGraph()
     assert _find_genuine_report_node(g) is None

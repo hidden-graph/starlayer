@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema, profiling
+from starlayer.shacl import StarShaclProcessor, profiling
 from tests.support.terms import RDF, RDFS, NamedNode, Namespace, lit
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -108,25 +108,24 @@ def test_derive_conforms_to_from_conformant_report_produces_the_triple() -> None
     # Adversarial check per this repo's testing discipline: the triple must
     # not already be sitting in the input report, otherwise the assertion
     # below wouldn't actually be exercising derive_conforms_to.
-    assert (data_graph, SH.conformsTo, shapes_graph) not in report
+    assert (data_graph, SH.conformsToShapesGraph, shapes_graph) not in report
 
     derived = derive_conforms_to(report, data_graph=data_graph, shapes_graph=shapes_graph)
 
-    assert (data_graph, SH.conformsTo, shapes_graph) in derived
+    assert (data_graph, SH.conformsToShapesGraph, shapes_graph) in derived
     # The input report itself must not be mutated.
-    assert (data_graph, SH.conformsTo, shapes_graph) not in report
+    assert (data_graph, SH.conformsToShapesGraph, shapes_graph) not in report
 
 
 def test_derive_conforms_to_from_non_conformant_report_derives_no_conforms_to() -> None:
-    # sh:validationReport (the data-graph-resource -> report link) is
-    # unconditionally true regardless of outcome, so it's still derived -
-    # only the conformance triples themselves are gated on sh:conforms true.
+    # The rule is gated on sh:conforms true; sh:validationReport is not a
+    # Profiling term any more and is never written.
     report = _conformant_report(conforms=False)
 
     derived = derive_conforms_to(report, data_graph="urn:test:data", shapes_graph="urn:test:shapes")
 
-    assert list(derived.objects(NamedNode("urn:test:data"), SH.conformsTo)) == []
-    assert list(derived.objects(NamedNode("urn:test:data"), SH.validationReport))
+    assert list(derived.objects(NamedNode("urn:test:data"), SH.conformsToShapesGraph)) == []
+    assert not any(True for _ in derived.triples((None, SH.validationReport, None)))
 
 
 def test_derive_conforms_to_raises_without_validation_report_node() -> None:
@@ -148,7 +147,7 @@ def test_derive_conforms_to_reads_graph_iris_from_report_when_omitted() -> None:
     # shapes_graph_resource=, so sh:usedDataGraph/sh:usedShapesGraph are
     # already on the report - derive_conforms_to() shouldn't need them
     # repeated.
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(
         data_graph=_valid_data(),
         meta_shacl=False,
@@ -161,7 +160,7 @@ def test_derive_conforms_to_reads_graph_iris_from_report_when_omitted() -> None:
 
     assert (
         NamedNode("http://example.org/graphs/data1"),
-        SH.conformsTo,
+        SH.conformsToShapesGraph,
         NamedNode("http://example.org/graphs/shapes1"),
     ) in derived
 
@@ -185,7 +184,7 @@ def test_derive_conforms_to_with_specification_graph_derives_dcterms_conforms_to
         report, data_graph=data_graph, shapes_graph=shapes_graph, specification_graph=spec_graph
     )
 
-    assert (data_graph, SH.conformsTo, shapes_graph) in with_spec
+    assert (data_graph, SH.conformsToShapesGraph, shapes_graph) in with_spec
     assert (data_graph, DCTERMS.conformsTo, specification) in with_spec
 
 
@@ -200,15 +199,14 @@ def test_default_result_is_report_graph_merged_with_new_triples() -> None:
     # Everything report_graph already had is still there...
     assert (report_node, RDF.type, SH.ValidationReport) in merged
     assert (report_node, SH.conforms, lit(True)) in merged
-    # ...plus the newly derived triples, including the sh:validationReport
-    # link - which now resolves to a real, fully-described node, not a
-    # dangling blank-node reference, since report_node's own triples are
-    # right there in the same graph.
-    assert (data_graph, SH.conformsTo, shapes_graph) in merged
-    assert (data_graph, SH.validationReport, report_node) in merged
+    # ...plus the newly derived triple; sh:validationReport was dropped from
+    # the Profiling draft and is never written.
+    assert (data_graph, SH.conformsToShapesGraph, shapes_graph) in merged
+    assert not any(True for _ in merged.triples((None, SH.validationReport, None)))
+    assert not any(True for _ in merged.triples((None, SH.conformsTo, None)))
 
     # report_graph itself is still never mutated, merged or not.
-    assert (data_graph, SH.conformsTo, shapes_graph) not in report
+    assert (data_graph, SH.conformsToShapesGraph, shapes_graph) not in report
 
 
 def test_conforms_only_true_returns_only_the_conformsto_triples() -> None:
@@ -228,11 +226,39 @@ def test_conforms_only_true_returns_only_the_conformsto_triples() -> None:
         conforms_only=True,
     )
 
-    # Exactly the two conformsTo triples - nothing else. Neither
-    # report_graph's own pre-existing triples, nor even the
-    # sh:validationReport link derive_conforms_to() otherwise adds -
-    # conforms_only=True means only the conformance claims themselves.
+    # Exactly the two conformance triples - nothing else, not even
+    # report_graph's own pre-existing triples.
     assert set(conforms_only) == {
-        (data_graph, SH.conformsTo, shapes_graph),
+        (data_graph, SH.conformsToShapesGraph, shapes_graph),
         (data_graph, DCTERMS.conformsTo, specification),
     }
+
+
+def test_derive_conforms_to_reads_the_validation_activity_form_of_the_draft() -> None:
+    # S5.7 as published: sh:usedDataGraph / sh:usedShapesGraph sit on a sh:ValidationActivity that prov:generated the
+    # report. A pair only the activity carries is derived too.
+    activity = NamedNode("urn:test:activity")
+    other_data = NamedNode("urn:test:other-data")
+    other_shapes = NamedNode("urn:test:other-shapes")
+    report = _conformant_report(conforms=True)
+    report.add((activity, SH.usedDataGraph, other_data))
+    report.add((activity, SH.usedShapesGraph, other_shapes))
+    report.add((activity, NamedNode("http://www.w3.org/ns/prov#generated"), NamedNode("urn:test:report")))
+
+    derived = derive_conforms_to(report, data_graph="urn:test:data", shapes_graph="urn:test:shapes", conforms_only=True)
+
+    assert (other_data, SH.conformsToShapesGraph, other_shapes) in derived
+
+
+def test_derive_conforms_to_ignores_the_names_on_the_report_node() -> None:
+    # The old report-node form is no longer read (StarLayer writes the activity form only).
+    report = _conformant_report(conforms=True)
+    node = NamedNode("urn:test:report")
+    report.add((node, SH.usedDataGraph, NamedNode("urn:test:old-data")))
+    report.add((node, SH.usedShapesGraph, NamedNode("urn:test:old-shapes")))
+
+    derived = derive_conforms_to(report, data_graph="urn:test:data", shapes_graph="urn:test:shapes", conforms_only=True)
+
+    assert (NamedNode("urn:test:old-data"), SH.conformsToShapesGraph, NamedNode("urn:test:old-shapes")) not in derived
+    with pytest.raises(ValueError):
+        derive_conforms_to(report)

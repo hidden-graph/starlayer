@@ -6,7 +6,7 @@ node look non-conforming to the where-shape, and it silently stopped being a tar
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema, validate
+from starlayer.shacl import StarShaclProcessor, validate
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -22,7 +22,7 @@ def _g(ttl: str) -> Graph:
 def _reported(shapes: str, data: str, *, method: bool) -> set[tuple[str, str]]:
     """(focus node, source shape) of every result, by last path segment."""
     d, s = _g(data), _g(shapes)
-    result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
     g = rd(result.report_graph)
     return {(g.value(r, SH.focusNode).value.rsplit("/", 1)[-1], g.value(r, SH.sourceShape).value.rsplit("/", 1)[-1]) for r in g.subjects(SH.focusNode)}
 
@@ -35,7 +35,7 @@ WHERE = "ex:S a sh:NodeShape ; sh:targetWhere [ sh:class ex:C ] ; sh:property [ 
 def _s_foci(shapes: str, data: str, method: bool) -> set[str]:
     # the result's source shape for a property shape is a blank node, so identify S's results by their message
     d, s = _g(data), _g(shapes)
-    result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
     g = rd(result.report_graph)
     return {g.value(r, SH.focusNode).value.rsplit("/", 1)[-1] for r in g.subjects(SH.focusNode) if "S needs a name" in {m.value for m in g.objects(r, SH.resultMessage)}}
 

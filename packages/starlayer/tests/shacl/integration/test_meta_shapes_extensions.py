@@ -23,11 +23,11 @@ from build_meta_shapes import (
     load_wg_shapes,
 )
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
+from starlayer.shacl import MetaShaclError, ShapeError, StarShaclProcessor
 from starlayer.shacl.meta_shapes import (
-    check_sparql_query_text,
     load_meta_shapes_graph,
     meta_validate,
+    sparql_query_problems,
 )
 from tests.support.terms import NamedNode, Namespace, lit
 
@@ -43,7 +43,14 @@ def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
     shapes.parse(data=shapes_ttl, format="turtle")
     # meta_shacl is off by default (a development-time check); these tests are about it
     kwargs.setdefault("meta_shacl", True)
-    return StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, **kwargs)
+    # a bad shapes graph is refused when the processor is built, so the options the meta check reads are bound there too
+    processor = StarShaclProcessor(
+        shacl_graph=shapes,
+        meta_shacl=kwargs["meta_shacl"],
+        allow_warnings=kwargs.get("allow_warnings"),
+        allow_infos=kwargs.get("allow_infos"),
+    )
+    return processor.validate(data_graph=data, **kwargs)
 
 
 _TRIVIAL_DATA = "@prefix ex: <http://example.org/> . ex:r1 a ex:Record ."
@@ -649,7 +656,7 @@ def test_allow_warnings_on_validate_relaxes_warning_severity_meta_shacl_check() 
 # ---------------------------------------------------------------------------
 # meta_shapes_extra extensibility hook - the "let other users/editors add
 # their own rules" requirement, exercised end-to-end through the public
-# StarShaclSchema.validate() API, not just at the graph-assembly level.
+# StarShaclProcessor.validate() API, not just at the graph-assembly level.
 # ---------------------------------------------------------------------------
 
 
@@ -746,7 +753,8 @@ def test_meta_validate_raises_meta_shacl_error_with_expected_message() -> None:
     )
     with pytest.raises(MetaShaclError) as exc_info:
         meta_validate(shapes)
-    assert "SHACL File does not validate against the SHACL Shapes SHACL (MetaSHACL) file" in str(exc_info.value)
+    assert "does not validate against the SHACL shapes for shapes (MetaSHACL)" in str(exc_info.value)
+    assert exc_info.value.problems == ("the property shape of ex:S: violates sh:xone", "the property shape of ex:S, sh:path: Needs at least 1 value, found 0")
 
 
 # ---------------------------------------------------------------------------
@@ -770,7 +778,7 @@ class TestSparqlWellFormedness:
             data=_RULES_PREFIX
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:sparql [ sh:select "SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }" ] .
+              sh:sparql [ sh:select "PREFIX ex: <http://example.org/> SELECT $this WHERE { FILTER NOT EXISTS { $this ex:email ?e } }" ] .
             """,
             format="turtle",
         )
@@ -837,7 +845,7 @@ class TestRuleWellFormedness:
             data=_RULES_PREFIX
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:rule [ a sh:SPARQLRule ; sh:construct "CONSTRUCT { $this ex:x ex:y } WHERE {}" ] .
+              sh:rule [ a sh:SPARQLRule ; sh:construct "PREFIX ex: <http://example.org/> CONSTRUCT { $this ex:x ex:y } WHERE {}" ] .
             """,
             format="turtle",
         )
@@ -973,7 +981,7 @@ class TestNodeExpressionWellFormedness:
         shapes = StarLayerGraph()
         shapes.parse(data=_FUNCTION_CALL_SHAPES, format="turtle12")
 
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=True)
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=True)
         assert result.validation.conforms is True
         derived = list(result.inferred_graph.triples((EX.alice, EX.derivedFn, None)))
         assert len(derived) == 1
@@ -1009,7 +1017,7 @@ class TestConditionWellFormedness:
     def test_untyped_condition_passes_meta_validate_standalone(self) -> None:
         """meta_validate() called standalone (not through the full
         validate() pipeline) doesn't see the auto-typing injection that
-        starlayer.shacl.validator.StarShaclSchema._ensure_native_component_shapes_typed()
+        starlayer.shacl.validator.StarShaclProcessor._ensure_native_component_shapes_typed()
         applies before meta-validation runs as part of a real validate()/
         apply_rules() call - so, exactly like sh:someValue/sh:memberShape/
         sh:reifierShape already do, an untyped reference here still
@@ -1325,42 +1333,42 @@ class TestSparqlPrefixesWellFormedness:
 
 
 class TestSparqlQueryTextValidation:
-    """check_sparql_query_text (starlayer.shacl/meta_shapes.py): the structural
+    """sparql_query_problems (starlayer.shacl/meta_shapes.py): the structural
     meta-shacl checks above confirm sh:select/sh:ask/sh:construct is a
     well-formed xsd:string literal in the right place, but never actually
     parse it as SPARQL - confirmed live that
     sh:ask "this is not valid SPARQL at all !!!" conformed cleanly before
-    this check existed. This class exercises check_sparql_query_text
+    this check existed. This class exercises sparql_query_problems
     directly (decoupled from meta_validate's own structural requirements,
-    which check_sparql_query_text doesn't care about) plus one full
-    end-to-end pass through StarShaclSchema.validate(meta_shacl=True)."""
+    which it doesn't care about) plus one full
+    end-to-end pass through StarShaclProcessor.validate(meta_shacl=True)."""
 
-    def test_malformed_select_text_raises(self) -> None:
+    def test_malformed_select_text_is_a_problem(self) -> None:
         shapes = Graph()
         shapes.parse(
             data=_RULES_PREFIX + 'ex:S sh:select "this is not valid SPARQL at all !!!" .',
             format="turtle",
         )
-        with pytest.raises(ShapeError, match="sh:select"):
-            check_sparql_query_text(shapes)
+        problems = list(sparql_query_problems(shapes))
+        assert len(problems) == 1 and "sh:select" in problems[0][2]
 
-    def test_malformed_ask_text_raises(self) -> None:
+    def test_malformed_ask_text_is_a_problem(self) -> None:
         shapes = Graph()
         shapes.parse(
             data=_RULES_PREFIX + 'ex:S sh:ask "this is not valid SPARQL at all !!!" .',
             format="turtle",
         )
-        with pytest.raises(ShapeError, match="sh:ask"):
-            check_sparql_query_text(shapes)
+        problems = list(sparql_query_problems(shapes))
+        assert len(problems) == 1 and "sh:ask" in problems[0][2]
 
-    def test_malformed_construct_text_raises(self) -> None:
+    def test_malformed_construct_text_is_a_problem(self) -> None:
         shapes = Graph()
         shapes.parse(
             data=_RULES_PREFIX + 'ex:S sh:construct "this is not valid SPARQL at all !!!" .',
             format="turtle",
         )
-        with pytest.raises(ShapeError, match="sh:construct"):
-            check_sparql_query_text(shapes)
+        problems = list(sparql_query_problems(shapes))
+        assert len(problems) == 1 and "sh:construct" in problems[0][2]
 
     def test_well_formed_query_passes(self) -> None:
         # A bare "ex:" reference with no PREFIX in the query text and no
@@ -1377,14 +1385,14 @@ class TestSparqlQueryTextValidation:
             + 'ex:S sh:select "PREFIX ex: <http://example.org/> SELECT $this WHERE { $this ex:email ?e }" .',
             format="turtle",
         )
-        check_sparql_query_text(shapes)  # must not raise
+        assert list(sparql_query_problems(shapes)) == []
 
     def test_end_to_end_validate_raises_on_malformed_custom_validator_query(self) -> None:
         # Structurally valid ASK-based custom sh:ConstraintComponent (same
         # shape as test_custom_constraint_components.py's
         # test_ask_based_custom_component_flags_violations), so this
-        # exercises the real StarShaclSchema.validate(meta_shacl=True)
-        # pipeline end to end, not just check_sparql_query_text in
+        # exercises the real StarShaclProcessor.validate(meta_shacl=True)
+        # pipeline end to end, not just sparql_query_problems in
         # isolation - confirming it's actually wired in.
         data = Graph()
         data.parse(data=_RULES_PREFIX + "ex:alice ex:score 80 .", format="turtle")
@@ -1404,19 +1412,19 @@ class TestSparqlQueryTextValidation:
             """,
             format="turtle",
         )
-        with pytest.raises(ShapeError, match="sh:ask"):
-            StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
+        with pytest.raises(MetaShaclError, match="sh:ask"):
+            StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
 
 
 class TestSparqlQueryStructureValidation:
-    """check_sparql_query_text(): a literal that *parses* fine can still
+    """sparql_query_problems(): a literal that *parses* fine can still
     have a real, silent defect a bare parse never catches - most notably
     an unbound projected variable (compiles and runs, just never binds
     one of its own SELECT variables). After a successful parse, the query
     is additionally encoded as an sqe: tree and validated against
     sqe:'s own SPARQL-structure shapes, which have a real check for
     exactly this. Always runs whenever
-    check_sparql_query_text() itself runs - i.e. whenever meta_shacl=True
+    sparql_query_problems() itself runs - i.e. whenever meta_shacl=True
     (the default), same as the parse check alongside it - not a separate
     opt-in, since it's cached and the whole point is to actually catch
     this class of bug in real shape libraries, not require remembering to
@@ -1440,7 +1448,7 @@ class TestSparqlQueryStructureValidation:
     def test_unbound_projected_variable_parses_but_fails_structure_check(self) -> None:
         # Confirms this is a real "beyond parsing" finding, not a
         # duplicate of the plain parse check: the raw text parses fine on
-        # its own, but check_sparql_query_text() still raises once the
+        # its own, but sparql_query_problems() still reports it once the
         # structural check runs against it.
         from starlayer.sparql.parse_sparql import parse_sparql
 
@@ -1449,12 +1457,12 @@ class TestSparqlQueryStructureValidation:
         )  # must not raise - the query is syntactically valid SPARQL
 
         shapes = self._shapes_with(self._UNBOUND_VAR_SELECT)
-        with pytest.raises(ShapeError, match="sh:select"):
-            check_sparql_query_text(shapes)
+        problems = list(sparql_query_problems(shapes))
+        assert len(problems) == 1 and "sh:select" in problems[0][2]
 
     def test_well_formed_query_passes_structure_check(self) -> None:
         shapes = self._shapes_with(self._WELL_FORMED_SELECT)
-        check_sparql_query_text(shapes)  # must not raise
+        assert list(sparql_query_problems(shapes)) == []
 
     def test_this_only_validator_is_not_a_false_positive(self) -> None:
         # A real, previously-caught bug: $this is bound externally by
@@ -1463,7 +1471,7 @@ class TestSparqlQueryStructureValidation:
         # otherwise flag this extremely common, perfectly valid shape as
         # an unbound projected variable.
         shapes = self._shapes_with("SELECT $this WHERE { FILTER(true) }")
-        check_sparql_query_text(shapes)  # must not raise
+        assert list(sparql_query_problems(shapes)) == []
 
     def test_genuinely_unbound_non_prebound_variable_still_raises_alongside_this(self) -> None:
         # The exemption is narrow: a real defect on a DIFFERENT variable,
@@ -1471,13 +1479,13 @@ class TestSparqlQueryStructureValidation:
         # (_UNBOUND_VAR_SELECT itself already projects $this alongside
         # the genuinely-unbound ?x.)
         shapes = self._shapes_with(self._UNBOUND_VAR_SELECT)
-        with pytest.raises(ShapeError, match="sh:select"):
-            check_sparql_query_text(shapes)
+        problems = list(sparql_query_problems(shapes))
+        assert len(problems) == 1 and "sh:select" in problems[0][2]
 
     def test_bundled_validation_shapes_conform(self) -> None:
         shapes = Graph()
         shapes.parse(VALIDATION_SHAPES_PATH, format="turtle")
-        check_sparql_query_text(shapes)  # must not raise
+        assert list(sparql_query_problems(shapes)) == []
 
     def test_repeated_call_hits_cache_not_the_sqe_validation_again(self) -> None:
         # The only guard against the new cache silently never engaging:
@@ -1487,7 +1495,7 @@ class TestSparqlQueryStructureValidation:
         from starlayer.sparql.sqe import shapes as sqe_shapes
 
         shapes = self._shapes_with(self._WELL_FORMED_SELECT)
-        check_sparql_query_text(shapes)  # warms the cache
+        list(sparql_query_problems(shapes))  # warms the cache
 
         calls = {"n": 0}
         original = sqe_shapes.sqe_validate
@@ -1498,8 +1506,8 @@ class TestSparqlQueryStructureValidation:
 
         sqe_shapes.sqe_validate = _spy
         try:
-            check_sparql_query_text(shapes)
-            check_sparql_query_text(shapes)
+            assert list(sparql_query_problems(shapes)) == []
+            assert list(sparql_query_problems(shapes)) == []
         finally:
             sqe_shapes.sqe_validate = original
         assert calls["n"] == 0
@@ -1521,13 +1529,13 @@ class TestSparqlQueryStructureValidation:
         return shapes
 
     def test_end_to_end_validate_raises_when_meta_shacl_is_requested(self) -> None:
-        # Confirms this runs for real through StarShaclSchema.validate()'s
+        # Confirms this runs for real through StarShaclProcessor.validate()'s
         # meta_shacl=True path, not just the bare function in isolation.
         data = Graph()
         data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
         shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
-        with pytest.raises(ShapeError, match="sh:select"):
-            StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
+        with pytest.raises(MetaShaclError, match="sh:select"):
+            StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
 
     def test_meta_shacl_is_off_by_default(self) -> None:
         # The preflight is a development-time check on the shapes graph, so a
@@ -1536,7 +1544,7 @@ class TestSparqlQueryStructureValidation:
         data = Graph()
         data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
         shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
-        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)  # must not raise
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data)  # must not raise
 
     def test_disabled_via_meta_shacl_false(self) -> None:
         # meta_shacl=False must still skip this check entirely, the same
@@ -1545,7 +1553,7 @@ class TestSparqlQueryStructureValidation:
         data = Graph()
         data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
         shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
-        StarShaclSchema(shacl_graph=shapes).validate(
+        StarShaclProcessor(shacl_graph=shapes).validate(
             data_graph=data, meta_shacl=False
         )  # must not raise
 
@@ -2111,7 +2119,7 @@ def _template_results(instances: str):
     try:
         conforms, report, _text = meta_validate(shapes)
     except MetaShaclError as error:
-        return False, re.findall(r"^(Violation|Warning|Info) in ", str(error), re.MULTILINE)
+        return False, re.findall(r"^(Violation|Warning|Info) in ", error.report_text, re.MULTILINE)
     report = report
     return conforms, [report.value(r, sh.resultSeverity).value.rsplit("#", 1)[-1] for r in report.subjects(RDF.type, sh.ValidationResult)]
 
@@ -2137,3 +2145,37 @@ def test_a_value_that_breaks_the_parameters_own_constraint_is_an_error() -> None
 def test_two_values_of_a_parameter_are_an_error() -> None:
     conforms, severities = _template_results("ex:R a ex:Scale ; ex:factor 3, 4 .")
     assert conforms is False and "Violation" in severities
+
+
+# sh:this is an ordinary IRI in SHACL 1.2 (a constant), not the SHACL-AF focus node: valid, but a port from AF silently changes meaning.
+_THIS_SHAPE = _PREFIXES + "ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:property [ sh:path ex:out ; %s ] ."
+
+
+@pytest.mark.parametrize(
+    "body",
+    [
+        "sh:values sh:this",
+        "sh:defaultValue sh:this",
+        "sh:values [ shnex:union ( sh:this ex:a ) ]",
+        "sh:values [ shnex:concat ( [ shnex:var \"focusNode\" ] sh:this ) ]",
+        "sh:values [ shnex:if sh:this ]",
+    ],
+)
+def test_sh_this_as_a_node_expression_is_a_warning(body) -> None:
+    found = [m.replace('\\"', '"') for m in _warnings(_THIS_SHAPE % body)]  # the helper returns the term's N-Triples form, quotes escaped
+    assert len(found) == 1 and "ordinary IRI" in found[0] and '[ shnex:var "focusNode" ]' in found[0]
+
+
+def test_sh_this_warning_blocks_conforms_unless_warnings_are_allowed() -> None:
+    """With meta_shacl=True a warning raises MetaShaclError from validate(); with allow_warnings=True validation runs (here: conforms)."""
+    shapes = _THIS_SHAPE % "sh:values sh:this"
+    with pytest.raises(MetaShaclError):
+        _validate(_TRIVIAL_DATA, shapes)
+    assert _validate(_TRIVIAL_DATA, shapes, allow_warnings=True).conforms is True
+
+
+def test_the_focus_node_variable_and_other_values_give_no_sh_this_warning() -> None:
+    assert _warnings(_THIS_SHAPE % 'sh:values [ shnex:var "focusNode" ]') == []
+    assert _warnings(_THIS_SHAPE % "sh:values ex:a") == []
+    assert _warnings(_PREFIXES + "ex:S a sh:NodeShape ; rdfs:seeAlso sh:this .".replace("rdfs:seeAlso", "<http://www.w3.org/2000/01/rdf-schema#seeAlso>")) == []
+    _validate(_TRIVIAL_DATA, _THIS_SHAPE % 'sh:values [ shnex:var "focusNode" ]')

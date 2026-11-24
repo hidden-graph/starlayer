@@ -2,7 +2,7 @@
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclSchema, validate
+from starlayer.shacl import ShapeError, StarShaclProcessor, validate
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.shapes_graphs import (
     graph_nodes,
@@ -36,7 +36,7 @@ def test_a_literal_target_where_raises_shape_error_with_the_function() -> None:
 
 def test_a_literal_target_where_raises_shape_error_with_the_method() -> None:
     with pytest.raises(ShapeError, match="targetWhere"):
-        StarShaclSchema(shacl_graph=_graph(LITERAL_WHERE)).validate(data_graph=_graph(DATA), meta_shacl=False)
+        StarShaclProcessor(shacl_graph=_graph(LITERAL_WHERE)).validate(data_graph=_graph(DATA), meta_shacl=False)
 
 
 def test_a_shape_as_target_where_still_conforms() -> None:

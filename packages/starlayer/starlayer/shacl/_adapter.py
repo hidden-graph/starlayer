@@ -14,16 +14,20 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer._callsite import warn_at_caller
 from starlayer.shacl.engine.terms import RDF, SH, to_engine
 
 _RDF_REIFIES = RDF.reifies
 
 
 # The keywords ``validate()`` (and so ``apply_rules()``) take besides its named parameters: the option presets of
-# ``validation_modes`` and their per-call overrides. ``advanced=False`` turns rule execution off; ``debug`` is accepted and ignored.
+# ``validation_modes`` and their per-call overrides. ``rules`` is the engine's own switch (``None``: run rules only when the shapes
+# declare ``sh:entailment``; ``True``: always; ``False``: never). ``advanced`` is deprecated (``advanced=False`` meant ``rules=False``,
+# ``advanced=True`` nothing); ``debug`` is accepted and ignored.
 VALIDATE_OPTIONS = frozenset(
     {
         "advanced",
+        "rules",
         "debug",
         "inplace",
         "meta_shacl",
@@ -33,6 +37,10 @@ VALIDATE_OPTIONS = frozenset(
         "abort_on_error",
         "max_validation_depth",
         "inference",
+        "engine",
+        "timeout",
+        "recompute",
+        "subclass_of_in_shapes_graph",
     }
 )
 
@@ -69,25 +77,40 @@ def conformance_disallows_for(allow_warnings: Any, allow_infos: Any) -> Any:
 
 
 def translate_validate_options(options: dict[str, Any]) -> dict[str, Any]:
-    """Map the resolved option dict (mode preset plus overrides) to ``shacl.engine.validate`` keywords. ``advanced`` False means
-    no rule execution (``rules=False``); the ``"rules"`` preset (``iterate_rules``) means ``rules=True``; otherwise ``rules=None``,
-    which runs rules only when the shapes graph declares ``sh:entailment`` (the draft)."""
+    """Map the resolved option dict (mode preset plus overrides) to ``shacl.engine.validate`` keywords. ``rules`` passes through
+    (``None``: run rules only when the shapes graph declares ``sh:entailment``, the draft's default; ``True``: always, as the
+    ``"rules"`` preset does; ``False``: never). The deprecated ``advanced`` warns; ``advanced=False`` means ``rules=False`` unless
+    ``rules`` is also given, which then wins."""
     out: dict[str, Any] = {}
     out["conformance_disallows"] = conformance_disallows_for(options.get("allow_warnings"), options.get("allow_infos"))
     out["inplace"] = bool(options.get("inplace"))
     out["abort_on_first"] = bool(options.get("abort_on_first") or options.get("abort_on_error"))
     if "max_validation_depth" in options:  # ``None`` is meaningful: it removes the bound
         out["max_validation_depth"] = options["max_validation_depth"]
+    if options.get("subclass_of_in_shapes_graph"):
+        out["subclass_of_in_shapes_graph"] = True
+    for name in ("engine", "timeout", "recompute"):  # entailment: the engine's own defaults apply when not given
+        if options.get(name) is not None:
+            out[name] = options[name]
     meta = options.get("meta_shacl")
     if meta:
         out["meta_shacl"] = meta
-    if options.get("advanced") is False:
-        out["rules"] = False
-    elif options.get("iterate_rules"):
-        out["rules"] = True
-    else:
-        out["rules"] = None
+    rules = options.get("rules")
+    if "advanced" in options:
+        _warn_advanced_deprecated()
+        if options["advanced"] is False and rules is None:
+            rules = False
+    out["rules"] = rules
     return out
+
+
+def _warn_advanced_deprecated() -> None:
+    """A ``DeprecationWarning`` that points at the first frame outside this package (the caller's line)."""
+    warn_at_caller(
+        "the validate option advanced= is deprecated: use rules=False instead of advanced=False (no rule execution); "
+        "advanced=True is the default and can be left out",
+        DeprecationWarning,
+    )
 
 
 def reject_unknown_options(kwargs: dict[str, Any]) -> None:
@@ -118,9 +141,8 @@ def _normalise(data: Any, shapes: Any, ont: Any) -> tuple[Any, Any, Any]:
 
 def _meta_preflight(shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
     """The ``meta_shacl=True`` preflight on the shapes graph: the caller's ``allow_warnings`` / ``allow_infos`` relax it too (the
-    engine's own default tolerates Warning and Info), and the SPARQL text check follows it."""
+    engine's own default tolerates Warning and Info). The defects of the embedded SPARQL text are part of the same error."""
     from starlayer.shacl.engine.meta import meta_validate
-    from starlayer.shacl.meta_shapes import check_sparql_query_text
 
     meta_validate(
         shapes,
@@ -129,7 +151,53 @@ def _meta_preflight(shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
         allow_warnings=floor == SH.Violation,
         allow_infos=floor == SH.Warning,
     )
-    check_sparql_query_text(shapes)
+
+
+class CheckedShapes:
+    """What a ``StarShaclProcessor`` found out about its shapes graph at construction: the compiled ``Plan`` and the meta-SHACL
+    results, so ``validate()`` does not read or check the same shapes again.
+
+    Both are tied to a fingerprint of the shapes graph's triples (``graph.entailment.cache.content_fingerprint``: a count and a hash of the set),
+    taken again on each ``validate()``: a shapes graph the caller changed after construction is compiled and checked again, at
+    that call (a ``ShapeError`` or ``MetaShaclError`` then comes from ``validate()``)."""
+
+    def __init__(self) -> None:
+        self.fingerprint: Any = None
+        self.plan: Any = None
+        self._meta_ok: set = set()
+
+    @staticmethod
+    def _fingerprint(graph: Any) -> Any:
+        from starlayer.graph.entailment.cache import content_fingerprint
+        from starlayer.shacl.engine.terms import engine_view
+
+        return content_fingerprint(engine_view(graph, "shapes graph").triples((None, None, None)))
+
+    def compile(self, shapes: Any, resolved: Any = None) -> None:
+        """Compile the plan over ``resolved`` (the shapes with their imports; default ``shapes``) and remember ``shapes``'
+        fingerprint. ``ShapeError`` from reading the shapes leaves the previous state in place."""
+        from starlayer.shacl.engine.plan import Plan
+
+        fingerprint = self._fingerprint(shapes)
+        plan = Plan(shapes_graph=shapes if resolved is None else resolved).compile()
+        self.fingerprint, self.plan = fingerprint, plan
+
+    def plan_for(self, shapes: Any) -> Any:
+        """The compiled plan of ``shapes``, compiled again first if its triples changed since; ``None`` when no plan was compiled
+        at construction (the engine then builds its own)."""
+        if self.plan is None:
+            return None
+        if self._fingerprint(shapes) != self.fingerprint:
+            self.compile(shapes)
+        return self.plan
+
+    def check_meta(self, shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
+        """``_meta_preflight`` unless this shapes graph (with these extras and this floor) already passed it."""
+        extras = tuple(meta_shapes_extra)
+        key = (self._fingerprint(shapes), floor, tuple((id(x), self._fingerprint(x)) for x in extras))
+        if key not in self._meta_ok:
+            _meta_preflight(shapes, extras, floor)
+            self._meta_ok.add(key)  # only a pass is kept: a failing graph raises again on the next call
 
 
 def _annotate_conformance_disallows(report: Any, floor: Any) -> None:
@@ -161,6 +229,7 @@ def validate(
     inference: Any = None,
     mode: Any = None,
     options: dict[str, Any],
+    option_defaults: dict[str, Any] | None = None,
     shapes_graph_loader: Any = None,
     ignore_imports: bool = False,
     meta_shapes_extra: Any = (),
@@ -169,15 +238,18 @@ def validate(
     shapes_graph_resource: Any = None,
     specification_graph: Any = None,
     include_used_configuration: bool = False,
+    checked: CheckedShapes | None = None,
 ) -> Any:
-    """``validate()`` on the engine: a ``ValidationResult``. ``options`` is the caller's ``**kwargs`` (option overrides);
-    ``inference`` is the keyword of ``validate()``, or the schema's bound regime."""
+    """``validate()`` on the engine: a ``ValidationReport``. ``options`` is the caller's ``**kwargs`` (option overrides);
+    ``inference`` is the keyword of ``validate()``, or the schema's bound regime.
+    ``option_defaults`` are a processor's constructor options: below the ``mode`` preset, which is below ``options``.
+    ``checked`` is a processor's ``CheckedShapes``: its compiled plan and meta-SHACL result are reused for its shapes graph."""
     from starlayer.shacl.engine import api
-    from starlayer.shacl.results import ValidationResult
+    from starlayer.shacl.results import ValidationReport
     from starlayer.shacl.validation_modes import resolve_mode_options
 
     reject_unknown_options(options)
-    resolved = resolve_mode_options(mode, overrides=options)
+    resolved = resolve_mode_options(mode, overrides=options, defaults=option_defaults)
     inference = resolved.get("inference", inference) if "inference" in options else inference
     engine_kwargs = translate_validate_options(resolved)
 
@@ -191,15 +263,20 @@ def validate(
     if shapes_graph_resource is not None and shapes is None:
         raise ValueError(
             "shapes_graph_resource= needs a bound shapes graph to check against - "
-            "construct with StarShaclSchema(shacl_graph=...). (If you only "
+            "construct with StarShaclProcessor(shacl_graph=...). (If you only "
             "want to record where the shapes came from, pass shapes_graph_iri=.)"
         )
     _check_imports(shapes if shapes is not None else data, shapes_graph_loader, ignore_imports)
     meta_shacl = engine_kwargs.pop("meta_shacl", None)
-    if meta_shacl:
-        _meta_preflight(
-            shapes if shapes is not None else data, meta_shapes_extra, engine_kwargs.get("conformance_disallows")
-        )
+    floor = engine_kwargs.get("conformance_disallows")
+    if checked is not None and shapes is not None:
+        if meta_shacl:
+            checked.check_meta(shapes, meta_shapes_extra, floor)
+        prebuilt_plan = checked.plan_for(shapes)
+    else:
+        prebuilt_plan = None
+        if meta_shacl:
+            _meta_preflight(shapes if shapes is not None else data, meta_shapes_extra, floor)
     outcome = api.validate(
         data,
         shapes,
@@ -214,6 +291,8 @@ def validate(
         ignore_imports=ignore_imports,
         meta_shapes_extra=meta_shapes_extra,
         plan_cache=cache,
+        prebuilt_plan=prebuilt_plan,
+        configuration_extra=_preflight_configuration(meta_shacl, shapes_graph_loader, meta_shapes_extra),
         **engine_kwargs,
     )
     _annotate_conformance_disallows(outcome.report_graph, engine_kwargs.get("conformance_disallows"))
@@ -222,7 +301,7 @@ def validate(
         out_data = original
         if data is not original:  # a graph was converted (or a Store wrapped): write the inferred triples back
             api._write_back(data, original)
-    return ValidationResult(
+    return ValidationReport(
         conforms=outcome.conforms,
         report_graph=outcome.report_graph,
         report_text=lambda: outcome.report_text,
@@ -233,6 +312,18 @@ def validate(
 
 # ---------------------------------------------------------------------------------------------------------------------
 # apply_rules
+
+
+def _preflight_configuration(meta_shacl: Any, shapes_graph_loader: Any, meta_shapes_extra: Any) -> dict[str, Any]:
+    """The settings of the checks made before the engine runs (the meta-SHACL check and the import loader), for the run's
+    configuration record: the engine never sees ``meta_shacl`` here, it is popped for the preflight."""
+    extra: dict[str, Any] = {"metaShacl": bool(meta_shacl)}
+    if shapes_graph_loader is not None:
+        extra["shapesGraphLoader"] = True
+    count = len(list(meta_shapes_extra or ()))
+    if count:
+        extra["metaShapesExtra"] = count
+    return extra
 
 
 def _rule_set_iris(rule_set: Any) -> list[Any] | None:
@@ -270,7 +361,7 @@ def apply_rules(
     """``apply_rules()`` on the engine: a ``RulesResult``."""
     from starlayer.shacl.engine import api, rules
     from starlayer.shacl.engine.entailment import resolve_data_view
-    from starlayer.shacl.results import RulesResult, ValidationResult
+    from starlayer.shacl.results import RulesResult, ValidationReport
     from starlayer.shacl.validation_modes import resolve_mode_options
 
     options = dict(options)
@@ -299,9 +390,22 @@ def apply_rules(
             passthrough["shapes_graph_iri"] = api._identity_of(shapes)
         shapes = resolve_imports(shapes, loader, bool(passthrough.get("ignore_imports")))
     # "before rules" entailment pass: the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
-    base = resolve_data_view(data, shapes, inference=inference, ont_graph=ont)
+    base = resolve_data_view(
+        data,
+        shapes,
+        inference=inference,
+        ont_graph=ont,
+        engine=engine_kwargs.get("engine", "hermit"),
+        timeout=engine_kwargs.get("timeout"),
+        recompute=engine_kwargs.get("recompute", "onChange"),
+    )
     result = rules.apply_rules(
-        base, shapes, rule_sets=_rule_set_iris(rule_set), source_rules=bool(include_source_rule_provenance), **rule_limits
+        base,
+        shapes,
+        rule_sets=_rule_set_iris(rule_set),
+        source_rules=bool(include_source_rule_provenance),
+        subclass_of_in_shapes_graph=bool(engine_kwargs.get("subclass_of_in_shapes_graph")),
+        **rule_limits,
     )
     _check_imports(shapes, passthrough.get("shapes_graph_loader"), bool(passthrough.get("ignore_imports")))
     outcome = api.validate(
@@ -309,11 +413,17 @@ def apply_rules(
         shapes,
         inference=inference,
         ont_graph=ont,
+        configuration_extra={
+            **_preflight_configuration(meta_shacl, loader, passthrough.get("meta_shapes_extra", ())),
+            "rules": True,  # the final pass itself runs no rules (they have run); the run as a whole did
+            "maxIterations": rule_limits.get("max_iterations", 1000),
+            **({"maxTriples": rule_limits["max_triples"]} if rule_limits.get("max_triples") is not None else {}),
+        },
         **{"meta_shapes_extra": (), **passthrough},
         **engine_kwargs,
     )
     _annotate_conformance_disallows(outcome.report_graph, engine_kwargs.get("conformance_disallows"))
-    validation = ValidationResult(
+    validation = ValidationReport(
         conforms=outcome.conforms,
         report_graph=outcome.report_graph,
         report_text=lambda: outcome.report_text,
@@ -345,6 +455,9 @@ def evaluate(
     properties: Any,
     rules_entailment: bool,
     validate: bool = False,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
 ) -> Any:
     """``evaluate()`` on the engine (a plain graph)."""
     from starlayer.shacl.engine.evaluate import evaluate as engine_evaluate
@@ -355,6 +468,9 @@ def evaluate(
         shapes,
         ont,
         inference=inference,
+        engine=engine,
+        timeout=timeout,
+        recompute=recompute,
         focus_nodes=focus_nodes,
         properties=properties,
         rules_entailment=rules_entailment,
@@ -386,16 +502,133 @@ def extract_subgraph(
     )
 
 
-def target_nodes(*, data_graph: Any, shacl_graph: Any, shape_node: Any, ont_graph: Any, inference: Any) -> tuple[Any, ...]:
+def target_nodes(
+    *,
+    data_graph: Any,
+    shacl_graph: Any,
+    shape_node: Any,
+    ont_graph: Any,
+    inference: Any,
+    subclass_of_in_shapes_graph: bool = False,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
+) -> tuple[Any, ...]:
     """The nodes ``shape_node`` targets in ``data_graph``, as ``validate()`` resolves them."""
     from starlayer.shacl.engine import api
 
     data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
-    return tuple(api.target_nodes(data, shapes, shape_node, ont_graph=ont, inference=inference))
+    return tuple(
+        api.target_nodes(
+            data,
+            shapes,
+            shape_node,
+            ont_graph=ont,
+            inference=inference,
+            engine=engine,
+            timeout=timeout,
+            recompute=recompute,
+            subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+        )
+    )
+
+
+def target_shapes(
+    *,
+    data_graph: Any,
+    shacl_graph: Any,
+    node: Any,
+    ont_graph: Any,
+    inference: Any,
+    subclass_of_in_shapes_graph: bool = False,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
+) -> tuple[Any, ...]:
+    """The shapes that target ``node`` in ``data_graph``, as ``validate()`` resolves them."""
+    from starlayer.shacl.engine import api
+
+    data, shapes, ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph)
+    return tuple(
+        api.target_shapes(
+            data,
+            shapes,
+            node,
+            ont_graph=ont,
+            inference=inference,
+            engine=engine,
+            timeout=timeout,
+            recompute=recompute,
+            subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+        )
+    )
+
+
+def candidate_values(
+    *,
+    data_graph: Any,
+    shacl_graph: Any,
+    property_shape: Any,
+    focus: Any,
+    only_valid: bool,
+    subclass_of_in_shapes_graph: bool,
+    conformance_disallows: Any = None,
+) -> Any:
+    """``candidate_values()`` on the engine: a ``Candidates``."""
+    from starlayer.shacl.candidates import Candidates
+    from starlayer.shacl.engine import candidates
+
+    data, shapes, _ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, None)
+    kind, values, closed, entry = candidates.candidates(
+        data,
+        shapes,
+        property_shape,
+        focus=focus,
+        only_valid=only_valid,
+        subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+        conformance_disallows=conformance_disallows,
+    )
+    return Candidates(kind=kind, values=values, closed=closed, entry=entry)
+
+
+def value_form(*, shacl_graph: Any, property_shape: Any) -> str:
+    """``value_form()`` on the engine."""
+    from starlayer.shacl.engine import value_form as engine_value_form
+
+    _data, shapes, _ont = _normalise(shacl_graph, shacl_graph, None)
+    return engine_value_form.value_form(shapes, property_shape)
+
+
+def check_value(
+    *,
+    data_graph: Any,
+    shacl_graph: Any,
+    property_shape: Any,
+    focus: Any,
+    value: Any,
+    subclass_of_in_shapes_graph: bool = False,
+    conformance_disallows: Any = None,
+) -> Any:
+    """``check_value()`` on the engine: a ``ValueCheck``."""
+    from starlayer.shacl.engine import value_check
+    from starlayer.shacl.report_results import report_results
+    from starlayer.shacl.value_check import ValueCheck
+
+    data, shapes, _ont = _normalise(data_graph, shacl_graph if shacl_graph is not None else data_graph, None)
+    conforming, report = value_check.check_value(
+        data,
+        shapes,
+        property_shape,
+        focus,
+        value,
+        subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+        conformance_disallows=conformance_disallows,
+    )
+    return ValueCheck(conforms=conforming, results=report_results(report))
 
 
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool) -> Any:
-    """``StarShaclSchema.extract_shapes_graph`` on the engine."""
+    """``StarShaclProcessor.extract_shapes_graph`` on the engine."""
     from starlayer.shacl.engine.shapes_graphs import (
         extract_shapes_graph as engine_extract,
     )
@@ -404,7 +637,7 @@ def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_re
 
 
 def close_shape(shapes_graph: Any, shape: Any) -> Any:
-    """``StarShaclSchema.close_shape`` on the engine."""
+    """``StarShaclProcessor.close_shape`` on the engine."""
     from starlayer.shacl.engine.shapes_graphs import close_shape as engine_close
 
     return engine_close(shapes_graph, shape)

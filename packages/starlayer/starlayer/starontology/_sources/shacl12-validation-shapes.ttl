@@ -243,6 +243,16 @@ stsh:InXoneSatisfiabilityShapes
 		sh:minListLength 1 ;                     # xone-minListLength (Violation - pySHACL's own loader enforces this unconditionally anyway)
 	] .
 
+stsh:InIsListShape
+	a sh:NodeShape ;
+	rdfs:label "The value of sh:in is a list"@en ;
+	rdfs:comment "The Working Group's shsh:ShapeShape only limits sh:in to one value, and its shsh:inSubjectsShape (minimum length 1, Warning) is the only place the value is checked as a list, so a single IRI is a warning at most. A value that is not a list is not an allowed-values list at all, so this is a Violation, and an empty list stays the warning above (sh:minListLength 0 asks for a well-formed list of any length)."@en ;
+	sh:targetSubjectsOf sh:in ;
+	sh:property [
+		sh:path sh:in ;
+		sh:minListLength 0 ;                     # in-list
+	] .
+
 stsh:IgnoredPropertiesLanguageInMinListLengthShapes
 	a sh:NodeShape ;
 	rdfs:label "sh:ignoredProperties / sh:languageIn minimum list length"@en ;
@@ -255,6 +265,20 @@ stsh:IgnoredPropertiesLanguageInMinListLengthShapes
 	sh:property [
 		sh:path sh:languageIn ;
 		sh:minListLength 1 ;                     # languageIn-minListLength
+	] .
+
+# The shape for an unknown term in the SHACL namespace (stsh:UnknownShaclTermShape) is not in this file: scripts/build_meta_shapes.py writes it from the vocabulary.
+
+stsh:LanguageRangeShape
+	a sh:NodeShape ;
+	rdfs:label "sh:languageIn members are language ranges"@en ;
+	rdfs:comment "Each member of an sh:languageIn list is a string literal that is a basic language range (BCP47 / RFC 4647 section 2.1): '*', or alphanumeric subtags of 1 to 8 characters separated by '-', the first one alphabetic. The Working Group's base only checks that the members are literals, so a malformed range would otherwise match no language tag and nothing would say why."@en ;
+	sh:targetSubjectsOf sh:languageIn ;
+	sh:property [
+		sh:path ( sh:languageIn [ sh:zeroOrMorePath rdf:rest ] rdf:first ) ;
+		sh:datatype xsd:string ;                 # languageIn-member-datatype
+		sh:pattern "^(\\*|[A-Za-z]{1,8}(-[A-Za-z0-9]{1,8})*)$" ;  # languageIn-member-range
+		sh:message "Each sh:languageIn member must be a string literal that is a language range: '*', or subtags of 1 to 8 letters or digits separated by '-', the first one letters only."@en ;
 	] .
 
 #############################################################################
@@ -503,6 +527,28 @@ stsh:NodeValidatorQueryPathShape
 				$this sh:nodeValidator ?validator .
 				?validator ?query ?text .
 				FILTER (?query IN (sh:select, sh:ask) && REGEX(STR(?text), "[$?]PATH([^A-Za-z0-9_]|$)"))
+			}
+		""" ;
+	] .
+
+# sh:this was the focus node in SHACL Advanced Features. In SHACL 1.2 it is an ordinary IRI, so a node expression that is just sh:this is a constant (the shape is valid and the engine
+# evaluates it as that IRI). A shapes graph ported from SHACL-AF then gives a different result without any error, hence advice (a Warning). The shape is targeted at the IRI sh:this itself
+# and looks at where it is used as a value, so every position of a node expression is covered at once (sh:values, sh:defaultValue, sh:targetNode, a rule's sh:subject / sh:predicate / sh:object,
+# the members of a list, the arguments of a call) without a list of positions to keep up to date. Annotation properties that only talk about the term are left out.
+stsh:ThisIsAnIRIShape
+	a sh:NodeShape ;
+	rdfs:label "sh:this used as a node expression is an ordinary IRI, not the focus node"@en ;
+	sh:targetNode sh:this ;
+	sh:severity sh:Warning ;     # (on the shape: the severity of a constraint node inside sh:sparql is not read)
+	sh:sparql [
+		sh:message "sh:this is an ordinary IRI in SHACL 1.2 (a constant), not the focus node as it was in SHACL Advanced Features; to refer to the focus node write [ shnex:var \"focusNode\" ]."@en ;
+		sh:select """
+			PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+			PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+			SELECT DISTINCT $this ?user ?property
+			WHERE {
+				?user ?property $this .
+				FILTER (?property NOT IN (rdfs:seeAlso, rdfs:isDefinedBy, skos:related, skos:exactMatch))
 			}
 		""" ;
 	] .

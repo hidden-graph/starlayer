@@ -20,6 +20,7 @@ import pytest
 from starlayer.graph import RDF, Namespace, StarLayerDataset, StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.entailment import infer as ent
+from starlayer.graph.execution import union
 from starlayer_reasoning.owl_dl import InconsistentOntologyError
 
 try:
@@ -277,9 +278,9 @@ class TestClearEntailmentCache:
         self._who(g, entailment=direct, engine="hermit")
         self._who(g, entailment=direct, engine="rustdl")
         self._who(g, entailment=ENTAILMENT["OWL-RDF-Based"])
-        assert len(g.__dict__["_entailed"]) == 3
+        assert len(union.version_of(g.store).entailed.entries) == 3
         g.clear_entailment_cache()
-        assert "_entailed" not in g.__dict__
+        assert not union.version_of(g.store).entailed.entries
 
     def test_clearing_a_graph_with_nothing_kept_does_nothing(self, calls):
         g = self._graph()

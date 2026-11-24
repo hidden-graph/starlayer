@@ -1,6 +1,6 @@
 import pyoxigraph as ox
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._shape_loader import load_shape
@@ -14,7 +14,7 @@ def test_report_decodes_triple_term_value_node() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("report_says_nodekind_literal.ttl"), format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data)
 
     assert result.conforms is False
@@ -30,7 +30,7 @@ def test_report_preserves_path_and_constraint_component() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("report_says_in.ttl"), format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data)
 
     assert result.conforms is False
@@ -71,12 +71,12 @@ def test_report_text_humanizes_triple_term_value_node() -> None:
         format="turtle12",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert "urn:starlayer:tt:" not in result.report_text
-    assert "<<( <http://example.org/bob> <http://example.org/likes> <http://example.org/dave> )>>" in result.report_text
+    assert "<<( ex:bob ex:likes ex:dave )>>" in result.report_text  # the shapes graph binds ex, the data graph does not
 
 
 def test_report_decodes_result_node_for_nodekind_constraint() -> None:
@@ -86,7 +86,7 @@ def test_report_decodes_result_node_for_nodekind_constraint() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("report_says_nodekind_blanknode.ttl"), format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data)
 
     assert result.conforms is False

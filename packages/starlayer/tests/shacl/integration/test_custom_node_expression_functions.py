@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
+from starlayer.shacl import MetaShaclError, ShapeError, StarShaclProcessor
 from starlayer.shacl.meta_shapes import meta_validate
 from tests.support.terms import Namespace
 
@@ -79,7 +79,7 @@ class TestCustomListParameterFunction:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
 
     def test_spacedconcat_wrong_expected_value_does_not_conform(self) -> None:
@@ -100,7 +100,7 @@ class TestCustomListParameterFunction:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is False
 
     def test_spacedconcat_via_triple_rule(self) -> None:
@@ -122,7 +122,7 @@ class TestCustomListParameterFunction:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
         derived = list(rd(result.inferred_graph).triples((EX.alice, EX.greeting, None)))
         assert len(derived) == 1
         assert derived[0][2].value == "hello world"
@@ -156,7 +156,7 @@ class TestCustomNamedParameterFunction:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
 
     def test_average_wrong_expected_value_does_not_conform(self) -> None:
@@ -184,7 +184,7 @@ class TestCustomNamedParameterFunction:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is False
 
     def test_body_sees_the_real_focus_node_via_shnex_var(self) -> None:
@@ -214,7 +214,7 @@ class TestCustomNamedParameterFunction:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
         derived = list(rd(result.inferred_graph).triples((EX.alice, EX.same, None)))
         assert derived == [(EX.alice, EX.same, EX.alice)]
 
@@ -263,7 +263,7 @@ class TestCustomNamedParameterFunctionNonKeyParameter:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
 
     def test_omitting_the_non_key_parameter_produces_an_empty_result_not_a_crash(self) -> None:
@@ -287,7 +287,7 @@ class TestCustomNamedParameterFunctionNonKeyParameter:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+        result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
         assert result.conforms is True
 
 
@@ -378,4 +378,4 @@ class TestCustomFunctionAmbiguity:
             format="turtle",
         )
         with pytest.raises(ShapeError, match="only one custom function"):
-            StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+            StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)

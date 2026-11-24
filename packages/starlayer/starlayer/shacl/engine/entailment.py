@@ -1,14 +1,22 @@
 """Entailment regimes for the SHACL engine: ``entailed_view`` and ``resolve_data_view``.
 
-The closure is the project's own (``StarLayerGraph.infer``: the RDFS closure native on pyoxigraph, the OWL 2 RL
-fragment by ``owlrl`` for ``OWL-RDF-Based``), computed over the data graph plus ``ont_graph`` and kept as an
-``InferredView`` overlay: only the newly entailed triples are held, the caller's graphs are never mutated, and
-``ont_graph``'s own triples are visible to the reasoning but never copied into the view. Class targets and ``sh:class`` read
-``rdf:type`` / ``rdfs:subClassOf`` straight from the view, so the domain/range-inferred types and the subclass closure
-are seen like any other triple.
+The closure is the project's own (``StarLayerGraph.infer``: the RDFS closure native on pyoxigraph, the OWL 2 RL fragment by ``owlrl``
+for ``OWL-RDF-Based``, OWL 2 DL by HermiT or ``rustdl`` for ``OWL-Direct``), computed over the data graph plus ``ont_graph``. The
+result is the entailed copy of the data's store that ``graph/entailment/cache.py`` keeps once per store and shares with SPARQL
+query-time entailment: whichever of the two asks for a regime first computes it, the other finds it. The copy holds the data and the
+entailed triples; ``ont_graph``'s own triples are visible to the reasoning but never stored in it. The caller's graphs are never mutated
+and nothing may write to the copy (rules write to an overlay on top of it, ``rules.new_overlay``). Class targets and ``sh:class`` read
+``rdf:type`` / ``rdfs:subClassOf`` straight from the copy, so the domain/range-inferred types and the subclass closure are seen like
+any other triple.
+
+The copy is kept until the store is written through this package (the write count of the store, ``union.version_of``; a write on a raw
+store reference needs ``union.touch()``), or until ``clear_entailment_cache()``; ``recompute=`` ("onChange", "never", "always") says
+when it is made again, as for ``query()``. RDF and RDFS are a copy here too: SHACL reads the data through triple lookups, not SPARQL
+text, so the query rewrite that answers them for ``query()`` cannot serve it (``docs/working`` notes the measurement).
 
 ``sh:entailment`` on the shapes graph (SHACL 1.2 Core 1.4) selects the regimes; ``sh:RulesEntailment`` and rule-set IRIs are
-left to ``rules.entailment_selection``. Several regimes combine into one pass.
+left to ``rules.entailment_selection``. Several regimes combine into one entry, ``OWL-Direct`` too: the entailments of every
+regime in the set, the others also seeing what OWL-Direct inferred (``infer._delta_for``; not a fixpoint over all of them).
 """
 
 from __future__ import annotations
@@ -18,8 +26,16 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph.entailment.infer import ENTAILMENT, SUPPORTED_REGIMES
-from starlayer.shacl.engine.rules import new_overlay
+from starlayer.graph.entailment.cache import (
+    RECOMPUTE,
+    build_entailed_copy,
+    entailed_store_view,
+)
+from starlayer.graph.entailment.infer import (
+    ENTAILMENT,
+    OWL_DIRECT_REGIME,
+    SUPPORTED_REGIMES,
+)
 from starlayer.shacl.engine.terms import (
     RDF,
     SH,
@@ -28,7 +44,8 @@ from starlayer.shacl.engine.terms import (
     to_engine,
 )
 
-_NATIVE = {ENTAILMENT.RDF, ENTAILMENT.RDFS, ENTAILMENT["OWL-RDF-Based"]}
+_SUPPORTED = frozenset(ox.NamedNode(r) for r in SUPPORTED_REGIMES)
+_DIRECT = ox.NamedNode(OWL_DIRECT_REGIME)
 
 
 def normalise_regimes(regime: Any) -> frozenset:
@@ -39,78 +56,76 @@ def normalise_regimes(regime: Any) -> frozenset:
     if regime is None:
         return frozenset()
     items: Iterable = [regime] if isinstance(regime, str) or not hasattr(regime, "__iter__") else regime
-    supported = sorted(text(r) for r in _NATIVE)
+    supported = sorted(text(r) for r in _SUPPORTED)
     out = set()
     for item in items:
         try:
             out.add(ox.NamedNode(item) if isinstance(item, str) and type(item) is str else to_engine(item))
         except ValueError:
             raise ValueError(f"Unsupported entailment regime {item!r}, which is not an IRI; use one of {supported!r}") from None
-    unsupported = {r for r in out if r not in _NATIVE}
+    unsupported = {r for r in out if r not in _SUPPORTED}
     if unsupported:
         raise ValueError(f"Unsupported entailment regime(s) {sorted(text(r) for r in unsupported)!r}; use one of {supported!r}")
     return frozenset(out)
 
 
-_KEPT_ATTRIBUTE = "_shacl_entailed"
-_KEPT_VIEWS = 4  # regimes (and ontology graphs) kept per data graph
+def _check_run_options(regimes: frozenset, engine: str, timeout: Any, recompute: str) -> None:
+    """The checks ``query()`` makes of ``engine``, ``timeout`` and ``recompute``, """
+    if recompute not in RECOMPUTE:
+        raise ValueError(f"recompute must be one of ['always', 'never', 'onChange'], got {recompute!r}")
+    if _DIRECT in regimes:
+        if engine not in ("hermit", "rustdl"):
+            raise ValueError(f"Unsupported engine {engine!r}; expected one of ['hermit', 'rustdl']")
+        return
+    if engine != "hermit":
+        raise ValueError(
+            f"engine={engine!r} is only meaningful for the OWL-Direct entailment regime (got {sorted(text(r) for r in regimes)!r}) - omit engine= otherwise."
+        )
+    if timeout is not None:
+        raise ValueError(
+            f"timeout={timeout!r} is only meaningful for the OWL-Direct entailment regime (got {sorted(text(r) for r in regimes)!r}) - omit timeout= otherwise."
+        )
 
 
-def _fingerprint(triples: Iterable[Any]) -> tuple[int, int]:
-    """How many triples there are and a hash of their set (the sum of their hashes, wrapped to 64 bits): two graphs with the same
-    triples give the same pair, any other change to the triples gives another one."""
-    count = total = 0
-    for t in triples:
-        count += 1
-        total += hash(t)
-    return count, total & 0xFFFFFFFFFFFFFFFF
+def _timeout(regimes: frozenset, timeout: Any) -> Any:
+    from starlayer.graph.entailment.infer import DEFAULT_TIMEOUT
+
+    return DEFAULT_TIMEOUT if timeout is None else timeout
 
 
-def entailed_view(data_graph: Any, regime: Any = ENTAILMENT.RDFS, ont_graph: Any = None) -> Any:
-    """``data_graph`` closed under ``regime``, as an overlay; with no regime, ``data_graph`` itself. Never mutates
-    ``data_graph`` or ``ont_graph``.
+def entailed_view(
+    data_graph: Any,
+    regime: Any = ENTAILMENT.RDFS,
+    ont_graph: Any = None,
+    *,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
+) -> Any:
+    """``data_graph`` closed under ``regime``, as the shared entailed copy of its store (``graph/entailment/cache.py``); with no
+    regime, ``data_graph`` itself. Never mutates ``data_graph`` or ``ont_graph``, and nothing may write to the result.
 
-    The overlay is kept on ``data_graph`` and returned again while the triples of ``data_graph`` and ``ont_graph`` are the same
-    (compared by content, not by the wrapper's write counter, which a validation's own report graph also moves), so validating
-    unchanged data again does not run the closure again. Nothing writes to the overlay."""
+    The copy is returned again until the store of ``data_graph`` (or of ``ont_graph``) is written to through this package, so
+    validating unchanged data again, or running the same regime in a SPARQL query, does not run the closure again; ``recompute``
+    is as for ``query()``. ``engine`` and ``timeout`` are for ``OWL-Direct`` (``ValueError`` for another regime)."""
     regimes = normalise_regimes(regime)
     data_graph = engine_view(data_graph)
     if not regimes:
         return data_graph
+    _check_run_options(regimes, engine, timeout, recompute)
     ont = engine_view(ont_graph, "ontology graph") if ont_graph is not None and hasattr(ont_graph, "triples") else None
-    ont_triples = ont.triples((None, None, None)) if ont is not None else ont_graph  # an iterable of triples is accepted too
-    kept = getattr(data_graph, "__dict__", None)
-    kept = kept.setdefault(_KEPT_ATTRIBUTE, {}) if kept is not None else None
-    stamp = None
-    if kept is not None:
-        ont_triples = list(ont_triples) if ont_triples is not None else None
-        stamp = (_fingerprint(data_graph.triples((None, None, None))), _fingerprint(ont_triples) if ont_triples is not None else None)
-        hit = kept.get(regimes)
-        if hit is not None and hit[0] == stamp:
-            return hit[1]
-    from starlayer.graph.entailment.infer import DEFAULT_TIMEOUT, _delta_for, _regime_iri
+    if ont is None and ont_graph is not None:  # an iterable of triples is accepted too
+        ont = [tuple(to_engine(x) for x in t) for t in ont_graph]
+    if not hasattr(data_graph, "store"):
+        # a view that is not a store of its own (the rules' overlay, in the final pass of ``apply_rules``): nothing to key a kept copy on,
+        # so the closure runs over a copy of its triples and the result is not kept
+        from starlayer.graph.core import StarLayerGraph
 
-    from starlayer.graph.core import StarLayerGraph
-
-    names = frozenset(_regime_iri(r) for r in regimes)
-    if ont_triples is None and type(data_graph) is StarLayerGraph:
-        delta = _delta_for(data_graph, names, "hermit", DEFAULT_TIMEOUT)  # reads only: no copy of the data is needed
-    else:
-        from starlayer.shacl.engine.graphs import new_graph
-
-        combined = new_graph()
-        combined.extend(list(data_graph.triples((None, None, None))))
-        if ont_triples is not None:
-            combined.extend([tuple(to_engine(x) for x in t) for t in ont_triples])
-        delta = _delta_for(combined, names, "hermit", DEFAULT_TIMEOUT)
-    view = new_overlay(data_graph)
-    for t in delta:
-        view.add(t)
-    if kept is not None:
-        if regimes not in kept and len(kept) >= _KEPT_VIEWS:
-            kept.pop(next(iter(kept)))
-        kept[regimes] = (stamp, view)
-    return view
+        flat = StarLayerGraph()
+        flat.extend(list(data_graph.triples((None, None, None))))
+        triples = None if ont is None else list(ont.triples((None, None, None)) if hasattr(ont, "triples") else ont)
+        return build_entailed_copy(flat, frozenset(text(r) for r in regimes), engine=engine, timeout=_timeout(regimes, timeout), ont=triples)
+    return entailed_store_view(data_graph, regimes, engine=engine, timeout=timeout, ont_graph=ont, recompute=recompute)
 
 
 def declared_regimes(shapes: Any) -> frozenset:
@@ -128,14 +143,23 @@ def declared_regimes(shapes: Any) -> frozenset:
     return frozenset(out)
 
 
-def resolve_data_view(data_graph: Any, shapes_graph: Any = None, *, inference: Any = None, ont_graph: Any = None) -> Any:
+def resolve_data_view(
+    data_graph: Any,
+    shapes_graph: Any = None,
+    *,
+    inference: Any = None,
+    ont_graph: Any = None,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
+) -> Any:
     """The data view ``validate`` should run on: ``data_graph`` closed under the regimes the shapes graph declares with
     ``sh:entailment`` plus those of ``inference`` (a regime IRI or an iterable of them; names such as ``'rdfs'`` are not
-    accepted). ``data_graph`` itself when there are none."""
+    accepted). ``data_graph`` itself when there are none. The set of regimes is the cache key (``entailed_view``)."""
     data_graph = engine_view(data_graph)
     shapes = engine_view(shapes_graph) if shapes_graph is not None else data_graph
     regimes = declared_regimes(shapes) | normalise_regimes(inference)
-    return entailed_view(data_graph, regimes, ont_graph)
+    return entailed_view(data_graph, regimes, ont_graph, engine=engine, timeout=timeout, recompute=recompute)
 
 
 __all__ = ["declared_regimes", "entailed_view", "normalise_regimes", "resolve_data_view"]

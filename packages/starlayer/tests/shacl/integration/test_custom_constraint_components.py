@@ -1,7 +1,7 @@
 import pytest
 from rdflib import Namespace
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclSchema
+from starlayer.shacl import ShapeError, StarShaclProcessor
 
 EX = Namespace("http://example.org/")
 
@@ -37,7 +37,7 @@ def test_ask_based_custom_component_flags_violations() -> None:
           sh:property [ sh:path ex:score ; ex:minScore 50 ] .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert "MinScoreConstraintComponent" in result.report_text
     assert "Focus Node: ex:bob" in result.report_text
@@ -67,7 +67,7 @@ def test_select_based_custom_component_flags_violations() -> None:
           sh:property [ sh:path ex:score ; ex:minScore 50 ] .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert "Value Node: 20" in result.report_text
 
@@ -95,7 +95,7 @@ def test_ask_based_custom_component_over_rdf12_triple_term_value() -> None:
           sh:property [ sh:path ex:claims ; ex:mustBeTripleTerm true ] .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     # ex:carol's plain-IRI value fails isTRIPLE(); ex:alice's real triple
     # term passes - confirms the custom validator's SPARQL 1.2 syntax gets
@@ -126,4 +126,4 @@ def test_malformed_custom_validator_raises_cleanly_not_a_confusing_typeerror() -
     """, format="turtle")
 
     with pytest.raises(ShapeError, match="pre-bound"):
-        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)

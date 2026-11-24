@@ -1,5 +1,5 @@
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import RDFS, Namespace
 
 EX = Namespace("http://example.org/")
@@ -47,7 +47,7 @@ def _data_zoo_holds_lion() -> StarLayerGraph:
 
 
 def test_root_class_ignores_shapes_graph_subclass_assertion_by_default() -> None:
-    validator = StarShaclSchema(shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion())
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion())
     result = validator.validate(
         data_graph=_data_zoo_holds_lion(),
         meta_shacl=False,
@@ -57,7 +57,7 @@ def test_root_class_ignores_shapes_graph_subclass_assertion_by_default() -> None
 
 
 def test_root_class_honors_data_graph_subclass_assertion() -> None:
-    validator = StarShaclSchema(shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion())
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_root_class_and_shapes_graph_subclass_assertion())
     data = _data_zoo_holds_lion()
     data.add((EX.Lion, RDFS.subClassOf, EX.Animal))
     result = validator.validate(data_graph=data, meta_shacl=False)
@@ -102,7 +102,7 @@ def _data_alice_has_tiger() -> StarLayerGraph:
 
 
 def test_list_valued_class_ignores_shapes_graph_subclass_assertion_by_default() -> None:
-    validator = StarShaclSchema(shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion())
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion())
     result = validator.validate(
         data_graph=_data_alice_has_tiger(),
         meta_shacl=False,
@@ -112,7 +112,7 @@ def test_list_valued_class_ignores_shapes_graph_subclass_assertion_by_default() 
 
 
 def test_list_valued_class_honors_data_graph_subclass_assertion() -> None:
-    validator = StarShaclSchema(shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion())
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_list_valued_class_and_shapes_graph_subclass_assertion())
     data = _data_alice_has_tiger()
     data.add((EX.Tiger, RDFS.subClassOf, EX.Cat))
     result = validator.validate(data_graph=data, meta_shacl=False)

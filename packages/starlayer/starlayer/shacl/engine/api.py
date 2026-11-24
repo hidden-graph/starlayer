@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-import warnings
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.shacl.engine import components  # noqa: F401  (registers the constraint components)
+from starlayer._callsite import warn_at_caller
+from starlayer.graph.entailment import OWL_DIRECT_REGIME
+from starlayer.shacl.engine import (
+    components,  # noqa: F401  (registers the constraint components)
+)
 from starlayer.shacl.engine.executor import Context, Result, run
 from starlayer.shacl.engine.fidelity import check_lexical_fidelity
 from starlayer.shacl.engine.plan import Plan
@@ -17,6 +20,7 @@ from starlayer.shacl.engine.report import annotate_provenance, build_report, con
 from starlayer.shacl.engine.terms import (
     StarLayerFidelityWarning,
     engine_view,
+    text,
     to_engine,
 )
 from starlayer.shacl.engine.text import result_messages
@@ -40,7 +44,7 @@ class Outcome:
 
     @property
     def report_text(self) -> str:
-        """The human-readable report (the old ``ValidationResult.report_text`` layout; see ``text.py``), built on first use."""
+        """The human-readable report (the old ``ValidationReport.report_text`` layout; see ``text.py``), built on first use."""
         if self._report_text is None:
             from starlayer.shacl.engine.text import report_text
 
@@ -73,6 +77,16 @@ def _recorded_regimes(inference: Any) -> Any:
         return None
 
 
+def _owl_direct_options(inference: Any, engine: Any, timeout: Any, recompute: Any) -> dict[str, Any]:
+    """The OWL-Direct settings (``engine``, ``timeout``, ``recompute``) when that regime is in effect: they change what is derived, and
+    do nothing for any other regime."""
+    regimes = _recorded_regimes(inference)
+    regimes = [regimes] if isinstance(regimes, (str, ox.NamedNode)) else regimes or []
+    if not any(text(r) == OWL_DIRECT_REGIME for r in regimes):
+        return {}
+    return {"engine": engine, "timeout": timeout, "recompute": recompute}
+
+
 def _iri_or_none(value: Any) -> Any:
     """A graph identity the caller passed (a term of either term model, or an IRI as a ``str``) as an engine term."""
     if value is None or isinstance(value, (ox.NamedNode, ox.Literal)):
@@ -80,6 +94,16 @@ def _iri_or_none(value: Any) -> Any:
     from starlayer.shacl.engine.report import identity_term
 
     return identity_term(value)
+
+
+def _same_graph(a: Any, b: Any) -> bool:
+    """Whether two engine views read the same triples: the same object, or two views of one store."""
+    if a is b:
+        return True
+    store = getattr(a, "store", None)
+    if store is None or store is not getattr(b, "store", None) or type(a) is not type(b):
+        return False
+    return all(getattr(a, name, None) == getattr(b, name, None) for name in ("default_union", "identifier"))
 
 
 def _write_back(view: Any, original: Any) -> None:
@@ -96,6 +120,9 @@ def validate(
     conformance_disallows: Any = None,
     rules: bool | None = None,
     inference: Any = None,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
     ont_graph: Any = None,
     data_graph_iri: Any = None,
     shapes_graph_iri: Any = None,
@@ -111,6 +138,10 @@ def validate(
     meta_shapes_extra: Any = (),
     plan: Plan | None = None,
     plan_cache: dict | None = None,
+    prebuilt_plan: Plan | None = None,
+    subclass_of_in_shapes_graph: bool = False,
+    configuration_extra: dict[str, Any] | None = None,
+    focus_filter: Any = None,
 ) -> Outcome:
     """Validate ``data_graph`` against ``shapes_graph`` (default: the data graph itself).
 
@@ -120,15 +151,18 @@ def validate(
 
     ``inference`` (a W3C entailment regime IRI such as ``ENTAILMENT.RDFS``, or an iterable of them; not a name like ``"rdfs"``) and ``sh:entailment`` declared in the shapes
     graph run the entailment closure first (see ``entailment.py``); ``ont_graph`` supplies axioms visible to entailment
-    only. Neither modifies ``data_graph`` unless ``inplace=True``, which then adds the inferred and entailed triples to it
+    only. The entailed copy is the one ``query(entailment=...)`` keeps for the store (shared; ``recompute`` is as for ``query()``:
+    ``"onChange"``, ``"never"``, ``"always"``). ``engine`` / ``timeout`` are for the ``OWL-Direct`` regime and raise ``ValueError``
+    for another; ``InconsistentOntologyError`` and ``ReasoningTimeoutError`` propagate. Neither modifies ``data_graph`` unless ``inplace=True``, which then adds the inferred and entailed triples to it
     (returned as ``Outcome.data_graph``).
 
-    Report provenance: ``data_graph_iri`` / ``shapes_graph_iri`` become ``sh:usedDataGraph`` / ``sh:usedShapesGraph``
+    Report provenance: a ``sh:ValidationActivity`` that ``prov:generated`` the report (not the report node itself) carries
+    ``sh:usedDataGraph`` / ``sh:usedShapesGraph`` from ``data_graph_iri`` / ``shapes_graph_iri``
     (each falls back to the graph's own ``identifier`` when that is an IRI). ``shapes_graph_resource`` names a
-    ``sh:ShapesGraph`` module of ``shapes_graph`` to validate against (its IRI is then the ``sh:usedShapesGraph``), or any
+    ``sh:ShapesGraph`` module of ``shapes_graph`` to validate against (its IRI is then the activity's ``sh:usedShapesGraph``), or any
     other IRI, used only as the provenance tag; it needs an explicit ``shapes_graph``. ``include_used_configuration``
-    adds a ``sh:ProcessorConfiguration`` recording the options of this run; ``specification_graph`` lets the Profiling
-    ``dcterms:conformsTo`` rule fire as well. When both graph identities are known the ``sh:conformsTo`` rule runs.
+    adds a ``sh:usedConfiguration`` ``sh:ProcessorConfiguration`` to the activity recording the options of this run; ``specification_graph`` lets the Profiling
+    ``dcterms:conformsTo`` rule fire as well. When both graph identities are known the ``sh:conformsToShapesGraph`` rule runs.
 
     ``abort_on_first``: stop at the first constraint component that produces a result. ``max_validation_depth``: bound on
     shape nesting; exceeding it raises ``ShapeError`` (the old validator raises too; its default is 500). ``None``
@@ -143,6 +177,18 @@ def validate(
     ``plan_cache``: a dict a caller keeps across calls (the adapter's ``validate_each``); the Plan built over an explicit
     ``shapes_graph`` is stored under ``(id(shapes_graph), shapes_graph_resource)`` and reused by later calls with the same
     shapes graph object (the caller must keep that object alive and unchanged).
+
+    ``prebuilt_plan``: a (compiled) ``Plan`` the caller built over its own shapes graph, before imports and module selection. Unlike
+    ``plan`` it is checked: it is used only when the shapes graph validated against is that graph (the same graph or a view of the
+    same store), so a loader that adds triples, or ``shapes_graph_resource``, makes the run build its own Plan.
+
+    ``subclass_of_in_shapes_graph`` (SHACL 1.2 Core, "Graph for rdfs:subClassOf Triples"): wherever a node is decided to be a SHACL
+    instance of a class (``sh:class``, ``sh:targetClass``, implicit class targets, ``sh:rootClass``, ``shnex:instancesOf``, and the
+    rules' targets), ``rdfs:subClassOf`` is read from the shapes graph as well as the data graph; ``rdf:type`` only from the data
+    graph. No graph is built or changed: ``Context.superclasses_of`` / ``subclasses_of`` ask both.
+
+    ``focus_filter``: a set of nodes; only results whose shape was reached at one of them are produced (the scoped meta check;
+    see ``run``). Targets are resolved over the whole graph first.
 
     Not offered: the old validator's ``decode_report`` (it undoes the triple-term encoding it applies for pySHACL; this
     engine handles triple terms natively and never encodes, so there is nothing to decode) and ``iterate_rules``.
@@ -195,16 +241,22 @@ def validate(
     if shapes is None:
         shapes = data_graph
     conformance_disallows = to_engine(conformance_disallows)
-    data_graph = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
+    data_graph = resolve_data_view(
+        data_graph, shapes, inference=inference, ont_graph=ont_graph, engine=engine, timeout=timeout, recompute=recompute
+    )
     rule_result = None
     if rules is not False:
         from starlayer.shacl.engine.rules import apply_rules, entailment_selection
 
         active, sets = entailment_selection(shapes) if rules is None else (True, None)
         if active:
-            rule_result = apply_rules(data_graph, shapes, rule_sets=sets or None)
+            rule_result = apply_rules(
+                data_graph, shapes, rule_sets=sets or None, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph
+            )
             data_graph = rule_result.view
     stats: dict = {}
+    if plan is None and prebuilt_plan is not None and _same_graph(prebuilt_plan.shapes_graph, shapes):
+        plan = prebuilt_plan
     if plan is None:
         plan = Plan(shapes_graph=shapes)
         if cache_key is not None:
@@ -215,12 +267,14 @@ def validate(
         abort_on_first=abort_on_first,
         max_validation_depth=max_validation_depth,
         stats=stats,
+        subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+        focus_filter=focus_filter,
     )
     run_warnings: list[str] = []
     fidelity = check_lexical_fidelity(plan, data_graph)
     if fidelity is not None:
         run_warnings.append(fidelity)
-        warnings.warn(fidelity, StarLayerFidelityWarning, stacklevel=3)
+        warn_at_caller(fidelity, StarLayerFidelityWarning)
     report = build_report(
         results, shapes, data_graph, conformance_disallows, messages_for=lambda r: result_messages(r, shapes, data_graph)
     )
@@ -236,6 +290,11 @@ def validate(
             "inference": _recorded_regimes(inference),
             "conformanceDisallows": conformance_disallows,
             "inplace": inplace,
+            "subclassOfInShapesGraph": subclass_of_in_shapes_graph,
+            "ignoreImports": ignore_imports,
+            "metaShacl": bool(meta_shacl),
+            **_owl_direct_options(inference, engine, timeout, recompute),
+            **(configuration_extra or {}),
         },
         specification_graph=specification_graph,
     )
@@ -298,16 +357,61 @@ def validate_each(
 
 
 def target_nodes(
-    data_graph: Any, shapes_graph: Any, shape_node: Any, *, ont_graph: Any = None, inference: Any = None
+    data_graph: Any,
+    shapes_graph: Any,
+    shape_node: Any,
+    *,
+    ont_graph: Any = None,
+    inference: Any = None,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
+    subclass_of_in_shapes_graph: bool = False,
 ) -> list:
     """The focus nodes ``shape_node`` targets in ``data_graph`` (the nodes ``validate`` reports on for that shape), in target
     order and without duplicates, as engine (pyoxigraph) terms. ``shapes_graph=None`` reads the shapes from ``data_graph``. The entailment of ``inference`` and
-    of the shapes graph's own ``sh:entailment`` is applied first, over the data and ``ont_graph``, without changing either."""
+    of the shapes graph's own ``sh:entailment`` is applied first, over the data and ``ont_graph``, without changing either.
+    ``subclass_of_in_shapes_graph`` reads ``rdfs:subClassOf`` for ``sh:targetClass`` (and implicit class targets) from the shapes graph too."""
     from starlayer.shacl.engine.entailment import resolve_data_view
 
     data_graph = engine_view(data_graph, "data graph")
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
-    data = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)
+    data = resolve_data_view(
+        data_graph, shapes, inference=inference, ont_graph=ont_graph, engine=engine, timeout=timeout, recompute=recompute
+    )
     plan = Plan(shapes_graph=shapes)
-    context = Context(data=data, plan=plan)
+    context = Context(data=data, plan=plan, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph)
     return list(context.shape_focus(plan.shape(to_engine(shape_node))))
+
+
+def target_shapes(
+    data_graph: Any,
+    shapes_graph: Any,
+    node: Any,
+    *,
+    ont_graph: Any = None,
+    inference: Any = None,
+    engine: str = "hermit",
+    timeout: Any = None,
+    recompute: str = "onChange",
+    subclass_of_in_shapes_graph: bool = False,
+) -> list:
+    """The shapes that target ``node`` in ``data_graph``: the shapes ``validate`` checks the node against, the reverse of
+    :func:`target_nodes`. A deactivated shape is left out. In shapes graph order (the order of ``Plan.all_shape_nodes``), as engine
+    (pyoxigraph) terms. ``shapes_graph=None`` reads the shapes from ``data_graph``; the options are those of :func:`target_nodes`."""
+    from starlayer.shacl.engine.entailment import resolve_data_view
+
+    data_graph = engine_view(data_graph, "data graph")
+    shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
+    data = resolve_data_view(
+        data_graph, shapes, inference=inference, ont_graph=ont_graph, engine=engine, timeout=timeout, recompute=recompute
+    )
+    plan = Plan(shapes_graph=shapes)
+    context = Context(data=data, plan=plan, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph)
+    wanted = to_engine(node)
+    found = []
+    for shape_node in plan.all_shape_nodes():
+        shape = plan.shape(shape_node)
+        if not shape.deactivated and wanted in context.shape_focus(shape):
+            found.append(shape_node)
+    return found

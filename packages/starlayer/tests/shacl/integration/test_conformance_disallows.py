@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -41,7 +41,7 @@ def _data_with_bad_age() -> StarLayerGraph:
 
 
 def test_default_conformance_disallows_includes_all_three_severities() -> None:
-    validator = StarShaclSchema(shacl_graph=_shapes_with_warning_severity())
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_warning_severity())
     result = validator.validate(
         data_graph=_data_with_bad_age(), meta_shacl=False
     )
@@ -53,7 +53,7 @@ def test_default_conformance_disallows_includes_all_three_severities() -> None:
 def test_default_conforms_is_false_for_warning_only_result() -> None:
     # A Warning-severity-only result flips sh:conforms to false by default,
     # matching the spec's default disallow set including sh:Warning.
-    validator = StarShaclSchema(shacl_graph=_shapes_with_warning_severity())
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_warning_severity())
     result = validator.validate(
         data_graph=_data_with_bad_age(), meta_shacl=False
     )
@@ -62,7 +62,7 @@ def test_default_conforms_is_false_for_warning_only_result() -> None:
 
 
 def test_allow_warnings_removes_warning_from_disallowed_set_and_conforms() -> None:
-    validator = StarShaclSchema(shacl_graph=_shapes_with_warning_severity())
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_warning_severity())
     result = validator.validate(
         data_graph=_data_with_bad_age(),
         meta_shacl=False,
@@ -109,7 +109,7 @@ def test_debug_and_trace_severities_never_block_conforms(severity: str) -> None:
     itself must still be reported (present in sh:result, with the correct
     sh:resultSeverity) - only the aggregate sh:conforms is affected.
     """
-    validator = StarShaclSchema(shacl_graph=_shapes_with_severity(severity))
+    validator = StarShaclProcessor(shacl_graph=_shapes_with_severity(severity))
     result = validator.validate(
         data_graph=_data_with_bad_age(), meta_shacl=False
     )

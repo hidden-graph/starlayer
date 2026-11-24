@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Any
+
+from starlayer.shacl.engine.terms import to_engine
+from starlayer.shacl.report_results import ReportResult, deduplicate, report_results
 
 
 @dataclass(frozen=True)
 class ExecutionDiagnostics:
-    """Counters of one validation run: the type of ``ValidationResult.diagnostics``. The engine handles RDF 1.2 triple terms
+    """Counters of one validation run: the type of ``ValidationReport.diagnostics``. The engine handles RDF 1.2 triple terms
     natively, so the encode/decode counters stay 0 (kept so code that reads them keeps working). Not a type you'd construct
     directly."""
 
@@ -27,8 +31,10 @@ class ExecutionDiagnostics:
 
 
 @dataclass(frozen=True, init=False)
-class ValidationResult:
-    """Result of ``validate()``: whether the data conforms, the validation report as a graph and as text.
+class ValidationReport:
+    """StarLayer's object holding the whole outcome of ``validate()``: ``conforms``, the ``sh:ValidationReport`` as a graph
+    (``report_graph``) and as text (``report_text``), and ``diagnostics``. An individual result inside the report is an
+    ``sh:ValidationResult`` node in ``report_graph``, not an instance of this class.
 
     ``data_graph`` is only populated when the call used ``inplace=True``
     (the ``"rules"`` mode's own default) - the caller's own data graph,
@@ -77,6 +83,41 @@ class ValidationResult:
             object.__setattr__(self, "_report_text", text)
         return text
 
+    @cached_property
+    def results(self) -> tuple[ReportResult, ...]:
+        """The top-level results of ``report_graph``, most severe first (see ``report_results``); read once."""
+        return report_results(self.report_graph)
+
+    def for_node(self, node: Any) -> tuple[ReportResult, ...]:
+        """The results whose focus node is ``node``."""
+        node = to_engine(node)
+        return tuple(r for r in self.results if r.focus == node)
+
+    def for_field(self, node: Any, path: Any) -> tuple[ReportResult, ...]:
+        """The results about ``node`` whose ``sh:resultPath`` is the term ``path`` (an IRI matches a result whose path is that IRI)."""
+        node, path = to_engine(node), to_engine(path)
+        return tuple(r for r in self.results if r.focus == node and r.path == path)
+
+    def node_level(self, node: Any) -> tuple[ReportResult, ...]:
+        """The results about ``node`` itself: its focus is ``node`` and they have no ``sh:resultPath``."""
+        node = to_engine(node)
+        return tuple(r for r in self.results if r.focus == node and r.path is None)
+
+    def counts(self) -> dict[str, int]:
+        """Top-level results per severity name, in severity order and only for severities present, plus ``"total"``."""
+        found: dict[str, int] = {}
+        for r in self.results:
+            found[r.severity_name] = found.get(r.severity_name, 0) + 1
+        found["total"] = len(self.results)
+        return found
+
+    def deduplicated(self) -> tuple[ReportResult, ...]:
+        """``results`` without a result that repeats an earlier one (same focus, path, value, component, source shape, severity and
+        messages). A property shape that several shapes targeting the same node share is evaluated, and reported, once per
+        targeting shape; a mistake inside a nested ``sh:node`` / ``sh:memberShape`` is reported once, as ``sh:detail``, not as
+        a top-level result for each level."""
+        return deduplicate(self.results)
+
 
 @dataclass(frozen=True)
 class RulesResult:
@@ -107,7 +148,7 @@ class RulesResult:
     """
 
     inferred_graph: Any
-    validation: ValidationResult
+    validation: ValidationReport
 
 
 # EvaluationResult/SubgraphExtractionResult were removed - evaluate()/

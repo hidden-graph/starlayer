@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._shape_loader import load_shape
@@ -17,7 +17,7 @@ def test_rdf12_fixture_target_resolution_for_triple_term_target_node() -> None:
     shapes.parse(data=load_shape("rdf12_target_node_shape.ttl"), format="turtle12")
     shapes.add((EX.TripleTargetShape, SH.targetNode, (EX.s, EX.p, EX.o)))
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     nodes = validator.target_nodes(data_graph=data, shape_node=EX.TripleTargetShape)
 
     assert nodes == (ox.Triple(ox.NamedNode(EX.s.value), ox.NamedNode(EX.p.value), ox.NamedNode(EX.o.value)),)
@@ -40,7 +40,7 @@ def test_rdf12_target_objects_of_resolves_triple_term_value_as_target() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     nodes = validator.target_nodes(data_graph=data, shape_node=EX.S)
 
     assert nodes == (ox.Triple(ox.NamedNode(EX.bob.value), ox.NamedNode(EX.knows.value), ox.NamedNode(EX.carol.value)),)
@@ -54,7 +54,7 @@ def test_rdf12_fixture_triple_term_node_kind_component_evaluation() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rdf12_triple_term_node_kind.ttl"), format="turtle12")
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     values = {o for _, _, o in result.report_graph.triples((None, SH.value, None))}
@@ -105,7 +105,7 @@ def test_rdf12_fixture_structural_component_behaviors(
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape(shape_file), format="turtle12")
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is expected_conforms
     if not expected_conforms:
@@ -131,7 +131,7 @@ def test_rdf12_min_max_count_with_triple_term_values() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
@@ -152,7 +152,7 @@ def test_rdf12_max_count_violates_with_too_many_triple_term_values() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert any(
@@ -179,7 +179,7 @@ def test_rdf12_not_wrapping_has_value_with_triple_term_value() -> None:
         format="turtle12",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
     # The one value present DOES match the forbidden triple-term value, so
     # sh:not must flag it.

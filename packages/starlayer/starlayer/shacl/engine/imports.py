@@ -7,7 +7,7 @@ Semantics (``StarLayerGraph.resolve_imports`` and ``validate(shapes_graph_loader
 
 * With a ``loader`` (a callable: import IRI -> graph, or ``None``), the transitive closure is followed. An import the
   loader returns ``None`` for is skipped, not an error. An import whose IRI already has triples as a subject in the
-  graph is satisfied locally and never reaches the loader. ``ignore_imports`` is irrelevant when a loader is given.
+  graph is satisfied locally and never reaches the loader, and so is an import of the SHACL vocabulary (``sh:``), which is built in. ``ignore_imports`` is irrelevant when a loader is given.
 * Without a loader, and not ``ignore_imports``: a declared ``owl:imports`` target that is not satisfied locally raises
   ``ValueError`` (silently skipping would make a shape that refers to the import never fire). ``ignore_imports=True``
   returns the graph unchanged.
@@ -22,10 +22,16 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
+import pyoxigraph as ox
+
 from starlayer.shacl.engine.graphs import new_graph
 from starlayer.shacl.engine.terms import OWL, engine_view, text
 
 Loader = Callable[[Any], Any]
+
+#: The SHACL vocabulary graph. Core recommends ``owl:imports sh:`` for a graph that uses ``sh:ShapeClass``, so software that does not
+#: know SHACL can read the vocabulary; the engine has that vocabulary built in, so the import is satisfied without a loader.
+SHACL_VOCABULARY = ox.NamedNode("http://www.w3.org/ns/shacl#")
 
 
 def declared_imports(graph: Any) -> tuple[Any, ...]:
@@ -48,7 +54,7 @@ def resolve_imports(
     shapes_graph = engine_view(shapes_graph, "shapes graph")
     if loader is None:
         if not ignore_imports:
-            missing = [o for o in declared_imports(shapes_graph) if not _has_subject(shapes_graph, o)]
+            missing = [o for o in declared_imports(shapes_graph) if o != SHACL_VOCABULARY and not _has_subject(shapes_graph, o)]
             if missing:
                 raise ValueError(
                     f"shacl_graph declares owl:imports {[text(m) for m in missing]!r} that aren't already "
@@ -67,7 +73,7 @@ def resolve_imports(
         if iri in fetched:
             continue
         fetched.add(iri)
-        if _has_subject(shapes_graph, iri):
+        if iri == SHACL_VOCABULARY or _has_subject(shapes_graph, iri):
             continue
         graph = engine_view(loader(iri), "imported graph")  # a loader may return an rdflib / StarLayer graph or an StarLayerGraph
         if graph is None:

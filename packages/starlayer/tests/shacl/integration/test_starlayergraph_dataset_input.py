@@ -1,6 +1,6 @@
 from starlayer.graph import StarLayerDataset
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -34,7 +34,7 @@ class TestStarLayerDatasetDefaultUnion:
         data = _dataset_with_named_graph(_PERSON_DATA)
         shapes = _dataset_with_named_graph(_PERSON_SHAPE)
 
-        result = StarShaclSchema(shacl_graph=shapes).validate(
+        result = StarShaclProcessor(shacl_graph=shapes).validate(
             data_graph=data, meta_shacl=False
         )
 
@@ -48,7 +48,7 @@ class TestStarLayerDatasetDefaultUnion:
         shapes = StarLayerDataset(default_union=True)
         shapes.graph(EX.g1).parse(data=_PERSON_SHAPE, format="turtle")
 
-        result = StarShaclSchema(shacl_graph=shapes).validate(
+        result = StarShaclProcessor(shacl_graph=shapes).validate(
             data_graph=data, meta_shacl=False
         )
 
@@ -72,7 +72,7 @@ class TestStarLayerDatasetDefaultUnion:
             format="turtle",
         )
 
-        result = StarShaclSchema(shacl_graph=shapes).validate(
+        result = StarShaclProcessor(shacl_graph=shapes).validate(
             data_graph=data, meta_shacl=False
         )
 
@@ -120,7 +120,7 @@ class TestOntGraphDatasetAutoUnion:
             format="turtle",
         )
 
-        result = StarShaclSchema(shacl_graph=shapes, ont_graph=ont, inference=ENTAILMENT.RDFS).validate(
+        result = StarShaclProcessor(shacl_graph=shapes, ont_graph=ont, inference=ENTAILMENT.RDFS).validate(
             data_graph=data,
             meta_shacl=False,
         )

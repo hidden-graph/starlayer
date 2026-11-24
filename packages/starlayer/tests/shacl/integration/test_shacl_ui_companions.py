@@ -10,7 +10,7 @@ from starlayer import starontology
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui import widget_selection as uws
 from starlayer.shacl.ui.widget_selection import select_widget, select_widgets
@@ -117,7 +117,7 @@ def test_the_scores_layer_is_well_formed(scores, shacl_shacl) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         meta_validate(scores)
-    assert StarShaclSchema(shacl_graph=shacl_shacl).validate(data_graph=scores, ignore_imports=True).conforms
+    assert StarShaclProcessor(shacl_graph=shacl_shacl).validate(data_graph=scores, ignore_imports=True).conforms
 
 
 def _paths_by_widget(scores) -> dict:
@@ -143,7 +143,7 @@ def test_no_predicate_is_scored_by_two_widgets(scores) -> None:
     """Two scores of the same value for one predicate would tie, and a tie goes to the widget IRI."""
     by_widget = _paths_by_widget(scores)
     all_paths = [path for paths in by_widget.values() for path in paths]
-    assert len(all_paths) == 75 and len(set(all_paths)) == 75  # 66, plus the 8 paths of the new fields (issues #91, #105), plus sh:expression
+    assert len(all_paths) == 73 and len(set(all_paths)) == 73  # 66, plus the 8 paths of the new fields (issues #91, #105), plus sh:expression, less sh:comment and sh:function (not SHACL terms)
 
 
 def test_the_layer_gives_a_form_for_editing_a_shape(shacl_shacl, baseline, stacked) -> None:
@@ -185,7 +185,7 @@ def test_the_baseline_is_a_well_formed_shapes_graph(baseline) -> None:
 
 
 def test_the_baseline_scores_are_well_formed_widget_scores(baseline, shacl_shacl) -> None:
-    result = StarShaclSchema(shacl_graph=shacl_shacl).validate(data_graph=baseline, ignore_imports=True)
+    result = StarShaclProcessor(shacl_graph=shacl_shacl).validate(data_graph=baseline, ignore_imports=True)
     assert result.conforms
 
 

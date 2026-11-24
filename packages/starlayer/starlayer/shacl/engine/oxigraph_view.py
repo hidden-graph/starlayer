@@ -25,6 +25,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph import lexical
 from starlayer.graph._detached import detached
 from starlayer.shacl.engine.terms import (
     to_engine,
@@ -147,6 +148,7 @@ class OxigraphGraph:
         from starlayer.graph.execution import union
 
         self._overlap = union.Overlap()
+        self._version = union.version_of(self.store)  # holds the count of literals loaded in another form (graph/lexical.py) as long as this view lives
         self.graph_name = graph_name
         if graph_name is UNION:
             self._graph = None
@@ -165,7 +167,9 @@ class OxigraphGraph:
         target = graph_name if graph_name not in (UNION, DEFAULT) else None
         store = ox.Store()
         store.load(path=os.fspath(path), format=fmt, base_iri=base_iri, to_graph=to_ox(target))
-        return cls(store, graph_name)
+        graph = cls(store, graph_name)
+        lexical.report(ox.parse(path=os.fspath(path), format=fmt, base_iri=base_iri), store)  # a second read of the file, to see what the store rewrote
+        return graph
 
     @classmethod
     def from_text(
@@ -180,7 +184,9 @@ class OxigraphGraph:
         target = graph_name if graph_name not in (UNION, DEFAULT) else None
         store = ox.Store()
         store.load(text.encode(), format=fmt, base_iri=base_iri, to_graph=to_ox(target))
-        return cls(store, graph_name)
+        graph = cls(store, graph_name)
+        lexical.report(ox.parse(text.encode(), format=fmt, base_iri=base_iri), store)  # a second read of the text, to see what the store rewrote
+        return graph
 
     @classmethod
     def from_graph(cls, graph: Any, *, graph_name: Any = UNION) -> OxigraphGraph:
@@ -195,7 +201,9 @@ class OxigraphGraph:
     def add(self, triple: tuple[Any, Any, Any]) -> None:
         """Add a triple to the selected graph (the default graph when reading the union)."""
         g = ox.DefaultGraph() if self._graph is None else self._graph
-        self.store.add(ox.Quad(*(to_ox(t) for t in triple), g))
+        rewrites = lexical.Rewrites()
+        self.store.add(next(iter(lexical.watch((ox.Quad(*(to_ox(t) for t in triple), g),), rewrites))))
+        rewrites.emit(self.store)
         from starlayer.graph.execution import union
 
         union.touch(self.store)  # a dataset over this store drops its deduplicated copy

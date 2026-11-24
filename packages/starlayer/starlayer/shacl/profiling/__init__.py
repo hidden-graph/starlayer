@@ -4,9 +4,9 @@ import profiling` then `profiling.declared_conformance_profile`/
 
 A thin re-export of `profiling.py`'s own two functions - the real SHACL 1.2
 Profiling spec (https://www.w3.org/TR/shacl12-profiling/) implementation.
-Not flattened into `starlayer.shacl`'s own top-level namespace, mirroring
-`starlayer.sparql.srl`/`sqe`'s own precedent of a dedicated submodule per
-spec document.
+The same two functions (and the `CONFORMANCE` namespace) are also importable from `starlayer.shacl` itself, so an
+application imports everything from one place; `profiling` stays as the dedicated submodule for this spec document, as
+`starlayer.sparql.srl`/`sqe` are for theirs.
 
 For the unrelated validator-option-preset concept (the `"validation"`/
 `"rules"`/`"debug"` presets selected via `validate(mode=...)`), see

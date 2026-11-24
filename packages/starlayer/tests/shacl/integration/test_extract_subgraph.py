@@ -9,7 +9,7 @@ and only real stored triples are ever included).
 """
 
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, extract_subgraph
+from starlayer.shacl import StarShaclProcessor, extract_subgraph
 from starlayer.shacl.engine.terms import RDF, text
 
 RDF_TYPE = RDF.type
@@ -26,7 +26,7 @@ def _closes(data_graph, shapes_ttl: str) -> bool:
     re-validated against the same shape but with sh:closed true and no
     ignored properties, must itself conform."""
     closed_shapes = _graph(shapes_ttl)
-    return StarShaclSchema(shacl_graph=closed_shapes).validate(data_graph=data_graph, meta_shacl=False).conforms
+    return StarShaclProcessor(shacl_graph=closed_shapes).validate(data_graph=data_graph, meta_shacl=False).conforms
 
 
 class TestBasicExtractionAndAcceptanceTest:
@@ -330,7 +330,7 @@ class TestCloseShape:
 
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
-        strict_shapes = StarShaclSchema(shacl_graph=prod_shapes).close_shape(EX.JEShape)
+        strict_shapes = StarShaclProcessor(shacl_graph=prod_shapes).close_shape(EX.JEShape)
 
         closed_values = list(strict_shapes.objects(EX.JEShape, SH.closed))
         assert len(closed_values) == 1 and text(closed_values[0]) == "true"
@@ -348,7 +348,7 @@ class TestCloseShape:
         EX = Namespace("http://example.org/")
         prod_shapes = _graph(self.PROD_SHAPE)
         before = len(prod_shapes)
-        StarShaclSchema(shacl_graph=prod_shapes).close_shape(EX.JEShape)
+        StarShaclProcessor(shacl_graph=prod_shapes).close_shape(EX.JEShape)
         assert len(prod_shapes) == before
         assert list(prod_shapes.objects(EX.JEShape, SH.ignoredProperties)) != []
 
@@ -379,8 +379,8 @@ class TestCloseShape:
         result = extract_subgraph(_graph(self.DATA), shacl_graph=prod_shapes, shape=EX.JEShape, focus_node=EX.je1)
         assert len(result) > 0
 
-        strict_shapes = StarShaclSchema(shacl_graph=prod_shapes).close_shape(EX.JEShape)
-        check = StarShaclSchema(shacl_graph=strict_shapes).validate(data_graph=result, meta_shacl=False)
+        strict_shapes = StarShaclProcessor(shacl_graph=prod_shapes).close_shape(EX.JEShape)
+        check = StarShaclProcessor(shacl_graph=strict_shapes).validate(data_graph=result, meta_shacl=False)
         assert check.conforms is True
 
 

@@ -1,4 +1,4 @@
-"""Coverage for StarShaclSchema.extract_shapes_graph() - pulls one named
+"""Coverage for StarShaclProcessor.extract_shapes_graph() - pulls one named
 sh:ShapesGraph "module" back out of a larger shacl_graph that bundles
 several modules together (the inverse of SHACL 1.2 Profiling S2's own
 packaging convention). Built on StarLayerGraph.cbd() - see that method's
@@ -8,7 +8,7 @@ on (follows blank-node objects recursively, never named-IRI ones).
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, extract_subgraph
+from starlayer.shacl import StarShaclProcessor, extract_subgraph
 from starlayer.shacl.engine.terms import NS as Namespace
 
 EX = Namespace("http://example.org/")
@@ -38,7 +38,7 @@ def _two_module_graph() -> StarLayerGraph:
 
 
 def test_extracts_only_the_named_modules_own_shape() -> None:
-    schema = StarShaclSchema(shacl_graph=_two_module_graph())
+    schema = StarShaclProcessor(shacl_graph=_two_module_graph())
     extracted = schema.extract_shapes_graph(EX.ModuleB)
 
     assert extracted is not None
@@ -49,7 +49,7 @@ def test_extracts_only_the_named_modules_own_shape() -> None:
 
 
 def test_extracted_module_includes_the_shapesgraph_and_member_triples() -> None:
-    schema = StarShaclSchema(shacl_graph=_two_module_graph())
+    schema = StarShaclProcessor(shacl_graph=_two_module_graph())
     extracted = schema.extract_shapes_graph(EX.ModuleB)
 
     assert (EX.ModuleB, RDFS.member, EX.CompanyShape) in extracted
@@ -57,7 +57,7 @@ def test_extracted_module_includes_the_shapesgraph_and_member_triples() -> None:
 
 
 def test_nested_blank_node_property_shape_is_included() -> None:
-    schema = StarShaclSchema(shacl_graph=_two_module_graph())
+    schema = StarShaclProcessor(shacl_graph=_two_module_graph())
     extracted = schema.extract_shapes_graph(EX.ModuleB)
 
     prop_nodes = list(extracted.objects(EX.CompanyShape, SH.property))
@@ -105,7 +105,7 @@ def test_named_nested_property_shape_is_left_dangling_by_design() -> None:
     shape and then inject their own replacement for whatever it points
     at, without a stale copy of the old definition silently riding
     along and conflicting with the injected one."""
-    schema = StarShaclSchema(shacl_graph=_adult_shapes_graph())
+    schema = StarShaclProcessor(shacl_graph=_adult_shapes_graph())
     extracted = schema.extract_shapes_graph(EX.AdultShapesGraph)
 
     assert (EX.AdultShape, SH.property, EX.AdultAgeShape) in extracted
@@ -116,7 +116,7 @@ def test_caller_can_inject_a_replacement_for_a_dangling_named_shape_reference() 
     """The actual motivating workflow: extract one shape, then inject a
     *different* definition for a named shape it references - the point
     of leaving that reference dangling rather than auto-closing it."""
-    schema = StarShaclSchema(shacl_graph=_adult_shapes_graph())
+    schema = StarShaclProcessor(shacl_graph=_adult_shapes_graph())
     extracted = schema.extract_shapes_graph(EX.AdultShapesGraph)
 
     # inject a stricter replacement AdultAgeShape (minInclusive 21, not 18) -
@@ -138,36 +138,36 @@ def test_caller_can_inject_a_replacement_for_a_dangling_named_shape_reference() 
 
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:bob a ex:Adult ; ex:age 19 .", format="turtle")
-    result = StarShaclSchema(shacl_graph=extracted).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=extracted).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False  # 19 < 21, the injected replacement constraint, not the original 18
 
 
 def test_extracted_module_validates_independently() -> None:
     """The extracted module is a genuine, standalone, usable shapes graph
     - not just a bag of triples that happens to look right."""
-    schema = StarShaclSchema(shacl_graph=_two_module_graph())
+    schema = StarShaclProcessor(shacl_graph=_two_module_graph())
     extracted = schema.extract_shapes_graph(EX.ModuleB)
 
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
 
-    result = StarShaclSchema(shacl_graph=extracted).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=extracted).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False  # missing ex:name, caught by the extracted CompanyShape
 
 
 def test_returns_none_for_an_iri_not_typed_sh_shapesgraph() -> None:
-    schema = StarShaclSchema(shacl_graph=_two_module_graph())
+    schema = StarShaclProcessor(shacl_graph=_two_module_graph())
     # PersonShape exists, but isn't itself typed a sh:ShapesGraph.
     assert schema.extract_shapes_graph(EX.PersonShape) is None
 
 
 def test_returns_none_for_an_unknown_iri() -> None:
-    schema = StarShaclSchema(shacl_graph=_two_module_graph())
+    schema = StarShaclProcessor(shacl_graph=_two_module_graph())
     assert schema.extract_shapes_graph(EX.NotRegistered) is None
 
 
 def test_raises_without_a_bound_shacl_graph() -> None:
-    schema = StarShaclSchema()
+    schema = StarShaclProcessor()
     with pytest.raises(ValueError, match="extract_shapes_graph"):
         schema.extract_shapes_graph(EX.ModuleA)
 
@@ -175,7 +175,7 @@ def test_raises_without_a_bound_shacl_graph() -> None:
 def test_does_not_mutate_the_original_shacl_graph() -> None:
     original = _two_module_graph()
     before = set(original)
-    StarShaclSchema(shacl_graph=original).extract_shapes_graph(EX.ModuleB)
+    StarShaclProcessor(shacl_graph=original).extract_shapes_graph(EX.ModuleB)
     assert set(original) == before
 
 
@@ -195,7 +195,7 @@ def test_owl_imports_to_a_module_absent_entirely_raises() -> None:
     g = _two_module_graph()
     g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
 
-    schema = StarShaclSchema(shacl_graph=g)
+    schema = StarShaclProcessor(shacl_graph=g)
     with pytest.raises(ValueError, match="SomeOtherModule"):
         schema.extract_shapes_graph(EX.ModuleB)
 
@@ -212,7 +212,7 @@ def test_owl_imports_to_a_module_present_but_not_typed_shapesgraph_raises() -> N
     g.add((EX.SomeOtherModule, RDFS.member, EX.SomeShape))
     g.add((EX.SomeShape, RDF.type, SH.NodeShape))
 
-    schema = StarShaclSchema(shacl_graph=g)
+    schema = StarShaclProcessor(shacl_graph=g)
     with pytest.raises(ValueError, match="SomeOtherModule"):
         schema.extract_shapes_graph(EX.ModuleB)
 
@@ -238,7 +238,7 @@ def test_rdfs_isdefinedby_inverse_direction_is_honored() -> None:
         format="turtle",
     )
 
-    schema = StarShaclSchema(shacl_graph=g)
+    schema = StarShaclProcessor(shacl_graph=g)
     extracted = schema.extract_shapes_graph(EX.ModuleC)
 
     assert extracted is not None
@@ -258,7 +258,7 @@ def test_owl_imports_transitively_pulls_in_another_locally_present_modules_membe
     g = _two_module_graph()
     g.add((EX.ModuleA, OWL.imports, EX.ModuleB))
 
-    schema = StarShaclSchema(shacl_graph=g)
+    schema = StarShaclProcessor(shacl_graph=g)
     extracted = schema.extract_shapes_graph(EX.ModuleA)
 
     assert (EX.ModuleA, OWL.imports, EX.ModuleB) in extracted
@@ -277,7 +277,7 @@ def test_owl_imports_cycle_does_not_hang() -> None:
     g.add((EX.ModuleA, OWL.imports, EX.ModuleB))
     g.add((EX.ModuleB, OWL.imports, EX.ModuleA))
 
-    schema = StarShaclSchema(shacl_graph=g)
+    schema = StarShaclProcessor(shacl_graph=g)
     extracted = schema.extract_shapes_graph(EX.ModuleA)
 
     assert (EX.PersonShape, SH.targetClass, EX.Person) in extracted
@@ -285,7 +285,7 @@ def test_owl_imports_cycle_does_not_hang() -> None:
 
 
 class TestValidateShapesGraph:
-    """StarShaclSchema.validate(shapes_graph_resource=...) - one parameter, two
+    """StarShaclProcessor.validate(shapes_graph_resource=...) - one parameter, two
     possible meanings depending on what's actually true of this
     instance's own bound shacl_graph (2026-10-10, replacing the former
     separate shapes_graph_module=/shapes_graph_iri= pair - see CLAUDE.md's
@@ -309,7 +309,7 @@ class TestValidateShapesGraph:
       (pyshacl trivially "conforms" against a None shapes graph)."""
 
     def test_validates_against_only_the_named_module(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
 
         acme = StarLayerGraph()
         acme.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
@@ -320,7 +320,7 @@ class TestValidateShapesGraph:
         assert result.conforms is False
 
     def test_conforms_when_the_module_alone_is_satisfied(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
 
         acme = StarLayerGraph()
         acme.parse(
@@ -338,7 +338,7 @@ class TestValidateShapesGraph:
         shapes_graph_iri= unification - a real shacl_graph being bound
         makes "this must be an external identity" a safe inference now,
         not a guess."""
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
         result = schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.NotRegistered)
         assert result.conforms is True
@@ -350,14 +350,14 @@ class TestValidateShapesGraph:
         should mean - still raises, since pyshacl trivially "conforms"
         against a None shapes graph and a silent tag-only fallback here
         would let the report falsely claim a module was used."""
-        schema = StarShaclSchema()
+        schema = StarShaclProcessor()
         data = StarLayerGraph()
         with pytest.raises(ValueError, match="shapes_graph_resource="):
             schema.validate(data_graph=data, meta_shacl=False, shapes_graph_resource=EX.ModuleB)
 
     def test_does_not_mutate_or_replace_the_bound_shacl_graph(self) -> None:
         original = _two_module_graph()
-        schema = StarShaclSchema(shacl_graph=original)
+        schema = StarShaclProcessor(shacl_graph=original)
         before = set(original)
 
         data = StarLayerGraph()
@@ -372,7 +372,7 @@ class TestValidateShapesGraph:
         report's sh:usedShapesGraph identity - not a separate value that
         happens to default to it, since there's only one fact here to
         report in the first place."""
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         acme = StarLayerGraph()
         acme.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
@@ -386,7 +386,7 @@ class TestValidateShapesGraph:
 
 class TestShapesGraphOnOtherMethods:
     """shapes_graph_resource= (renamed from shapes_graph_module= 2026-10-10)
-    extended consistently (2026-10-09) to every other StarShaclSchema
+    extended consistently (2026-10-09) to every other StarShaclProcessor
     method that takes a shapes graph - a thin convenience over
     _resolve_shacl_graph(), the same helper TestValidateShapesGraph above
     exercises through validate(). Unlike validate()'s own dual-purpose
@@ -395,7 +395,7 @@ class TestShapesGraphOnOtherMethods:
     _resolve_shacl_graph()."""
 
     def test_target_nodes_scoped_to_one_module(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
         data.parse(data="@prefix ex: <http://example.org/> . ex:acme a ex:Company .", format="turtle")
 
@@ -403,7 +403,7 @@ class TestShapesGraphOnOtherMethods:
         assert nodes == (EX.acme,)
 
     def test_evaluate_scoped_to_one_module(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
@@ -413,13 +413,13 @@ class TestShapesGraphOnOtherMethods:
         assert (EX.acme, EX.name, None) in result or any(True for _ in result.triples((EX.acme, EX.name, None)))
 
     def test_extract_subgraph_scoped_to_one_module(self) -> None:
-        """extract_subgraph() is a plain function, not a StarShaclSchema
+        """extract_subgraph() is a plain function, not a StarShaclProcessor
         method, so it has no shapes_graph_resource= of its own - scoping to
         one module is two explicit calls instead: extract_shapes_graph()
         pulls the module out, then the bare function is given it directly
         as shacl_graph=. Nothing is lost, it's just no longer a single
         convenience call."""
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
@@ -431,7 +431,7 @@ class TestShapesGraphOnOtherMethods:
         assert (EX.acme, EX.name, None) in extracted or any(True for _ in extracted.triples((EX.acme, EX.name, None)))
 
     def test_apply_rules_scoped_to_one_module(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         data = StarLayerGraph()
         data.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"
@@ -441,14 +441,14 @@ class TestShapesGraphOnOtherMethods:
         assert result.validation.conforms is True
 
     def test_close_shape_scoped_to_one_module(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         closed = schema.close_shape(EX.CompanyShape, shapes_graph_resource=EX.ModuleB)
         assert (EX.CompanyShape, SH.closed, None) in closed or any(
             True for _ in closed.triples((EX.CompanyShape, SH.closed, None))
         )
 
     def test_validate_each_forwards_shapes_graph_via_kwargs(self) -> None:
-        schema = StarShaclSchema(shacl_graph=_two_module_graph())
+        schema = StarShaclProcessor(shacl_graph=_two_module_graph())
         conforming = StarLayerGraph()
         conforming.parse(
             data='@prefix ex: <http://example.org/> . ex:acme a ex:Company ; ex:name "Acme" .', format="turtle"

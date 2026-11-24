@@ -1,5 +1,5 @@
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._shape_loader import load_shape
@@ -21,7 +21,7 @@ def test_apply_rules_adds_inferred_triple() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_infer_target_class.ttl"), format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data)
 
     # apply_rules() never mutates the caller's own data_graph - result.inferred_graph
@@ -42,7 +42,7 @@ def test_apply_rules_preserves_existing_triple_terms() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_infer_target_node.ttl"), format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data)
 
     # The base triple-term triple is untouched in the caller's own graph,

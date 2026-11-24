@@ -161,3 +161,19 @@ def test_multi_hop_without_version_iri():
 def test_declared_imports_dedups_in_order():
     g = _g("ex:a owl:imports ex:x , ex:y . ex:b owl:imports ex:x .")
     assert declared_imports(g) == (URIRef("http://example.org/x"), URIRef("http://example.org/y"))
+
+
+def test_the_error_names_the_shape_and_property_of_each_problem():
+    from starlayer.graph import StarLayerGraph
+    from starlayer.shacl.engine.meta import meta_validate
+
+    shapes = StarLayerGraph().parse(
+        data="""@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+        ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:name ; sh:datatype xsd:string, xsd:integer ] .""",
+        format="turtle",
+    )
+    with pytest.raises(MetaShaclError) as exc:
+        meta_validate(shapes, meta_shacl=True)
+    assert exc.value.problems == ("the property shape of ex:S for ex:name, sh:datatype: Allows at most 1 value, found 2",)
+    assert str(exc.value).splitlines()[1] == "- " + exc.value.problems[0]
+    assert "Conforms: False" in exc.value.report_text

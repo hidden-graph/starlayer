@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -35,7 +35,7 @@ def test_list_valued_class_conforms_for_any_listed_class() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -55,7 +55,7 @@ def test_list_valued_class_violates_for_unlisted_class() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -75,7 +75,7 @@ def test_list_valued_datatype_conforms_for_string_and_lang_string() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -94,7 +94,7 @@ def test_list_valued_datatype_violates_for_unlisted_datatype() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -114,7 +114,7 @@ def test_list_valued_node_kind_conforms_for_iri_and_blank_node() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -133,7 +133,7 @@ def test_list_valued_node_kind_violates_for_literal() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -165,7 +165,7 @@ def test_triple_term_node_kind_conforms_for_real_triple_term() -> None:
         format="turtle12",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data)
 
     assert result.conforms is True
@@ -185,7 +185,7 @@ def test_triple_term_node_kind_violates_for_non_triple_term() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data)
 
     assert result.conforms is False
@@ -207,7 +207,7 @@ def test_scalar_triple_term_node_kind_conforms_for_real_triple_term(meta_shacl: 
         format="turtle12",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=meta_shacl)
 
     assert result.conforms is True
@@ -228,7 +228,7 @@ def test_scalar_triple_term_node_kind_violates_for_non_triple_term(meta_shacl: b
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=meta_shacl)
 
     assert result.conforms is False
@@ -262,7 +262,7 @@ def test_simple_iri_valued_class_still_handled_by_pyshacl_directly() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True

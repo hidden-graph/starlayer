@@ -54,7 +54,7 @@ def test_ruleset_parse_and_infer_on_a_graph_without_literals_do_not_warn():
 def test_schema_validate_takes_the_keywords_validate_takes():
     import warnings
 
-    from starlayer import StarLayerGraph, StarShaclSchema
+    from starlayer import StarLayerGraph, StarShaclProcessor
     from starlayer.shacl import validate
 
     warnings.simplefilter("ignore")
@@ -65,7 +65,7 @@ def test_schema_validate_takes_the_keywords_validate_takes():
     )
     data, spec = StarLayerGraph(), StarLayerGraph()
     validate(data, shapes, specification_graph=spec, shapes_graph_iri="http://e/sg")
-    schema = StarShaclSchema(shapes)
+    schema = StarShaclProcessor(shapes)
     schema.validate(data, specification_graph=spec)
     schema.validate(data, shapes_graph_iri="http://e/sg")
 
@@ -133,7 +133,8 @@ def test_star_query_runs_on_a_bare_pyoxigraph_store():
 def test_sparql_query_problems_agrees_with_validate_on_a_file_bound_prefix():
     import pytest
     from starlayer import StarLayerGraph
-    from starlayer.shacl import ShapeError, sparql_query_problems, validate
+    from starlayer.shacl import ShapeError, validate
+    from starlayer.shacl.meta_shapes import sparql_query_problems
 
     text = """@prefix ex: <http://e/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
     ex:S a sh:NodeShape ; sh:targetNode ex:x ; sh:sparql [ sh:message "bad" ; sh:select "SELECT $this WHERE { $this ex:p ?v }" ] .

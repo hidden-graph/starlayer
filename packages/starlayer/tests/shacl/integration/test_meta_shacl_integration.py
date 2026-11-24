@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import MetaShaclError, ShapeError, StarShaclSchema
+from starlayer.shacl import MetaShaclError, ShapeError, StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -34,10 +34,8 @@ def _ill_formed_case() -> tuple[StarLayerGraph, StarLayerGraph]:
 def test_meta_shacl_rejects_ill_formed_shapes_graph() -> None:
     data, shapes = _ill_formed_case()
 
-    validator = StarShaclSchema(shacl_graph=shapes)
-
-    with pytest.raises(Exception) as exc_info:
-        validator.validate(data_graph=data, meta_shacl=True)
+    with pytest.raises(Exception) as exc_info:  # a bad shapes graph is refused when the processor is built
+        StarShaclProcessor(shacl_graph=shapes, meta_shacl=True)
 
     message = str(exc_info.value)
     assert "metashacl" in message.lower() or "meta-shacl" in message.lower()
@@ -47,9 +45,7 @@ def test_meta_shacl_override_false_skips_preflight_but_still_errors_on_bad_shape
     """Without the preflight the engine's own plan step still rejects the shape, as a ShapeError rather than MetaShaclError."""
     data, shapes = _ill_formed_case()
 
-    validator = StarShaclSchema(shacl_graph=shapes)
-
-    with pytest.raises(ShapeError) as exc_info:
-        validator.validate(data_graph=data, meta_shacl=False)
+    with pytest.raises(ShapeError) as exc_info:  # ... by the plan step when there is no preflight
+        StarShaclProcessor(shacl_graph=shapes)
 
     assert not isinstance(exc_info.value, MetaShaclError)

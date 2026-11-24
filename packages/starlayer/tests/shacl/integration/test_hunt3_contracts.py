@@ -3,7 +3,7 @@
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema, extract_subgraph
+from starlayer.shacl import StarShaclProcessor, extract_subgraph
 from tests.support.terms import NamedNode, Namespace
 
 EX = Namespace("http://example.org/")
@@ -16,7 +16,7 @@ ex:a a ex:T ; ex:name "n" ."""
 def _schema():
     graph = StarLayerGraph()
     graph.parse(data=SHAPES, format="turtle12")
-    return graph, StarShaclSchema(shacl_graph=graph)
+    return graph, StarShaclProcessor(shacl_graph=graph)
 
 
 def test_select_widgets_rejects_an_invalid_role():

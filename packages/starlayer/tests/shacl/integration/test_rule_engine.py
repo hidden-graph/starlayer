@@ -9,7 +9,7 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, StarShaclSchema
+from starlayer.shacl import RuleError, StarShaclProcessor
 from starlayer.shacl.engine.terms import RDF as OXRDF
 from starlayer.shacl.engine.terms import text, to_engine
 from tests.support.terms import NamedNode, Namespace, lit
@@ -33,7 +33,7 @@ def _graph(turtle: str) -> StarLayerGraph:
 
 
 def _apply(shapes: str, data: str = "ex:n ex:marker true .", **kwargs):
-    return StarShaclSchema(shacl_graph=_graph(shapes)).apply_rules(data_graph=_graph(data), meta_shacl=False, **kwargs)
+    return StarShaclProcessor(shacl_graph=_graph(shapes)).apply_rules(data_graph=_graph(data), meta_shacl=False, **kwargs)
 
 
 def _two_rules(order_a: str, order_b: str, run_once: str) -> str:

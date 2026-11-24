@@ -5,7 +5,7 @@ the shape. With ``per="shape"`` those are done once; ``choice.resolve(node, data
 a node's data. The answer must not change, so each is checked against ``select_widget`` for the same node."""
 
 import pytest
-from starlayer import StarShaclSchema, starontology
+from starlayer import StarShaclProcessor, starontology
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.terms import NS
 from starlayer.shacl.ui import widget_selection as uws
@@ -169,7 +169,7 @@ def test_per_shape_takes_no_node(shapes, data) -> None:
 
 def test_the_schema_method_passes_per_through(shapes, data) -> None:
     catalog = _graph(CATALOGS["a data condition on a score"])
-    schema = StarShaclSchema(shacl_graph=shapes, data_graph=data, scoring_graph=catalog)
+    schema = StarShaclProcessor(shacl_graph=shapes, data_graph=data, scoring_graph=catalog)
     choices = schema.select_widgets(shape_node=EX.S, role="editor", per="shape")
     assert choices[EX.Note].resolve(EX.a, data) == SHUI.TextAreaEditor
     assert choices[EX.Note].resolve(EX.b, data) == SHUI.TextFieldEditor

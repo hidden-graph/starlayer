@@ -6,12 +6,17 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph.namespaces import PROV
 from starlayer.shacl.engine import terms as T
 from starlayer.shacl.engine.executor import Result
 from starlayer.shacl.engine.graphs import new_graph
 from starlayer.shacl.engine.plan import SH
+from starlayer.shacl.engine.terms import text
 
+# The processor as a ``sh:ValidationAgent``: the same IRI the conformance-profile declaration (profiling/profiles.py) is about.
+PROCESSOR_IRI = ox.NamedNode("https://github.com/hidden-graph/starlayer/tree/main/packages/starlayer/starlayer/shacl")
 _OPTION = "urn:starlayer:shacl-engine:option:"
+_ENTAILMENT = "http://www.w3.org/ns/entailment/"
 _ORDER: dict = {SH.Trace: 0, SH.Debug: 1, SH.Info: 2, SH.Warning: 3, SH.Violation: 4}
 
 
@@ -66,18 +71,26 @@ def annotate_provenance(
     configuration: dict[str, Any] | None = None,
     specification_graph: Any = None,
 ) -> None:
-    """SHACL 1.2 Core 6.7.1.5-6.7.1.8 provenance on the report node: ``sh:usedDataGraph``, ``sh:usedShapesGraph`` and, on
-    request, ``sh:usedConfiguration`` (a ``sh:ProcessorConfiguration``; the draft defines no properties for it, so the
-    options of this run are recorded as ``sh:ProcessorConfiguration`` triples in the ``urn:starlayer:shacl-engine:option:``
-    namespace). When both identities are known the Profiling S5.5 ``sh:conformsTo`` rule also runs on the report.
+    """Validation provenance in the Profiling draft's activity form ("Persisting validation results with context"): a blank
+    ``sh:ValidationActivity`` that ``prov:generated`` the report, ``sh:usedDataGraph`` / ``sh:usedShapesGraph`` (only the names
+    that are known), on request ``sh:usedConfiguration`` (a ``sh:ProcessorConfiguration``; the draft defines no properties for it,
+    so the options of this run are ``urn:starlayer:shacl-engine:option:`` triples) and ``prov:wasAssociatedWith`` the processor.
+    The report node itself carries none of these. Nothing is written when there is no name and no configuration request. No
+    time is recorded, so a report stays reproducible. When both names are known the Profiling S5.7
+    ``sh:conformsToShapesGraph`` rule also runs on the report.
     """
     node = next(iter(report.subjects(T.RDF.type, SH.ValidationReport)), None)
     if node is None:
         return
+    if data_graph_iri is None and shapes_graph_iri is None and not include_used_configuration:
+        return
+    activity = ox.BlankNode()
+    report.add((activity, T.RDF.type, SH.ValidationActivity))
+    report.add((activity, PROV.generated, node))
     if data_graph_iri is not None:
-        report.add((node, SH.usedDataGraph, identity_term(data_graph_iri)))
+        report.add((activity, SH.usedDataGraph, identity_term(data_graph_iri)))
     if shapes_graph_iri is not None:
-        report.add((node, SH.usedShapesGraph, identity_term(shapes_graph_iri)))
+        report.add((activity, SH.usedShapesGraph, identity_term(shapes_graph_iri)))
     if include_used_configuration:
         config = ox.BlankNode()
         report.add((config, T.RDF.type, SH.ProcessorConfiguration))
@@ -85,12 +98,29 @@ def annotate_provenance(
             for item in value if isinstance(value, (list, tuple, set, frozenset)) else (value,):
                 if item is not None:
                     report.add((config, ox.NamedNode(_OPTION + name), _python_literal(item)))
-        report.add((node, SH.usedConfiguration, config))
+        report.add((activity, SH.usedConfiguration, config))
+    report.bind("prov", str(PROV), override=False)  # the prefixes the activity uses, and only those, so a report stays light
+    report.bind("starlayer", PROCESSOR_IRI.value[: -len("shacl")], override=False)
+    if include_used_configuration:
+        report.bind("slopt", _OPTION, override=False)
+        if any(isinstance(v, (str, ox.NamedNode)) and text(v).startswith(_ENTAILMENT) for v in _flat((configuration or {}).values())):
+            report.bind("ent", _ENTAILMENT, override=False)
+    report.add((activity, PROV.wasAssociatedWith, PROCESSOR_IRI))
+    report.add((PROCESSOR_IRI, T.RDF.type, SH.ValidationAgent))
     if data_graph_iri is not None and shapes_graph_iri is not None:
-        # Profiling S5.5: lazy import, a pure function over the report graph (not the old validator)
+        # Profiling S5.7: lazy import, a pure function over the report graph (not the old validator)
         from starlayer.shacl.profiling.profiles import derive_conforms_to
 
         report += derive_conforms_to(report, specification_graph=specification_graph)
+
+
+def _flat(values: Any) -> Any:
+    """The items of configuration values, a list or set of them flattened."""
+    for value in values:
+        if isinstance(value, (list, tuple, set, frozenset)):
+            yield from value
+        else:
+            yield value
 
 
 def build_report(

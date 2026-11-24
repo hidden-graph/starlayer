@@ -1,6 +1,6 @@
 """Human-readable report text and run diagnostics for an engine run.
 
-``report_text`` reproduces the layout the old ``ValidationResult.report_text`` carries (the pySHACL listing, which the old
+``report_text`` reproduces the layout the old ``ValidationReport.report_text`` carries (the pySHACL listing, which the old
 validator then extended with a provenance appendix): the same header, the same per-result block, results sorted by their
 block text, then the ``Provenance:`` appendix. Natively written: nothing here imports pyshacl or the old validator.
 
@@ -19,6 +19,7 @@ from urllib.parse import unquote
 
 import pyoxigraph as ox
 
+from starlayer.graph.namespaces import PROV
 from starlayer.shacl.engine import terms as T
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.executor import Result
@@ -35,14 +36,36 @@ def _prefixes(graph: Any) -> dict[str, str]:
         return {}
 
 
+class _View:
+    """A graph read as ``primary`` (its triples) whose terms are abbreviated with the prefixes of ``primary``, then of
+    ``fallback``: the first graph that binds a namespace for an IRI names it (a prefix name is only ever used for the
+    namespace the graph that supplies it binds it to). Everything else is the primary graph's."""
+
+    def __init__(self, primary: Any, fallback: Any) -> None:
+        self.primary = primary
+        self.fallback = fallback
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.primary, name)
+
+
 def _n3(graph: Any, term: Any) -> str:
-    """``term`` with the prefixes ``graph`` binds (an IRI none fits stays ``<iri>``)."""
+    """``term`` with the prefixes ``graph`` binds (for a ``_View``, then those of its fallback graph); an IRI none fits stays ``<iri>``."""
     from starlayer.graph import qnames
 
-    try:
-        return qnames.n3(_prefixes(graph), term)
-    except Exception:  # noqa: BLE001  (a rendering is never worth failing for)
-        return T.n3(term)
+    out = T.n3(term)
+    while graph is not None:
+        view = graph if isinstance(graph, _View) else None
+        own = view.primary if view is not None else graph
+        try:
+            text = qnames.n3(_prefixes(own), term)
+        except Exception:  # noqa: BLE001  (a rendering is never worth failing for)
+            text = T.n3(term)
+        if not text.startswith("<") or isinstance(term, ox.Literal):
+            return text
+        out = text
+        graph = view.fallback if view is not None else None
+    return out
 
 
 def _predicates(graph: Any, node: Any) -> list[Any]:
@@ -146,6 +169,7 @@ _NODE_KINDS = {
     "BlankNodeOrIRI": "an IRI or a blank node",
     "IRIOrLiteral": "an IRI or a literal",
     "BlankNodeOrLiteral": "a blank node or a literal",
+    "TripleTerm": "a triple term",
 }
 _RANGE_WORDS = {
     "MinExclusiveConstraintComponent": ("minExclusive", "greater than"),
@@ -154,10 +178,7 @@ _RANGE_WORDS = {
     "MaxInclusiveConstraintComponent": ("maxInclusive", "at most"),
 }
 _PAIR_WORDS = {
-    "EqualsConstraintComponent": (SH.equals, "should also be a value of {q}"),
     "DisjointConstraintComponent": (SH.disjoint, "should not also be a value of {q}"),
-    "LessThanConstraintComponent": (SH.lessThan, "should be less than every value of {q}"),
-    "LessThanOrEqualsConstraintComponent": (SH.lessThanOrEquals, "should be at most every value of {q}"),
 }
 _SHAPE_LISTS = {
     "AndConstraintComponent": ("and", "all of"),
@@ -166,22 +187,94 @@ _SHAPE_LISTS = {
 }
 
 
+_LINE_BREAKS = str.maketrans({"\n": "\\n", "\r": "\\r", "\f": "\\f", "\v": "\\v"})
+
+
 def plain_term(graph: Any, node: Any) -> str:
     """A term as a UI reads it: prefixed IRIs, a literal as its quoted text (bare for numbers and booleans, with its
-    language tag or prefixed datatype otherwise), a blank node as ``_:label``."""
+    language tag or prefixed datatype otherwise; a line break shown as ``\\n`` so a message stays on one line), a blank
+    node as ``_:label``."""
     if isinstance(node, ox.Literal):
+        lex = node.value.translate(_LINE_BREAKS)
         if node.language:
-            return f'"{node.value}"@{node.language}'
+            return f'"{lex}"@{node.language}'
         if node.datatype == T.XSD.string:
-            return f'"{node.value}"'
+            return f'"{lex}"'
         if isinstance(node.datatype, ox.NamedNode) and node.datatype.value.startswith(T.INVALID_LANG_PREFIX):  # lenient mode: a malformed tag
-            return f'"{node.value}"@{unquote(node.datatype.value[len(T.INVALID_LANG_PREFIX):], errors="surrogatepass")}'  # str-ok: text
+            return f'"{lex}"@{unquote(node.datatype.value[len(T.INVALID_LANG_PREFIX):], errors="surrogatepass")}'  # str-ok: text
         if node.datatype in (T.XSD.integer, T.XSD.decimal, T.XSD.double, T.XSD.boolean):
             return node.value
-        return f'"{node.value}"^^{_n3(graph, node.datatype)}'
+        return f'"{lex}"^^{_n3(graph, node.datatype)}'
     if isinstance(node, ox.BlankNode):
         return f"_:{node.value}"
     return stringify_node(graph, node)
+
+
+class Words:
+    """Terms of one validation worded for a sentence in a result message: a data term with the prefixes of the data graph,
+    then of the shapes graph, a shapes term the other way round, and never a blank-node label (a list reads ``( a b )``,
+    another blank node of the data ``a blank node``, one of the shapes ``[ p o ]``)."""
+
+    def __init__(self, data: Any, shapes: Any, *, fallback: bool = True) -> None:
+        """``fallback=False``: a term of one graph uses only that graph's prefixes (the report graph's own messages)."""
+        self.data_graph = data if isinstance(data, _View) else _View(data, shapes if fallback else None)
+        self.shapes_graph = shapes if isinstance(shapes, _View) else _View(shapes, data if fallback else None)
+
+    def data(self, node: Any) -> str:
+        """A data term (a value, a focus node, a member of a list)."""
+        if isinstance(node, ox.BlankNode):
+            return stringify_node(self.data_graph, node) if (node, RDF.first, None) in self.data_graph.primary else "a blank node"
+        return plain_term(self.data_graph, node)
+
+    def subject(self, node: Any) -> str:
+        """``Value "x"`` / ``Value ex:a``; ``A blank node value`` for a blank node that is not a list."""
+        text = self.data(node)
+        return "A blank node value" if text == "a blank node" else f"Value {text}"
+
+    def expectation(self, component: str, term: Any) -> str:
+        """What one parameter value of sh:class, sh:datatype or sh:nodeKind asks of a value, as the tail of ``Value x should ...``;
+        a list is a union (``one of``)."""
+        shapes = self.shapes_graph
+        is_list = isinstance(term, ox.BlankNode) and (term, RDF.first, None) in shapes.primary
+        members = _list_items(shapes, term) if is_list else [term]
+        if component == "NodeKindConstraintComponent":
+            def kind(k: Any) -> str:
+                phrase = _NODE_KINDS.get(T.iri_text(k).rsplit("#", 1)[-1]) if isinstance(k, ox.NamedNode) else None
+                return phrase or self.shape(k)
+
+            return "be " + " or ".join(dict.fromkeys(kind(k) for k in members))
+        text = ", ".join(self.shape(m) for m in members)
+        if component == "ClassConstraintComponent":
+            return f"be an instance of {'one of ' if is_list else ''}{text}"  # str-ok: text
+        return f"have {'one of the datatypes' if is_list else 'the datatype'} {text}"  # str-ok: text
+
+    def shape(self, node: Any) -> str:
+        """A shapes-graph term (a shape, a class, a parameter value)."""
+        return stringify_node(self.shapes_graph, node) if isinstance(node, ox.BlankNode) else plain_term(self.shapes_graph, node)
+
+    def path(self, node: Any) -> str:
+        """A property path as SPARQL writes it (``ex:p``, ``^ex:p``, ``ex:p/ex:q``, ``ex:p|ex:q``, ``ex:p*``)."""
+        from starlayer.shacl.engine.paths import parse_path
+
+        try:
+            return self._path(parse_path(self.shapes_graph.primary, node))
+        except Exception:  # noqa: BLE001  (a rendering is never worth failing for)
+            return self.shape(node)
+
+    def _path(self, p: Path, outer: str = "") -> str:
+        if p.kind == "pred":
+            return plain_term(self.shapes_graph, p.iri)
+        if p.kind in ("seq", "alt"):
+            sep = "/" if p.kind == "seq" else "|"
+            body = sep.join(self._path(a, p.kind) for a in p.args)
+            return f"({body})" if outer == "unary" or (outer == "seq" and p.kind == "alt") or outer == p.kind else body
+        mark = {"inverse": "^", "zero_or_more": "*", "one_or_more": "+", "zero_or_one": "?"}[p.kind]
+        inner = self._path(p.args[0], "unary")
+        return f"^{inner}" if p.kind == "inverse" else f"{inner}{mark}"  # str-ok: text
+
+    def on(self, path: Any) -> str:
+        """`` for ex:p`` for a path term, ``""`` for none."""
+        return f" for {self.path(path)}" if path is not None else ""  # str-ok: text
 
 
 def _count(n: Any, noun: str) -> str:
@@ -195,12 +288,16 @@ def generic_message(r: Result, shapes: Any, data: Any) -> str | None:
     fields (component, path, value) and the shape's parameter value, so it names the path, the offending value and the
     expected value or limit; ``None`` where the component's own message is kept. Conventions: ``shacl/CLAUDE.md``."""
     name = _component_name(r.component)
-    sn = lambda node: plain_term(shapes, node)  # noqa: E731
-    dn = lambda node: plain_term(data, node)  # noqa: E731
+    words = Words(data, shapes, fallback=isinstance(data, _View))
+    shapes, data = words.shapes_graph, words.data_graph
+    sn, dn = words.shape, words.data
     path = r.path.node if r.path is not None and r.path.node is not None else None
-    on_path = f" for {sn(path)}" if path is not None else ""
+    on_path = words.on(path)
     # a blank node's label means nothing to a reader (and differs between runs), so it is not printed
-    subject = ("A blank node value" if isinstance(r.value, ox.BlankNode) else f"Value {dn(r.value)}") if r.has_value else "Value"
+    if not r.has_value:
+        subject = "Value"
+    else:
+        subject = "A blank node value" if dn(r.value) == "a blank node" else f"Value {dn(r.value)}"
 
     def one(predicate: Any) -> Any:
         vals = _params(shapes, r, predicate)
@@ -210,16 +307,10 @@ def generic_message(r: Result, shapes: Any, data: Any) -> str | None:
         return f"Needs at least {_count(n, 'value')}{on_path}"  # str-ok: text
     if name == "MaxCountConstraintComponent" and isinstance(n := one(SH.maxCount), ox.Literal):
         return f"Allows at most {_count(n, 'value')}{on_path}"  # str-ok: text
-    if name == "ClassConstraintComponent":
-        vals = _params(shapes, r, SH["class"])
-        if len(vals) == 1:
-            return f"{subject} should be an instance of {sn(vals[0])}"  # str-ok: text
-        return f"{subject} should be an instance of all of {', '.join(sn(c) for c in vals)}" if vals else None  # str-ok: text
-    if name == "DatatypeConstraintComponent" and (v := one(SH.datatype)) is not None:
-        return f"{subject} should have the datatype {sn(v)}"  # str-ok: text
-    if name == "NodeKindConstraintComponent" and (v := one(SH.nodeKind)) is not None:
-        kind = _NODE_KINDS.get(T.iri_text(v).rsplit("#", 1)[-1]) if isinstance(v, ox.NamedNode) else None
-        return f"{subject} should be {kind or sn(v)}"  # str-ok: text
+    if name in ("ClassConstraintComponent", "DatatypeConstraintComponent", "NodeKindConstraintComponent"):
+        # several values are a conjunction and the result does not say which one failed: the component words that result
+        vals = _params(shapes, r, {"ClassConstraintComponent": SH["class"], "DatatypeConstraintComponent": SH.datatype}.get(name, SH.nodeKind))
+        return f"{subject} should {words.expectation(name, vals[0])}" if len(vals) == 1 else None  # str-ok: text
     if name in ("MinLengthConstraintComponent", "MaxLengthConstraintComponent"):
         low = name.startswith("Min")
         if (v := one(SH.minLength if low else SH.maxLength)) is not None:
@@ -227,32 +318,62 @@ def generic_message(r: Result, shapes: Any, data: Any) -> str | None:
     if name in _RANGE_WORDS and (v := one(SH[_RANGE_WORDS[name][0]])) is not None:
         return f"{subject} should be {_RANGE_WORDS[name][1]} {sn(v)}"  # str-ok: text
     if name == "PatternConstraintComponent" and isinstance(v := one(SH.pattern), ox.Literal):
-        return f"{subject} should match the pattern '{v.value}'"  # str-ok: text
+        flags = one(SH.flags)
+        with_flags = f" (flags {flags.value})" if isinstance(flags, ox.Literal) and flags.value else ""
+        return f"{subject} should match the pattern '{v.value}'{with_flags}"  # str-ok: text
     if name == "LanguageInConstraintComponent" and (heads := _params(shapes, r, SH.languageIn)):
         return f"{subject} should have a language tag in {', '.join(sn(i) for i in _list_items(shapes, heads[0]))}"  # str-ok: text
-    if name == "UniqueLangConstraintComponent":
-        return f"Values{on_path} should not share a language tag"  # str-ok: text
+    if name == "SingleLineConstraintComponent":
+        return f"{subject} should not contain a line break"  # str-ok: text
     if name in _PAIR_WORDS:
-        pred, words = _PAIR_WORDS[name]
+        pred, phrase = _PAIR_WORDS[name]
         if (v := one(pred)) is not None and r.has_value:
-            return f"{subject} {words.format(q=sn(v))}"  # str-ok: text
+            return f"{subject} {phrase.format(q=words.path(v))}"  # str-ok: text
+    if name == "SubsetOfConstraintComponent" and (v := one(SH.subsetOf)) is not None and r.has_value:
+        return f"{subject}{on_path} is not reachable by {words.path(v)}"  # str-ok: text
     if name == "NotConstraintComponent" and (v := one(SH["not"])) is not None and r.has_value:
         return f"{subject} should not conform to the shape {sn(v)}"  # str-ok: text
     if name == "NodeConstraintComponent" and (v := one(SH.node)) is not None and r.has_value:
         return f"{subject} should conform to the shape {sn(v)}"  # str-ok: text
     if name in _SHAPE_LISTS and r.has_value:
-        pred, words = _SHAPE_LISTS[name]
+        pred, phrase = _SHAPE_LISTS[name]
         heads = _params(shapes, r, SH[pred])
         if not heads:
             return None
         listed = lambda head: ", ".join(sn(i) for i in _list_items(shapes, head))  # noqa: E731
         body = listed(heads[0]) if len(heads) < 2 else " and ".join(f"({listed(h)})" for h in heads)  # str-ok: text
-        return f"{subject} should conform to {words} the shapes {body}"  # str-ok: text
+        return f"{subject} should conform to {phrase} the shapes {body}"  # str-ok: text
     if name == "InConstraintComponent" and (heads := _params(shapes, r, SH["in"])) and r.has_value:
-        return f"{subject} should be one of {', '.join(dn(i) for i in _list_items(shapes, heads[0]))}"  # str-ok: text
-    if name == "ClosedConstraintComponent" and r.has_value and path is not None:
-        return f"The property {sn(path)} is not allowed here, because the shape is closed"
+        return f"{subject} should be one of {', '.join(sn(i) for i in _list_items(shapes, heads[0]))}"  # str-ok: text
+    if name == "RootClassConstraintComponent" and (vals := _params(shapes, r, SH.rootClass)):
+        roots = [i for c in vals for i in (_list_items(shapes, c) if isinstance(c, ox.BlankNode) else [c])]
+        if len(roots) == 1:
+            return f"{subject} should be {sn(roots[0])} or a subclass of it"  # str-ok: text
+        return f"{subject} should be one of {', '.join(sn(c) for c in roots)} or a subclass of one of them"  # str-ok: text
+    if name == "ExpressionConstraintComponent" and r.source_constraint is not None:
+        return f"{subject} should satisfy the expression {_short(sn(r.source_constraint))}"  # str-ok: text
+    if name == "NodeByExpressionConstraintComponent" and r.source_constraint is not None:
+        return f"{subject} should conform to the shape {sn(r.source_constraint)}"  # str-ok: text
+    if not r.messages and r.source_constraint is not None and name == "SPARQLConstraintComponent":
+        return f"{subject if r.has_value and path is not None else dn(r.focus)}{on_path} does not satisfy the SPARQL constraint"  # str-ok: text
+    if not r.messages and r.component != SH.SPARQLConstraintComponent and not r.component.value.startswith("http://www.w3.org/ns/shacl#"):
+        return _custom_component_message(r, shapes, words, subject)
     return None
+
+
+def _short(text: str, limit: int = 80) -> str:
+    """``text`` unless it is long (an inline expression), then a pointer to the result's ``sh:sourceConstraint``."""
+    return text if len(text) <= limit else "(see the source constraint)"
+
+
+def _custom_component_message(r: Result, shapes: Any, words: Words, subject: str) -> str:
+    """A SPARQL-based component's result with no ``sh:message`` anywhere: the component and the parameter values the shape gave it."""
+    given = []
+    for param in shapes.objects(r.component, SH.parameter):
+        for p in shapes.objects(param, SH.path):
+            given.extend(f"{words.shape(p)} {words.shape(v)}" for v in shapes.objects(r.shape, p))  # str-ok: text
+    shown = f" ({', '.join(sorted(given))})" if given else ""
+    return f"{subject} does not satisfy {words.shape(r.component)}{shown}"  # str-ok: text
 
 
 def result_messages(r: Result, shapes: Any, data: Any) -> list:
@@ -287,10 +408,10 @@ def _message_text(m: Any) -> str:
 
 
 def _result_block(r: Result, shapes: Any, data: Any) -> str:
-    name = _component_name(r.component)
+    """One result block; ``shapes`` and ``data`` are the ``_View`` of each graph (a nested ``sh:detail`` block gets the same)."""
     kind = "Constraint Violation" if r.severity == SH.Violation else "Validation Result"
     text = (
-        f"{kind} in {name} ({T.text(r.component)}):\n\tSeverity: {stringify_node(shapes, r.severity)}"
+        f"{kind} in {stringify_node(shapes, r.component)}:\n\tSeverity: {stringify_node(shapes, r.severity)}"
         f"\n\tSource Shape: {stringify_node(shapes, r.shape)}\n\tFocus Node: {stringify_node(data, r.focus)}\n"
     )
     if r.has_value:
@@ -321,19 +442,20 @@ def _prefixed(term: Any, *graphs: Any) -> str:
 
 
 def provenance_text(report: Any, data_graph_iri: Any = None, *graphs: Any) -> str:
-    """The ``Provenance:`` appendix: used data/shapes graph and the ``sh:conformsTo`` / ``dcterms:conformsTo`` triples on
+    """The ``Provenance:`` appendix: used data/shapes graph (from the activity that generated the report) and the ``sh:conformsToShapesGraph`` / ``dcterms:conformsTo`` triples on
     the data graph's identity. Empty when there is nothing to say."""
     node = next(iter(report.subjects(RDF.type, SH.ValidationReport)), None)
     if node is None:
         return ""
     lines: list[str] = []
+    activities = sorted(report.subjects(PROV.generated, node), key=T.n3)
     for label, predicate in (("Used Data Graph", SH.usedDataGraph), ("Used Shapes Graph", SH.usedShapesGraph)):
-        values = list(report.objects(node, predicate))
+        values = [o for a in activities for o in report.objects(a, predicate)]
         if values:
             lines.append(f"\t{label}: {', '.join(_prefixed(v, *graphs, report) for v in values)}")
     if data_graph_iri is not None:
         subject = data_graph_iri if isinstance(data_graph_iri, (ox.NamedNode, ox.Literal)) else ox.NamedNode(f"{data_graph_iri}")  # str-ok: an IRI given as a str
-        for predicate in (SH.conformsTo, DCTERMS.conformsTo):
+        for predicate in (SH.conformsToShapesGraph, DCTERMS.conformsTo):
             lines.extend(
                 f"\t{_prefixed(subject, *graphs, report)} {_prefixed(predicate, *graphs, report)} {_prefixed(o, *graphs, report)} ."
                 for o in report.objects(subject, predicate)
@@ -355,7 +477,9 @@ def report_text(
     text = f"Validation Report\nConforms: {conforms}\n"
     if results:
         text += f"Results ({len(results)}):\n"
-    text += "".join(sorted(_result_block(r, shapes, data) for r in results))
+    # a term is abbreviated with the prefixes of the graph it belongs to, then of the other graph (text only: the report graph is built elsewhere)
+    shapes_view, data_view = _View(shapes, data), _View(data, shapes)
+    text += "".join(sorted(_result_block(r, shapes_view, data_view) for r in results))
     if report is not None:
         text += provenance_text(report, data_graph_iri, data, shapes)
     return T.unmask(text)

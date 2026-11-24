@@ -6,7 +6,7 @@ import re
 from collections.abc import Iterator
 from typing import Any
 
-from starlayer.shacl.engine.components.registry import Violation, component
+from starlayer.shacl.engine.components.registry import Violation, component, words
 from starlayer.shacl.engine.plan import SH, Path, ShapeError
 from starlayer.shacl.engine.terms import (
     RDF,
@@ -68,14 +68,28 @@ def _shape_refs(terms: tuple, what: str) -> tuple:
     return terms
 
 
-def _lists(ctx: Any, terms: tuple, what: str) -> Iterator[list[Any]]:
+def _lists(shapes: Any, terms: tuple, what: str) -> Iterator[list[Any]]:
     for t in terms:
-        members = shacl_list(ctx.shapes, t)
+        members = shacl_list(shapes, t)
         _shape_refs(tuple(members), what)
         yield members
 
 
-@component(SH.NotConstraintComponent, SH["not"])
+def _refs_check(pred: Any):
+    def check(shapes, shape, params):
+        return _shape_refs(params[pred], f"sh:{pred.value.rsplit('#', 1)[-1]}")
+
+    return check
+
+
+def _lists_check(pred: Any, what: str):
+    def check(shapes, shape, params):
+        return [m for members in _lists(shapes, params[pred], what) for m in members]
+
+    return check
+
+
+@component(SH.NotConstraintComponent, SH["not"], check=_refs_check(SH["not"]))
 def not_(ctx, shape, params, focus, values):
     """sh:not: each value node must not conform to the referenced shape."""
     for s in _shape_refs(params[SH["not"]], "sh:not"):
@@ -84,34 +98,34 @@ def not_(ctx, shape, params, focus, values):
                 yield Violation(value=v)
 
 
-@component(SH.AndConstraintComponent, SH["and"])
+@component(SH.AndConstraintComponent, SH["and"], check=_lists_check(SH["and"], "sh:and"))
 def and_(ctx, shape, params, focus, values):
     """sh:and: each value node must conform to every shape in the list."""
-    for members in _lists(ctx, params[SH["and"]], "sh:and"):
+    for members in _lists(ctx.shapes, params[SH["and"]], "sh:and"):
         for v in values:
             if not all(ctx.conforms(m, v) for m in members):
                 yield Violation(value=v)
 
 
-@component(SH.OrConstraintComponent, SH["or"])
+@component(SH.OrConstraintComponent, SH["or"], check=_lists_check(SH["or"], "sh:or"))
 def or_(ctx, shape, params, focus, values):
     """sh:or: each value node must conform to at least one shape in the list."""
-    for members in _lists(ctx, params[SH["or"]], "sh:or"):
+    for members in _lists(ctx.shapes, params[SH["or"]], "sh:or"):
         for v in values:
             if not any(ctx.conforms(m, v) for m in members):
                 yield Violation(value=v)
 
 
-@component(SH.XoneConstraintComponent, SH.xone)
+@component(SH.XoneConstraintComponent, SH.xone, check=_lists_check(SH.xone, "sh:xone"))
 def xone(ctx, shape, params, focus, values):
     """sh:xone: each value node must conform to exactly one shape in the list."""
-    for members in _lists(ctx, params[SH.xone], "sh:xone"):
+    for members in _lists(ctx.shapes, params[SH.xone], "sh:xone"):
         for v in values:
             if sum(1 for m in members if ctx.conforms(m, v)) != 1:
                 yield Violation(value=v)
 
 
-@component(SH.NodeConstraintComponent, SH.node)
+@component(SH.NodeConstraintComponent, SH.node, check=_refs_check(SH.node))
 def node(ctx, shape, params, focus, values):
     """sh:node: each value node must conform to the referenced node shape; that shape's own results are reported as sh:detail."""
     for s in _shape_refs(params[SH.node], "sh:node"):
@@ -146,7 +160,33 @@ def _qualified(ctx, shape, params, values) -> Iterator[tuple[int, Any]]:
         yield n, q
 
 
-@component(SH.QualifiedMinCountConstraintComponent, SH.qualifiedValueShape, SH.qualifiedMinCount, SH.qualifiedValueShapesDisjoint)
+def _qualified_message(ctx, shape, params, lead: str, limit: int, qvs: Any, found: int) -> str:
+    """``Needs at least 2 values for ex:p conforming to ex:DuckShape, found 1``."""
+    wd = words(ctx)
+    disjoint = any(_only_true(d, "sh:qualifiedValueShapesDisjoint") for d in params.get(SH.qualifiedValueShapesDisjoint, ()))
+    also = " and to no sibling qualified shape" if disjoint else ""
+    path = shape.path.node if shape.path is not None else None
+    return f"{lead} {limit} value{'' if limit == 1 else 's'}{wd.on(path)} conforming to {wd.shape(qvs)}{also}, found {found}"  # str-ok: text
+
+
+def _qualified_check(count_pred: Any, what: str):
+    def check(shapes, shape, params):
+        for m in params.get(count_pred, ()):
+            _count(m, what)
+        for d in params.get(SH.qualifiedValueShapesDisjoint, ()):
+            _boolean(d, "sh:qualifiedValueShapesDisjoint")
+        return _shape_refs(params.get(SH.qualifiedValueShape, ()), "sh:qualifiedValueShape")
+
+    return check
+
+
+@component(
+    SH.QualifiedMinCountConstraintComponent,
+    SH.qualifiedValueShape,
+    SH.qualifiedMinCount,
+    SH.qualifiedValueShapesDisjoint,
+    check=_qualified_check(SH.qualifiedMinCount, "sh:qualifiedMinCount"),
+)
 def qualified_min(ctx, shape, params, focus, values):
     """sh:qualifiedMinCount: at least that many value nodes conform to sh:qualifiedValueShape (and, if sh:qualifiedValueShapesDisjoint, to no sibling's).
 
@@ -154,12 +194,18 @@ def qualified_min(ctx, shape, params, focus, values):
     """
     for m in params.get(SH.qualifiedMinCount, ()):
         minimum = _count(m, "sh:qualifiedMinCount")
-        for n, _ in _qualified(ctx, shape, params, values):
+        for n, q in _qualified(ctx, shape, params, values):
             if n < minimum:
-                yield Violation()
+                yield Violation(message=_qualified_message(ctx, shape, params, "Needs at least", minimum, q, n))
 
 
-@component(SH.QualifiedMaxCountConstraintComponent, SH.qualifiedValueShape, SH.qualifiedMaxCount, SH.qualifiedValueShapesDisjoint)
+@component(
+    SH.QualifiedMaxCountConstraintComponent,
+    SH.qualifiedValueShape,
+    SH.qualifiedMaxCount,
+    SH.qualifiedValueShapesDisjoint,
+    check=_qualified_check(SH.qualifiedMaxCount, "sh:qualifiedMaxCount"),
+)
 def qualified_max(ctx, shape, params, focus, values):
     """sh:qualifiedMaxCount: at most that many value nodes conform to sh:qualifiedValueShape (and, if sh:qualifiedValueShapesDisjoint, to no sibling's).
 
@@ -167,9 +213,9 @@ def qualified_max(ctx, shape, params, focus, values):
     """
     for m in params.get(SH.qualifiedMaxCount, ()):
         maximum = _count(m, "sh:qualifiedMaxCount")
-        for n, _ in _qualified(ctx, shape, params, values):
+        for n, q in _qualified(ctx, shape, params, values):
             if n > maximum:
-                yield Violation()
+                yield Violation(message=_qualified_message(ctx, shape, params, "Allows at most", maximum, q, n))
 
 
 def _shacl_types(shapes: Any, node_: Any) -> set:
@@ -203,31 +249,41 @@ def _collect_properties(shapes: Any, node_: Any, visited: set) -> set:
     return props
 
 
-@component(SH.ClosedConstraintComponent, SH.closed, SH.ignoredProperties)
-def closed(ctx, shape, params, focus, values):
-    """sh:closed: when true, a value node may only have the properties its shape declares or sh:ignoredProperties lists.
-
-    With the value sh:ByTypes, the properties declared by the value node's types are allowed instead.
-    """
+def _closed_setup(shapes: Any, shape: Any, params: dict) -> tuple[bool, set] | None:
+    """``(by_types, ignored properties)`` of a closed shape, ``None`` when the shape is not closed; ShapeError for a bad value."""
     closed_vals = params.get(SH.closed, ())
     if not closed_vals:
-        return  # sh:closed is the only required parameter: sh:ignoredProperties alone is not an instance of the component
+        return None  # sh:closed is the only required parameter: sh:ignoredProperties alone is not an instance of the component
     if len(closed_vals) != 1:
         raise ShapeError(f"{text(shape.node)}: more than one sh:closed")
     mode = closed_vals[0]
     by_types = mode == SH.ByTypes
     if not by_types and not _boolean(mode, "sh:closed"):
-        return
+        return None
     ignored: set = set()
-    for members in _lists(ctx, params.get(SH.ignoredProperties, ()), "sh:ignoredProperties"):
+    for members in _lists(shapes, params.get(SH.ignoredProperties, ()), "sh:ignoredProperties"):
         if not all(isinstance(m, NamedNode) for m in members):
             raise ShapeError("sh:ignoredProperties members must be IRIs")
         ignored.update(members)
+    return by_types, ignored
+
+
+@component(SH.ClosedConstraintComponent, SH.closed, SH.ignoredProperties, check=lambda shapes, shape, params: _closed_setup(shapes, shape, params) and None)
+def closed(ctx, shape, params, focus, values):
+    """sh:closed: when true, a value node may only have the properties its shape declares or sh:ignoredProperties lists.
+
+    With the value sh:ByTypes, the properties declared by the value node's types are allowed instead.
+    """
+    setup = _closed_setup(ctx.shapes, shape, params)
+    if setup is None:
+        return
+    by_types, ignored = setup
     declared: set = set()
     for ps in shape.property_shapes:
         for p in ctx.shapes.objects(ps, SH.path):
             if isinstance(p, NamedNode):
                 declared.add(p)
+    wd = words(ctx)
     for v in values:
         if isinstance(v, Literal | Triple):
             continue
@@ -239,47 +295,62 @@ def closed(ctx, shape, params, focus, values):
             allowed = declared | ignored
         for _, p, o in ctx.data.triples((v, None, None)):
             if p not in allowed:
-                yield Violation(path=Path(kind="pred", iri=p, node=p), value=o)
+                why = "which none of its types declare" if by_types else "which the closed shape does not allow"
+                holder = wd.data(v)
+                holder = "A blank node" if holder == "a blank node" else holder
+                yield Violation(path=Path(kind="pred", iri=p, node=p), value=o, message=f"{holder} has the property {wd.shape(p)}, {why}")  # str-ok: text
 
 
-@component(SH.ReifierShapeConstraintComponent, SH.reifierShape, SH.reificationRequired)
+def _reifier_params(shape: Any, params: dict) -> tuple[bool, tuple]:
+    """``(reification required, reifier shapes)``; ShapeError unless the shape is a property shape with an IRI path."""
+    if shape.path is None or shape.path.kind != "pred":
+        raise ShapeError(f"{text(shape.node)}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
+    required = any(_only_true(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
+    return required, _shape_refs(params.get(SH.reifierShape, ()), "sh:reifierShape")
+
+
+@component(SH.ReifierShapeConstraintComponent, SH.reifierShape, SH.reificationRequired, check=lambda shapes, shape, params: _reifier_params(shape, params)[1])
 def reifier_shape(ctx, shape, params, focus, values):
     """sh:reifierShape / sh:reificationRequired: the reifiers of each (focus, path, value) triple conform to every reifier shape.
 
     Needs a property shape with an IRI path; anything else raises ShapeError.
     """
-    if shape.path is None or shape.path.kind != "pred":
-        raise ShapeError(f"{text(shape.node)}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
-    required = any(_only_true(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
-    rshapes = _shape_refs(params.get(SH.reifierShape, ()), "sh:reifierShape")
+    required, rshapes = _reifier_params(shape, params)
+    wd = words(ctx)
     for v in values:
+        claim = f"The claim ({wd.data(focus)} {wd.shape(shape.path.iri)} {wd.data(v)})"  # str-ok: text
         reifiers = (
             list(ctx.data.subjects(_RDF_REIFIES, Triple(focus, shape.path.iri, v)))
             if not isinstance(focus, Literal | Triple)
             else []
         )
         if required and not reifiers:
-            yield Violation(value=v)
+            yield Violation(value=v, message=f"{claim} has no reifier")  # str-ok: text
         for s in rshapes:
             for r in reifiers:
                 if not ctx.conforms(s, r):
-                    yield Violation(value=v)
+                    yield Violation(value=v, message=f"{claim} has a reifier that does not conform to {wd.shape(s)}")  # str-ok: text
 
 
-@component(SH.RootClassConstraintComponent, SH.rootClass)
-def root_class(ctx, shape, params, focus, values):
-    """sh:rootClass: each value node must be, or be an rdfs:subClassOf descendant of, one of the root classes."""
+def _roots(shapes: Any, params: dict) -> set:
     roots: set = set()
     for r in params[SH.rootClass]:
         if isinstance(r, NamedNode):
             roots.add(r)
         elif isinstance(r, BlankNode):  # Core 6.10.9.4: a blank node is a SHACL list of IRIs
-            members = shacl_list(ctx.shapes, r)
+            members = shacl_list(shapes, r)
             if not all(isinstance(m, NamedNode) for m in members):
                 raise ShapeError(f"sh:rootClass list members must be IRIs, got {text(r)}")
             roots.update(members)
         else:
             raise ShapeError(f"sh:rootClass must be an IRI or a list of IRIs, got {r!r}")
+    return roots
+
+
+@component(SH.RootClassConstraintComponent, SH.rootClass, check=lambda shapes, shape, params: _roots(shapes, params) and None)
+def root_class(ctx, shape, params, focus, values):
+    """sh:rootClass: each value node must be, or be an rdfs:subClassOf descendant of, one of the root classes."""
+    roots = _roots(ctx.shapes, params)
     for v in values:
         seen, stack = set(), [v]
         found = False
@@ -289,6 +360,6 @@ def root_class(ctx, shape, params, focus, values):
                 found = True
             elif c not in seen:
                 seen.add(c)
-                stack.extend(ctx.data.objects(c, RDFS.subClassOf))
+                stack.extend(ctx.superclasses_of(c))
         if not found:
             yield Violation(value=v)

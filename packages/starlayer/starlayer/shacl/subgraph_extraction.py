@@ -1,7 +1,7 @@
 """``extract_subgraph()`` - given a focus node that conforms to a shape,
 extract exactly the subgraph of *real, stored* triples that shape's
 constraints covered for that node. A plain, standalone function (not a
-``StarShaclSchema`` method) - conceptually "``StarLayerGraph.cbd()``, but
+``StarShaclProcessor`` method) - conceptually "``StarLayerGraph.cbd()``, but
 the reachability rule is a SHACL shape's own constraints instead of
 blank-node adjacency."
 

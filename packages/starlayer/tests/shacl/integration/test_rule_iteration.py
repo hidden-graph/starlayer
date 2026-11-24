@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.engine.terms import to_engine
 from tests.support.terms import Namespace
 
@@ -27,7 +27,7 @@ def _build_reach_shapes() -> StarLayerGraph:
 def test_rule_iteration_reaches_fixed_point() -> None:
     shapes = _build_reach_shapes()
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
 
     # The draft's rule iteration runs the rules to a fixpoint: a -> d needs a
     # second round (a-b-c, b-c-d first give a-c and b-d, then a-d).
@@ -53,7 +53,7 @@ def test_rule_iteration_converges_with_cyclic_triple_term_identity() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_witness_triple_term.ttl"), format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
     assert result.validation.conforms is True
@@ -81,7 +81,7 @@ def test_rule_iteration_converges_on_non_cyclic_multi_branch_diamond() -> None:
 
     shapes = _build_reach_shapes()
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     _ = validator.validate(
         data_graph=data, mode="rules", meta_shacl=False
     )

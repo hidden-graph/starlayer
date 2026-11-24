@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -32,8 +32,8 @@ SH = Namespace("http://www.w3.org/ns/shacl#")
 # _matches_any_datatype/_matches_node_kind) as part of the same fix.
 
 
-def _validator(shacl_graph) -> StarShaclSchema:
-    return StarShaclSchema(shacl_graph=shacl_graph)
+def _validator(shacl_graph) -> StarShaclProcessor:
+    return StarShaclProcessor(shacl_graph=shacl_graph)
 
 
 def _violation_components(result) -> list:

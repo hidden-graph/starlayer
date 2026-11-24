@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -32,7 +32,7 @@ def test_member_shape_conforms_when_all_members_match() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -48,7 +48,7 @@ def test_member_shape_violates_when_a_member_does_not_conform() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -68,7 +68,7 @@ def test_list_length_and_uniqueness_conform() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
@@ -87,7 +87,7 @@ def test_list_length_and_uniqueness_all_violate_independently() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -114,7 +114,7 @@ def test_non_list_value_violates_each_active_sub_constraint() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=_shapes())
+    validator = StarShaclProcessor(shacl_graph=_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
@@ -150,4 +150,4 @@ def test_unique_members_string_literal_false_is_rejected_not_silently_enabled() 
     )
 
     with pytest.raises(ValueError, match="xsd:boolean literal"):
-        StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)

@@ -9,8 +9,8 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.shacl import (
     RulesResult,
-    StarShaclSchema,
-    ValidationResult,
+    StarShaclProcessor,
+    ValidationReport,
     apply_rules,
     evaluate,
     extract_subgraph,
@@ -48,7 +48,7 @@ def g(ttl: str, ident: str | None = None) -> StarLayerGraph:
 class TestResultTypes:
     def test_native_validation_result_has_every_old_field(self):
         result = validate(g(BAD), g(SHAPES))
-        assert isinstance(result, ValidationResult)
+        assert isinstance(result, ValidationReport)
         assert result.conforms is False
         assert isinstance(result.report_graph, StarLayerGraph)
         assert isinstance(result.report_text, str) and "Conforms: False" in result.report_text
@@ -61,14 +61,14 @@ class TestResultTypes:
         assert result.conforms is True and "Conforms: True" in result.report_text
 
     def test_positional_construction(self):
-        result = ValidationResult(True, Graph(), "text", None, None)
+        result = ValidationReport(True, Graph(), "text", None, None)
         rules = RulesResult(Graph(), result)
         assert rules.validation is result and result.conforms is True
 
     def test_apply_rules_returns_a_rules_result(self):
         result = apply_rules(g(BAD + RULES), g(RULES))
         assert isinstance(result, RulesResult)
-        assert isinstance(result.validation, ValidationResult)
+        assert isinstance(result.validation, ValidationReport)
         assert (URIRef(EX + "a"), URIRef(EX + "flag"), URIRef(EX + "yes")) in result.inferred_graph
         assert len(result.inferred_graph) == 1  # only what the rules produced, not the base triples
 
@@ -100,7 +100,7 @@ class TestResultTypes:
         assert (URIRef(EX + "a"), URIRef(EX + "p"), None) in sub
 
     def test_schema_close_shape_and_extract_shapes_graph_run_natively(self):
-        schema = StarShaclSchema(
+        schema = StarShaclProcessor(
             g("ex:M a sh:ShapesGraph ; rdfs:member ex:S . " + SHAPES)
         )
         assert schema.extract_shapes_graph(URIRef(EX + "M")) is not None
@@ -122,8 +122,13 @@ class TestTranslation:
         debug = translate_validate_options(resolve_mode_options("debug"))
         assert debug["rules"] is None and debug["inplace"] is False
 
-    def test_advanced_false_means_no_rules(self):
-        assert translate_validate_options(resolve_mode_options("validation", overrides={"advanced": False}))["rules"] is False
+    def test_rules_option_passes_through(self):
+        for value in (None, True, False):
+            assert translate_validate_options(resolve_mode_options("validation", overrides={"rules": value}))["rules"] is value
+
+    def test_advanced_false_means_no_rules_and_warns(self):
+        with pytest.warns(DeprecationWarning, match="rules=False"):
+            assert translate_validate_options(resolve_mode_options("validation", overrides={"advanced": False}))["rules"] is False
 
     @pytest.mark.parametrize(
         ("allow_warnings", "allow_infos", "expected"),
@@ -182,8 +187,12 @@ class TestTranslation:
         )
         report = result.report_graph
         node = next(report.subjects(RDF.type, SH.ValidationReport))
-        assert (node, SH.usedDataGraph, URIRef(EX + "data")) in report
-        assert (node, SH.usedShapesGraph, URIRef(EX + "shapes")) in report
+        activity = next(report.subjects(RDF.type, SH.ValidationActivity))
+        assert (activity, URIRef("http://www.w3.org/ns/prov#generated"), node) in report
+        assert (activity, SH.usedDataGraph, URIRef(EX + "data")) in report
+        assert (activity, SH.usedShapesGraph, URIRef(EX + "shapes")) in report
+        assert not list(report.triples((node, SH.usedDataGraph, None)))
+        assert not list(report.triples((node, SH.usedShapesGraph, None)))
 
     def test_ont_graph_and_inference_are_visible_to_entailment_only(self):
         shapes = g("ex:S a sh:NodeShape ; sh:targetClass ex:Super ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .")

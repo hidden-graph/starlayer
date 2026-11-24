@@ -5,7 +5,7 @@ import warnings
 import pytest
 from pyoxigraph import NamedNode
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclSchema, validate
+from starlayer.shacl import ShapeError, StarShaclProcessor, validate
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.shapes_graphs import referenced_shapes
 
@@ -34,7 +34,7 @@ ex:Unrelated a sh:NodeShape ; sh:nodeKind sh:Literal .
 def _schema():
     g = StarLayerGraph()
     g.parse(data=SHAPES, format="turtle12")
-    return StarShaclSchema(shacl_graph=g)
+    return StarShaclProcessor(shacl_graph=g)
 
 
 def _names(graph):

@@ -81,7 +81,7 @@ def test_used_shapes_graph_kept_when_imports_resolved_with_loader():
 
 
 def test_apply_rules_meta_shacl_checks_sparql_text_like_validate():
-    from starlayer.shacl import ShapeError, apply_rules
+    from starlayer.shacl import MetaShaclError, apply_rules
 
     def shapes():
         return g(
@@ -92,9 +92,9 @@ def test_apply_rules_meta_shacl_checks_sparql_text_like_validate():
         )
 
     d = g("ex:a ex:p 1 .")
-    with pytest.raises(ShapeError):
+    with pytest.raises(MetaShaclError):
         validate(d, shapes(), meta_shacl=True)
-    with pytest.raises(ShapeError):
+    with pytest.raises(MetaShaclError):
         apply_rules(d, shapes(), meta_shacl=True)
 
 
@@ -134,7 +134,7 @@ def _focus_nodes(report):
 
 
 def test_extract_shapes_graph_copies_shape_named_in_node_expression():
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
     shapes = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S .
       ex:S a sh:NodeShape ; sh:targetClass ex:P ;
@@ -142,26 +142,26 @@ def test_extract_shapes_graph_copies_shape_named_in_node_expression():
         sh:property [ sh:path ex:age ; sh:minInclusive 18 ] .
       ex:Legacy a sh:NodeShape ; sh:property [ sh:path ex:legacy ; sh:hasValue true ] .""")
     data = g("ex:alice a ex:P ; ex:age 12 ; ex:legacy true . ex:dave a ex:P ; ex:age 12 ; ex:legacy false .")
-    ext = StarShaclSchema(shapes).extract_shapes_graph(ox.NamedNode("http://e/M"), include_referenced=True)
+    ext = StarShaclProcessor(shapes).extract_shapes_graph(ox.NamedNode("http://e/M"), include_referenced=True)
     assert _focus_nodes(validate(data, shapes)) == _focus_nodes(validate(data, ext)) == ["<http://e/dave>"]
 
 
 def test_extract_shapes_graph_copies_target_where_and_rule_condition_shapes():
-    from starlayer.shacl import StarShaclSchema, apply_rules, target_nodes
+    from starlayer.shacl import StarShaclProcessor, apply_rules, target_nodes
 
     m = ox.NamedNode("http://e/M")
     s = ox.NamedNode("http://e/S")
     data = g("ex:a ex:p 1 . ex:c ex:r 1 .")
     shapes = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S . ex:S a sh:NodeShape ; sh:targetWhere ex:W ; sh:nodeKind sh:Literal .
       ex:W a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .""")
-    ext = StarShaclSchema(shapes).extract_shapes_graph(m, include_referenced=True)
+    ext = StarShaclProcessor(shapes).extract_shapes_graph(m, include_referenced=True)
     assert set(target_nodes(data_graph=data, shacl_graph=ext, shape_node=s)) == set(
         target_nodes(data_graph=data, shacl_graph=shapes, shape_node=s)
     )
     shapes = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S . ex:S a sh:NodeShape ; sh:targetNode ex:a, ex:c ;
       sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:q ; sh:object 5 ; sh:condition ex:W ] .
       ex:W a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .""")
-    ext = StarShaclSchema(shapes).extract_shapes_graph(m, include_referenced=True)
+    ext = StarShaclProcessor(shapes).extract_shapes_graph(m, include_referenced=True)
     assert len(apply_rules(data, ext).inferred_graph) == len(apply_rules(data, shapes).inferred_graph) == 1
 
 
@@ -169,7 +169,7 @@ def test_extract_shapes_graph_copies_target_where_and_rule_condition_shapes():
 
 
 def test_module_keeps_deactivation_annotation_on_property_link():
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
     sg = g("""ex:M a sh:ShapesGraph ; rdfs:member ex:S .
       ex:S a sh:NodeShape ; sh:targetNode ex:n ;
@@ -178,7 +178,7 @@ def test_module_keeps_deactivation_annotation_on_property_link():
     m = ox.NamedNode("http://e/M")
     assert validate(d, sg).conforms is True
     assert validate(d, sg, shapes_graph_resource=m).conforms is True
-    ext = StarShaclSchema(sg).extract_shapes_graph(m)
+    ext = StarShaclProcessor(sg).extract_shapes_graph(m)
     assert validate(d, ext).conforms is True
 
 
@@ -196,7 +196,7 @@ def test_evaluate_ignores_property_shape_whose_link_is_deactivated():
 
 
 def test_close_shape_lets_parent_paths_through_a_shape_reused_as_node_and_or_member():
-    from starlayer.shacl import StarShaclSchema, extract_subgraph
+    from starlayer.shacl import StarShaclProcessor, extract_subgraph
 
     shapes = g("""ex:Leaf a sh:NodeShape .
       ex:Root a sh:NodeShape ; sh:targetNode ex:n0 ;
@@ -206,7 +206,7 @@ def test_close_shape_lets_parent_paths_through_a_shape_reused_as_node_and_or_mem
     root, n0 = ox.NamedNode("http://e/Root"), ox.NamedNode("http://e/n0")
     assert validate(data, shapes).conforms
     fragment = extract_subgraph(data, shapes, shape=root, focus_node=n0)
-    closed = StarShaclSchema(shapes).close_shape(root)
+    closed = StarShaclProcessor(shapes).close_shape(root)
     assert validate(fragment, closed).conforms
 
 
@@ -238,13 +238,13 @@ def test_used_configuration_records_the_inference_regime():
 
 
 def test_close_shape_returns_a_closed_copy_of_the_whole_shapes_graph():
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
     s = g("ex:A a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] . ex:Other a sh:NodeShape ; sh:nodeKind sh:IRI .")
-    closed = StarShaclSchema(s).close_shape(ox.NamedNode("http://e/A"))
+    closed = StarShaclProcessor(s).close_shape(ox.NamedNode("http://e/A"))
     assert list(closed.triples((ox.NamedNode("http://e/Other"), None, None)))  # the documented behaviour: a copy, not a reduction
     assert list(closed.triples((ox.NamedNode("http://e/A"), ox.NamedNode("http://www.w3.org/ns/shacl#closed"), None)))
-    assert "reduced" not in (StarShaclSchema.close_shape.__doc__ or "")
+    assert "reduced" not in (StarShaclProcessor.close_shape.__doc__ or "")
 
 
 def test_widget_only_a_matcher_mentions_still_gets_the_default_score():

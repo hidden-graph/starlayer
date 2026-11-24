@@ -7,7 +7,7 @@ import pytest
 import starlayer.shacl as shacl
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.paths import path_values
 from tests.support.terms import NamedNode
 
@@ -32,7 +32,7 @@ def _infer(shapes, data):
 
 def test_close_shape_works_on_a_shape_without_a_class():
     shapes = _graph("ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .")
-    closed = StarShaclSchema(shacl_graph=shapes).close_shape(EX("S"))
+    closed = StarShaclProcessor(shacl_graph=shapes).close_shape(EX("S"))
     assert (EX("S"), NamedNode("http://www.w3.org/ns/shacl#closed"), None) in closed
 
 

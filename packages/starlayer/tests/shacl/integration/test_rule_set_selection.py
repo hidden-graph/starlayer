@@ -1,6 +1,6 @@
 """sh:RuleSet / sh:hasRule / sh:includesRuleSet (SHACL 1.2 Inference Rules
 section 4; first in SPARQL Extensions section 8.2.1, moved when the rules got their own document):
-StarShaclSchema.apply_rules(..., rule_set=<IRI>) restricts execution to
+StarShaclProcessor.apply_rules(..., rule_set=<IRI>) restricts execution to
 a named, caller-selected subset of a shapes graph's rules. The spec's own
 default rule set ("the set of all rules in the graph") is exactly
 apply_rules()'s pre-existing no-`rule_set` behavior, so that case is a pure
@@ -11,7 +11,7 @@ rules, and shape-attached sh:rule (sh:TripleRule/sh:SPARQLRule).
 """
 
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import RDF, Namespace
 
 EX = Namespace("http://example.org/")
@@ -40,14 +40,14 @@ class TestGlobalRulesPath:
     def test_no_rule_set_runs_every_rule(self) -> None:
         shapes = StarLayerGraph()
         shapes.parse(data=_GLOBAL_RULE_SHAPES, format="turtle")
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=_data_with_knows(), meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=_data_with_knows(), meta_shacl=False)
         assert (EX.alice, EX.markedByA, None) in result.inferred_graph
         assert (EX.alice, EX.markedByB, None) in result.inferred_graph
 
     def test_rule_set_restricts_to_its_own_members(self) -> None:
         shapes = StarLayerGraph()
         shapes.parse(data=_GLOBAL_RULE_SHAPES, format="turtle")
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
             data_graph=_data_with_knows(), meta_shacl=False, rule_set=EX.RuleSetA
         )
         assert (EX.alice, EX.markedByA, None) in result.inferred_graph
@@ -56,7 +56,7 @@ class TestGlobalRulesPath:
     def test_different_rule_set_selects_different_rules(self) -> None:
         shapes = StarLayerGraph()
         shapes.parse(data=_GLOBAL_RULE_SHAPES, format="turtle")
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
             data_graph=_data_with_knows(), meta_shacl=False, rule_set=EX.RuleSetB
         )
         assert (EX.alice, EX.markedByA, None) not in result.inferred_graph
@@ -85,7 +85,7 @@ class TestGlobalRulesPath:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
             data_graph=_data_with_knows(), meta_shacl=False, rule_set=EX.RuleSetA
         )
         assert (EX.alice, EX.markedByA, None) in result.inferred_graph
@@ -104,7 +104,7 @@ class TestGlobalRulesPath:
             """,
             format="turtle",
         )
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
             data_graph=_data_with_knows(), meta_shacl=False, rule_set=EX.EmptyRuleSet
         )
         assert (EX.alice, EX.markedByA, None) not in result.inferred_graph
@@ -135,14 +135,14 @@ class TestShapeAttachedRulesPath:
     def test_no_rule_set_runs_every_shape_attached_rule(self) -> None:
         shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle")
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=self._data_person(), meta_shacl=False)
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=self._data_person(), meta_shacl=False)
         assert (EX.alice, EX.taggedByA, None) in result.inferred_graph
         assert (EX.alice, EX.taggedByB, None) in result.inferred_graph
 
     def test_rule_set_restricts_shape_attached_rules_too(self) -> None:
         shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle")
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
             data_graph=self._data_person(), meta_shacl=False, rule_set=EX.RuleSetA
         )
         assert (EX.alice, EX.taggedByA, None) in result.inferred_graph
@@ -152,7 +152,7 @@ class TestShapeAttachedRulesPath:
         # Rule-set selection and sh:sourceRule provenance must compose: one must not silently override the other.
         shapes = StarLayerGraph()
         shapes.parse(data=self._SHAPES, format="turtle")
-        result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
             data_graph=self._data_person(),
             meta_shacl=False,
             rule_set=EX.RuleSetA,

@@ -14,7 +14,7 @@ these build on.
 
 import pyoxigraph as ox
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -76,7 +76,7 @@ def test_source_rule_provenance_off_by_default_adds_nothing() -> None:
     shapes = _two_rule_shapes()
     data = _two_rule_data()
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.Alice, EX.isAdult, lit(True)) in result.inferred_graph
     assert (EX.Alice, EX.hasName, lit(True)) in result.inferred_graph
@@ -88,7 +88,7 @@ def test_source_rule_provenance_attributes_each_triple_to_its_own_rule() -> None
     shapes = _two_rule_shapes()
     data = _two_rule_data()
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
         data_graph=data,
         meta_shacl=False,
         include_source_rule_provenance=True,
@@ -129,7 +129,7 @@ def test_source_rule_provenance_covers_global_sparql_rules_too() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
         data_graph=data,
         meta_shacl=False,
         include_source_rule_provenance=True,
@@ -182,7 +182,7 @@ def test_source_rule_provenance_not_visible_to_executing_rules() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(
         data_graph=data,
         meta_shacl=False,
         include_source_rule_provenance=True,

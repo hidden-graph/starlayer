@@ -6,16 +6,23 @@ from __future__ import annotations
 import pytest
 from starlayer.graph import StarLayerGraph, isomorphic
 from starlayer.shacl import (
+    Candidates,
+    ReportDiff,
+    ReportResult,
+    ValueCheck,
+    candidate_values,
+    check_value,
+    diff_reports,
     evaluate_expression,
     infer_types,
     is_inverse,
     node_expression_functions,
     node_expression_operators,
-    parameter_value_shapes,
     path_values,
+    report_results,
     select_widgets,
     shapes_graph_members,
-    sparql_query_problems,
+    value_form,
 )
 from starlayer.shacl.engine.terms import to_engine
 from starlayer.sparql import check_query
@@ -69,11 +76,35 @@ def test_infer_types_and_paths_and_members_are_public():
     assert is_inverse(g, EX.p) is False
 
 
+def test_candidate_values_is_public_and_returns_candidates():
+    found = candidate_values(graph("ex:P sh:path ex:p ; sh:hasValue ex:a ."), EX.P, graph(""))
+    assert isinstance(found, Candidates) and found.values == (to_engine(EX.a),)
+
+
+def test_value_form_and_check_value_are_public():
+    shapes = graph("ex:P sh:path ex:p ; sh:class ex:Animal ; sh:minListLength 1 .")
+    assert value_form(shapes, EX.P) == "list"
+    found = check_value(graph("ex:P sh:path ex:p ; sh:nodeKind sh:IRI ."), EX.P, EX.a, EX.b, graph(""))
+    assert isinstance(found, ValueCheck) and found.conforms and found.results == ()
+
+
 def test_the_other_helpers_are_importable_and_callable():
-    assert callable(select_widgets) and callable(shapes_graph_members) and callable(parameter_value_shapes)
-    problems = list(sparql_query_problems(graph('ex:S sh:select "not sparql" .')))
-    assert [(node, predicate) for node, predicate, _message in problems] == [(EX.S, SH.select)]
+    assert callable(select_widgets) and callable(shapes_graph_members)
     assert isomorphic(graph("ex:a ex:p [ ex:q 1 ] ."), graph("ex:a ex:p [ ex:q 1 ] ."))
+
+
+def test_the_meta_check_is_the_one_call_for_what_is_wrong_with_a_shapes_graph():
+    """An editor shows each problem beside its node from ``MetaShaclError.report_graph``; the two helpers behind it are not public."""
+    import starlayer.shacl as shacl
+    from starlayer.shacl import MetaShaclError, meta_validate
+
+    assert not hasattr(shacl, "sparql_query_problems") and not hasattr(shacl, "parameter_value_shapes")
+    with pytest.raises(MetaShaclError) as raised:
+        meta_validate(graph('ex:S sh:select "not sparql" .'))
+    report = raised.value.report_graph
+    results = [(r, next(iter(report.objects(r, SH.focusNode)), None), next(iter(report.objects(r, SH.resultPath)), None))
+               for r in report.subjects(RDF.type, SH.ValidationResult)]
+    assert (to_engine(EX.S), to_engine(SH.select)) in [(focus, path) for _r, focus, path in results]
 
 
 def test_check_query_says_what_a_text_is_and_what_is_wrong_with_it():
@@ -146,3 +177,33 @@ def test_a_graph_checks_a_query_with_its_own_prefixes():
     text = "SELECT ?s WHERE { ?s ex:name ?n }"
     assert check_query(text).warnings[0].kind == "prefix"
     assert graph.check_query(text).problems == ()
+
+
+def test_profiling_and_meta_validation_are_importable_from_starlayer_shacl():
+    from starlayer.shacl import (
+        CONFORMANCE,
+        declared_conformance_profile,
+        derive_conforms_to,
+        meta_validate,
+        profiling,
+    )
+    from starlayer.shacl.meta_shapes import meta_validate as submodule_meta_validate
+    from starlayer.shacl.profiling import conformance
+
+    assert derive_conforms_to is profiling.derive_conforms_to
+    assert declared_conformance_profile is profiling.declared_conformance_profile
+    assert meta_validate is submodule_meta_validate
+    from starlayer.shacl import MetaScope, meta_scope
+
+    assert MetaScope.__dataclass_params__.frozen and callable(meta_scope)
+    assert {"full", "nodes", "reasons"} <= set(MetaScope.__dataclass_fields__)
+    assert CONFORMANCE is conformance.CONFORMANCE
+
+
+def test_report_analysis_is_public_and_reads_a_report_without_the_report_graph():
+    from starlayer.shacl import validate
+
+    report = validate(graph("ex:a ex:p 1 ."), shacl_graph=graph("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:maxCount 0 ] ."))
+    (result,) = report_results(report.report_graph)
+    assert isinstance(result, ReportResult) and report.for_field(EX.a, EX.p) == (result,) and report.counts() == {"Violation": 1, "total": 1}
+    assert diff_reports(report, report) == ReportDiff(added=(), fixed=(), unchanged=(result,))

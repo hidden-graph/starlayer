@@ -7,13 +7,12 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.shacl.engine import rules
-from starlayer.shacl.engine.entailment import entailed_view
 from starlayer.shacl.engine.overlay_oxigraph import (
     OxigraphOverlay,
     literal_survives_store,
     term_is_safe,
 )
-from starlayer.shacl.engine.rules import InferredView, apply_rules
+from starlayer.shacl.engine.rules import InferredView, apply_rules, new_overlay
 from starlayer.shacl.engine.terms import (
     RDF,
     XSD,
@@ -50,6 +49,15 @@ KEPT = [
     Literal("x", datatype=XSD.string),
     Literal("hi", language="en-US"),
 Literal("4", datatype=XSD.integer), Literal("true", datatype=XSD.boolean), Literal("plain"), Literal("hi", language="en")]
+
+
+def entailed_view(data: StarLayerGraph, regime) -> InferredView:
+    """What the engine's entailment used to return: the entailed triples in the selected overlay on top of the data. (``entailed_view``
+    now returns a shared copy of the store, so the overlay classes are exercised directly.)"""
+    view = new_overlay(engine_view(data))
+    for t in data.infer(entailment=regime, mode="delta").triples((None, None, None)):
+        view.add(t)
+    return view
 
 
 def ex(name: str) -> URIRef:

@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 from starlayer import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -33,7 +33,7 @@ def test_datatype_annotation_severity_overrides_shape_default() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))  # focus node itself is the target; no extra data needed
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     severities = {o for _, _, o in result.report_graph.triples((None, SH.resultSeverity, None))}
@@ -55,7 +55,7 @@ def test_datatype_annotation_deactivated_skips_that_constraint() -> None:
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -81,7 +81,7 @@ def test_property_reference_annotation_deactivated_skips_only_that_reference() -
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))  # no ex:requiredProp at all
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is True
 
@@ -105,7 +105,7 @@ def test_property_reference_without_annotation_still_conforms_normally() -> None
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.alice))
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     assert result.conforms is False
     assert SH.MinCountConstraintComponent in {
@@ -210,7 +210,7 @@ def _run(shapes: str, data: str = BASE_DATA, extra_data: str = "") -> Any:
     sg.parse(data=shapes, format="turtle12")
     dg = StarLayerGraph()
     dg.parse(data=data + "\n" + extra_data, format="turtle12")
-    return StarShaclSchema(shacl_graph=sg).validate(data_graph=dg, meta_shacl=False)
+    return StarShaclProcessor(shacl_graph=sg).validate(data_graph=dg, meta_shacl=False)
 
 
 def _text(term: Any) -> str:
@@ -378,7 +378,7 @@ FIXTURES = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite"
 def _fixture_result(name: str) -> Any:
     graph = StarLayerGraph()
     graph.parse(FIXTURES / f"{name}.ttl", format="turtle12")
-    return StarShaclSchema(shacl_graph=graph).validate(data_graph=graph, meta_shacl=False)
+    return StarShaclProcessor(shacl_graph=graph).validate(data_graph=graph, meta_shacl=False)
 
 
 def test_w3c_severity_003() -> None:

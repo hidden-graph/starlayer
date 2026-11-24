@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from starlayer.shacl.engine.naming import add_where
 from starlayer.shacl.engine.terms import RDF, SH, NamedNode, engine_view, text
 
 URIRef = NamedNode  # type alias kept for the annotations below
@@ -116,8 +117,44 @@ class Plan:
             from starlayer.shacl.engine.builder import build_shape
 
             extra = {p for spec in self.components() for p in spec.predicates}
-            self._cache[node] = build_shape(self.shapes_graph, node, extra)
+            try:
+                self._cache[node] = build_shape(self.shapes_graph, node, extra)
+            except ShapeError as error:
+                raise add_where(error, self.shapes_graph, node) from None
         return self._cache[node]
+
+    def compile(self) -> Plan:
+        """Read every shape the shapes graph declares, and every shape they refer to, and check each constraint's parameters, so
+        a malformed shapes graph raises ``ShapeError`` here rather than when a focus node first reaches the constraint.
+
+        Builds what ``run()`` builds (all declared shapes) plus the shapes reached through ``sh:property`` and through the
+        parameters of the components that name shapes (``ComponentSpec.check`` returns them). A shape deactivated by the literal
+        ``true``, and a constraint or ``sh:property`` link deactivated that way, are not checked or followed, as validation
+        never reaches them. What stays evaluation-time: node expressions, SPARQL text, target expressions, and parameter
+        errors of components that have no ``check`` (SPARQL-based components' validators). Returns ``self``."""
+        from starlayer.shacl.engine.executor import constraints_of
+
+        queue = list(self.all_shape_nodes())
+        seen: set = set()
+        while queue:
+            node = queue.pop()
+            if node in seen:
+                continue
+            seen.add(node)
+            shape = self.shape(node)
+            if shape.deactivated:
+                continue
+            for ps in shape.property_shapes:
+                link = shape.annotations.get((SH.property, ps))
+                if not (link and link["deactivated"]):
+                    queue.append(ps)
+            for spec, present, _sev, _msgs, _exprs in constraints_of(self, shape):
+                if spec.check is not None:
+                    try:
+                        queue.extend(spec.check(self.shapes_graph, shape, present) or ())
+                    except ShapeError as error:
+                        raise add_where(error, self.shapes_graph, node) from None
+        return self
 
     def all_shape_nodes(self) -> list[Term]:
         """The shape nodes the shapes graph declares, by shape type or by having a target, without duplicates."""

@@ -1,5 +1,5 @@
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
@@ -43,7 +43,7 @@ def test_metadata_only_predicates_do_not_interfere_with_validation() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_metadata_only_annotations(), format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
     assert "ex:bob" in result.report_text
     assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
@@ -59,7 +59,7 @@ def test_metadata_only_predicates_do_not_break_meta_shacl_preflight() -> None:
     shapes = StarLayerGraph()
     shapes.parse(data=_shapes_with_metadata_only_annotations(), format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
     assert result.conforms is True
 
 
@@ -98,7 +98,7 @@ def test_conforms_to_shapes_graph_does_not_interfere_with_validation() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
     assert result.conforms is False
     assert "ex:bob" in result.report_text
     assert "ex:alice" not in result.report_text.split("Focus Node:")[-1]
@@ -130,7 +130,7 @@ def test_metadata_only_predicates_do_not_interfere_with_rule_application() -> No
           ] .
     """, format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
     assert result.validation.conforms is True
     derived = list(result.inferred_graph.triples((EX.alice, EX.hasParent, None)))
     assert [tuple(t for t in tr) for tr in derived] == [(EX.alice, EX.hasParent, EX.carol)]

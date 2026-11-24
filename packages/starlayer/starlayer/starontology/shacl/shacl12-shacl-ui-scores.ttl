@@ -87,11 +87,11 @@ stsh:PathsEditedWithNumberFieldEditor a sh:NodeShape ;
 
 stsh:PathsEditedWithTextAreaEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:ask sh:comment rdfs:comment sh:construct sh:select ) ] .
+        sh:in ( sh:ask rdfs:comment sh:construct sh:select ) ] .
 
 stsh:PathsEditedWithTextFieldEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;
-        sh:in ( sh:and sh:defaultValue sh:flags sh:function sh:languageIn sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ] .
+        sh:in ( sh:and sh:defaultValue sh:flags sh:languageIn sh:node sh:not sh:or sh:pattern sh:property sh:targetNode sh:xone ) ] .
 
 stsh:PathsEditedWithTextFieldWithLangEditor a sh:NodeShape ;
     sh:property [ sh:path sh:path ; sh:minCount 1 ;

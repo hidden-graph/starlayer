@@ -349,14 +349,14 @@ def test_equal_scores_are_ordered_by_widget_iri() -> None:
 
 
 def test_schema_method_uses_the_bound_shapes_graph() -> None:
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
     shapes = _graph(_PERSON_SHAPES_TWO_PROPS)
     scoring = _graph("""
         @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:DatePickerEditor ; shui:score 9.0 .
     """)
-    schema = StarShaclSchema(shapes)
+    schema = StarShaclProcessor(shapes)
     assert schema.select_widgets(shape_node=EX.PersonShape, role="editor", scoring_graph=scoring) == {
         EX.NameProp: SHUI.TextFieldEditor,
         EX.BirthDateProp: SHUI.DatePickerEditor,
@@ -368,20 +368,20 @@ def test_schema_method_uses_the_bound_shapes_graph() -> None:
 
 
 def test_schema_method_falls_back_to_the_bound_data_graph_for_a_focus_node() -> None:
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
     data = _graph(_PERSON_DATA)
     shapes = _graph(_PERSON_SHAPES_TWO_PROPS)
-    with_data = StarShaclSchema(shapes, data_graph=data)
+    with_data = StarShaclProcessor(shapes, data_graph=data)
     assert with_data.select_widgets(shape_node=EX.PersonShape, focus_node=EX.alice, role="editor")[EX.NameProp] == SHUI.TextFieldEditor
     with pytest.raises(ValueError):
-        StarShaclSchema(shapes).select_widgets(shape_node=EX.PersonShape, focus_node=EX.alice, role="editor")
+        StarShaclProcessor(shapes).select_widgets(shape_node=EX.PersonShape, focus_node=EX.alice, role="editor")
     with pytest.raises(ValueError):
-        StarShaclSchema().select_widgets(shape_node=EX.PersonShape, role="editor")
+        StarShaclProcessor().select_widgets(shape_node=EX.PersonShape, role="editor")
 
 
 def test_schema_scoring_graph_can_be_bound_and_overridden_per_call() -> None:
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
     shapes = _graph(_PERSON_SHAPES_TWO_PROPS)
     bound = _graph("""
@@ -392,7 +392,7 @@ def test_schema_scoring_graph_can_be_bound_and_overridden_per_call() -> None:
         @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
         [] a shui:WidgetScore ; shui:widget shui:TextAreaEditor ; shui:score 9.0 .
     """)
-    schema = StarShaclSchema(shapes, scoring_graph=bound)
+    schema = StarShaclProcessor(shapes, scoring_graph=bound)
     # bound catalog used when the call gives none
     assert schema.select_widgets(shape_node=EX.PersonShape, role="editor")[EX.BirthDateProp] == SHUI.DatePickerEditor
     # a per-call catalog overrides it
@@ -406,7 +406,7 @@ def test_schema_scoring_graph_can_be_bound_and_overridden_per_call() -> None:
 
 
 def test_schema_data_graph_can_be_overridden_per_call() -> None:
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
     shapes = _graph("""
         @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -423,7 +423,7 @@ def test_schema_data_graph_can_be_overridden_per_call() -> None:
     """)
     short = _graph('@prefix ex: <http://example.org/> . ex:p ex:name "Al" .')
     long = _graph('@prefix ex: <http://example.org/> . ex:p ex:name "Alexander the Great" .')
-    schema = StarShaclSchema(shapes, data_graph=short, scoring_graph=catalog)
+    schema = StarShaclProcessor(shapes, data_graph=short, scoring_graph=catalog)
     call = dict(shape_node=EX.PersonShape, focus_node=EX.p, role="editor")
     assert schema.select_widgets(**call)[EX.NameProp] == SHUI.TextFieldEditor
     assert schema.select_widgets(**call, data_graph=long)[EX.NameProp] == SHUI.TextAreaEditor

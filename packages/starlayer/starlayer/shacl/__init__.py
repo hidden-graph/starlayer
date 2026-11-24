@@ -4,6 +4,8 @@ Applications import from here rather than from submodules; a need that only a su
 component, except for the items the comment below the imports lists as still submodule-only.
 """
 
+from starlayer.shacl.candidates import Candidates
+from starlayer.shacl.derive import derive_shape
 from starlayer.shacl.engine.terms import SH
 from starlayer.shacl.errors import (
     EvaluationFailure,
@@ -11,24 +13,30 @@ from starlayer.shacl.errors import (
     RuleError,
     ShapeError,
 )
-from starlayer.shacl.meta_shapes import parameter_value_shapes, sparql_query_problems
+from starlayer.shacl.meta_shapes import MetaScope, meta_scope, meta_validate
 from starlayer.shacl.node_expression_api import (
     evaluate_expression,
     node_expression_functions,
     node_expression_operators,
 )
-from starlayer.shacl.normalization import (
-    normalize_graph_inputs,
-    normalize_to_starlayer_graph,
-)
 from starlayer.shacl.paths import is_inverse, path_values
+from starlayer.shacl.profiling import declared_conformance_profile, derive_conforms_to
+from starlayer.shacl.profiling.conformance import CONFORMANCE
+from starlayer.shacl.report_results import (
+    ReportDiff,
+    ReportResult,
+    diff_reports,
+    report_results,
+)
 from starlayer.shacl.results import (
     ExecutionDiagnostics,
     RulesResult,
-    ValidationResult,
+    ValidationReport,
 )
 from starlayer.shacl.shape_types import infer_types
 from starlayer.shacl.shapes_graphs import (
+    close_shape,
+    extract_shapes_graph,
     referenced_shapes,
     rule_dependencies,
     shapes_graph_members,
@@ -46,40 +54,78 @@ from starlayer.shacl.ui.widget_selection import (
     select_widgets,
 )
 from starlayer.shacl.validator import (
-    StarShaclSchema,
+    StarShaclProcessor,
     apply_rules,
+    candidate_values,
+    check_value,
     evaluate,
     target_nodes,
+    target_shapes,
     validate,
     validate_each,
+    value_form,
 )
+from starlayer.shacl.value_check import ValueCheck
+
+
+def __getattr__(name: str):
+    """``StarShaclSchema``, the old name of ``StarShaclProcessor``: the same class, with a DeprecationWarning."""
+    if name == "StarShaclSchema":
+        import warnings
+
+        warnings.warn(
+            "StarShaclSchema is renamed StarShaclProcessor; the old name will be removed",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return StarShaclProcessor
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 # Everything an application needs is importable from here: apps do not reach into submodules (a need to is a missing
 # public component). Processing modes: validate / validate_each / apply_rules / evaluate / extract_subgraph, with the
-# result classes (ValidationResult / RulesResult / ExecutionDiagnostics), StarShaclSchema and target_nodes. Shapes graph
-# introspection: infer_types, shapes_graph_members, path_values, is_inverse, sparql_query_problems, parameter_value_shapes.
+# result classes (ValidationReport / RulesResult / ExecutionDiagnostics), StarShaclProcessor and target_nodes. Shapes graphs: close_shape, extract_shapes_graph. Shapes graph
+# introspection: infer_types, shapes_graph_members, path_values, is_inverse.
 # Node expressions: evaluate_expression, node_expression_functions, node_expression_operators. SHACL UI: select_widget(s).
-# Graph normalisation: normalize_to_starlayer_graph /
-# normalize_graph_inputs, StarLayerGraphProtocol / MutableStarLayerGraphProtocol.
+# Deriving a shape from data (a StarLayer feature, not SHACL): derive_shape.
+# Graph protocols: StarLayerGraphProtocol / MutableStarLayerGraphProtocol.
 #
-# Still reached only through a submodule: `profiling` (Profiling's declared_conformance_profile() /
-# derive_conforms_to()); `engine` (evaluate_component() and friends, deprecated); `starontology.get_raw_url(name)`;
-# `StarShaclSchema.close_shape(shape)`, a method.
+# Profiling (SHACL 1.2 Profiling): derive_conforms_to, declared_conformance_profile and the CONFORMANCE namespace; `profiling` is still importable as a
+# submodule. Checking shapes: meta_validate, meta_scope.
+#
+# Still reached only through a submodule: `engine` (evaluate_component() and friends, deprecated); `starontology.get_raw_url(name)`.
 
 __all__ = [
     "SH",
-    "StarShaclSchema",
+    "StarShaclProcessor",
     "validate",
     "validate_each",
     "apply_rules",
     "evaluate",
     "extract_subgraph",
-    "normalize_to_starlayer_graph",
-    "normalize_graph_inputs",
+    "close_shape",
+    "extract_shapes_graph",
+    "derive_shape",
+    "meta_validate",
+    "meta_scope",
+    "MetaScope",
+    "derive_conforms_to",
+    "declared_conformance_profile",
+    "CONFORMANCE",
     "ExecutionDiagnostics",
-    "ValidationResult",
+    "ValidationReport",
+    "ReportResult",
+    "ReportDiff",
+    "report_results",
+    "diff_reports",
     "RulesResult",
     "target_nodes",
+    "target_shapes",
+    "candidate_values",
+    "Candidates",
+    "value_form",
+    "check_value",
+    "ValueCheck",
     "property_shapes_for_role",
     "select_widget",
     "select_widgets",
@@ -99,8 +145,6 @@ __all__ = [
     "rule_dependencies",
     "path_values",
     "is_inverse",
-    "sparql_query_problems",
-    "parameter_value_shapes",
     "ShapeError",
     "RuleError",
     "EvaluationFailure",

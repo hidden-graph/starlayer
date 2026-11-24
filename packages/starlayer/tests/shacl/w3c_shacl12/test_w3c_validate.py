@@ -1,6 +1,6 @@
 """Phase 1 of docs/w3c-shacl12-test-suite-plan.md: run every sht:Validate
 entry from the vendored W3C SHACL 1.2 suite (tests/core/ and tests/sparql/)
-against StarShaclSchema.validate().
+against StarShaclProcessor.validate().
 """
 
 from __future__ import annotations
@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema  # noqa: E402
+from starlayer.shacl import StarShaclProcessor  # noqa: E402
 
 from .closure import node_closure  # noqa: E402
 from .comparison import conforms_of, find_report_node, result_multiset  # noqa: E402
@@ -105,7 +105,7 @@ def _check_validate(entry: ManifestEntry, new_graph, known_failures, strict_bugs
     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph, new_graph)
     expected = next(entry.graph.objects(entry.iri, MF.result))
 
-    validator = StarShaclSchema(shacl_graph=shapes_graph)
+    validator = StarShaclProcessor(shacl_graph=shapes_graph)
 
     # advanced=True enables pySHACL's SHACL-AF ("advanced features") mode -
     # sh:expression/sh:rule and friends are otherwise silently never invoked
@@ -130,7 +130,7 @@ def _check_validate(entry: ManifestEntry, new_graph, known_failures, strict_bugs
         # Deliberately broad: parametrized over every sht:Failure fixture in
         # the W3C suite, which fail via different pySHACL exception types.
         with pytest.raises(Exception):  # noqa: B017
-            validator.validate(data_graph=data_graph, meta_shacl=False, advanced=True, ignore_imports=True)
+            validator.validate(data_graph=data_graph, meta_shacl=False, ignore_imports=True)
         return
 
     expected_graph = node_closure(entry.graph, expected)
@@ -138,7 +138,7 @@ def _check_validate(entry: ManifestEntry, new_graph, known_failures, strict_bugs
     extra_kwargs = _conformance_disallows_kwargs(expected_graph, expected_report_node)
 
     result = validator.validate(
-        data_graph=data_graph, meta_shacl=False, advanced=True, ignore_imports=True, **extra_kwargs
+        data_graph=data_graph, meta_shacl=False, ignore_imports=True, **extra_kwargs
     )
 
     actual_report_node = find_report_node(result.report_graph)

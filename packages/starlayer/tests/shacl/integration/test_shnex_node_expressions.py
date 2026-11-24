@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import EvaluationFailure, StarShaclSchema
+from starlayer.shacl import EvaluationFailure, StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -62,7 +62,7 @@ def _expression_conforms(expression_ttl: str, target: str = "ex:alice") -> bool:
     # profile has advanced=False, under which sh:expression is silently
     # never invoked at all, making conforms=True vacuously regardless of the
     # expression's actual content).
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     return result.conforms
 
 
@@ -91,7 +91,7 @@ def _boolean_expr_conforms(expression_ttl: str, target: str = "ex:alice", fmt: s
         """,
         format=fmt,
     )
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     return result.conforms
 
 
@@ -285,7 +285,7 @@ def test_instancesof_matches_transitive_subclass_instances() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -313,7 +313,7 @@ def test_instancesof_does_not_match_unrelated_class_instances() -> None:
         format="turtle",
     )
 
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is False
 
 
@@ -378,7 +378,7 @@ def test_shnex_pathvalues_with_triple_rule_carries_rdf12_triple_term() -> None:
         """,
         format="turtle",
     )
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
     derived = list(result.inferred_graph.triples((EX.alice, EX.derivedClaim, None)))
     assert len(derived) == 1
 
@@ -415,7 +415,7 @@ def test_sparql_istriple_over_real_data_triple_term() -> None:
         """,
         format="turtle",
     )
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 
@@ -432,7 +432,7 @@ def test_sparql_subject_over_real_data_triple_term() -> None:
         """,
         format="turtle",
     )
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False, advanced=True)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
     assert result.conforms is True
 
 

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-from collections import Counter
-
 from starlayer.shacl.engine.components.registry import Violation, component
 from starlayer.shacl.engine.plan import SH, ShapeError
 from starlayer.shacl.engine.terms import RDF
@@ -30,25 +28,48 @@ def _properties(shapes, value) -> list[URIRef]:
     return items
 
 
-@component(SH.UniqueValuesForConstraintComponent, SH.uniqueValuesFor)
+def _clash_message(ctx, props, focus, others, shared) -> str:
+    """``ex:c4 has the same values as ex:c3 for ex:notation "456", ex:inScheme (none)``; several clashing nodes are listed in
+    sorted order, the values of a property likewise."""
+    from starlayer.shacl.engine.text import plain_term
+
+    data = lambda term: plain_term(ctx.data, term)  # noqa: E731
+    names = sorted(data(o) for o in others)
+    parts = [
+        f"{plain_term(ctx.shapes, p)} {' '.join(sorted(map(data, vals))) if vals else '(none)'}"  # str-ok: text
+        for p, vals in zip(props, shared)
+    ]
+    noun = "value" if len(props) == 1 and len(shared[0]) == 1 else "values"
+    return f"{data(focus)} has the same {noun} as {', '.join(names)} for {', '.join(parts)}"  # str-ok: text
+
+
+def _check_unique_values_for(shapes, shape, params) -> None:
+    for spec in params[SH.uniqueValuesFor]:
+        _properties(shapes, spec)
+
+
+@component(SH.UniqueValuesForConstraintComponent, SH.uniqueValuesFor, check=_check_unique_values_for)
 def unique_values_for(ctx, shape, params, focus, values):
-    """No two focus nodes of the shape share the same combination of values for the properties. A focus node with no
-    value for any of the properties is not compared (W3C uniqueValuesFor-004)."""
+    """No two focus nodes of the shape share the same combination of values for the properties. A focus node is
+    exempt only when it has no value for any of the properties (W3C uniqueValuesFor-004); with a list, a node that
+    lacks some of them is still compared, an empty value set equalling an empty value set, so two nodes sharing a first
+    name and both lacking a last name clash."""
     for spec in params[SH.uniqueValuesFor]:
         props = _properties(ctx.shapes, spec)
 
         def key(node, props=props):
             sets = [frozenset(ctx.data.objects(node, p)) for p in props]
-            return None if any(not s for s in sets) else tuple(sets)
+            return None if not any(sets) else tuple(sets)
 
         # Group the shape's target nodes by key once per (shape, parameter value). Core 6.10.9.5: the targets are those of the
         # shape even when the focus node was provided directly (sh:node), so a violation needs *another* target with the key.
         memo = ctx.cache.get(("uniqueValuesFor", shape.node, spec))
         if memo is None:
-            targets = set(ctx.shape_focus(shape))
-            memo = (targets, Counter(k for k in map(key, targets) if k is not None))
-            ctx.cache[("uniqueValuesFor", shape.node, spec)] = memo
-        targets, counts = memo
+            groups: dict = {}
+            for target in set(ctx.shape_focus(shape)):
+                if (k := key(target)) is not None:
+                    groups.setdefault(k, []).append(target)
+            memo = ctx.cache[("uniqueValuesFor", shape.node, spec)] = groups
         mine = key(focus)
-        if mine is not None and counts[mine] - (focus in targets) > 0:
-            yield Violation(value=None)
+        if mine is not None and (others := [t for t in memo.get(mine, ()) if t != focus]):
+            yield Violation(value=None, message=_clash_message(ctx, props, focus, others, mine))

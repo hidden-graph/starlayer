@@ -7,8 +7,9 @@ the lexical form or the exact datatype of a value (sh:pattern, sh:minLength, sh:
 type, sh:in / sh:hasValue with numeric or boolean values, sh:equals, sh:disjoint, the boolean parameters) can then conform
 or fail differently from validating the same data held in a lexical-form-preserving graph.
 
-``check_lexical_fidelity`` decides whether that applies to a run; ``validate`` emits one ``StarLayerFidelityWarning`` per call
-and records the message on ``Outcome.warnings``. References: StarLayer issue #190; upstream oxigraph#526, oxigraph#1989 and
+The load warns first (``graph/lexical.py``: it names the literals the store kept in another form and counts them on the store).
+``check_lexical_fidelity`` decides whether the validation run is affected: the data had such a literal and the shapes use a
+form-dependent constraint. ``validate`` emits one ``StarLayerFidelityWarning`` per call and records the message on ``Outcome.warnings``. References: StarLayer issue #190; upstream oxigraph#526, oxigraph#1989 and
 PR #2010.
 """
 
@@ -18,20 +19,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.graph.lexical import AFFECTED_DATATYPES, rewritten_count
 from starlayer.shacl.engine.terms import RDF, SH
-
-_XSD_NS = "http://www.w3.org/2001/XMLSchema#"
-#: The datatypes whose lexical form Oxigraph rewrites (integer family, decimal, float, double, boolean, date/time, g* and duration types;
-#: xsd:dateTimeStamp is even stored as xsd:dateTime).
-AFFECTED_DATATYPES: frozenset[str] = frozenset(
-    _XSD_NS + n
-    for n in (
-        "integer", "int", "long", "short", "byte", "nonNegativeInteger", "positiveInteger", "nonPositiveInteger",
-        "negativeInteger", "unsignedLong", "unsignedInt", "unsignedShort", "unsignedByte", "decimal", "float", "double",
-        "boolean", "dateTime", "dateTimeStamp", "date", "time", "gYear", "gYearMonth", "gMonth", "gMonthDay", "gDay",
-        "duration", "dayTimeDuration", "yearMonthDuration",
-    )
-)
 
 #: Constraints that read the lexical form (or the exact datatype) of every value node.
 _ALWAYS = ("pattern", "minLength", "maxLength", "equals", "disjoint")
@@ -40,9 +29,9 @@ _ALWAYS = ("pattern", "minLength", "maxLength", "equals", "disjoint")
 _BOOLEAN_PARAMS = ("uniqueLang", "closed", "qualifiedValueShapesDisjoint")
 
 MESSAGE = (
-    "The data graph does not preserve literal lexical forms (Oxigraph normalises them on storage: \"04\"^^xsd:integer "
-    "becomes \"4\", \"1\"^^xsd:boolean becomes \"true\"), and the shapes use constraints whose result depends on the "
-    "original lexical form or datatype: {kinds}. Results may differ from validating the same data with its lexical forms "
+    "{count} literal{s} in the data graph {were} stored in a different form than written (Oxigraph keeps some literals in a canonical "
+    "form: \"04\"^^xsd:integer as \"4\", \"1\"^^xsd:boolean as \"true\"), and the shapes use constraints whose result depends on "
+    "the original lexical form or datatype: {kinds}. Results may differ from validating the same data with its lexical forms "
     "as written. See StarLayer issue #190; upstream oxigraph#526, oxigraph#1989, PR #2010."
 )
 
@@ -123,15 +112,36 @@ def data_has_affected_literal(data: Any) -> bool:
     return False
 
 
+def rewritten_literals(data: Any) -> int | None:
+    """How many literals loaded into ``data`` were stored in a different form than written (``graph/lexical.py``); ``None`` when
+    ``data`` is not a view over a store, so it cannot be said."""
+    for _ in range(4):
+        store = getattr(data, "store", None)
+        if isinstance(store, ox.Store):
+            return rewritten_count(store)
+        data = getattr(data, "base", None)
+        if data is None:
+            return None
+    return None
+
+
 def check_lexical_fidelity(plan: Any, data: Any) -> str | None:
-    """The warning text when ``data`` does not preserve lexical forms, ``plan`` has sensitive constraints and ``data`` holds
-    a literal of an affected datatype; otherwise ``None``."""
+    """The warning text when ``data`` does not preserve lexical forms, ``plan`` has sensitive constraints and literals were
+    stored in a different form than written (a ``data`` that cannot say holds a literal of an affected datatype); otherwise
+    ``None``."""
     if getattr(data, "preserves_lexical_forms", True):
         return None
     kinds = sensitive_constraints(plan)
-    if not kinds or not data_has_affected_literal(data):
+    if not kinds:
         return None
-    return MESSAGE.format(kinds=", ".join(kinds))
+    count = rewritten_literals(data)
+    if count is None:
+        if not data_has_affected_literal(data):
+            return None
+        count = 0
+    elif not count:
+        return None
+    return MESSAGE.format(count=count or "Some", s="" if count == 1 else "s", were="was" if count == 1 else "were", kinds=", ".join(kinds))
 
 
-__all__ = ["AFFECTED_DATATYPES", "MESSAGE", "check_lexical_fidelity", "data_has_affected_literal", "sensitive_constraints"]
+__all__ = ["AFFECTED_DATATYPES", "MESSAGE", "check_lexical_fidelity", "data_has_affected_literal", "rewritten_literals", "sensitive_constraints"]

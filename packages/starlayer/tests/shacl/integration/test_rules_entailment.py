@@ -7,7 +7,7 @@ caller's data is not changed. Both used to be refused as unsupported entailment 
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.engine.terms import text
 from tests.support.terms import Namespace
 
@@ -37,7 +37,7 @@ def _validate(*entailment: str):
     data = StarLayerGraph()
     data.parse(data=PREFIXES + "ex:n ex:marker true .", format="turtle")
     before = set(data)
-    result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)
+    result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data)
     assert set(data) == before, "the base graph is not changed"
     return result
 
@@ -86,7 +86,7 @@ def test_rules_entailment_combines_with_an_entailment_regime() -> None:
     data = StarLayerGraph()
     data.parse(data=PREFIXES + "ex:Dog rdfs:subClassOf ex:Animal . ex:rex a ex:Dog .", format="turtle")
 
-    assert StarShaclSchema(shacl_graph=shapes).validate(data_graph=data).conforms
+    assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data).conforms
 
 
 def test_an_iri_that_is_neither_a_regime_nor_a_rule_set_is_still_refused() -> None:
@@ -100,7 +100,7 @@ def test_apply_rules_on_such_a_shapes_graph_does_not_run_the_rules_twice_over() 
     data = StarLayerGraph()
     data.parse(data=PREFIXES + "ex:n ex:marker true .", format="turtle")
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
 
     assert (EX.n, EX.p, EX.a) in result.inferred_graph
     assert result.validation.conforms
@@ -150,7 +150,7 @@ class TestEvaluateWithRulesEntailment:
         )
         data = StarLayerGraph()
         data.parse(data=PREFIXES + 'ex:n ex:name "Nina" .', format="turtle")
-        schema = StarShaclSchema(shacl_graph=shapes, data_graph=data)
+        schema = StarShaclProcessor(shacl_graph=shapes, data_graph=data)
 
         assert not list(schema.evaluate().triples((EX.n, EX.name, None)))
         assert list(schema.evaluate(rules_entailment=True).triples((EX.n, EX.name, None)))

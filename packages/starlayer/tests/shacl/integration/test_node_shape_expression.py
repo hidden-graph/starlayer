@@ -8,7 +8,7 @@ import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import MetaShaclError as ReportableRuntimeError
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.meta_shapes import meta_validate
 from tests.support.terms import Namespace
 
@@ -29,7 +29,7 @@ def _graph(ttl: str) -> Graph:
 
 def _validate(shapes_ttl: str, data_ttl: str = _PEOPLE, **kwargs):
     kwargs.setdefault("meta_shacl", True)
-    return StarShaclSchema(shacl_graph=_graph(shapes_ttl)).validate(data_graph=_graph(data_ttl), **kwargs)
+    return StarShaclProcessor(shacl_graph=_graph(shapes_ttl)).validate(data_graph=_graph(data_ttl), **kwargs)
 
 
 def _failures(result) -> dict[str, str]:

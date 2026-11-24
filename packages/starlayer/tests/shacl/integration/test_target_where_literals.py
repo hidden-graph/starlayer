@@ -6,7 +6,7 @@ sh:targetObjectsOf can yield them.
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema, validate
+from starlayer.shacl import StarShaclProcessor, validate
 from tests.support.terms import Namespace, lit
 
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -20,7 +20,7 @@ def _g(ttl: str) -> Graph:
 
 def _focus(data: str, method: bool) -> set:
     d, s = _g(data), _g(SHAPES)
-    result = StarShaclSchema(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=s).validate(data_graph=d, meta_shacl=False) if method else validate(d, s, meta_shacl=False)
     return set(result.report_graph.objects(None, SH.focusNode)), result.conforms
 
 
@@ -49,6 +49,6 @@ def test_iris_and_literals_are_both_candidates(method):
 
 def test_target_nodes_agrees_with_validate():
     d, s = _g("ex:a ex:q 5 ."), _g(SHAPES)
-    schema = StarShaclSchema(shacl_graph=s)
+    schema = StarShaclProcessor(shacl_graph=s)
     shape = next(s.subjects(SH.targetWhere, None))
     assert lit(5) in set(schema.target_nodes(data_graph=d, shape_node=shape))

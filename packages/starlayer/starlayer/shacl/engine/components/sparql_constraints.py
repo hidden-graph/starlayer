@@ -58,7 +58,16 @@ def _deactivated_at(ctx, exprs, focus) -> bool:
     return False
 
 
-@component(SH.SPARQLConstraintComponent, SH.sparql)
+def _check_sparql(shapes, shape, params) -> None:
+    """Each ``sh:sparql`` value that is not deactivated has exactly one ``sh:select`` (the query text is parsed when it runs)."""
+    for constraint in params[SH.sparql]:
+        if any(is_true(d) for d in shapes.objects(constraint, SH.deactivated) if isinstance(d, Literal)):
+            continue
+        if len(list(shapes.objects(constraint, SH.select))) != 1:
+            raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
+
+
+@component(SH.SPARQLConstraintComponent, SH.sparql, check=_check_sparql)
 def sparql_constraint(ctx, shape, params, focus, values):
     """Validate a focus node against each non-deactivated ``sh:sparql`` constraint, one violation per solution row."""
     graph = ctx.shapes

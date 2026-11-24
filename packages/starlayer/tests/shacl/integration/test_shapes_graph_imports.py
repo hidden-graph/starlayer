@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -108,7 +108,7 @@ def test_transitive_import_closure_with_version_iri_redirect_enforces_imported_c
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=_myapp_shapes())
+    validator = StarShaclProcessor(shacl_graph=_myapp_shapes())
     result = validator.validate(
         data_graph=data,
         meta_shacl=False,
@@ -133,7 +133,7 @@ def test_without_loader_or_ignore_imports_raises() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=_myapp_shapes())
+    validator = StarShaclProcessor(shacl_graph=_myapp_shapes())
 
     with pytest.raises(ValueError, match="owl:imports"):
         validator.validate(data_graph=data, meta_shacl=False)
@@ -150,7 +150,7 @@ def test_ignore_imports_true_restores_the_old_silent_pass_through() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=_myapp_shapes())
+    validator = StarShaclProcessor(shacl_graph=_myapp_shapes())
     result = validator.validate(data_graph=data, meta_shacl=False, ignore_imports=True)
 
     # Explicitly opted out of resolving: the imported CompanyShape's
@@ -198,7 +198,7 @@ def test_pre_resolved_imports_need_ignore_imports_too() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=pre_resolved)
+    validator = StarShaclProcessor(shacl_graph=pre_resolved)
 
     with pytest.raises(ValueError, match="owl:imports"):
         validator.validate(data_graph=data, meta_shacl=False)
@@ -230,7 +230,7 @@ def test_unresolvable_import_is_skipped_not_raised() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(
         data_graph=data, meta_shacl=False, shapes_graph_loader=lambda iri: None
     )
@@ -269,7 +269,7 @@ def test_self_importing_graph_does_not_infinite_loop() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person ; ex:name \"Bob\" .", format="turtle")
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(data_graph=data, meta_shacl=False, shapes_graph_loader=loader)
 
     assert result.conforms is True
@@ -336,7 +336,7 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(
         data_graph=data, meta_shacl=False, shapes_graph_loader=loader
     )
@@ -385,7 +385,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
         format="turtle",
     )
 
-    validator = StarShaclSchema(shacl_graph=shapes)
+    validator = StarShaclProcessor(shacl_graph=shapes)
     # No shapes_graph_loader, no ignore_imports - must not raise, since
     # ModuleB's own content is already right here in shapes.
     result = validator.validate(data_graph=data, meta_shacl=False)

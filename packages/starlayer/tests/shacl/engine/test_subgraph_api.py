@@ -17,7 +17,7 @@ from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.rdflib_bridge import engine_to_foreign as from_engine
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl import extract_subgraph as old_extract
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.shapes_graphs import close_shape, extract_shapes_graph
@@ -335,7 +335,7 @@ def _mod():
 @pytest.mark.parametrize("include", [False, True])
 def test_extract_shapes_graph_agrees_with_old(iri, include) -> None:
     graph = _mod()
-    old = StarShaclSchema(shacl_graph=graph).extract_shapes_graph(EX[iri], include_referenced=include)
+    old = StarShaclProcessor(shacl_graph=graph).extract_shapes_graph(EX[iri], include_referenced=include)
     new = extract_shapes_graph(graph, EX[iri], include_referenced=include)
     if old is None:
         assert new is None
@@ -361,14 +361,14 @@ def test_extract_shapes_graph_unresolvable_imports_raise_like_old(target) -> Non
     ttl = OWL_PRE + "ex:M a sh:ShapesGraph ; owl:imports ex:N . " + ("ex:N a ex:Other ." if target == "untyped" else "")
     graph = _g(ttl)
     with pytest.raises(ValueError):
-        StarShaclSchema(shacl_graph=graph).extract_shapes_graph(EX.M)
+        StarShaclProcessor(shacl_graph=graph).extract_shapes_graph(EX.M)
     with pytest.raises(ValueError):
         extract_shapes_graph(graph, EX.M)
 
 
 def test_extract_shapes_graph_import_cycle_terminates() -> None:
     graph = _g(OWL_PRE + "ex:A a sh:ShapesGraph ; owl:imports ex:B ; rdfs:member ex:SA . ex:B a sh:ShapesGraph ; owl:imports ex:A ; rdfs:member ex:SB .")
-    assert set(extract_shapes_graph(graph, EX.A)) == set(StarShaclSchema(shacl_graph=graph).extract_shapes_graph(EX.A))
+    assert set(extract_shapes_graph(graph, EX.A)) == set(StarShaclProcessor(shacl_graph=graph).extract_shapes_graph(EX.A))
 
 
 # ---------------------------------------------------------------- close_shape
@@ -413,7 +413,7 @@ def test_close_shape_agrees_with_old(name) -> None:
     ttl, shape = CLOSE_CASES[name]
     graph = _g(ttl)
     before = set(graph)
-    old = StarShaclSchema(shacl_graph=_g(ttl)).close_shape(shape)
+    old = StarShaclProcessor(shacl_graph=_g(ttl)).close_shape(shape)
     new = close_shape(graph, shape)
     assert set(graph) == before
     assert _canon(new) == _canon(old)

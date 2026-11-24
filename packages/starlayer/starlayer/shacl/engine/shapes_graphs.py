@@ -4,7 +4,7 @@
 several, as a standalone graph (SHACL 1.2 Profiling section 2: members by ``rdfs:member``, ``rdfs:isDefinedBy`` and the
 members of locally present ``owl:imports`` modules). The result holds the concise bounded description of every involved
 module node and every member; references to named shapes are left dangling unless ``include_referenced`` copies them
-(the project's choice, see the old ``StarShaclSchema.extract_shapes_graph``; Profiling 2.7 "calculating dependencies" is a
+(the project's choice, see the old ``StarShaclProcessor.extract_shapes_graph``; Profiling 2.7 "calculating dependencies" is a
 TODO in the draft). Unlike ``modules.extract_module`` (used by ``validate(shapes_graph_resource=)``) it does not strip
 ``sh:property`` links to non-member named shapes, and an unresolvable ``owl:imports`` raises ``ValueError``.
 

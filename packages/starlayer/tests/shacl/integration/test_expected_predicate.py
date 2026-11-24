@@ -26,7 +26,7 @@ per layer and removes the triples again when the layer ends.
 """
 
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclSchema
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import RDF, Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -69,7 +69,7 @@ def test_expected_predicate_materializes_default_value_before_rule_runs() -> Non
     data = StarLayerGraph()
     data.add((EX.rect1, RDF.type, EX.Rectangle))
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.rect1, EX.area, lit(1)) not in result.inferred_graph
     assert (EX.rect1, EX.isSmall, lit(True)) in result.inferred_graph
@@ -84,7 +84,7 @@ def test_without_expected_predicate_default_value_is_never_materialized() -> Non
     data = StarLayerGraph()
     data.add((EX.rect1, RDF.type, EX.Rectangle))
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.rect1, EX.area, lit(1)) not in result.inferred_graph
     assert (EX.rect1, EX.isSmall, lit(True)) not in result.inferred_graph
@@ -101,7 +101,7 @@ def test_expected_predicate_does_not_override_an_existing_value() -> None:
     data.add((EX.rect2, RDF.type, EX.Rectangle))
     data.add((EX.rect2, EX.area, lit(500)))
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     # The real asserted value is base data, not rule output - untouched
     # (not duplicated, not overridden) in the caller's own graph; apply_rules()
@@ -139,7 +139,7 @@ def test_shapes_graph_without_expected_predicate_uses_original_pyshacl_loop() ->
     data = StarLayerGraph()
     data.add((EX.alice, RDF.type, EX.Person))
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     assert (EX.alice, EX.greeted, lit(True)) in result.inferred_graph
 
@@ -189,7 +189,7 @@ def test_expected_predicate_prefers_sh_values_over_default_value() -> None:
     data = StarLayerGraph()
     data.add((EX.rect1, RDF.type, EX.Rectangle))
 
-    result = StarShaclSchema(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
+    result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
     # The rule saw sh:values' computed 999, not sh:defaultValue's 1 - proves
     # priority, not just "some value was present." Neither the transient
