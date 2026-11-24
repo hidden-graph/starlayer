@@ -1,0 +1,50 @@
+@prefix :     <https://example.org/trust/data#> .
+@prefix t:    <https://example.org/trust/ont#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+
+# Only what a reasoner cannot work out from the ontology: the types it implies through domains, ranges and
+# inverses (a journal entry set, an evidence collection, a report, an agent and so on) are left out.
+
+:Fact_Revenue_2026_11
+    t:concept :Revenue ; t:value "120000"^^xsd:decimal ; t:unit :USD ; t:period :FY2026 ;
+    t:supportedBy :Revenue_Accounting_Record ;
+    t:explanation "Revenue equals the sum of journal entries JE_001 + JE_002 + JE_003. Each journal entry is supported by invoices, customer contracts, and revenue recognition rules." .
+
+:USD    a t:Currency .
+:FY2026 a t:FiscalPeriod .
+
+:Revenue_Accounting_Record
+    t:derivedFrom :JournalEntrySet_2026 ; t:recordedBy :RevenueRecognitionProcess ;
+    t:recordedAt "2026-11-19T10:25:16Z"^^xsd:dateTime ;
+    t:hasEvidence :InvoiceCollection, :CashReceiptCollection, :ContractCollection .
+
+:RevenueRecognitionProcess
+    t:implementedBy :ERP_Workflow ; t:executedBy :HumanAgent_Alice, :SoftwareAgent_RevenueBot ;
+    t:followsPolicy :RevenueRecognitionPolicy ; t:produced :JournalEntrySet_2026 .
+
+:JournalEntrySet_2026 t:contains :JE_001, :JE_002, :JE_003 .
+:JE_001 t:references :Invoice_1001, :CustomerContract_45 ; t:amount "40000"^^xsd:decimal .
+:JE_002 t:references :Invoice_1002, :CustomerContract_46 ; t:amount "50000"^^xsd:decimal .
+:JE_003 t:references :Invoice_1003, :CustomerContract_47 ; t:amount "30000"^^xsd:decimal .
+:Invoice_1001 a t:Invoice . :Invoice_1002 a t:Invoice . :Invoice_1003 a t:Invoice .
+:CustomerContract_45 a t:Contract . :CustomerContract_46 a t:Contract . :CustomerContract_47 a t:Contract .
+
+:RevenueQualityCheck t:testedFact :Fact_Revenue_2026_11 ; t:rule :RevenueRollForwardRule ; t:result t:Pass .
+:RevenueRollForwardRule t:description "Reported revenue equals the sum of approved revenue journal entries." .
+
+:AuditProcedure_Rev001
+    t:examined :Fact_Revenue_2026_11 ; t:verifiedEvidence :InvoiceCollection, :ContractCollection ; t:conclusion t:Pass .
+
+:IncomeStatement t:reports :Fact_Revenue_2026_11 ; t:generatedFrom :Revenue_Accounting_Record .
+
+:HumanAgent_Alice t:accountableFor :RevenueRecognitionProcess ; t:approved :JournalEntrySet_2026 .
+:SoftwareAgent_RevenueBot t:operatesUnder :AgentControlFramework .
+
+:RevenueRecognitionPolicy t:approvedBy :AccountingCommittee ; t:authorizedBy :CFO .
+:AccountingCommittee t:establishes :RevenueRecognitionPolicy .
+:CFO t:delegates :RevenueRecognitionProcess ; t:assignsAccountability :HumanAgent_Alice .
+:BoardOfDirectors t:empowers :CFO ; t:establishes :AccountingCommittee .
+
+:TrustAssertion_Revenue_2026_11 t:trusts :Fact_Revenue_2026_11 ;
+    t:becauseOf t:Explainability, t:Quality, t:Assurance, t:Accountability, t:Governance .

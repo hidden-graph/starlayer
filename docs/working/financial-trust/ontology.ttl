@@ -1,0 +1,73 @@
+@prefix :     <https://example.org/trust/ont#> .
+@prefix owl:  <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+
+# Only what a reasoner cannot work out. Classes and properties are not declared: RDFS infers that anything used
+# as a class (a domain, range, superclass or type) is a class, and that anything used as a predicate is a property.
+
+<https://example.org/trust/ont> a owl:Ontology ;
+    rdfs:comment "A reported financial fact, the record, work and evidence behind it, and the grounds on which it can be trusted." .
+
+# ---- the fact
+:concept a owl:FunctionalProperty ; rdfs:domain :FinancialFact ; rdfs:range :FinancialConcept .
+:value   a owl:FunctionalProperty ; rdfs:domain :FinancialFact ; rdfs:range xsd:decimal .
+:unit    a owl:FunctionalProperty ; rdfs:domain :FinancialFact ; rdfs:range :Unit .
+:period  a owl:FunctionalProperty ; rdfs:domain :FinancialFact ; rdfs:range :Period .
+:explanation rdfs:domain :FinancialFact ; rdfs:range xsd:string .
+:supportedBy rdfs:domain :FinancialFact ; rdfs:range :AccountingRecord .
+:reportedIn  rdfs:domain :FinancialFact ; rdfs:range :Report .
+:reports owl:inverseOf :reportedIn .
+:generatedFrom rdfs:subPropertyOf prov:wasDerivedFrom ; rdfs:domain :Report ; rdfs:range :AccountingRecord .
+:Currency rdfs:subClassOf :Unit .
+:FiscalPeriod rdfs:subClassOf :Period .
+
+# ---- record, evidence, journal
+:derivedFrom rdfs:subPropertyOf prov:wasDerivedFrom ; rdfs:domain :AccountingRecord ; rdfs:range :JournalEntrySet .
+:recordedBy  rdfs:domain :AccountingRecord ; rdfs:range :WorkSystem .
+:recordedAt  a owl:FunctionalProperty ; rdfs:domain :AccountingRecord ; rdfs:range xsd:dateTime .
+:hasEvidence rdfs:domain :AccountingRecord ; rdfs:range :EvidenceCollection .
+:contains    rdfs:domain :JournalEntrySet ; rdfs:range :JournalEntry .
+:references  rdfs:domain :JournalEntry ; rdfs:range :Document .
+:amount      a owl:FunctionalProperty ; rdfs:domain :JournalEntry ; rdfs:range xsd:decimal .
+:Invoice  rdfs:subClassOf :Document .
+:Contract rdfs:subClassOf :Document .
+
+# ---- work system and agents
+:implementedBy rdfs:domain :WorkSystem ; rdfs:range :Workflow .
+:executedBy    rdfs:domain :WorkSystem ; rdfs:range :Agent .
+:executedTask  owl:inverseOf :executedBy .
+:followsPolicy rdfs:domain :WorkSystem ; rdfs:range :Policy .
+:produced      rdfs:domain :WorkSystem ; rdfs:range :JournalEntrySet .
+:Agent rdfs:subClassOf prov:Agent .
+:ResponsibleParty rdfs:subClassOf :Agent ; owl:disjointWith :SoftwareAgent .
+:SoftwareAgent    rdfs:subClassOf :Agent .
+:operatesUnder rdfs:domain :SoftwareAgent ; rdfs:range :ControlFramework .
+
+# ---- quality and assurance
+:Result owl:equivalentClass [ owl:oneOf ( :Pass :Fail ) ] .
+:testedFact rdfs:domain :QualityControl ; rdfs:range :FinancialFact .
+:rule       rdfs:domain :QualityControl ; rdfs:range :QualityRule .
+:result     rdfs:domain :QualityControl ; rdfs:range :Result .
+:description rdfs:domain :QualityRule ; rdfs:range xsd:string .
+:examined         rdfs:domain :AssuranceProcedure ; rdfs:range :FinancialFact .
+:verifiedEvidence rdfs:domain :AssuranceProcedure ; rdfs:range :EvidenceCollection .
+:conclusion       rdfs:domain :AssuranceProcedure ; rdfs:range :Result .
+
+# ---- accountability, governance, authority, legitimacy
+:accountableFor rdfs:domain :ResponsibleParty ; rdfs:range :WorkSystem .
+:approved       rdfs:domain :ResponsibleParty ; rdfs:range :JournalEntrySet .
+:approvedBy     rdfs:domain :Policy ; rdfs:range :GovernanceBody .
+:authorizedBy   rdfs:domain :Policy ; rdfs:range :Authority .
+:establishes    rdfs:domain :GovernanceBody .
+:delegates      rdfs:domain :Authority ; rdfs:range :WorkSystem .
+:assignsAccountability rdfs:domain :Authority ; rdfs:range :ResponsibleParty .
+:empowers       rdfs:domain :LegitimateAuthority ; rdfs:range :Authority .
+:LegitimateAuthority rdfs:subClassOf :Authority, :GovernanceBody ;
+    rdfs:comment "An authority whose power is conferred, not delegated." .
+
+# ---- trust
+:trusts    rdfs:domain :TrustClaim ; rdfs:range :FinancialFact .
+:becauseOf rdfs:domain :TrustClaim ; rdfs:range :TrustBasis .
+:TrustBasis owl:equivalentClass [ owl:oneOf ( :Explainability :Quality :Assurance :Accountability :Governance ) ] .

@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / "packages" / "starlayer" / "starlayer"
 
 # Directories whose Markdown is vendored or archived, not ours to check.
-_SKIP_PARTS = {".git", ".venv", "venv", "node_modules", "build", "dist", "vendor", "__pycache__", "archive"}
+_SKIP_PARTS = {".git", ".venv", "venv", "node_modules", "build", "dist", "vendor", "__pycache__", "archive", "guides-staging"}
 # Link text may hold one level of brackets and line breaks (CommonMark); `_links` scans the whole text, not line by line.
 _LINK = re.compile(r"(?<!!)\[(?:[^\[\]]|\[[^\[\]]*\])*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")
 _FENCE = re.compile(r"^(```|~~~)")

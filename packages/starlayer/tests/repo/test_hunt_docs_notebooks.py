@@ -70,7 +70,7 @@ def test_guides_have_no_empty_code_span_and_registry_functions_return_one_class(
 
 
 def test_guide_04_does_not_say_node_kind_delegates_to_pyshacl():
-    assert "pySHACL" not in _text("05-shacl-shapes.ipynb")
+    assert "pySHACL" not in _text("05.01-validating-with-shacl-1.2.ipynb")
 
 
 def test_guides_02b_02c_do_not_say_query_entailment_raises():
@@ -98,7 +98,7 @@ def test_guide_04_names_the_rule_error_class_that_exists():
 
     assert not hasattr(rules, "RuleLoadError")
     assert hasattr(rules, "RuleError")
-    assert "RuleLoadError" not in _text("05-shacl-shapes.ipynb")
+    assert "RuleLoadError" not in _text("05.01-validating-with-shacl-1.2.ipynb")
 
 
 def test_guide_06b_service_silent_row_claim_matches_behaviour():

@@ -1,0 +1,37 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Guides: status",
+      "type": "shell",
+      "command": "python scripts/guide_staging.py status",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Guides: diff",
+      "type": "shell",
+      "command": "python scripts/guide_staging.py diff",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Guides: approve and push",
+      "type": "shell",
+      "command": "python scripts/guide_staging.py push --yes",
+      "detail": "Writes the pending guide batch to docs/guides. Save open notebooks first, and reload them afterwards.",
+      "presentation": { "reveal": "always", "panel": "shared", "clear": true },
+      "problemMatcher": [],
+      "options": { "env": { "GUIDE_PUSH_CONFIRMED": "${input:confirmPush}" } }
+    }
+  ],
+  "inputs": [
+    {
+      "id": "confirmPush",
+      "type": "pickString",
+      "description": "Push the pending guide batch to the working guides? Save open notebooks first.",
+      "options": ["yes: push the approved batch"],
+      "default": "yes: push the approved batch"
+    }
+  ]
+}

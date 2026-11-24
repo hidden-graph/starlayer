@@ -63,7 +63,7 @@ This is the compatibility contract for starshacl: what inputs are supported, wha
 ### SHACL 1.2 Profiling
 
 - Status: Working Draft.
-- Coverage: this document isn't a validation-behavior spec - it defines conventions for *describing* shapes/data graphs as identifiable resources (`sh:ShapesGraph`/`sh:DataGraph`, `owl:imports`) and for declaring which subset of SHACL features something uses or requires. None of that changes what a validator does at runtime, so no implementation was needed on that front. The one runtime-relevant piece, an optional `sh:conformsTo` inference rule, is a plain SPARQL CONSTRUCT already expressible via starshacl's existing `sh:rule` support - not a gap, just unused unless a caller wants it.
+- Coverage: this document isn't a validation-behavior spec - it defines conventions for *describing* shapes/data graphs as identifiable resources (`sh:ShapesGraph`/`sh:DataGraph`, `owl:imports`) and for declaring which subset of SHACL features something uses or requires. None of that changes what a validator does at runtime, so no implementation was needed on that front. The one runtime-relevant piece, an optional `sh:conformsToShapesGraph` inference rule (named `sh:conformsTo` before the 2026-11-23 draft), is a plain SPARQL CONSTRUCT already expressible via starshacl's existing `sh:rule` support - not a gap, just unused unless a caller wants it.
 
 ### Meta-shacl validation
 

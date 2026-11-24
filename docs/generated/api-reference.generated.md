@@ -12,7 +12,26 @@ Generated directly from `tools/kg/codekg/codekg.trig` - every PublicAccess entit
 The whole store. ``default_union`` (default True) makes ``triples`` / ``len`` / ``iter`` / SPARQL's default graph the
 union of all graphs, as the engine's graph view does; False restricts them to the default graph (rdflib's ``Dataset``).
 
-**Source:** [starlayer.graph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1013-L1216)
+**Source:** [starlayer.graph.core.StarLayerDataset](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1126-L1345)
+
+---
+
+<a id="entity-starlayer-graph-core-StarLayerDataset-add_graph"></a>
+### `StarLayerDataset.add_graph`  _(method)_
+
+```python
+def add_graph(self, identifier: Any) -> StarLayerDataset
+```
+
+Create an empty named graph, so it is listed before it holds a triple. Oxigraph's own form: ``ox.add_graph(name)``.
+
+**Parameters:**
+
+- `identifier: Any`
+
+**Returns:** `StarLayerDataset`
+
+**Source:** [starlayer.graph.core.StarLayerDataset.add_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1211-L1215)
 
 ---
 
@@ -31,7 +50,7 @@ A dataset of the annotation triples ``(reifier, predicate, value)`` of every rei
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.annotations](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1141-L1143)
+**Source:** [starlayer.graph.core.StarLayerDataset.annotations](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1280-L1282)
 
 ---
 
@@ -46,7 +65,26 @@ Remove every quad and every named graph.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1176-L1180)
+**Source:** [starlayer.graph.core.StarLayerDataset.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1305-L1309)
+
+---
+
+<a id="entity-starlayer-graph-core-StarLayerDataset-clear_graph"></a>
+### `StarLayerDataset.clear_graph`  _(method)_
+
+```python
+def clear_graph(self, identifier: Any=None) -> StarLayerDataset
+```
+
+Remove the triples of one graph (the default graph when ``identifier`` is None) and keep the graph; ``remove_graph`` drops it. Oxigraph's own form: ``ox.clear_graph(name)``.
+
+**Parameters:**
+
+- `identifier: Any = None`
+
+**Returns:** `StarLayerDataset`
+
+**Source:** [starlayer.graph.core.StarLayerDataset.clear_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1217-L1221)
 
 ---
 
@@ -61,7 +99,7 @@ An independent in-memory copy of this dataset, including empty named graphs, pre
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1198-L1206)
+**Source:** [starlayer.graph.core.StarLayerDataset.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1327-L1335)
 
 ---
 
@@ -76,7 +114,7 @@ The dataset's default graph as a ``StarLayerGraph`` (re-made on each access; it 
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1106-L1108)
+**Source:** [starlayer.graph.core.StarLayerDataset.default_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1245-L1247)
 
 ---
 
@@ -91,7 +129,7 @@ Whether the default graph is the union of all graphs.
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.default_union](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1055-L1057)
+**Source:** [starlayer.graph.core.StarLayerDataset.default_union](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1168-L1170)
 
 ---
 
@@ -103,7 +141,7 @@ def from_rdflib(cls, dataset: Any) -> StarLayerDataset
 ```
 
 A new in-memory ``StarLayerDataset`` from an rdflib ``Dataset`` / ``ConjunctiveGraph`` / ``StarLayerDataset`` (every graph, empty
-named graphs too, prefixes, ``default_union``) or from a plain graph (its triples go to the default graph). Terms as in
+named graphs too, the prefixes its data uses, ``default_union``) or from a plain graph (its triples go to the default graph). Terms as in
 ``StarLayerGraph.from_rdflib``. An ``StarLayerDataset`` is copied.
 
 **Parameters:**
@@ -112,7 +150,7 @@ named graphs too, prefixes, ``default_union``) or from a plain graph (its triple
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1038-L1044)
+**Source:** [starlayer.graph.core.StarLayerDataset.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1151-L1157)
 
 ---
 
@@ -131,7 +169,7 @@ One graph of the dataset as a ``StarLayerGraph`` (created, empty, if it does not
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1146-L1151)
+**Source:** [starlayer.graph.core.StarLayerDataset.graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1285-L1290)
 
 ---
 
@@ -146,7 +184,7 @@ The names of the named graphs, empty ones included (the default graph is not lis
 
 **Returns:** `list[Any]`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.graph_names](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1157-L1159)
+**Source:** [starlayer.graph.core.StarLayerDataset.graph_names](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1296-L1298)
 
 ---
 
@@ -161,7 +199,7 @@ The default graph, then every named graph (empty ones included).
 
 **Returns:** `list[StarLayerGraph]`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.graphs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1153-L1155)
+**Source:** [starlayer.graph.core.StarLayerDataset.graphs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1292-L1294)
 
 ---
 
@@ -180,7 +218,22 @@ Whether ``identifier`` names a graph of the dataset; the default graph always ex
 
 **Returns:** `bool`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.has_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1161-L1164)
+**Source:** [starlayer.graph.core.StarLayerDataset.has_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1300-L1303)
+
+---
+
+<a id="entity-starlayer-graph-core-StarLayerDataset-named_graphs"></a>
+### `StarLayerDataset.named_graphs`  _(method)_
+
+```python
+def named_graphs(self) -> Iterator[Any]
+```
+
+The names of the named graphs of the store, empty ones included (``graphs()`` makes a graph object of each). Oxigraph's own form: ``ox.named_graphs()``.
+
+**Returns:** `Iterator[Any]`
+
+**Source:** [starlayer.graph.core.StarLayerDataset.named_graphs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1207-L1209)
 
 ---
 
@@ -199,7 +252,7 @@ Quads matching ``(s, p, o[, graph])``; graph ``None`` is any graph (the default 
 
 **Returns:** `Iterator[ox.Quad]`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1068-L1072)
+**Source:** [starlayer.graph.core.StarLayerDataset.quads](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1181-L1185)
 
 ---
 
@@ -218,7 +271,7 @@ A dataset of the ``reifier rdf:reifies <triple term>`` triples of ``reifier`` (o
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1132-L1139)
+**Source:** [starlayer.graph.core.StarLayerDataset.reified_triples](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1271-L1278)
 
 ---
 
@@ -240,7 +293,7 @@ came from. ``list(reification.reifiers(ds))`` gives the reifier nodes alone.
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1127-L1130)
+**Source:** [starlayer.graph.core.StarLayerDataset.reifiers](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1266-L1269)
 
 ---
 
@@ -261,7 +314,7 @@ Without a graph, a union dataset matches in every graph; otherwise only the defa
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1094-L1103)
+**Source:** [starlayer.graph.core.StarLayerDataset.remove](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1233-L1242)
 
 ---
 
@@ -272,7 +325,7 @@ Without a graph, a union dataset matches in every graph; otherwise only the defa
 def remove_graph(self, identifier: Any) -> StarLayerDataset
 ```
 
-Remove a named graph with its triples (the default graph is emptied).
+Remove a named graph with its triples (the default graph is emptied). ``ox.remove_graph(name)`` is Oxigraph's own form.
 
 **Parameters:**
 
@@ -280,7 +333,7 @@ Remove a named graph with its triples (the default graph is emptied).
 
 **Returns:** `StarLayerDataset`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.remove_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1166-L1174)
+**Source:** [starlayer.graph.core.StarLayerDataset.remove_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1223-L1231)
 
 ---
 
@@ -296,7 +349,7 @@ collapse). It is a copy: it can be queried or compared on its own.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.core.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1110-L1115)
+**Source:** [starlayer.graph.core.StarLayerDataset.to_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1249-L1254)
 
 ---
 
@@ -306,7 +359,7 @@ collapse). It is a copy: it can be queried or compared on its own.
 One graph of a store: the default graph (``identifier=None``) or the named graph ``identifier`` (a ``NamedNode``,
 ``BlankNode``, or an IRI string).
 
-**Source:** [starlayer.graph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L903-L1010)
+**Source:** [starlayer.graph.core.StarLayerGraph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L996-L1123)
 
 ---
 
@@ -321,7 +374,7 @@ Remove every triple of this graph only; other graphs of the store are untouched.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L981-L985)
+**Source:** [starlayer.graph.core.StarLayerGraph.clear](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1094-L1098)
 
 ---
 
@@ -337,7 +390,7 @@ An independent in-memory copy of this graph (same identifier, own copy of the pr
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L993-L1000)
+**Source:** [starlayer.graph.core.StarLayerGraph.copy](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1106-L1113)
 
 ---
 
@@ -348,7 +401,7 @@ An independent in-memory copy of this graph (same identifier, own copy of the pr
 def from_rdflib(cls, graph: Any) -> StarLayerGraph
 ```
 
-A new in-memory ``StarLayerGraph`` with the triples, prefixes and (when it is an IRI) identifier of an rdflib ``Graph`` or an
+A new in-memory ``StarLayerGraph`` with the triples, the prefixes its data uses and (when it is an IRI) identifier of an rdflib ``Graph`` or an
 old-style ``StarLayerGraph``; a ``TripleTerm`` becomes a triple term, a directional literal in its datatype-IRI form
 (what ``to_rdflib`` writes) is restored, and the basic encoding is left as triples (``interop.from_basic`` decodes it).
 A term RDF does not allow raises ``ValueError``. An ``StarLayerGraph`` is copied.
@@ -360,7 +413,7 @@ For an rdflib dataset's named graphs use ``StarLayerDataset.from_rdflib``.
 
 **Returns:** `StarLayerGraph`
 
-**Source:** [starlayer.graph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L927-L937)
+**Source:** [starlayer.graph.core.StarLayerGraph.from_rdflib](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1020-L1030)
 
 ---
 
@@ -375,7 +428,37 @@ The name of the graph this ``StarLayerGraph`` holds.
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L940-L942)
+**Source:** [starlayer.graph.core.StarLayerGraph.identifier](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1033-L1035)
+
+---
+
+<a id="entity-starlayer-graph-core-StarLayerGraph-named_graphs"></a>
+### `StarLayerGraph.named_graphs`  _(method)_
+
+```python
+def named_graphs(self) -> Iterator[Any]
+```
+
+The names of the named graphs of the whole store, this one and the others, empty ones included. Oxigraph's own form: ``ox.named_graphs()``.
+
+**Returns:** `Iterator[Any]`
+
+**Source:** [starlayer.graph.core.StarLayerGraph.named_graphs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1090-L1092)
+
+---
+
+<a id="entity-starlayer-graph-core-StarLayerGraph-remove_graph"></a>
+### `StarLayerGraph.remove_graph`  _(method)_
+
+```python
+def remove_graph(self) -> StarLayerGraph
+```
+
+Drop this graph from its store with its triples (the default graph is emptied). Oxigraph's own form: ``ox.remove_graph(name)``.
+
+**Returns:** `StarLayerGraph`
+
+**Source:** [starlayer.graph.core.StarLayerGraph.remove_graph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L1081-L1088)
 
 ---
 
@@ -386,7 +469,7 @@ A SPARQL query, prepared once, bound with the options
 ``StarLayerGraph.query()`` otherwise takes per call - run it against as
 many graphs as you like via :meth:`run`.
 
-**Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L31-L141)
+**Source:** [starlayer.sparql.star_query.StarQuery](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L31-L134)
 
 ---
 
@@ -405,12 +488,12 @@ changed.
 
 **Parameters:**
 
-- `graph: Any` - The graph to query (a ``StarLayerGraph``, or anything else ``StarLayerGraph.query()``'s own ``query_object`` parameter already accepts a prepared ``Query`` against). ``infer``/``engine``/``timeout``/``base``, overriding the bound value (or ``StarLayerGraph.query()``'s own default) for this call only. Any other name raises ``TypeError``.
+- `graph: Any` - The graph to query (a ``StarLayerGraph``, or anything else ``StarLayerGraph.query()``'s own ``query_object`` parameter already accepts a prepared ``Query`` against). ``recompute``/``engine``/``timeout``/``base``, overriding the bound value (or ``StarLayerGraph.query()``'s own default) for this call only. Any other name raises ``TypeError``.
 - `overrides: Any`
 
 **Returns:** `Any` - Whatever ``graph.query()`` itself returns for this query.
 
-**Source:** [starlayer.sparql.star_query.StarQuery.run](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L86-L141)
+**Source:** [starlayer.sparql.star_query.StarQuery.run](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/star_query.py#L86-L134)
 
 ---
 
@@ -695,13 +778,53 @@ once for the whole batch. ``data_graphs`` is as for the module function :func:`v
 
 [Back to overview](api-overview.generated.md#starlayergraph)
 
+<a id="entity-starlayer-graph-bnode_align-Alignment"></a>
+### `Alignment`  _(class)_
+
+``graph``: a copy of the aligned graph whose blank nodes carry the reference's labels where they were paired and fresh labels elsewhere.
+``pairs``: one ``BlankNodePair`` for each blank node of the original graph.
+
+**Source:** [starlayer.graph.bnode_align.Alignment](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/bnode_align.py#L53-L62)
+
+---
+
+<a id="entity-starlayer-graph-bnode_align-Alignment-of_kind"></a>
+### `Alignment.of_kind`  _(method)_
+
+```python
+def of_kind(self, kind: str) -> list[BlankNodePair]
+```
+
+The pairs of one kind: ``"exact"``, ``"ambiguous"``, ``"approximate"`` or ``"unmatched"``.
+
+**Parameters:**
+
+- `kind: str`
+
+**Returns:** `list[BlankNodePair]`
+
+**Source:** [starlayer.graph.bnode_align.Alignment.of_kind](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/bnode_align.py#L60-L62)
+
+---
+
+<a id="entity-starlayer-graph-bnode_align-BlankNodePair"></a>
+### `BlankNodePair`  _(class)_
+
+A blank node of the graph, the blank node of the reference it was paired with (``None`` when ``kind`` is ``"unmatched"``), how it was paired
+(``"exact"``, ``"ambiguous"``, ``"approximate"`` or ``"unmatched"``) and, for a pair made by overlap, its overlap score and the number of edges of
+the larger node that the other lacks (``changes``).
+
+**Source:** [starlayer.graph.bnode_align.BlankNodePair](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/bnode_align.py#L40-L49)
+
+---
+
 <a id="entity-starlayer-graph-rdfc_native-CanonicalizationComplexityError"></a>
 ### `CanonicalizationComplexityError`  _(class)_
 
 The dataset has a highly symmetric blank-node structure that RDFC-1.0 would take exponential time on (RDFC-1.0
 section 7.1, "Dataset Poisoning": implementations MUST terminate early with an exception).
 
-**Source:** [starlayer.graph.rdfc_native.CanonicalizationComplexityError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/rdfc_native.py#L33-L35)
+**Source:** [starlayer.graph.rdfc_native.CanonicalizationComplexityError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/rdfc_native.py#L37-L39)
 
 ---
 
@@ -842,116 +965,12 @@ no answer).
 
 ---
 
-<a id="entity-starlayer-graph-execution-session-EntailmentSession"></a>
-### `EntailmentSession`  _(class)_
-
-Open with ``graph.entailment_session(regime)``. Use it as a context manager, or call :meth:`close`.
-
-The entailed triples come from the graph's kept ones (``infer=`` as on ``query()``: ``"changed"`` computes them again only
-after a write, ``"cached"`` reuses any, ``"always"`` computes them). :meth:`query` never computes them: the session answers
-from its copy. :attr:`stale` says whether the graph was written to since the copy was made; :meth:`refresh` makes a new copy.
-
-**Source:** [starlayer.graph.execution.session.EntailmentSession](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L20-L116)
-
----
-
-<a id="entity-starlayer-graph-execution-session-EntailmentSession-close"></a>
-### `EntailmentSession.close`  _(method)_
-
-```python
-def close(self) -> None
-```
-
-End the session: empty and drop the copy. The graph and the entailed triples it keeps are not affected. Calling it
-again does nothing.
-
-**Returns:** `None`
-
-**Source:** [starlayer.graph.execution.session.EntailmentSession.close](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L95-L98)
-
----
-
-<a id="entity-starlayer-graph-execution-session-EntailmentSession-closed"></a>
-### `EntailmentSession.closed`  _(method)_
-
-```python
-def closed(self) -> bool
-```
-
-True once the session has been closed; its copy is gone and queries raise ``RuntimeError``.
-
-**Returns:** `bool`
-
-**Source:** [starlayer.graph.execution.session.EntailmentSession.closed](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L82-L84)
-
----
-
-<a id="entity-starlayer-graph-execution-session-EntailmentSession-query"></a>
-### `EntailmentSession.query`  _(method)_
-
-```python
-def query(self, text: str, initNs: Any=None, initBindings: Any=None, base: str | None=None, *, custom_functions: Any=None, custom_aggregate_functions: Any=None) -> Any
-```
-
-Run SPARQL ``text`` on the copy (the data as of the last open or refresh, plus the entailed triples). Read the result
-before the session is closed or refreshed: closing empties the copy.
-
-**Parameters:**
-
-- `text: str`
-- `initNs: Any = None`
-- `initBindings: Any = None`
-- `base: str | None = None`
-- `custom_functions: Any = None`
-- `custom_aggregate_functions: Any = None`
-
-**Returns:** `Any`
-
-**Source:** [starlayer.graph.execution.session.EntailmentSession.query](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L68-L73)
-
----
-
-<a id="entity-starlayer-graph-execution-session-EntailmentSession-refresh"></a>
-### `EntailmentSession.refresh`  _(method)_
-
-```python
-def refresh(self, infer: str='changed') -> EntailmentSession
-```
-
-Make a new copy of the graph's current data; the entailed triples are computed again as ``infer`` says
-(``"changed"``: only if the graph was written to since they were computed).
-
-**Parameters:**
-
-- `infer: str = 'changed'`
-
-**Returns:** `EntailmentSession`
-
-**Source:** [starlayer.graph.execution.session.EntailmentSession.refresh](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L86-L93)
-
----
-
-<a id="entity-starlayer-graph-execution-session-EntailmentSession-stale"></a>
-### `EntailmentSession.stale`  _(method)_
-
-```python
-def stale(self) -> bool
-```
-
-True if a write was made through StarLayer since the copy was made (any graph counts, as for ``infer="changed"``).
-
-**Returns:** `bool`
-
-**Source:** [starlayer.graph.execution.session.EntailmentSession.stale](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/execution/session.py#L76-L79)
-
----
-
 <a id="entity-starlayer-graph-delta-GraphDelta"></a>
 ### `GraphDelta`  _(class)_
 
 ``added`` and ``removed`` triples. A delta that is not empty is true; the two sets do not overlap.
 
-**Source:** [starlayer.graph.delta.GraphDelta](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L25-L64)
+**Source:** [starlayer.graph.delta.GraphDelta](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L33-L74)
 
 ---
 
@@ -959,18 +978,18 @@ True if a write was made through StarLayer since the copy was made (any graph co
 ### `GraphDelta.applied_to`  _(method)_
 
 ```python
-def applied_to(self, graph: Any) -> frozenset[Triple]
+def applied_to(self, graph: Any) -> Any
 ```
 
-The triples ``graph`` would hold after ``apply``, without changing it.
+A copy of ``graph`` with the delta applied, to look at the result without changing ``graph``.
 
 **Parameters:**
 
 - `graph: Any`
 
-**Returns:** `frozenset[Triple]`
+**Returns:** `Any`
 
-**Source:** [starlayer.graph.delta.GraphDelta.applied_to](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L62-L64)
+**Source:** [starlayer.graph.delta.GraphDelta.applied_to](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L71-L74)
 
 ---
 
@@ -989,7 +1008,7 @@ Remove ``removed`` from ``graph`` and add ``added``; returns ``graph``.
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.delta.GraphDelta.apply](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L55-L60)
+**Source:** [starlayer.graph.delta.GraphDelta.apply](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L63-L69)
 
 ---
 
@@ -1004,7 +1023,7 @@ The delta that undoes this one: what was added is removed and what was removed i
 
 **Returns:** `GraphDelta`
 
-**Source:** [starlayer.graph.delta.GraphDelta.inverse](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L46-L48)
+**Source:** [starlayer.graph.delta.GraphDelta.inverse](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L54-L56)
 
 ---
 
@@ -1023,16 +1042,17 @@ The net effect of this delta followed by ``other`` (a triple added and then remo
 
 **Returns:** `GraphDelta`
 
-**Source:** [starlayer.graph.delta.GraphDelta.then](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L50-L53)
+**Source:** [starlayer.graph.delta.GraphDelta.then](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L58-L61)
 
 ---
 
 <a id="entity-starlayer-graph-profile-GraphProfile"></a>
 ### `GraphProfile`  _(class)_
 
-The profile of a graph: ``classes``, ``properties``, ``subjects``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)`` and ``properties_of(nodes)``.
+The profile of a graph: ``classes``, ``properties``, ``subjects``, ``instances(cls)``, ``types_of(node)``, ``class_properties(cls)``,
+``properties_of(nodes)`` and ``graphs``.
 
-**Source:** [starlayer.graph.profile.GraphProfile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L31-L82)
+**Source:** [starlayer.graph.profile.GraphProfile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L31-L90)
 
 ---
 
@@ -1051,7 +1071,7 @@ The properties the instances of ``cls`` use (see ``properties_of``).
 
 **Returns:** `list[PropertyUse]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.class_properties](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L80-L82)
+**Source:** [starlayer.graph.profile.GraphProfile.class_properties](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L88-L90)
 
 ---
 
@@ -1066,7 +1086,23 @@ def classes(self) -> dict[Any, int]
 
 **Returns:** `dict[Any, int]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.classes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L46-L48)
+**Source:** [starlayer.graph.profile.GraphProfile.classes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L54-L56)
+
+---
+
+<a id="entity-starlayer-graph-profile-GraphProfile-graphs"></a>
+### `GraphProfile.graphs`  _(method)_
+
+```python
+def graphs(self) -> dict[Any, GraphProfile]
+```
+
+``{graph name: the profile of that graph}`` for every graph of a dataset, the default graph (``DefaultGraph``) and empty named graphs
+included. For a graph, its own name and this profile.
+
+**Returns:** `dict[Any, GraphProfile]`
+
+**Source:** [starlayer.graph.profile.GraphProfile.graphs](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L48-L51)
 
 ---
 
@@ -1085,7 +1121,7 @@ The nodes typed exactly ``cls``.
 
 **Returns:** `list[Any]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.instances](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L60-L62)
+**Source:** [starlayer.graph.profile.GraphProfile.instances](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L68-L70)
 
 ---
 
@@ -1100,7 +1136,7 @@ def properties(self) -> dict[Any, int]
 
 **Returns:** `dict[Any, int]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.properties](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L51-L53)
+**Source:** [starlayer.graph.profile.GraphProfile.properties](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L59-L61)
 
 ---
 
@@ -1119,7 +1155,7 @@ The properties ``nodes`` use, most used first (then by IRI text).
 
 **Returns:** `list[PropertyUse]`
 
-**Source:** [starlayer.graph.profile.GraphProfile.properties_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L68-L78)
+**Source:** [starlayer.graph.profile.GraphProfile.properties_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L76-L86)
 
 ---
 
@@ -1134,7 +1170,7 @@ Every subject of the graph (typed or not).
 
 **Returns:** `frozenset`
 
-**Source:** [starlayer.graph.profile.GraphProfile.subjects](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L56-L58)
+**Source:** [starlayer.graph.profile.GraphProfile.subjects](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L64-L66)
 
 ---
 
@@ -1153,7 +1189,7 @@ The IRIs ``node`` is typed with.
 
 **Returns:** `frozenset`
 
-**Source:** [starlayer.graph.profile.GraphProfile.types_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L64-L66)
+**Source:** [starlayer.graph.profile.GraphProfile.types_of](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L72-L74)
 
 ---
 
@@ -1336,6 +1372,41 @@ Value of a variable, or ``default`` when the name is unknown or the variable is 
 
 ---
 
+<a id="entity-starlayer-graph-bnode_align-align_blank_nodes"></a>
+### `align_blank_nodes`  _(function)_
+
+```python
+def align_blank_nodes(graph: Any, to: Any, *, min_overlap: float=0.5, max_changes: int=1) -> Alignment
+```
+
+``graph`` with its blank nodes relabelled to match the blank nodes of ``to``, and the pairing that did it; see the module docstring.
+
+``min_overlap`` (0 to 1) is how much two blank nodes that are not exactly alike must have in common to be treated as the same node: the
+shared edges as a fraction of the edges of the node that has more of them. 1 pairs only nodes that are alike except for an unpaired
+neighbour, and a lower value pairs more of the nodes that were edited. ``max_changes`` is how many of the larger node's edges the other may
+lack, whatever the fraction: a node with three edges that loses one is 0.67 of itself, which a ``min_overlap`` of 0.75 would refuse, and
+``max_changes=1`` still pairs. ``max_changes=0`` leaves it to ``min_overlap``. Nodes that are exactly alike are always paired.
+
+``graph`` and ``to`` are ``StarLayerGraph`` objects. The result's ``graph`` is a new ``StarLayerGraph`` with the prefixes of ``graph``. A blank
+node inside a triple term is handled through the RDF 1.1 basic encoding.
+
+Raises:
+    TypeError: a dataset or another kind of object.
+    ValueError: ``min_overlap`` outside 0 to 1, or a negative ``max_changes``.
+
+**Parameters:**
+
+- `graph: Any`
+- `to: Any`
+- `min_overlap: float = 0.5`
+- `max_changes: int = 1`
+
+**Returns:** `Alignment`
+
+**Source:** [starlayer.graph.bnode_align.align_blank_nodes](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/bnode_align.py#L189-L235)
+
+---
+
 <a id="entity-starlayer-graph-core-as_store"></a>
 ### `as_store`  _(function)_
 
@@ -1351,7 +1422,7 @@ The ``pyoxigraph.Store`` behind a wrapper, an ``OxigraphGraph`` view, or a bare 
 
 **Returns:** `ox.Store`
 
-**Source:** [starlayer.graph.core.as_store](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L45-L54)
+**Source:** [starlayer.graph.core.as_store](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/core.py#L46-L55)
 
 ---
 
@@ -1391,7 +1462,7 @@ The delta that turns ``old`` into ``new``: the triples only ``new`` has are adde
 
 **Returns:** `GraphDelta`
 
-**Source:** [starlayer.graph.delta.diff](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L67-L70)
+**Source:** [starlayer.graph.delta.diff](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/delta.py#L77-L81)
 
 ---
 
@@ -1432,8 +1503,10 @@ A literal from a Python value, or from text with a ``datatype`` (a ``NamedNode``
 ``direction`` (``"ltr"`` or ``"rtl"``, with ``lang``).
 
 A ``bool`` is ``xsd:boolean``, an ``int`` ``xsd:integer``, a ``float`` ``xsd:double``, a ``Decimal`` ``xsd:decimal``, a ``datetime`` /
-``date`` / ``time`` ``xsd:dateTime`` / ``xsd:date`` / ``xsd:time``, a ``str`` a plain string. ``lang`` takes precedence over
-``datatype``, as in RDF. A Python value with a ``datatype`` is written as its own lexical form (``literal(5, XSD.long)``).
+``date`` / ``time`` ``xsd:dateTime`` / ``xsd:date`` / ``xsd:time``, a ``str`` a plain string. A language-tagged literal has the datatype
+``rdf:langString`` (``rdf:dirLangString`` with a ``direction``), so a ``datatype`` given with ``lang`` must be ``xsd:string`` or one of those;
+any other raises ``ValueError``, as the datatype cannot be kept. A Python value with a ``datatype`` is written as its own lexical form
+(``literal(5, XSD.long)``).
 
 **Parameters:**
 
@@ -1444,7 +1517,7 @@ A ``bool`` is ``xsd:boolean``, an ``int`` ``xsd:integer``, a ``float`` ``xsd:dou
 
 **Returns:** `ox.Literal`
 
-**Source:** [starlayer.graph.terms.literal](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/terms.py#L75-L107)
+**Source:** [starlayer.graph.terms.literal](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/terms.py#L78-L114)
 
 ---
 
@@ -1468,7 +1541,7 @@ resolved with ``prefixes`` (prefix to namespace IRI) and is an error without one
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.terms.parse_term](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/terms.py#L163-L179)
+**Source:** [starlayer.graph.terms.parse_term](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/terms.py#L170-L186)
 
 ---
 
@@ -1479,7 +1552,7 @@ resolved with ``prefixes`` (prefix to namespace IRI) and is an error without one
 def profile(graph: Any) -> GraphProfile
 ```
 
-Profile ``graph`` (a ``StarLayerGraph`` or ``StarLayerDataset``) in one pass over its triples.
+Profile ``graph`` (a ``StarLayerGraph`` or ``StarLayerDataset``) in one pass over its triples; a dataset's graphs are profiled one by one as well.
 
 **Parameters:**
 
@@ -1487,7 +1560,7 @@ Profile ``graph`` (a ``StarLayerGraph`` or ``StarLayerDataset``) in one pass ove
 
 **Returns:** `GraphProfile`
 
-**Source:** [starlayer.graph.profile.profile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L85-L100)
+**Source:** [starlayer.graph.profile.profile](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/profile.py#L102-L125)
 
 ---
 
@@ -1580,7 +1653,7 @@ The Python value of a literal: ``bool`` for ``xsd:boolean``, ``int`` for the int
 
 **Returns:** `Any`
 
-**Source:** [starlayer.graph.terms.to_python](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/terms.py#L114-L144)
+**Source:** [starlayer.graph.terms.to_python](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/graph/terms.py#L121-L151)
 
 ---
 
@@ -1588,54 +1661,99 @@ The Python value of a literal: ``bool`` for ``xsd:boolean``, ``int`` for the int
 
 [Back to overview](api-overview.generated.md#starlayersparql)
 
+<a id="entity-starlayer-sparql-check-QueryCheck"></a>
+### `QueryCheck`  _(class)_
+
+What ``check_query`` found: the query ``form`` (``None`` when the text does not parse) and every ``problems`` entry.
+
+**Source:** [starlayer.sparql.check.QueryCheck](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/check.py#L40-L59)
+
+---
+
+<a id="entity-starlayer-sparql-check-QueryCheck-errors"></a>
+### `QueryCheck.errors`  _(method)_
+
+```python
+def errors(self) -> tuple[QueryProblem, ...]
+```
+
+The problems that make the text wrong.
+
+**Returns:** `tuple[QueryProblem, ...]`
+
+**Source:** [starlayer.sparql.check.QueryCheck.errors](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/check.py#L47-L49)
+
+---
+
+<a id="entity-starlayer-sparql-check-QueryCheck-ok"></a>
+### `QueryCheck.ok`  _(method)_
+
+```python
+def ok(self) -> bool
+```
+
+True when there is no error; warnings do not count.
+
+**Returns:** `bool`
+
+**Source:** [starlayer.sparql.check.QueryCheck.ok](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/check.py#L57-L59)
+
+---
+
+<a id="entity-starlayer-sparql-check-QueryCheck-warnings"></a>
+### `QueryCheck.warnings`  _(method)_
+
+```python
+def warnings(self) -> tuple[QueryProblem, ...]
+```
+
+The problems that leave the text legal.
+
+**Returns:** `tuple[QueryProblem, ...]`
+
+**Source:** [starlayer.sparql.check.QueryCheck.warnings](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/check.py#L52-L54)
+
+---
+
+<a id="entity-starlayer-sparql-check-QueryProblem"></a>
+### `QueryProblem`  _(class)_
+
+One finding about a query text.
+
+``kind`` is ``"syntax"`` (outside the grammar), ``"prefix"`` (a prefix the text does not declare: a warning when no ``prefixes`` were given, else an error), ``"version"`` (a ``VERSION``
+directive the text contradicts, or an unknown one), ``"engine"`` (Oxigraph rejected it) or ``"shape"``
+(a finding of the ``sqe:`` shapes, such as a variable that is never bound). ``severity`` is ``"error"`` or ``"warning"``: a
+warning is legal SPARQL that is probably a mistake. ``line`` and ``column`` (1-based) are known for syntax and prefix findings.
+
+**Source:** [starlayer.sparql.check.QueryProblem](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/check.py#L23-L36)
+
+---
+
 <a id="entity-starlayer-sparql-check-check_query"></a>
 ### `check_query`  _(function)_
 
 ```python
-def check_query(text: str, prepare: bool=False) -> str | None
+def check_query(text: str, prefixes: Mapping[str, str] | None=None, *, custom_functions: Mapping[Any, Any] | None=None, custom_aggregate_functions: Mapping[Any, Any] | None=None) -> QueryCheck
 ```
 
-``None`` when ``text`` is a SPARQL 1.2 query (or update) by StarLayer's grammar; else the parser's first line about what is wrong.
+Check ``text`` as a SPARQL 1.2 query or update: the grammar, its ``VERSION`` directive, the ``sqe:`` shapes and, for a query,
+Oxigraph, which has the last word on what it accepts.
 
-``prepare``: also prepare a query with Oxigraph, for a query whose text carries all its ``PREFIX`` lines; an update is
-only parsed, and so is a query with a ``SERVICE`` clause (preparing it would send the request).
+``prefixes`` (prefix to namespace, such as ``graph.prefixes``) are taken as declared before the text. Without them an undeclared
+prefix is a warning, since the graph the text runs against may declare it; with them it is an error. Oxigraph runs the query on an
+empty graph, so ``custom_functions`` and ``custom_aggregate_functions`` (as for ``query()``) must name the functions the text calls.
+An update, a query with a ``SERVICE`` clause (which would send the request) and a text with an undeclared prefix are not run.
 
 **Parameters:**
 
 - `text: str`
-- `prepare: bool = False`
+- `prefixes: Mapping[str, str] | None = None`
+- `custom_functions: Mapping[Any, Any] | None = None`
+- `custom_aggregate_functions: Mapping[Any, Any] | None = None`
 
-**Returns:** `str | None`
+**Returns:** `QueryCheck`
 
-**Source:** [starlayer.sparql.check.check_query](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/check.py#L14-L42)
-
----
-
-<a id="entity-starlayer-sparql-relevant-relevant_subgraph"></a>
-### `relevant_subgraph`  _(function)_
-
-```python
-def relevant_subgraph(graph: Any, query: str, init_bindings: Mapping[str, Any] | None=None, init_ns: Mapping[str, str] | None=None) -> Any
-```
-
-The triples of ``graph`` that the answer of ``query`` depends on, as a new ``StarLayerGraph``.
-
-Every derivation is kept and nothing is chosen between them (see the module docstring). ``init_ns`` (prefix to namespace)
-declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
-
-Raises ``TypeError`` for a ``StarLayerDataset`` (name one of its graphs, or merge them: ``to_graph()``), ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
-depends on a remote graph, so it cannot be reproduced from a subgraph of this one).
-
-**Parameters:**
-
-- `graph: Any`
-- `query: str`
-- `init_bindings: Mapping[str, Any] | None = None`
-- `init_ns: Mapping[str, str] | None = None`
-
-**Returns:** `Any`
-
-**Source:** [starlayer.sparql.relevant.relevant_subgraph](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/relevant.py#L60-L88)
+**Source:** [starlayer.sparql.check.check_query](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/sparql/check.py#L165-L194)
 
 ---
 
@@ -1668,7 +1786,7 @@ directly.
 
 The shapes graph does not validate against the meta-shapes; the message starts with the old preflight's text.
 
-**Source:** [starlayer.shacl.engine.meta.MetaShaclError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/engine/meta.py#L23-L24)
+**Source:** [starlayer.shacl.engine.meta.MetaShaclError](https://github.com/hidden-graph/starlayer/blob/shacl-engine/packages/starlayer/starlayer/shacl/engine/meta.py#L24-L25)
 
 ---
 

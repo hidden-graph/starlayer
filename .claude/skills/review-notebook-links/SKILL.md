@@ -43,8 +43,8 @@ Notebooks are never edited from here. If a cell is wrong or missing something, s
 - Pick the cell that **calls** the symbol in a way a reader learns from, not the cell that imports it or merely
   mentions the name. `import`-only cells and setup helpers were the usual wrong first match.
 - Check that the call is to StarLayer's symbol. A cell can use a same-named function from another library: the Getting
-  Started validation cell calls `pyshacl.validate`, not `StarShaclSchema.validate`, so it is not a link.
-- Method versus function: `select_widgets()` the function and `StarShaclSchema.select_widgets` the method are
+  Started validation cell calls `pyshacl.validate`, not `StarShaclProcessor.validate`, so it is not a link.
+- Method versus function: `select_widgets()` the function and `StarShaclProcessor.select_widgets` the method are
   different identifiers with different cells. Link each to the cell that uses it.
 - Name symbols by `dcterms:identifier` as in `functionality.ttl`. A package is `pkg.__init__`. The identifier must exist
   in the code graph; the tests fail otherwise.

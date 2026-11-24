@@ -34,7 +34,7 @@ RDF 1.2 terms, reifiers, annotations and directional literals (`02`); datasets a
 
 | Gap | Where it is now |
 |---|---|
-| Reading a validation result, errors, `validate_each`, `target_nodes`, entailment during validation | `04` sections 5.1 to 5.3 (`ValidationResult`, `validate_each`, `ShapeError`, `MetaShaclError`, `inference=`, `sh:entailment`); the derive section is now 6 |
+| Reading a validation result, errors, `validate_each`, `target_nodes`, entailment during validation | `04` sections 5.1 to 5.3 (`ValidationReport`, `validate_each`, `ShapeError`, `MetaShaclError`, `inference=`, `sh:entailment`); the derive section is now 6 |
 | Building on SHACL: `infer_types`, `shapes_graph_members`, `sparql_query_problems`, `path_values`, `is_inverse`, `evaluate_expression`, `node_expression_functions` / `operators`, `property_shapes_for_role`, `select_widget` | new guide `05g-building-on-shacl.ipynb` (README, `user-guide-version.json`) |
 | Prefixes: `bind`, `unbind`, `used_prefixes`, `expand_curie`, `compute_qname`, `set_default_prefixes`, `DEFAULT_PREFIXES` | `02d` section "Prefixes" |
 | `owl:imports` at the RDF level: `owl_imports`, `has_import_locally`, `resolve_imports(loader=)`, `can_resolve_import` | `02d` section "`owl:imports`" |

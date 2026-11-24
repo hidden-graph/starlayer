@@ -10,7 +10,7 @@ The RDF, SPARQL and SHACL 1.2 specifications are still drafts. StarLayer follows
 | --- | --- |
 | `starlayer.graph` | `StarLayerGraph` and `StarLayerDataset`: RDF 1.2 graphs with triple terms, reifiers, annotations and direction-tagged literals. Parses and serializes Turtle, TriG, N-Triples, N-Quads, RDF/XML and JSON-LD (all through Oxigraph, with the RDF 1.1 basic-encoding export for triple terms) and Manchester Syntax. Held by Oxigraph in memory or in an on-disk store; a query can read a remote SPARQL endpoint with `SERVICE`. Inference with RDF, RDFS, OWL-RL and OWL-DL. Canonical hashing and graph comparison. |
 | `starlayer.sparql` | SPARQL 1.2 queries and updates (`StarQuery`), queries as RDF (`sqe:`), and SRL (SPARQL Rules) rule sets. |
-| `starlayer.shacl` | SHACL 1.2 validation (`StarShaclSchema`), rules, node expressions, subgraph extraction, UI widget selection and profiling. |
+| `starlayer.shacl` | SHACL 1.2 validation (`StarShaclProcessor`), rules, node expressions, subgraph extraction, UI widget selection and profiling. |
 | `starlayer.starontology` | The ontologies and SHACL shapes the library ships, loaded by name. |
 
 ## Install
@@ -26,7 +26,7 @@ Python 3.10 or later. The core depends on `pyoxigraph` alone. rdflib interchange
 ## A short example
 
 ```python
-from starlayer import StarLayerGraph, StarShaclSchema
+from starlayer import StarLayerGraph, StarShaclProcessor
 
 data = StarLayerGraph()
 data.parse(data="""
@@ -56,7 +56,7 @@ ex:PersonShape a sh:NodeShape ;
   sh:property [ sh:path ex:age ; sh:datatype xsd:integer ] .
 """, format="turtle12")
 
-result = StarShaclSchema(shacl_graph=shapes).validate(data_graph=data)
+result = StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data)
 print(result.conforms)             # False: "thirty" is not an integer
 ```
 

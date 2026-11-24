@@ -76,7 +76,7 @@ Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A 
 
 **`StarLayer`** is the product/project name, not a Python identifier — write it as plain text, never backticked (`StarLayer`, not `` `StarLayer` ``). Capitalization is fixed: one word, capital S, capital L, matching the project README and PyPI listing.
 
-**Real identifiers are always code-formatted, with no exception for the two most-mentioned classes.** `` `StarLayerGraph` `` and `` `StarShaclSchema` `` get backticks every time they appear — in prose, in a heading, as the subject of a sentence — exactly like any other identifier already is (`` `sh:rule` ``, `` `owl:equivalentClass` ``, `` `apply_rules()` ``). Several guides today write a bare, unbackticked `StarLayerGraph` as a sentence or heading subject (`01-getting-started.ipynb`'s `## 2. Using StarLayerGraph`, `02-graphs.ipynb`'s "StarLayerGraph extends rdflib's..."); that inconsistency is what this rule fixes, not a pattern to continue.
+**Real identifiers are always code-formatted, with no exception for the two most-mentioned classes.** `` `StarLayerGraph` `` and `` `StarShaclProcessor` `` get backticks every time they appear — in prose, in a heading, as the subject of a sentence — exactly like any other identifier already is (`` `sh:rule` ``, `` `owl:equivalentClass` ``, `` `apply_rules()` ``). Several guides today write a bare, unbackticked `StarLayerGraph` as a sentence or heading subject (`01-getting-started.ipynb`'s `## 2. Using StarLayerGraph`, `02-graphs.ipynb`'s "StarLayerGraph extends rdflib's..."); that inconsistency is what this rule fixes, not a pattern to continue.
 
 ## 9. The master guide index lives in exactly one place
 
@@ -95,7 +95,7 @@ A guide is not done while it contains a scratch note, an open question to a futu
 
 ## 12. Scope and size
 
-No hard cap, but a guideline: if a guide grows past roughly 40–50 cells, it's probably covering more than one coherent topic and should split into a core guide plus one or more satellites, the same way `05-shacl-shapes.ipynb` already spawned `04a`–`04f`. `05a-shacl-node-expressions.ipynb` (93 cells, by far the largest guide — bigger than any "core" guide in the set) is the clearest current candidate; splitting it is a separate, deliberate task, not implied by adopting this style guide.
+No hard cap, but a guideline: if a guide grows past roughly 40–50 cells, it's probably covering more than one coherent topic and should split into a core guide plus one or more satellites, the same way `05.01-validating-with-shacl-1.2.ipynb` already spawned `04a`–`04f`. `05a-shacl-node-expressions.ipynb` (93 cells, by far the largest guide — bigger than any "core" guide in the set) is the clearest current candidate; splitting it is a separate, deliberate task, not implied by adopting this style guide.
 
 ## 13. Template for a new guide
 
