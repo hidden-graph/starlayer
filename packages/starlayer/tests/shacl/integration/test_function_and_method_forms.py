@@ -12,6 +12,7 @@ from starlayer.shacl import (
     explain_widgets,
     extract_shapes_graph,
     extract_subgraph,
+    form_model,
     select_widget,
     value_form,
 )
@@ -118,3 +119,12 @@ def test_value_form_and_check_value_methods_match_the_functions_and_take_a_data_
     assert not expected.conforms
     assert [r.identity() for r in processor.check_value(EX.Pet, EX.Ann, EX.Fern).results] == [r.identity() for r in expected.results]
     assert StarShaclProcessor(shacl_graph=shapes).check_value(EX.Pet, EX.Ann, EX.Fern, data_graph=other).conforms
+
+
+def test_form_model_method_matches_the_function_and_takes_a_data_graph_for_the_call():
+    shapes = _graph(SHAPES)
+    data, other = _graph(DATA), _graph('ex:bob a ex:Person ; ex:name "Bob" .')
+    expected = form_model(shapes, data, EX.alice)
+    assert StarShaclProcessor(shacl_graph=shapes, data_graph=data).form_model(EX.alice) == expected
+    assert [v.term.value for v in expected.field(EX.name).values] == ["Alice"]
+    assert [v.term.value for v in StarShaclProcessor(shacl_graph=shapes).form_model(EX.bob, data_graph=other).field(EX.name).values] == ["Bob"]

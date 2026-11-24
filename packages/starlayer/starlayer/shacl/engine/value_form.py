@@ -115,10 +115,14 @@ def _choice(alternatives: list[str]) -> str:
     return LIST if can_list else _NONE
 
 
-def value_form(shapes_graph: Any, property_shape: Any) -> str:
-    """``"single"``, ``"list"`` or ``"single-or-list"`` for the field of ``property_shape`` (see the module docstring)."""
-    plan = Plan(shapes_graph=engine_view(shapes_graph, "shapes graph"))
+def value_form_in(plan: Plan, property_shape: Any) -> str:
+    """``value_form`` on a ``Plan`` the caller already has, so a form of many fields compiles the shapes once."""
     node = to_engine(property_shape)
     _property_shape(plan, node)
     form = _Reader(plan).form(node)
     return SINGLE if form == _NONE else form
+
+
+def value_form(shapes_graph: Any, property_shape: Any) -> str:
+    """``"single"``, ``"list"`` or ``"single-or-list"`` for the field of ``property_shape`` (see the module docstring)."""
+    return value_form_in(Plan(shapes_graph=engine_view(shapes_graph, "shapes graph")), property_shape)

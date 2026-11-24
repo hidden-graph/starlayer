@@ -13,6 +13,7 @@ from typing import Any
 from starlayer.shacl import _adapter
 from starlayer.shacl.candidates import Candidates
 from starlayer.shacl.engine.terms import RDF, SH, BlankNode, n3
+from starlayer.shacl.form_model import FormModel
 from starlayer.shacl.normalization import normalize_to_starlayer_graph
 from starlayer.shacl.results import RulesResult, ValidationReport
 from starlayer.shacl.validation_modes import ValidationMode
@@ -332,6 +333,71 @@ def check_value(
         property_shape=property_shape,
         focus=focus,
         value=value,
+        subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+    )
+
+
+def form_model(
+    shapes_graph: Any,
+    data_graph: Any,
+    node: Any,
+    *,
+    role: str = "editor",
+    shapes: Any | None = None,
+    empty: str = "auto",
+    suggestions: bool = False,
+    only_valid: bool = False,
+    report: Any | None = None,
+    widgets: Any | None = None,
+    scoring_graph: Any | None = None,
+    implemented: Any | None = None,
+    inferred_graph: Any | None = None,
+    placement: Any | None = None,
+    subclass_of_in_shapes_graph: bool = False,
+) -> FormModel:
+    """The form of ``node``: its fields with widgets, values and where each value comes from, as a ``FormModel``.
+
+    A join of answers StarLayer already gives, with no vocabulary of its own. The data graph may suggest (stored values, candidates)
+    but never decides validity: ``errors`` come only from a ``report`` you pass (a ``ValidationReport`` or a report graph), and nothing
+    is validated here; ``FormField.check(value)`` validates one value on demand.
+
+    ``role``: ``"editor"`` or ``"viewer"`` (SHACL UI). ``shapes=None``: the node shapes that target ``node`` (``target_shapes``),
+    merged by ``sh:path`` into one field each, every contributing property shape kept; ``shapes=[S, ...]`` (terms) uses exactly those
+    node shapes, whether they target the node or not. A deactivated shape is ignored. ``empty``: ``"auto"`` (a viewer hides fields with
+    no value; an editor keeps required fields and fields with a value), ``"all"`` or ``"none"``; ``hidden_empty`` counts what is left out.
+    ``suggestions=True`` fills ``FormField.candidates`` with ``candidate_values(focus=node, only_valid=only_valid)`` (never by default: it
+    costs); ``shui:suggestedValues`` are always in ``suggested``.
+
+    ``widgets`` is an optional precomputed ``{property shape: WidgetChoice | widget IRI | None}`` for ``role``, what
+    ``select_widgets(per="shape")`` returns (a ``WidgetChoice`` is finished for ``node`` when it needs data); a property shape it does not
+    hold has no widget. Without it ``select_widgets`` runs per node shape with ``scoring_graph`` (``None``: no scoring catalog, as for
+    ``select_widgets``, so only widgets the shapes name) and ``implemented`` (the widget IRIs the app can draw). ``inferred_graph`` is a graph
+    of derived triples (``RulesResult.inferred_graph``): a value found only there has source ``"inferred"``; stored values come from
+    ``data_graph`` alone. ``placement`` is a callable ``field -> sort key`` that replaces the Core ordering of fields within a section
+    and of the sections (the section of the first field in key order comes first); the default is the Core rule: ungrouped fields first
+    by their ``sh:order``, then groups by the group's ``sh:order`` (``shui:defaultOrder`` when it has none, then last), then fields by
+    their own order, ties by ``sh:name`` text then IRI text.
+
+    ``sh:values`` and ``sh:defaultValue`` values come from one ``evaluate()`` call for the whole form, which cannot be limited to one
+    focus node cheaply (it resolves the property shapes' targets over the whole data graph), so it runs only when a field's shape has
+    one; a shape lens (``shapes=``) that does not target ``node`` gets none. ``stsh:formHeldBy`` / ``stsh:formOnlyFor`` on a property
+    shape are applied (see ``FormField`` and ``FormModel`` for the rest). rdflib graphs or terms are a ``TypeError`` naming
+    ``StarLayerGraph.from_rdflib``."""
+    return _adapter.form_model(
+        shapes_graph=shapes_graph,
+        data_graph=data_graph,
+        node=node,
+        role=role,
+        shapes=shapes,
+        empty=empty,
+        suggestions=suggestions,
+        only_valid=only_valid,
+        report=report,
+        widgets=widgets,
+        scoring_graph=scoring_graph,
+        implemented=implemented,
+        inferred_graph=inferred_graph,
+        placement=placement,
         subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
     )
 
@@ -757,6 +823,56 @@ class StarShaclProcessor:
             value=value,
             subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
             conformance_disallows=_adapter.conformance_disallows_for(defaults.get("allow_warnings"), defaults.get("allow_infos")),
+        )
+
+    def form_model(
+        self,
+        node: Any,
+        *,
+        role: str = "editor",
+        data_graph: Any | None = None,
+        shapes: Any | None = None,
+        empty: str = "auto",
+        suggestions: bool = False,
+        only_valid: bool = False,
+        report: Any | None = None,
+        widgets: Any | None = None,
+        scoring_graph: Any | None = None,
+        implemented: Any | None = None,
+        inferred_graph: Any | None = None,
+        placement: Any | None = None,
+        subclass_of_in_shapes_graph: bool | None = None,
+    ) -> FormModel:
+        """The form of ``node`` by the bound shapes graph, in ``data_graph`` (default: the bound one); see :func:`form_model`.
+        ``scoring_graph`` defaults to the bound one, ``subclass_of_in_shapes_graph`` to the constructor's value, and the constructor's
+        ``allow_warnings`` / ``allow_infos`` apply to ``FormField.check`` and ``only_valid``. The shapes that target the node are
+        found with the constructor's ``inference``, ontology graph, ``engine``, ``timeout`` and ``recompute``; ``sh:values`` values
+        are computed on the data graph without that regime."""
+        if subclass_of_in_shapes_graph is None:
+            subclass_of_in_shapes_graph = bool(self.subclass_of_in_shapes_graph)
+        if scoring_graph is None:
+            scoring_graph = self.scoring_graph
+        defaults = self._option_defaults(_VALIDATION_DEFAULTS)
+        options = {"inference": self.inference, **self._entailment_options(None, None, None)}
+        return _adapter.form_model(
+            shapes_graph=self._resolve_shacl_graph(None),
+            data_graph=self._resolve_data_graph(data_graph),
+            node=node,
+            role=role,
+            shapes=shapes,
+            empty=empty,
+            suggestions=suggestions,
+            only_valid=only_valid,
+            report=report,
+            widgets=widgets,
+            scoring_graph=scoring_graph,
+            implemented=implemented,
+            inferred_graph=inferred_graph,
+            placement=placement,
+            subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+            conformance_disallows=_adapter.conformance_disallows_for(defaults.get("allow_warnings"), defaults.get("allow_infos")),
+            target_options=options,
+            ont_graph=self.ont_graph,
         )
 
     def _entailment_options(self, engine: Any, timeout: Any, recompute: Any) -> dict[str, Any]:

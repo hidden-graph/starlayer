@@ -627,6 +627,13 @@ def check_value(
     return ValueCheck(conforms=conforming, results=report_results(report))
 
 
+def form_model(**options: Any) -> Any:
+    """``form_model()`` on the engine: a ``FormModel`` (the options are those of ``starlayer.shacl.form_model`` plus the processor's)."""
+    from starlayer.shacl.form_model import form_model as build
+
+    return build(**options)
+
+
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool) -> Any:
     """``StarShaclProcessor.extract_shapes_graph`` on the engine."""
     from starlayer.shacl.engine.shapes_graphs import (

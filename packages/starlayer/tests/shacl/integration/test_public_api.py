@@ -7,6 +7,7 @@ import pytest
 from starlayer.graph import StarLayerGraph, isomorphic
 from starlayer.shacl import (
     Candidates,
+    FormModel,
     ReportDiff,
     ReportResult,
     ValueCheck,
@@ -14,6 +15,7 @@ from starlayer.shacl import (
     check_value,
     diff_reports,
     evaluate_expression,
+    form_model,
     infer_types,
     is_inverse,
     node_expression_functions,
@@ -86,6 +88,11 @@ def test_value_form_and_check_value_are_public():
     assert value_form(shapes, EX.P) == "list"
     found = check_value(graph("ex:P sh:path ex:p ; sh:nodeKind sh:IRI ."), EX.P, EX.a, EX.b, graph(""))
     assert isinstance(found, ValueCheck) and found.conforms and found.results == ()
+
+
+def test_form_model_is_public_and_returns_a_form_model():
+    m = form_model(graph("ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:property ex:P . ex:P sh:path ex:p ."), graph("ex:a a ex:T ; ex:p 1 ."), EX.a)
+    assert isinstance(m, FormModel) and [f.path for f in m.fields] == [to_engine(EX.p)]
 
 
 def test_the_other_helpers_are_importable_and_callable():

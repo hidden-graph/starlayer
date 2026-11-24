@@ -13,6 +13,13 @@ from starlayer.shacl.errors import (
     RuleError,
     ShapeError,
 )
+from starlayer.shacl.form_model import (
+    FieldConstraints,
+    FormField,
+    FormModel,
+    FormSection,
+    FormValue,
+)
 from starlayer.shacl.meta_shapes import MetaScope, meta_scope, meta_validate
 from starlayer.shacl.node_expression_api import (
     evaluate_expression,
@@ -59,6 +66,7 @@ from starlayer.shacl.validator import (
     candidate_values,
     check_value,
     evaluate,
+    form_model,
     target_nodes,
     target_shapes,
     validate,
@@ -126,6 +134,12 @@ __all__ = [
     "value_form",
     "check_value",
     "ValueCheck",
+    "form_model",
+    "FormModel",
+    "FormSection",
+    "FormField",
+    "FormValue",
+    "FieldConstraints",
     "property_shapes_for_role",
     "select_widget",
     "select_widgets",
