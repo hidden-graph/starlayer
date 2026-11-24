@@ -194,7 +194,7 @@ def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_met
 
     called = []
     monkeypatch.setattr(engine_meta, "meta_validate", lambda *a, **k: called.append("meta_validate"))
-    for name in ("check_sparql_query_text", "meta_validate"):
+    for name in ("sparql_query_problems", "meta_validate"):
         if hasattr(meta_shapes, name):
             monkeypatch.setattr(meta_shapes, name, lambda *a, _n=name, **k: called.append(_n))
 

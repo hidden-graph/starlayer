@@ -138,7 +138,7 @@ def test_published_shapes_validate_srl_trees_without_starlayer(tmp_path):
             with warnings.catch_warnings():
                 warnings.simplefilter("ignore")
                 conforms, _, text = pyshacl.validate(data, shacl_graph=shapes, ont_graph=ont,
-                                                     inference="rdfs", advanced=True, max_validation_depth=100)
+                                                     inference="rdfs", max_validation_depth=100)
             if not conforms:
                 failed.append(name)
         assert "starlayer" not in sys.modules, "starlayer was imported"

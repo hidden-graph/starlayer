@@ -14,7 +14,7 @@ The user's own framing for (1): a class whose "primary purpose is to hold a quer
 | | Decided | Resolution |
 |---|---|---|
 | SPARQL class | Rich binding (query + every per-call option `StarLayerGraph.query()` takes). No SHACL-validation of a `CONSTRUCT` result at this class's level - "probably too much." | Named `StarQuery`. |
-| SRL `RuleSet` | Gains an entailment regime and a schema/shape to validate the inferred result against; the schema argument accepts either a `StarShaclSchema` instance or a bare shapes graph. `starlayer.sparql` → `starlayer.shacl` dependency accepted. | Lives directly on `infer()` (conditional return: bare graph when `schema` is omitted, `RulesResult` when given) rather than a separate `infer_and_validate()` method. |
+| SRL `RuleSet` | Gains an entailment regime and a schema/shape to validate the inferred result against; the schema argument accepts either a `StarShaclProcessor` instance or a bare shapes graph. `starlayer.sparql` → `starlayer.shacl` dependency accepted. | Lives directly on `infer()` (conditional return: bare graph when `schema` is omitted, `RulesResult` when given) rather than a separate `infer_and_validate()` method. |
 
 A real, previously-unknown bug was found while implementing the SPARQL class - `StarLayerGraph.query()`'s `entailment=ENTAILMENT.RDF`/`RDFS` silently has no effect when `query_object` is an already-prepared `Query` rather than text. See `starlayer/sparql/CLAUDE.md`'s same-day entry for the full account and how `StarQuery` works around it.
 
@@ -28,8 +28,8 @@ A real, previously-unknown bug was found while implementing the SPARQL class - `
   def query(self, base_graph: Graph, goal_pattern: TriplePattern) -> list[dict]: ...  # _srl_ast.py:246
   ```
   `RuleSet` is a plain (non-frozen) `@dataclass` with three fields: `rules`, `data`, `imports`. It is also the value `ruleset_to_tree()`/`tree_to_ruleset()` round-trip to/from RDF (`srl.py`). That dual role is the one real technical constraint shaping Part 2 below.
-- `starlayer.shacl.RulesResult` (`results.py:29`) is already exactly the shape `(inferred_graph, validation: ValidationResult)` that "feed it a shape and validate the result" needs - reusing it directly avoids inventing a parallel result type for the identical concept.
-- `starlayer.shacl.StarShaclSchema(shacl_graph=None, ont_graph=None, *, data_graph=None, inference=None, adapter=None, validate_fn=None)` - the binding-pattern precedent both designs below are modeled on: bind the "thing to interpret" plus cross-cutting config once at construction, then call processing methods repeatedly against different data without re-passing the same arguments.
+- `starlayer.shacl.RulesResult` (`results.py:29`) is already exactly the shape `(inferred_graph, validation: ValidationReport)` that "feed it a shape and validate the result" needs - reusing it directly avoids inventing a parallel result type for the identical concept.
+- `starlayer.shacl.StarShaclProcessor(shacl_graph=None, ont_graph=None, *, data_graph=None, inference=None, adapter=None, validate_fn=None)` - the binding-pattern precedent both designs below are modeled on: bind the "thing to interpret" plus cross-cutting config once at construction, then call processing methods repeatedly against different data without re-passing the same arguments.
 
 ## Part 1: the SPARQL-side class
 
@@ -77,11 +77,11 @@ rows_a = q.run(graph_a)
 rows_b = q.run(graph_b, entailment=None)  # per-call override, bound value untouched
 ```
 
-This mirrors `StarShaclSchema`'s own "bind once, call repeatedly, override per call" shape exactly. `prepare_query_12` runs only once, at construction - repeated `.run()` calls against different graphs reuse the same prepared `Query` object, the same performance benefit rdflib's own `prepareQuery()`/`graph.query(prepared)` precedent already offers, just with the surrounding options bound alongside it instead of the caller repeating them on every call.
+This mirrors `StarShaclProcessor`'s own "bind once, call repeatedly, override per call" shape exactly. `prepare_query_12` runs only once, at construction - repeated `.run()` calls against different graphs reuse the same prepared `Query` object, the same performance benefit rdflib's own `prepareQuery()`/`graph.query(prepared)` precedent already offers, just with the surrounding options bound alongside it instead of the caller repeating them on every call.
 
 **Explicitly out of scope**, per the user's own call: no SHACL-shape validation of a `CONSTRUCT` query's own result graph at this class's level.
 
-**Naming - resolved**: `StarQuery` (direct analogy to the user's own "StarGraph"/"StarSchema" shorthand), confirmed directly rather than put through the same multi-day deliberation `StarShaclSchema` itself got.
+**Naming - resolved**: `StarQuery` (direct analogy to the user's own "StarGraph"/"StarSchema" shorthand), confirmed directly rather than put through the same multi-day deliberation `StarShaclProcessor` itself got.
 
 ## Part 2: SRL `RuleSet` enhancements
 
@@ -93,7 +93,7 @@ def infer(
     base_graph: Graph,
     *,
     inference: Any | None = None,                    # an ENTAILMENT.* regime, or iterable of them
-    schema: "StarShaclSchema | Any | None" = None,    # a StarShaclSchema, or a bare shapes graph
+    schema: "StarShaclProcessor | Any | None" = None,    # a StarShaclProcessor, or a bare shapes graph
 ):
     if inference is not None:
         base_graph = base_graph.infer(entailment=inference, mode="full")  # pre-entail, same spirit as sh:entailment-before-rules
@@ -104,8 +104,8 @@ def infer(
     if schema is None:
         return inferred  # unchanged return shape when schema isn't used - zero breakage for any existing caller
 
-    from starlayer.shacl import RulesResult, StarShaclSchema
-    resolved_schema = schema if isinstance(schema, StarShaclSchema) else StarShaclSchema(shacl_graph=schema)
+    from starlayer.shacl import RulesResult, StarShaclProcessor
+    resolved_schema = schema if isinstance(schema, StarShaclProcessor) else StarShaclProcessor(shacl_graph=schema)
     validation = resolved_schema.validate(data_graph=inferred)
     return RulesResult(inferred_graph=inferred, validation=validation)
 ```
@@ -117,11 +117,11 @@ result = ruleset.infer(base, inference=ENTAILMENT.RDFS, schema=person_schema)
 print(result.inferred_graph)
 print(result.validation.conforms)
 
-# "allow both" - a bare shapes graph works too, not just a StarShaclSchema instance
+# "allow both" - a bare shapes graph works too, not just a StarShaclProcessor instance
 result2 = ruleset.infer(base, schema=shapes_graph)
 ```
 
-`schema=` is normalized with one `isinstance` check: a `StarShaclSchema` instance is used as-is (so a caller who already has one bound with its own `ont_graph`/`inference` gets that reused); a bare shapes graph is wrapped in a throwaway `StarShaclSchema(shacl_graph=schema)` first.
+`schema=` is normalized with one `isinstance` check: a `StarShaclProcessor` instance is used as-is (so a caller who already has one bound with its own `ont_graph`/`inference` gets that reused); a bare shapes graph is wrapped in a throwaway `StarShaclProcessor(shacl_graph=schema)` first.
 
 `starlayer.sparql` gains a real, direct dependency on `starlayer.shacl` for this - confirmed via `grep` that neither `srl.py` nor `_srl_ast.py` imports anything from `starlayer.shacl` today, so this is new, not already present. Accepted per the user's explicit "I do not worry about the dependency." (For reference: `starlayer.graph`⇄`starlayer.shacl` already has a two-way dependency elsewhere in this project - e.g. `StarLayerGraph.derive()` - so a one-way `sparql → shacl` dependency is a smaller addition than that existing precedent.)
 
@@ -133,9 +133,9 @@ result2 = ruleset.infer(base, schema=shapes_graph)
 
 | Capability | Binds/added | Cost | Precedent mirrored |
 |---|---|---|---|
-| `StarQuery` (or final name) | query text (prepared once), `entailment`, `initNs`, `initBindings`, `infer`, `engine`, `timeout` | One new class, no new dependency (`starlayer.sparql` already depends on nothing new - `prepare_query_12`/`StarLayerGraph.query()` are both already in-package or already-depended-on) | `StarShaclSchema`'s own constructor-binding shape |
+| `StarQuery` (or final name) | query text (prepared once), `entailment`, `initNs`, `initBindings`, `infer`, `engine`, `timeout` | One new class, no new dependency (`starlayer.sparql` already depends on nothing new - `prepare_query_12`/`StarLayerGraph.query()` are both already in-package or already-depended-on) | `StarShaclProcessor`'s own constructor-binding shape |
 | `RuleSet.infer(inference=...)` | an entailment regime, applied to `base_graph` before inference | None - pure addition, optional parameter, `None` default preserves today's behavior exactly | SHACL's own `sh:entailment`-before-rules precedent |
-| `RuleSet.infer(schema=...)` | a `StarShaclSchema` or bare shapes graph, used to validate the inferred result | New `starlayer.sparql → starlayer.shacl` dependency; conditional return shape (flagged above) | `RulesResult`'s own existing `(inferred_graph, validation)` shape, reused verbatim |
+| `RuleSet.infer(schema=...)` | a `StarShaclProcessor` or bare shapes graph, used to validate the inferred result | New `starlayer.sparql → starlayer.shacl` dependency; conditional return shape (flagged above) | `RulesResult`'s own existing `(inferred_graph, validation)` shape, reused verbatim |
 
 ## Next step
 

@@ -37,6 +37,12 @@ _NOT_IN_SRL = {
     "Builtin_NOTEXISTS": "NOT EXISTS",
 }
 
+# The functions SPARQL calls by IRI: its XSD casts (SPARQL's own, and the one the SRL draft's examples call). The draft's
+# expressions are "compatible with SPARQL expressions" but it lists no other function by IRI and no way to supply one, and one could
+# read the graph or differ between calls, outside what the evaluation order is computed from.
+_XSD = "http://www.w3.org/2001/XMLSchema#"
+_CASTS = {_XSD + name for name in ("boolean", "double", "float", "decimal", "integer", "dateTime", "string")}
+
 
 def _srl_error(message: str, cause: Exception | None = None) -> Exception:
     from .srl import SRLParseError  # srl imports this module: resolved at call time
@@ -52,6 +58,11 @@ def _convert(value):
     if isinstance(value, Node):
         if value.kind in _NOT_IN_SRL:
             raise _srl_error(f"SRL: {_NOT_IN_SRL[value.kind]} is not part of SRL's built-in function set (spec BuiltInCall)")
+        if value.kind == "Function" and getattr(value.f["iri"], "value", None) not in _CASTS:
+            raise _srl_error(
+                f"SRL: the function {value.f['iri']} is not one SRL supports; a rule can call only the built-in functions "
+                "and the XSD casts, and the specification has no way to supply any other function"
+            )
         fields = {k: _convert(v) for k, v in value.f.items()}
         node = TripleTermNode("TripleTerm", **fields) if value.kind == "TripleTerm" else ExprNode(value.kind, **fields)
         node.pos = value.pos

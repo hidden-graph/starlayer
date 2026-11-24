@@ -3,9 +3,9 @@ option ``StarLayerGraph.query()`` otherwise takes, so the same query can be
 run against several different graphs without re-passing the same
 ``entailment=``/``initNs=``/etc. arguments every time.
 
-Mirrors ``starlayer.shacl.StarShaclSchema``'s own "bind the thing to
+Mirrors ``starlayer.shacl.StarShaclProcessor``'s own "bind the thing to
 interpret, plus cross-cutting config, once at construction" shape -
-``StarShaclSchema`` binds a shapes graph; this binds a query instead.
+``StarShaclProcessor`` binds a shapes graph; this binds a query instead.
 Deliberately does not validate a ``CONSTRUCT`` query's own result graph
 against a SHACL shape - considered and rejected as out of scope for this
 class.

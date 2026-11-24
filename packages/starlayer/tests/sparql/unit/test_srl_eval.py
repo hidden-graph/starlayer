@@ -338,7 +338,7 @@ class TestInferAndQueryInferenceParameter:
 
 class TestInferSchemaParameter:
     """``schema=`` validates the inferred result against a SHACL shape -
-    either a bare shapes graph or an already-constructed StarShaclSchema
+    either a bare shapes graph or an already-constructed StarShaclProcessor
     (("allow both") - returns the inferred graph unchanged when omitted."""
 
     def _base_and_ruleset(self):
@@ -381,10 +381,10 @@ class TestInferSchemaParameter:
         assert len(result.inferred_graph) == 1
 
     def test_schema_as_starshaclschema_instance_is_used_as_is(self):
-        from starlayer.shacl import StarShaclSchema
+        from starlayer.shacl import StarShaclProcessor
 
         base, ruleset = self._base_and_ruleset()
-        schema_obj = StarShaclSchema(shacl_graph=self._shapes())
+        schema_obj = StarShaclProcessor(shacl_graph=self._shapes())
         result = ruleset.infer(base, schema=schema_obj)
         assert result.validation.conforms is True
 

@@ -91,7 +91,6 @@ def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
         result = starlayer.shacl.validate(
             _entailed_copy(data_graph),
             shacl_graph=_shapes_graph(),
-            advanced=True,
             max_validation_depth=100,
         )
     return result.conforms, result.report_graph, result.report_text

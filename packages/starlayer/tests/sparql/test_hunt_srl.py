@@ -163,6 +163,20 @@ def test_a_path_modifier_before_a_number_still_parses_in_sparql():
     assert check_query(PRE + "SELECT * WHERE { ?s :q +5 }").ok
 
 
+# ---- custom functions ---------------------------------------------------------
+
+
+@pytest.mark.parametrize("body", ["SET(?z := <http://e/f>(?y))", "FILTER(<http://e/f>(?y))"])
+@pytest.mark.parametrize("validate", [True, False])
+def test_a_function_called_by_iri_other_than_a_cast_is_rejected_at_parse_time(body, validate):
+    with pytest.raises(srl.SRLParseError, match="not one SRL supports"):
+        srl.parse_ruleset(PRE + "RULE { :r :out ?z } WHERE { :s :q ?y " + body + " }", validate=validate)
+
+
+def test_an_xsd_cast_is_not_a_custom_function():
+    srl.parse_ruleset(PRE + f"RULE {{ :r :out ?z }} WHERE {{ :s :q ?y SET(?z := <{XSD}integer>(?y)) }}")
+
+
 # ---- well-formedness of triple terms and DATA ----------------------------------
 
 

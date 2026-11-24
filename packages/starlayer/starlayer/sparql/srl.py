@@ -871,7 +871,7 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
 
     Returns:
         A ``(conforms, report_graph, report_text)`` tuple, unpacked from
-        ``starlayer.shacl``'s own ``ValidationResult``.
+        ``starlayer.shacl``'s own ``ValidationReport``.
     """
 
     import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
@@ -886,7 +886,6 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
         result = starlayer.shacl.validate(
             rdfs_entailed_copy(data_graph, schema),  # the RDFS closure the shapes rely on, done natively
             shacl_graph=shapes,
-            advanced=True,
             max_validation_depth=100,
         )
     return result.conforms, result.report_graph, result.report_text

@@ -488,7 +488,7 @@ class RuleSet:
         Args:
             base_graph: The graph to run the rule set against.
             inference: An entailment regime IRI (or iterable of them, the
-                same ``ENTAILMENT.*`` vocabulary ``StarShaclSchema``/
+                same ``ENTAILMENT.*`` vocabulary ``StarShaclProcessor``/
                 ``StarLayerGraph`` already use), applied to ``base_graph``
                 (via ``base_graph.infer(entailment=inference, mode="full")``)
                 before the rule set runs against it - the same "entailment
@@ -501,11 +501,11 @@ class RuleSet:
                 loader, because reading a document has security implications; without
                 one, a rule set that has imports is rejected with
                 ``SRLImportsNotSupportedError``.
-            schema: A ``starlayer.shacl.StarShaclSchema`` instance, or a
+            schema: A ``starlayer.shacl.StarShaclProcessor`` instance, or a
                 bare SHACL shapes graph, to validate the inferred result
                 against. A bare shapes graph is wrapped in a throwaway
-                ``StarShaclSchema(shacl_graph=schema)`` first; an already-
-                constructed ``StarShaclSchema`` is used as-is, so its own
+                ``StarShaclProcessor(shacl_graph=schema)`` first; an already-
+                constructed ``StarShaclProcessor`` is used as-is, so its own
                 bound ``ont_graph``/``inference`` are honored too.
                 ``None`` (default) skips validation entirely.
 
@@ -514,7 +514,7 @@ class RuleSet:
             ``schema`` is omitted - the unchanged, pre-existing return
             shape. When ``schema`` is given, a
             ``starlayer.shacl.RulesResult(inferred_graph=..., validation=...)``
-            instead - the same result shape ``StarShaclSchema.apply_rules()``
+            instead - the same result shape ``StarShaclProcessor.apply_rules()``
             already returns for the identical underlying concept (inferred
             triples plus a validation of them), reused rather than
             duplicated.
@@ -531,10 +531,10 @@ class RuleSet:
         if schema is None:
             return self._with_own_prefixes(self._with_prefixes_of(inferred, original_graph))
 
-        from starlayer.shacl import RulesResult, StarShaclSchema
+        from starlayer.shacl import RulesResult, StarShaclProcessor
 
-        resolved_schema = schema if isinstance(schema, StarShaclSchema) else StarShaclSchema(shacl_graph=schema)
-        # the evaluation graph (base plus inferred), as StarShaclSchema.apply_rules() validates: validating the inferred
+        resolved_schema = schema if isinstance(schema, StarShaclProcessor) else StarShaclProcessor(shacl_graph=schema)
+        # the evaluation graph (base plus inferred), as StarShaclProcessor.apply_rules() validates: validating the inferred
         # triples alone reported violations for constraints the base graph satisfies (GitHub issue #96)
         # (an StarLayerGraph with no prefixes of its own, so the report does not carry an old graph's 29 default prefixes)
         from starlayer.shacl.engine.graphs import new_graph
