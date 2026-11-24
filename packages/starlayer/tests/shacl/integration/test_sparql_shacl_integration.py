@@ -221,7 +221,7 @@ def test_construct_rule_mints_new_triple_term_reification() -> None:
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.validation.conforms is True
+    assert validator.validate(data_graph=data, meta_shacl=False, rules=True).conforms is True  # rules, then validation
     reifies_triples = list(result.inferred_graph.triples((EX.stmt1, RDF_REIFIES, None)))
     assert len(reifies_triples) == 1
     _, _, obj = reifies_triples[0]

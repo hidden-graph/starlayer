@@ -1,4 +1,11 @@
-from starlayer.shacl.results import ExecutionDiagnostics, RulesResult, ValidationReport
+import dataclasses
+
+from starlayer.shacl.results import (
+    CheckedInferenceResult,
+    ExecutionDiagnostics,
+    RulesResult,
+    ValidationReport,
+)
 
 
 def test_validation_result_shape() -> None:
@@ -18,16 +25,24 @@ def test_validation_result_shape() -> None:
 
 
 def test_rules_result_shape() -> None:
-    result = RulesResult(
-        inferred_graph={"d": 1},
-        validation=ValidationReport(
-            conforms=False,
-            report_graph={"r": 1},
-            report_text="failed",
-            diagnostics=ExecutionDiagnostics(decode_graph_calls=1),
-        ),
-    )
+    result = RulesResult(inferred_graph={"d": 1})
 
+    assert result.inferred_graph == {"d": 1}
+    assert not hasattr(result, "validation")  # apply_rules() validates nothing
+    assert [f.name for f in dataclasses.fields(RulesResult)] == ["inferred_graph"]
+
+
+def test_checked_inference_result_is_a_rules_result_with_a_validation() -> None:
+    """What SRL's ``infer(schema=...)`` returns: the one result that still carries a validation."""
+    validation = ValidationReport(
+        conforms=False,
+        report_graph={"r": 1},
+        report_text="failed",
+        diagnostics=ExecutionDiagnostics(decode_graph_calls=1),
+    )
+    result = CheckedInferenceResult(inferred_graph={"d": 1}, validation=validation)
+
+    assert isinstance(result, RulesResult)
     assert result.validation.conforms is False
     assert result.validation.report_text == "failed"
     assert result.inferred_graph == {"d": 1}

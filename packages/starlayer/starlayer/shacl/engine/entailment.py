@@ -28,7 +28,6 @@ import pyoxigraph as ox
 
 from starlayer.graph.entailment.cache import (
     RECOMPUTE,
-    build_entailed_copy,
     entailed_store_view,
 )
 from starlayer.graph.entailment.infer import (
@@ -87,12 +86,6 @@ def _check_run_options(regimes: frozenset, engine: str, timeout: Any, recompute:
         )
 
 
-def _timeout(regimes: frozenset, timeout: Any) -> Any:
-    from starlayer.graph.entailment.infer import DEFAULT_TIMEOUT
-
-    return DEFAULT_TIMEOUT if timeout is None else timeout
-
-
 def entailed_view(
     data_graph: Any,
     regime: Any = ENTAILMENT.RDFS,
@@ -116,15 +109,6 @@ def entailed_view(
     ont = engine_view(ont_graph, "ontology graph") if ont_graph is not None and hasattr(ont_graph, "triples") else None
     if ont is None and ont_graph is not None:  # an iterable of triples is accepted too
         ont = [tuple(to_engine(x) for x in t) for t in ont_graph]
-    if not hasattr(data_graph, "store"):
-        # a view that is not a store of its own (the rules' overlay, in the final pass of ``apply_rules``): nothing to key a kept copy on,
-        # so the closure runs over a copy of its triples and the result is not kept
-        from starlayer.graph.core import StarLayerGraph
-
-        flat = StarLayerGraph()
-        flat.extend(list(data_graph.triples((None, None, None))))
-        triples = None if ont is None else list(ont.triples((None, None, None)) if hasattr(ont, "triples") else ont)
-        return build_entailed_copy(flat, frozenset(text(r) for r in regimes), engine=engine, timeout=_timeout(regimes, timeout), ont=triples)
     return entailed_store_view(data_graph, regimes, engine=engine, timeout=timeout, ont_graph=ont, recompute=recompute)
 
 

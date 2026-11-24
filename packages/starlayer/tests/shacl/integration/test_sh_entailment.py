@@ -127,15 +127,11 @@ class TestApplyRulesSeesEntailmentBeforeRulesRun:
         assert any(result.inferred_graph.triples((EX.alice, EX.flagged, None)))
 
 
-class TestApplyRulesValidatesGlobalRuleOutput:
-    """The other gap this same session's design closes, independent of
-    sh:entailment: apply_rules()'s conforms/report_graph used to only ever
-    reflect the state BEFORE the global sh:SPARQLRule pass - triples that
-    pass produces were never actually validated at all. See
-    starlayer/shacl/CLAUDE.md's dated entry and the comment at
-    apply_rules()'s own final re-validation call site."""
+class TestGlobalRuleOutputIsChecked:
+    """Independent of sh:entailment: the triples a global sh:SPARQLRule produces are inferred by apply_rules() and are what
+    ``validate(rules=True)`` then checks (apply_rules() itself validates nothing)."""
 
-    def test_conforms_reflects_a_shape_violated_only_by_global_rule_output(self) -> None:
+    def test_a_shape_violated_only_by_global_rule_output(self) -> None:
         shapes = StarLayerGraph()
         shapes.parse(
             data="""
@@ -167,7 +163,8 @@ class TestApplyRulesValidatesGlobalRuleOutput:
         result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
 
         assert (EX.bob, RDF.type, EX.HasFriend) in result.inferred_graph
-        assert result.validation.conforms is False
+        assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, rules=True, meta_shacl=False).conforms is False
+        assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, rules=False, meta_shacl=False).conforms is True
 
 
 class TestTargetNodesRespectsEntailment:

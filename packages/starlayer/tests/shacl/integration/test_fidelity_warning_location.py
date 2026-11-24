@@ -11,7 +11,6 @@ pytest.importorskip("pyoxigraph")
 from starlayer.graph import StarLayerDataset, StarLayerGraph  # noqa: E402
 from starlayer.shacl import (  # noqa: E402
     StarShaclProcessor,
-    apply_rules,
     validate,
     validate_each,
 )
@@ -61,10 +60,10 @@ def _record(call):
 ENTRY_POINTS = {
     "module validate": lambda: validate(_graph(DATA), _graph(SHAPES)),
     "module validate_each": lambda: validate_each(_dataset(DATA), _graph(SHAPES)),
-    "module apply_rules": lambda: apply_rules(_graph(DATA), _graph(SHAPES)),
+    "module validate with rules": lambda: validate(_graph(DATA), _graph(SHAPES), rules=True),
     "processor validate": lambda: StarShaclProcessor(_graph(SHAPES)).validate(_graph(DATA)),
     "processor validate_each": lambda: StarShaclProcessor(_graph(SHAPES)).validate_each(_dataset(DATA)),
-    "processor apply_rules": lambda: StarShaclProcessor(_graph(SHAPES)).apply_rules(_graph(DATA)),
+    "processor validate with rules": lambda: StarShaclProcessor(_graph(SHAPES)).validate(_graph(DATA), rules=True),
     "engine api.validate": lambda: api.validate(_engine_graph(DATA), _engine_graph(SHAPES)),
 }
 

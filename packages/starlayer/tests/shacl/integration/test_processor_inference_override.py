@@ -116,9 +116,10 @@ def test_apply_rules_accepts_inference():
     assert not any(True for _ in proc.apply_rules(g(DATA)).inferred_graph.triples((A, None, None)))  # a is no Person under RDFS
     over = proc.apply_rules(g(DATA), inference=OWL)
     assert any(True for _ in over.inferred_graph.triples((A, ox.NamedNode(EX + "seen"), None)))
-    assert focus(over.validation) == {A, REX}
+    assert focus(proc.validate(g(DATA), inference=OWL, rules=True)) == {A, REX}  # rules, then validation, same regime
     again = proc.apply_rules(g(DATA), inference=None)
-    assert focus(again.validation) == set()
+    assert len(again.inferred_graph) == 0
+    assert focus(proc.validate(g(DATA), inference=None, rules=True)) == set()
 
 
 def test_an_unknown_keyword_is_still_a_type_error():

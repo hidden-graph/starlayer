@@ -56,7 +56,7 @@ def test_rule_iteration_converges_with_cyclic_triple_term_identity() -> None:
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.validation.conforms is True
+    assert validator.validate(data_graph=data, rules=True, meta_shacl=False).conforms is True  # rules, then validation
 
     # Full transitive closure of a 4-node cycle is all 16 ordered pairs
     # (including self-loops), each reified exactly once - no duplicates.

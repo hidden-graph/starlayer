@@ -125,7 +125,7 @@ def test_constructor_ignore_imports() -> None:
     assert p.validate(g(DATA)).conforms
     with pytest.raises(ValueError, match="owl:imports"):
         p.validate(g(DATA), ignore_imports=False)  # the default-looking value on the call wins
-    assert p.apply_rules(g(DATA)).validation.conforms
+    assert len(p.apply_rules(g(DATA)).inferred_graph) == 0  # the constructor's ignore_imports applies to the rules' shapes graph too
     with pytest.raises(ValueError, match="owl:imports"):
         p.apply_rules(g(DATA), ignore_imports=False)
 
@@ -133,7 +133,9 @@ def test_constructor_ignore_imports() -> None:
 def test_constructor_loader() -> None:
     p = importing(shapes_graph_loader=loader)
     assert not p.validate(g(DATA)).conforms  # the imported shape applies
-    assert not p.apply_rules(g(DATA)).validation.conforms
+    assert len(p.apply_rules(g(DATA)).inferred_graph) == 0  # the constructor's loader resolves the imports for the rules too
+    with pytest.raises(ValueError, match="owl:imports"):
+        p.apply_rules(g(DATA), shapes_graph_loader=None)
     with pytest.raises(ValueError, match="owl:imports"):
         p.validate(g(DATA), shapes_graph_loader=None)  # None on the call drops the constructor's loader
     assert p.validate(g(DATA), shapes_graph_loader=lambda iri: None).conforms  # another loader replaces it
@@ -170,9 +172,9 @@ def test_max_validation_depth_none_at_construction_removes_the_bound() -> None:
     assert p.validate(data).conforms
     with pytest.raises(ShapeError):
         p.validate(data, max_validation_depth=20)  # a call can set a number
-    assert p.apply_rules(data).validation.conforms
-    with pytest.raises(ShapeError):
-        p.apply_rules(data, max_validation_depth=20)
+    assert len(p.apply_rules(data).inferred_graph) == 0
+    with pytest.raises(TypeError, match="validate"):
+        p.apply_rules(data, max_validation_depth=20)  # a validation option: not an option of apply_rules()
 
 
 def test_max_validation_depth_number_at_construction_and_call_none() -> None:
@@ -180,11 +182,9 @@ def test_max_validation_depth_number_at_construction_and_call_none() -> None:
     p = StarShaclProcessor(chain(60), max_validation_depth=20)
     with pytest.raises(ShapeError):
         p.validate(data)
-    with pytest.raises(ShapeError):
-        p.apply_rules(data)
+    assert len(p.apply_rules(data).inferred_graph) == 0  # the constructor's depth is a default of validate() only
     assert p.validate(data, max_validation_depth=None).conforms  # None on the call beats the constructor's number
     assert p.validate(data, max_validation_depth=200).conforms
-    assert p.apply_rules(data, max_validation_depth=None).validation.conforms
 
 
 @pytest.mark.parametrize("mode", ["validation", "rules", "debug"])

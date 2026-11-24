@@ -103,7 +103,9 @@ def test_apply_rules_on_such_a_shapes_graph_does_not_run_the_rules_twice_over() 
     result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
 
     assert (EX.n, EX.p, EX.a) in result.inferred_graph
-    assert result.validation.conforms
+    assert (EX.n, EX.q, EX.b) in result.inferred_graph
+    assert len(result.inferred_graph) == 2  # each rule's triple once
+    assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data).conforms  # rules, then validation, over the same shapes
 
 
 class TestEvaluateWithRulesEntailment:

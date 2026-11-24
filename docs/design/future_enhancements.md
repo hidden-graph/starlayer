@@ -208,30 +208,7 @@ package's own top level, not nested under one subpackage's docs.
   `test_ssyn_ontology.py`), and update `starlayer/sparql/CLAUDE.md`'s
   file map and `docs/generated/api-reference.generated.md`'s "Lower-level" table accordingly.
 
-- **Consider a lightweight "expand SHACL rules only, skip constraint
-  validation" path**, found 2026-10-06 while auditing `starlayer.shacl`
-  against pyshacl's own public surface (`__init__.__all__`). pyshacl's
-  `shacl_rules()`/`RuleExpandRunner` is a dedicated entry point that does
-  rule expansion *only* - `StarShaclProcessor.apply_rules()` always routes
-  through `self.validate(profile="rules")` instead, which always also
-  runs full SHACL constraint checking (the `"rules"` profile in
-  `profiles.py` has no flag to skip it). No data is lost -
-  `RulesResult.inferred_graph` already carries the rule-produced triples
-  (the "inference graph" - see `starlayer/shacl/CLAUDE.md`'s 2026-10-07
-  entry on this), plus a bonus validation report `shacl_rules()` wouldn't
-  give you - but there's no way to get rules-without-validation
-  specifically, which costs unnecessary constraint-checking work for a
-  caller who only wants the expansion. **Before implementing**: check
-  whether the SHACL 1.2
-  Inference Rules draft (`docs/design/shacl/shacl12-gap-matrix.md` tracks it) says
-  anything that bears on whether rule expansion and validation are meant
-  to be separable operations in SHACL 1.2 specifically, not just in
-  pyshacl's own (SHACL-AF-era) API shape - `apply_rules()`'s own
-  `rule_set`/`include_source_rule_provenance` parameters are already
-  SHACL-1.2-specific extensions pyshacl's `shacl_rules()` has no concept
-  of, so a bare pass-through to it would be wrong regardless; this entry
-  is about whether a *new*, SHACL-1.2-aware "rules only" mode is worth
-  building, not about using pyshacl's existing one as-is.
+- **Done 2026-11-24: "expand SHACL rules only, skip constraint validation".** `apply_rules()` now only runs the rules and returns `RulesResult(inferred_graph)`; it validates nothing, because the shapes that check the outcome may differ from the shapes that hold the rules. To check a result: `validate(data, shapes, rules=True)`, or validate the data together with `result.inferred_graph` against any shapes.
 
 - **`sh:entailment` + rule execution - built 2026-10-07, re-verify against the final spec once it stabilizes.** Worked out and implemented by reading the live SHACL 1.2 Core and SHACL 1.2 Inference Rules editor's drafts directly (both still Working Draft/Editor's Draft, not stable text - the trigger to re-check this). **Status: fully built and tested** - `infer()`/`query()` speak the real W3C regime IRIs directly (`ENTAILMENT.*`, replacing the old starlayer-internal strings - see `starlayer/graph/CLAUDE.md`'s dated entry), `infer()` gained a native `ENTAILMENT.RDF` materialization path, and `starlayer.shacl.entailment` now reads `sh:entailment` from a shapes graph and wires it into `StarShaclProcessor.validate()`/`apply_rules()` (see `starlayer/shacl/CLAUDE.md`'s own dated entry for the full account, including a real inplace-mutation regression found and fixed via testing). `tests/shacl`: 1065 passed, zero regressions.
   - Core §1.4: `sh:entailment` is a **shapes-graph-level** declaration ("a shapes graph contains any triple with the predicate `sh:entailment`"), not scoped to an individual shape. Multiple declared regimes combine into **one** entailment pass, not one pass per regime: "the processor MUST provide the entailments for all of the values of `sh:entailment`... during the validation process" (plural values, singular process).
@@ -478,7 +455,7 @@ Not worth bringing back: subclassing `rdflib.Graph`, rdflib stores and plugins, 
 Decision: StarLayer does not keep deprecation aliases or compatibility shims for renamed names. A renamed class gets no alias (`ValidationResult` became `ValidationReport` with none). The ones already in the code are to be removed, with their tests, and the guides and docs checked for the old names afterwards:
 
 1. **`StarShaclSchema`**, the old name of `StarShaclProcessor`: a module `__getattr__` that warns and returns the class, in `starlayer/__init__.py`, `starlayer/shacl/__init__.py` and `starlayer/shacl/validator.py`. Remove the three shims and `tests/shacl/unit/test_star_shacl_processor_alias.py`, and the "deprecated alias" mentions in `starlayer/shacl/CLAUDE.md`.
-2. **`advanced=`** on `validate()` and `apply_rules()` (deprecated; `advanced=False` meant `rules=False`): `_adapter.py` (`_warn_advanced_deprecated`, the option handling and the `VALIDATE_OPTIONS` entry), `validator.py` docstrings, the tests that exercise it (`test_validator.py`, `test_validation_modes.py`, `test_fidelity_warning_location.py` and the W3C validate runner, which pass `advanced=`), and the `advanced=` note in `starlayer/shacl/CLAUDE.md`. After removal `advanced=` is an unknown option and raises `TypeError`.
+2. **`advanced=`** on `validate()` (deprecated; `advanced=False` meant `rules=False`): `_adapter.py` (`_warn_advanced_deprecated`, the option handling and the `VALIDATE_OPTIONS` entry), `validator.py` docstrings, the tests that exercise it (`test_validator.py`, `test_validation_modes.py`, `test_fidelity_warning_location.py` and the W3C validate runner, which pass `advanced=`), and the `advanced=` note in `starlayer/shacl/CLAUDE.md`. After removal `advanced=` is an unknown option and raises `TypeError`.
 3. **`turtle12` as a name for the `turtle` format** (and the other alias spellings in `starlayer/graph/formats.py`: `ttl`, `n3`, `text/turtle`, `text/n3`): decide which are real input formats and which are only old spellings; `turtle12` is the old one. Guide 07a lists them.
 4. **A stale comment** in `starlayer/shacl/__init__.py` mentions `engine` "(evaluate_component() and friends, deprecated)", but no `evaluate_component` exists any more. Delete the comment.
 5. **Check for others** when this is done: grep for `DeprecationWarning`, "deprecated", "old name" and "alias" in `packages/`, and look in the other packages (`starlayer-kg`, `starlayer-reasoning`).
@@ -504,6 +481,6 @@ The default should stay as it is, with no time in the report. StarLayer's proven
 
 An opt-in is consistent with how the report records its configuration (`include_used_configuration=True`):
 
-1. **A flag such as `include_run_time=True`** on `validate()`, `validate_each()` and `apply_rules()` that adds `prov:startedAtTime` and `prov:endedAtTime` (`xsd:dateTime` in UTC) to the `sh:ValidationActivity` that already carries `sh:usedDataGraph`, `sh:usedShapesGraph` and `sh:usedConfiguration` (the report node gets nothing). Decide whether the activity is also written when no name is known and no configuration is asked for, since it is skipped then today.
+1. **A flag such as `include_run_time=True`** on `validate()` and `validate_each()` that adds `prov:startedAtTime` and `prov:endedAtTime` (`xsd:dateTime` in UTC) to the `sh:ValidationActivity` that already carries `sh:usedDataGraph`, `sh:usedShapesGraph` and `sh:usedConfiguration` (the report node gets nothing). Decide whether the activity is also written when no name is known and no configuration is asked for, since it is skipped then today.
 2. **An injectable clock.** The time has to come from a function the caller can replace, so that tests and any caller who needs deterministic output can fix it. A rule run already fixes one "now" for the whole run, so every `NOW()` in it agrees (`_Run.now` in `shacl/engine/rules.py`), but the caller cannot set it; one clock option could serve both.
 3. **Decide the scope** with the rest of the report annotations: the data-graph and shapes-graph names, the configuration and the `sh:conformsToShapesGraph` link are all opt-in or conditional today, so the time should follow the same pattern.

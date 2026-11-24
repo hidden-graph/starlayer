@@ -61,12 +61,15 @@ def test_call_can_allow_what_constructor_did_not() -> None:
     assert conforms(p, allow_warnings=True)
 
 
-def test_apply_rules_follows_constructor() -> None:
-    p = proc("sh:Warning", allow_warnings=True)
-    assert p.apply_rules(g(DATA)).validation.conforms
-    assert not p.apply_rules(g(DATA), allow_warnings=False).validation.conforms
-    assert not proc("sh:Warning").apply_rules(g(DATA)).validation.conforms
-    assert proc("sh:Info", allow_infos=True).apply_rules(g(DATA)).validation.conforms
+def test_apply_rules_does_not_apply_the_constructor_defaults() -> None:
+    """apply_rules() validates nothing, so the severity defaults stay defaults of validate(): they are neither applied nor accepted."""
+    p = proc("sh:Warning", allow_warnings=False)
+    assert len(p.apply_rules(g(DATA)).inferred_graph) == 0  # runs fine with the constructor value set
+    assert not conforms(p)  # validate() still uses it
+    assert conforms(proc("sh:Warning", allow_warnings=True))
+    assert len(proc("sh:Info", allow_infos=True).apply_rules(g(DATA)).inferred_graph) == 0
+    with pytest.raises(TypeError, match="validate"):
+        p.apply_rules(g(DATA), allow_warnings=True)
 
 
 @pytest.mark.parametrize("mode", ["validation", "rules", "debug"])

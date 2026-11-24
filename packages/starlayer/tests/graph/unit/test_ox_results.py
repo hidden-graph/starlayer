@@ -99,9 +99,11 @@ def test_apply_rules_inferred_and_report_graphs(cls):
         apply_rules(_ox(DATA, cls), shacl_graph=_ox(RULES)),
     ):
         assert_ox(result.inferred_graph)
-        assert_ox(result.validation.report_graph)
         kind = ox.NamedNode("http://example.org/kind")
         assert {t[1] for t in result.inferred_graph} >= {kind}
+    from starlayer.shacl import validate
+
+    assert_ox(validate(_ox(DATA, cls), shacl_graph=_ox(RULES), rules=True).report_graph)  # the check of the result is validate()
 
 
 def test_evaluate_and_close_shape():

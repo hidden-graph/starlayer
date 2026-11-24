@@ -513,11 +513,10 @@ class RuleSet:
             The inferred-triples-only graph (a plain graph object), when
             ``schema`` is omitted - the unchanged, pre-existing return
             shape. When ``schema`` is given, a
-            ``starlayer.shacl.RulesResult(inferred_graph=..., validation=...)``
-            instead - the same result shape ``StarShaclProcessor.apply_rules()``
-            already returns for the identical underlying concept (inferred
-            triples plus a validation of them), reused rather than
-            duplicated.
+            a ``starlayer.shacl.results.CheckedInferenceResult`` instead: a
+            ``RulesResult`` (``inferred_graph``) that also has ``validation``,
+            the report of the base data together with the inferred triples
+            against ``schema`` (``apply_rules()`` itself validates nothing).
         """
         from . import srl_eval
 
@@ -531,10 +530,11 @@ class RuleSet:
         if schema is None:
             return self._with_own_prefixes(self._with_prefixes_of(inferred, original_graph))
 
-        from starlayer.shacl import RulesResult, StarShaclProcessor
+        from starlayer.shacl import StarShaclProcessor
+        from starlayer.shacl.results import CheckedInferenceResult
 
         resolved_schema = schema if isinstance(schema, StarShaclProcessor) else StarShaclProcessor(shacl_graph=schema)
-        # the evaluation graph (base plus inferred), as StarShaclProcessor.apply_rules() validates: validating the inferred
+        # the evaluation graph (base plus inferred): validating the inferred
         # triples alone reported violations for constraints the base graph satisfies (GitHub issue #96)
         # (an StarLayerGraph with no prefixes of its own, so the report does not carry an old graph's 29 default prefixes)
         from starlayer.shacl.engine.graphs import new_graph
@@ -543,7 +543,7 @@ class RuleSet:
         evaluation.extend(srl_eval._default_quads(base_graph))
         evaluation.extend(srl_eval._default_quads(inferred))
         validation = resolved_schema.validate(data_graph=evaluation)
-        result = RulesResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation)
+        result = CheckedInferenceResult(inferred_graph=self._with_prefixes_of(inferred, original_graph), validation=validation)
         self._with_own_prefixes(result.inferred_graph)
         return result
 

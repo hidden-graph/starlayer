@@ -516,7 +516,7 @@ class TestBoundDataGraphAndInference:
         assert schema.validate().conforms is True
         assert tuple(n for n in schema.target_nodes(shape_node=EX.PersonShape)) == (EX.alice,)
         assert schema.evaluate() is not None
-        assert schema.apply_rules().validation.conforms is True
+        assert len(schema.apply_rules().inferred_graph) == 0  # these shapes hold no rules
 
     def test_no_data_graph_anywhere_raises_a_clear_error(self) -> None:
         schema = StarShaclProcessor(shacl_graph=self._shapes())

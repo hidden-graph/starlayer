@@ -99,7 +99,7 @@ def test_shui_annotations_do_not_interfere_with_rule_application() -> None:
     """, format="turtle")
 
     result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
-    assert result.validation.conforms is True
+    assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, rules=True).conforms is True  # rules, then validation
     derived = list(rd(result.inferred_graph).triples((EX.alice, EX.hasParent, None)))
     assert derived == [(EX.alice, EX.hasParent, EX.carol)]
 

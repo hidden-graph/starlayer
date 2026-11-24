@@ -62,13 +62,14 @@ class TestResultTypes:
 
     def test_positional_construction(self):
         result = ValidationReport(True, Graph(), "text", None, None)
-        rules = RulesResult(Graph(), result)
-        assert rules.validation is result and result.conforms is True
+        graph = Graph()
+        rules = RulesResult(graph)
+        assert rules.inferred_graph is graph and result.conforms is True
 
     def test_apply_rules_returns_a_rules_result(self):
         result = apply_rules(g(BAD + RULES), g(RULES))
         assert isinstance(result, RulesResult)
-        assert isinstance(result.validation, ValidationReport)
+        assert not hasattr(result, "validation")
         assert (URIRef(EX + "a"), URIRef(EX + "flag"), URIRef(EX + "yes")) in result.inferred_graph
         assert len(result.inferred_graph) == 1  # only what the rules produced, not the base triples
 

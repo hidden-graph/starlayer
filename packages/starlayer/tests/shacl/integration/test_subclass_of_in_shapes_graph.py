@@ -217,11 +217,11 @@ def test_apply_rules_honours_the_option_for_class_targets() -> None:
     assert len(p.apply_rules(data, subclass_of_in_shapes_graph=False).inferred_graph) == 0
 
 
-def test_apply_rules_final_validation_pass_uses_the_option() -> None:
+def test_validate_with_rules_uses_the_option_after_the_rules() -> None:
     shapes = g(RULE_SHAPES + "ex:S a sh:NodeShape ; sh:targetNode ex:owner ; sh:property [ sh:path ex:pet ; sh:class ex:Animal ] . " + SUBCLASS)
     data = g(TYPE + "ex:owner ex:pet ex:rex .")
-    assert apply_rules(data, shapes).validation.conforms is False
-    assert apply_rules(data, shapes, subclass_of_in_shapes_graph=True).validation.conforms is True
+    assert validate(data, shapes, rules=True).conforms is False
+    assert validate(data, shapes, rules=True, subclass_of_in_shapes_graph=True).conforms is True
 
 
 def test_unknown_options_are_still_rejected() -> None:

@@ -439,7 +439,26 @@ class TestShapesGraphOnOtherMethods:
         )
 
         result = schema.apply_rules(data_graph=data, shapes_graph_resource=EX.ModuleB)
-        assert result.validation.conforms is True
+        assert len(result.inferred_graph) == 0  # module B holds no rules
+
+        ruled = StarLayerGraph()
+        ruled.parse(
+            data="""
+                @prefix ex: <http://example.org/> .
+                @prefix sh: <http://www.w3.org/ns/shacl#> .
+                @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
+                @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+                ex:ModuleA a sh:ShapesGraph ; rdfs:member ex:RuleShapeA .
+                ex:ModuleB a sh:ShapesGraph ; rdfs:member ex:RuleShapeB .
+                ex:RuleShapeA a sh:NodeShape ; sh:targetClass ex:Company ;
+                    sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:fromA ; sh:object 1 ] .
+                ex:RuleShapeB a sh:NodeShape ; sh:targetClass ex:Company ;
+                    sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:fromB ; sh:object 1 ] .
+            """,
+            format="turtle",
+        )
+        only_b = StarShaclProcessor(shacl_graph=ruled).apply_rules(data_graph=data, shapes_graph_resource=EX.ModuleB)
+        assert {t[1] for t in only_b.inferred_graph} == {EX.fromB}
 
     def test_close_shape_scoped_to_one_module(self) -> None:
         schema = StarShaclProcessor(shacl_graph=_two_module_graph())

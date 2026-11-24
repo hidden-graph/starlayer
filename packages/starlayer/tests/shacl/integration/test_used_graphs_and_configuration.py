@@ -249,45 +249,6 @@ def test_the_owl_direct_settings_are_picked_out_only_for_that_regime() -> None:
     assert _owl_direct_options(None, "hermit", None, "onChange") == {}
 
 
-def test_the_configuration_of_apply_rules_records_the_rule_limits() -> None:
-    processor = StarShaclProcessor(shacl_graph=_shapes())
-    result = processor.apply_rules(data_graph=_valid_data(), include_used_configuration=True, max_iterations=50)
-    options = _options(result.validation.report_graph)
-    assert options["maxIterations"] == "50" and options["rules"] == "true" and "maxTriples" not in options
-
-
-def test_used_data_graph_and_shapes_graph_work_through_apply_rules() -> None:
-    # apply_rules() forwards arbitrary kwargs through to validate() via
-    # resolve_mode_options/**options - confirm that path actually
-    # reaches the new named parameters, not just validate() called directly.
-    shapes = StarLayerGraph()
-    shapes.parse(
-        data="""
-            @prefix ex: <http://example.org/> .
-            @prefix sh: <http://www.w3.org/ns/shacl#> .
-            @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
-            ex:R a sh:NodeShape ;
-              sh:targetSubjectsOf ex:parent ;
-              sh:rule [
-                a sh:TripleRule ;
-                sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:hasParent ; sh:object [ shnex:pathValues ex:parent ] ;
-              ] .
-        """,
-        format="turtle",
-    )
-    data = StarLayerGraph()
-    data.add((EX.alice, EX.parent, EX.carol))
-
-    validator = StarShaclProcessor(shacl_graph=shapes)
-    result = validator.apply_rules(
-        data_graph=data,
-        data_graph_iri="http://example.org/graphs/data1",
-    )
-
-    report_node = _activity(result.validation.report_graph)
-    assert (report_node, SH.usedDataGraph, NamedNode("http://example.org/graphs/data1")) in result.validation.report_graph
-
-
 class TestUsedGraphsFallBackToGraphIdentifier:
     """sh:usedDataGraph/sh:usedShapesGraph also fall back to data_graph.identifier
     /shacl_graph.identifier (2026-10-09), when it's a real NamedNode the caller

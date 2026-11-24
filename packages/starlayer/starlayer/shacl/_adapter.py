@@ -20,7 +20,7 @@ from starlayer.shacl.engine.terms import RDF, SH, to_engine
 _RDF_REIFIES = RDF.reifies
 
 
-# The keywords ``validate()`` (and so ``apply_rules()``) take besides its named parameters: the option presets of
+# The keywords ``validate()`` takes besides its named parameters: the option presets of
 # ``validation_modes`` and their per-call overrides. ``rules`` is the engine's own switch (``None``: run rules only when the shapes
 # declare ``sh:entailment``; ``True``: always; ``False``: never). ``advanced`` is deprecated (``advanced=False`` meant ``rules=False``,
 # ``advanced=True`` nothing); ``debug`` is accepted and ignored.
@@ -336,17 +336,47 @@ def _rule_set_iris(rule_set: Any) -> list[Any] | None:
     return [ox.NamedNode(m) if type(m) is str else to_engine(m) for m in members]  # a plain string is an IRI
 
 
-# validate()'s own keywords, which ``apply_rules()`` forwards to its final validation pass
-_VALIDATE_KEYWORDS = (
-    "data_graph_iri",
-    "shapes_graph_iri",
-    "shapes_graph_resource",
-    "specification_graph",
-    "include_used_configuration",
-    "ignore_imports",
-    "shapes_graph_loader",
-    "meta_shapes_extra",
+# The keywords ``apply_rules()`` takes besides its named parameters: what rule execution still uses. ``rules`` / ``advanced`` /
+# ``debug`` / ``inplace`` are not among them (the rules always run, on an overlay, and nothing is validated or written back).
+RULES_OPTIONS = frozenset(
+    {
+        "inference",
+        "engine",
+        "timeout",
+        "recompute",
+        "subclass_of_in_shapes_graph",
+        "meta_shacl",
+        "meta_shapes_extra",
+        "ignore_imports",
+        "shapes_graph_loader",
+        "max_iterations",
+        "max_triples",
+    }
 )
+
+# Keywords of ``validate()`` that ``apply_rules()`` refuses with a message that says so (the closed-set ``TypeError`` otherwise).
+_VALIDATE_ONLY = (
+    VALIDATE_OPTIONS
+    | {"data_graph_iri", "shapes_graph_iri", "shapes_graph_resource", "specification_graph", "include_used_configuration"}
+) - RULES_OPTIONS
+
+
+def reject_options_for_rules(options: dict[str, Any]) -> None:
+    """``TypeError`` for a keyword ``apply_rules()`` does not take: one that only ``validate()`` uses says so (the rules are not
+    followed by a validation any more), any other is an unknown option."""
+    refused = sorted(set(options) & _VALIDATE_ONLY)
+    if refused:
+        raise TypeError(
+            f"apply_rules() does not take {', '.join(refused)}: it only runs the rules and validates nothing, so "
+            "the option belongs to validate() (validate(data, shapes, rules=True) runs the rules and then validates, or validate "
+            "the data together with result.inferred_graph against the shapes you choose)"
+        )
+    unknown = sorted(set(options) - RULES_OPTIONS)
+    if unknown:
+        raise TypeError(
+            f"unknown option(s) {', '.join(unknown)}; the options of apply_rules() are {', '.join(sorted(RULES_OPTIONS))} "
+            "(inference is an entailment regime IRI, ENTAILMENT.RDFS for example)"
+        )
 
 
 def apply_rules(
@@ -359,76 +389,41 @@ def apply_rules(
     options: dict[str, Any],
 ) -> Any:
     """``apply_rules()`` on the engine: a ``RulesResult``."""
-    from starlayer.shacl.engine import api, rules
+    from starlayer.shacl.engine import rules
     from starlayer.shacl.engine.entailment import resolve_data_view
-    from starlayer.shacl.results import RulesResult, ValidationReport
-    from starlayer.shacl.validation_modes import resolve_mode_options
+    from starlayer.shacl.results import RulesResult
 
-    options = dict(options)
-    passthrough = {name: options.pop(name) for name in _VALIDATE_KEYWORDS if name in options}
-    rule_limits = {name: options.pop(name) for name in ("max_iterations", "max_triples") if name in options}
-    reject_unknown_options(options)
-    engine_kwargs = translate_validate_options(resolve_mode_options("validation", overrides=options))
-    engine_kwargs.pop("inplace", None)
-    engine_kwargs["rules"] = False  # the rules have run: the final pass validates the evaluation graph only
-    inference = options.get("inference")
+    reject_options_for_rules(options)
+    rule_limits = {name: options[name] for name in ("max_iterations", "max_triples") if name in options}
     data, shapes, ont = _normalise(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph
     )
-    meta_shacl = engine_kwargs.pop("meta_shacl", None)
-    if meta_shacl:  # the same preflight as validate(), on the shapes graph as given
-        _meta_preflight(
-            shapes, passthrough.get("meta_shapes_extra", ()), engine_kwargs.get("conformance_disallows")
-        )
-    if passthrough.get("data_graph_iri") is None:  # the report names the caller's data graph, not the rule overlay view
-        passthrough["data_graph_iri"] = api._identity_of(data)
-    loader = passthrough.get("shapes_graph_loader")
+    if options.get("meta_shacl"):  # the same preflight as validate(), on the shapes graph as given
+        _meta_preflight(shapes, options.get("meta_shapes_extra") or (), None)
+    loader = options.get("shapes_graph_loader")
+    ignore_imports = bool(options.get("ignore_imports"))
     if loader is not None:  # the rules of an imported module run too: imports first, as validate() does
         from starlayer.shacl.engine.imports import resolve_imports
 
-        if passthrough.get("shapes_graph_iri") is None:
-            passthrough["shapes_graph_iri"] = api._identity_of(shapes)
-        shapes = resolve_imports(shapes, loader, bool(passthrough.get("ignore_imports")))
-    # "before rules" entailment pass: the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
+        shapes = resolve_imports(shapes, loader, ignore_imports)
+    _check_imports(shapes, loader, ignore_imports)
+    # the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
     base = resolve_data_view(
         data,
         shapes,
-        inference=inference,
+        inference=options.get("inference"),
         ont_graph=ont,
-        engine=engine_kwargs.get("engine", "hermit"),
-        timeout=engine_kwargs.get("timeout"),
-        recompute=engine_kwargs.get("recompute", "onChange"),
+        engine=options.get("engine") or "hermit",
+        timeout=options.get("timeout"),
+        recompute=options.get("recompute") or "onChange",
     )
     result = rules.apply_rules(
         base,
         shapes,
         rule_sets=_rule_set_iris(rule_set),
         source_rules=bool(include_source_rule_provenance),
-        subclass_of_in_shapes_graph=bool(engine_kwargs.get("subclass_of_in_shapes_graph")),
+        subclass_of_in_shapes_graph=bool(options.get("subclass_of_in_shapes_graph")),
         **rule_limits,
-    )
-    _check_imports(shapes, passthrough.get("shapes_graph_loader"), bool(passthrough.get("ignore_imports")))
-    outcome = api.validate(
-        result.view,
-        shapes,
-        inference=inference,
-        ont_graph=ont,
-        configuration_extra={
-            **_preflight_configuration(meta_shacl, loader, passthrough.get("meta_shapes_extra", ())),
-            "rules": True,  # the final pass itself runs no rules (they have run); the run as a whole did
-            "maxIterations": rule_limits.get("max_iterations", 1000),
-            **({"maxTriples": rule_limits["max_triples"]} if rule_limits.get("max_triples") is not None else {}),
-        },
-        **{"meta_shapes_extra": (), **passthrough},
-        **engine_kwargs,
-    )
-    _annotate_conformance_disallows(outcome.report_graph, engine_kwargs.get("conformance_disallows"))
-    validation = ValidationReport(
-        conforms=outcome.conforms,
-        report_graph=outcome.report_graph,
-        report_text=lambda: outcome.report_text,
-        data_graph=None,
-        diagnostics=outcome.diagnostics,
     )
     from starlayer.shacl.engine.graphs import new_graph
 
@@ -438,7 +433,7 @@ def apply_rules(
         reifier = ox.BlankNode()
         inferred.add((reifier, _RDF_REIFIES, ox.Triple(*triple)))
         inferred.add((reifier, SH.sourceRule, rule_node))
-    return RulesResult(inferred_graph=inferred, validation=validation)
+    return RulesResult(inferred_graph=inferred)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

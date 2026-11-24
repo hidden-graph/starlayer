@@ -196,12 +196,14 @@ def apply_rules(
     rule_set: Any | None = None,
     **kwargs: Any,
 ) -> RulesResult:
-    """Executes the SHACL rules of ``shacl_graph`` over ``data_graph`` until nothing new is inferred, then validates the data with what they inferred.
+    """Executes the SHACL rules of ``shacl_graph`` over ``data_graph`` until nothing new is inferred, and returns what they inferred.
 
-    The rules write to an overlay on top of the data, so a rule sees what another inferred and ``data_graph`` is not copied or changed.
+    The rules run on an overlay over the data, so a rule sees what another inferred and ``data_graph`` is not copied or changed.
+    Nothing is validated: to check the outcome, call ``validate(data_graph, shacl_graph, rules=True)`` (the rules, then a
+    validation of the data with what they inferred, against the same shapes), or validate the data together with
+    ``result.inferred_graph`` against any shapes you choose (they need not be the shapes that hold the rules).
 
     Covers ``sh:TripleRule`` and ``sh:SPARQLRule`` (shape-attached, in rule sets, or global) and ``sh:sourceRule`` provenance.
-    ``data_graph`` is never changed.
 
     Args:
         data_graph: The data the rules run over: an Oxigraph-backed graph.
@@ -210,17 +212,19 @@ def apply_rules(
         include_source_rule_provenance: Record, for every inferred triple, a reifier ``_:r rdf:reifies <<( s p o )>>`` with
             ``_:r sh:sourceRule <rule>`` (Inference Rules section 9).
         rule_set: Run only the rules of this ``sh:RuleSet`` (an IRI, or an iterable of IRIs).
-        **kwargs: The options of :func:`validate` (including ``inference``, ``allow_warnings``, ``allow_infos``, ``meta_shacl``,
-            ``max_validation_depth``, ``subclass_of_in_shapes_graph`` (also for the rules' own class targets) and the named
-            ``ignore_imports``, ``shapes_graph_loader``, ``meta_shapes_extra``), used for the
-            final validation pass; and the rule limits ``max_iterations`` (default 1000: more iterations than that without
-            reaching a fixpoint raise ``RuleError``) and ``max_triples`` (default ``None``: no cap; otherwise stop with
-            ``RuleError`` when more triples than that are inferred). On a ``StarShaclProcessor`` the constructor's values of these
-            options are the defaults, and a keyword here overrides them.
+        **kwargs: Only the options of :func:`validate` that rule execution uses: ``inference`` (an entailment regime for the rules
+            to match over, together with the shapes graph's own ``sh:entailment``), ``engine``, ``timeout``, ``recompute``,
+            ``subclass_of_in_shapes_graph`` (also for the rules' class targets), ``meta_shacl`` and the named ``meta_shapes_extra``,
+            ``ignore_imports``, ``shapes_graph_loader`` (how the shapes graph is read and checked), and the rule limits
+            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise ``RuleError``) and
+            ``max_triples`` (default ``None``: no cap; otherwise stop with ``RuleError`` when more triples than that are inferred).
+            An option that only describes a validation (``allow_warnings``, ``allow_infos``, ``abort_on_first``,
+            ``max_validation_depth``, ``include_used_configuration``, ``rules``, ...) is a ``TypeError`` naming ``validate()``.
+            On a ``StarShaclProcessor`` the constructor's values of the options above are the defaults, and a keyword here
+            overrides them; its validation defaults are not applied.
 
     Returns:
-        A ``RulesResult``: ``inferred_graph`` holds only the triples the rules produced (and the ``sh:sourceRule`` reifiers);
-        ``validation`` is the ``ValidationReport`` over the complete evaluation graph: base, inferred and entailed triples.
+        A ``RulesResult``: ``inferred_graph`` holds only the triples the rules produced (and the ``sh:sourceRule`` reifiers).
     """
     return _adapter.apply_rules(
         data_graph=data_graph,
@@ -464,9 +468,10 @@ _UNSET: Any = _Unset()
 
 # What a StarShaclProcessor can bind at construction, as defaults of the calls that use them (stored as same-named attributes;
 # ``None`` = not set, except for the names in ``_NONE_IS_A_VALUE``, which use ``_UNSET``). Three groups, by where they apply:
-# - validation options (``validate()``, and the final validation pass of ``apply_rules()``): keys of the call's ``**kwargs``;
+# - validation options (``validate()`` and the other calls that check or target against the shapes): keys of the call's ``**kwargs``;
 # - the named parameters of ``validate()`` and ``apply_rules()`` that say how the shapes graph is read;
 # - the limits of rule execution (``apply_rules()`` only).
+# ``apply_rules()`` takes the ``_RULES_DEFAULTS`` among them: the options that only describe a validation stay out.
 # Precedence, lowest first: built-in default, constructor, ``mode=`` preset, keyword on the call.
 _VALIDATION_DEFAULTS = (
     "allow_warnings",
@@ -480,6 +485,15 @@ _VALIDATION_DEFAULTS = (
 )
 _SHAPES_GRAPH_DEFAULTS = ("meta_shapes_extra", "ignore_imports", "shapes_graph_loader")
 _RULE_LIMIT_DEFAULTS = ("max_iterations", "max_triples")
+_RULES_DEFAULTS = (
+    "meta_shacl",
+    "subclass_of_in_shapes_graph",
+    "engine",
+    "timeout",
+    "recompute",
+    *_SHAPES_GRAPH_DEFAULTS,
+    *_RULE_LIMIT_DEFAULTS,
+)
 _CONSTRUCTOR_OPTIONS = _VALIDATION_DEFAULTS + _SHAPES_GRAPH_DEFAULTS + _RULE_LIMIT_DEFAULTS
 _NONE_IS_A_VALUE = ("max_validation_depth", "max_triples")
 
@@ -514,8 +528,9 @@ class StarShaclProcessor:
     default, constructor, ``mode=`` preset, call keyword. A preset names only what it changes, so it never undoes a constructor
     value.
 
-    - ``allow_warnings``, ``allow_infos``, ``meta_shacl``, ``max_validation_depth``, ``subclass_of_in_shapes_graph``: every
-      ``validate()`` and ``apply_rules()`` (its rules and final validation pass). ``max_validation_depth=None`` removes the bound
+    - ``allow_warnings``, ``allow_infos``, ``max_validation_depth``: ``validate()`` only (``apply_rules()`` validates nothing and
+      refuses them). ``meta_shacl``, ``subclass_of_in_shapes_graph``, ``engine``, ``timeout``, ``recompute``: ``validate()`` and
+      ``apply_rules()``. ``max_validation_depth=None`` removes the bound
       (built-in: 500). ``subclass_of_in_shapes_graph=True`` (built-in: ``False``) is the SHACL 1.2 Core parameter of that name:
       ``rdfs:subClassOf`` triples for ``sh:class``, ``sh:targetClass``, implicit class targets and ``sh:rootClass`` are read from
       the shapes graph as well as the data graph (``rdf:type`` from the data graph only).
@@ -971,9 +986,10 @@ class StarShaclProcessor:
     ) -> RulesResult:
         """Runs the rules of the bound shapes graph over ``data_graph`` (default: the bound one); see :func:`apply_rules`.
         ``shapes_graph_resource`` selects a named ``sh:ShapesGraph`` module of the bound shapes graph. The constructor's options
-        are the defaults of the keywords of the same name here (all three groups of the class docstring). ``inference``
-        replaces the constructor's regime(s) for this call (``None``: none of its own; ``<not set>``: the constructor's), for
-        the entailment pass before the rules and for the final validation; the shapes graph's ``sh:entailment`` applies too."""
+        that rule execution uses are the defaults of the keywords of the same name here; ``allow_warnings``, ``allow_infos`` and
+        ``max_validation_depth`` stay defaults of ``validate()`` only. ``inference`` replaces the constructor's regime(s) for
+        this call (``None``: none of its own; ``<not set>``: the constructor's), for the entailment the rules match over; the
+        shapes graph's ``sh:entailment`` applies too."""
         if inference is _UNSET:
             inference = self.inference
         data_graph = self._resolve_data_graph(data_graph)
@@ -984,7 +1000,7 @@ class StarShaclProcessor:
             include_source_rule_provenance=include_source_rule_provenance,
             rule_set=rule_set,
             inference=inference,
-            **{**self._option_defaults(), **kwargs},  # apply_rules has no mode=: constructor values (all groups), then the call's
+            **{**self._option_defaults(_RULES_DEFAULTS), **kwargs},  # no mode=, and no validation defaults: constructor values, then the call's
         )
 
     def evaluate(

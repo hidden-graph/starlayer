@@ -110,7 +110,7 @@ def _delta_for(g: Any, regimes: frozenset[str], engine: str, timeout: Any) -> se
         rest = regimes - {OWL_DIRECT_REGIME}
         if not rest:
             return _owl_direct_delta(g, engine, timeout)
-        # the input may already be closed under RDFS (the final pass of ``apply_rules`` reads a view of an entailed copy): the closure's
+        # the input may already be closed under RDFS (data that holds an earlier closure, or a view of an entailed copy): the closure's
         # vocabulary triples (rdfs:Class subClassOf rdfs:Resource, every node typed rdfs:Resource, ...) make owlready2 fail with an
         # inheritance cycle and say nothing about the ontology, so the DL reasoner is not given them
         direct = _owl_direct_delta(_without_rdf_vocabulary(g), engine, timeout)

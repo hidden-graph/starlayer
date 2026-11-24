@@ -85,7 +85,7 @@ def test_node_expression_path_carries_triple_term_value() -> None:
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.validation.conforms is True
+    assert validator.validate(data, rules=True).conforms is True  # rules, then validation, over the same shapes
     derived = list(result.inferred_graph.triples((EX.alice, EX.derivedSays, None)))
     assert len(derived) == 1
     assert derived[0][2] == ox.Triple(EX.bob, EX.knows, EX.carol)
@@ -102,7 +102,7 @@ def test_node_expression_union_carries_mixed_values() -> None:
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.validation.conforms is True
+    assert validator.validate(data, rules=True).conforms is True  # rules, then validation, over the same shapes
     derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedUnion, None))}
     assert derived == {ox.Triple(EX.bob, EX.knows, EX.carol), EX.plain_value}
 
@@ -119,7 +119,7 @@ def test_node_expression_intersection_carries_triple_term_value() -> None:
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.validation.conforms is True
+    assert validator.validate(data, rules=True).conforms is True  # rules, then validation, over the same shapes
     derived = list(result.inferred_graph.triples((EX.alice, EX.derivedIntersection, None)))
     assert len(derived) == 1
     assert derived[0][2] == ox.Triple(EX.bob, EX.knows, EX.carol)
@@ -142,7 +142,7 @@ def test_node_expression_intersection_carries_plain_rdf11_value() -> None:
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.validation.conforms is True
+    assert validator.validate(data, rules=True).conforms is True  # rules, then validation, over the same shapes
     derived = {o for _, _, o in result.inferred_graph.triples((EX.alice, EX.derivedIntersection, None))}
     assert derived == {EX.commonval}
 
@@ -157,7 +157,7 @@ def test_node_expression_shacl_function_carries_triple_term_value() -> None:
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.apply_rules(data_graph=data, meta_shacl=False)
 
-    assert result.validation.conforms is True
+    assert validator.validate(data, rules=True).conforms is True  # rules, then validation, over the same shapes
     derived = list(result.inferred_graph.triples((EX.alice, EX.derivedFn, None)))
     assert len(derived) == 1
     assert derived[0][2] == ox.Triple(EX.bob, EX.knows, EX.carol)

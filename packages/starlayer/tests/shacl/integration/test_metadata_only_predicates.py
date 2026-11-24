@@ -131,6 +131,6 @@ def test_metadata_only_predicates_do_not_interfere_with_rule_application() -> No
     """, format="turtle")
 
     result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data)
-    assert result.validation.conforms is True
+    assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, rules=True).conforms is True  # rules, then validation
     derived = list(result.inferred_graph.triples((EX.alice, EX.hasParent, None)))
     assert [tuple(t for t in tr) for tr in derived] == [(EX.alice, EX.hasParent, EX.carol)]

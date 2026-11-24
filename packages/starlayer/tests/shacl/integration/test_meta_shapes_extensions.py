@@ -981,8 +981,9 @@ class TestNodeExpressionWellFormedness:
         shapes = StarLayerGraph()
         shapes.parse(data=_FUNCTION_CALL_SHAPES, format="turtle12")
 
-        result = StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=True)
-        assert result.validation.conforms is True
+        processor = StarShaclProcessor(shacl_graph=shapes)
+        result = processor.apply_rules(data_graph=data, meta_shacl=True)
+        assert processor.validate(data_graph=data, meta_shacl=True, rules=True).conforms is True
         derived = list(result.inferred_graph.triples((EX.alice, EX.derivedFn, None)))
         assert len(derived) == 1
 

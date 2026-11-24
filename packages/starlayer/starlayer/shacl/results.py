@@ -121,33 +121,25 @@ class ValidationReport:
 
 @dataclass(frozen=True)
 class RulesResult:
-    """Result of ``apply_rules()``.
+    """Result of ``apply_rules()``: what the rules produced, and nothing else (nothing is validated).
 
-    ``apply_rules()`` executes ``sh:rule``/``sh:SPARQLRule`` against a
-    private working copy of the caller's ``data_graph`` (never mutated
-    in place) and returns what the rules produced.
+    The rules run on an overlay over the caller's data, which is neither copied nor changed.
 
-    ``inferred_graph`` is strictly the SHACL 1.2 Inference Rules spec's own
-    "inference graph" - only the triples rule execution itself produced
-    (shape-attached ``sh:rule``, global ``sh:SPARQLRule``/``sh:RuleSet``,
-    and ``sh:sourceRule`` provenance reifiers). It contains neither the
-    original base triples nor anything an entailment regime
-    (``sh:entailment`` or ``inference=``) added - entailment is purely a
-    computational device for correct rule matching and conformance
-    checking here, never persisted into the result.
-
-    ``validation`` is the result of one real ``validate()`` call
-    ``apply_rules()`` makes internally, over the *complete* evaluation
-    graph: base ∪ every rule-produced triple ∪ every entailed triple.
-    ``validation.conforms``/``.report_graph``/``.report_text`` correctly
-    reflect everything that was true during execution, even though
-    entailment's own triples don't appear in ``inferred_graph`` itself.
-    ``validation.data_graph`` is always ``None`` in this context (that
-    internal call always uses the ``"validation"`` mode's own
-    ``inplace=False`` default) - harmless, just not meaningful here.
+    ``inferred_graph`` is strictly the SHACL 1.2 Inference Rules spec's own "inference graph": only the triples rule execution
+    produced (shape-attached ``sh:rule``, global ``sh:SPARQLRule`` / ``sh:RuleSet``, and ``sh:sourceRule`` provenance reifiers when
+    asked for). It holds neither the base triples nor anything an entailment regime (``sh:entailment`` or ``inference=``) added:
+    entailment only lets the rules match correctly and is never persisted into the result.
     """
 
     inferred_graph: Any
+
+
+@dataclass(frozen=True)
+class CheckedInferenceResult(RulesResult):
+    """A ``RulesResult`` that also carries a validation: what an SRL ``RuleSet.infer(schema=...)`` returns. ``apply_rules()`` never
+    returns one, because it validates nothing; SRL's ``schema=`` keyword validates the base data together with the inferred triples
+    against the shapes it was given, and ``validation`` is that report."""
+
     validation: ValidationReport
 
 

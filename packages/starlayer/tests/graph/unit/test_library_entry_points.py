@@ -93,7 +93,8 @@ def test_schema_methods_take_oxigraph_graphs(kind):
 
     schema = StarShaclProcessor(shacl_graph=_ox(StarLayerGraph, SHAPES))
     assert schema.validate(kind(DATA)).conforms is False
-    assert schema.apply_rules(kind(DATA)).validation.conforms is False
+    assert schema.validate(kind(DATA), rules=True).conforms is False
+    assert len(schema.apply_rules(kind(DATA)).inferred_graph) == 0  # no rules in these shapes
     assert schema.evaluate(kind(DATA)) is not None
 
 

@@ -105,24 +105,15 @@ _RULE = (
 
 
 def test_apply_rules_runs_rules_of_imported_shapes():
-    from starlayer.shacl import apply_rules
+    from starlayer.shacl import apply_rules, validate
 
     main = g("<http://e/main> a owl:Ontology ; owl:imports <http://e/lib> .")
     d = g("ex:n a ex:C .")
     r = apply_rules(d, main, shapes_graph_loader=lambda iri: g(_RULE))
     assert len(r.inferred_graph) == 1
-    assert r.validation.conforms is True
-
-
-def test_apply_rules_validation_records_used_data_graph_identity():
-    from starlayer.shacl import apply_rules
-
-    d = g("ex:a ex:q 1 .", ox.NamedNode("http://e/data"))
-    s = g("ex:S a sh:NodeShape ; sh:targetNode ex:a .", ox.NamedNode("http://e/shapes"))
-    used = ox.NamedNode("http://www.w3.org/ns/shacl#usedDataGraph")
-    assert [o for _, _, o in apply_rules(d, s).validation.report_graph.triples((None, used, None))] == [
-        ox.NamedNode("http://e/data")
-    ]
+    # the rules-then-validate path reads the imported rules too: the shape's minCount holds only because the rule ran
+    assert validate(d, main, rules=True, shapes_graph_loader=lambda iri: g(_RULE)).conforms is True
+    assert validate(d, main, rules=False, shapes_graph_loader=lambda iri: g(_RULE)).conforms is False
 
 
 # --- extract_shapes_graph(include_referenced=True) copies every shape the members name
