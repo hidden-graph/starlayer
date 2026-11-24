@@ -1,7 +1,7 @@
 SPARQL 1.2 Query Language
 Snapshot source: https://www.w3.org/TR/sparql12-query/
-Status at fetch time: W3C Working Draft 01 November 2026
-Published: 2026-11-01
+Status at fetch time: W3C Working Draft 19 November 2026
+Published: 2026-11-19
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
 See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
@@ -11,12 +11,12 @@ See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used an
 
 # SPARQL 1.2 Query Language
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 01 November 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 19 November 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-sparql12-query-20261101/>
+     <https://www.w3.org/TR/2026/WD-sparql12-query-20261119/>
 Latest published version:
      <https://www.w3.org/TR/sparql12-query/>
 Latest editor's draft:
@@ -494,7 +494,7 @@ The result of a query is a solution sequence, corresponding to the ways in which
 Data:
     
     
-    PREFIX foaf:  <http://xmlns.com/foaf/0.1/> .
+    PREFIX foaf:  <http://xmlns.com/foaf/0.1/>
     
     _:a  foaf:name   "Johnny Lee Outlaw" .
     _:a  foaf:mbox   <mailto:jlow@example.com> .
@@ -522,11 +522,11 @@ Each solution gives one way in which the selected variables can be bound to RDF 
     
     
     _:a foaf:name  "Johnny Lee Outlaw" .
-    _:a foaf:box   <mailto:jlow@example.com> .
+    _:a foaf:mbox   <mailto:jlow@example.com> .
     
     
     _:b foaf:name  "Peter Goodguy" .
-    _:b foaf:box   <mailto:peter@example.org> .
+    _:b foaf:mbox   <mailto:peter@example.org> .
 
 This is a basic graph pattern match; all the variables used in the query pattern must be bound in every solution.
 
@@ -3570,13 +3570,13 @@ SPARQL functions and operators operate on RDF terms and SPARQL variables. A subs
 
 SPARQL has additional operators which operate on specific subsets of RDF terms. When referring to a type, the following terms denote a `literal` with the corresponding [W3C XML Schema Definition Language (XSD) 1.1 Part 2: Datatypes](https://www.w3.org/TR/xmlschema11-2/) [XMLSCHEMA11-2] datatype IRI:
 
-  * `[xsd:integer](https://www.w3.org/TR/xmlschema11-2/#dt-integer)`
-  * `[xsd:decimal](https://www.w3.org/TR/xmlschema11-2/#dt-decimal)`
+  * `[xsd:integer](https://www.w3.org/TR/xmlschema11-2/#integer)`
+  * `[xsd:decimal](https://www.w3.org/TR/xmlschema11-2/#decimal)`
   * `[xsd:float](https://www.w3.org/TR/xmlschema11-2/#dt-float)`
   * `[xsd:double](https://www.w3.org/TR/xmlschema11-2/#dt-double)`
   * `[xsd:string](https://www.w3.org/TR/xmlschema11-2/#dt-string)`
   * `[xsd:boolean](https://www.w3.org/TR/xmlschema11-2/#dt-boolean)`
-  * `[xsd:dateTime](https://www.w3.org/TR/xmlschema11-2/#dt-dateTime)`
+  * `[xsd:dateTime](https://www.w3.org/TR/xmlschema11-2/#dateTime)`
 
 
 
@@ -5130,9 +5130,9 @@ The table below summarizes the casting operations that are always allowed (Y), n
 > bool = [xsd:boolean](https://www.w3.org/TR/xmlschema11-2/#dt-boolean)  
 >  dbl = [xsd:double](https://www.w3.org/TR/xmlschema11-2/#dt-double)  
 >  flt = [xsd:float](https://www.w3.org/TR/xmlschema11-2/#dt-float)  
->  dec = [xsd:decimal](https://www.w3.org/TR/xmlschema11-2/#dt-decimal)  
->  int = [xsd:integer](https://www.w3.org/TR/xmlschema11-2/#dt-integer)  
->  dT = [xsd:dateTime](https://www.w3.org/TR/xmlschema11-2/#dt-dateTime)  
+>  dec = [xsd:decimal](https://www.w3.org/TR/xmlschema11-2/#decimal)  
+>  int = [xsd:integer](https://www.w3.org/TR/xmlschema11-2/#integer)  
+>  dT = [xsd:dateTime](https://www.w3.org/TR/xmlschema11-2/#dateTime)  
 >  str = [xsd:string](https://www.w3.org/TR/xmlschema11-2/#dt-string)  
 >  IRI = [IRI](https://www.w3.org/TR/rdf12-concepts/#dfn-iri)
 
@@ -7371,7 +7371,10 @@ Subtype name:
 Required parameters:
     None
 Optional parameters:
-    None
+    
+
+`version`
+     If present, acceptable values of `version` are defined in Version Labels. 
 Encoding considerations:
     The syntax of the SPARQL Query Language is expressed over code points in Unicode [UNICODE]. The encoding is always UTF-8 [RFC3629].
     Unicode code points may also be expressed using an \uXXXX (U+0 to U+FFFF) or \UXXXXXXXX syntax (U+0 to U+10FFFF), where X is a hexadecimal digit [0-9A-Fa-f], excluding U+D800 to U+DFFF, the [surrogate code points](https://www.w3.org/TR/i18n-glossary/#dfn-surrogate).
@@ -7685,7 +7688,7 @@ TODO
 [RDF-SPARQL-XMLRES]
      [SPARQL Query Results XML Format (Second Edition)](https://www.w3.org/TR/rdf-sparql-XMLres/). Dave Beckett; Jeen Broekstra. W3C. 21 March 2013. W3C Recommendation. URL: <https://www.w3.org/TR/rdf-sparql-XMLres/>
 [RDF12-CONCEPTS]
-     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
+     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin; Andy Seaborne. W3C. 16 November 2026. CRD. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RDF12-SEMANTICS]
      [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-XML]
@@ -7721,11 +7724,11 @@ TODO
 [SPARQL11-UPDATE]
      [SPARQL 1.1 Update](https://www.w3.org/TR/sparql11-update/). Paula Gearon; Alexandre Passant; Axel Polleres. W3C. 21 March 2013. W3C Recommendation. URL: <https://www.w3.org/TR/sparql11-update/>
 [SPARQL12-PROTOCOL]
-     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 16 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-Query]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 16 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-Update]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 15 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [TURTLE]
      [RDF 1.1 Turtle](https://www.w3.org/TR/turtle/). Eric Prud'hommeaux; Gavin Carothers. W3C. 25 February 2014. W3C Recommendation. URL: <https://www.w3.org/TR/turtle/>
 [UAX31]
@@ -7756,7 +7759,7 @@ TODO
 [RDF-MT]
      [RDF Semantics](https://www.w3.org/TR/rdf-mt/). Patrick Hayes. W3C. 10 February 2004. W3C Recommendation. URL: <https://www.w3.org/TR/rdf-mt/>
 [RDF12-TURTLE]
-     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 11 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
 [SPARQL12-CONCEPTS]
      [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
 [SPARQL12-ENTAILMENT]
@@ -7768,13 +7771,13 @@ TODO
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 16 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
      [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
-     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 29 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 18 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 
 ↑
 
@@ -8503,7 +8506,7 @@ Permalink
 
 
 
-[Permalink](https://www.w3.org/TR/xmlschema11-2/#dt-dateTime)
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#dateTime)
 
 **Referenced in:**
 
@@ -8512,7 +8515,7 @@ Permalink
 
 
 
-[Permalink](https://www.w3.org/TR/xmlschema11-2/#dt-decimal)
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#decimal)
 
 **Referenced in:**
 
@@ -8547,7 +8550,7 @@ Permalink
 
 
 
-[Permalink](https://www.w3.org/TR/xmlschema11-2/#dt-integer)
+[Permalink](https://www.w3.org/TR/xmlschema11-2/#integer)
 
 **Referenced in:**
 

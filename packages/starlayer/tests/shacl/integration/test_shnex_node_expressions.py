@@ -494,7 +494,7 @@ SPARQL_FUNCTION_PIPELINE_CASES = [
     ("strends", 'sparql:strends ( "hello" "lo" )', "turtle"),
     ("strbefore", 'sparql:equals ( [ sparql:strbefore ( "hello" "l" ) ] "he" )', "turtle"),
     ("strafter", 'sparql:equals ( [ sparql:strafter ( "hello" "l" ) ] "lo" )', "turtle"),
-    ("encode", 'sparql:equals ( [ sparql:encode ( "a b" ) ] "a%20b" )', "turtle"),
+    ("encode-for-uri", 'sparql:equals ( [ sparql:encode-for-uri ( "a b" ) ] "a%20b" )', "turtle"),
     ("concat", 'sparql:equals ( [ sparql:concat ( "foo" "bar" ) ] "foobar" )', "turtle"),
     ("langMatches", 'sparql:langMatches ( "en" "en" )', "turtle"),
     ("regex", 'sparql:regex ( "hello" "^h" )', "turtle"),

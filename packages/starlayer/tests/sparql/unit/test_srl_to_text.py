@@ -61,16 +61,16 @@ def test_assignment_expression_renders_and_reparses():
 
 
 def test_negation_with_data_flag_renders_and_reparses():
-    text = "PREFIX ex: <http://example.org/>\nRULE { ?x ex:p true } WHERE { ?x ex:q true . NOT DATA { ?x ex:r true } }"
+    text = "PREFIX ex: <http://example.org/>\nRULE { ?x ex:p true } WHERE { ?x ex:q true . NOT GROUND { ?x ex:r true } }"
     rs, rendered, rs2 = _roundtrip(text)
-    assert "NOT DATA" in rendered
+    assert "NOT GROUND" in rendered
     assert rs == rs2
 
 
 def test_where_data_rule_renders_and_reparses():
-    text = "PREFIX ex: <http://example.org/>\nRULE { ?x ex:p ?y } WHERE DATA { ?x ex:q ?y . }"
+    text = "PREFIX ex: <http://example.org/>\nRULE { ?x ex:p ?y } WHERE GROUND { ?x ex:q ?y . }"
     rs, rendered, rs2 = _roundtrip(text)
-    assert "WHERE DATA" in rendered
+    assert "WHERE GROUND" in rendered
     assert rs == rs2
 
 

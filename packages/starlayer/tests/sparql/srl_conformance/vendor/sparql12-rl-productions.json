@@ -57,7 +57,7 @@
   {
    "n": 11,
    "name": "Rule",
-   "rhs": "'RULE' iri? HeadTemplate 'WHERE' 'DATA'? BodyPattern"
+   "rhs": "'RULE' iri? HeadTemplate 'WHERE' 'GROUND'? BodyPattern"
   },
   {
    "n": 12,
@@ -92,7 +92,7 @@
   {
    "n": 18,
    "name": "Negation",
-   "rhs": "'NOT' 'DATA'? '{' NegationPattern '}'"
+   "rhs": "'NOT' 'GROUND'? '{' NegationPattern '}'"
   },
   {
    "n": 19,

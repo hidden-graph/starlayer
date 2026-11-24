@@ -1,7 +1,7 @@
 RDF 1.2 Concepts and Abstract Data Model
 Snapshot source: https://www.w3.org/TR/rdf12-concepts/
-Status at fetch time: W3C Candidate Recommendation Draft 11 November 2026
-Published: 2026-11-11
+Status at fetch time: W3C Candidate Recommendation Draft 16 November 2026
+Published: 2026-11-16
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
 See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
@@ -11,12 +11,12 @@ See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used an
 
 # RDF 1.2 Concepts and Abstract Data Model
 
-[W3C Candidate Recommendation Draft](https://www.w3.org/standards/types#CRD) 11 November 2026
+[W3C Candidate Recommendation Draft](https://www.w3.org/standards/types#CRD) 16 November 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/CRD-rdf12-concepts-20261111/>
+     <https://www.w3.org/TR/2026/CRD-rdf12-concepts-20261116/>
 Latest published version:
      <https://www.w3.org/TR/rdf12-concepts/>
 Latest editor's draft:
@@ -69,7 +69,7 @@ This specification introduces key concepts and terminology for RDF 1.2, and subs
 
 This document is part of the RDF 1.2 document suite. It is the central RDF 1.2 specification and defines the core RDF concepts. Test suites and implementation reports of a number of RDF 1.2 specifications that build on this document are available from the [rdf-tests](https://github.com/w3c/rdf-tests/) repository under [rdf-tests/rdf/rdf12](https://github.com/w3c/rdf-tests/tree/main/rdf/rdf12) as referenced in each of the specifications. 
 
-RDF 1.2 Concepts (this specification) describes an abstract data model, and does not have an independant test suite, as it is not directly implemented in software. Instead, it is implemented by the specifications which build on top of it. As a consequence, to exit the W3C Candidate Recommendation phase, the W3C [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star) requires that [RDF12-SEMANTICS] and at least one specification for a concrete syntax (e.g. [RDF12-N-TRIPLES]) have met their own exit criteria for the W3C Candidate Recommendation phase. 
+RDF 1.2 Concepts (this specification) describes an abstract data model, and does not have an independent test suite, as it is not directly implemented in software. Instead, it is implemented by the specifications which build on top of it. As a consequence, to exit the W3C Candidate Recommendation phase, the W3C [RDF & SPARQL Working Group](https://www.w3.org/groups/wg/rdf-star) requires that [RDF12-SEMANTICS] and at least one specification for a concrete syntax (e.g. [RDF12-N-TRIPLES]) have met their own exit criteria for the W3C Candidate Recommendation phase. 
 
 RDF 1.2 Concepts is an update to [RDF11-CONCEPTS], which was itself, an update to [RDF-CONCEPTS-20040210].
 
@@ -263,7 +263,7 @@ xsd | [`http://www.w3.org/2001/XMLSchema#`](https://www.w3.org/2001/XMLSchema#) 
   
 In some serialization formats, it is common to associate some namespace IRIs with arbitrary namespace prefixes, and to improve readability by abbreviating IRIs that start with one of those namespace IRIs by using the corresponding namespace prefix. For example, based on the prefix mapping in the table above, the IRI `http://www.w3.org/1999/02/22-rdf-syntax-ns#XMLLiteral` would be abbreviated as `rdf:XMLLiteral`. Note however that such abbreviations are _not_ meant to be processed directly as IRIs, and are not to be used in syntactic contexts where IRIs are expected. Note also that namespace IRIs and namespace prefixes are not a formal part of the RDF abstract data model. They are merely a syntactic convenience for abbreviating IRIs; for processing, the actual IRIs are reconstructed by replacing each namespace prefix with the corresponding namespace IRI. 
 
-The term “namespace” on its own does not have a well-defined meaning in the context of RDF, but is sometimes informally used to mean “namespace IRI” or “RDF vocabulary”.
+The term "namespace" on its own does not have a well-defined meaning in the context of RDF, but is sometimes informally used to mean "namespace IRI" or "RDF vocabulary".
 
 ### 1.5 Triple Terms and Reification
 
@@ -520,15 +520,15 @@ Note
 
 This section provides advice to data publishers. 
 
-IRIs are used to denote resources, and each IRI should identify the same resource regardless of where that IRI is used. Note that the general syntax for IRIs, defined by [RFC3987], can express IRIs which do not meet the requirement of being a global reference. Some URI schemes add additional requirements; for example, the [HTTP URI scheme](https://httpwg.org/specs/rfc7230.html#section-2.7.1) defines [`http-URI`](https://httpwg.org/specs/rfc7230.html#http-URI), which requires the presence of a non-empty host name, and, as a consequence, the path component will start with `/`. The [RFC3987] syntax permits IRIs such as `http:abcd` and `http:///abcd`, but these are invalid because they do not satisfy the HTTP URI scheme definition. 
+IRIs are used to denote resources, and each IRI should identify the same resource regardless of where that IRI is used. Note that the general syntax for IRIs, defined by [RFC3987], can express IRIs which do not meet the requirement of being a global reference. Some URI schemes add additional requirements; for example, the [HTTP URI scheme](https://httpwg.org/specs/rfc7230.html#rfc.section.2.7.1) defines [`http-URI`](https://httpwg.org/specs/rfc7230.html#http.uri), which requires the presence of a non-empty host name, and, as a consequence, the path component will start with `/`. The [RFC3987] syntax permits IRIs such as `http:abcd` and `http:///abcd`, but these are invalid because they do not satisfy the HTTP URI scheme definition. 
 
 An RDF Reference IRI, sometimes called simply RDF Reference, is an IRI that is suitable for use as a global reference. 
 
-**Reference Resolution:** An RDF Reference IRI is unchanged by [reference resolution](https://www.rfc-editor.org/info/rfc3986/#section-5). In URI schemes such as `http` and `https`, the [path component](https://www.rfc-editor.org/info/rfc3986/#section-3.3) is part of the hierarchy visible to the resolution algorithm. When resolved, the [path component](https://www.rfc-editor.org/info/rfc3986/#section-3.3) starts with a `/` character and does not contain `.` or `..` segments. For example, `https://example/data` resolved against any base IRI is `https://example/data` (unchanged), whereas `https://example/path/../data` resolved against an arbitrary base IRI is `https://example.com/data`. 
+**Reference Resolution:** An RDF Reference IRI is unchanged by [reference resolution](https://www.rfc-editor.org/info/rfc3986/#section-5). In URI schemes such as `http` and `https`, the [path component](https://www.rfc-editor.org/info/rfc3986/#section-3.3) is part of the hierarchy visible to the resolution algorithm. When resolved, the [path component](https://www.rfc-editor.org/info/rfc3986/#section-3.3) starts with a `/` character and does not contain `.` or `..` segments. For example, `https://example/data` resolved against any base IRI is `https://example/data` (unchanged), whereas `https://example/path/../data` resolved against an arbitrary base IRI is `https://example/data`. 
 
 **Relative IRI references:** Some concrete RDF syntaxes permit  relative IRI references (see the `irelative-ref` production in the IRI Grammar) as a convenient shorthand that allows RDF documents to be authored without knowing their final publishing location. Relative IRI references must be [resolved against](https://www.rfc-editor.org/info/rfc3986/#section-5.2) a base IRI. Therefore, the RDF graph serialized in such syntaxes is well-defined only if a [base IRI can be established](https://www.rfc-editor.org/info/rfc3986/#section-5.1) [RFC3986]. 
 
-**URI Schemes:** Implementations are encouraged to follow the scheme-specific rules of the common schemes, such as the [scheme rules for HTTP/HTTPS](https://httpwg.org/specs/rfc7230.html#section-2.7) and the [DID syntax](https://www.w3.org/TR/did-core/#identifier). Implementations ignore URI scheme rules for schemes they do not recognize. 
+**URI Schemes:** Implementations are encouraged to follow the scheme-specific rules of the common schemes, such as the [scheme rules for HTTP/HTTPS](https://httpwg.org/specs/rfc7230.html#uri) and the [DID syntax](https://www.w3.org/TR/did-core/#identifier). Implementations ignore URI scheme rules for schemes they do not recognize. 
 
 **IRI normalization:** Interoperability problems can be avoided by minting only IRIs that are normalized according to [Section 5](https://www.rfc-editor.org/info/rfc3987/#section-5) of [RFC3987]. 
 
@@ -689,11 +689,11 @@ Blank nodes can be shared between graphs in an RDF dataset.
 
 Note
 
-Despite the use of the word “name” in “named graph”, the graph name is not required to denote the graph. It is merely syntactically paired with the graph. RDF does not place any formal restrictions on what resource the graph name may denote, nor on the relationship between that resource and the graph. A discussion of different RDF dataset semantics can be found in [RDF11-DATASETS].
+Despite the use of the word "name" in "named graph", the graph name is not required to denote the graph. It is merely syntactically paired with the graph. RDF does not place any formal restrictions on what resource the graph name may denote, nor on the relationship between that resource and the graph. A discussion of different RDF dataset semantics can be found in [RDF11-DATASETS].
 
 Some RDF dataset implementations do not track empty named graphs. Applications can avoid interoperability issues by not ascribing importance to the presence or absence of empty named graphs.
 
-SPARQL version 1.2 [SPARQL12-CONCEPTS] uses [the same concept of an RDF Dataset](https://www.w3.org/TR/sparql12-query/#sparqlDataset) as RDF versions 1.1 and 1.2, in which the graph names of named graphs may be IRIs or blank nodes. In contrast, version 1.1 of the SPARQL Query Language [SPARQL11-QUERY] only allowed graph names to be IRIs.
+SPARQL version 1.2 [SPARQL12-CONCEPTS] uses the same concept of an [RDF Dataset](https://www.w3.org/TR/sparql12-query/#sparqlDataset) as RDF versions 1.1 and 1.2, in which the graph names of named graphs may be IRIs or blank nodes. In contrast, version 1.1 of the SPARQL Query Language [SPARQL11-QUERY] only allowed graph names to be IRIs.
 
 ### 4.1 RDF Dataset Comparison
 
@@ -1383,9 +1383,6 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
 
 ### J.2 Terms defined by reference
 
-  * [BCP47] defines the following: 
-    * BCP 47 section 4.5
-    * section 2.2.9
   * [DID-CORE] defines the following: 
     * DID syntax
   * [DOM] defines the following: 
@@ -1418,7 +1415,7 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
     * value
   * [JSON-LD11] defines the following: 
     * i18n namespace
-    * Section 10.2 The rdf:JSON Datatype
+    * rdf:JSON
   * [OWL2-OVERVIEW] defines the following: 
     * OWL 2
   * [OWL2-SYNTAX] defines the following: 
@@ -1431,8 +1428,6 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
     * RDF Semantics, "recognizing"
     * semantic extensions
     * Skolemization
-  * [RDF12-TURTLE] defines the following: 
-    * RDF 1.2 Turtle
   * [RDF12-XML] defines the following: 
     * @parseType="literal"
   * [RFC3986] defines the following: 
@@ -1441,14 +1436,8 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
     * fragment identifier
     * IRI scheme
     * path component
-    * relative reference
     * resolved
     * resolved against
-  * [RFC3987] defines the following: 
-    * section 1.3
-    * section 3.1
-    * Section 5
-    * section 5.3.1
   * [RFC7230] defines the following: 
     * HTTP URI scheme
     * http-URI
@@ -1461,7 +1450,7 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
     * JSON Object
     * JSON String
   * [SPARQL12-QUERY] defines the following: 
-    * the same concept of an RDF Dataset
+    * RDF Dataset
   * [SWBP-N-ARYRELATIONS] defines the following: 
     * indirectly expressed in RDF
   * [SWBP-XSCH-DATATYPES] defines the following: 
@@ -1610,13 +1599,13 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
 [RDF12-PRIMER]
      [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 17 September 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
 [RDF12-SCHEMA]
-     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
+     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 12 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
 [RDF12-SEMANTICS]
      [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-TRIG]
-     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 13 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
 [RDF12-TURTLE]
-     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 11 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
 [RDF12-XML]
      [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
 [RDFA-CORE]
@@ -1648,7 +1637,7 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
 [SPARQL12-PROTOCOL]
      [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 1 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 15 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-RESULTS-CSV-TSV]
      [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
@@ -1656,9 +1645,9 @@ A detailed overview of the differences between RDF versions 1.1 and 1.2 can be f
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
-     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 29 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 12 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 [SPARQL12-UPDATE]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 15 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [STRING-META]
      [Strings on the Web: Language and Direction Metadata](https://www.w3.org/TR/string-meta/). Richard Ishida; Addison Phillips. W3C. 16 July 2026. FPWD. URL: <https://www.w3.org/TR/string-meta/>
 [SWBP-N-ARYRELATIONS]
@@ -2607,22 +2596,6 @@ Permalink exported
 
 
 
-[Permalink](https://www.rfc-editor.org/info/bcp47#section-4.5)
-
-**Referenced in:**
-
-  * § 3.4.1 Representation of Literals
-
-
-
-[Permalink](https://www.rfc-editor.org/info/bcp47#section-2.2.9)
-
-**Referenced in:**
-
-  * § 3.4 Literals
-
-
-
 [Permalink](https://www.w3.org/TR/did-core/#identifier)
 
 **Referenced in:**
@@ -2905,14 +2878,6 @@ Permalink exported
 
 
 
-[Permalink](https://www.w3.org/TR/rdf12-turtle/#sec-version)
-
-**Referenced in:**
-
-  * § 1.10 RDF Version Announcement
-
-
-
 [Permalink](https://www.w3.org/TR/rdf12-xml/#parseTypeLiteralPropertyElt)
 
 **Referenced in:**
@@ -2962,14 +2927,6 @@ Permalink exported
 
 
 
-[Permalink](https://www.rfc-editor.org/info/rfc3986/#section-4.2)
-
-**Referenced in:**
-
-  * § 3.3 IRIs
-
-
-
 [Permalink](https://www.rfc-editor.org/info/rfc3986/#section-5)
 
 **Referenced in:**
@@ -2987,23 +2944,7 @@ Permalink exported
 
 
 
-[Permalink](https://www.rfc-editor.org/info/rfc3987/#section-1.3)
-
-**Referenced in:**
-
-  * § 3.3 IRIs
-
-
-
-[Permalink](https://www.rfc-editor.org/info/rfc3987/#section-3.1)
-
-**Referenced in:**
-
-  * § 3.3 IRIs
-
-
-
-[Permalink](https://www.rfc-editor.org/info/rfc3987/#section-5)
+[Permalink](https://httpwg.org/specs/rfc7230.html#rfc.section.2.7.1)
 
 **Referenced in:**
 
@@ -3011,15 +2952,7 @@ Permalink exported
 
 
 
-[Permalink](https://www.rfc-editor.org/info/rfc3987/#section-5.3.1)
-
-**Referenced in:**
-
-  * § 3.3 IRIs
-
-
-
-[Permalink](https://httpwg.org/specs/rfc7230.html#section-2.7.1)
+[Permalink](https://httpwg.org/specs/rfc7230.html#http.uri)
 
 **Referenced in:**
 
@@ -3027,15 +2960,7 @@ Permalink exported
 
 
 
-[Permalink](https://httpwg.org/specs/rfc7230.html#http-URI)
-
-**Referenced in:**
-
-  * § 3.3.1 RDF Reference IRIs
-
-
-
-[Permalink](https://httpwg.org/specs/rfc7230.html#section-2.7)
+[Permalink](https://httpwg.org/specs/rfc7230.html#uri)
 
 **Referenced in:**
 

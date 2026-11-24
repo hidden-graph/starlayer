@@ -1,7 +1,7 @@
 RDF 1.2 Schema
 Snapshot source: https://www.w3.org/TR/rdf12-schema/
-Status at fetch time: W3C Working Draft 23 October 2026
-Published: 2026-10-23
+Status at fetch time: W3C Working Draft 23 November 2026
+Published: 2026-11-23
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
 See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
@@ -11,12 +11,12 @@ See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used an
 
 # RDF 1.2 Schema
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 23 October 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 23 November 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-rdf12-schema-20261023/>
+     <https://www.w3.org/TR/2026/WD-rdf12-schema-20261123/>
 Latest published version:
      <https://www.w3.org/TR/rdf12-schema/>
 Latest editor's draft:
@@ -156,22 +156,22 @@ SPARQL 1.2 Documents:
   10. 8\. RDF Schema summary
      1. 8.1 RDF classes
      2. 8.2 RDF properties
-  11. A. Vocabulary Registry
-     1. A.1 `rdf:` Namespace
-     2. A.2 `rdfs:` Namespace
-  12. B. Privacy Considerations
-  13. C. Security Considerations
-  14. D. Acknowledgments
-     1. D.1 Acknowledgments for 2004 Recommendation
-     2. D.2 Acknowledgments for RDF 1.1
-     3. D.3 Acknowledgments for RDF 1.2
-  15. E. Change since 2004 Recommendation
-  16. F. Changes between RDF 1.1 and RDF 1.2
-  17. G. Index
-     1. G.1 Terms defined by this specification
-     2. G.2 Terms defined by reference
-  18. H. References
-     1. H.1 Informative references
+  11. A. RDF Schema Vocabulary Reference
+  12. B. RDF Vocabulary Registry
+     1. B.1 `rdf:` Namespace
+  13. C. Privacy Considerations
+  14. D. Security Considerations
+  15. E. Acknowledgments
+     1. E.1 Acknowledgments for 2004 Recommendation
+     2. E.2 Acknowledgments for RDF 1.1
+     3. E.3 Acknowledgments for RDF 1.2
+  16. F. Change since 2004 Recommendation
+  17. G. Changes between RDF 1.1 and RDF 1.2
+  18. H. Index
+     1. H.1 Terms defined by this specification
+     2. H.2 Terms defined by reference
+  19. I. References
+     1. I.1 Informative references
 
 
 
@@ -188,7 +188,7 @@ RDF Schema is a data-modelling vocabulary for RDF data, as well as a [semantic e
 
 This document is intended to provide a clear specification of RDF Schema to those who find the formal semantics specification [RDF12-SEMANTICS] daunting. Thus, this document duplicates material also specified in the RDF Semantics specification. Where there is disagreement between this document and the RDF Semantics specification, the RDF Semantics specification should be taken to be correct.
 
-The RDF Schema class and property system is similar to the type systems of object-oriented programming languages such as Java. RDF Schema differs from many such systems in that instead of defining a class in terms of the properties its instances may have, RDF Schema describes properties in terms of the classes of resource to which they apply. This is the role of the domain and range mechanisms described in this specification. For example, we could define the `eg:author` property to have a domain of `eg:Document` and a range of `eg:Person`, whereas a classical object oriented system might typically define a class `eg:Document` with an attribute called `eg:author` of type `eg:Person`. Using the RDF approach, it is easy for others to subsequently define additional properties with a domain of `eg:Document` or a range of `eg:Person`. This can be done without the need to re-define the original description of these classes. One benefit of the RDF property-centric approach is that it allows anyone to extend the description of existing resources, one of the architectural principles of the Web [RDF-NOT].
+The RDF Schema class and property system is similar to the type systems of object-oriented programming languages such as Java. RDF Schema differs from many such systems in that instead of defining a class in terms of the properties its instances may have, RDF Schema describes properties in terms of the classes of resource to which they apply. This is the role of the domain and range mechanisms described in this specification. For example, we could define the `ex:author` property to have a domain of `ex:Document` and a range of `ex:Person`, whereas a classical object oriented system might typically define a class `ex:Document` with an attribute called `ex:author` of type `ex:Person`. Using the RDF approach, it is easy for others to subsequently define additional properties with a domain of `ex:Document` or a range of `ex:Person`. This can be done without the need to re-define the original description of these classes. One benefit of the RDF property-centric approach is that it allows anyone to extend the description of existing resources, one of the architectural principles of the Web [RDF-NOT].
 
 This specification does not attempt to enumerate all the possible forms of representing the meaning of RDF classes and properties. Instead, the RDF Schema strategy is to acknowledge that there are many techniques through which the meaning of classes and properties can be described. Richer vocabulary or 'ontology' languages such as OWL [OWL2-OVERVIEW], inference rule languages and other formalisms (for example temporal logics) will each contribute to our ability to capture meaningful generalizations about data in the Web.
 
@@ -201,7 +201,10 @@ Some namespace prefixes and IRIs used in this specification Namespace prefix | N
 rdf | [`http://www.w3.org/1999/02/22-rdf-syntax-ns#`](https://www.w3.org/1999/02/22-rdf-syntax-ns#)  
 rdfs | [`http://www.w3.org/2000/01/rdf-schema#`](https://www.w3.org/2000/01/rdf-schema#)  
 xsd | [`http://www.w3.org/2001/XMLSchema#`](https://www.w3.org/2001/XMLSchema#)  
+ex | `http://example/`  
   
+The namespace prefix `ex` is used for illustrative examples.
+
 For convenience and readability, this specification uses an abbreviated form to represent IRIs. A name of the form `prefix:suffix` should be interpreted as a IRI consisting of the IRI associated with the `prefix` concatenated with the `suffix`.
 
 ## 2\. Data-modelling vocabulary
@@ -820,17 +823,46 @@ Property name | comment | domain | range
   
 In addition to these classes and properties, RDF uses properties called `rdf:_1`, `rdf:_2`, `rdf:_3`, etc., each of which is both a sub-property of `rdfs:member` and an instance of the class `rdfs:ContainerMembershipProperty`. There is also an instance of `rdf:List` called `rdf:nil` that is an empty `rdf:List`.
 
-## A. Vocabulary Registry
+## A. RDF Schema Vocabulary Reference
 
  _This section is non-normative._
 
-This section defines a registry for the vocabulary in the RDF core namespaces in accordance with [§ 6.5 The Registry Track](https://www.w3.org/policies/process/#registries) of the W3C Process [W3C-PROCESS].
+This section provides a reference index of all the IRIs defined in the `rdfs:` namespace. It is not a registry under [§ 6.5 The Registry Track](https://www.w3.org/policies/process/#registries) of the W3C Process [W3C-PROCESS].
 
-The purpose of this registry is to provide a central index where anyone can find out what vocabulary entries exist in the RDF core namespaces and where they are formally defined, to avoid collisions and duplication.
+New terms in this namespace are introduced by the Working Group responsible for RDF Schema through updates to its specifications, with corresponding updates to RDF Semantics [RDF12-SEMANTICS] where applicable.
 
-Each registry table has the following three fields: an IRI, the governing specification, and any relevant notes (such as applicable scope).
+A machine-readable version of this table is available at [`http://www.w3.org/2000/01/rdf-schema`](https://www.w3.org/2000/01/rdf-schema).
 
-New entries in either registry table must meet both of the following criteria:
+IRI | Specification  
+---|---  
+`rdfs:Class`| This document  
+`rdfs:Container`| This document  
+`rdfs:ContainerMembershipProperty`| This document  
+`rdfs:Datatype`| This document  
+`rdfs:Literal`| This document  
+`rdfs:Proposition`| This document  
+`rdfs:Resource`| This document  
+`rdfs:comment`| This document  
+`rdfs:domain`| This document  
+`rdfs:isDefinedBy`| This document  
+`rdfs:label`| This document  
+`rdfs:member`| This document  
+`rdfs:range`| This document  
+`rdfs:seeAlso`| This document  
+`rdfs:subClassOf`| This document  
+`rdfs:subPropertyOf`| This document  
+  
+## B. RDF Vocabulary Registry
+
+ _This section is non-normative._
+
+This section defines a registry for the vocabulary in the `rdf:` namespace in accordance with [§ 6.5 The Registry Track](https://www.w3.org/policies/process/#registries) of the W3C Process [W3C-PROCESS].
+
+The purpose of this registry is to provide a central index where anyone can find out what vocabulary entries exist in the `rdf:` namespace and where they are formally defined, to avoid collisions and duplication.
+
+The registry table has the following three fields: an IRI, the governing specification, and any relevant notes (such as applicable scope).
+
+New entries in the registry table must meet both of the following criteria:
 
   * They are defined by a W3C Recommendation-track specification [W3C-PROCESS].
   * They are of general utility for RDF. Terms specific to a particular application or domain should be defined in a separate vocabulary.
@@ -844,9 +876,9 @@ The policy for changes to existing entries is as follows:
 
 
 
-The custodian for all registry tables is the Working Group in charge of this document. Requests for registry changes are to be sent to that Working Group. If no such Working Group exists, the W3C Team is the point of contact for registry change requests and for arranging continued custodianship in accordance with [§ 6.5.1 Registry Definitions](https://www.w3.org/policies/process/#registry-definition) of the W3C Process [W3C-PROCESS].
+The custodian for the registry table is the Working Group in charge of this document. Requests for registry changes are to be sent to that Working Group. If no such Working Group exists, the W3C Team is the point of contact for registry change requests and for arranging continued custodianship in accordance with [§ 6.5.1 Registry Definitions](https://www.w3.org/policies/process/#registry-definition) of the W3C Process [W3C-PROCESS].
 
-### A.1 `rdf:` Namespace
+### B.1 `rdf:` Namespace
 
  _This section is non-normative._
 
@@ -886,58 +918,23 @@ IRI | Specification | Notes
 `rdf:propositionFormPredicate`| [RDF-INTEROP]| Reserved for basic encoding of propositions.  
 `rdf:propositionFormObject`| [RDF-INTEROP]| Reserved for basic encoding of propositions.  
   
-### A.2 `rdfs:` Namespace
-
- _This section is non-normative._
-
-The following registry table lists all the IRIs defined in the `rdfs:` namespace.
-
-[Issue 82](https://github.com/w3c/rdf-schema/issues/82): The vocabulary registry should not cover rdfs:, only rdf:
-
-I don't think that the rdfs: namespace should be open for extension.
-
-For me, the rdfs: vocabulary should be restricted to terms that have a specific semantics under RDFS entailmenent, and therefore are the prerogative of the WG maintaining RDF.
-
-(I know that this is not entirely true today, for historical reason, but that should be the criteria for adding new terms in `rdfs:` rather than in `rdf:`, anyway...).
-
-A machine-readable version of this table is available at [`http://www.w3.org/2000/01/rdf-schema`](https://www.w3.org/2000/01/rdf-schema).
-
-IRI | Specification  
----|---  
-`rdfs:Class`| This document  
-`rdfs:Container`| This document  
-`rdfs:ContainerMembershipProperty`| This document  
-`rdfs:Datatype`| This document  
-`rdfs:Literal`| This document  
-`rdfs:Proposition`| This document  
-`rdfs:Resource`| This document  
-`rdfs:comment`| This document  
-`rdfs:domain`| This document  
-`rdfs:isDefinedBy`| This document  
-`rdfs:label`| This document  
-`rdfs:member`| This document  
-`rdfs:range`| This document  
-`rdfs:seeAlso`| This document  
-`rdfs:subClassOf`| This document  
-`rdfs:subPropertyOf`| This document  
-  
-## B. Privacy Considerations
+## C. Privacy Considerations
 
  _This section is non-normative._
 
 See [Privacy Considerations](https://www.w3.org/TR/rdf12-concepts/#privacy) in [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/) [RDF12-CONCEPTS]. 
 
-## C. Security Considerations
+## D. Security Considerations
 
  _This section is non-normative._
 
 See [Security Considerations](https://www.w3.org/TR/rdf12-concepts/#security) in [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/) [RDF12-CONCEPTS]. 
 
-## D. Acknowledgments
+## E. Acknowledgments
 
  _This section is non-normative._
 
-### D.1 Acknowledgments for 2004 Recommendation
+### E.1 Acknowledgments for 2004 Recommendation
 
  _This section is non-normative._
 
@@ -949,13 +946,13 @@ The original RDF Schema Working Group membership included:
 
 Nick Arnett (Verity), Dan Brickley (ILRT / University of Bristol), Walter Chang (Adobe), Sailesh Chutani (Oracle), Ron Daniel (DATAFUSION), Charles Frankston (Microsoft), Joe Lapp (webMethods Inc.), Patrick Gannon (CommerceNet), RV Guha (Epinions, previously of Netscape Communications), Tom Hill (Apple Computer), Renato Iannella (DSTC), Sandeep Jain (Oracle), Kevin Jones, (InterMind), Emiko Kezuka (Digital Vision Laboratories), Ora Lassila (Nokia Research Center), Andrew Layman (Microsoft), John McCarthy (Lawrence Berkeley National Laboratory), Michael Mealling (Network Solutions), Norbert Mikula (DataChannel), Eric Miller (OCLC), Frank Olken (Lawrence Berkeley National Laboratory), Sri Raghavan (Digital/Compaq), Lisa Rein (webMethods Inc.), Tsuyoshi Sakata (Digital Vision Laboratories), Leon Shklar (Pencom Web Works), David Singer (IBM), Wei (William) Song (SISU), Neel Sundaresan (IBM), Ralph Swick (W3C), Naohiko Uramoto (IBM), Charles Wicksteed (Reuters Ltd.), Misha Wolf (Reuters Ltd.)
 
-### D.2 Acknowledgments for RDF 1.1
+### E.2 Acknowledgments for RDF 1.1
 
  _This section is non-normative._
 
 The current specification is largely an editorial clarification of that design, and has benefited greatly from the hard work of the [RDF Core Working Group](https://www.w3.org/2001/sw/RDFCore/) [members](https://www.w3.org/2001/sw/RDFCore/#Membership), and from implementation feedback from many members of the [RDF Interest Group](https://www.w3.org/RDF/Interest/). In 2013-2014 Guus Schreiber edited this document on behalf of the [RDF Working Group](https://www.w3.org/2011/rdf-wg/) to bring it in line with the RDF 1.1 specifications.
 
-### D.3 Acknowledgments for RDF 1.2
+### E.3 Acknowledgments for RDF 1.2
 
  _This section is non-normative._
 
@@ -969,7 +966,7 @@ Editor's note
 
 Recognize members of the Task Force? Not an easy to find list of contributors.
 
-## E. Change since 2004 Recommendation
+## F. Change since 2004 Recommendation
 
  _This section is non-normative._
 
@@ -991,7 +988,7 @@ Changes for RDF 1.1 Recommendation
 
 
 
-## F. Changes between RDF 1.1 and RDF 1.2
+## G. Changes between RDF 1.1 and RDF 1.2
 
  _This section is non-normative._
 
@@ -1005,14 +1002,14 @@ Changes for RDF 1.1 Recommendation
 
 
 
-## G. Index
+## H. Index
 
-### G.1 Terms defined by this specification
-
-
+### H.1 Terms defined by this specification
 
 
-### G.2 Terms defined by reference
+
+
+### H.2 Terms defined by reference
 
   * [RDF12-CONCEPTS] defines the following: 
     * directional language-tagged string values
@@ -1035,9 +1032,9 @@ Changes for RDF 1.1 Recommendation
 
 
 
-## H. References
+## I. References
 
-### H.1 Informative references
+### I.1 Informative references
 
 [JSON-LD11]
      [JSON-LD 1.1](https://www.w3.org/TR/json-ld11/). Gregg Kellogg; Pierre-Antoine Champin; Dave Longley. W3C. 16 July 2020. W3C Recommendation. URL: <https://www.w3.org/TR/json-ld11/>
@@ -1050,23 +1047,23 @@ Changes for RDF 1.1 Recommendation
 [RDF-PLAIN-LITERAL]
      [rdf:PlainLiteral: A Datatype for RDF Plain Literals (Second Edition)](https://www.w3.org/TR/rdf-plain-literal/). Jie Bao; Sandro Hawke; Boris Motik; Peter Patel-Schneider; Axel Polleres. W3C. 11 December 2012. W3C Recommendation. URL: <https://www.w3.org/TR/rdf-plain-literal/>
 [RDF12-CONCEPTS]
-     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
+     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin; Andy Seaborne. W3C. 16 November 2026. CRD. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 10 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 20 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [RDF12-N-TRIPLES]
-     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 7 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 22 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
 [RDF12-NEW]
      [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
 [RDF12-PRIMER]
-     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 17 September 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
+     [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 19 November 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
 [RDF12-SEMANTICS]
      [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-TRIG]
-     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 7 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
+     [RDF 1.2 TriG](https://www.w3.org/TR/rdf12-trig/). Gregg Kellogg; Dominik Tomaszuk. W3C. 13 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-trig/>
 [RDF12-TURTLE]
-     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 7 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 11 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
 [RDF12-XML]
-     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 9 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
+     [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
 [SPARQL12-CONCEPTS]
      [SPARQL 1.2 Concepts](https://w3c.github.io/sparql-concepts/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-concepts/spec/>
 [SPARQL12-ENTAILMENT]
@@ -1074,23 +1071,23 @@ Changes for RDF 1.1 Recommendation
 [SPARQL12-FEDERATED-QUERY]
      [SPARQL 1.2 Federated Query](https://www.w3.org/TR/sparql12-federated-query/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-federated-query/>
 [SPARQL12-GRAPH-STORE-PROTOCOL]
-     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 24 September 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
+     [SPARQL 1.2 Graph Store Protocol](https://www.w3.org/TR/sparql12-graph-store-protocol/). Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-graph-store-protocol/>
 [SPARQL12-NEW]
      [What’s New in SPARQL 1.2](https://w3c.github.io/sparql-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/sparql-new/spec/>
 [SPARQL12-PROTOCOL]
-     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
+     [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 20 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 11 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 19 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-RESULTS-CSV-TSV]
-     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
+     [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 19 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
-     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 13 August 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
+     [SPARQL 1.2 Query Results JSON Format](https://www.w3.org/TR/sparql12-results-json/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 19 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-json/>
 [SPARQL12-RESULTS-XML]
-     [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
+     [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 19 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
-     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 23 April 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 18 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 [SPARQL12-UPDATE]
-     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 12 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
+     [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 19 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [W3C-PROCESS]
      [W3C Process Document](https://www.w3.org/policies/process/). Elika J. Etemad (fantasai); Florian Rivoal. W3C. 18 August 2025. URL: <https://www.w3.org/policies/process/>
 [XMLSCHEMA11-2]
@@ -1152,7 +1149,7 @@ Changes for RDF 1.1 Recommendation
 
 **Referenced in:**
 
-  * § B. Privacy Considerations
+  * § C. Privacy Considerations
 
 
 
@@ -1185,7 +1182,7 @@ Changes for RDF 1.1 Recommendation
 
 **Referenced in:**
 
-  * § C. Security Considerations
+  * § D. Security Considerations
 
 
 

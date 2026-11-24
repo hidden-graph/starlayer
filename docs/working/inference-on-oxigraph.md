@@ -148,7 +148,7 @@ repo already does in `_rdflib_bridge.py`, or must leave triple-term triples out 
 
 * **SRL** (`sparql/srl.py`, `srl_eval.py`, `srl_semantic_checks.py`; spec
   [SPARQL 1.2 Rules](https://www.w3.org/TR/sparql12-rl/), the code cites the 2026-10-14 draft) is a positive Datalog
-  with stratified negation (`NOT { }`), `FILTER`, assignment, `WHERE DATA`. Stratification, the dependency graph and the
+  with stratified negation (`NOT { }`), `FILTER`, assignment, `WHERE GROUND`. Stratification, the dependency graph and the
   run-once versus general split are translated from the spec's pseudocode.
 * The evaluator, however, is **rdflib-based**: `srl_eval.py` imports `evalBGP` and `QueryContext` from rdflib and calls
   one `evalBGP` per incoming solution per run of triple patterns; the base graph and the inferred graph are rdflib

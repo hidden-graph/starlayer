@@ -143,10 +143,10 @@ def test_imports_decl():
 
 
 def test_where_data_and_assignment_element():
-    text = WORKED_EXAMPLE_PREFIXES + "RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . }"
+    text = WORKED_EXAMPLE_PREFIXES + "RULE { ?x :flag true } WHERE GROUND { ?x :severity ?s . SET (?y := ?s + 1) . }"
     rs = parse_ruleset(text)
     (rule,) = rs.rules
-    assert rule.evaldata is False  # WHERE DATA matches the base graph only
+    assert rule.evaldata is False  # WHERE GROUND matches the base graph only
     assert isinstance(rule.body[0], TriplePattern)
     assign = rule.body[1]
     assert isinstance(assign, AssignmentElement)

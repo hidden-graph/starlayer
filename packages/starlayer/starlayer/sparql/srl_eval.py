@@ -1,6 +1,6 @@
 """SRL evaluation engine - `WD-sparql12-rl-20261014
 <https://www.w3.org/TR/sparql12-rl/>`_ (dependency graph updated from the
-2026-09-19 draft: WHERE DATA / NOT DATA add no dependencies) §4.3 (Rule Dependency),
+2026-09-19 draft: WHERE GROUND / NOT GROUND add no dependencies) §4.3 (Rule Dependency),
 §4.4 (Stratification), and §6 (Rule Set Evaluation), translated directly
 from the spec's own verbatim pseudocode rather than an approximation of it.
 
@@ -168,14 +168,14 @@ def _build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[_DependencyEdge]:
     id_to_rule: dict[int, srl_ast._Rule] = {id(r): r for r in ruleset.rules}
 
     for r1 in ruleset.rules:
-        # A rule that matches only the base graph (WHERE DATA) has no dependencies
+        # A rule that matches only the base graph (WHERE GROUND) has no dependencies
         # (SRL 2026-10-14 §4.3.1: ``evaldata`` false).
         if not r1.evaldata:
             continue
         body_dependencies: list[tuple[srl_ast.TriplePattern, str]] = []
         for elt in r1.body:
             if isinstance(elt, srl_ast._NegationElement):
-                # NOT DATA matches only the base graph, so it adds no dependency either.
+                # NOT GROUND matches only the base graph, so it adds no dependency either.
                 if not elt.evaldata:
                     continue
                 for inner in elt.inner:
@@ -817,7 +817,7 @@ def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):
     **not** the ruleset's own ``DATA`` blocks unioned in (``GD = G0 ∪ D``
     is a *different*, evaluation-graph-seeding variable in the spec's own
     algorithm, despite the name collision with ``evalRule``'s own ``GD``
-    parameter). A ``WHERE DATA {...}``/``NOT DATA {...}`` match is
+    parameter). A ``WHERE GROUND {...}``/``NOT GROUND {...}`` match is
     therefore scoped to the rule set's original ground facts only, not to
     anything any rule (including this one) has already inferred.
 
@@ -1043,7 +1043,7 @@ def _count(store, graph: ox.NamedNode | None = None) -> int:
 
 class _Evaluation:
     """One run of a rule set. ``ge`` is the evaluation graph: the base graph, the rule set's own data and what the rules have
-    derived; ``base`` is the base graph (what ``WHERE DATA`` reads). The store behind ``ge`` also holds, in named graphs, every
+    derived; ``base`` is the base graph (what ``WHERE GROUND`` reads). The store behind ``ge`` also holds, in named graphs, every
     triple derived so far (``_INFERRED_GRAPH``) and the work of the round in progress (``_CANDIDATE_GRAPH``, ``_DELTA_GRAPH``),
     so the rules can run in the store (see ``_run_to_fixpoint``) and the base graph is copied once, in."""
 

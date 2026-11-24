@@ -588,7 +588,7 @@ _CALLS = (
     "sameTerm seconds sha1 sha256 sha384 sha512 str strafter strbefore strdt strends strlang strlangdir strlen "
     "strstarts struuid subject substr timezone triple tz ucase uri uuid year hasLangdir"
 ).split()
-_RENAMED = {"encode": "ENCODE_FOR_URI"}  # sparql:encode is SPARQL ENCODE_FOR_URI
+_RENAMED = {"encode-for-uri": "ENCODE_FOR_URI"}  # sparql:encode-for-uri is SPARQL ENCODE_FOR_URI (named sparql:encode until the 2026-11-16 draft)
 _INFIX = {
     "equals": "=", "sameValue": "=", "not-equals": "!=", "less-than": "<", "greater-than": ">",
     "less-than-or-equal": "<=", "greater-than-or-equal": ">=", "plus": "+", "subtract": "-", "multiply": "*",

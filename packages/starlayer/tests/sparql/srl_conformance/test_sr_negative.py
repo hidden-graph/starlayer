@@ -133,6 +133,5 @@ def test_non_stratifiable_rule_sets_are_refused(case_id, text, request):
 
     if case_id in NEGATIVE_FAILURES:
         request.applymarker(pytest.mark.xfail(reason=NEGATIVE_FAILURES[case_id], strict=True))
-    ruleset = parse_ruleset(PRELUDE + text)  # parses: the grammar cannot see a cycle
-    with pytest.raises(StratificationError):
-        ruleset.plan()
+    with pytest.raises(StratificationError):  # the grammar cannot see a cycle, but parse_ruleset() stratifies the rules
+        parse_ruleset(PRELUDE + text)

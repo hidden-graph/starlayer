@@ -59,24 +59,24 @@ def test_imports_roundtrips():
 def test_assignment_and_filter_expression_roundtrip():
     text = """
     PREFIX : <http://example.org/>
-    RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.5) }
+    RULE { ?x :flag true } WHERE GROUND { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.5) }
     """
     rs, rs2, _ = _roundtrip(text)
     assert rs == rs2
     (rule,) = rs2.rules
-    assert rule.evaldata is False  # WHERE DATA matches the base graph only
+    assert rule.evaldata is False  # WHERE GROUND matches the base graph only
 
 
 def test_negation_with_data_flag_roundtrips():
     text = """
     PREFIX : <http://example.org/>
-    RULE { ?x :safe true } WHERE { ?x :seen true . NOT DATA { ?x :flagged true . } }
+    RULE { ?x :safe true } WHERE { ?x :seen true . NOT GROUND { ?x :flagged true . } }
     """
     rs, rs2, _ = _roundtrip(text)
     assert rs == rs2
     (rule,) = rs2.rules
     neg = rule.body[1]
-    assert neg.evaldata is False  # NOT DATA matches the base graph only
+    assert neg.evaldata is False  # NOT GROUND matches the base graph only
 
 
 def test_blank_node_identity_preserved_across_roundtrip():

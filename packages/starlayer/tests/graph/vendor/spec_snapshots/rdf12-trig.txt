@@ -1,7 +1,7 @@
 RDF 1.2 TriG
 Snapshot source: https://www.w3.org/TR/rdf12-trig/
-Status at fetch time: W3C Working Draft 05 November 2026
-Published: 2026-11-05
+Status at fetch time: W3C Working Draft 13 November 2026
+Published: 2026-11-13
 Copyright © 2004-2026 World Wide Web Consortium. Distributed under the
 W3C Software and Document License: https://www.w3.org/copyright/software-license-2023/
 See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used and regenerated.
@@ -13,12 +13,12 @@ See tests/graph/vendor/spec_snapshots/README.md for how this snapshot is used an
 
 ## RDF Dataset Language
 
-[W3C Working Draft](https://www.w3.org/standards/types#WD) 05 November 2026
+[W3C Working Draft](https://www.w3.org/standards/types#WD) 13 November 2026
 
 More details about this document
 
 This version:
-     <https://www.w3.org/TR/2026/WD-rdf12-trig-20261105/>
+     <https://www.w3.org/TR/2026/WD-rdf12-trig-20261113/>
 Latest published version:
      <https://www.w3.org/TR/rdf12-trig/>
 Latest editor's draft:
@@ -493,11 +493,11 @@ Code| Glyph| Description
 `U+0023` | `#` | Number sign  
 `U+0027` | `'` | Apostrophe  
 `U+002D` | `-` | Hyphen  
-`U+003B` | `:` | Colon  
+`U+003A` | `:` | Colon  
 `U+0040` | `@` | At sign  
 `U+005C` | `\` | Backslash  
 `U+005F` | `_` | Underscore  
-`U+0061` | `a` | Latin small letter E  
+`U+0061` | `a` | Latin small letter A  
 `U+007B` | `{` | Left curly bracket  
 `U+007D` | `}` | Right curly bracket  
   
@@ -739,7 +739,7 @@ The document was improved through the review process by the wider community.
 
  _This section is non-normative._
 
-In addition to the editors, the following people have contributed to this specification: Andy Seaborne, Denis Ah-Kang, Gregory Todd Williams, james anderson, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, and Thomas Tanon
+In addition to the editors, the following people have contributed to this specification: Andy Seaborne, Denis Ah-Kang, Gregory Todd Williams, james anderson, Niklas Lindström, Peter F. Patel-Schneider, Pierre-Antoine Champin, Ted Thibodeau Jr, Thomas Tanon, and 金东勋 | 金東勳 | 김동훈 | Jin Dongxun
 
 Members of the RDF & SPARQL Working Group included the following:   
 James Anderson, Dörthe Arndt, Jerven Bolleman, Erich Bremer, Pierre-Antoine Champin, Souripriya Das, Enrico Franconi, Adrian Gschwend, Olaf Hartig, Gregg Kellogg†, Ora Lassila, Niklas Lindström, Thomas Lörtsch, Peter Patel-Schneider, Dave Raggett, Felix Sasaki, Andy Seaborne, Ruben Taelman, Thomas Pellissier Tanon, Ted Thibodeau Jr, Dominik Tomaszuk, Gregory Williams, William Van Woensel, and Antoine Zimmermann   
@@ -844,7 +844,7 @@ More specifically, the following changes have been made:
 [I18N-GLOSSARY]
      [Internationalization Glossary](https://www.w3.org/TR/i18n-glossary/). Richard Ishida; Addison Phillips. W3C. 17 October 2024. W3C Working Group Note. URL: <https://www.w3.org/TR/i18n-glossary/>
 [RDF12-CONCEPTS]
-     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Andy Seaborne; Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin. W3C. 7 April 2026. W3C Candidate Recommendation. URL: <https://www.w3.org/TR/rdf12-concepts/>
+     [RDF 1.2 Concepts and Abstract Data Model](https://www.w3.org/TR/rdf12-concepts/). Gregg Kellogg; Olaf Hartig; Pierre-Antoine Champin; Andy Seaborne. W3C. 12 November 2026. CRD. URL: <https://www.w3.org/TR/rdf12-concepts/>
 [RFC2119]
      [Key words for use in RFCs to Indicate Requirement Levels](https://www.rfc-editor.org/info/rfc2119/). S. Bradner. IETF. March 1997. Best Current Practice. URL: <https://www.rfc-editor.org/info/rfc2119/>
 [RFC3629]
@@ -867,19 +867,19 @@ More specifically, the following changes have been made:
 [RDF12-INTEROP]
      [RDF 1.2 Interoperability](https://w3c.github.io/rdf-interop/spec/). Pierre-Antoine Champin. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-interop/spec/>
 [RDF12-N-QUADS]
-     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
+     [RDF 1.2 N-Quads](https://www.w3.org/TR/rdf12-n-quads/). Gregg Kellogg; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-quads/>
 [RDF12-N-TRIPLES]
-     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
+     [RDF 1.2 N-Triples](https://www.w3.org/TR/rdf12-n-triples/). Gregg Kellogg; Dominik Tomaszuk. W3C. 5 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-n-triples/>
 [RDF12-NEW]
      [What’s New in RDF 1.2](https://w3c.github.io/rdf-new/spec/). The W3C RDF & SPARQL Working Group. W3C. W3C Editor's Draft. URL: <https://w3c.github.io/rdf-new/spec/>
 [RDF12-PRIMER]
      [RDF 1.2 Primer](https://www.w3.org/TR/rdf12-primer/). Pierre-Antoine Champin; Niklas Lindström. W3C. 17 September 2026. DNOTE. URL: <https://www.w3.org/TR/rdf12-primer/>
 [RDF12-SCHEMA]
-     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 23 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
+     [RDF 1.2 Schema](https://www.w3.org/TR/rdf12-schema/). Dominik Tomaszuk. W3C. 12 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-schema/>
 [RDF12-SEMANTICS]
      [RDF 1.2 Semantics](https://www.w3.org/TR/rdf12-semantics/). Peter Patel-Schneider; Dörthe Arndt; Enrico Franconi. W3C. 24 September 2026. CRD. URL: <https://www.w3.org/TR/rdf12-semantics/>
 [RDF12-TURTLE]
-     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 1 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
+     [RDF 1.2 Turtle](https://www.w3.org/TR/rdf12-turtle/). Gregg Kellogg; Andy Seaborne; Dominik Tomaszuk. W3C. 11 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-turtle/>
 [RDF12-XML]
      [RDF 1.2 XML Syntax](https://www.w3.org/TR/rdf12-xml/). Gregg Kellogg; Jerven Bolleman. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/rdf12-xml/>
 [RFC3023]
@@ -901,7 +901,7 @@ More specifically, the following changes have been made:
 [SPARQL12-PROTOCOL]
      [SPARQL 1.2 Protocol](https://www.w3.org/TR/sparql12-protocol/). Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 23 July 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-protocol/>
 [SPARQL12-QUERY]
-     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 1 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
+     [SPARQL 1.2 Query Language](https://www.w3.org/TR/sparql12-query/). Olaf Hartig; Andy Seaborne; Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 12 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-query/>
 [SPARQL12-RESULTS-CSV-TSV]
      [SPARQL 1.2 Query Results CSV and TSV Formats](https://www.w3.org/TR/sparql12-results-csv-tsv/). Ruben Taelman; Gregory Williams; Thomas Pellissier Tanon. W3C. 22 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-csv-tsv/>
 [SPARQL12-RESULTS-JSON]
@@ -909,7 +909,7 @@ More specifically, the following changes have been made:
 [SPARQL12-RESULTS-XML]
      [SPARQL 1.2 Query Results XML Format](https://www.w3.org/TR/sparql12-results-xml/). Ruben Taelman; Dominik Tomaszuk; Thomas Pellissier Tanon. W3C. 27 December 2024. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-results-xml/>
 [SPARQL12-SERVICE-DESCRIPTION]
-     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 29 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
+     [SPARQL 1.2 Service Description](https://www.w3.org/TR/sparql12-service-description/). Ruben Taelman; Gregory Williams. W3C. 12 November 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-service-description/>
 [SPARQL12-UPDATE]
      [SPARQL 1.2 Update](https://www.w3.org/TR/sparql12-update/). Ruben Taelman; Andy Seaborne; Thomas Pellissier Tanon. W3C. 25 October 2026. W3C Working Draft. URL: <https://www.w3.org/TR/sparql12-update/>
 [TRIG]

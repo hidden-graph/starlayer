@@ -165,7 +165,7 @@ _OPERATOR_META: dict[str, dict[str, Any]] = {
 _SPARQL_FN_ARITY: dict[str, tuple[int, int | None]] = {}
 for _n in (
     "abs ceil floor round datatype day hours minutes month year seconds timezone tz lang langdir str strlen ucase lcase "
-    "encode_for_uri encode iri uri isBlank isIRI isURI isLiteral isNumeric isTriple md5 sha1 sha256 sha384 sha512 subject "
+    "encode_for_uri encode-for-uri iri uri isBlank isIRI isURI isLiteral isNumeric isTriple md5 sha1 sha256 sha384 sha512 subject "
     "predicate object hasLangdir bound logical-not unary-plus unary-minus"
 ).split():
     _SPARQL_FN_ARITY[_n] = (1, 1)

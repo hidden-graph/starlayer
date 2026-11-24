@@ -42,7 +42,7 @@ def test_worked_example_conforms():
 def test_assignment_and_filter_roundtrip_conforms():
     text = """
     PREFIX : <http://example.org/>
-    RULE { ?x :flag true } WHERE DATA { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.0) }
+    RULE { ?x :flag true } WHERE GROUND { ?x :severity ?s . SET (?y := ?s + 1) . FILTER(?y >= 9.0) }
     """
     rs = parse_ruleset(text)
     g, _root = ruleset_to_tree(rs)

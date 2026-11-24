@@ -112,7 +112,7 @@ def test_where_data_with_a_triple_term_matches_only_the_base_graph():
     rules = parse_ruleset(
         P
         + "DATA { ex:erin ex:believes <<( ex:bob ex:age 130 )>> . }\n"
-        + "RULE { ?w ex:fromBase ex:yes } WHERE DATA { ?w ex:believes <<( ex:bob ex:age 130 )>> }\n"
+        + "RULE { ?w ex:fromBase ex:yes } WHERE GROUND { ?w ex:believes <<( ex:bob ex:age 130 )>> }\n"
         + "RULE { ?w ex:fromAny ex:yes } WHERE { ?w ex:believes <<( ex:bob ex:age 130 )>> }"
     )
     inferred = rules.infer(_base())

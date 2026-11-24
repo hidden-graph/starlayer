@@ -108,9 +108,10 @@ def test_a_key_the_pattern_binds_gives_a_group_per_value():
 
 
 def test_variables_bound_before_the_group_but_not_keys_are_not_visible_in_its_pattern():
-    # ?o is bound outside; the group pattern's own ?o is a different variable, so it is not constrained to the outer value
+    # ?o is bound outside and is not a key, so the pattern cannot see it: it is not constrained to the outer value. Since the
+    # SPARQL-RL draft of 2026-11-10 the pattern may not reuse the name either, so it uses ?p
     ttl = ":a :p 1, 2 . :a :q 1 ."
-    rules = "RULE { ?s :n ?n } WHERE { ?s :q ?o . GROUP BY ?s { ?s :p ?o } [ ?n := COUNT(*) ] }"
+    rules = "RULE { ?s :n ?n } WHERE { ?s :q ?o . GROUP BY ?s { ?s :p ?p } [ ?n := COUNT(*) ] }"
     assert _infer(rules, ttl) == {("a", "n", "2")}
 
 
@@ -214,6 +215,13 @@ def test_the_grammar_rejects(text):
         ("RULE { :s :p ?n } WHERE { GROUP BY ?k { ?s :q ?v } [ ?n := COUNT(*) ] }", "group_key_unbound"),
         ("RULE { :s :p ?v } WHERE { GROUP { ?s :q ?v } [ ?n := COUNT(*) ] }", "unbound_head_variable"),
         ("RULE { :s :p ?n } WHERE { ?a :b ?c GROUP { ?s :q ?v FILTER(?c) } [ ?n := COUNT(*) ] }", "unbound_filter_variable"),
+        # a name in use may not be set again (2026-11-10): a variable in scope before a group that is not a key, ...
+        ("RULE { ?s :n ?n } WHERE { ?s :q ?o GROUP BY ?s { ?s :p ?o } [ ?n := COUNT(*) ] }", "variable_in_use"),
+        # ... one used inside a negation or a group pattern, then used again outside it or in a second one
+        ("RULE { ?s :r 1 } WHERE { ?s :p 1 NOT { ?s :q ?y } ?y :t 2 }", "variable_in_use"),
+        ("RULE { ?s :r 1 } WHERE { ?s :p 1 NOT { ?s :q ?y } NOT { ?s :t ?y } }", "variable_in_use"),
+        ("RULE { ?s :n ?n } WHERE { GROUP BY ?s { ?s :p ?o } [ ?n := COUNT(*) ] ?o :q 1 }", "variable_in_use"),
+        ("RULE { ?s :r 1 } WHERE { ?s :p 1 NOT { ?s :q ?y } SET(?y := 2) }", "reused_assignment_variable"),
     ],
 )
 def test_the_well_formedness_conditions(rules, kind):
