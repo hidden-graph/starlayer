@@ -5,6 +5,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph  # noqa: F401
+from starlayer.shacl import derive_shape
 
 N = ox.NamedNode
 
@@ -190,6 +191,10 @@ def test_pretty_trig_of_named_graph_view_keeps_graph_name():
 _TTL = "@prefix : <http://ex.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .\n"
 
 
+def _ex(name):
+    return ox.NamedNode("http://ex.org/" + name)
+
+
 def _ttl(text):
     g = StarLayerGraph()
     g.parse(data=_TTL + text, format="turtle")
@@ -198,35 +203,35 @@ def _ttl(text):
 
 def test_derive_shape_ill_formed_typed_literal():
     g = StarLayerGraph()
-    g.add((ex("a"), ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), ex("C")))
-    g.add((ex("a"), ex("p"), ox.Literal("abc", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))))
-    assert len(g.derive_shape()) > 0
+    g.add((_ex("a"), ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), _ex("C")))
+    g.add((_ex("a"), _ex("p"), ox.Literal("abc", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))))
+    assert len(derive_shape(g, cls=_ex("C"))) > 0
 
 
 def test_derive_shape_template_plain_beside_language_tagged():
     old = _ttl(':n1 a :C ; :p "a"@en .')
     new = _ttl(':n1 a :C ; :p "a"@en, "plain" .')
-    assert len(new.derive_shape(old.derive_shape())) > 0
+    assert len(derive_shape(new, cls=_ex("C"), template_shape=derive_shape(old, cls=_ex("C")))) > 0
 
 
 @pytest.mark.parametrize("pred,val", [("maxExclusive", 2), ("minExclusive", 9)])
 def test_derive_shape_template_exclusive_bound_violated(pred, val):
     data = _ttl(":a a :C ; :n 5 .")
     tpl = _ttl(f":S a sh:NodeShape ; sh:targetClass :C ; sh:property [ sh:path :n ; sh:{pred} {val} ] .")
-    assert len(data.derive_shape(tpl)) > 0
+    assert len(derive_shape(data, cls=_ex("C"), template_shape=tpl)) > 0
 
 
 def test_derive_shape_template_target_node_and_nested_node():
     data = _ttl(':a a :C ; :p "x" .')
     tpl = _ttl(":S a sh:NodeShape ; sh:targetNode :a ; sh:property [ sh:path :p ; sh:minCount 3 ] .")
-    assert len(data.derive_shape(tpl)) > 0
+    assert len(derive_shape(data, node=_ex("a"), template_shape=tpl)) > 0
     nested = _ttl(":S a sh:NodeShape ; sh:targetClass :C ; sh:node :T . :T a sh:NodeShape ; sh:property [ sh:path :p ; sh:minCount 3 ] .")
-    assert len(data.derive_shape(nested)) > 0
+    assert len(derive_shape(data, cls=_ex("C"), template_shape=nested)) > 0
 
 
 def test_derive_shape_subclass_hierarchy():
     g = _ttl(':Dog rdfs:subClassOf :Animal . :rex a :Dog ; :barks "yes" . :cat1 a :Animal ; :name "Tom" .')
-    assert len(g.derive_shape()) > 0
+    assert len(derive_shape(g, cls=_ex("Animal"))) > 0
 
 
 # ---- (None, None, triple term) in g: an impossible pattern is False -------------------------------------------------------

@@ -98,10 +98,53 @@ def _owl_direct_delta(g: Any, engine: str, timeout: Any) -> set[tuple[Any, Any, 
 
 
 def _delta_for(g: Any, regimes: frozenset[str], engine: str, timeout: Any) -> set[tuple[Any, Any, Any]]:
-    if regimes == frozenset({OWL_DIRECT_REGIME}):
-        return _owl_direct_delta(g, engine, timeout)
+    """The triples ``regimes`` entail that ``g`` does not hold: no input triple, no duplicate.
+
+    A set with ``OWL-Direct`` and other regimes is the Direct delta (``engine``, ``timeout``) first, then the delta of the remaining
+    regimes over ``g`` plus the Direct delta, so RDFS / OWL-RL rules see the subclass and type triples the DL reasoner found; the result is
+    the union of the two. It is the entailments of every regime in the set with the others also seeing what OWL-Direct inferred, not a
+    fixpoint over all the regimes (what RDFS or OWL-RL derive is not given back to the DL reasoner). Direct runs first because it is the
+    one run that is slow and is given the data as it is, without the RDFS axiomatic triples; the cheap rule closures then run on its
+    output. The SHACL engine uses this; ``infer()`` itself rejects the combination (``infer`` below)."""
     if OWL_DIRECT_REGIME in regimes:
-        raise ValueError(f"Unsupported entailment regime combination {sorted(regimes)!r}: OWL-Direct cannot be combined with another regime.")
+        rest = regimes - {OWL_DIRECT_REGIME}
+        if not rest:
+            return _owl_direct_delta(g, engine, timeout)
+        # the input may already be closed under RDFS (the final pass of ``apply_rules`` reads a view of an entailed copy): the closure's
+        # vocabulary triples (rdfs:Class subClassOf rdfs:Resource, every node typed rdfs:Resource, ...) make owlready2 fail with an
+        # inheritance cycle and say nothing about the ontology, so the DL reasoner is not given them
+        direct = _owl_direct_delta(_without_rdf_vocabulary(g), engine, timeout)
+        from starlayer.graph import core
+
+        seen = core.StarLayerGraph()
+        seen.extend(list(g.triples()) + list(direct))
+        # the data's own triples are never in a delta, and the rest's delta is read over data + direct, so subtract direct too
+        return direct | (_rules_delta(seen, rest) - direct)
+    return _rules_delta(g, regimes)
+
+
+_RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#"
+_RESOURCE = ox.NamedNode(_RDFS_NS + "Resource")
+
+
+class _without_rdf_vocabulary:
+    """``g`` without the triples about the RDF and RDFS vocabulary itself and without ``x rdf:type rdfs:Resource``."""
+
+    def __init__(self, g: Any) -> None:
+        self._g = g
+
+    def triples(self) -> Iterable[tuple[Any, Any, Any]]:
+        for t in self._g.triples():
+            s, p, o = t
+            if isinstance(s, ox.NamedNode) and s.value.startswith((_RDF, _RDFS_NS)):
+                continue
+            if p == terms.RDF_TYPE and o == _RESOURCE:
+                continue
+            yield t
+
+
+def _rules_delta(g: Any, regimes: frozenset[str]) -> set[tuple[Any, Any, Any]]:
+    """The delta of the RDF, RDFS and OWL-RL regimes in ``regimes`` (none of them OWL-Direct)."""
     delta: set = set()
     if RDF_REGIME in regimes:
         delta |= _rdf_delta(g)
@@ -132,6 +175,8 @@ def infer(g: Any, entailment: Any = ENTAILMENT.RDFS, *, mode: str = "full", targ
         if D_REGIME in unsupported:
             message += " ENTAILMENT.D (D-Entailment) is a recognized regime IRI but not implemented."
         raise ValueError(message)
+    if OWL_DIRECT_REGIME in regimes and len(regimes) > 1:
+        raise ValueError(f"Unsupported entailment regime combination {sorted(regimes)!r}: OWL-Direct cannot be combined with another regime in infer() (the SHACL engine combines them).")
     direct = regimes == frozenset({OWL_DIRECT_REGIME})
     if not direct and engine != "hermit":
         raise ValueError(f"engine={engine!r} is only meaningful for entailment=ENTAILMENT['OWL-Direct'] (got entailment={sorted(regimes)!r}) - omit engine= for owlrl-backed regimes.")

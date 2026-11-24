@@ -82,19 +82,19 @@ def test_validate_inplace_keeps_the_callers_graph():
 
 
 def test_schema_validate_and_validate_each():
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
-    schema = StarShaclSchema(shacl_graph=_ox(SHAPES))
+    schema = StarShaclProcessor(shacl_graph=_ox(SHAPES))
     assert_ox(schema.validate(data_graph=_ox(DATA)).report_graph)
     assert all(isinstance(r.report_graph, StarLayerGraph) for r in schema.validate_each([_ox(DATA)]).values())
 
 
 @pytest.mark.parametrize("cls", [StarLayerGraph, StarLayerDataset])
 def test_apply_rules_inferred_and_report_graphs(cls):
-    from starlayer.shacl import StarShaclSchema, apply_rules
+    from starlayer.shacl import StarShaclProcessor, apply_rules
 
     for result in (
-        StarShaclSchema(shacl_graph=_ox(RULES)).apply_rules(data_graph=_ox(DATA, cls)),
+        StarShaclProcessor(shacl_graph=_ox(RULES)).apply_rules(data_graph=_ox(DATA, cls)),
         apply_rules(_ox(DATA, cls), shacl_graph=_ox(RULES)),
     ):
         assert_ox(result.inferred_graph)
@@ -104,11 +104,11 @@ def test_apply_rules_inferred_and_report_graphs(cls):
 
 
 def test_evaluate_and_close_shape():
-    from starlayer.shacl import StarShaclSchema, evaluate
+    from starlayer.shacl import StarShaclProcessor, evaluate
 
     shapes = _ox(SHAPES)
     assert_ox(evaluate(_ox(DATA), shapes))
-    schema = StarShaclSchema(shacl_graph=shapes)
+    schema = StarShaclProcessor(shacl_graph=shapes)
     assert_ox(schema.evaluate(_ox(DATA)))
     assert_ox(schema.close_shape(ox.NamedNode("http://example.org/PersonShape")))
     assert_ox(evaluate(_ox(DATA), _ox(SHAPES)), max_prefixes=40)
@@ -250,7 +250,7 @@ def test_skos_validate():
 
     data = _ox("@prefix skos: <http://www.w3.org/2004/02/skos/core#> . <http://e/c> a skos:Concept ; skos:prefLabel 'c'@en .")
     ok, report, _text = skos.skos_validate(data)
-    assert_ox(report)
+    assert_ox(report, max_prefixes=10)  # a report of graphs that have names holds an activity, which adds the prefixes prov and starlayer
 
 
 # ---------------------------------------------------------------------------------------------------------------------

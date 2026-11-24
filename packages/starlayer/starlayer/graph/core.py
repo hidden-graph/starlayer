@@ -14,7 +14,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.graph import config, formats, ntversion, terms
+from starlayer.graph import config, formats, lexical, ntversion, terms
 from starlayer.graph._detached import detached
 from starlayer.graph._versions import require_supported_pyoxigraph
 from starlayer.graph.execution import run, union
@@ -188,6 +188,11 @@ class _Base:
         self.store = as_store(store) if store is not None else ox.Store(os.fspath(path) if path is not None else None)
         self._path = os.fspath(path) if path is not None else None
         self.prefixes = dict(prefixes) if prefixes is not None else config.new_prefix_dict()
+        self._hold_version()
+
+    def _hold_version(self) -> None:
+        """Keep the write count (and the entailed copies on it) of this store alive as long as this wrapper is (``union._versions`` holds it weakly)."""
+        self._version = union.version_of(self.store)
 
     # ---- a graph held by an endpoint (``StarLayerGraph(endpoint=...)``) ---------------------------------------------
     def sync(self) -> Any:
@@ -204,10 +209,6 @@ class _Base:
     def infer(self, entailment: Any = None, **kw: Any) -> Any:
         from starlayer.graph.entailment import infer as m
         return m.infer(self, m.ENTAILMENT.RDFS if entailment is None else entailment, **kw)
-
-    def derive_shape(self, *a: Any, **kw: Any) -> Any:
-        from starlayer.graph import shapes
-        return shapes.derive_shape(self, *a, **kw)
 
     def owl_imports(self) -> tuple[Any, ...]:
         from starlayer.graph import imports
@@ -444,25 +445,32 @@ class _Base:
         return q
 
     def add(self, triple: Any) -> Any:
-        self.store.add(self._quad(triple, self._add_graph()))
+        rewrites = lexical.Rewrites()
+        quad = self._quad(triple, self._add_graph())
+        self.store.add(next(iter(lexical.watch((quad,), rewrites))))
         union.touch(self.store)
+        rewrites.emit(self.store)
         return self
 
     def extend(self, triples: Iterable[Any]) -> Any:
         """Add many triples (or quads on a dataset) in one transaction."""
         g = self._add_graph()
+        rewrites = lexical.Rewrites()
         try:
-            self.store.extend(self._quad(t, g) for t in triples)
+            self.store.extend(lexical.watch((self._quad(t, g) for t in triples), rewrites))
         finally:
             union.touch(self.store)
+            rewrites.emit(self.store)
         return self
 
     def addN(self, quads: Iterable[Any]) -> Any:  # noqa: N802
         """rdflib's name: add ``(s, p, o, graph)`` quads. On a ``StarLayerGraph`` only quads for its graph are added."""
+        rewrites = lexical.Rewrites()
         try:
-            self.store.extend(q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q))
+            self.store.extend(lexical.watch((q for q in (self._quad(q, self._add_graph(), False) for q in quads) if self._accepts(q)), rewrites))
         finally:
             union.touch(self.store)
+            rewrites.emit(self.store)
         return self
 
     def _accepts(self, quad: ox.Quad) -> bool:
@@ -510,15 +518,17 @@ class _Base:
                 base = str(hint)
         parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra,
                           **ntversion.accept_version_directive(kw, fmt))
+        rewrites = lexical.Rewrites()
         try:
             try:
                 if direct:
-                    self.store.extend(parser)
+                    self.store.extend(lexical.watch(parser, rewrites))
                 else:
                     move = self._retarget(self._add_graph())
-                    self.store.extend(move(q) for q in parser)
+                    self.store.extend(move(q) for q in lexical.watch(parser, rewrites))
             finally:
                 union.touch(self.store)
+                rewrites.emit(self.store)
         except SyntaxError as e:
             if "named graph" in str(e).lower():
                 raise ValueError("the document has named graphs; parse it into an StarLayerDataset") from e
@@ -690,8 +700,10 @@ class _Base:
         ``entailment`` is a regime IRI. ``ENTAILMENT.RDF`` / ``ENTAILMENT.RDFS``: the query is rewritten (see
         ``sparql/sqe/entailment.py``), the data is not touched or copied. ``ENTAILMENT["OWL-RDF-Based"]`` / ``["OWL-Direct"]``:
         the store is copied, the entailed triples are added to the copy and the query runs on the copy (this graph is never
-        modified). The copy is kept on this object, one per regime (and per engine for ``OWL-Direct``), and ``recompute`` says
-        when it is made again: ``"onChange"`` (default) after a write made through this package since it was made
+        modified). The copy is kept on the store (``graph/entailment/cache.py``: shared by every wrapper of it, and by SHACL
+        validation, whose ``inference=`` / ``sh:entailment`` OWL regimes and also RDF and RDFS use the same copy; here RDF and
+        RDFS are the rewrite and never make or read one), one per regime (and per engine for ``OWL-Direct``), and ``recompute``
+        says when it is made again: ``"onChange"`` (default) after a write made through this package since it was made
         (``as_store()`` counts; a write on a raw store reference kept from before is not seen, call ``union.touch()`` after it),
         ``"always"`` on every call (and then keeps none, dropping what was kept), ``"never"`` only when none is kept (it
         may then be out of date, data included). A write to another store does not count.
@@ -717,10 +729,9 @@ class _Base:
         if regime in (ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
             if recompute not in ("always", "never", "onChange"):
                 raise ValueError(f"recompute must be one of ['always', 'never', 'onChange'], got {recompute!r}")
-            kw = {"engine": engine, "timeout": ent.DEFAULT_TIMEOUT if timeout is None else timeout}
-            copy = self._entailed_copy(regime, recompute, **kw)
-            copy.prefixes.clear()
-            copy.prefixes.update(self.prefixes)  # a cached copy was made earlier: the prefixes bound since count too
+            from starlayer.graph.entailment import cache
+
+            copy = cache.entailed_store_view(self, [regime], engine=engine, timeout=timeout, recompute=recompute)
             return copy.query(text, initNs=initNs, initBindings=initBindings, base=base,
                               custom_functions=custom_functions, custom_aggregate_functions=custom_aggregate_functions)
         return run.query(self._query_store(), text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,
@@ -728,57 +739,13 @@ class _Base:
                          custom_functions=custom_functions, custom_aggregate_functions=custom_aggregate_functions)
 
     def clear_entailment_cache(self) -> Any:
-        """Drop the copies kept for query-time OWL entailment (see ``query(recompute=...)``), which hold the whole store in memory.
-        The next OWL query makes one again. Returns this object."""
-        self.__dict__.pop("_entailed", None)
+        """Drop the entailed copies kept for this graph's store (``graph/entailment/cache.py``), which hold the whole store in memory: the
+        ones query-time OWL entailment made and the ones SHACL validation with ``inference=`` made, for every wrapper of the store (one
+        cache serves both). The next query or validation that needs one makes it again. Returns this object."""
+        from starlayer.graph.entailment import cache
+
+        cache.clear(self)
         return self
-
-    def _entailed_copy(self, regime: str, recompute: str, *, engine: str, timeout: Any) -> Any:
-        """The copy of the whole store (every graph, empty named ones too) with the ``regime`` entailed triples added to the graph
-        this wrapper reads, for query-time OWL entailment, kept per regime (and engine, for ``OWL-Direct``, whose engines can
-        differ) with the write count of this store it was made at; ``recompute`` says when to make it again. This wrapper's store is not
-        changed."""
-        from starlayer.graph.entailment import infer as ent
-
-        kept = self.__dict__.setdefault("_entailed", {})
-        key = (regime, engine if regime == ent.OWL_DIRECT_REGIME else None)
-        hit = kept.get(key)
-        if hit is not None and recompute != "always" and (recompute == "never" or hit[1] == union.version_of(self.store).stamp()):
-            return hit[0]
-        version = union.version_of(self.store)  # held in the entry, so the count it keeps is the one a later write adds to
-        stamp = version.stamp()  # taken first: a write that lands while the reasoner runs makes the copy stale
-        copy = self._build_entailed_copy(regime, engine=engine, timeout=timeout)
-        if recompute == "always":
-            kept.pop(key, None)  # "always" keeps nothing: what was kept is dropped and this copy lives only for the query
-        else:
-            kept[key] = (copy, stamp, version)
-        return copy
-
-    def _build_entailed_copy(self, regime: str, *, engine: str, timeout: Any) -> Any:
-        """A copy of the whole store with what ``regime`` entails added. On a dataset each non-empty named graph also gets what
-        the regime entails from that graph alone (one reasoner run per graph), so ``GRAPH <g> { }`` patterns see it, as under the
-        RDFS regime."""
-        from starlayer.graph.entailment import infer as ent
-
-        def entailed(of: Any) -> set[tuple[Any, Any, Any]]:
-            return ent._delta_for(of, frozenset({regime}), engine, timeout)
-
-        delta = entailed(self)
-        store = ox.Store()
-        store.extend(self.store)
-        for name in self.store.named_graphs():
-            store.add_graph(name)
-        if isinstance(self, StarLayerDataset):
-            copy: Any = StarLayerDataset(store=store, default_union=self._union, prefixes=dict(self.prefixes))
-            for name in self.store.named_graphs():
-                view = _sharing(StarLayerGraph(self.store, identifier=name), self.prefixes)
-                if len(view):
-                    store.extend(copy._quad(t, name) for t in entailed(view))
-        else:
-            copy = StarLayerGraph(store=store, identifier=self._g, prefixes=dict(self.prefixes))
-        g = copy._add_graph()
-        store.extend(copy._quad(t, g) for t in delta)  # not copy.extend(): that counts as a write
-        return copy
 
     def _query_store(self) -> ox.Store:
         return self.store
@@ -1013,6 +980,7 @@ class StarLayerGraph(_Base):
             self.store = BackedStore(endpoint, self._g, max_age=max_age, path=path, pull=pull)
             self._path = os.fspath(path) if path is not None else None
             self.prefixes = dict(prefixes) if prefixes is not None else config.new_prefix_dict()
+            self._hold_version()
         else:
             self._init_store(store, path, prefixes)
 
@@ -1142,6 +1110,7 @@ class StarLayerDataset(_Base):
             self.store = BackedStore(endpoint, dataset=True, max_age=max_age, path=path, pull=pull)
             self._path = os.fspath(path) if path is not None else None
             self.prefixes = dict(prefixes) if prefixes is not None else config.new_prefix_dict()
+            self._hold_version()
         else:
             self._init_store(store, path, prefixes)
         self._union = default_union

@@ -19,6 +19,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.entailment.infer import ENTAILMENT
+from starlayer.graph.execution import union
 from starlayer.sparql.sqe.entailment import (
     EntailmentRewriteError,
     rewrite_for_entailment,
@@ -489,8 +490,8 @@ class TestEachRegimeKeepsItsOwnEntailedTriples:
         rl = ENTAILMENT["OWL-RDF-Based"]
 
         def kept():
-            (copy,) = [entry[0] for entry in g.__dict__["_entailed"].values()]
-            return copy
+            (entry,) = union.version_of(g.store).entailed.entries.values()
+            return entry.copy
 
         list(g.query(_QUERY, entailment=rl))
         first = kept()
@@ -500,7 +501,7 @@ class TestEachRegimeKeepsItsOwnEntailedTriples:
         list(g.query(_QUERY, entailment=rl))
         assert kept() is not first  # a write: the copy was made again
         g.clear_entailment_cache()
-        assert "_entailed" not in g.__dict__
+        assert not union.version_of(g.store).entailed.entries
 
     def test_the_prefixes_bound_after_the_copy_was_made_reach_it(self):
         g = _graph()
@@ -523,16 +524,16 @@ class TestEntailedCopyFollowsItsOwnStore:
 
     @staticmethod
     def _count_builds(monkeypatch) -> list:
-        from starlayer.graph import core
+        from starlayer.graph.entailment import cache
 
         builds: list = []
-        real = core._Base._build_entailed_copy
+        real = cache.build_entailed_copy
 
-        def counting(self, *a, **kw):
+        def counting(*a, **kw):
             builds.append(1)
-            return real(self, *a, **kw)
+            return real(*a, **kw)
 
-        monkeypatch.setattr(core._Base, "_build_entailed_copy", counting)
+        monkeypatch.setattr(cache, "build_entailed_copy", counting)
         return builds
 
     def _kept(self, monkeypatch):

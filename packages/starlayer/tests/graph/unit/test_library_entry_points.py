@@ -1,6 +1,6 @@
 """The library entry points that run on rdflib code accept an ``StarLayerGraph`` / ``StarLayerDataset`` / bare ``pyoxigraph.Store``.
 
-SHACL (``validate``, ``StarShaclSchema``, ``apply_rules``, ``extract_subgraph``, ``select_widgets``, ``derive_conforms_to``), SQE and
+SHACL (``validate``, ``StarShaclProcessor``, ``apply_rules``, ``extract_subgraph``, ``select_widgets``, ``derive_conforms_to``), SQE and
 SRL (tree encode / decode, ``RuleSet.infer`` / ``query``), ``rdfc10_hash`` and ``isomorphic``. Each takes a snapshot at the
 boundary, so the answers must equal the ones for the same data held in a plain rdflib graph.
 """
@@ -88,18 +88,18 @@ def test_validate_inplace_writes_back_to_the_oxigraph_graph():
 
 
 def test_schema_methods_take_oxigraph_graphs(kind):
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
-    schema = StarShaclSchema(shacl_graph=_ox(StarLayerGraph, SHAPES))
+    schema = StarShaclProcessor(shacl_graph=_ox(StarLayerGraph, SHAPES))
     assert schema.validate(kind(DATA)).conforms is False
     assert schema.apply_rules(kind(DATA)).validation.conforms is False
     assert schema.evaluate(kind(DATA)) is not None
 
 
 def test_schema_bound_oxigraph_graphs():
-    from starlayer.shacl import StarShaclSchema
+    from starlayer.shacl import StarShaclProcessor
 
-    schema = StarShaclSchema(shacl_graph=_ox(StarLayerDataset, SHAPES), data_graph=_ox(StarLayerDataset, DATA))
+    schema = StarShaclProcessor(shacl_graph=_ox(StarLayerDataset, SHAPES), data_graph=_ox(StarLayerDataset, DATA))
     assert schema.validate().conforms is False
 
 
@@ -148,7 +148,7 @@ def test_extract_subgraph_with_pyoxigraph_shape_and_focus_node():
 
 
 def test_normalize_to_starlayer_graph_keeps_oxigraph_input_and_wraps_a_store(kind):
-    from starlayer.shacl import normalize_to_starlayer_graph
+    from starlayer.shacl.normalization import normalize_to_starlayer_graph
 
     graph = normalize_to_starlayer_graph(kind(DATA), name="data_graph")
     assert isinstance(graph, (StarLayerGraph, StarLayerDataset))
@@ -156,7 +156,7 @@ def test_normalize_to_starlayer_graph_keeps_oxigraph_input_and_wraps_a_store(kin
 
 
 def test_normalize_to_starlayer_graph_converts_an_old_style_graph_to_an_oxgraph():
-    from starlayer.shacl import normalize_to_starlayer_graph
+    from starlayer.shacl.normalization import normalize_to_starlayer_graph
 
     graph = normalize_to_starlayer_graph(_rdflib(DATA), name="data_graph")
     assert isinstance(graph, StarLayerGraph)
@@ -164,7 +164,7 @@ def test_normalize_to_starlayer_graph_converts_an_old_style_graph_to_an_oxgraph(
 
 
 def test_normalize_keeps_a_named_graph_identifier():
-    from starlayer.shacl import normalize_to_starlayer_graph
+    from starlayer.shacl.normalization import normalize_to_starlayer_graph
 
     ds = _ox(StarLayerDataset, "")
     named = ds.graph(ox.NamedNode(EX + "g"))

@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import threading
 import weakref
+from typing import Any
 
 import pyoxigraph as ox
 
@@ -31,11 +32,16 @@ class StoreVersion:
     """The writes made through the wrapper to one store (a ``pyoxigraph.Store`` takes no attribute and no weak reference, so the count
     is kept here, one object for every wrapper of the store). It holds the store, so the store's ``id`` is not reused while it lives."""
 
-    __slots__ = ("__weakref__", "n", "store")
+    __slots__ = ("__weakref__", "entailed", "n", "rewritten", "store")
 
     def __init__(self, store: ox.Store) -> None:
         self.store = store
         self.n = 0
+        #: the literals loaded through the wrapper that the store keeps in another form than written (``graph/lexical.py``)
+        self.rewritten = 0
+        #: the entailed copies of this store (``graph/entailment/cache.py``), shared by SPARQL and SHACL; made on first use. They live
+        #: and die with this object, so a wrapper holds it (``_Base._version``) as long as it is to find them again.
+        self.entailed: Any = None
 
     def stamp(self) -> tuple[int, int]:
         """A value that differs after any write to this store, and after a write that did not say which store it was."""
