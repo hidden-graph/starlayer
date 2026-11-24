@@ -18,14 +18,13 @@ import sys
 import time
 import tracemalloc
 
-from rdflib import URIRef
+from pyoxigraph import NamedNode, Triple
 
 sys.path.insert(0, '.')
 from starlayer.graph import StarLayerGraph
-from starlayer.graph.rdflib_model.triple import TripleTerm
 
 EX          = 'http://example.org/'
-RDF_REIFIES = URIRef('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
+RDF_REIFIES = NamedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#reifies')
 
 SCALES = [100, 1_000, 5_000, 10_000, 50_000, 100_000]
 
@@ -37,7 +36,7 @@ REPEATS = 3   # median of this many runs per measurement
 # ---------------------------------------------------------------------------
 
 def _uri(n):
-    return URIRef(f'{EX}n{n}')
+    return NamedNode(f'{EX}n{n}')
 
 
 def plain_triples(n):
@@ -52,7 +51,7 @@ def tt_triples(n):
     terms repeat — realistic for annotation workloads."""
     return [
         (_uri(f's{i}'), RDF_REIFIES,
-         TripleTerm(_uri(i), _uri(i % 20 + 10_000), _uri(i % 10 + 20_000)))
+         Triple(_uri(i), _uri(i % 20 + 10_000), _uri(i % 10 + 20_000)))
         for i in range(n)
     ]
 
