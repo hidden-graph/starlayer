@@ -134,7 +134,7 @@ ui:pyshacl-2 a slkg:UpstreamIssue ;
     slkg:issueDocPath "docs/upstream-issues/pyshacl-upstream-issues.md" ;
     slkg:issueNumber 2 ;
     slkg:issueStatus "worked-around" ;
-    slkg:workedAroundByIdentifier "starlayer.shacl.validator.StarShaclSchema.validate",
+    slkg:workedAroundByIdentifier "starlayer.shacl.validator.StarShaclProcessor.validate",
         "starlayer.shacl.validator.validate" .
 
 ui:pyshacl-3 a slkg:UpstreamIssue ;

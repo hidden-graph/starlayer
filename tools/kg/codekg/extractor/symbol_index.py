@@ -62,7 +62,7 @@ class SymbolIndex:
 
     ``functions_by_dotted_path`` covers every module-level function and
     every method (a method's dotted path already includes its class's own
-    nesting, e.g. ``"starlayer.shacl.validator.StarShaclSchema.validate"``,
+    nesting, e.g. ``"starlayer.shacl.validator.StarShaclProcessor.validate"``,
     so no separate method table is needed for bare-name/module-alias call
     resolution - only ``self``/``cls`` resolution needs ``classes_by_dotted_path``'s
     own per-class method view).

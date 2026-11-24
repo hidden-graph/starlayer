@@ -370,8 +370,8 @@ cur:cap-shacl-1 a slkg:Capability ;
     slkg:implementsSpecification tr:shacl12-core ;
     rdfs:comment "Support for SHACL 1.2 over RDF 1.2 graphs." ;
     slkg:implementedByIdentifier 
-        "starlayer.shacl.validator.StarShaclSchema",
-        "starlayer.shacl.validator.StarShaclSchema.validate" .
+        "starlayer.shacl.validator.StarShaclProcessor",
+        "starlayer.shacl.validator.StarShaclProcessor.validate" .
 
 cur:cap-shacl-2 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -382,8 +382,8 @@ cur:cap-shacl-2 a slkg:Capability ;
     rdfs:comment "Support for additional SHACL 1.2 specifications: SPARQL Extensions, Node Expressions, Rules, User Interfaces, Profiling." ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.profiling.__init__",
-        "starlayer.shacl.validator.StarShaclSchema.apply_rules",
-        "starlayer.shacl.validator.StarShaclSchema.evaluate" .
+        "starlayer.shacl.validator.StarShaclProcessor.apply_rules",
+        "starlayer.shacl.validator.StarShaclProcessor.evaluate" .
 
 cur:cap-shacl-3 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -402,8 +402,8 @@ cur:cap-shacl-4 a slkg:Capability ;
     rdfs:comment "SHACL-driven subgraph extraction." ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.subgraph_extraction.extract_subgraph",
-        "starlayer.shacl.validator.StarShaclSchema.close_shape",
-        "starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph" .
+        "starlayer.shacl.validator.StarShaclProcessor.close_shape",
+        "starlayer.shacl.validator.StarShaclProcessor.extract_shapes_graph" .
 
 cur:cap-shacl-5 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -411,7 +411,7 @@ cur:cap-shacl-5 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate" ;
     rdfs:comment "Derive a SHACL shape from a graph's own data." ;
-    slkg:implementedByIdentifier "starlayer.graph.shapes.derive_shape" .
+    slkg:implementedByIdentifier "starlayer.shacl.derive.derive_shape" .
 
 cur:cap-shacl-6 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -423,7 +423,7 @@ cur:cap-shacl-6 a slkg:Capability ;
     slkg:implementedByIdentifier 
         "starlayer.shacl.ui.widget_selection.select_widget",
         "starlayer.shacl.ui.widget_selection.select_widgets",
-        "starlayer.shacl.validator.StarShaclSchema.select_widgets" .
+        "starlayer.shacl.validator.StarShaclProcessor.select_widgets" .
 
 cur:cap-shacl-7 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;
@@ -442,7 +442,7 @@ cur:cap-shacl-8 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate" ;
     rdfs:comment "Named shapes graph modules: validate against one module, extract one, and resolve owl:imports using a loader you supply." ;
-    slkg:implementedByIdentifier "starlayer.shacl.validator.StarShaclSchema.extract_shapes_graph" .
+    slkg:implementedByIdentifier "starlayer.shacl.validator.StarShaclProcessor.extract_shapes_graph" .
 
 cur:cap-shacl-9 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;

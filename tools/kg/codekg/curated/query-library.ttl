@@ -323,7 +323,7 @@ ql:upstream-workarounds a slkg:NamedQuery ;
             slkg:paramRequired false ],
         [ a slkg:QueryParameter ;
             rdfs:comment "dotted identifier of a function to ask about" ;
-            slkg:paramExample "starlayer.shacl.validator.StarShaclSchema.validate" ;
+            slkg:paramExample "starlayer.shacl.validator.StarShaclProcessor.validate" ;
             slkg:paramName "symbol" ;
             slkg:paramRequired false ] ;
     slkg:queryRoot ql:upstream-workarounds-tree .
