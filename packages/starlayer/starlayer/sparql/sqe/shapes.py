@@ -72,8 +72,7 @@ def _ontology_graph() -> Any:
 
 
 def _validate_shapes(tree_graph: Any) -> ValidationReport:
-    """Only the ``sqe:`` shapes: the report ``sqe_validate`` starts from. ``check_query`` and the parse paths (``validate=True``) use it, as the
-    text they check has just been parsed and ``check_query`` runs the engine itself."""
+    """Only the ``sqe:`` shapes: the report ``sqe_validate`` starts from. ``check_query`` uses it and runs the engine itself."""
 
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
         shared_plans,

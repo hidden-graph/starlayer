@@ -13,7 +13,7 @@ from starlayer.errors import ExecutionError, FormatError, StarLayerError
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql import check
 from starlayer.sparql.parse_sparql import parse_sparql, parse_sparql_update
-from starlayer.sparql.sqe import SQEValidationError, sqe_parse_to_tree
+from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text, sqe_validate
 
 DEEP = "SELECT * WHERE " + "{ " * 20000 + "?s ?p ?o" + " }" * 20000
 DEEP_UPDATE = "DELETE { ?s ?p ?o } WHERE " + "{ " * 20000 + "?s ?p ?o" + " }" * 20000
@@ -66,12 +66,14 @@ def test_sqe_parse_to_tree_reports_both_causes_by_class():
     assert deep.value.kind == "nesting"
 
 
-def test_a_tree_that_breaks_the_sqe_shapes_is_a_format_error_that_carries_the_report():
-    with pytest.raises(FormatError) as caught:
-        sqe_parse_to_tree("SELECT ?x WHERE { ?a <urn:p> ?b }")  # ?x is projected and never bound
-    error = caught.value
-    assert isinstance(error, SQEValidationError) and error.kind == "sparql"
-    assert error.report_text and error.report_graph is not None and error.report_text in str(error)
+def test_a_query_that_breaks_the_sqe_shapes_loads_and_sqe_validate_reports_it():
+    text = "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o }"  # ?z is projected and never bound
+    tree, root = sqe_parse_to_tree(text)  # no error: any text the parser understands gives a tree
+    outcome = sqe_validate(tree)
+    assert not outcome.conforms and "variable z " in outcome.report_text
+    rendered = sqe_tree_to_text(tree, root)  # the tree still renders back
+    assert "?z" in rendered and "knows" in rendered
+    assert sqe_parse_to_tree(rendered)[0] is not None
 
 
 # --- the Oxigraph boundary ---------------------------------------------------------------------------------------------

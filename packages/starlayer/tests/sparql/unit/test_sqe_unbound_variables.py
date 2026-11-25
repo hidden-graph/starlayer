@@ -1,26 +1,26 @@
 """The "a projected variable is never bound anywhere in its own pattern" check, on ``sqe:`` trees.
 
 It was the one semantic check the retired ``salg:`` export had (``find_unbound_projected_variables``); the ``sqe:`` shapes
-(``sqe_shapes.ttl``) now carry it, and ``sqe_parse_to_tree`` refuses a query that fails it. The cases below were moved from
+(``sqe_shapes.ttl``) now carry it, and ``sqe_validate`` reports a query that fails it (``sqe_parse_to_tree`` still loads it). The cases below were moved from
 the salg tests; the SHACL pre-bound names (``$this`` / ``$value`` / ``$PATH``) are exempt in an embedded ``sh:select`` /
 ``sh:ask`` / ``sh:construct`` query (``starlayer.shacl.meta_shapes.sparql_query_problems``).
 """
 
 import pytest
-from starlayer.sparql.sqe import SQEValidationError, sqe_parse_to_tree
+from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
 
 EX = "http://example.org/"
 
 
 def _issues(query_text: str) -> list[str]:
-    """The messages of the violations ``sqe_parse_to_tree`` reports for the query (empty when it conforms)."""
-    try:
-        sqe_parse_to_tree(query_text)
-    except SQEValidationError as exc:
-        from starlayer.shacl.engine.terms import SH
+    """The messages of the violations ``sqe_validate`` reports for the query (empty when it conforms)."""
+    from starlayer.shacl.engine.terms import SH
 
-        return sorted(m.value for m in exc.report_graph.objects(None, SH.resultMessage))
-    return []
+    tree, _root = sqe_parse_to_tree(query_text)
+    outcome = sqe_validate(tree)
+    if outcome.conforms:
+        return []
+    return sorted(m.value for m in outcome.report_graph.objects(None, SH.resultMessage))
 
 
 class TestGenuinelyUnbound:

@@ -22,7 +22,6 @@ import pytest
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
 from starlayer.sparql.sqe import (
-    SQEValidationError,
     sqe_parse_to_tree,
     sqe_tree_to_text,
     sqe_validate,
@@ -208,16 +207,15 @@ class TestUnboundProjectedVariable:
     custom Python ConstraintComponent - sqe:'s tree needs no algebra
     resolution to answer this, unlike salg:'s resolved Project node.
 
-    sqe_parse_to_tree() itself validates and raises SQEValidationError on
-    a non-conforming result (2026-10-15) - these tests exercise that
-    raise directly, not a separate sqe_validate() call after a
-    successful parse."""
+    sqe_parse_to_tree() does not validate: a query that breaks the shapes
+    still loads, and sqe_validate() on the tree reports it."""
 
     def test_unbound_projected_variable_fails(self):
         query_text = "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o }"
-        with pytest.raises(SQEValidationError) as exc_info:
-            sqe_parse_to_tree(query_text)
-        assert "z" in exc_info.value.report_text
+        graph, _ = sqe_parse_to_tree(query_text)
+        outcome = sqe_validate(graph)
+        assert not outcome.conforms
+        assert "z" in outcome.report_text
 
     def test_all_projected_variables_bound_conforms(self):
         query_text = "SELECT ?s ?o WHERE { ?s <http://example.org/knows> ?o }"
@@ -267,9 +265,10 @@ class TestUnboundProjectedVariable:
         query_text = (
             "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . FILTER(?o = ?z) }"
         )
-        with pytest.raises(SQEValidationError) as exc_info:
-            sqe_parse_to_tree(query_text)
-        assert "z" in exc_info.value.report_text
+        graph, _ = sqe_parse_to_tree(query_text)
+        outcome = sqe_validate(graph)
+        assert not outcome.conforms
+        assert "z" in outcome.report_text
 
 
 class TestTemplateListShape:
@@ -405,9 +404,10 @@ class TestUnboundExpressionVariable:
         query_text = (
             "SELECT ?s WHERE { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
         )
-        with pytest.raises(SQEValidationError) as exc_info:
-            sqe_parse_to_tree(query_text)
-        assert "x" in exc_info.value.report_text
+        graph, _ = sqe_parse_to_tree(query_text)
+        outcome = sqe_validate(graph)
+        assert not outcome.conforms
+        assert "x" in outcome.report_text
 
     def test_select_filter_all_bound_conforms(self):
         query_text = (
@@ -421,8 +421,8 @@ class TestUnboundExpressionVariable:
 
     def test_ask_filter_unbound_variable_fails(self):
         query_text = "ASK { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
-        with pytest.raises(SQEValidationError):
-            sqe_parse_to_tree(query_text)
+        graph, _ = sqe_parse_to_tree(query_text)
+        assert not sqe_validate(graph).conforms
 
     def test_ask_filter_all_bound_conforms(self):
         query_text = "ASK { ?s <http://example.org/p> ?o . FILTER(?o > 5) }"
@@ -437,8 +437,8 @@ class TestUnboundExpressionVariable:
             "CONSTRUCT { ?s <http://example.org/q> ?o } "
             "WHERE { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
         )
-        with pytest.raises(SQEValidationError):
-            sqe_parse_to_tree(query_text)
+        graph, _ = sqe_parse_to_tree(query_text)
+        assert not sqe_validate(graph).conforms
 
     def test_bind_then_filter_on_bound_variable_conforms(self):
         """Regression guard: a variable bound via BIND and then used in a
@@ -469,9 +469,10 @@ class TestUnboundTemplateVariable:
             "CONSTRUCT { ?s <http://example.org/q> ?z } "
             "WHERE { ?s <http://example.org/p> ?o }"
         )
-        with pytest.raises(SQEValidationError) as exc_info:
-            sqe_parse_to_tree(query_text)
-        assert "z" in exc_info.value.report_text
+        graph, _ = sqe_parse_to_tree(query_text)
+        outcome = sqe_validate(graph)
+        assert not outcome.conforms
+        assert "z" in outcome.report_text
 
     def test_template_variable_bound_conforms(self):
         query_text = (

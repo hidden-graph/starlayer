@@ -2234,34 +2234,15 @@ def ast_to_tree(q: Node, graph: StarLayerGraph | None = None, root=None, *, trip
     return graph, root
 
 
-def sparql_to_tree(
-    text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None, *, validate: bool = False
-) -> tuple[StarLayerGraph, object]:
-    """SPARQL 1.2 query text straight to ``sqe:`` tree-RDF, with the new parser.
-
-    With ``validate=True`` the tree is also checked against the ``sqe:`` SHACL shapes (about 100 ms).
-    """
-    g, r = ast_to_tree(parse_sparql(text, base), graph, root)
-    if validate:
-        from .sqe.shapes import _validate_shapes
-        from .sqe.to_rdf import SQEValidationError
-
-        report = _validate_shapes(g)
-        if not report.conforms:
-            raise SQEValidationError(report.report_text, report.report_graph)
-    return g, r
+def sparql_to_tree(text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None) -> tuple[StarLayerGraph, object]:
+    """SPARQL 1.2 query text straight to ``sqe:`` tree-RDF, with the new parser. The tree is not checked against the ``sqe:``
+    shapes: ``sqe_validate`` reports those problems."""
+    return ast_to_tree(parse_sparql(text, base), graph, root)
 
 
 def sparql_update_to_tree(
-    text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None, *, validate: bool = False
+    text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None
 ) -> tuple[StarLayerGraph, object]:
-    """SPARQL 1.2 Update text to ``sqe:`` tree-RDF (root typed ``sqe:UpdateRequest``); ``validate=True`` checks the SHACL shapes."""
-    g, r = ast_to_tree(parse_sparql_update(text, base), graph, root)
-    if validate:
-        from .sqe.shapes import _validate_shapes
-        from .sqe.to_rdf import SQEValidationError
-
-        report = _validate_shapes(g)
-        if not report.conforms:
-            raise SQEValidationError(report.report_text, report.report_graph)
-    return g, r
+    """SPARQL 1.2 Update text to ``sqe:`` tree-RDF (root typed ``sqe:UpdateRequest``). The tree is not checked against the
+    ``sqe:`` shapes: ``sqe_validate`` reports those problems."""
+    return ast_to_tree(parse_sparql_update(text, base), graph, root)

@@ -17,42 +17,10 @@ import pyoxigraph as ox
 from starlayer.errors import FormatError
 
 
-class SQEValidationError(FormatError):
-    """Raised by :func:`sqe_parse_to_tree` when the text parses fine but the resulting ``sqe:`` tree fails ``sqe:``'s own SHACL shapes
-    (most notably the unbound-projected-variable check): "this text does not produce a usable ``sqe:`` tree". The cause is the same as
-    for a syntax error, query text that is not a valid query, so it is a :class:`~starlayer.errors.FormatError` (``kind="sparql"``, no
-    position) and ``except FormatError`` catches both. It is the one subclass of ``FormatError``, kept because it carries the
-    validation report.
-
-    Attributes:
-        report_graph: The full ``sh:ValidationReport`` graph.
-        report_text: The same report, rendered as text (this exception's own ``str()`` is a short prefix plus this text).
-    """
-
-    def __init__(self, report_text: str, report_graph: Any) -> None:
-        """Carry the SHACL report as text (in the message and report_text) and as a graph (report_graph)."""
-        super().__init__(f"sqe: parsed query fails SHACL validation:\n{report_text}", kind="sparql", why=report_text)
-        self.report_text = report_text
-        self.report_graph = report_graph
-
-    def __reduce__(self) -> Any:
-        return (SQEValidationError, (self.report_text, self.report_graph))
-
-
 _UPDATE_START = re.compile(
     r"(?is)\A(?:\s+|#[^\n]*|(?:PREFIX\s+[^\s:]*:\s*<[^>]*>)|(?:BASE\s*<[^>]*>)|(?:VERSION\s+(?:'[^']*'|\"[^\"]*\")))*"
     r"(INSERT|DELETE|LOAD|CLEAR|DROP|CREATE|ADD|MOVE|COPY|WITH)\b"
 )
-
-
-def _has_violation(report_graph: Any) -> bool:
-    """Whether a validation report holds a result that is not a warning or an info: those leave the tree usable."""
-    return bool(
-        report_graph.query(
-            "PREFIX sh: <http://www.w3.org/ns/shacl#> "
-            "ASK { ?result a sh:ValidationResult ; sh:resultSeverity ?severity FILTER ( ?severity NOT IN ( sh:Warning, sh:Info ) ) }"
-        )
-    )
 
 
 def sqe_parse_to_tree(
@@ -61,18 +29,14 @@ def sqe_parse_to_tree(
     root: Any = None,
 ) -> tuple[Any, Any]:
     """Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT``/``DESCRIBE`` query text (or SPARQL Update text) as
-    ``sqe:`` RDF, and validate the result. The one public encoding entry
+    ``sqe:`` RDF. The one public encoding entry
     point - parses ``text`` with StarLayer's own SPARQL 1.2 parser
     (``sparql.parse_sparql``: every query form, FROM / FROM NAMED, SERVICE,
-    VERSION, and Update), then validates via :func:`sqe_validate`
-    before returning - a caller only ever gets back a tree already
-    confirmed to satisfy ``sqe:``'s own shapes (including the
-    unbound-projected-variable check), never one silently known to fail.
+    VERSION, and Update).
 
-    Validation only runs here, at creation time - it has no way to see,
-    and does not re-run for, any edit made to the tree afterward (see
-    the guide notebook's own section on this). Call :func:`sqe_validate`
-    yourself again after editing a tree directly.
+    Any text the parser understands gives a tree, even a query that breaks the ``sqe:`` shapes (an unbound projected variable, say):
+    nothing is validated here, so a query with errors can still be loaded and fixed. Call :func:`sqe_validate` on the tree to
+    report those problems; run it again after editing a tree directly.
 
     A query may hold IRIs that are not absolute (``<s>`` with no ``BASE``) or other text an RDF term cannot be: the tree
     keeps each as an opaque stand-in IRI (``urn:starlayer:invalid-iri:...``) that ``sqe_tree_to_text`` turns back into the
@@ -93,17 +57,13 @@ def sqe_parse_to_tree(
             apart on its own.
 
     Returns:
-        A ``(tree_graph, root)`` tuple; with no ``tree_graph`` given, a ``StarLayerGraph`` and a pyoxigraph ``root``.
+        A ``(tree_graph, root)`` tuple, not checked against the shapes; with no ``tree_graph`` given, a ``StarLayerGraph`` and a pyoxigraph ``root``.
 
     Raises:
         FormatError: (kind "sparql") For text outside the SPARQL 1.2 query grammar, with ``line`` / ``col``.
         ExecutionError: (kind "nesting") The query is nested too deeply for Python's stack.
-        SQEValidationError (a ``FormatError``): If the text parses fine but the encoded tree
-            violates ``sqe:``'s own SHACL shapes. A warning (such as DISTINCT in a call to an extension function, which Oxigraph
-            does not parse) does not raise: ``sqe_validate`` on the tree reports it.
     """
     from ..parse_sparql import ast_to_triples, parse_sparql
-    from .shapes import _validate_shapes
 
     try:
         ast = parse_sparql(text)
@@ -124,7 +84,4 @@ def sqe_parse_to_tree(
 
     tree = StarLayerGraph(prefixes={}) if tree_graph is None else tree_graph
     tree.extend(triples)
-    report = _validate_shapes(tree)
-    if not report.conforms and _has_violation(report.report_graph):
-        raise SQEValidationError(report.report_text, report.report_graph)
     return tree, root

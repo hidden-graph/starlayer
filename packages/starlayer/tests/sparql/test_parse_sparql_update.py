@@ -202,7 +202,7 @@ INVALID = [
 
 @pytest.mark.parametrize("text", VALID, ids=[t[:70] for t in VALID])
 def test_valid_requests_parse_and_round_trip(text):
-    tree = sparql_update_to_tree(text, validate=True)
+    tree = sparql_update_to_tree(text)
     again = sparql_update_to_tree(sqe_tree_to_text(*tree))
     assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
 

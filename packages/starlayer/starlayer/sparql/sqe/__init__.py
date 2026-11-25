@@ -13,21 +13,14 @@ precedent ``srl`` already follows: ``from starlayer.sparql import
 sqe``, then ``sqe.sqe_parse_to_tree(...)``/etc.
 
 Three public functions, the whole functional surface: ``sqe_parse_to_tree``
-(encode - validates the result and raises ``SQEValidationError`` on a
-non-conforming tree, see below), ``sqe_tree_to_text`` (render back to
+(encode - any text the parser understands gives a tree, with no
+shape check; a ``FormatError`` or ``ExecutionError`` only when the text cannot be understood), ``sqe_tree_to_text`` (render back to
 text; run the text with ``StarLayerGraph.query()``),
-``sqe_validate`` (SHACL, then each query of a conforming tree is run on an empty graph in Oxigraph, as ``check_query`` does - still needed standalone for re-validating a tree
-edited by hand after parsing, since such edits bypass
-``sqe_parse_to_tree`` entirely). ``to_rdf.py``'s own ``_query_to_sqe_rdf``
-(takes an already-``parseQuery``'d tree rather than text, and skips
-validation) stays private - a low-level input shape nothing outside this
+``sqe_validate`` (SHACL, then each query of a conforming tree is run on an empty graph in Oxigraph, as ``check_query`` does - where the problems of a parsed or
+hand-edited tree are reported). ``to_rdf.py``'s own ``_query_to_sqe_rdf``
+(takes an already-``parseQuery``'d tree rather than text, and does
+no validation) stays private - a low-level input shape nothing outside this
 package currently needs.
-
-``SQEValidationError`` (a ``starlayer.errors.FormatError``, kind ``"sparql"``) is also exported - it is what
-``sqe_parse_to_tree`` raises, carrying the full report as ``.report_text``/
-``.report_graph`` attributes, the same "succeed with a usable object, or
-raise" contract ``prepareQuery()``/``srl.parse_ruleset()`` already give
-their own callers.
 
 No separate ``ontology_graph()``/``shapes_graph()`` of its own either -
 same choice ``srl.py``/`starontology.manchester` already made, to avoid
@@ -44,7 +37,6 @@ from typing import Any
 # pyoxigraph terms and nothing here needs rdflib.
 _LAZY = {
     "SQE": "vocab",
-    "SQEValidationError": "to_rdf",
     "sqe_parse_to_tree": "to_rdf",
     "sqe_tree_to_text": "to_text",
     "sqe_validate": "shapes",
