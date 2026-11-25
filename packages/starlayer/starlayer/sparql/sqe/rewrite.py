@@ -65,7 +65,9 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
         out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
         return out
-    except (ImportError, SparqlSyntaxError, ValueError, KeyError, NotImplementedError, RecursionError, TypeError, AttributeError):
+    except (SparqlSyntaxError, ValueError, NotImplementedError, RecursionError):
+        # the text or its tree cannot be rewritten or written out (the library's own errors are ValueErrors); a KeyError,
+        # TypeError, AttributeError or ImportError is a bug in the rewrite and is not turned into a slower query
         return text
 
 

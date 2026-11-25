@@ -58,6 +58,7 @@ from __future__ import annotations
 
 import multiprocessing
 import os
+import queue as queue_module
 import signal
 import time
 from collections.abc import Callable
@@ -136,15 +137,16 @@ def run_with_timeout(target: Callable[..., None], args: tuple, timeout_seconds: 
             try:
                 result = queue.get(timeout=slice_seconds)
                 break
-            except Exception:
-                # queue.Empty on this poll slice - keep waiting until the
+            except (queue_module.Empty, EOFError, OSError):
+                # queue.Empty on this poll slice (or a pipe the dead child closed: EOFError, OSError; anything else, such as a
+                # result that cannot be unpickled here, is a real failure and propagates) - keep waiting until the
                 # deadline (never, with no timeout), or until the child dies
                 # without ever producing a result (a crash, not a hang - stop
                 # waiting the moment that's true, whatever the timeout).
                 if not process.is_alive():
                     try:  # a result put just before the child exited may still be in the pipe
                         result = queue.get(timeout=0.5)
-                    except Exception:
+                    except (queue_module.Empty, EOFError, OSError):
                         pass
                     break
                 continue

@@ -42,6 +42,7 @@ Do not read large files into context: `tools/kg/codekg/codekg.trig` (6 MB, built
 - Docs say what a reader needs (inputs, outputs, errors), not interesting side facts. No notes to the reader about how the doc was produced.
 - Docstrings give the "why". Do not restate what the signature, calls or overrides already show; the code KG records those.
 - Test discipline: before calling a fix done, check the new test fails without it. For SHACL behaviour the oracle is the SHACL 1.2 draft and the W3C suite (`tests/shacl/w3c_shacl12/`); for SPARQL, Oxigraph or rdflib.
+- Errors: a plain `ValueError` (or `TypeError`) is only a bad argument value (or type) at the entry of a public call; a problem found in a document or data is a parse/format error; a failure while running is an execution failure. `shacl/errors.py` (`ShapeError`, `ExecutionError` with a `kind`) is the model. Outside `shacl/` the classes are not yet uniform: a library-wide base is planned (step A, `docs/design/future_enhancements.md`, "Error handling in SHACL, and uniformity across StarLayer"; the audit is `docs/working/error-handling-audit-2026-11-25.md`). Until then, a catch clause that converts or swallows an error names the exception it guards against (never bare `Exception`), and a fallback on an engine `RuntimeError` checks the message.
 - Commit messages end with the Co-Authored-By line given to you. Keep generated-file changes in their own commit.
 
 ## App-building defaults (provisional)

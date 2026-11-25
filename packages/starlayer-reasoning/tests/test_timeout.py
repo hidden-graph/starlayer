@@ -116,3 +116,70 @@ class TestRunWithTimeoutFailureModes:
             if 'time.sleep(600)' in line and 'grep' not in line
         ]
         assert not lingering, f'a grandchild process survived the process-group kill: {lingering}'
+
+
+class _FakeProcess:
+    pid = 2**22 + 12345  # no such process group; the kill of a live fake is a no-op
+
+    def __init__(self, alive):
+        self._alive = alive
+
+    def start(self):
+        pass
+
+    def is_alive(self):
+        return self._alive
+
+    def kill(self):
+        self._alive = False
+
+    def join(self, timeout=None):
+        pass
+
+
+class _FakeContext:
+    def __init__(self, queue, alive):
+        self._queue = queue
+        self._alive = alive
+
+    def Queue(self):  # noqa: N802  (the multiprocessing context's own name)
+        return self._queue
+
+    def Process(self, **_kwargs):  # noqa: N802
+        return _FakeProcess(self._alive)
+
+
+class _RaisingQueue:
+    def __init__(self, exc):
+        self.exc = exc
+
+    def get(self, timeout=None):
+        raise self.exc
+
+    def close(self):
+        pass
+
+
+class TestQueueReadErrorsAreNotSwallowed:
+    def test_an_unreadable_result_propagates_instead_of_becoming_a_crash_report(self, monkeypatch):
+        from starlayer_reasoning import _timeout
+
+        monkeypatch.setattr(_timeout, '_CTX', _FakeContext(_RaisingQueue(AttributeError('cannot unpickle the result')), alive=True))
+        with pytest.raises(AttributeError, match='cannot unpickle'):
+            run_with_timeout(_fast_worker, (1,), timeout_seconds=5)
+
+    def test_a_pipe_the_dead_child_closed_is_still_reported_as_an_exit_without_a_result(self, monkeypatch):
+        from starlayer_reasoning import _timeout
+
+        monkeypatch.setattr(_timeout, '_CTX', _FakeContext(_RaisingQueue(EOFError()), alive=False))
+        with pytest.raises(ReasoningTimeoutError, match='exited without producing a result'):
+            run_with_timeout(_fast_worker, (1,), timeout_seconds=5)
+
+    def test_an_empty_poll_of_a_dead_child_is_still_reported_as_an_exit_without_a_result(self, monkeypatch):
+        import queue as queue_module
+
+        from starlayer_reasoning import _timeout
+
+        monkeypatch.setattr(_timeout, '_CTX', _FakeContext(_RaisingQueue(queue_module.Empty()), alive=False))
+        with pytest.raises(ReasoningTimeoutError, match='exited without producing a result'):
+            run_with_timeout(_fast_worker, (1,), timeout_seconds=5)

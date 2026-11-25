@@ -348,6 +348,16 @@ _DELTA_GRAPH = ox.NamedNode("urn:starlayer:srl:delta")
 ``_evaluate_ruleset_at_one_instant``)."""
 
 
+_TRIPLE_TERM_JOIN_MESSAGE = "triple term that is not a valid"
+
+
+def _engine_cannot_join_triple_terms(exc: BaseException) -> bool:
+    """Whether ``exc`` is the engine's refusal to build ``<<( "lit" p o )>>`` while joining a variable bound to a literal into a
+    triple term's subject (the one failure the element-by-element paths exist for). The engine gives no error class for it, only
+    the wording, so the match is here and nowhere else; any other ``RuntimeError`` is a real failure and goes on."""
+    return isinstance(exc, RuntimeError) and _TRIPLE_TERM_JOIN_MESSAGE in str(exc)
+
+
 def _match(run: list[srl_ast.TriplePattern], g, delta_pos: int | None = None) -> list[dict]:
     """Every solution of the basic graph pattern ``run`` against ``g`` (an ``StarLayerGraph``), found by running the pattern as a
     SPARQL 1.2 query. Keys are ``pyoxigraph.Variable`` s, values pyoxigraph terms. With ``delta_pos``, the pattern at that
@@ -367,7 +377,7 @@ def _match(run: list[srl_ast.TriplePattern], g, delta_pos: int | None = None) ->
     except RuntimeError as exc:
         # The engine builds <<( "lit" p o )>> while joining a variable bound to a literal into a triple term's subject, and
         # raises. Such a term matches nothing, so join the patterns here instead: each alone never builds one.
-        if len(patterns) < 2 or "triple term that is not a valid" not in str(exc):
+        if len(patterns) < 2 or not _engine_cannot_join_triple_terms(exc):
             raise
     joined: list[dict] = [{}]
     for pattern in patterns:
@@ -616,12 +626,12 @@ def _aggregate(agg: srl_ast._Aggregation, solutions: list[dict]):
             value = placeholders[value]
         try:
             rows.append(_pattern_term_text(value))
-        except Exception:  # noqa: BLE001  (a term the engine cannot take in a query: the aggregate is an error)
+        except (ValueError, TypeError):  # a term with no query text: the aggregate is an error (any other failure is a bug)
             return None
     text = f"SELECT ({_SET_FUNCTION[agg.function]}(?v) AS ?r) WHERE {{ VALUES ?v {{ {' '.join(rows)} }} }}"
     try:
         solution = next(iter(_EVAL_STORE.query(text)), None)
-    except Exception:  # noqa: BLE001
+    except SyntaxError:  # the engine refuses the VALUES row (a triple term with a literal subject): the aggregate is an error
         return None
     result = None if solution is None else solution["r"]
     for blank, stand_in in placeholders.items():
@@ -1082,7 +1092,9 @@ class _Evaluation:
         self.refresh()
         try:
             self.store.update(text)
-        except RuntimeError:
+        except RuntimeError as exc:
+            if not _engine_cannot_join_triple_terms(exc):
+                raise
             return False  # the engine cannot evaluate this one (see ``_match``)
         self.forget_size()
         return True
@@ -1153,8 +1165,10 @@ def _derive_into_candidates(rule: srl_ast._Rule, plan: _StorePlan | None, positi
         try:
             evaluation.store.update(plan.update(position))
             return
-        except RuntimeError:
-            pass  # the engine cannot evaluate this one (see ``_match``): do it element by element
+        except RuntimeError as exc:
+            if not _engine_cannot_join_triple_terms(exc):
+                raise
+            # the engine cannot evaluate this one (see ``_match``): do it element by element
     derived = _eval_rule(rule, evaluation.ge, evaluation.base, position)
     if derived:
         evaluation.store.extend(ox.Quad(*t, _CANDIDATE_GRAPH) for t in derived)
@@ -1251,8 +1265,10 @@ def _run_to_fixpoint(rules: list[srl_ast._Rule], evaluation: _Evaluation) -> Non
             evaluation.refresh()
             try:
                 evaluation.store.update(update)
-            except RuntimeError:
-                pass  # the engine cannot evaluate this one: the rounds do it
+            except RuntimeError as exc:
+                if not _engine_cannot_join_triple_terms(exc):
+                    raise
+                # the engine cannot evaluate this one: the rounds do it
             else:
                 evaluation.commit(delta=False)
                 return

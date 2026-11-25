@@ -131,12 +131,15 @@ def _engine_problem(text: str, prefixes: Mapping[str, str] | None, functions: di
     """What Oxigraph says about a query run on an empty graph. Oxigraph has no prepare-only call."""
     from starlayer.graph import StarLayerGraph
     from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
+    from starlayer.shacl.errors import ShapeError
 
     try:
         StarLayerGraph(prefixes=dict(prefixes or {})).query(text, **functions)
     except SPARQL12ConformanceError:
         return None  # reported as a version problem
-    except Exception as error:  # noqa: BLE001  (Oxigraph reports its own kinds of exception)
+    except ShapeError:
+        raise  # a ValueError by base class, but a SHACL failure from a user function, not a problem of the query
+    except (SyntaxError, ValueError, RuntimeError, NotImplementedError) as error:  # the kinds Oxigraph and the wrapper report
         return QueryProblem("engine", "error", " ".join(str(error).split()))
     return None
 

@@ -147,7 +147,7 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
         triples, root = ast_to_triples(tree)
         out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
-    except (SparqlSyntaxError, ValueError, KeyError, NotImplementedError, RecursionError, TypeError, AttributeError) as e:
+    except (SparqlSyntaxError, ValueError, NotImplementedError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
         raise EntailmentRewriteError(f"the rewritten query could not be written out as SPARQL: {e}") from e
     return out
 
