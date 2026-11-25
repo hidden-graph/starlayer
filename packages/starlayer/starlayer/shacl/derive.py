@@ -595,6 +595,11 @@ def _extend_new_properties(
             changes.added.append((working.qname_term(pred), "the data has it and the template shape does not"))
 
 
+def _is_closed(working: Any, shape_node: Any) -> bool:
+    value = working.value(shape_node, SH.closed)
+    return isinstance(value, ox.Literal) and value.value in ("true", "1")
+
+
 def _carry_forward_ignored_properties(working: Any, shape_node: Any, ignored: set[Any], mint: _Minter) -> None:
     old = working.value(shape_node, SH.ignoredProperties)
     existing = _list_items(working, old) if old is not None else []
@@ -702,9 +707,11 @@ def _derive_with_template(
         _deactivate(working, data, shape_node, target, source, component, specs, mint, changes)
 
     _extend_new_properties(working, data, shape_node, target, ignored, mint, changes)
-    _carry_forward_ignored_properties(working, shape_node, ignored, mint)
-    working.remove((shape_node, SH.closed, None))
-    working.add((shape_node, SH.closed, _TRUE))
+    if _is_closed(working, shape_node):
+        # an update changes what the data forces; the author's choice to leave the shape open (or to say sh:closed false) stays
+        _carry_forward_ignored_properties(working, shape_node, ignored, mint)
+        working.remove((shape_node, SH.closed, None))
+        working.add((shape_node, SH.closed, _TRUE))
     if changes:
         for old in list(working.objects(shape_node, RDFS.comment)):  # the comment of an earlier derivation is replaced, not stacked
             if isinstance(old, ox.Literal) and old.value.startswith(_COMMENT_HEADER):
@@ -780,8 +787,11 @@ def derive_shape(
     ``sh:hasValue``, pair comparisons) or it cannot be checked at all (``sh:sparql``, custom components) it is deactivated, not
     dropped, with a reifier on that one triple (``{| sh:deactivated true |}``), so a reader still sees what was switched off and
     the engine still skips it. A ``sh:minCount`` is lowered to the fewest values any node has; when that is 0 it is deactivated
-    instead of removed or set to 0, which is valid but reads as no constraint, so the original value stays visible. Predicates the template does not cover are added, and its ignored properties are kept. Only the
-    main shape is closed, not shapes it merely references. The declarations of the custom constraint components the shape uses
+    instead of removed or set to 0, which is valid but reads as no constraint, so the original value stays visible. Predicates the template does not cover are added, and its ignored properties are kept. The template's own setting of
+    ``sh:closed`` stays: an open shape stays open (no ``sh:closed`` is added), ``sh:closed false`` stays, and only a shape that
+    was ``sh:closed true`` gets the default ignored properties merged into its list, because an update changes what the data
+    forces and the author's choice to leave a shape open is not altered silently. Shapes it merely references are never changed.
+    The declarations of the custom constraint components the shape uses
     are copied along, or the parameter would be an ordinary triple that checks nothing.
 
     Every change is written in one ``rdfs:comment`` on the node shape, one line each in a fixed order (properties added,

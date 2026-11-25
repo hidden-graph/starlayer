@@ -304,6 +304,69 @@ class TestTemplateMerge:
         assert RDF.type in result_ignored
 
 
+class TestTemplateKeepsItsClosedSetting:
+    """An update changes only what the data forces: the template's sh:closed (or its absence) stays (2026-11-25)."""
+
+    DATA = 'ex:a a ex:Person ; ex:name "A" ; ex:age 3 ; ex:tag "t" .'
+
+    def _template(self, closed):
+        return _ttl(f'ex:S a sh:NodeShape ; sh:targetClass ex:Person ; {closed} sh:ignoredProperties ( ex:tag ) ; '
+                    'sh:property [ sh:path ex:name ] .')
+
+    @staticmethod
+    def _ignored(result):
+        head = result.value(ox.NamedNode('http://example.org/S'), SH.ignoredProperties)
+        return None if head is None else set(list_items(result, head))
+
+    @staticmethod
+    def _closed(result):
+        return list(result.objects(ox.NamedNode('http://example.org/S'), SH.closed))
+
+    def test_open_template_stays_open_and_conforms(self):
+        data, template = _ttl(self.DATA), self._template('')
+        before_data, before_template = _triples(data), _triples(template)
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert self._closed(result) == []
+        assert self._ignored(result) == {EX.tag}  # the template's list as it was, no default list added
+        paths = {p for prop in result.objects(ox.NamedNode('http://example.org/S'), SH.property) for p in result.objects(prop, SH.path)}
+        assert EX.age in paths and EX.name in paths  # a property the data has and the template lacks is added
+        assert _conforms(data, result)
+        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert (_triples(data), _triples(template)) == (before_data, before_template)
+
+    def test_closed_true_stays_closed_with_the_default_list_merged(self):
+        data, template = _ttl(self.DATA), self._template('sh:closed true ;')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert self._closed(result) == [lit(True)]
+        assert self._ignored(result) == {EX.tag, RDF.type} | set(DEFAULT_IGNORED_PROPERTIES)
+        assert _conforms(data, result)
+        assert starlayer.shacl.meta_validate(result)[0] is True
+
+    def test_closed_false_stays_false_with_its_list_untouched(self):
+        data, template = _ttl(self.DATA), self._template('sh:closed false ;')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert self._closed(result) == [lit(False)]
+        assert self._ignored(result) == {EX.tag}
+        assert _conforms(data, result)
+        assert starlayer.shacl.meta_validate(result)[0] is True
+
+    @pytest.mark.parametrize('closed', ['', 'sh:closed true ;', 'sh:closed false ;'])
+    def test_deterministic_and_idempotent(self, closed):
+        data, template = _ttl(self.DATA), self._template(closed)
+        first = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _triples(derive_shape(data, cls=EX.Person, template_graph=template)) == _triples(first)
+        again = derive_shape(data, cls=EX.Person, template_graph=first)
+        assert self._closed(again) == self._closed(first)
+        assert self._ignored(again) == self._ignored(first)
+
+    def test_fresh_derivation_is_still_closed_with_the_default_list(self):
+        result = derive_shape(_ttl(self.DATA), cls=EX.Person)
+        node = _node_shape(result)
+        assert result.value(node, SH.closed) == lit(True)
+        ignored = set(list_items(result, result.value(node, SH.ignoredProperties)))
+        assert ignored == {RDF.type} | set(DEFAULT_IGNORED_PROPERTIES)
+
+
 def test_derive_never_imports_pyshacl_directly():
     import inspect
 
