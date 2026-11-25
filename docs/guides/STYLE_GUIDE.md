@@ -8,7 +8,7 @@ This document is the house style for every notebook under `docs/guides/`. It exi
 
 Useful background before the rules: the [Diataxis](https://diataxis.fr/) framework (the standard reference on technical documentation structure) identifies four distinct documentation modes — **tutorial** (learning-oriented, guided, assumes nothing), **how-to guide** (task-oriented, assumes competence, answers "how do I do X"), **reference** (information-oriented, exhaustive, structured around the product not the user's goal), and **explanation** (understanding-oriented, discusses *why*). Its central warning is that mixing modes in one document serves no reader well — a learner drowns in reference tables, a reference-seeker wades through tutorial preamble.
 
-**StarLayer's guides are deliberately a how-to-guide/reference hybrid for a practitioner audience, not tutorials for beginners.** `01-getting-started.ipynb` already states this assumption explicitly ("assumes a working knowledge of RDF 1.1, SPARQL 1.1 and SHACL 1.1... using rdflib and pyshacl") — readers already know RDF/SPARQL/SHACL and rdflib/pyshacl; a guide's job is showing *what StarLayer adds or changes*, not teaching the underlying standard from scratch. Keep that framing explicit in every guide's opening (see below) rather than drifting toward either a beginner tutorial or a bare API dump — both failure modes have appeared in different guides during the review (see "Opening paragraph," below).
+**StarLayer's guides are deliberately a how-to-guide/reference hybrid for a practitioner audience, not tutorials for beginners.** `01.01-getting-started.ipynb` already states this assumption explicitly ("assumes a working knowledge of RDF 1.1, SPARQL 1.1 and SHACL 1.1... using rdflib and pyshacl") — readers already know RDF/SPARQL/SHACL and rdflib/pyshacl; a guide's job is showing *what StarLayer adds or changes*, not teaching the underlying standard from scratch. Keep that framing explicit in every guide's opening (see below) rather than drifting toward either a beginner tutorial or a bare API dump — both failure modes have appeared in different guides during the review (see "Opening paragraph," below).
 
 ## 1. Guide Index cell
 
@@ -30,9 +30,9 @@ The second cell (right after the Guide Index link) is always:
 
 (em dash, not a hyphen) followed immediately, same cell, by a tagline of **1–3 sentences** stating:
 1. what capability/feature area this covers, and
-2. at least one concrete thing it unlocks that the reader couldn't do (or would do awkwardly) without it — not just "extends X to support Y." `05f-shacl-subgraph-extraction.ipynb`'s opening (a concrete "suppose you record a signed hash of a journal entry..." scenario before any API description) is the model to follow; "`StarLayerGraph` extends rdflib's `Graph` to support RDF 1.2" on its own is not enough.
+2. at least one concrete thing it unlocks that the reader couldn't do (or would do awkwardly) without it — not just "extends X to support Y." `05.09-shacl-subgraph-extraction.ipynb`'s opening (a concrete "suppose you record a signed hash of a journal entry..." scenario before any API description) is the model to follow; "`StarLayerGraph` extends rdflib's `Graph` to support RDF 1.2" on its own is not enough.
 
-No exceptions for the entry point: `01-getting-started.ipynb` currently reads `# Getting Started with StarLayer` with no tagline — bring it into the same format as every other guide, not the reverse.
+No exceptions for the entry point: `01.01-getting-started.ipynb` currently reads `# Getting Started with StarLayer` with no tagline — bring it into the same format as every other guide, not the reverse.
 
 ## 3. "How to run this notebook" cell
 
@@ -40,7 +40,7 @@ Always the **third** cell, immediately after the title — never preceded by a s
 
 > This guide assumes StarLayer has been pip installed — see [Getting Started](01.01-getting-started.ipynb) if not. Run cells from top to bottom; later sections may reuse variables from earlier ones.
 
-Append, don't replace, when a guide has a real extra prerequisite (a JVM, a running Oxigraph/Fuseki instance, an optional extra like `pyshacl`/`rdflib-sqlalchemy`) — state it plainly and say what happens if it's missing (`02f-owl-dl-reasoning.ipynb`'s HermiT/Java note is the right length and specificity). State every real prerequisite here, not scattered across later sections (`06b`'s own `!pip install -q rdflib-sqlalchemy` buried mid-notebook is the anti-example).
+Append, don't replace, when a guide has a real extra prerequisite (a JVM, a running Oxigraph/Fuseki instance, an optional extra like `pyshacl`/`rdflib-sqlalchemy`) — state it plainly and say what happens if it's missing (`02.07-owl-dl-reasoning.ipynb`'s HermiT/Java note is the right length and specificity). State every real prerequisite here, not scattered across later sections (`06b`'s own `!pip install -q rdflib-sqlalchemy` buried mid-notebook is the anti-example).
 
 ## 4. Section numbering
 
@@ -54,7 +54,7 @@ Append, don't replace, when a guide has a real extra prerequisite (a JVM, a runn
 
 ## 5. Opening paragraph (per guide, not just the title tagline)
 
-One paragraph, not an essay, stating what's covered and why it matters (see §2) — then move into numbered sections. A reference-style table summarizing the whole topic (`02e-graphs-inferencing.ipynb`'s entailment-regime table) is fine as part of the opening when the guide is genuinely reference-shaped, but state the orienting sentence first, table second — never the reverse.
+One paragraph, not an essay, stating what's covered and why it matters (see §2) — then move into numbered sections. A reference-style table summarizing the whole topic (`02.06-graphs-inferencing.ipynb`'s entailment-regime table) is fine as part of the opening when the guide is genuinely reference-shaped, but state the orienting sentence first, table second — never the reverse.
 
 ## 6. Closing: one section, only when there's something to say
 
@@ -70,13 +70,13 @@ Do not use "Further Reading" as a closing-section name going forward - it was do
 
 ## 7. Tone
 
-Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A `sh:TripleRule` builds..." — this is already the dominant voice across 20 of 21 guides and stays the house style. Second person ("you can...") is fine for a direct instruction or a warning, used sparingly, not as the dominant register of a whole guide. First-person plural ("we'll show," "we introduce") is not used — `05a-shacl-node-expressions.ipynb` is the one current outlier using it and should be brought in line, not the model to extend.
+Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A `sh:TripleRule` builds..." — this is already the dominant voice across 20 of 21 guides and stays the house style. Second person ("you can...") is fine for a direct instruction or a warning, used sparingly, not as the dominant register of a whole guide. First-person plural ("we'll show," "we introduce") is not used — `05.04-shacl-node-expressions.ipynb` is the one current outlier using it and should be brought in line, not the model to extend.
 
 ## 8. Naming and code formatting: StarLayer, StarLayerGraph, and other identifiers
 
 **`StarLayer`** is the product/project name, not a Python identifier — write it as plain text, never backticked (`StarLayer`, not `` `StarLayer` ``). Capitalization is fixed: one word, capital S, capital L, matching the project README and PyPI listing.
 
-**Real identifiers are always code-formatted, with no exception for the two most-mentioned classes.** `` `StarLayerGraph` `` and `` `StarShaclProcessor` `` get backticks every time they appear — in prose, in a heading, as the subject of a sentence — exactly like any other identifier already is (`` `sh:rule` ``, `` `owl:equivalentClass` ``, `` `apply_rules()` ``). Several guides today write a bare, unbackticked `StarLayerGraph` as a sentence or heading subject (`01-getting-started.ipynb`'s `## 2. Using StarLayerGraph`, `02-graphs.ipynb`'s "StarLayerGraph extends rdflib's..."); that inconsistency is what this rule fixes, not a pattern to continue.
+**Real identifiers are always code-formatted, with no exception for the two most-mentioned classes.** `` `StarLayerGraph` `` and `` `StarShaclProcessor` `` get backticks every time they appear — in prose, in a heading, as the subject of a sentence — exactly like any other identifier already is (`` `sh:rule` ``, `` `owl:equivalentClass` ``, `` `apply_rules()` ``). Several guides today write a bare, unbackticked `StarLayerGraph` as a sentence or heading subject (`01.01-getting-started.ipynb`'s `## 2. Using StarLayerGraph`, `02.01-graphs.ipynb`'s "StarLayerGraph extends rdflib's..."); that inconsistency is what this rule fixes, not a pattern to continue.
 
 ## 9. The master guide index lives in exactly one place
 
@@ -86,16 +86,16 @@ Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A 
 
 ## 10. Cross-referencing
 
-- **Sibling guides**: always a real markdown link with descriptive text, `[Topic](NNx-filename.ipynb)`, optionally with a heading anchor (`02e-graphs-inferencing.ipynb#2.4-Detecting-inconsistencies`) when pointing at one specific subsection rather than a whole guide.
+- **Sibling guides**: always a real markdown link with descriptive text, `[Topic](NNx-filename.ipynb)`, optionally with a heading anchor (`02.06-graphs-inferencing.ipynb#2.4-Detecting-inconsistencies`) when pointing at one specific subsection rather than a whole guide.
 - **Deeper project docs** (`CLAUDE.md` files, the gap-matrix): also real markdown links from now on, not bare backtick-quoted paths — e.g. `[shacl12-gap-matrix.md](../../docs/design/shacl/shacl12-gap-matrix.md)`, not `` `docs/design/shacl/shacl12-gap-matrix.md` ``. A bare path isn't clickable in a rendered notebook; a link is, and costs nothing extra. This is a deliberate change from the currently-dominant-but-inconsistent practice, not a continuation of it.
 
 ## 11. No leftover authoring notes, ever
 
-A guide is not done while it contains a scratch note, an open question to a future editor, or a literal `CLAUDE:` directive — whether in its own leading cell or embedded mid-content in a cell a reader will actually see. This is a zero-tolerance rule, not a judgment call: seven of the current 21 guides fail it today (see the review notes for the full list), and `06a-manchester-syntax.ipynb` (renamed from `05f-`, see `README.md`) has directives embedded inside its own title and prerequisites cells, not just a quarantined leading cell. Before considering any guide finished: read every cell once as a first-time reader would, and remove anything that isn't meant for them.
+A guide is not done while it contains a scratch note, an open question to a future editor, or a literal `CLAUDE:` directive — whether in its own leading cell or embedded mid-content in a cell a reader will actually see. This is a zero-tolerance rule, not a judgment call: seven of the current 21 guides fail it today (see the review notes for the full list), and `06.02-manchester-syntax.ipynb` (renamed from `05f-`, see `README.md`) has directives embedded inside its own title and prerequisites cells, not just a quarantined leading cell. Before considering any guide finished: read every cell once as a first-time reader would, and remove anything that isn't meant for them.
 
 ## 12. Scope and size
 
-No hard cap, but a guideline: if a guide grows past roughly 40–50 cells, it's probably covering more than one coherent topic and should split into a core guide plus one or more satellites, the same way `05.01-validating-with-shacl-1.2.ipynb` already spawned `04a`–`04f`. `05a-shacl-node-expressions.ipynb` (93 cells, by far the largest guide — bigger than any "core" guide in the set) is the clearest current candidate; splitting it is a separate, deliberate task, not implied by adopting this style guide.
+No hard cap, but a guideline: if a guide grows past roughly 40–50 cells, it's probably covering more than one coherent topic and should split into a core guide plus one or more satellites, the same way `05.01-validating-with-shacl-1.2.ipynb` already spawned `04a`–`04f`. `05.04-shacl-node-expressions.ipynb` (93 cells, by far the largest guide — bigger than any "core" guide in the set) is the clearest current candidate; splitting it is a separate, deliberate task, not implied by adopting this style guide.
 
 ## 13. Template for a new guide
 

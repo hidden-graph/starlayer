@@ -25,7 +25,7 @@ docs/design/future_enhancements.md for the fuller writeup:
    design.** `classify()`/`materialize_inferred_class_assertions()`
    correctly derive disjunctive CLASS entailments (confirmed live: the
    nested-three-way-disjunction example this project's own
-   02f-owl-dl-reasoning.ipynb §1.1 uses comes back identical to HermiT's
+   02.07-owl-dl-reasoning.ipynb §1.1 uses comes back identical to HermiT's
    answer). `materialize_inferred_property_assertions()` documents itself
    as a "sound under-approximation (no anonymous-witness or
    disjunctive-derived edges)" - a forced property assignment via

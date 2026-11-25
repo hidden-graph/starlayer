@@ -47,7 +47,7 @@ Stack follows the repo-wide starting assumptions: FastAPI/Starlette + Jinja2 + H
 - `starlayer.shacl.target_nodes` → which nodes a shape targets (root nodes, and which shape(s) apply to a selected node).
 - `starlayer.shacl.extract_subgraph` → shape-scoped neighbourhood (for scoped validation and a future "export this node" action).
 - `StarLayerGraph` (rdf-1.1 default; rdf-1.2 + Oxigraph for native triple terms), `StarLayerDataset`, RDFC hashing for change detection.
-- Guide `docs/guides/05d-shacl-ui.ipynb` for the intended semantics.
+- Guide `docs/guides/05.07-shacl-ui.ipynb` for the intended semantics.
 
 ## Architecture
 

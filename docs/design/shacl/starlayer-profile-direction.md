@@ -1,6 +1,6 @@
 # Profiles of `starlayer` itself
 
-*Moved from `docs/guides/05e-shacl-profiling.ipynb`, section 6 (2026-11-21). This is not implemented as code; it is the direction the profiling pattern would extend to.*
+*Moved from `docs/guides/05.08-shacl-profiling.ipynb`, section 6 (2026-11-21). This is not implemented as code; it is the direction the profiling pattern would extend to.*
 
 Extending the same pattern one level further: `starlayer` implements a documented subset of RDF 1.2, SPARQL 1.2, and SHACL 1.2. Following §3's own two-step relationship (a profile is a *specification*; an implementation *conforms to* it, rather than being a profile itself) — the actual profile isn't `starlayer` the software, it's `starlayer`'s own documented scope: the gap-analysis documents, the scope-reduction notes already scattered through each subpackage's own `CLAUDE.md` (SRL's documented grammar reductions, the RDF 1.2 interop gaps, etc.). `starlayer` would then *conform to* that profile — the same relationship a SHACL validator has with the Core Profile.
 
