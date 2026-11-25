@@ -14,6 +14,17 @@ Commands (``--root`` is for tests):
 - ``pull``: bring the maintainer's changes into the staging copy, so edits are made on the latest text. Staging wins a conflict.
 - ``push --yes``: write the pending batch to the working guides, after saving a backup of each file it replaces. A conflict is
   never written: that file is skipped and reported. Without ``--yes`` this is a dry run, the same as ``status``.
+- ``rename OLD NEW``: move one guide to a new name in the working guides (``git mv`` when Git tracks it), the staging copy and the
+  base together. Refused when the working file has edits that are not in the base (the maintainer edited it since the last
+  ``pull``), unless ``--force-working-edited`` says to carry those edits along. A rename is made only this way: a file deleted
+  in the staging copy and created under another name is still a delete plus a create, and ``push`` refuses to write the new
+  name when it shares at least 80% of its cell ids with a deleted notebook whose working copy was edited.
+
+``--only PATH...`` (on ``status``, ``diff``, ``pull`` and ``push``) limits the command to those tracked files; a path is the
+repo-relative path, the path under ``docs/guides``, or a bare file name. Everything else in the stage, base and working trees is
+left untouched, and a push saves backups only for the files it writes. An unknown path is an error that lists the known notebooks.
+``push --only NOTEBOOK --cells ID... --yes`` pushes only the named cells of that one notebook: the other cells keep the working
+copy's text, the staging copy keeps its other pending cells, and the base advances only for the pushed cells.
 
 A notebook is compared cell by cell, by cell id, on the cell type and source. Outputs follow their cell: a changed output
 is taken from the staging copy unless the working cell's output also changed. Every other file is compared as a whole.
@@ -26,6 +37,7 @@ import argparse
 import difflib
 import json
 import shutil
+import subprocess
 import sys
 import time
 from dataclasses import dataclass, field
@@ -223,8 +235,31 @@ def merge_file(relative: str, base: bytes | None, stage: bytes | None, work: byt
     return result
 
 
-def plan(trees: Trees) -> list[Merged]:
-    names = sorted(tracked(trees.work) | tracked(trees.stage) | tracked(trees.base))
+def known(trees: Trees) -> set[str]:
+    return tracked(trees.work) | tracked(trees.stage) | tracked(trees.base)
+
+
+def resolve_only(trees: Trees, paths: list[str] | None) -> list[str] | None:
+    """The tracked files that ``--only`` names (None when it is absent). An unknown or ambiguous path is an error."""
+    if not paths:
+        return None
+    names = known(trees)
+    chosen: list[str] = []
+    for given in paths:
+        text = given[2:] if given.startswith("./") else given
+        matches = [text] if text in names else [f"{GUIDES}/{text}"] if f"{GUIDES}/{text}" in names else sorted(n for n in names if Path(n).name == text)
+        if len(matches) != 1:
+            notebooks = sorted(n for n in names if n.endswith(".ipynb"))
+            others = sorted(names - set(notebooks))
+            why = "is ambiguous" if matches else "is not a tracked file"
+            sys.exit(f"{given!r} {why}. Known notebooks:\n  " + "\n  ".join(notebooks) + "\nOther tracked files:\n  " + "\n  ".join(others))
+        if matches[0] not in chosen:
+            chosen.append(matches[0])
+    return chosen
+
+
+def plan(trees: Trees, only: list[str] | None = None) -> list[Merged]:
+    names = sorted(known(trees) if only is None else only)
     return [merge_file(n, read(trees.base, n), read(trees.stage, n), read(trees.work, n)) for n in names]
 
 
@@ -268,12 +303,12 @@ def _report(merged: list[Merged]) -> bool:
     return pending
 
 
-def status(trees: Trees) -> None:
-    _report(plan(trees))
+def status(trees: Trees, only: list[str] | None = None) -> None:
+    _report(plan(trees, only))
 
 
-def show_diff(trees: Trees, only: str | None) -> None:
-    for m in plan(trees):
+def show_diff(trees: Trees, only: str | None, files: list[str] | None = None) -> None:
+    for m in plan(trees, files):
         if not m.mine or (only and only not in m.relative):
             continue
         before, after = read(trees.work, m.relative), m.content
@@ -317,8 +352,8 @@ def advance_base(trees: Trees, relative: str) -> None:
         write(trees.base, relative, _dump(nb_b))
 
 
-def pull(trees: Trees) -> None:
-    merged = plan(trees)
+def pull(trees: Trees, only: list[str] | None = None) -> None:
+    merged = plan(trees, only)
     for m in merged:
         if m.content != read(trees.stage, m.relative):
             write(trees.stage, m.relative, m.content)
@@ -329,8 +364,27 @@ def pull(trees: Trees) -> None:
             print(f"CONFLICT {m.relative}: {conflict} (staging kept)")
 
 
-def push(trees: Trees, yes: bool) -> int:
-    merged = plan(trees)
+def _is_new_notebook(trees: Trees, relative: str) -> bool:
+    return relative.endswith(".ipynb") and read(trees.base, relative) is None and read(trees.work, relative) is None and read(trees.stage, relative) is not None
+
+
+def paired_rename(trees: Trees, relative: str) -> tuple[str, Merged] | None:
+    """The notebook that a new staged notebook looks like a rename of: one deleted in the staging copy that shares at least 80% of its cell ids."""
+    if not _is_new_notebook(trees, relative):
+        return None
+    new_ids = set(_cells(_notebook(read(trees.stage, relative))))
+    for old in sorted(tracked(trees.base) - tracked(trees.stage)):
+        base = read(trees.base, old)
+        if not old.endswith(".ipynb") or base is None:
+            continue
+        old_ids = set(_cells(_notebook(base)))
+        if old_ids and len(old_ids & new_ids) >= 0.8 * len(old_ids):
+            return old, merge_file(old, base, None, read(trees.work, old))
+    return None
+
+
+def push(trees: Trees, yes: bool, only: list[str] | None = None) -> int:
+    merged = plan(trees, only)
     if not yes:
         _report(merged)
         print("dry run: nothing written (use push --yes after approval)")
@@ -342,6 +396,13 @@ def push(trees: Trees, yes: bool) -> int:
             skipped += 1
             print(f"SKIPPED {m.relative}: {'; '.join(m.conflicts)}")
             continue
+        pair = paired_rename(trees, m.relative)
+        if pair is not None:
+            if pair[1].conflicts:
+                skipped += 1
+                print(f"SKIPPED {m.relative}: looks like a rename of {pair[0]}, which was edited in the working guides ({'; '.join(pair[1].conflicts)}); use `rename`")
+                continue
+            print(f"renamed {pair[0]} -> {m.relative}")
         current = read(trees.work, m.relative)
         if m.content != current:
             if current is not None:
@@ -356,32 +417,138 @@ def push(trees: Trees, yes: bool) -> int:
     return 1 if skipped else 0
 
 
+def _apply_cells(target: dict, source: dict, ids: list[str]) -> dict:
+    """``target`` with the named cells set to their state in ``source`` (replaced, inserted after their predecessor, or removed)."""
+    cells = [json.loads(json.dumps(c)) for c in target["cells"]]
+    src = _cells(source)
+    order = _order(source)
+    for cell_id in sorted(ids, key=lambda i: order.index(i) if i in order else len(order)):
+        at = next((n for n, c in enumerate(cells) if c["id"] == cell_id), None)
+        if cell_id not in src:
+            if at is not None:
+                del cells[at]
+        elif at is not None:
+            cells[at] = json.loads(json.dumps(src[cell_id]))
+        else:
+            earlier = [c for c in order[: order.index(cell_id)]]
+            where = next((n + 1 for p in reversed(earlier) for n, c in enumerate(cells) if c["id"] == p), 0)
+            cells.insert(where, json.loads(json.dumps(src[cell_id])))
+    return {key: (cells if key == "cells" else value) for key, value in target.items()}
+
+
+def push_cells(trees: Trees, relative: str, ids: list[str], yes: bool) -> int:
+    """Push only the named cells of one notebook."""
+    stage, work, base = read(trees.stage, relative), read(trees.work, relative), read(trees.base, relative)
+    if not relative.endswith(".ipynb") or stage is None or work is None:
+        sys.exit("--cells needs a notebook that exists in both the staging copy and the working guides")
+    nb_s, nb_w = _notebook(stage), _notebook(work)
+    nb_b = _notebook(base) if base is not None else {key: ([] if key == "cells" else value) for key, value in nb_w.items()}
+    present = set(_cells(nb_s)) | set(_cells(nb_w)) | set(_cells(nb_b))
+    unknown = [i for i in ids if i not in present]
+    if unknown:
+        sys.exit(f"no such cell id in {relative}: {', '.join(unknown)}")
+    merged, conflicts = merge_notebook(nb_b, nb_s, nb_w)
+    conflicts = [c for c in conflicts if any(c.startswith(f"cell {i}:") for i in ids)]
+    chosen = set(ids)
+    mine = [n for n in _cell_changes(nb_b, nb_s) if n.rsplit(" ", 1)[-1] in chosen]
+    result = _apply_cells(nb_w, merged, ids)
+    content = work if result == nb_w else _dump(result)
+    print(relative)
+    if mine:
+        print(f"   mine (pending, named cells only): {', '.join(mine)}")
+    for conflict in conflicts:
+        print(f"   CONFLICT {conflict}")
+    if not yes:
+        print("dry run: nothing written (use push --yes after approval)")
+        return 0
+    if conflicts:
+        print(f"SKIPPED {relative}: {'; '.join(conflicts)}")
+        return 1
+    if content != work:
+        write(trees.stage.parent / ".backup" / time.strftime("%Y%m%d-%H%M%S"), relative, work)
+        write(trees.work, relative, content)
+        print(f"pushed {relative} (cells {', '.join(ids)})")
+    write(trees.stage, relative, _dump(_apply_cells(nb_s, merged, ids)))
+    write(trees.base, relative, _dump(_apply_cells(nb_b, merged, ids)))
+    print("reload any notebook that is open in the IDE")
+    return 0
+
+
+def rename(trees: Trees, root: Path, old: str, new: str, force_working_edited: bool = False) -> None:
+    """Move one guide to a new name in the working, staging and base trees together, refusing to carry along unseen edits."""
+    (old,) = resolve_only(trees, [old])
+    new = new[2:] if new.startswith("./") else new
+    if "/" not in new:
+        new = f"{Path(old).parent.as_posix()}/{new}"
+    elif new not in known(trees) and not new.startswith(("docs/", "tools/")):
+        new = f"{GUIDES}/{new}"
+    if Path(new).suffix != Path(old).suffix:
+        sys.exit(f"{new}: a rename keeps the file type ({Path(old).suffix})")
+    if any((tree / new).exists() for tree in (trees.work, trees.stage, trees.base)):
+        sys.exit(f"cannot rename to {new}: it already exists in the working, staging or base tree")
+    work, base = read(trees.work, old), read(trees.base, old)
+    if work is None:
+        sys.exit(f"cannot rename {old}: it is not in the working guides")
+    if work != base and not force_working_edited:
+        sys.exit(
+            f"refused: {old} has edits in the working guides that are not in the base (it was edited since the last pull).\n"
+            f"Run `pull --only {old}` first, or pass --force-working-edited to carry those edits to {new}."
+        )
+    (trees.work / new).parent.mkdir(parents=True, exist_ok=True)
+    moved = False
+    if (root / ".git").exists():
+        done = subprocess.run(["git", "-C", str(root), "ls-files", "--error-unmatch", old], capture_output=True)
+        if done.returncode == 0:
+            moved = subprocess.run(["git", "-C", str(root), "mv", old, new], capture_output=True).returncode == 0
+    if not moved:
+        (trees.work / old).rename(trees.work / new)
+    for tree in (trees.stage, trees.base):
+        if (tree / old).exists():
+            (tree / new).parent.mkdir(parents=True, exist_ok=True)
+            (tree / old).rename(tree / new)
+    print(f"renamed {old} -> {new}")
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("--root", type=Path, default=DEFAULT_ROOT, help=argparse.SUPPRESS)
     sub = parser.add_subparsers(dest="command", required=True)
+    scoped = argparse.ArgumentParser(add_help=False)
+    scoped.add_argument("--only", nargs="+", metavar="PATH", help="limit the command to these tracked files (repo-relative path, path under docs/guides, or bare file name)")
     p = sub.add_parser("init")
     p.add_argument("--force", action="store_true")
-    sub.add_parser("status")
-    p = sub.add_parser("diff")
+    sub.add_parser("status", parents=[scoped])
+    p = sub.add_parser("diff", parents=[scoped])
     p.add_argument("path", nargs="?")
-    sub.add_parser("pull")
-    p = sub.add_parser("push")
+    sub.add_parser("pull", parents=[scoped])
+    p = sub.add_parser("push", parents=[scoped])
     p.add_argument("--yes", action="store_true", help="write the pending batch to the working guides")
+    p.add_argument("--cells", nargs="+", metavar="ID", help="with --only NOTEBOOK: push only these cell ids of that notebook")
+    p = sub.add_parser("rename")
+    p.add_argument("old")
+    p.add_argument("new")
+    p.add_argument("--force-working-edited", action="store_true", help="carry edits that the working file has and the base lacks to the new name")
     args = parser.parse_args(argv)
     trees = Trees.at(args.root)
     if args.command != "init" and not trees.stage.exists():
         sys.exit("no staging copy: run `python scripts/guide_staging.py init` first")
+    only = resolve_only(trees, getattr(args, "only", None)) if args.command != "init" else None
     if args.command == "init":
         init(trees, args.root, args.force)
     elif args.command == "status":
-        status(trees)
+        status(trees, only)
     elif args.command == "diff":
-        show_diff(trees, args.path)
+        show_diff(trees, args.path, only)
     elif args.command == "pull":
-        pull(trees)
+        pull(trees, only)
+    elif args.command == "rename":
+        rename(trees, args.root, args.old, args.new, args.force_working_edited)
+    elif args.cells:
+        if only is None or len(only) != 1:
+            sys.exit("--cells needs --only with exactly one notebook")
+        return push_cells(trees, only[0], args.cells, args.yes)
     else:
-        return push(trees, args.yes)
+        return push(trees, args.yes, only)
     return 0
 
 
