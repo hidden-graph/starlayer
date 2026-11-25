@@ -6,11 +6,13 @@ The result is the wrapper's ``Result`` over pyoxigraph terms.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
+from contextlib import contextmanager
 from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import terms
 from starlayer.graph.execution import union as union_graph
 from starlayer.graph.execution.result import HiddenColumns, Result
@@ -18,6 +20,24 @@ from starlayer.graph.execution.sparql_text import (
     check_native_version_conformance,
     inject_init_bindings,
 )
+
+
+@contextmanager
+def _oxigraph_boundary(what: str) -> Iterator[None]:
+    """Where the text reaches Oxigraph: its ``SyntaxError`` is a ``FormatError`` of kind ``"sparql"`` and its ``RuntimeError`` an
+    ``ExecutionError`` of kind ``"query"``, with ``what`` (``"query"`` or ``"update"``) as the ``context``. Only those exact classes
+    are converted, as Oxigraph raises them: a subclass (``NotImplementedError``, ``RecursionError``, a library error) passes through.
+    The message is the engine's own text; no position is read out of it, as Oxigraph gives none as an attribute."""
+    try:
+        yield
+    except SyntaxError as error:
+        if type(error) is not SyntaxError:
+            raise
+        raise FormatError(str(error), kind="sparql", context=f"Oxigraph {what}") from error
+    except RuntimeError as error:
+        if type(error) is not RuntimeError:  # a subclass (NotImplementedError, RecursionError, a library error) is not the engine's
+            raise
+        raise ExecutionError(str(error), kind="query", context=f"Oxigraph {what}") from error
 
 
 def _sparql_term(t: Any) -> str:
@@ -117,6 +137,10 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
           custom_aggregate_functions: Mapping[Any, Any] | None = None) -> Result:
     """Run SPARQL query text on a store and return the wrapper's ``Result``.
 
+    Raises:
+        FormatError: (kind ``"sparql"``) Oxigraph rejects the text, or its ``VERSION`` directive does not match what it uses.
+        ExecutionError: (kind ``"query"``) Oxigraph fails while evaluating the query.
+
     Args:
         prefixes: the graph's own prefix map; ``init_ns`` is merged over it.
         init_bindings: pre-bound variables. A variable the query does not project is handled by a ``VALUES`` clause, or,
@@ -126,6 +150,16 @@ def query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, ini
         entailment: a regime for query-time entailment; the query is rewritten and the data is not changed.
         custom_functions, custom_aggregate_functions: SPARQL functions and aggregates written in Python, by IRI (see ``custom_function_kwargs``).
     """
+    with _oxigraph_boundary("query"):
+        return _query(store, text, prefixes=prefixes, init_ns=init_ns, init_bindings=init_bindings, base=base, default_graph=default_graph,
+                      union=union, entailment=entailment, custom_functions=custom_functions,
+                      custom_aggregate_functions=custom_aggregate_functions)
+
+
+def _query(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any, init_bindings: Mapping[Any, Any] | None,
+           base: str | None, default_graph: Any, union: bool, entailment: Any, custom_functions: Mapping[Any, Any] | None,
+           custom_aggregate_functions: Mapping[Any, Any] | None) -> Result:
+    """``query`` with the engine's own exceptions, which the ``"projection"`` fallback reads."""
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs query text, not a prepared Query object")
     check_native_version_conformance(text)
@@ -180,7 +214,19 @@ def update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, in
             default graph or blank-node graphs hold data, or when triples overlap, and is removed afterwards.
         overlap: the union tracker; consulted only when ``union`` is true. If it reports a triple held in more than
             one graph, the scratch graph holds each triple once.
+
+    Raises:
+        FormatError: (kind ``"sparql"``) Oxigraph rejects the text, or its ``VERSION`` directive does not match what it uses.
+        ExecutionError: (kind ``"query"``) Oxigraph fails while running the update.
     """
+    with _oxigraph_boundary("update"):
+        _update(store, text, prefixes=prefixes, init_ns=init_ns, base=base, union=union, overlap=overlap,
+                custom_functions=custom_functions, custom_aggregate_functions=custom_aggregate_functions, scope=scope)
+
+
+def _update(store: ox.Store, text: str, *, prefixes: Mapping[str, str] | None, init_ns: Any, base: str | None, union: bool,
+            overlap: Any, custom_functions: Mapping[Any, Any] | None, custom_aggregate_functions: Mapping[Any, Any] | None,
+            scope: Any) -> None:
     if not isinstance(text, str):
         raise NotImplementedError("the wrapper runs update text, not a prepared Update object")
     check_native_version_conformance(text)

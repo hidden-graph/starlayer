@@ -3,6 +3,7 @@
 import warnings
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph
 
 warnings.simplefilter("ignore")
@@ -49,7 +50,7 @@ def test_a_blank_node_inside_a_triple_term_in_a_pattern_is_an_anonymous_variable
     ],
 )
 def test_data_blocks_take_ground_data(update):
-    with pytest.raises(SyntaxError):  # Oxigraph rejects it as a syntax error (O5); the old parser raised ValueError("not permitted")
+    with pytest.raises(FormatError):  # Oxigraph rejects it as a syntax error (O5); the old parser raised ValueError("not permitted")
         StarLayerGraph().update(P + update)
 
 

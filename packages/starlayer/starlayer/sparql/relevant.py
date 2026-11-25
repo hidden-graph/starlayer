@@ -73,7 +73,7 @@ def relevant_subgraph(
     Every derivation is kept and nothing is chosen between them (see the module docstring). ``init_ns`` (prefix to namespace)
     declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
 
-    Raises ``SparqlSyntaxError`` for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
+    Raises ``FormatError`` (kind ``"sparql"``) for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
     depends on a remote graph, so it cannot be reproduced from a subgraph of this one)."""
     from starlayer.graph import StarLayerDataset, StarLayerGraph
 

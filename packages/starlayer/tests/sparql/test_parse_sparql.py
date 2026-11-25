@@ -16,9 +16,9 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.sparql._oxterms import RDF, XSD
+from starlayer.errors import FormatError
 from starlayer.sparql.parse_sparql import (
     Node,
-    SparqlSyntaxError,
     ast_to_triples,
     parse_sparql,
     sparql_to_tree,
@@ -55,7 +55,7 @@ def test_w3c_positive_syntax_parses(entry):
 @pytest.mark.skipif(not _NEGATIVE, reason="W3C SPARQL 1.2 test data not fetched")
 @pytest.mark.parametrize("entry", _NEGATIVE, ids=entry_key)
 def test_w3c_negative_syntax_is_rejected(entry):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql(entry.read(entry.query_file))
 
 
@@ -68,7 +68,7 @@ def test_w3c11_positive_syntax_parses(entry):
 @pytest.mark.skipif(not _NEGATIVE11, reason="W3C SPARQL 1.1 test data not fetched")
 @pytest.mark.parametrize("entry", _NEGATIVE11, ids=lambda e: e.key)
 def test_w3c11_negative_syntax_is_rejected(entry):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql(entry.read())
 
 
@@ -209,7 +209,7 @@ def test_unicode_escape_in_string_and_iri():
     ],
 )
 def test_errors_carry_positions(text, line, col):
-    with pytest.raises(SparqlSyntaxError) as info:
+    with pytest.raises(FormatError) as info:
         parse_sparql(text)
     assert (info.value.line, info.value.col) == (line, col)
 
@@ -229,7 +229,7 @@ def test_errors_carry_positions(text, line, col):
     ],
 )
 def test_rejects_ill_formed_queries(text):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql(text)
 
 
@@ -357,5 +357,5 @@ def test_adjacent_keywords_are_matched_longest_first(text):
 
 
 def test_a_word_that_is_not_made_of_keywords_is_still_an_error():
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql("ASK { ?s ?p ?o FILTERxyz(?o) }")

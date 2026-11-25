@@ -18,7 +18,7 @@ announced version (but could signal them with a warning)", and the SPARQL spec
 says "processors may treat unrecognized labels as an error or as a warning" -
 neither mandates specific behavior. StarLayer rejects a SPARQL query or update
 whose own VERSION directive its text contradicts, or that names an unknown
-label (SPARQL12ConformanceError, a ValueError), before anything is run or sent
+label (a ``FormatError`` of kind ``"sparql"`` with ``context="VERSION"``), before anything is run or sent
 to a store: a query that declares a version it does not meet is wrong, and a
 query headed for a store that does not support 1.2 should not go out as one.
 
@@ -27,18 +27,14 @@ for RDF documents (Turtle, TriG, N-Triples/N-Quads, RDF/XML) was dropped on 2026
 a hint and a mismatch is not signalled. A mismatch that is a hard error stays one.
 """
 
+from starlayer.errors import FormatError
+
 VALID_VERSION_LABELS = frozenset({'1.2', '1.2-basic', '1.1'})
 
 
-class SPARQL12ConformanceError(ValueError):
-    """A declared VERSION label doesn't match the RDF 1.2 features actually
-    used in a SPARQL query/update's own text, or is not a known label."""
-
-
 def check_version_conformance(declared_version, *, uses_triple_term: bool,
-                               uses_dirlangstring: bool, context: str,
-                               error_class: type = SPARQL12ConformanceError) -> None:
-    """Raise if declared_version is unrecognized, or is "1.2-basic"/"1.1" while
+                               uses_dirlangstring: bool, context: str) -> None:
+    """Raise ``FormatError`` (kind ``"sparql"``, ``context="VERSION"``) if declared_version is unrecognized, or is "1.2-basic"/"1.1" while
     a triple term and/or dirLangString is actually present.
 
     "1.1" is included alongside "1.2-basic" here, not just "1.2-basic": "1.1"
@@ -51,15 +47,15 @@ def check_version_conformance(declared_version, *, uses_triple_term: bool,
                          directive was present (in which case this is a no-op)
     context           -- short label identifying what was checked, for the
                           error message, e.g. "SPARQL query"
-    error_class       -- SPARQL12ConformanceError
     """
     if declared_version is None:
         return
 
     if declared_version not in VALID_VERSION_LABELS:
-        raise error_class(
+        raise FormatError(
             f'{context} declares unrecognized VERSION {declared_version!r} '
-            f'(expected one of {sorted(VALID_VERSION_LABELS)})'
+            f'(expected one of {sorted(VALID_VERSION_LABELS)})',
+            kind='sparql', context='VERSION',
         )
 
     if declared_version in ('1.2-basic', '1.1'):
@@ -70,7 +66,8 @@ def check_version_conformance(declared_version, *, uses_triple_term: bool,
         ) if present]
         if used:
             citation = 'SPARQL 1.2 Query sec 4.3'
-            raise error_class(
+            raise FormatError(
                 f'{context} declares VERSION {declared_version!r} but uses {" and ".join(used)}, '
-                f'which {declared_version!r} conformance excludes ({citation})'
+                f'which {declared_version!r} conformance excludes ({citation})',
+                kind='sparql', context='VERSION',
             )

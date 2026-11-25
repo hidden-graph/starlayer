@@ -45,12 +45,12 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError, FormatError, only_kind
 from starlayer.graph.namespaces import RDFS  # noqa: E402,F401
 
 from .._oxterms import RDF
 from ..parse_sparql import (
     Node,
-    SparqlSyntaxError,
     _pattern_vars,
     _values_vars,
     ast_to_triples,
@@ -116,7 +116,7 @@ def rewrite_for_entailment(text: str, regime: Any, *, prefixes: Any = None, base
     Raises:
         NotImplementedError: ``regime`` is neither RDF nor RDFS (OWL regimes need ``infer()``).
         EntailmentRewriteError: The query cannot be rewritten exactly.
-        SparqlSyntaxError: ``text`` is not a query.
+        FormatError: (kind "sparql") ``text`` is not a query.
     """
     iri = regime_iri(regime)
     if iri not in (RDF_REGIME, RDFS_REGIME):
@@ -147,7 +147,10 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
         triples, root = ast_to_triples(tree)
         out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
-    except (SparqlSyntaxError, ValueError, NotImplementedError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
+    except (FormatError, ValueError, NotImplementedError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
+        raise EntailmentRewriteError(f"the rewritten query could not be written out as SPARQL: {e}") from e
+    except ExecutionError as e:  # nested too deeply to parse or encode; any other kind is a real failure
+        only_kind(e, "nesting")
         raise EntailmentRewriteError(f"the rewritten query could not be written out as SPARQL: {e}") from e
     return out
 

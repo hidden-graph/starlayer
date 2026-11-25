@@ -9,6 +9,7 @@ import pickle
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerDataset, StarLayerGraph, interop
 
 EX = "http://example.org/"
@@ -368,7 +369,7 @@ def test_the_rdf_conformance_warning_class_is_gone():
     from starlayer.graph.execution import version_conformance as conformance
 
     assert not hasattr(conformance, "RDF12ConformanceWarning")
-    assert hasattr(conformance, "SPARQL12ConformanceError")
+    assert not hasattr(conformance, "SPARQL12ConformanceError")  # a FormatError of kind "sparql", context "VERSION"
 
 
 # ---- O4: a plain turtle parse does not adopt the basic encoding --------------------------------------------------------------
@@ -399,14 +400,14 @@ def test_from_basic_is_the_way_to_decode_it():
 # ---- O5: exception types; no used-graph line in a SHACL report -----------------------------------------------------------------
 
 
-def test_syntax_errors_are_syntax_error():
-    with pytest.raises(SyntaxError):
+def test_syntax_errors_are_format_errors():
+    with pytest.raises(SyntaxError):  # an RDF document: still Oxigraph's own class (stage 4)
         StarLayerGraph().parse(data="<a", format="turtle")
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         StarLayerGraph().update("INSERT DATA {")
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         StarLayerGraph().query("SELEC * {}")
-    with pytest.raises(SyntaxError):  # a blank node shared by two INSERT DATA blocks (SPARQL 1.1 update 3.1.1)
+    with pytest.raises(FormatError):  # a blank node shared by two INSERT DATA blocks (SPARQL 1.1 update 3.1.1)
         StarLayerGraph().update("INSERT DATA { _:b <urn:p> 1 } ; INSERT DATA { _:b <urn:p> 2 }")
     with pytest.raises(ValueError):
         StarLayerGraph().parse(data="", format="no-such-format")

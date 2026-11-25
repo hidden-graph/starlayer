@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 
+from starlayer.errors import FormatError
+
 from . import _srl_ast as srl_ast
 from .parse_sparql import Node, _Parser
 from .triple_term import ExprNode, TripleTermNode
@@ -306,12 +308,12 @@ def parse_srl(text: str, base: str | None = None) -> srl_ast.RuleSet:
     Raises:
         SRLParseError: For a syntax error, an undeclared prefix, or a property path SRL does not allow.
     """
-    from .parse_sparql import SparqlSyntaxError as _Err
+    from .parse_sparql import _syntax_error
 
     try:
         return _SrlParser(text, base).parse_ruleset()
-    except _Err as exc:
+    except FormatError as exc:
         raise _srl_error(str(exc), exc) from exc
     except RecursionError:  # the grammar nests without limit, Python's stack does not (as in parse_sparql)
-        exc = _Err("expression or pattern nested too deeply to parse", text, 0)
+        exc = _syntax_error("expression or pattern nested too deeply to parse", text, 0)
         raise _srl_error(str(exc), exc) from None

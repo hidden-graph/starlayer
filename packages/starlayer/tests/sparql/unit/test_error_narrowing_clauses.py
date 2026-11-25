@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
+from starlayer.errors import FormatError
 from starlayer.shacl.errors import ExecutionError, ShapeError
 from starlayer.sparql import check
 from starlayer.sparql.sqe import entailment, rewrite
@@ -85,14 +86,14 @@ def _query_raises(monkeypatch, exc):
     monkeypatch.setattr(StarLayerGraph, "query", fail)
 
 
-@pytest.mark.parametrize("exc", [RuntimeError("evaluation failed"), SyntaxError("bad"), NotImplementedError("no")])
+@pytest.mark.parametrize("exc", [ExecutionError("evaluation failed", kind="query"), FormatError("bad", kind="sparql"), NotImplementedError("no")])
 def test_the_engine_problem_is_reported_for_the_engines_own_failures(monkeypatch, exc):
     _query_raises(monkeypatch, exc)
     problem = check._engine_problem("SELECT * WHERE {}", None, {})
     assert problem is not None and problem.message
 
 
-@pytest.mark.parametrize("exc", [KeyError("x"), AttributeError("x"), ExecutionError("a user function failed", kind="expression"), ShapeError("bad shapes")])
+@pytest.mark.parametrize("exc", [KeyError("x"), AttributeError("x"), RuntimeError("raw"), SyntaxError("raw"), ExecutionError("a user function failed", kind="expression"), ShapeError("bad shapes")])
 def test_the_engine_problem_does_not_turn_a_bug_or_a_shacl_error_into_a_query_problem(monkeypatch, exc):
     _query_raises(monkeypatch, exc)
     with pytest.raises(type(exc)):

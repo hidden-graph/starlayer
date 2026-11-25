@@ -12,8 +12,8 @@ from __future__ import annotations
 import sys
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.sparql.parse_sparql import (
-    SparqlSyntaxError,
     parse_sparql,
     parse_sparql_update,
 )
@@ -108,7 +108,7 @@ def test_case_parses_or_is_rejected(case):
     if case.ok:
         parse(case.text)
     else:
-        with pytest.raises(SparqlSyntaxError):
+        with pytest.raises(FormatError):
             parse(case.text)
 
 
@@ -124,7 +124,7 @@ def _methods_run(text: str, update: bool = False) -> set[str]:
     try:
         try:
             (parse_sparql_update if update else parse_sparql)(text)
-        except SparqlSyntaxError:
+        except FormatError:
             pass
     finally:
         sys.setprofile(None)

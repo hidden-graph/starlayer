@@ -16,8 +16,8 @@ does not have) mean the request parsed and failed to run. Only the first kind co
 from __future__ import annotations
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.sparql.parse_sparql import (
-    SparqlSyntaxError,
     parse_sparql_update,
     sparql_update_to_tree,
 )
@@ -79,7 +79,7 @@ def test_rendered_text_of_positive_update_parses_in_oxigraph(key, text):
 
 @pytest.mark.parametrize("key,text", NEGATIVE, ids=[k for k, _ in NEGATIVE])
 def test_negative_update_is_rejected_by_us_and_oxigraph_verdict_is_registered(key, text):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql_update(text)
     if key in OX_ACCEPTS_INVALID:
         assert ox_parses(text), f"Oxigraph now rejects {key}: remove it from OX_ACCEPTS_INVALID"

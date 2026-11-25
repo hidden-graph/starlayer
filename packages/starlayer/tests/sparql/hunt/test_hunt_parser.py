@@ -7,16 +7,17 @@ XPASSes and strict mode makes that visible.
 from __future__ import annotations
 
 import pytest
-from starlayer.sparql.parse_sparql import SparqlSyntaxError, ast_to_tree, parse_sparql
+from starlayer.errors import ExecutionError, FormatError
+from starlayer.sparql.parse_sparql import ast_to_tree, parse_sparql
 from starlayer.sparql.sqe.to_text import sqe_tree_to_text
 
 
 def _roundtrip(text: str) -> None:
     """parse -> sqe tree -> text -> parse. Parse rejection of the ORIGINAL (a depth limit) is acceptable; anything
-    after a successful parse must work, and only ever fail with SparqlSyntaxError at the first stage."""
+    after a successful parse must work, and only ever fail with FormatError at the first stage."""
     try:
         ast = parse_sparql(text)
-    except SparqlSyntaxError:
+    except (FormatError, ExecutionError):  # a syntax error, or a depth limit
         return
     graph, root = ast_to_tree(ast)
     regenerated = sqe_tree_to_text(graph, root)

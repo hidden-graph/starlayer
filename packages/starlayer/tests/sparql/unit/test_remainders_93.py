@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.sparql.parse_sparql import SparqlSyntaxError
+from starlayer.errors import FormatError
 from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 
@@ -69,12 +69,12 @@ def test_a_bare_reifier_inside_a_reified_triple_parses():
 
 @pytest.mark.parametrize("reifier", ["1", '"x"', "( )"])
 def test_a_reifier_cannot_be_a_literal_or_nil(reifier):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         prepare_query_12(P + "SELECT * { :a :p :b ~ " + reifier + " }")
 
 
 def test_a_reifier_on_a_property_path_is_rejected():
-    with pytest.raises(ValueError, match="property path"):
+    with pytest.raises(FormatError, match="property path"):
         prepare_query_12(P + "SELECT * { ?s ^:p ?o ~ ?r }")
 
 
@@ -120,7 +120,7 @@ def test_triple_accepts_triple_term_and_accessor_arguments():
     ],
 )
 def test_syntax_rules_the_grammar_states_are_enforced(query):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         prepare_query_12(P + query)
 
 

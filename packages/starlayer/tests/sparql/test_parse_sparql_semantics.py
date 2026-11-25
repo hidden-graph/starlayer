@@ -8,7 +8,8 @@ checked against the rule's expected wording so a query is not rejected by accide
 from __future__ import annotations
 
 import pytest
-from starlayer.sparql.parse_sparql import SparqlSyntaxError, parse_sparql
+from starlayer.errors import FormatError
+from starlayer.sparql.parse_sparql import parse_sparql
 
 from .parse_sparql_rules import RULES
 
@@ -38,7 +39,7 @@ def test_valid_query_is_accepted(rule):
 
 @pytest.mark.parametrize("rule", [r for r in RULES if not r.ok], ids=_id)
 def test_invalid_query_is_rejected_for_the_right_reason(rule):
-    with pytest.raises(SparqlSyntaxError) as info:
+    with pytest.raises(FormatError) as info:
         parse_sparql(rule.text)
     wanted = _WORDING[rule.rule]
     wanted = (wanted,) if isinstance(wanted, str) else wanted
@@ -46,10 +47,10 @@ def test_invalid_query_is_rejected_for_the_right_reason(rule):
 
 
 def test_semantic_errors_point_at_the_offending_clause():
-    with pytest.raises(SparqlSyntaxError) as info:
+    with pytest.raises(FormatError) as info:
         parse_sparql("SELECT * {\n  ?s ?p ?o\n  BIND(1 AS ?o)\n}")
     assert (info.value.line, info.value.col) == (3, 3)
-    with pytest.raises(SparqlSyntaxError) as info:
+    with pytest.raises(FormatError) as info:
         parse_sparql("SELECT ?s (1 AS ?s)\n{ ?s ?p ?o }")
     assert info.value.line == 1
 

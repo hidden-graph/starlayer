@@ -1,5 +1,5 @@
 """
-End-to-end tests for VERSION-directive handling and SPARQL12ConformanceError.
+End-to-end tests for VERSION-directive handling and the FormatError (kind "sparql", context "VERSION") it raises.
 
 RDF 1.2 Concepts sec 2.1 and SPARQL 1.2 Query sec 4.3 define three version
 labels - "1.2" (full), "1.2-basic" (excludes triple terms and dirLangString),
@@ -8,7 +8,7 @@ processor "is not required to reject features that are outside the
 announced version (but could signal them with a warning)". StarLayer signals
 via a warning, never a hard error - see starlayer.graph/model/conformance.py.
 
-A SPARQL query/update's own VERSION directive can be rejected (SPARQL12ConformanceError). An RDF document's VERSION label
+A SPARQL query/update's own VERSION directive can be rejected (FormatError). An RDF document's VERSION label
 never does (the RDF warning was dropped, 2026-11-06): it is a hint, and a mismatch is not signalled.
 
 Also regression-tests a real bug found while checking this against the live
@@ -22,7 +22,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.execution.sparql_text import check_native_version_conformance
-from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
+from starlayer.errors import FormatError
 from tests.support.terms import NamedNode
 
 EX = 'http://example.org/'
@@ -52,7 +52,7 @@ class TestSparqlVersionDirective:
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
         """
-        with pytest.raises(SPARQL12ConformanceError, match='1.2-basic'):
+        with pytest.raises(FormatError, match='1.2-basic'):
             g.query(q)
 
     def test_version_1_2_basic_without_triple_term_is_accepted(self):
@@ -72,7 +72,7 @@ class TestSparqlVersionDirective:
     def test_unrecognized_version_label_is_rejected(self):
         g = StarLayerGraph()
         q = 'VERSION "9.9"\nSELECT * WHERE { ?s ?p ?o }'
-        with pytest.raises(SPARQL12ConformanceError, match='unrecognized'):
+        with pytest.raises(FormatError, match='unrecognized'):
             g.query(q)
 
     def test_no_version_directive_is_accepted(self):
@@ -90,7 +90,7 @@ class TestSparqlVersionDirective:
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
         """
-        with pytest.raises(SPARQL12ConformanceError, match='1.1'):
+        with pytest.raises(FormatError, match='1.1'):
             g.query(q)
 
 
@@ -120,7 +120,7 @@ class TestSparqlUpdateVersionDirective:
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
         """
-        with pytest.raises(SPARQL12ConformanceError, match='1.1'):
+        with pytest.raises(FormatError, match='1.1'):
             g.update(u)
 
     def test_update_no_version_directive_is_accepted(self):
@@ -139,7 +139,7 @@ class TestSparqlUpdateVersionDirective:
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             INSERT DATA {{ :s rdf:reifies <<( :a :b :c )>> }}
         """
-        with pytest.raises(SPARQL12ConformanceError, match='1.1'):
+        with pytest.raises(FormatError, match='1.1'):
             ds.update(u)
 
 
@@ -157,7 +157,7 @@ class TestNativeBackendVersionConformance:
     execute a VERSION "1.2-basic" + <<( )>> query normally (HTTP 200) with
     no warning or error signal anywhere in the response - so without this
     fix, a native-backend StarLayerGraph would silently never emit
-    SPARQL12ConformanceError for the identical query the default in-memory
+    FormatError for the identical query the default in-memory
     backend does warn on, an inconsistency this project otherwise takes
     care to avoid (see tests/integration/test_cross_backend_parity.py).
 
@@ -173,7 +173,7 @@ class TestNativeBackendVersionConformance:
             PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
             SELECT ?s WHERE {{ ?s rdf:reifies <<( :a :b :c )>> . }}
         """
-        with pytest.raises(SPARQL12ConformanceError, match='1.2-basic'):
+        with pytest.raises(FormatError, match='1.2-basic'):
             check_native_version_conformance(q)
 
     def test_1_2_basic_without_triple_term_is_accepted(self):
@@ -184,7 +184,7 @@ class TestNativeBackendVersionConformance:
         check_native_version_conformance('SELECT * WHERE { ?s ?p ?o }')
 
     def test_unrecognized_version_label_is_rejected(self):
-        with pytest.raises(SPARQL12ConformanceError, match='unrecognized'):
+        with pytest.raises(FormatError, match='unrecognized'):
             check_native_version_conformance('VERSION "9.9"\nSELECT * WHERE { ?s ?p ?o }')
 
 

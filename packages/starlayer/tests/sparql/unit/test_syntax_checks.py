@@ -3,7 +3,7 @@ StarLayer's own parser (``parse_sparql``)."""
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.sparql.parse_sparql import SparqlSyntaxError
+from starlayer.errors import FormatError
 from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 
@@ -30,7 +30,7 @@ GOOD_QUERIES = [
 
 @pytest.mark.parametrize("text", BAD_QUERIES.values(), ids=BAD_QUERIES.keys())
 def test_bad_query_rejected(text):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         prepare_query_12(text)
 
 
@@ -40,7 +40,7 @@ def test_good_query_accepted(text):
 
 
 def test_bad_update_rejected():
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         prepare_update_12('INSERT DATA { <http://ex/a> <http://ex/b> "\\uD800" }')
 
 

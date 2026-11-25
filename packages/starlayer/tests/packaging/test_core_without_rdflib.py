@@ -329,11 +329,12 @@ def test_the_exists_rewrite_and_the_entailment_rewrite_work_without_rdflib():
 
 def test_the_syntax_checks_of_a_star_query_work_without_rdflib():
     out = ok("""
+        from starlayer.errors import FormatError
         from starlayer.sparql.star_query import StarQuery
         StarQuery("SELECT * WHERE { ?s ?p ?o }")
         try:
             StarQuery("SELECT * WHERE { ?s ?p }")
-        except ValueError:
+        except FormatError:
             print("rejected")
     """)
     assert "rejected" in out

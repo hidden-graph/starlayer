@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import NamedNode, StarLayerDataset
 from starlayer.graph.execution.update_scope import scope_update
 
@@ -128,7 +129,7 @@ def test_the_graphs_prefixes_and_a_syntax_error(pair):
     assert NamedNode("http://e/o4") in objects(g) and NamedNode("http://e/o4") not in objects(other)
     g.ox.update("INSERT DATA { x:s x:p x:o5 }", prefixes={"x": "http://e/"})
     assert NamedNode("http://e/o5") in objects(g)
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         g.update("INSERT DATA { <http://e/s> ")
 
 

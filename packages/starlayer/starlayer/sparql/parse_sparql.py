@@ -39,7 +39,8 @@ Entry points::
     parse_sparql_update(text, base=None) -> Node                # an UpdateRequest
     sparql_update_to_tree(text, base=None, graph=None, root=None) -> (Graph, root)
 
-Errors are :class:`SparqlSyntaxError` with ``line``/``col``/``pos``.
+Syntax errors are :class:`~starlayer.errors.FormatError` (kind ``"sparql"``) with ``line``/``col``/``pos``; a query nested too deeply
+is an :class:`~starlayer.errors.ExecutionError` (kind ``"nesting"``).
 """
 
 from __future__ import annotations
@@ -50,6 +51,7 @@ from typing import TYPE_CHECKING, NamedTuple
 # Terms are pyoxigraph terms (``_oxterms`` makes the stand-ins for text an RDF term cannot be: a relative IRI, a bad label).
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.sparql import _oxterms as T
 from starlayer.sparql._oxterms import RDF, XSD
 
@@ -124,16 +126,17 @@ def _join(base_uri, ref):
 # ---------------------------------------------------------------------------
 
 
-class SparqlSyntaxError(ValueError):
-    """A syntax error, with the 0-based offset ``pos`` and 1-based ``line``/``col`` it was found at."""
+def _syntax_error(why: str, text: str = "", pos: int = 0) -> FormatError:
+    """A ``FormatError`` of kind ``"sparql"`` with the 0-based offset ``pos`` and the 1-based ``line`` / ``col`` derived from ``pos`` in
+    ``text``; without ``text`` the position is reported on line 1. ``why`` is the reason without the position."""
+    line = text.count("\n", 0, pos) + 1
+    col = pos - (text.rfind("\n", 0, pos) + 1) + 1
+    return FormatError(f"SPARQL syntax error at line {line}, column {col}: {why}", kind="sparql", why=why, line=line, col=col, pos=pos)
 
-    def __init__(self, why: str, text: str = "", pos: int = 0):
-        """Derive ``line`` and ``col`` from ``pos`` in ``text``; without ``text`` the position is reported on line 1."""
-        self.why = why
-        self.pos = pos
-        self.line = text.count("\n", 0, pos) + 1
-        self.col = pos - (text.rfind("\n", 0, pos) + 1) + 1
-        super().__init__(f"SPARQL syntax error at line {self.line}, column {self.col}: {why}")
+
+def _too_deep(action: str) -> ExecutionError:
+    """The ``ExecutionError`` of kind ``"nesting"`` for a query nested deeper than Python's stack can parse or encode."""
+    return ExecutionError(f"SPARQL expression or pattern nested too deeply to {action}", kind="nesting", context=f"SPARQL {action}")
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +196,7 @@ def _decode_uchars(raw: str) -> str:
     def sub(m):
         code = int(m.group(1) or m.group(2), 16)
         if 0xD800 <= code <= 0xDFFF or code > 0x10FFFF:
-            raise SparqlSyntaxError(f"{m.group(0)} is not a Unicode scalar value", raw, m.start())
+            raise _syntax_error(f"{m.group(0)} is not a Unicode scalar value", raw, m.start())
         return chr(code)
 
     return _UCHAR.sub(sub, raw)
@@ -229,14 +232,14 @@ def tokenize(text: str) -> list[Tok]:
     """Split SPARQL text into tokens, dropping whitespace and comments; the list always ends with an ``EOF`` token.
 
     A word that is no keyword but splits into keywords and digits (``FILTERSTR``) becomes several tokens. Raises
-    :class:`SparqlSyntaxError` at a character no token starts with.
+    :class:`~starlayer.errors.FormatError` at a character no token starts with.
     """
     out: list[Tok] = []
     pos, n = 0, len(text)
     while pos < n:
         m = _TOKEN.match(text, pos)
         if m is None:
-            raise SparqlSyntaxError(f"unexpected character {text[pos]!r}", text, pos)
+            raise _syntax_error(f"unexpected character {text[pos]!r}", text, pos)
         kind = m.lastgroup
         if kind == "W" and m.group().upper() not in _KEYWORDS and m.group() not in _CASE_SENSITIVE_WORDS:
             parts = _split_keywords(m.group())
@@ -264,7 +267,7 @@ def _unquote(raw: str) -> str:
         if c[0] in ("u", "U") and len(c) > 1:
             return _decode_uchars("\\" + c)
         if c not in _ECHAR:
-            raise SparqlSyntaxError(f"invalid string escape \\{c}", raw, m.start())
+            raise _syntax_error(f"invalid string escape \\{c}", raw, m.start())
         return _ECHAR[c]
 
     return re.sub(r"\\(u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8}|.)", sub, body, flags=re.DOTALL)
@@ -376,7 +379,7 @@ class _Parser:
     def err(self, why: str, tok: Tok | None = None):
         tok = tok or self.peek()
         got = "end of input" if tok.kind == "EOF" else repr(tok.text)
-        raise SparqlSyntaxError(f"{why} (found {got})", self.text, tok.pos)
+        raise _syntax_error(f"{why} (found {got})", self.text, tok.pos)
 
     def at_kw(self, *names: str, k: int = 0) -> bool:
         t = self.peek(k)
@@ -1678,13 +1681,13 @@ def _expr_vars(e, out: set) -> None:
 
 
 class _Checker:
-    """Walks a parsed query and raises :class:`SparqlSyntaxError` (at the offending node) for what the grammar cannot say."""
+    """Walks a parsed query and raises :class:`~starlayer.errors.FormatError` (at the offending node) for what the grammar cannot say."""
 
     def __init__(self, text: str):
         self.text = text
 
     def fail(self, msg: str, node=None):
-        raise SparqlSyntaxError(msg, self.text, getattr(node, "pos", 0) or 0)
+        raise _syntax_error(msg, self.text, getattr(node, "pos", 0) or 0)
 
     # expressions: aggregate placement and nesting, plus the groups inside EXISTS ----------------
     def expr(self, e, aggregates_ok: bool, inside_aggregate: bool = False):
@@ -1794,14 +1797,15 @@ def parse_sparql(text: str, base: str | None = None, prefixes: dict[str, str] | 
     (they are not recorded as the query's own ``PREFIX`` lines).
 
     Raises:
-        SparqlSyntaxError: For anything outside the grammar (with line and column).
+        FormatError: (kind "sparql") For anything outside the grammar (with line and column).
+        ExecutionError: (kind "nesting") The query is nested too deeply for Python's stack.
     """
     try:
         parser = _Parser(text, base)
         parser.prefixes.update(prefixes or {})
         return parser.parse_query()
     except RecursionError:  # the grammar nests without limit, Python's stack does not (as in manchester_parser.run_guarded)
-        raise SparqlSyntaxError("expression or pattern nested too deeply to parse", text, 0) from None
+        raise _too_deep("parse") from None
 
 
 def collections_of(text: str) -> list[tuple[int, list[tuple[int, int]], int]]:
@@ -1819,13 +1823,13 @@ def parse_sparql_update(text: str, base: str | None = None) -> Node:
     of earlier operations stay in force for later ones.
 
     Raises:
-        SparqlSyntaxError: For anything outside the grammar or the static rules (variables in INSERT/DELETE DATA,
+        FormatError: (kind "sparql") For anything outside the grammar or the static rules (variables in INSERT/DELETE DATA,
             blank nodes in DELETE DATA / DELETE WHERE / DELETE templates, a blank node label shared by two basic graph patterns or by the INSERT DATA of two operations).
     """
     try:
         return _Parser(text, base).parse_update()
     except RecursionError:
-        raise SparqlSyntaxError("expression or pattern nested too deeply to parse", text, 0) from None
+        raise _too_deep("parse") from None
 
 
 # ---------------------------------------------------------------------------
@@ -2192,13 +2196,13 @@ def ast_to_triples(q: Node, root=None, *, triple_order=None) -> tuple[list, obje
     (a fresh blank node unless ``root`` is given). Literals keep the lexical form written (no store has touched them).
 
     Raises:
-        SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
+        ExecutionError: (kind "nesting") The query is nested too deeply to encode within the Python stack.
     """
     root = root if root is not None else ox.BlankNode()
     try:
         return run_with_deeper_stack(_encode_ast, q, root, triple_order), root
     except RecursionError:
-        raise SparqlSyntaxError("expression or pattern nested too deeply to encode") from None
+        raise _too_deep("encode") from None
 
 
 def _encode_ast(q: Node, root, triple_order) -> list:
@@ -2219,7 +2223,7 @@ def ast_to_tree(q: Node, graph: StarLayerGraph | None = None, root=None, *, trip
     ``ast_to_triples`` keeps them.
 
     Raises:
-        SparqlSyntaxError: The query is nested too deeply to encode within the Python stack.
+        ExecutionError: (kind "nesting") The query is nested too deeply to encode within the Python stack.
     """
     from starlayer.graph.core import StarLayerGraph
 

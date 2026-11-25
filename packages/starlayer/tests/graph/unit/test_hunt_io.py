@@ -13,7 +13,7 @@ import xml.etree.ElementTree as ET
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
-from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
+from starlayer.errors import FormatError
 from starlayer.graph.pretty import pretty_turtle
 from starlayer.graph.rdflib_model.dirlangstring import (
     DIRLANG_NS,
@@ -134,7 +134,7 @@ def test_version_1_1_arithmetic_double_minus_is_not_a_directional_literal():
 
 
 def test_version_1_1_rejects_a_directional_literal():
-    with pytest.raises(SPARQL12ConformanceError):
+    with pytest.raises(FormatError):
         StarLayerGraph().query('VERSION "1.1" SELECT * WHERE { ?s ?p "x"@en--ltr }')
 
 

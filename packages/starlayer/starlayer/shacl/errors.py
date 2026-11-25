@@ -41,6 +41,7 @@ from __future__ import annotations
 
 from starlayer.errors import (
     ExecutionError,
+    FormatError,
     MetaShaclError,
     ShapeCompileError,
     ShapeError,
@@ -48,6 +49,7 @@ from starlayer.errors import (
 
 __all__ = [
     "ExecutionError",
+    "FormatError",
     "MetaShaclError",
     "ShapeCompileError",
     "ShapeError",

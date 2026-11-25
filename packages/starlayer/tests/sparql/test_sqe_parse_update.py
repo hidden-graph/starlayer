@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from starlayer.sparql.parse_sparql import SparqlSyntaxError
+from starlayer.errors import FormatError
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text
 
 SQE = "https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#"
@@ -43,5 +43,5 @@ def test_a_query_still_gives_a_query_tree() -> None:
 
 
 def test_static_update_rules_still_apply() -> None:
-    with pytest.raises(SparqlSyntaxError, match="variables are not allowed"):
+    with pytest.raises(FormatError, match="variables are not allowed"):
         sqe_parse_to_tree("INSERT DATA { ?x <http://e/p> 1 }")

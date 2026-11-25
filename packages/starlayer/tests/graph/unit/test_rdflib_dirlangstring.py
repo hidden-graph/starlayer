@@ -8,6 +8,7 @@ round-trips, and the SPARQL 1.2 base-direction functions.
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from rdflib import Literal, URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.interop import DIRLANG_NS
@@ -188,7 +189,7 @@ class TestTurtle12:
 
     def test_invalid_direction_raises(self):
         g = StarLayerGraph()
-        with pytest.raises(SyntaxError, match="ltr.*rtl"):  # Oxigraph raises SyntaxError (O5)
+        with pytest.raises(FormatError, match="ltr.*rtl"):  # Oxigraph raises FormatError (O5)
             g.parse(data=f'<{EX}s> <{EX}p> "hello"@en--sideways .', format='turtle12')
 
     def test_round_trip_turtle12(self):
@@ -342,7 +343,7 @@ class TestSparqlFunctions:
         # time (pyparsing.ParseException), not accepted and validated
         # afterward with a custom error message the way the legacy
         # text-based rewriter used to.
-        with pytest.raises(SyntaxError):  # a 2-argument STRLANGDIR is a syntax error (O5)
+        with pytest.raises(FormatError):  # a 2-argument STRLANGDIR is a syntax error (O5)
             g.query('SELECT (STRLANGDIR("hi", "en") AS ?x) WHERE {}')
 
     def test_is_triple_alias_unaffected_by_lang_rewrite(self, g):

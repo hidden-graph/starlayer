@@ -7,6 +7,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from starlayer.errors import ExecutionError, FormatError, only_kind
+
 __all__ = ["QueryCheck", "QueryProblem", "check_query"]
 
 _FORMS = {
@@ -65,19 +67,24 @@ _UNDECLARED_PREFIX = re.compile(r"undeclared prefix '([^']*)'")
 def _parse_once(text: str, prefixes: Mapping[str, str]) -> tuple[Any, QueryProblem | None]:
     """The AST of a query, else of an update, else the problem the better-matching grammar found."""
     from starlayer.sparql.parse_sparql import (
-        SparqlSyntaxError,
         parse_sparql,
         parse_sparql_update,
     )
 
     try:
         return parse_sparql(text, prefixes=dict(prefixes) or None), None
-    except SparqlSyntaxError as query_error:
+    except ExecutionError as error:  # nested too deeply to parse: a problem of the text, at its start
+        only_kind(error, "nesting")
+        return None, QueryProblem("syntax", "error", str(error), 1, 1)
+    except FormatError as query_error:
         # the update parser takes no prefixes, so they go in front as PREFIX lines
         head = "".join(f"PREFIX {prefix}: <{iri}>\n" for prefix, iri in prefixes.items())
         try:
             return parse_sparql_update(head + text), None
-        except SparqlSyntaxError as update_error:
+        except ExecutionError as error:
+            only_kind(error, "nesting")
+            return None, QueryProblem("syntax", "error", str(error), 1, 1)
+        except FormatError as update_error:
             # the text is meant as whichever grammar read further before failing: a query typo is far in, a non-query fails at the start
             if update_error.pos - len(head) > query_error.pos:
                 error, line = update_error, update_error.line - head.count("\n")
@@ -118,11 +125,10 @@ def _has_service(x: Any) -> bool:
 def _version_problem(text: str) -> QueryProblem | None:
     """The error ``query()`` would raise for the ``VERSION`` directive of ``text``."""
     from starlayer.graph.execution.sparql_text import check_native_version_conformance
-    from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
 
     try:
         check_native_version_conformance(text)
-    except SPARQL12ConformanceError as error:
+    except FormatError as error:
         return QueryProblem("version", "error", " ".join(str(error).split()))
     return None
 
@@ -130,13 +136,17 @@ def _version_problem(text: str) -> QueryProblem | None:
 def _engine_problem(text: str, prefixes: Mapping[str, str] | None, functions: dict[str, Any]) -> QueryProblem | None:
     """What Oxigraph says about a query run on an empty graph. Oxigraph has no prepare-only call."""
     from starlayer.graph import StarLayerGraph
-    from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
 
     try:
         StarLayerGraph(prefixes=dict(prefixes or {})).query(text, **functions)
-    except SPARQL12ConformanceError:
-        return None  # reported as a version problem
-    except (SyntaxError, ValueError, RuntimeError, NotImplementedError) as error:  # the kinds Oxigraph and the wrapper report
+    except FormatError as error:
+        if error.context == "VERSION":
+            return None  # reported as a version problem
+        return QueryProblem("engine", "error", " ".join(str(error).split()))
+    except ExecutionError as error:  # the engine's RuntimeError, wrapped at the boundary; any other kind is not a problem of the query
+        only_kind(error, "query")
+        return QueryProblem("engine", "error", " ".join(str(error).split()))
+    except (ValueError, NotImplementedError) as error:  # what the wrapper reports
         return QueryProblem("engine", "error", " ".join(str(error).split()))
     return None
 

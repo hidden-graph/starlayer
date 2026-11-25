@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.sparql.parse_sparql import SparqlSyntaxError, parse_sparql
+from starlayer.errors import FormatError
+from starlayer.sparql.parse_sparql import parse_sparql
 
 
 def _resolved(base, ref):
@@ -45,7 +46,7 @@ def test_base_dot_segments_resolve_per_rfc3986():
     ["SELECT * WHERE { ( ) }", "SELECT * { () }", "CONSTRUCT { ( ) } WHERE { }"],
 )
 def test_bare_nil_is_not_a_triples_block(text):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql(text)
 
 

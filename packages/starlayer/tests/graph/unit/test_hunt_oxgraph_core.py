@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerDataset, StarLayerGraph  # noqa: F401
 from starlayer.shacl import derive_shape
 
@@ -59,11 +60,11 @@ def test_union_update_blank_graph_into_default():
 
 # ---- malformed DELETE WHERE ---------------------------------------------------------------------------------------------
 @pytest.mark.parametrize("text", ["DELETE WHERE", "DELETE WHERE ?x"])
-def test_union_update_malformed_delete_where_is_syntax_error(text):
+def test_union_update_malformed_delete_where_is_a_format_error(text):
     for union in (False, True):
         ds = StarLayerDataset(default_union=union)
         ds.graph(ex("g1")).add((ex("a"), ex("b"), ex("c")))
-        with pytest.raises(SyntaxError):
+        with pytest.raises(FormatError):
             ds.update(text)
 
 
@@ -135,13 +136,12 @@ def test_describe_type_with_hash_in_prefix_iri():
 
 # ---- VERSION "1.1" conformance check ignores strings, IRIs and comments -------------------------------------------------
 def test_version_check_ignores_dashes_and_tilde_in_strings():
-    from starlayer.graph.execution.version_conformance import SPARQL12ConformanceError
 
     g = StarLayerGraph()
     g.query('VERSION "1.1" SELECT * { ?s ?p "a--b" }')
     g.query('VERSION "1.1" SELECT * { ?s ?p ?o FILTER(CONTAINS(?o, "x~y")) }')
     g.query('VERSION "1.1" SELECT * { ?s <http://x/a~b--c> ?o } # ~ --')
-    with pytest.raises(SPARQL12ConformanceError):
+    with pytest.raises(FormatError):
         g.query('VERSION "1.1" SELECT * { ?s ?p "a"@en--ltr }')
 
 

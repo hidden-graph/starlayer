@@ -33,6 +33,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 import pyoxigraph as ox
+from starlayer.errors import FormatError
 
 from . import CODEKG_NS, ensure_built, get_codekg_dataset
 from .terms import RDF, RDFS, Literal, URIRef
@@ -421,7 +422,7 @@ def run_sparql(text: str, *, limit: int = DEFAULT_LIMIT, offset: int = 0) -> Que
     from starlayer.sparql.parse_sparql import parse_sparql
 
     prologue = "".join(f"PREFIX {prefix}: <{namespace}>\n" for prefix, namespace in _DEFAULT_PREFIXES.items())
-    parsed = parse_sparql(prologue + text)  # a syntax error (or an undeclared prefix) raises SparqlSyntaxError, a ValueError
+    parsed = parse_sparql(prologue + text)  # a syntax error (or an undeclared prefix) raises a FormatError
     form = parsed.kind
     if form not in ("SelectQuery", "AskQuery"):
         raise ValueError(f"run_sparql runs SELECT and ASK queries only, not {form.removesuffix('Query').upper()}")
@@ -488,7 +489,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "questions":
             for cq in competency_questions(status=args.status, unanswered=args.unanswered):
                 print(f"{cq.status:12} {cq.topic:14} {cq.question}" + (f"   -> {', '.join(cq.answered_by)}" if cq.answered_by else ""))
-    except (KeyError, ValueError) as error:
+    except (KeyError, ValueError, FormatError) as error:
         print(error.args[0] if error.args else error, file=sys.stderr)
         return 2
     return 0

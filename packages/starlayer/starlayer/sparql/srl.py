@@ -106,6 +106,8 @@ from typing import TYPE_CHECKING, Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import FormatError
+
 from . import _oxterms as _T
 from . import _srl_ast as srl_ast
 from ._oxterms import NS, RDF
@@ -430,7 +432,7 @@ def _read_list(node, graph) -> list:
 
 def _decode_expr(node, graph):
     """An expression leaf: a term as it is, an ``spexpr:`` node as the parser's tree of the text the node renders to."""
-    from .parse_sparql import SparqlSyntaxError, _Parser
+    from .parse_sparql import _Parser, _syntax_error
     from .parse_srl import _convert
     from .sqe.expr_text import expr_text
 
@@ -442,8 +444,8 @@ def _decode_expr(node, graph):
             parser = _Parser(text, None)
             expr = parser.expression()
             if parser.peek().kind != "EOF":
-                raise SparqlSyntaxError("trailing text after the expression")
-        except SparqlSyntaxError as exc:
+                raise _syntax_error("trailing text after the expression")
+        except FormatError as exc:
             raise SRLDecodeError(f"srl: cannot read the expression {text!r}: {exc}") from exc
         return _convert(expr)
     return _decode_term(node, graph)

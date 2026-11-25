@@ -3,6 +3,7 @@
 import warnings
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.rdflib_model.triple import TripleTerm
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
@@ -40,7 +41,7 @@ def test_group_concat_of_str_over_a_blank_node_is_unbound_like_oxigraph():
     ],
 )
 def test_blank_nodes_are_rejected_in_delete_forms(update):
-    with pytest.raises(ValueError):
+    with pytest.raises(FormatError):
         prepare_update_12(P + update)
 
 

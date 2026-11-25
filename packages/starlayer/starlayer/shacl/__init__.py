@@ -9,6 +9,7 @@ from starlayer.shacl.derive import derive_shape
 from starlayer.shacl.engine.terms import SH
 from starlayer.shacl.errors import (
     ExecutionError,
+    FormatError,
     MetaShaclError,
     ShapeCompileError,
     ShapeError,
@@ -151,5 +152,6 @@ __all__ = [
     "ShapeCompileError",
     "ShapeError",
     "ExecutionError",
+    "FormatError",
     "MetaShaclError",
 ]

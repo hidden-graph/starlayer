@@ -14,40 +14,29 @@ from typing import Any
 
 import pyoxigraph as ox
 
-
-class SQEError(ValueError):
-    """Base class for every ``sqe:``-specific exception
-    (``SQEValidationError`` here) - gives a caller two real catch
-    granularities, "this specific failure" vs. "any ``sqe:`` failure",
-    the same two-tier shape ``srl.py``'s own ``SRLError``/
-    ``SRLParseError`` already established for the identical reason."""
+from starlayer.errors import FormatError
 
 
-class SQEValidationError(SQEError):
-    """Raised by :func:`sqe_parse_to_tree` when the text parses fine but
-    the resulting ``sqe:`` tree fails ``sqe:``'s own SHACL shapes (most
-    notably the unbound-projected-variable check) - "this text doesn't
-    produce a usable ``sqe:`` tree", matching the same "succeed with a
-    usable object, or raise" contract ``prepareQuery()``/
-    ``srl.parse_ruleset()`` already give their own callers, rather than
-    handing back a tree that's already known to be unusable and leaving
-    it to the caller to remember to check.
-
-    Carries the full validation report as attributes, not just a
-    message, so a caller who wants the structured detail doesn't have to
-    re-run :func:`sqe_validate` themselves to get it.
+class SQEValidationError(FormatError):
+    """Raised by :func:`sqe_parse_to_tree` when the text parses fine but the resulting ``sqe:`` tree fails ``sqe:``'s own SHACL shapes
+    (most notably the unbound-projected-variable check): "this text does not produce a usable ``sqe:`` tree". The cause is the same as
+    for a syntax error, query text that is not a valid query, so it is a :class:`~starlayer.errors.FormatError` (``kind="sparql"``, no
+    position) and ``except FormatError`` catches both. It is the one subclass of ``FormatError``, kept because it carries the
+    validation report.
 
     Attributes:
         report_graph: The full ``sh:ValidationReport`` graph.
-        report_text: The same report, rendered as text (this
-            exception's own ``str()`` is a short prefix plus this text).
+        report_text: The same report, rendered as text (this exception's own ``str()`` is a short prefix plus this text).
     """
 
     def __init__(self, report_text: str, report_graph: Any) -> None:
         """Carry the SHACL report as text (in the message and report_text) and as a graph (report_graph)."""
-        super().__init__(f"sqe: parsed query fails SHACL validation:\n{report_text}")
+        super().__init__(f"sqe: parsed query fails SHACL validation:\n{report_text}", kind="sparql", why=report_text)
         self.report_text = report_text
         self.report_graph = report_graph
+
+    def __reduce__(self) -> Any:
+        return (SQEValidationError, (self.report_text, self.report_graph))
 
 
 _UPDATE_START = re.compile(
@@ -107,18 +96,18 @@ def sqe_parse_to_tree(
         A ``(tree_graph, root)`` tuple; with no ``tree_graph`` given, a ``StarLayerGraph`` and a pyoxigraph ``root``.
 
     Raises:
-        SparqlSyntaxError: For text outside the SPARQL 1.2 query
-            grammar; it is a ``ValueError`` with ``line``/``col``.
-        SQEValidationError: If the text parses fine but the encoded tree
+        FormatError: (kind "sparql") For text outside the SPARQL 1.2 query grammar, with ``line`` / ``col``.
+        ExecutionError: (kind "nesting") The query is nested too deeply for Python's stack.
+        SQEValidationError (a ``FormatError``): If the text parses fine but the encoded tree
             violates ``sqe:``'s own SHACL shapes. A warning (such as DISTINCT in a call to an extension function, which Oxigraph
             does not parse) does not raise: ``sqe_validate`` on the tree reports it.
     """
-    from ..parse_sparql import SparqlSyntaxError, ast_to_triples, parse_sparql
+    from ..parse_sparql import ast_to_triples, parse_sparql
     from .shapes import _validate_shapes
 
     try:
         ast = parse_sparql(text)
-    except SparqlSyntaxError:
+    except FormatError:
         if not _UPDATE_START.match(text):
             raise
         from ..parse_sparql import parse_sparql_update

@@ -12,7 +12,8 @@ The tree::
      |- ShapeError                  the shapes graph (a shape, a rule, a rules graph) or its setup is wrong; has ``context``
      |   |- ShapeCompileError       the engine cannot read or compile it
      |   `- MetaShaclError          the meta check (shapes-about-shapes) found it: ``problems``, ``report_text``, ``report_graph``, ``scope``
-     `- ExecutionError              running failed (SHACL with a fine shapes graph, or OWL-DL reasoning); has ``kind`` and ``context``
+     |- ExecutionError              running failed (SHACL with a fine shapes graph, a query the engine could not evaluate, OWL-DL reasoning); has ``kind`` and ``context``
+     `- FormatError                 text or data that is malformed; has ``kind``, ``context`` and the optional ``why``, ``line``, ``col``, ``pos``
 
 ``ExecutionError`` is one class; its ``kind`` (one of ``ExecutionError.KINDS``) says what failed:
 
@@ -24,8 +25,13 @@ The tree::
 * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
 * ``"timeout"``: an OWL-DL reasoning call (either engine) did not finish within its wall-clock budget and was killed.
 * ``"inconsistent"``: the OWL-DL reasoner found the data logically inconsistent under OWL 2 DL semantics.
+* ``"query"``: the SPARQL engine (Oxigraph) failed while evaluating a query or update (its ``RuntimeError``), for text that parsed.
 * ``"inference"``: the reasoner could not run or died: a Java runtime that is missing or broken, an owlready2 Java error, or a
   reasoning subprocess that exited without a result (a crash, not a timeout).
+
+``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
+update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"``, ``"term"``, ``"manchester"``, ``"owl"``. A position
+(``line`` and ``col`` 1-based, ``pos`` a 0-based offset) is set only by code that knows it, never parsed out of an engine message.
 
 The class and the ``kind`` name the cause and never change with the path an error travels. Where it happened is ``context`` (a short
 string such as ``"sh:rule ex:R1"``, ``None`` when nothing narrows it), repeated in the message; a handler that knows the place sets it
@@ -94,7 +100,7 @@ class ExecutionError(StarLayerError):
 
     Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
 
-    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference")
+    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query")
 
     def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
         if kind not in self.KINDS:
@@ -109,6 +115,40 @@ class ExecutionError(StarLayerError):
 
 def _rebuild_execution_error(message: str, kind: str, context: str | None = None) -> ExecutionError:
     return ExecutionError(message, kind=kind, context=context)
+
+
+class FormatError(StarLayerError):
+    """Text or data is malformed: SPARQL text, an ``sqe:`` tree, a ``VERSION`` declaration, and in later stages SRL, RDF documents,
+    terms, Manchester syntax and OWL-in-RDF. Not a ``ValueError``, ``SyntaxError`` or ``SyntaxError`` subclass.
+
+    One class; ``kind`` says what is malformed (one of ``KINDS``) and never changes with the path the error travels. ``context`` is where
+    it was found (a short string, default ``None``). ``why`` is the reason without the position (default: the message); ``line`` and
+    ``col`` (1-based) and ``pos`` (a 0-based offset) are ``None`` unless the code that raised it knew them: they are never read out of
+    an engine's message. ``message`` defaults to ``why``."""
+
+    KINDS = ("sparql", "srl", "rdf", "term", "manchester", "owl")
+
+    def __init__(self, message: str | None = None, *, kind: str, context: str | None = None, why: str | None = None,
+                 line: int | None = None, col: int | None = None, pos: int | None = None) -> None:
+        if kind not in self.KINDS:
+            raise ValueError(f"unknown FormatError kind {kind!r}; one of {', '.join(self.KINDS)}")
+        if message is None:
+            message = why if why is not None else ""
+        super().__init__(message)
+        self.kind = kind
+        self.context = context
+        self.why = why if why is not None else message
+        self.line = line
+        self.col = col
+        self.pos = pos
+
+    def __reduce__(self) -> Any:  # the keyword-only fields must survive pickle and copy
+        return (_rebuild_format_error, (self.args[0] if self.args else "", self.kind, self.context, self.why, self.line, self.col, self.pos))
+
+
+def _rebuild_format_error(message: str, kind: str, context: str | None, why: str | None, line: int | None, col: int | None,
+                          pos: int | None) -> FormatError:
+    return FormatError(message, kind=kind, context=context, why=why, line=line, col=col, pos=pos)
 
 
 def only_kind(error: ExecutionError, *kinds: str) -> None:

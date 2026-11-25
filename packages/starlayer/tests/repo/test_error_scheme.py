@@ -15,6 +15,7 @@ import starlayer.shacl as shacl
 import starlayer.shacl.errors as shacl_errors
 from starlayer.errors import (
     ExecutionError,
+    FormatError,
     MetaShaclError,
     ShapeCompileError,
     ShapeError,
@@ -24,7 +25,7 @@ from starlayer.errors import (
 
 PACKAGE = Path(errors.__file__).resolve().parent
 ERRORS_PY = PACKAGE / "errors.py"
-NAMES = ("StarLayerError", "ShapeError", "ShapeCompileError", "MetaShaclError", "ExecutionError")
+NAMES = ("StarLayerError", "ShapeError", "ShapeCompileError", "MetaShaclError", "ExecutionError", "FormatError")
 
 
 def test_the_class_tree():
@@ -33,6 +34,8 @@ def test_the_class_tree():
     assert ShapeCompileError.__bases__ == (ShapeError,)
     assert MetaShaclError.__bases__ == (ShapeError,)
     assert ExecutionError.__bases__ == (StarLayerError,)
+    assert FormatError.__bases__ == (StarLayerError,)
+    assert not issubclass(FormatError, ExecutionError) and not issubclass(FormatError, ShapeError)
     assert not issubclass(ExecutionError, ShapeError)
     assert not issubclass(ShapeCompileError, MetaShaclError) and not issubclass(MetaShaclError, ShapeCompileError)
 
@@ -54,7 +57,7 @@ def test_a_shape_error_is_not_a_value_error_so_an_except_value_error_misses_it()
 
 def test_the_execution_kinds_are_the_six_of_step_c_and_the_three_of_owl_dl_reasoning():
     assert ExecutionError.KINDS == ("rule", "expression", "nesting", "recursion", "constraint-query", "internal",
-                                    "timeout", "inconsistent", "inference")
+                                    "timeout", "inconsistent", "inference", "query")
     with pytest.raises(ValueError, match="unknown ExecutionError kind"):
         ExecutionError("x", kind="nope")
 
@@ -137,3 +140,26 @@ def test_a_meta_error_keeps_its_attributes_through_pickle_and_copy():
         assert again.report_graph is None and again.scope is None and again.context == "meta"
     plain = _roundtrips(MetaShaclError("m"))[0]
     assert plain.problems == () and plain.report_text == "" and plain.context is None
+
+
+def test_the_format_kinds_and_the_required_valid_kind():
+    assert FormatError.KINDS == ("sparql", "srl", "rdf", "term", "manchester", "owl")
+    with pytest.raises(TypeError):
+        FormatError("no kind")  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="unknown FormatError kind"):
+        FormatError("x", kind="nope")
+
+
+def test_a_format_error_defaults():
+    error = FormatError("the message", kind="sparql")
+    assert str(error) == "the message" and error.why == "the message"
+    assert (error.line, error.col, error.pos, error.context) == (None, None, None, None)
+    assert str(FormatError(kind="sparql", why="only the reason")) == "only the reason"
+
+
+@pytest.mark.parametrize("kind", FormatError.KINDS)
+def test_a_format_error_survives_pickle_and_copy(kind):
+    error = FormatError("at 2:3: bad", kind=kind, context="query", why="bad", line=2, col=3, pos=9)
+    for again in _roundtrips(error):
+        assert type(again) is FormatError
+        assert (str(again), again.kind, again.context, again.why, again.line, again.col, again.pos) == ("at 2:3: bad", kind, "query", "bad", 2, 3, 9)

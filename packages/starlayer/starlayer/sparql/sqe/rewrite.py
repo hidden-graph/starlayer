@@ -34,7 +34,9 @@ import re
 
 import pyoxigraph as ox
 
-from ..parse_sparql import Node, SparqlSyntaxError, ast_to_triples, parse_sparql
+from starlayer.errors import ExecutionError, FormatError, only_kind
+
+from ..parse_sparql import Node, ast_to_triples, parse_sparql
 from ._memtree import TreeIndex
 
 BNode, Literal, URIRef, Variable = ox.BlankNode, ox.Literal, ox.NamedNode, ox.Variable
@@ -65,9 +67,12 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
         out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
         return out
-    except (SparqlSyntaxError, ValueError, NotImplementedError, RecursionError):
-        # the text or its tree cannot be rewritten or written out (the library's own errors are ValueErrors); a KeyError,
-        # TypeError, AttributeError or ImportError is a bug in the rewrite and is not turned into a slower query
+    except (FormatError, ValueError, NotImplementedError, RecursionError):
+        # the text or its tree cannot be rewritten or written out; a KeyError, TypeError, AttributeError or ImportError is a bug
+        # in the rewrite and is not turned into a slower query
+        return text
+    except ExecutionError as error:  # nested too deeply to parse or encode: the text goes as it is; any other kind is a real failure
+        only_kind(error, "nesting")
         return text
 
 

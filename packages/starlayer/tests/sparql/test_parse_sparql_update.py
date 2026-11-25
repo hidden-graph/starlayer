@@ -16,9 +16,9 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import isomorphic
 from starlayer.sparql._oxterms import RDF
+from starlayer.errors import FormatError
 from starlayer.sparql.parse_sparql import (
     Node,
-    SparqlSyntaxError,
     parse_sparql_update,
     sparql_update_to_tree,
 )
@@ -65,7 +65,7 @@ def test_w3c_positive_update_parses(key, text):
 
 @pytest.mark.parametrize("key,text", NEGATIVE, ids=[k for k, _ in NEGATIVE])
 def test_w3c_negative_update_is_rejected(key, text):
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql_update(text)
 
 
@@ -211,7 +211,7 @@ def test_valid_requests_parse_and_round_trip(text):
 def test_invalid_requests_are_rejected_with_the_right_message(text, why):
     import re
 
-    with pytest.raises(SparqlSyntaxError) as e:
+    with pytest.raises(FormatError) as e:
         parse_sparql_update(text)
     assert re.search(why, str(e.value)), str(e.value)
 
@@ -219,14 +219,14 @@ def test_invalid_requests_are_rejected_with_the_right_message(text, why):
 def test_query_text_is_not_an_update_and_update_text_is_not_a_query():
     from starlayer.sparql.parse_sparql import parse_sparql
 
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql_update("ASK { }")
-    with pytest.raises(SparqlSyntaxError):
+    with pytest.raises(FormatError):
         parse_sparql("INSERT DATA { }")
 
 
 def test_error_carries_a_position():
-    with pytest.raises(SparqlSyntaxError) as e:
+    with pytest.raises(FormatError) as e:
         parse_sparql_update("CREATE GRAPH <g> ;\nDELETE DATA { ?s <p> <o> }")
     assert e.value.line == 2
 

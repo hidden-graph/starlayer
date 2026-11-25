@@ -23,7 +23,7 @@ edited by hand after parsing, since such edits bypass
 validation) stays private - a low-level input shape nothing outside this
 package currently needs.
 
-``SQEError``/``SQEValidationError`` are also exported - the latter is what
+``SQEValidationError`` (a ``starlayer.errors.FormatError``, kind ``"sparql"``) is also exported - it is what
 ``sqe_parse_to_tree`` raises, carrying the full report as ``.report_text``/
 ``.report_graph`` attributes, the same "succeed with a usable object, or
 raise" contract ``prepareQuery()``/``srl.parse_ruleset()`` already give
@@ -44,7 +44,6 @@ from typing import Any
 # pyoxigraph terms and nothing here needs rdflib.
 _LAZY = {
     "SQE": "vocab",
-    "SQEError": "to_rdf",
     "SQEValidationError": "to_rdf",
     "sqe_parse_to_tree": "to_rdf",
     "sqe_tree_to_text": "to_text",

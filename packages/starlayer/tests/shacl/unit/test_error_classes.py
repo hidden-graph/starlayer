@@ -31,7 +31,7 @@ def g(ttl: str) -> StarLayerGraph:
     return graph
 
 
-KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference")
+KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query")
 
 
 def test_execution_error_is_one_class_with_a_kind_and_the_message_as_its_text():

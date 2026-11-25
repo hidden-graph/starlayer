@@ -146,12 +146,12 @@ def scope_update(text: str, scope: Any, *, base: str | None = None, prefixes: An
 
     Raises:
         ValueError: The update names another graph, or ``scope`` is a blank node.
-        SyntaxError: The update is not valid SPARQL Update.
+        FormatError: (kind "sparql") The update is not valid SPARQL Update, with ``line`` / ``col`` of the text as scoped.
+        ExecutionError: (kind "nesting") The update is nested too deeply to parse.
     """
     from starlayer.sparql import sqe
     from starlayer.sparql.parse_sparql import (
         Node,
-        SparqlSyntaxError,
         ast_to_tree,
         parse_sparql_update,
     )
@@ -159,10 +159,7 @@ def scope_update(text: str, scope: Any, *, base: str | None = None, prefixes: An
     if isinstance(scope, ox.BlankNode):
         raise ValueError(f"an update cannot be scoped to the blank-node graph {scope}: SPARQL cannot name it")
     head = "".join(f"PREFIX {p}: <{iri}>\n" for p, iri in (prefixes or {}).items())
-    try:
-        ast = parse_sparql_update(head + text, base)
-    except SparqlSyntaxError as error:
-        raise SyntaxError(str(error)) from None
+    ast = parse_sparql_update(head + text, base)
     scoper = _Scoper(scope)
     operations = [op for op in (scoper.operation(op, Node) for op in ast.f["operations"]) if op is not None]
     if not scoper.changed:

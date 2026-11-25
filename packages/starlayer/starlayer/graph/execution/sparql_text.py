@@ -79,7 +79,7 @@ _DIRLANG_TAG = re.compile(r'@[A-Za-z]+(?:-[A-Za-z0-9]+)*--(?:ltr|rtl)(?![A-Za-z0
 
 
 def check_native_version_conformance(text: str) -> None:
-    """Raise ``SPARQL12ConformanceError`` when a ``VERSION`` directive in raw SPARQL text does not match what the text uses.
+    """Raise a ``FormatError`` (kind ``"sparql"``, ``context="VERSION"``) when a ``VERSION`` directive in raw SPARQL text does not match what the text uses.
 
     Oxigraph reads ``VERSION`` natively, so the text is sent unmodified, but the engine returns no signal for a mismatch; this
     is the only place the error comes from, and it is raised before the text is run or sent to a store. The directive is not stripped.
@@ -87,10 +87,7 @@ def check_native_version_conformance(text: str) -> None:
     Args:
         text: The raw SPARQL query or update text to check.
     """
-    from starlayer.graph.execution.version_conformance import (
-        SPARQL12ConformanceError,
-        check_version_conformance,
-    )
+    from starlayer.graph.execution.version_conformance import check_version_conformance
 
     _, declared_version = strip_version_directive(text)
     if declared_version is None:
@@ -109,7 +106,6 @@ def check_native_version_conformance(text: str) -> None:
         ),
         uses_dirlangstring=bool(_DIRLANG_TAG.search(text)),
         context='SPARQL query',
-        error_class=SPARQL12ConformanceError,
     )
 
 
