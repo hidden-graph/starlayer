@@ -52,6 +52,18 @@ Scope = Mapping[str, list]
 Operator = Callable[[Any, Term, "Term | None", Scope], list]
 OPERATORS: dict[URIRef, Operator] = {}
 
+# How many argument expressions the operators that need an exact count take (a list of that many members; ``rdf:nil`` is none, a value that is
+# not a list is one). The meta check asks ``arity_problem`` for the same verdict (``stsh:argumentCountProblem``), so it and the engine agree.
+ARITY: dict[URIRef, tuple[int, ...]] = {}
+
+
+def arity_problem(pred: URIRef, count: int) -> str | None:
+    """Why ``count`` argument expressions are wrong for the call ``pred``, else None (also for a predicate with no fixed count)."""
+    arity = ARITY.get(pred)
+    if arity is None or count in arity:
+        return None
+    return f"{text(pred)} needs a list of {' or '.join(str(n) for n in arity)} expression(s), got {count}"  # str-ok: counts
+
 
 def operator(*iris: str):
     """Register the decorated function in ``OPERATORS`` as the evaluator of each given key predicate IRI."""
@@ -549,10 +561,8 @@ def _nodes_matching(ctx, expr, focus, scope):
 @operator(SHNEX + "conformsToShape")
 def _conforms_to_shape(ctx, expr, focus, scope):
     members = _args(ctx, expr, _n("conformsToShape"))
-    if len(members) != 2:
-        raise ShapeError(
-            f"{expr!r}: shnex:conformsToShape needs a list of two expressions"
-        )
+    if problem := arity_problem(_n("conformsToShape"), len(members)):
+        raise ShapeError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
     outs = [_eval(ctx, m, focus, scope) for m in members]
     if any(len(o) > 1 for o in outs):
         raise EvaluationFailure(
@@ -641,13 +651,12 @@ def _arg_state(ctx, arg, focus, scope) -> tuple[str, Term | None]:
     return (_VALUE, out[0]) if out else (_UNBOUND, None)
 
 
-def _sparql_args(ctx, expr, pred, focus, scope, arity: tuple[int, ...] | None = None) -> list[tuple[str, Term | None]]:
-    """The state of each argument of the call ``expr pred ( ... )``; ``arity`` (the allowed argument counts), if given, is
-    checked first: a call with another count is a malformed expression, a ShapeError."""
+def _sparql_args(ctx, expr, pred, focus, scope) -> list[tuple[str, Term | None]]:
+    """The state of each argument of the call ``expr pred ( ... )``; the count is checked first when ``ARITY`` has one for ``pred``: a call with
+    another count is a malformed expression, a ShapeError."""
     members = _args(ctx, expr, pred)
-    if arity is not None and len(members) not in arity:
-        want = " or ".join(str(n) for n in arity)  # str-ok: counts
-        raise ShapeError(f"{expr!r}: {text(pred)} needs a list of {want} expression(s), got {len(members)}")  # str-ok: want is a count
+    if problem := arity_problem(pred, len(members)):
+        raise ShapeError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
     return [_arg_state(ctx, a, focus, scope) for a in members]
 
 
@@ -667,8 +676,11 @@ def _ebv(term: Term | None) -> bool | None:
 
 def _register_sparql() -> None:
     def simple(pred: URIRef, template: Callable[[int], str], arity: tuple[int, ...] | None = None) -> None:
+        if arity is not None:
+            ARITY[pred] = arity
+
         def fn(ctx, expr, focus, scope):
-            values = _bound_values(_sparql_args(ctx, expr, pred, focus, scope, arity))
+            values = _bound_values(_sparql_args(ctx, expr, pred, focus, scope))
             return [] if values is None else _run_call(template(len(values)), values)
 
         OPERATORS[pred] = fn
@@ -703,9 +715,13 @@ def _s(name: str) -> URIRef:
     return URIRef(SPARQL_NS + name)
 
 
+# the operators that are not one of the plain calls above but take a fixed number of argument expressions (sparql:bound, sparql:if, sparql:hasLang, shnex:conformsToShape)
+ARITY.update({_s("bound"): (1,), _s("if"): (3,), _s("hasLang"): (1, 2), _n("conformsToShape"): (2,)})
+
+
 @operator(SPARQL_NS + "bound")
 def _sp_bound(ctx, expr, focus, scope):
-    ((kind, _),) = _sparql_args(ctx, expr, _s("bound"), focus, scope, (1,))
+    ((kind, _),) = _sparql_args(ctx, expr, _s("bound"), focus, scope)
     if kind == _ERROR:
         raise EvaluationFailure("the argument of sparql:bound failed")
     return _bool(kind == _VALUE)
@@ -722,8 +738,8 @@ def _sp_coalesce(ctx, expr, focus, scope):
 @operator(SPARQL_NS + "if")
 def _sp_if(ctx, expr, focus, scope):
     members = _args(ctx, expr, _s("if"))
-    if len(members) != 3:
-        raise ShapeError(f"{expr!r}: sparql:if needs a list of 3 expressions, got {len(members)}")
+    if problem := arity_problem(_s("if"), len(members)):
+        raise ShapeError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
     cond, then, other = members
     kind, c = _arg_state(ctx, cond, focus, scope)
     truth = _ebv(c) if kind == _VALUE else None
@@ -763,7 +779,7 @@ _logical("logical-and", False)
 def _sp_has_lang(ctx, expr, focus, scope):
     """``sparql:hasLang ( literal tag )``: the fixtures give hasLang a language-tag argument (SPARQL's hasLANG has one
     argument); true if the literal's language tag equals ``tag``, case-insensitively."""
-    values = _bound_values(_sparql_args(ctx, expr, _s("hasLang"), focus, scope, (1, 2)))
+    values = _bound_values(_sparql_args(ctx, expr, _s("hasLang"), focus, scope))
     if values is None:
         return []
     if len(values) == 1:

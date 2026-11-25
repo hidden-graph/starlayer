@@ -137,6 +137,46 @@ def _analyse(text: str) -> tuple[str, tuple[str, ...], tuple]:
     return ast.kind, projected, tuple(found)
 
 
+_MUST_PROJECT_THIS = "a SHACL SPARQL SELECT query must project ?this"
+
+
+def forbidden_construct(constructs: Iterable[tuple], prebound: Iterable[str], *, pre_binding: bool = True) -> str | None:
+    """What the spec forbids in a SHACL SPARQL query, as the ``ShapeError`` text ``check_query`` raises, else None: SERVICE (always, because it would
+    send a request from the shapes graph); with ``pre_binding`` also MINUS, a VALUES block that mentions a pre-bound variable, and the assignment of one.
+    ``constructs`` is what ``_analyse`` found. The meta check (``stsh:sparqlProblem``) asks this function, so it and the engine cannot disagree."""
+    prebound = frozenset(prebound)
+    for item in constructs:
+        if item[0] == "service":
+            return "SERVICE is not allowed in a SHACL SPARQL query"
+        if not pre_binding:
+            continue
+        if item[0] == "minus":
+            return "MINUS is not allowed in a SHACL SPARQL query"
+        if item[0] == "values":
+            # SHACL 1.2 SPARQL Appendix A: "SPARQL queries MUST not contain a VALUES clause that mentions any potentially
+            # pre-bound variable". A VALUES that mentions only other variables is allowed.
+            clash = sorted(item[1] & prebound)
+            if clash:
+                return f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query"  # str-ok: a variable name
+        if item[0] == "assign" and item[1] in prebound:
+            return f"a SHACL SPARQL query must not assign the pre-bound variable ?{item[1]}"  # str-ok: a variable name
+    return None
+
+
+def restriction_problem(text: str, prebound: Iterable[str], *, pre_binding: bool = True, require_this: bool = False) -> str | None:
+    """The ``ShapeError`` text ``check_query`` (and, with ``require_this``, ``run_select``) would raise for a query of the right form that parses, else
+    None: the forbidden constructs of ``forbidden_construct``, and a SELECT that does not project ``?this``. For a tool that has no plan; a query that does not
+    parse, or is of another form, is not this function's business (``stsh:sparqlProblem`` says so first)."""
+    try:
+        _form, projected, constructs = _analyse(text)
+    except Exception:  # noqa: BLE001  (the parser's own report is the meta check's other result)
+        return None
+    problem = forbidden_construct(constructs, prebound, pre_binding=pre_binding)
+    if problem is None and require_this and "this" not in projected:
+        return _MUST_PROJECT_THIS
+    return problem
+
+
 def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False, construct: bool = False, pre_binding: bool = True) -> tuple[str, ...]:
     """Parse ``text`` with StarLayer's own SPARQL parser and reject what the spec forbids; return the projected variable names.
 
@@ -163,21 +203,9 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
         if construct:
             raise ShapeError("sh:construct must be a CONSTRUCT query")
         raise ShapeError(f"expected a {want}, got {form}")  # str-ok: want is the query form name
-    for item in constructs:
-        if item[0] == "service":
-            raise ShapeError("SERVICE is not allowed in a SHACL SPARQL query")
-        if not pre_binding:
-            continue
-        if item[0] == "minus":
-            raise ShapeError("MINUS is not allowed in a SHACL SPARQL query")
-        if item[0] == "values":
-            # SHACL 1.2 SPARQL Appendix A: "SPARQL queries MUST not contain a VALUES clause that mentions any potentially
-            # pre-bound variable". A VALUES that mentions only other variables is allowed.
-            clash = sorted(item[1] & prebound)
-            if clash:
-                raise ShapeError(f"VALUES must not mention the pre-bound variable ?{clash[0]} in a SHACL SPARQL query")  # str-ok: a variable name
-        if item[0] == "assign" and item[1] in prebound:
-            raise ShapeError(f"a SHACL SPARQL query must not assign the pre-bound variable ?{item[1]}")  # str-ok: a variable name
+    problem = forbidden_construct(constructs, prebound, pre_binding=pre_binding)
+    if problem:
+        raise ShapeError(problem)
     plan.sparql_cache[key] = projected
     return projected
 
@@ -249,7 +277,7 @@ def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_thi
     """
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
-        raise ShapeError("a SHACL SPARQL SELECT query must project ?this")
+        raise ShapeError(_MUST_PROJECT_THIS)
     return run_query(ctx.data, text, bindings, shacl_functions(ctx))
 
 

@@ -5,16 +5,17 @@ import pyoxigraph as ox
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, StarShaclProcessor
+from starlayer.shacl import MetaShaclError, RuleError, StarShaclProcessor
 from starlayer.shacl.engine.api import validate as engine_validate
 from starlayer.shacl.engine.builtin_functions import (
     BUILTIN_FUNCTIONS,
     REGEX_PROBLEM,
     SPARQL_PROBLEM,
     TIME_ZONE_PROBLEM,
+    ARGUMENT_COUNT_PROBLEM,
 )
 from starlayer.shacl.engine.plan import ShapeError
-from starlayer.shacl.meta_shapes import meta_validate
+from starlayer.shacl.meta_shapes import meta_validate, sparql_query_problems
 
 SH = "http://www.w3.org/ns/shacl#"
 STSH = "https://github.com/hidden-graph/starlayer/ns/shacl#"
@@ -105,7 +106,7 @@ def test_the_layer_passes_its_own_check():
 # --- the functions -------------------------------------------------------------------------------------------------------------
 
 def test_the_functions_are_registered():
-    assert set(BUILTIN_FUNCTIONS) == {REGEX_PROBLEM, SPARQL_PROBLEM, TIME_ZONE_PROBLEM}
+    assert set(BUILTIN_FUNCTIONS) == {REGEX_PROBLEM, SPARQL_PROBLEM, TIME_ZONE_PROBLEM, ARGUMENT_COUNT_PROBLEM}
     assert REGEX_PROBLEM.value == STSH + "regexProblem" and SPARQL_PROBLEM.value == STSH + "sparqlProblem"
 
 
@@ -188,3 +189,163 @@ def test_rdf_type_with_a_declaration_passes_the_check_and_runs():
             'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:prefixes ex:P ; sh:select "SELECT $this WHERE { $this rdf:type ?o FILTER(false) }" ] .')
     assert query_problems(body) == []
     assert StarShaclProcessor(shacl_graph=graph(body)).validate(data_graph=graph("ex:a a ex:C .")).conforms
+
+
+# --- what the engine refuses in the queries it runs, and the number of arguments of an expression ----------------------------------
+# The engine refuses these when it runs the query (SPARQL Extensions, "Pre-binding of Variables"), so a shapes graph that only fails then passes every other
+# check. The private layer asks the engine's own check (sparql_support.restriction_problem), once it knows where the query is used.
+
+DATA = "ex:a a ex:C ; ex:p 1 ."
+HEAD = PRE + "@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . @prefix sparql: <http://www.w3.org/ns/sparql#> .\n"
+
+
+def engine_text(body: str) -> str | None:
+    """What the engine raises (a ShapeError, or a RuleError for a rule) for the shapes graph, or None when it accepts it."""
+    shapes = Graph().parse(data=HEAD + body, format="turtle")
+    try:
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=graph(DATA), rules=True)
+    except (ShapeError, RuleError) as error:
+        return str(error)
+    return None
+
+
+def meta_lines(body: str) -> list[str]:
+    try:
+        meta_validate(Graph().parse(data=HEAD + body, format="turtle"))
+    except MetaShaclError as error:
+        return list(error.problems)
+    return []
+
+
+def constraint(query: str) -> str:
+    return f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:select """{query}""" ] .'
+
+
+def validator(kind: str, query: str) -> str:
+    return (f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; ex:flag 1 . ex:Comp a sh:ConstraintComponent ; sh:parameter [ sh:path ex:flag ] ; sh:validator [ sh:{kind} """{query}""" ] .')
+
+
+def rule(construct: str, *, shape: bool = True) -> str:
+    holder = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule ex:R ." if shape else ""
+    return f'{holder} ex:R a sh:SPARQLRule ; sh:construct """{construct}""" .'
+
+
+def expression(query: str) -> str:
+    return f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression [ sh:select """{query}""" ] .'
+
+
+# (what the query does wrong, where it is used, the text the engine gives); the first column names the case
+RESTRICTED = [
+    ("service in a constraint", constraint("SELECT $this WHERE { SERVICE <http://127.0.0.1:1/sparql> { ?s ?p ?o } }"), "SERVICE is not allowed"),
+    ("minus in a constraint", constraint("SELECT $this WHERE { $this ex:p ?o MINUS { ?o ex:q ?r } }"), "MINUS is not allowed"),
+    ("this assigned in a constraint", constraint("SELECT $this WHERE { BIND (ex:a AS $this) }"), "must not assign the pre-bound variable ?this"),
+    ("this given by a select expression", constraint("SELECT (ex:a AS $this) WHERE { }"), "must not assign the pre-bound variable ?this"),
+    ("values of this in a constraint", constraint("SELECT $this WHERE { VALUES $this { ex:a } }"), "VALUES must not mention the pre-bound variable ?this"),
+    ("a select that does not project this", constraint("SELECT ?x WHERE { ?x ?p ?o }"), "must project ?this"),
+    ("service in the ask of a validator", validator("ask", "ASK { SERVICE <http://127.0.0.1:1/sparql> { ?s ?p ?o } }"), "SERVICE is not allowed"),
+    ("value assigned in the ask of a validator", validator("ask", "ASK { BIND (true AS $value) FILTER ($value) }"), "must not assign the pre-bound variable ?value"),
+    ("values of value in the ask of a validator", validator("ask", "ASK { VALUES $value { 1 } }"), "VALUES must not mention the pre-bound variable ?value"),
+    ("a select validator that does not project this", validator("select", "SELECT ?x WHERE { ?x ?p ?o }"), "must project ?this"),
+    ("minus in a rule of a shape", rule("CONSTRUCT { ?x ex:q ?y } WHERE { ?x ex:p ?y MINUS { ?y ex:r ?z } }"), "MINUS is not allowed"),
+    ("this assigned in a rule of a shape", rule("CONSTRUCT { $this ex:q ?y } WHERE { BIND (1 AS $this) BIND (2 AS ?y) }"), "must not assign the pre-bound variable ?this"),
+    ("service in a rule no shape holds", rule("CONSTRUCT { ?x ex:q ?y } WHERE { ?x ex:p ?y . SERVICE <http://127.0.0.1:1/sparql> { ?x ?p ?y } }", shape=False), "SERVICE is not allowed"),
+    ("minus in a node expression", expression("SELECT ?x WHERE { ?x ex:p ?o MINUS { ?o ex:q ?r } }"), "MINUS is not allowed"),
+    ("service in a node expression", expression("SELECT ?x WHERE { SERVICE <http://127.0.0.1:1/sparql> { ?x ?p ?o } }"), "SERVICE is not allowed"),
+]
+
+ALLOWED = [
+    ("a values over other variables", constraint("SELECT $this WHERE { VALUES ?other { 1 2 } $this ex:p ?other }")),
+    ("value assigned in a select constraint (it is not pre-bound there)", constraint("SELECT $this ?value WHERE { BIND (1 AS ?value) }")),
+    ("select star", constraint("SELECT * WHERE { $this ex:p ?o }")),
+    ("another variable assigned in an ask", validator("ask", "ASK { BIND (true AS ?other) FILTER (?other) }")),
+    ("minus in a rule no shape holds (nothing is pre-bound)", rule("CONSTRUCT { ?x ex:q ?y } WHERE { ?x ex:p ?y MINUS { ?y ex:r ?z } }", shape=False)),
+    ("this assigned in a rule no shape holds", rule("CONSTRUCT { ?x ex:q ?y } WHERE { BIND (ex:a AS ?x) BIND (1 AS ?y) }", shape=False)),
+    ("a deactivated constraint", 'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:deactivated true ; sh:select "SELECT ?x WHERE { MINUS { ?x ?p ?o } }" ] .'),
+    ("a rule of a deactivated shape", "ex:S a sh:NodeShape ; sh:deactivated true ; sh:targetNode ex:a ; sh:rule ex:R . ex:R a sh:SPARQLRule ; sh:construct \"CONSTRUCT { ?x ex:q ?y } WHERE { ?x ex:p ?y MINUS { ?y ex:r ?z } }\" ."),
+    ("a query nothing uses", 'ex:Q sh:select "SELECT ?x WHERE { MINUS { ?x ?p ?o } }" .'),
+]
+
+
+@pytest.mark.parametrize("name, body, said", RESTRICTED, ids=[case[0] for case in RESTRICTED])
+def test_a_query_the_engine_refuses_to_run_is_found(name, body, said):
+    body = EX_PREFIX + 'ex:S2 sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/"^^xsd:anyURI ] .\n' + body
+    body = body.replace("sh:select", "sh:prefixes ex:P ; sh:select", 1) if "sh:prefixes" not in body else body
+    body = body.replace("sh:ask", "sh:prefixes ex:P ; sh:ask", 1) if " sh:ask" in body else body
+    body = body.replace("sh:construct", "sh:prefixes ex:P ; sh:construct", 1) if " sh:construct" in body else body
+    refused = engine_text(body)
+    assert refused is not None and said in refused
+    lines = meta_lines(body)
+    assert [line for line in lines if said in line], lines
+    tool = [problem for _node, _predicate, problem in sparql_query_problems(Graph().parse(data=HEAD + body, format="turtle"))]
+    assert [problem for problem in tool if said in problem], tool
+
+
+@pytest.mark.parametrize("name, body", ALLOWED, ids=[case[0] for case in ALLOWED])
+def test_a_query_the_engine_runs_is_not_found(name, body):
+    body = EX_PREFIX + body
+    body = body.replace("sh:select", "sh:prefixes ex:P ; sh:select", 1) if "sh:prefixes" not in body else body
+    body = body.replace("sh:ask", "sh:prefixes ex:P ; sh:ask", 1) if " sh:ask" in body else body
+    body = body.replace("sh:construct", "sh:prefixes ex:P ; sh:construct", 1) if " sh:construct" in body else body
+    assert engine_text(body) is None
+    assert meta_lines(body) == []
+
+
+def test_the_restrictions_are_the_engines_own_check():
+    from starlayer.shacl.engine import sparql_support
+
+    assert sparql_support.restriction_problem("SELECT $this WHERE { VALUES $this { 1 } }", ["this"]) == "VALUES must not mention the pre-bound variable ?this in a SHACL SPARQL query"
+    assert sparql_support.restriction_problem("SELECT ?x WHERE { }", ["this"], require_this=True) == "a SHACL SPARQL SELECT query must project ?this"
+    assert sparql_support.restriction_problem("SELECT ?x WHERE { MINUS { ?x ?p ?o } }", [], pre_binding=False) is None
+    assert sparql_support.restriction_problem("SELECT ?x WHERE {", ["this"]) is None  # a query that does not parse is for the other check
+
+
+ARITY_SHELL = 'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression [ %s ] .'
+
+
+@pytest.mark.parametrize(
+    "bad, good",
+    [
+        ("sparql:if ( true 1 )", "sparql:if ( true 1 2 )"),
+        ("sparql:if ( true 1 2 3 )", "sparql:if ( true 1 2 )"),
+        ("sparql:bound ( 1 2 )", "sparql:bound ( 1 )"),
+        ("sparql:bound ( )", "sparql:bound ( 1 )"),
+        ("sparql:hasLang ( 1 2 3 )", "sparql:hasLang ( 1 2 )"),
+        ("sparql:equals ( 1 2 3 )", "sparql:equals ( 1 2 )"),
+        ("sparql:equals 1", "sparql:equals ( 1 2 )"),
+        ("sparql:logical-not ( 1 2 )", "sparql:logical-not ( true )"),
+        ("sparql:unary-minus ( 1 2 )", "sparql:unary-minus ( 1 )"),
+        ("shnex:conformsToShape ( 1 )", "shnex:conformsToShape ( 1 ex:T )"),
+    ],
+)
+def test_a_call_with_the_wrong_number_of_arguments_is_found(bad, good):
+    shell = ARITY_SHELL + " ex:T a sh:NodeShape ."
+    refused = engine_text(shell % bad)
+    assert refused is not None and "needs a list of" in refused
+    assert [line for line in meta_lines(shell % bad) if "needs a list of" in line]
+    assert engine_text(shell % good) is None or "needs a list of" not in engine_text(shell % good)
+    assert meta_lines(shell % good) == []
+
+
+def test_a_call_with_no_fixed_count_takes_any_number_of_arguments():
+    for call in ("sparql:coalesce ( 1 2 3 4 )", "sparql:logical-and ( true true true )", "sparql:concat ( 'a' 'b' 'c' )"):
+        assert meta_lines(ARITY_SHELL % call) == []
+
+
+def test_the_targets_of_the_argument_count_shape_are_the_operators_with_a_count():
+    from starlayer.shacl.engine.expressions import ARITY
+
+    layer = starontology._load_private("shacl_shacl_starlayer")
+    targets = {term.value for term in layer.objects(ox.NamedNode(STSH + "ArgumentCountShape"), ox.NamedNode(SH + "targetSubjectsOf"))}
+    assert targets == {pred.value for pred in ARITY}
+
+
+def test_the_argument_count_function_agrees_with_the_engine_table():
+    from starlayer.shacl.engine.expressions import ARITY
+
+    function = BUILTIN_FUNCTIONS[ARGUMENT_COUNT_PROBLEM]
+    for pred, counts in ARITY.items():
+        assert all(function(pred, ox.Literal(str(n), datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))) is None for n in counts)
+        wrong = max(counts) + 1
+        assert "needs a list of" in function(pred, ox.Literal(str(wrong), datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))).value
+    assert function(ox.NamedNode("http://www.w3.org/ns/sparql#coalesce"), ox.Literal("9", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))) is None
+    assert function(ox.NamedNode("http://www.w3.org/ns/sparql#if"), ox.Literal("x")) is None

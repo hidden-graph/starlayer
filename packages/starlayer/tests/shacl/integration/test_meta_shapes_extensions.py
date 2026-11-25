@@ -2142,3 +2142,206 @@ def test_the_focus_node_variable_and_other_values_give_no_sh_this_warning() -> N
     assert _warnings(_THIS_SHAPE % "sh:values ex:a") == []
     assert _warnings(_PREFIXES + "ex:S a sh:NodeShape ; rdfs:seeAlso sh:this .".replace("rdfs:seeAlso", "<http://www.w3.org/2000/01/rdf-schema#seeAlso>")) == []
     _validate(_TRIVIAL_DATA, _THIS_SHAPE % 'sh:values [ shnex:var "focusNode" ]')
+
+
+# --- the mistakes the engine otherwise raises a ShapeError for -----------------------------------------------------------------
+# Each rule below is paired with the engine: a graph the rule rejects is one the engine refuses (when the processor is built, or when validate() reaches it), and the
+# graph that differs by the fix is accepted by both. A rule that rejected what the engine accepts would make meta_shacl=True refuse a working shapes graph.
+
+_ENGINE_PREFIXES = (
+    "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . "
+    "@prefix sparql: <http://www.w3.org/ns/sparql#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
+    "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .\n"
+)
+_ENGINE_DATA = "@prefix ex: <http://example.org/> . ex:a a ex:C ; ex:p 1 ."
+_STSH = "https://github.com/hidden-graph/starlayer/ns/shacl#"
+
+
+def _engine_refuses(body: str) -> bool:
+    """Whether the engine raises a ShapeError for the shapes graph: when the processor is built, or when it validates a node the shapes reach."""
+    shapes, data = Graph(), Graph()
+    shapes.parse(data=_ENGINE_PREFIXES + body, format="turtle")
+    data.parse(data=_ENGINE_DATA, format="turtle")
+    try:
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data)
+    except ShapeError:
+        return True
+    return False
+
+
+def _meta_sources(body: str) -> set[str]:
+    """The local names of the shapes (``sh:sourceShape``) that find fault with the shapes graph; empty when it passes the meta check."""
+    shapes = Graph()
+    shapes.parse(data=_ENGINE_PREFIXES + body, format="turtle")
+    try:
+        meta_validate(shapes)
+    except MetaShaclError as error:
+        return {s.value.rsplit("#", 1)[-1] for s in error.report_graph.objects(None, SH.sourceShape)}
+    return set()
+
+
+def _rejected_as_the_engine_does(rule: str, bad: str, good: str) -> None:
+    assert _engine_refuses(bad), "the case must be one the engine refuses"
+    assert rule in _meta_sources(bad)
+    assert not _engine_refuses(good), "the fixed graph must be one the engine accepts"
+    assert _meta_sources(good) == set()
+
+
+_SHAPE_REFERENCES = [
+    ("sh:node 1", "sh:node ex:T"),
+    ("sh:not 1", "sh:not ex:T"),
+    ("sh:not 'a'", "sh:not [ ]"),
+    ("sh:and ( ex:T 1 )", "sh:and ( ex:T [ ] )"),
+    ("sh:or ( 1 )", "sh:or ( ex:T )"),
+    ("sh:xone ( ex:T 'a' )", "sh:xone ( ex:T [ ] )"),
+    ("sh:property [ sh:path ex:p ; sh:qualifiedValueShape 1 ; sh:qualifiedMinCount 1 ]", "sh:property [ sh:path ex:p ; sh:qualifiedValueShape ex:T ; sh:qualifiedMinCount 1 ]"),
+]
+
+
+@pytest.mark.parametrize("bad, good", _SHAPE_REFERENCES)
+def test_a_literal_is_not_a_shape_reference(bad, good) -> None:
+    shell = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; %s . ex:T a sh:NodeShape ."
+    _rejected_as_the_engine_does("ShapeReferenceKindShape", shell % bad, shell % good)
+
+
+def test_a_shape_reference_to_a_literal_is_left_alone_when_the_engine_never_checks_it() -> None:
+    """A deactivated shape, and a constraint whose triple is deactivated by its reifier, are not read by the engine."""
+    for body in (
+        "ex:S a sh:NodeShape ; sh:deactivated true ; sh:node 1 .",
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:node 1 ~ ex:r . ex:r sh:deactivated true .",
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:and ( 1 ) ~ ex:r . ex:r sh:deactivated true .",
+    ):
+        assert not _engine_refuses(body)
+        assert "ShapeReferenceKindShape" not in _meta_sources(body)
+
+
+def test_the_message_of_a_literal_shape_reference_names_the_predicate() -> None:
+    shapes = Graph()
+    shapes.parse(data=_ENGINE_PREFIXES + "ex:S a sh:NodeShape ; sh:not 7 .", format="turtle")
+    with pytest.raises(MetaShaclError, match=r"shacl#not refers to a shape, an IRI or a blank node, but 7 is a literal"):
+        meta_validate(shapes)
+
+
+@pytest.mark.parametrize(
+    "bad, good",
+    [
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:path ex:p .", "ex:S a sh:PropertyShape ; sh:targetNode ex:a ; sh:path ex:p ."),
+        ("ex:S a sh:NodeShape ; sh:path ex:p .", "ex:S sh:path ex:p ."),
+        ("ex:S a sh:NodeShape ; sh:deactivated true ; sh:path ex:p .", "ex:S a sh:NodeShape ; sh:deactivated true ."),
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property ex:P . ex:P a sh:NodeShape ; sh:path ex:p .", "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property ex:P . ex:P sh:path ex:p ."),
+    ],
+)
+def test_a_node_shape_cannot_have_a_path(bad, good) -> None:
+    _rejected_as_the_engine_does("NodeShapeHasNoPathShape", bad, good)
+
+
+def test_a_class_that_is_only_a_subclass_of_node_shape_is_not_a_node_shape_for_the_engine() -> None:
+    body = "ex:Mine <http://www.w3.org/2000/01/rdf-schema#subClassOf> sh:NodeShape . ex:S a ex:Mine ; sh:path ex:p ."
+    assert "NodeShapeHasNoPathShape" not in _meta_sources(body)
+
+
+_REIFIER_PARAMETERS = "sh:reificationRequired true"
+
+
+@pytest.mark.parametrize(
+    "bad, good",
+    [
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:reificationRequired true .", "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:reificationRequired true ] ."),
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:reificationRequired false .", "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:reificationRequired false ] ."),
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:reifierShape ex:T . ex:T a sh:NodeShape .", "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:reifierShape ex:T ] . ex:T a sh:NodeShape ."),
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path [ sh:inversePath ex:p ] ; sh:reificationRequired true ] .", "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:reificationRequired true ] ."),
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ( ex:p ex:q ) ; sh:reificationRequired true ] .", "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:q ; sh:reificationRequired true ] ."),
+        ("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path [ sh:zeroOrMorePath ex:p ] ; sh:reifierShape ex:T ] . ex:T a sh:NodeShape .", "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:reifierShape ex:T ] . ex:T a sh:NodeShape ."),
+    ],
+)
+def test_the_reifier_constraints_need_a_property_shape_with_an_iri_path(bad, good) -> None:
+    _rejected_as_the_engine_does("ReifierShapeNeedsIRIPathShape", bad, good)
+
+
+def test_the_reifier_constraints_are_left_alone_when_the_engine_never_reads_them() -> None:
+    for body in (
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:deactivated true ; sh:reificationRequired true .",
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:reificationRequired true ~ ex:r . ex:r sh:deactivated true .",
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:deactivated true ; sh:reificationRequired true ] .",
+    ):
+        assert not _engine_refuses(body)
+        assert "ReifierShapeNeedsIRIPathShape" not in _meta_sources(body)
+
+
+_LIMIT_SHELL = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:out ; sh:values [ shnex:%s ; shnex:nodes ( 1 2 3 ) ] ] ."
+
+
+@pytest.mark.parametrize("operator", ["limit", "offset"])
+@pytest.mark.parametrize("bad", ["-1", "'2'", "2.5", "ex:x", "[ shnex:count ( 1 ) ]", "'x'^^xsd:integer"])
+def test_limit_and_offset_take_a_non_negative_integer(operator, bad) -> None:
+    shell = _LIMIT_SHELL % (operator + " %s")
+    _rejected_as_the_engine_does("LimitOffsetShape", shell % bad, shell % "2")
+
+
+@pytest.mark.parametrize("good", ["0", "+3", "007", "'4'^^xsd:integer"])
+def test_limit_and_offset_accept_every_form_of_a_non_negative_integer_the_engine_does(good) -> None:
+    body = _LIMIT_SHELL % ("limit " + good)
+    assert not _engine_refuses(body) and _meta_sources(body) == set()
+
+
+_PREFIX_QUERY = 'sh:select "SELECT $this WHERE {}"'
+
+
+@pytest.mark.parametrize(
+    "bad, good",
+    [
+        (   # two declarations of one prefix in the holder of sh:prefixes
+            'ex:H sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ], [ sh:prefix "x" ; sh:namespace "http://b/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:prefixes ex:H ; ' + _PREFIX_QUERY + " ] .",
+            'ex:H sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ], [ sh:prefix "y" ; sh:namespace "http://b/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:prefixes ex:H ; ' + _PREFIX_QUERY + " ] .",
+        ),
+        (   # one in the holder, one in what it imports
+            'ex:H owl:imports ex:I ; sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ] . ex:I sh:declare [ sh:prefix "x" ; sh:namespace "http://b/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:prefixes ex:H ; ' + _PREFIX_QUERY + " ] .",
+            'ex:H owl:imports ex:I ; sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ] . ex:I sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:prefixes ex:H ; ' + _PREFIX_QUERY + " ] .",
+        ),
+        (   # no sh:prefixes: the shapes graph node declares it twice
+            'ex:G a sh:ShapesGraph ; sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ], [ sh:prefix "x" ; sh:namespace "http://b/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ ' + _PREFIX_QUERY + " ] .",
+            'ex:G a sh:ShapesGraph ; sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ], [ sh:prefix "z" ; sh:namespace "http://b/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ ' + _PREFIX_QUERY + " ] .",
+        ),
+        (   # no sh:prefixes: two ontologies
+            'ex:O1 a owl:Ontology ; sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ] . ex:O2 a owl:Ontology ; sh:declare [ sh:prefix "x" ; sh:namespace "http://b/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ ' + _PREFIX_QUERY + " ] .",
+            'ex:O1 a owl:Ontology ; sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ] . ex:O2 a owl:Ontology ; sh:declare [ sh:prefix "y" ; sh:namespace "http://b/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ ' + _PREFIX_QUERY + " ] .",
+        ),
+    ],
+)
+def test_a_prefix_a_query_reads_has_one_namespace(bad, good) -> None:
+    _rejected_as_the_engine_does("PrefixConflictShape", bad, good)
+
+
+def test_a_prefix_declared_twice_with_the_same_namespace_is_fine_and_so_are_conflicts_the_query_does_not_read() -> None:
+    same = 'ex:H sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ], [ sh:prefix "x" ; sh:namespace "http://a/"^^xsd:anyURI ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:prefixes ex:H ; ' + _PREFIX_QUERY + " ] ."
+    assert not _engine_refuses(same) and "PrefixConflictShape" not in _meta_sources(same)
+    # the query names its own holder, so the two ontologies that disagree are not read
+    other = ('ex:O1 a owl:Ontology ; sh:declare [ sh:prefix "x" ; sh:namespace "http://a/" ] . ex:O2 a owl:Ontology ; sh:declare [ sh:prefix "x" ; sh:namespace "http://b/" ] . '
+             'ex:H sh:declare [ sh:prefix "y" ; sh:namespace "http://c/" ] . ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:prefixes ex:H ; ' + _PREFIX_QUERY + " ] .")
+    assert not _engine_refuses(other) and "PrefixConflictShape" not in _meta_sources(other)
+
+
+_CUSTOM_FUNCTIONS = """
+ex:Average a sh:NamedParameterExpressionFunction ; sh:parameter ex:AverageOf ; sh:bodyExpression [ shnex:count ( 1 ) ] .
+ex:AverageOf a sh:Parameter ; sh:path ex:average ; sh:keyParameter true .
+ex:Other a sh:NamedParameterExpressionFunction ; sh:parameter ex:OtherOf ; sh:bodyExpression [ shnex:count ( 2 ) ] .
+ex:OtherOf a sh:Parameter ; sh:path ex:other ; sh:keyParameter true .
+ex:Twice a sh:ListParameterExpressionFunction ; sh:bodyExpression [ shnex:count ( 3 ) ] .
+ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression %s .
+"""
+
+
+@pytest.mark.parametrize(
+    "bad, good",
+    [
+        ("[ ex:average ex:x ; ex:other ex:y ]", "[ ex:average ex:x ]"),
+        ("[ ex:average ex:x ; ex:Twice ( 1 ) ]", "[ ex:Twice ( 1 ) ]"),
+    ],
+)
+def test_a_node_expression_calls_one_custom_function(bad, good) -> None:
+    _rejected_as_the_engine_does("OneCustomFunctionCallShape", _CUSTOM_FUNCTIONS % bad, _CUSTOM_FUNCTIONS % good)
+
+
+def test_a_custom_function_key_beside_a_built_in_operator_is_read_as_the_operator() -> None:
+    body = _CUSTOM_FUNCTIONS % "[ shnex:count ( 1 ) ; ex:average ex:x ]"
+    assert not _engine_refuses(body) and "OneCustomFunctionCallShape" not in _meta_sources(body)

@@ -341,9 +341,60 @@ _QUERY_FORMS = {
 _QUERY_NAMES = {SH.select: "sh:select", SH.ask: "sh:ask", SH.construct: "sh:construct", SHUI_SEARCH_QUERY: "shui:searchQuery"}
 
 
-def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str], declared: frozenset[str] = frozenset()) -> str | None:
+# What the engine refuses in a query of the SHACL SPARQL Extensions, by where the query is used and which predicate holds it:
+# (pre-bound variables, whether MINUS, VALUES and assignment are limited, whether a SELECT must project ?this). The engine checks a query when it runs it,
+# with the variables it has bound: ``?this`` always, ``?value`` for the ASK of a validator; a variable of a parameter only when the parameter has a value, which
+# a shapes graph alone does not say, so those are left out (a check that can only miss, never refuse what the engine accepts). A global rule has no pre-binding.
+# A node expression's SELECT is run with the variables of its scope, so only SERVICE and MINUS, which are refused whatever is bound, are checked there.
+_RESTRICTIONS: dict[tuple[str, Any], tuple[tuple[str, ...], bool, bool]] = {
+    ("constraint", SH.select): (("this",), True, True),
+    ("validator", SH.select): (("this",), True, True),
+    ("validator", SH.ask): (("this", "value"), True, False),
+    ("rule", SH.construct): (("this",), True, False),
+    ("global-rule", SH.construct): ((), False, False),
+    ("expression", SH.select): ((), True, False),
+}
+
+
+_SUBCLASS_OF = ox.NamedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf")
+
+
+def _is_deactivated(shapes_graph: Any, node: Any) -> bool:
+    return any(isinstance(d, ox.Literal) and d.datatype == XSD.boolean and d.value in ("true", "1") for d in shapes_graph.objects(node, SH.deactivated))
+
+
+def query_context(shapes_graph: Any, node: Any) -> str:
+    """Where the query held by ``node`` is run, which says what the engine refuses in it: ``"inactive"`` (``sh:deactivated true``, never run), ``"constraint"``
+    (the value of ``sh:sparql`` of a shape that is not deactivated), ``"validator"`` (of a constraint component), ``"rule"`` (a rule of a shape that is not
+    deactivated, or a template with such a rule), ``"global-rule"`` (a rule no shape holds), ``"expression"`` (a blank node something refers to: a node expression)
+    or ``"none"``. ``stsh:SPARQLQueryTextShape`` works this out in SPARQL; the two are kept the same by ``tests/shacl/integration/test_meta_sparql_restrictions.py``."""
+    if _is_deactivated(shapes_graph, node):
+        return "inactive"
+    if any(not _is_deactivated(shapes_graph, shape) for shape in shapes_graph.subjects(SH.sparql, node)):
+        return "constraint"
+    if any(next(iter(shapes_graph.subjects(predicate, node)), None) is not None for predicate in _VALIDATOR_PREDICATES):
+        return "validator"
+    classes, queue = {node}, [node]
+    while queue:
+        for sub in shapes_graph.subjects(_SUBCLASS_OF, queue.pop()):
+            if sub not in classes:
+                classes.add(sub)
+                queue.append(sub)
+    rules = {node} | {rule for cls in classes for rule in shapes_graph.subjects(RDF.type, cls)}
+    if any(not _is_deactivated(shapes_graph, shape) for rule in rules for shape in shapes_graph.subjects(SH.rule, rule)):
+        return "rule"
+    if SH.SPARQLRule in set(shapes_graph.objects(node, RDF.type)) or len(rules) > 1:
+        return "global-rule"
+    if isinstance(node, ox.BlankNode) and next(iter(shapes_graph.triples((None, None, node))), None) is not None:
+        return "expression"
+    return "none"
+
+
+def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str], declared: frozenset[str] = frozenset(), context: str = "none") -> str | None:
     """What is wrong with one embedded query, or None: text that is not SPARQL, a query of another form than ``predicate`` says (a SELECT in
-    ``sh:construct``), or one that fails the SPARQL structure check. This is the verdict of ``stsh:sparqlProblem`` (``engine/builtin_functions.py``) and of
+    ``sh:construct``), one that fails the SPARQL structure check, or one the engine refuses to run where it is used (``context``, see ``query_context``): a
+    SERVICE, a MINUS, a VALUES or an assignment of a variable that is pre-bound there, a SELECT that does not project ``?this``. The last group is the engine's own
+    check (``engine/sparql_support.restriction_problem``). This is the verdict of ``stsh:sparqlProblem`` (``engine/builtin_functions.py``) and of
     ``sparql_query_problems``, so the shapes of ``shacl_shacl_starlayer`` and a tool that lists problems cannot disagree."""
     from starlayer.sparql.parse_sparql import SparqlSyntaxError, ast_to_triples
     from starlayer.sparql.sqe.shapes import sqe_validate
@@ -374,7 +425,16 @@ def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str
         _SPARQL_STRUCTURE_CACHE.move_to_end(cache_key)
         if len(_SPARQL_STRUCTURE_CACHE) > _SPARQL_STRUCTURE_CACHE_MAXSIZE:
             _SPARQL_STRUCTURE_CACHE.popitem(last=False)
-    return None if conforms else f"{name} value fails SPARQL structural validation:\n{report_text}"
+    if not conforms:
+        return f"{name} value fails SPARQL structural validation:\n{report_text}"
+    restriction = _RESTRICTIONS.get((context, predicate))
+    if restriction is None:
+        return None
+    from starlayer.shacl.engine.sparql_support import restriction_problem
+
+    prebound, pre_binding, require_this = restriction
+    header = "".join(f"PREFIX {prefix}: <{namespace}>\n" for prefix, namespace in prefixes.items())  # str-ok: prefix and namespace strings, as the engine writes them
+    return restriction_problem(header + query_text, prebound, pre_binding=pre_binding, require_this=require_this)
 
 
 def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
@@ -387,6 +447,6 @@ def sparql_query_problems(shapes_graph: Any) -> Iterator[tuple[Any, Any, str]]:
                 continue  # not xsd:string - already caught by the meta-shapes structural check
             # Only sh:declare / sh:prefixes, as the engine does: a prefix the file merely binds (@prefix) is not resolved at run time.
             problem = sparql_text_problem(predicate, text_literal.value, _collect_query_prefixes(shapes_graph, query_node),
-                                          _declared_parameter_names(shapes_graph, query_node))
+                                          _declared_parameter_names(shapes_graph, query_node), query_context(shapes_graph, query_node))
             if problem:
                 yield query_node, predicate, problem

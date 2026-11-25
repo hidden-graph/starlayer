@@ -21,6 +21,7 @@ STSH = "https://github.com/hidden-graph/starlayer/ns/shacl#"
 REGEX_PROBLEM = NamedNode(STSH + "regexProblem")
 SPARQL_PROBLEM = NamedNode(STSH + "sparqlProblem")
 TIME_ZONE_PROBLEM = NamedNode(STSH + "timeZoneProblem")
+ARGUMENT_COUNT_PROBLEM = NamedNode(STSH + "argumentCountProblem")
 
 _PREFIX_LINE = re.compile(r"^\s*PREFIX\s+([^\s:]*):\s*<([^>]*)>\s*$", re.IGNORECASE | re.MULTILINE)
 
@@ -47,15 +48,18 @@ def regex_problem_function(pattern: Any, flags: Any = None) -> Literal | None:
     return Literal(reason) if reason else None
 
 
-def sparql_problem_function(query_text: Any, predicate: Any, prefixes: Any = None, parameters: Any = None) -> Literal | None:
+def sparql_problem_function(query_text: Any, predicate: Any, prefixes: Any = None, parameters: Any = None, context: Any = None) -> Literal | None:
     """``stsh:sparqlProblem(text, predicate, prefixes, parameters)``: what is wrong with the SPARQL ``text`` held by ``predicate`` (``sh:select``, ``sh:ask``,
     ``sh:construct`` or ``shui:searchQuery``), else no value. ``prefixes`` is a ``PREFIX p: <namespace>`` line for each declaration the query's owner
     makes with ``sh:declare`` (the query is parsed under them, so line and column numbers stay those of the text itself), ``parameters`` the names
-    of the variables its owner's ``sh:parameter``s bind, separated by spaces. Both are optional."""
+    of the variables its owner's ``sh:parameter``s bind, separated by spaces. ``context`` says where the query is run (``meta_shapes.query_context``:
+    ``"constraint"``, ``"validator"``, ``"rule"``, ``"global-rule"``, ``"expression"``, ``"inactive"`` or ``"none"``), which decides what the engine refuses in it
+    (a SERVICE, a MINUS, a VALUES or an assignment of ``?this``, a SELECT that does not project it). All three after ``predicate`` are optional."""
     from starlayer.shacl.meta_shapes import sparql_text_problem
 
     text, prefix_lines, names = _string(query_text), _string(prefixes) if prefixes is not None else "", _string(parameters) if parameters is not None else ""
-    if text is None or prefix_lines is None or names is None or not isinstance(predicate, NamedNode):
+    where = _string(context) if context is not None else "none"
+    if text is None or prefix_lines is None or names is None or where is None or not isinstance(predicate, NamedNode):
         return None
     from starlayer.shacl.meta_shapes import _QUERY_FORMS
 
@@ -64,7 +68,21 @@ def sparql_problem_function(query_text: Any, predicate: Any, prefixes: Any = Non
     # Only the owner's sh:declare prefixes, as at run time: the engine binds no others, not even rdf:, rdfs: or owl:
     known: dict[str, str] = {}
     known.update(_PREFIX_LINE.findall(prefix_lines))
-    problem = sparql_text_problem(predicate, text, known, frozenset(names.split()))
+    problem = sparql_text_problem(predicate, text, known, frozenset(names.split()), where)
+    return Literal(problem) if problem else None
+
+
+def argument_count_problem_function(predicate: Any, count: Any) -> Literal | None:
+    """``stsh:argumentCountProblem(predicate, count)``: why a call of the node expression operator ``predicate`` cannot have ``count`` argument expressions
+    (``expressions.ARITY``: sparql:if takes 3, sparql:bound 1, an infix operator 2 ...), else no value; also none for an operator with no fixed count."""
+    from starlayer.shacl.engine.expressions import arity_problem
+
+    if not isinstance(predicate, NamedNode) or not isinstance(count, Literal) or count.datatype != XSD.integer:
+        return None
+    try:
+        problem = arity_problem(predicate, int(count.value))
+    except ValueError:
+        return None
     return Literal(problem) if problem else None
 
 
@@ -86,4 +104,5 @@ BUILTIN_FUNCTIONS: dict[NamedNode, Callable[..., Literal | None]] = {
     REGEX_PROBLEM: regex_problem_function,
     SPARQL_PROBLEM: sparql_problem_function,
     TIME_ZONE_PROBLEM: time_zone_problem_function,
+    ARGUMENT_COUNT_PROBLEM: argument_count_problem_function,
 }

@@ -1,5 +1,5 @@
 # The StarLayer layer on top of shacl_shacl (private: not in the starontology registry, loaded by starontology._load_private): meta-shapes that call StarLayer's own SPARQL extension
-# functions (stsh:regexProblem, stsh:sparqlProblem, stsh:timeZoneProblem; starlayer/shacl/engine/builtin_functions.py). Hand-edited.
+# functions (stsh:regexProblem, stsh:sparqlProblem, stsh:timeZoneProblem, stsh:argumentCountProblem; starlayer/shacl/engine/builtin_functions.py). Hand-edited.
 #
 # LAYERING. shacl_shacl uses standard SHACL and standard SPARQL only, so any SHACL 1.2 processor can load it and run it on a shapes graph. These two checks
 # are about the text of a literal, which standard SPARQL cannot judge (SPARQL's REGEX and the XPath expressions of SHACL disagree on valid patterns; the
@@ -18,6 +18,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh:   <http://www.w3.org/ns/shacl#> .
 @prefix shui: <http://www.w3.org/ns/shacl-ui/> .
+@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> .
 @prefix stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#> .
 @prefix xsd:<http://www.w3.org/2001/XMLSchema#> .
 
@@ -26,6 +27,8 @@ stsh:StarLayerMetaShapesPrefixes a owl:Ontology ;
     sh:declare
         [ sh:prefix "owl" ; sh:namespace "http://www.w3.org/2002/07/owl#"^^xsd:anyURI ] ,
         [ sh:prefix "rdf" ; sh:namespace "http://www.w3.org/1999/02/22-rdf-syntax-ns#"^^xsd:anyURI ] ,
+        [ sh:prefix "rdfs" ; sh:namespace "http://www.w3.org/2000/01/rdf-schema#"^^xsd:anyURI ] ,
+        [ sh:prefix "shnex" ; sh:namespace "http://www.w3.org/ns/shacl-node-expr#"^^xsd:anyURI ] ,
         [ sh:prefix "sh" ; sh:namespace "http://www.w3.org/ns/shacl#"^^xsd:anyURI ] ,
         [ sh:prefix "shui" ; sh:namespace "http://www.w3.org/ns/shacl-ui/"^^xsd:anyURI ] ,
         [ sh:prefix "stsh" ; sh:namespace "https://github.com/hidden-graph/starlayer/ns/shacl#"^^xsd:anyURI ] ,
@@ -58,7 +61,11 @@ stsh:RegexShape a sh:NodeShape ;
     ] .
 
 # The text of a query (sh:select, sh:ask, sh:construct, shui:searchQuery) is not SPARQL the engine can run, is a query of another form than its predicate says, or
-# fails the structure check. The function reads the query under the prefixes of the node's sh:prefixes (with their owl:imports, and owl:versionIRI) as
+# fails the structure check, or is one the engine refuses to run where it is used: a SERVICE; a MINUS, a VALUES or an assignment of ?this (and of ?value in the ASK of a
+# validator) in a constraint, a validator or a rule of a shape; a SELECT of a constraint or a validator that does not project ?this. Where it is used is ?context, and the
+# function decides (stsh:sparqlProblem asks the engine's own check, so the two cannot disagree): "constraint" is the value of sh:sparql of a shape that is not deactivated, "validator" the
+# query of a constraint component's validator, "rule" a rule that a shape holds (or a template with such a rule), "global-rule" a rule no shape holds, "expression" a blank node
+# something refers to (a node expression), "inactive" what sh:deactivated true switches off. The function reads the query under the prefixes of the node's sh:prefixes (with their owl:imports, and owl:versionIRI) as
 # sh:declare gives them; without sh:prefixes, those of the sh:ShapesGraph, sh:DataGraph and sh:RulesGraph nodes, and of an owl:Ontology for a prefix they do not
 # declare. The variables the owner's sh:parameter declarations bind (a validator of a constraint component) are passed so they are not reported as unbound.
 stsh:SPARQLQueryTextShape a sh:NodeShape ;
@@ -75,11 +82,20 @@ stsh:SPARQLQueryTextShape a sh:NodeShape ;
                     SELECT $this ?value ?path
                            (stsh:sparqlProblem(?value, ?path,
                                                COALESCE(GROUP_CONCAT(DISTINCT ?line; separator="\\n"), ""),
-                                               COALESCE(GROUP_CONCAT(DISTINCT ?parameter; separator=" "), "")) AS ?message)
+                                               COALESCE(GROUP_CONCAT(DISTINCT ?parameter; separator=" "), ""),
+                                               ?context) AS ?message)
                     WHERE {
                         VALUES ?path { sh:select sh:ask sh:construct shui:searchQuery }
                         $this ?path ?value .
                         FILTER (isLiteral(?value) && (datatype(?value) = xsd:string || datatype(?value) = rdf:langString))
+                        BIND (IF(EXISTS { $this sh:deactivated ?d . FILTER (?d = true) }, "inactive",
+                              IF(EXISTS { ?holder sh:sparql $this . FILTER NOT EXISTS { ?holder sh:deactivated ?d . FILTER (?d = true) } }, "constraint",
+                              IF(EXISTS { ?component ?validatorPredicate $this . FILTER (?validatorPredicate IN (sh:validator, sh:nodeValidator, sh:propertyValidator)) }, "validator",
+                              IF(EXISTS { ?holder sh:rule ?rule . FILTER (?rule = $this || EXISTS { ?rule rdf:type/rdfs:subClassOf* $this })
+                                          FILTER NOT EXISTS { ?holder sh:deactivated ?d . FILTER (?d = true) } }, "rule",
+                              IF(EXISTS { $this rdf:type sh:SPARQLRule } || EXISTS { ?instance rdf:type/rdfs:subClassOf* $this . FILTER (?instance != $this) }, "global-rule",
+                              IF(isBlank($this) && EXISTS { ?referrer ?referrerPredicate $this }, "expression", "none"))))))
+                              AS ?context)
                         OPTIONAL {
                             {
                                 $this sh:prefixes/(^owl:versionIRI)?/(owl:imports/(^owl:versionIRI)?)* ?holder .
@@ -107,7 +123,7 @@ stsh:SPARQLQueryTextShape a sh:NodeShape ;
                             BIND (REPLACE(STR(?parameterPath), "^.*[#/]", "") AS ?parameter)
                         }
                     }
-                    GROUP BY $this ?value ?path
+                    GROUP BY $this ?value ?path ?context
                 }
                 FILTER BOUND(?message)
             }
@@ -130,6 +146,42 @@ stsh:TimeZoneShape a sh:NodeShape ;
                 BIND (shui:timeZone AS ?path)
                 BIND (stsh:timeZoneProblem(?value) AS ?message)
                 FILTER (BOUND(?message))
+            }
+        """ ;
+    ] .
+
+# A call of a node expression operator with the wrong number of argument expressions (Node Expressions: sparql:if takes three, sparql:bound one, an infix operator
+# two, shnex:conformsToShape two ...). The engine raises a ShapeError when it evaluates the call; stsh:argumentCountProblem has the engine's table of counts
+# (engine/expressions.py ARITY), so a new operator needs no edit here. The arguments of a call are a list ("rdf:nil" none) or, when it is not a list, one expression.
+# The shape is targeted at the operators with a fixed count; tests/shacl/integration/test_meta_node_expression_rules.py fails when this list and the table differ.
+stsh:ArgumentCountShape a sh:NodeShape ;
+    rdfs:label "A call of a node expression operator has the number of argument expressions the operator takes"@en ;
+    sh:targetSubjectsOf
+        <http://www.w3.org/ns/sparql#bound>, <http://www.w3.org/ns/sparql#if>, <http://www.w3.org/ns/sparql#hasLang>, shnex:conformsToShape,
+        <http://www.w3.org/ns/sparql#equals>, <http://www.w3.org/ns/sparql#not-equals>, <http://www.w3.org/ns/sparql#less-than>, <http://www.w3.org/ns/sparql#less-than-or-equal>,
+        <http://www.w3.org/ns/sparql#greater-than>, <http://www.w3.org/ns/sparql#greater-than-or-equal>, <http://www.w3.org/ns/sparql#plus>, <http://www.w3.org/ns/sparql#sameValue>, <http://www.w3.org/ns/sparql#subtract>,
+        <http://www.w3.org/ns/sparql#multiply>, <http://www.w3.org/ns/sparql#divide>, <http://www.w3.org/ns/sparql#logical-not>, <http://www.w3.org/ns/sparql#unary-plus>,
+        <http://www.w3.org/ns/sparql#unary-minus> ;
+    sh:severity sh:Violation ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:prefixes stsh:StarLayerMetaShapesPrefixes ;
+        sh:select """
+            SELECT $this ?value ?path ?message
+            WHERE {
+                {
+                    SELECT $this ?path ?value (COUNT(?cell) AS ?cells)
+                    WHERE {
+                        FILTER isBlank($this)
+                        $this ?path ?value .
+                        FILTER (STRSTARTS(STR(?path), "http://www.w3.org/ns/sparql#") || ?path = shnex:conformsToShape)
+                        OPTIONAL { ?value rdf:rest* ?cell . ?cell rdf:first ?member }
+                    }
+                    GROUP BY $this ?path ?value
+                }
+                BIND (IF(?value = rdf:nil, 0, IF(?cells = 0, 1, ?cells)) AS ?count)
+                BIND (stsh:argumentCountProblem(?path, ?count) AS ?message)
+                FILTER BOUND(?message)
             }
         """ ;
     ] .

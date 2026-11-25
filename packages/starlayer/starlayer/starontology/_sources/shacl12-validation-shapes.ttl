@@ -208,6 +208,182 @@ stsh:NewPredicateShapes
 	] .
 
 #############################################################################
+# Mistakes the engine otherwise raises a ShapeError for (processor creation, or the first validate() that reaches them)
+#############################################################################
+# Each of these is a rule the engine enforces and shacl_shacl did not state. They are judged as the rest of shacl_shacl is: a node is a shape because Core 3.1 says so (the subject
+# of a constraint parameter), whether or not a target ever reaches it, and sh:deactivated true on the shape (or on the triple, as a reifier annotation) switches the rule off, as it
+# does in the engine. What no shape can say (a recursion that only the data makes infinite, a nesting limit, a query that returns ?failure true) is left to the engine.
+
+# Core 3.4.1 (and the engine): the value of sh:node, sh:not, sh:qualifiedValueShape, and each member of the list of sh:and, sh:or and sh:xone, is a shape, so an IRI or a blank node.
+# A literal is not (shacl_shacl's own shsh:ShapeShape lets one pass: a literal has no properties to break any of its rules).
+stsh:ShapeReferenceKindShape
+	a sh:NodeShape ;
+	rdfs:label "A shape reference is an IRI or a blank node"@en ;
+	sh:targetSubjectsOf sh:node, sh:not, sh:qualifiedValueShape, sh:and, sh:or, sh:xone ;
+	sh:severity sh:Violation ;
+	sh:sparql [
+		sh:message "{?path} refers to a shape, an IRI or a blank node, but {?value} is a literal."@en ;
+		sh:select """
+			PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?path ?value
+			WHERE {
+				FILTER NOT EXISTS { $this sh:deactivated ?deactivated . FILTER (?deactivated = true) }
+				{
+					VALUES ?path { sh:node sh:not sh:qualifiedValueShape }
+					$this ?path ?object .
+					BIND (?object AS ?value)
+				} UNION {
+					VALUES ?path { sh:and sh:or sh:xone }
+					$this ?path ?object .
+					?object rdf:rest*/rdf:first ?value .
+				}
+				FILTER isLiteral(?value)
+				FILTER NOT EXISTS { ?reifier rdf:reifies <<( $this ?path ?object )>> ; sh:deactivated ?off . FILTER (?off = true) }
+			}
+		""" ;
+	] .
+
+# Core 3.2: "a node shape is a shape that is not the subject of sh:path". A node that is typed sh:NodeShape and has sh:path is neither: the Working Group's xone of
+# shsh:NodeShapeShape and shsh:PropertyShapeShape is satisfied by its property-shape branch, so only the explicit type gives it away. It is checked even when the shape is deactivated.
+stsh:NodeShapeHasNoPathShape
+	a sh:NodeShape ;
+	rdfs:label "A sh:NodeShape does not have sh:path"@en ;
+	sh:targetSubjectsOf sh:path ;
+	sh:severity sh:Violation ;
+	sh:sparql [
+		sh:message "{$this} is declared a sh:NodeShape but has a sh:path, which only a property shape has. Declare it a sh:PropertyShape, or leave out the type, or take out sh:path."@en ;
+		sh:select """
+			PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT $this
+			WHERE { $this rdf:type sh:NodeShape }
+		""" ;
+	] .
+
+# The reifier shape constraint component: sh:reifierShape and sh:reificationRequired look at the reifiers of the triples (focus node, path, value), so the shape needs a
+# path that is a single IRI; a shape with no sh:path, or an inverse, sequence, alternative or repetition path, is refused. One deactivated triple (a literal sh:deactivated true
+# on the triple's reifier) switches the whole constraint off.
+stsh:ReifierShapeNeedsIRIPathShape
+	a sh:NodeShape ;
+	rdfs:label "sh:reifierShape and sh:reificationRequired need a property shape with an IRI path"@en ;
+	sh:targetSubjectsOf sh:reifierShape, sh:reificationRequired ;
+	sh:severity sh:Violation ;
+	sh:sparql [
+		sh:message "{$this} has sh:reifierShape or sh:reificationRequired, which need a property shape whose sh:path is a single IRI (not an inverse, sequence, alternative or repeated path, and not a node shape)."@en ;
+		sh:select """
+			PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT $this
+			WHERE {
+				FILTER NOT EXISTS { $this sh:path ?path . FILTER isIRI(?path) }
+				FILTER NOT EXISTS { $this sh:deactivated ?deactivated . FILTER (?deactivated = true) }
+				FILTER NOT EXISTS {
+					VALUES ?parameter { sh:reifierShape sh:reificationRequired }
+					$this ?parameter ?object .
+					?reifier rdf:reifies <<( $this ?parameter ?object )>> ; sh:deactivated ?off .
+					FILTER (?off = true)
+				}
+			}
+		""" ;
+	] .
+
+# Node Expressions: shnex:limit and shnex:offset take the number itself, a non-negative xsd:integer (not a node expression that evaluates to one), as the engine reads it.
+stsh:LimitOffsetShape
+	a sh:NodeShape ;
+	rdfs:label "shnex:limit and shnex:offset are non-negative integers"@en ;
+	sh:targetSubjectsOf shnex:limit, shnex:offset ;
+	sh:severity sh:Violation ;
+	sh:sparql [
+		sh:message "{?path} takes a non-negative xsd:integer, but the value is {?value}."@en ;
+		sh:select """
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+			SELECT $this ?path ?value
+			WHERE {
+				FILTER isBlank($this)
+				VALUES ?path { shnex:limit shnex:offset }
+				$this ?path ?value .
+				FILTER (!(isLiteral(?value) && datatype(?value) = xsd:integer && REGEX(STR(?value), "^[+-]?[0-9]+$") && ?value >= 0))
+			}
+		""" ;
+	] .
+
+# Two prefix declarations with the same prefix and different namespaces, among the declarations a query reads (the holders of its sh:prefixes and what they import, or, with no
+# sh:prefixes, those of the sh:DataGraph, sh:ShapesGraph and sh:RulesGraph nodes, and, separately, all the owl:Ontology nodes), leave the engine with no way to read the prefix.
+stsh:PrefixConflictShape
+	a sh:NodeShape ;
+	rdfs:label "A prefix that a query reads is declared with one namespace"@en ;
+	sh:targetSubjectsOf sh:select, sh:ask, sh:construct ;
+	sh:severity sh:Violation ;
+	sh:sparql [
+		sh:message "The prefix {?prefix} is declared with two different namespaces ({?first} and {?second}) among the declarations this query reads."@en ;
+		sh:select """
+			PREFIX owl: <http://www.w3.org/2002/07/owl#>
+			PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			SELECT DISTINCT $this ?prefix ?first ?second
+			WHERE {
+				FILTER NOT EXISTS { $this sh:deactivated ?deactivated . FILTER (?deactivated = true) }
+				{
+					$this sh:prefixes/(^owl:versionIRI|owl:imports)* ?one .
+					$this sh:prefixes/(^owl:versionIRI|owl:imports)* ?other .
+				} UNION {
+					FILTER NOT EXISTS { $this sh:prefixes ?any }
+					VALUES (?oneType ?otherType) { (sh:DataGraph sh:DataGraph) (sh:ShapesGraph sh:ShapesGraph) (sh:RulesGraph sh:RulesGraph) (sh:DataGraph sh:ShapesGraph)
+						(sh:DataGraph sh:RulesGraph) (sh:ShapesGraph sh:DataGraph) (sh:ShapesGraph sh:RulesGraph) (sh:RulesGraph sh:DataGraph) (sh:RulesGraph sh:ShapesGraph) }
+					?one rdf:type ?oneType .
+					?other rdf:type ?otherType .
+				} UNION {
+					FILTER NOT EXISTS { $this sh:prefixes ?any }
+					?one rdf:type owl:Ontology .
+					?other rdf:type owl:Ontology .
+				}
+				?one sh:declare/sh:prefix ?prefix .
+				?other sh:declare/sh:prefix ?prefix .
+				?one sh:declare ?oneDeclaration . ?oneDeclaration sh:prefix ?prefix ; sh:namespace ?first .
+				?other sh:declare ?otherDeclaration . ?otherDeclaration sh:prefix ?prefix ; sh:namespace ?second .
+				FILTER (STR(?first) < STR(?second))
+			}
+		""" ;
+	] .
+
+# Node Expressions: a call of a custom function is recognised by one of the function's key predicates, so a blank node that has two of them (of one function or of two) is
+# not one call, and the engine refuses it. Built-in operators come first in the engine: a node that also has one of them is read as that operator, so it is left out here.
+stsh:OneCustomFunctionCallShape
+	a sh:NodeShape ;
+	rdfs:label "A node expression calls at most one custom function"@en ;
+	sh:targetClass sh:NodeExpression ;     # (typed by infer_types; meta_validate does not infer them, so the expressions that stand where a shape holds one are also targeted)
+	sh:targetObjectsOf sh:expression, sh:values, sh:defaultValue, sh:bodyExpression ;
+	sh:severity sh:Violation ;
+	sh:sparql [
+		sh:message "This node expression has both {?first} and {?second}, which each call a custom function. A call has one function."@en ;
+		sh:select """
+			PREFIX sh: <http://www.w3.org/ns/shacl#>
+			PREFIX shnex: <http://www.w3.org/ns/shacl-node-expr#>
+			SELECT DISTINCT $this ?first ?second
+			WHERE {
+				FILTER isBlank($this)
+				$this ?first ?firstValue .
+				$this ?second ?secondValue .
+				FILTER (STR(?first) < STR(?second))
+				FILTER NOT EXISTS {
+					$this ?operator ?operand .
+					FILTER (?operator IN (sh:select, sh:sparqlExpr, shnex:arg, shnex:concat, shnex:conformsToShape, shnex:count, shnex:distinct, shnex:exists, shnex:filterShape, shnex:findFirst,
+						shnex:flatMap, shnex:if, shnex:instancesOf, shnex:intersection, shnex:limit, shnex:matchAll, shnex:max, shnex:min, shnex:nodesMatching, shnex:offset, shnex:orderBy,
+						shnex:pathValues, shnex:remove, shnex:sum, shnex:var) || STRSTARTS(STR(?operator), "http://www.w3.org/ns/sparql#"))
+				}
+				{ ?first a sh:ListParameterExpressionFunction }
+				UNION
+				{ ?firstFunction a sh:NamedParameterExpressionFunction ; sh:parameter ?firstParameter . ?firstParameter sh:keyParameter true ; sh:path ?first }
+				{ ?second a sh:ListParameterExpressionFunction }
+				UNION
+				{ ?secondFunction a sh:NamedParameterExpressionFunction ; sh:parameter ?secondParameter . ?secondParameter sh:keyParameter true ; sh:path ?second }
+			}
+		""" ;
+	] .
+
+#############################################################################
 # Gaps closed 2026-08-01 by comparing against the official SHACL 1.2 WG
 # draft meta-shapes (packages/starlayer/starlayer/starontology/_sources/vendor/w3c-shacl-shacl.ttl,
 # see docs/shacl12-gap-matrix.md's "Official SHACL 1.2 meta-shapes (shsh:)
