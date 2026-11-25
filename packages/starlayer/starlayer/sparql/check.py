@@ -148,14 +148,14 @@ def _shape_problems(ast: Any) -> list[QueryProblem]:
     from starlayer.graph import StarLayerGraph
     from starlayer.shacl.engine.terms import StarLayerFidelityWarning
     from starlayer.sparql.parse_sparql import ast_to_triples
-    from starlayer.sparql.sqe.shapes import sqe_validate
+    from starlayer.sparql.sqe.shapes import _validate_shapes
 
     triples, _ = ast_to_triples(ast)
     tree = StarLayerGraph(prefixes={})
     tree.extend(triples)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", StarLayerFidelityWarning)
-        report = sqe_validate(tree)
+        report = _validate_shapes(tree)
     if report.conforms:
         return []
     messages = {row.message.value for row in report.report_graph.query(f"SELECT ?message WHERE {{ ?result <{_SHACL_RESULT_MESSAGE}> ?message }}")}

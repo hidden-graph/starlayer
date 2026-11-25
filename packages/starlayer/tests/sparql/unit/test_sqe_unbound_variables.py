@@ -150,8 +150,9 @@ class TestDistinctInAnExtensionFunctionCall:
         assert "DISTINCT 1" in sqe_tree_to_text(tree, root)  # the text is kept as written
 
     def test_an_aggregate_and_a_plain_call_are_not_flagged(self):
-        from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+        from starlayer.sparql.sqe import sqe_parse_to_tree
+        from starlayer.sparql.sqe.shapes import _validate_shapes
 
         for text in ("SELECT (COUNT(DISTINCT ?s) AS ?n) { ?s ?p ?o }", "SELECT (<http://x/f>(1) AS ?x) {}"):
             tree, _ = sqe_parse_to_tree(text)
-            assert sqe_validate(tree).conforms
+            assert _validate_shapes(tree).conforms  # the shapes only: Oxigraph has no function <http://x/f>

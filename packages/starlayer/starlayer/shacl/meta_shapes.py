@@ -402,7 +402,7 @@ def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str
     check (``engine/sparql_support.restriction_problem``). This is the verdict of ``stsh:sparqlProblem`` (``engine/builtin_functions.py``) and of
     ``sparql_query_problems``, so the shapes of ``shacl_shacl_starlayer`` and a tool that lists problems cannot disagree."""
     from starlayer.sparql.parse_sparql import SparqlSyntaxError, ast_to_triples
-    from starlayer.sparql.sqe.shapes import sqe_validate
+    from starlayer.sparql.sqe.shapes import _validate_shapes
 
     name = _QUERY_NAMES[predicate]
     try:
@@ -422,7 +422,7 @@ def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str
 
         encoded_graph = StarLayerGraph(prefixes={})
         encoded_graph.extend(ast_to_triples(query)[0])
-        report = sqe_validate(encoded_graph)
+        report = _validate_shapes(encoded_graph)
         conforms, report_graph, report_text = report.conforms, report.report_graph, report.report_text
         bound = declared | (_SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset())
         if not conforms and _is_prebound_variable_only_report(report_graph, bound, _SHACL_PREBOUND_VARIABLE_NAMES):

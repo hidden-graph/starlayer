@@ -2239,10 +2239,10 @@ def sparql_to_tree(
     """
     g, r = ast_to_tree(parse_sparql(text, base), graph, root)
     if validate:
-        from .sqe.shapes import sqe_validate
+        from .sqe.shapes import _validate_shapes
         from .sqe.to_rdf import SQEValidationError
 
-        report = sqe_validate(g)
+        report = _validate_shapes(g)
         if not report.conforms:
             raise SQEValidationError(report.report_text, report.report_graph)
     return g, r
@@ -2254,10 +2254,10 @@ def sparql_update_to_tree(
     """SPARQL 1.2 Update text to ``sqe:`` tree-RDF (root typed ``sqe:UpdateRequest``); ``validate=True`` checks the SHACL shapes."""
     g, r = ast_to_tree(parse_sparql_update(text, base), graph, root)
     if validate:
-        from .sqe.shapes import sqe_validate
+        from .sqe.shapes import _validate_shapes
         from .sqe.to_rdf import SQEValidationError
 
-        report = sqe_validate(g)
+        report = _validate_shapes(g)
         if not report.conforms:
             raise SQEValidationError(report.report_text, report.report_graph)
     return g, r

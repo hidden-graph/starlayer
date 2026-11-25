@@ -16,7 +16,7 @@ Three public functions, the whole functional surface: ``sqe_parse_to_tree``
 (encode - validates the result and raises ``SQEValidationError`` on a
 non-conforming tree, see below), ``sqe_tree_to_text`` (render back to
 text; run the text with ``StarLayerGraph.query()``),
-``sqe_validate`` (SHACL - still needed standalone for re-validating a tree
+``sqe_validate`` (SHACL, then each query of a conforming tree is run on an empty graph in Oxigraph, as ``check_query`` does - still needed standalone for re-validating a tree
 edited by hand after parsing, since such edits bypass
 ``sqe_parse_to_tree`` entirely). ``to_rdf.py``'s own ``_query_to_sqe_rdf``
 (takes an already-``parseQuery``'d tree rather than text, and skips

@@ -11,7 +11,7 @@ No public ``ontology_graph()``/``shapes_graph()`` of its own - same choice
 that module's own comment) and the same reason Manchester doesn't have
 them either (`starontology.get_ontology_graph("sqe_owl")`/`"sqe_shacl"`
 is the one real path to those graphs). ``sqe_validate()`` combines them
-privately below.
+privately below, then adds the engine check: each query in a conforming tree must also be accepted by Oxigraph.
 """
 
 from __future__ import annotations
@@ -21,11 +21,13 @@ from typing import TYPE_CHECKING, Any
 
 from starlayer import starontology
 
+from .._oxterms import RDF
 from ..expr_validation import rdfs_entailed_copy, rdfs_schema
 
 if TYPE_CHECKING:
     from starlayer.shacl.results import ValidationReport
 
+RDF_TYPE = RDF.type
 SHAPES_TURTLE = starontology.get_ontology_graph("sqe_shacl").serialize(format="turtle12")
 
 
@@ -69,21 +71,9 @@ def _ontology_graph() -> Any:
     return g
 
 
-def sqe_validate(tree_graph: Any) -> ValidationReport:
-    """Validate ``tree_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
-    an LLM-/UI-authored ``sqe:`` graph not yet decoded) against the shapes
-    above.
-
-    Goes through ``starlayer.shacl`` (the native SHACL 1.2 engine): a ``sqe:`` graph may embed
-    genuine RDF 1.2 content (a triple term).
-
-    Args:
-        tree_graph: The ``sqe:`` RDF graph (a ``StarLayerGraph``) to validate.
-
-    Returns:
-        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives, ; it is
-        not iterable, so read ``conforms``, ``report_text`` and the rest by name.
-    """
+def _validate_shapes(tree_graph: Any) -> ValidationReport:
+    """Only the ``sqe:`` shapes: the report ``sqe_validate`` starts from. ``check_query`` and the parse paths (``validate=True``) use it, as the
+    text they check has just been parsed and ``check_query`` runs the engine itself."""
 
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
         shared_plans,
@@ -96,3 +86,85 @@ def sqe_validate(tree_graph: Any) -> ValidationReport:
     with shared_plans(_PLANS):
         result = validate_bounded(_entailed_copy(tree_graph), _shapes_graph(), max_validation_depth=100)
     return result
+
+
+def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
+    """``(query root, message)`` for each query in ``tree_graph`` that its own rendered text shows to be wrong: not in the grammar, a
+    ``VERSION`` it contradicts, or refused by Oxigraph (``check_query``'s rules: updates and queries with ``SERVICE`` are not run)."""
+    from starlayer.sparql.check import _engine_problem, _has_service, _parse, _version_problem
+
+    from ._memtree import as_engine_graph
+    from .to_text import SqeTextTooDeepError, sqe_tree_to_text
+    from .vocab import QUERY
+
+    graph, _ = as_engine_graph(tree_graph)
+    found = []
+    for root in sorted(set(graph.subjects(RDF_TYPE, QUERY)), key=str):
+        try:
+            text = sqe_tree_to_text(graph, root)
+        except (SqeTextTooDeepError, ValueError) as error:
+            found.append((root, f"The query cannot be written out as SPARQL text: {' '.join(str(error).split())}"))
+            continue
+        ast, _, error = _parse(text, None)
+        problem = error or _version_problem(text)
+        if problem is None and not _has_service(ast):
+            problem = _engine_problem(text, None, {})
+        if problem is not None:
+            who = {"syntax": "The rendered text is not SPARQL 1.2", "version": "The rendered text contradicts its VERSION", "engine": "Oxigraph rejects the rendered query"}
+            found.append((root, f"{who.get(problem.kind, 'The rendered query is wrong')}: {problem.message}"))
+    return found
+
+
+def sqe_validate(tree_graph: Any) -> ValidationReport:
+    """Validate ``tree_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
+    an LLM-/UI-authored ``sqe:`` graph not yet decoded) against the shapes
+    above, and check that Oxigraph accepts each query in it.
+
+    Goes through ``starlayer.shacl`` (the native SHACL 1.2 engine): a ``sqe:`` graph may embed
+    genuine RDF 1.2 content (a triple term).
+
+    Only when the shapes conform, each query root (every ``sqe:Query`` in the graph, which may hold several) is rendered with
+    ``sqe_tree_to_text`` and checked as ``check_query`` does: the text must be in the grammar, agree with its ``VERSION``
+    and run on an empty graph in Oxigraph, which has the last word on what it accepts. A query with a ``SERVICE`` pattern
+    (which would send the request) and an update are not run. A structurally broken tree may not render, so it is left to the shapes.
+    A rejection is an ``sh:ValidationResult`` (severity ``sh:Violation``, focus node the query's root, readable ``sh:resultMessage``)
+    in the report, which then does not conform. Oxigraph runs the query without any custom function, so a query that calls
+    an extension function is rejected here; ``check_query`` takes ``custom_functions`` for that.
+
+    Args:
+        tree_graph: The ``sqe:`` RDF graph (a ``StarLayerGraph``) to validate.
+
+    Returns:
+        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives, with any Oxigraph rejection added; it is
+        not iterable, so read ``conforms``, ``report_text`` and the rest by name.
+    """
+    report = _validate_shapes(tree_graph)
+    if not report.conforms:
+        return report
+    problems = _engine_problems(tree_graph)
+    if not problems:
+        return report
+    from starlayer.shacl.engine.terms import SH
+    from starlayer.shacl.results import ValidationReport
+
+    import pyoxigraph as ox
+
+    graph = report.report_graph
+    top = next(iter(graph.subjects(SH.conforms, None)))
+    graph.remove((top, SH.conforms, None))
+    graph.add((top, SH.conforms, ox.Literal("false", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))))
+    lines = ["Validation Report", "Conforms: False", f"Results ({len(problems)}):"]
+    for root, message in problems:
+        result = ox.BlankNode()
+        graph.extend(
+            [
+                (top, SH.result, result),
+                (result, RDF_TYPE, SH.ValidationResult),
+                (result, SH.focusNode, root),
+                (result, SH.resultSeverity, SH.Violation),
+                (result, SH.sourceConstraintComponent, SH.SPARQLConstraintComponent),
+                (result, SH.resultMessage, ox.Literal(message)),
+            ]
+        )
+        lines += ["Constraint Violation in the engine check:", "\tSeverity: sh:Violation", f"\tFocus Node: {root}", f"\tMessage: {message}"]
+    return ValidationReport(False, graph, "\n".join(lines), diagnostics=report.diagnostics)

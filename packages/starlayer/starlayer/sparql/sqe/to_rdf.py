@@ -114,7 +114,7 @@ def sqe_parse_to_tree(
             does not parse) does not raise: ``sqe_validate`` on the tree reports it.
     """
     from ..parse_sparql import SparqlSyntaxError, ast_to_triples, parse_sparql
-    from .shapes import sqe_validate
+    from .shapes import _validate_shapes
 
     try:
         ast = parse_sparql(text)
@@ -135,7 +135,7 @@ def sqe_parse_to_tree(
 
     tree = StarLayerGraph(prefixes={}) if tree_graph is None else tree_graph
     tree.extend(triples)
-    report = sqe_validate(tree)
+    report = _validate_shapes(tree)
     if not report.conforms and _has_violation(report.report_graph):
         raise SQEValidationError(report.report_text, report.report_graph)
     return tree, root

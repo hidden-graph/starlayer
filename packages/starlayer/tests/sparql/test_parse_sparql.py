@@ -243,8 +243,10 @@ def test_new_tree_validates_against_the_sqe_shapes():
 
 
 def _round_trip(text: str) -> str:
+    from starlayer.sparql.sqe.shapes import _validate_shapes
+
     tree = sparql_to_tree(text)
-    assert sqe_validate(tree[0]).conforms
+    assert _validate_shapes(tree[0]).conforms  # the shapes only: Oxigraph refuses some of these texts (a relative IRI, `!()`), which sqe_validate reports
     rendered = sqe_tree_to_text(*tree)
     from starlayer.graph import isomorphic
 
