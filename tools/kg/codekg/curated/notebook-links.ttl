@@ -585,8 +585,8 @@ nl:06.02-f58f1639 a slkg:NotebookExample ;
 nl:06.03-df2738a8 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;
     slkg:cellId "df2738a8" ;
-    slkg:cellHash "69af50747c193bf2" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "74a9ad6fa0755729" ;
+    slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Validates an sqe: query tree against the sqe: shapes." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.sqe.shapes.sqe_validate" .
