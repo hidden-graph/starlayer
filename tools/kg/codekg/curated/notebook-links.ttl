@@ -192,8 +192,8 @@ nl:06b-e00d4c27 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.sqe.__init__" .
 
-nl:07c-421f2a31 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/07c-canonical-hashing.ipynb" ;
+nl:07.03-421f2a31 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/07.03-canonical-hashing.ipynb" ;
     slkg:cellId "421f2a31" ;
     slkg:cellHash "0ba74a96def5e288" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -202,8 +202,8 @@ nl:07c-421f2a31 a slkg:NotebookExample ;
         "starlayer.graph.rdfc.rdfc10_hash",
         "starlayer.graph.compare.isomorphic" .
 
-nl:07c-9e831b35 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/07c-canonical-hashing.ipynb" ;
+nl:07.03-9e831b35 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/07.03-canonical-hashing.ipynb" ;
     slkg:cellId "9e831b35" ;
     slkg:cellHash "87e3b921fd427413" ;
     slkg:reviewedOn "2026-10-19"^^xsd:date ;
@@ -274,8 +274,8 @@ nl:05.11-88a5feb0 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.evaluate" .
 
-nl:07b-252791c5 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/07b-backend-graph-databases.ipynb" ;
+nl:07.02-252791c5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/07.02-backend-graph-databases.ipynb" ;
     slkg:cellId "252791c5" ;
     slkg:cellHash "7e8ddddc1017efad" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;

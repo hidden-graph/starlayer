@@ -108,7 +108,7 @@ def test_guide_06b_service_silent_row_claim_matches_behaviour():
         warnings.simplefilter("ignore")
         rows = list(StarLayerGraph().query("SELECT ?p WHERE { SERVICE SILENT <http://localhost:1/query> { ?p a <http://e.org/P> } }"))
     assert len(rows) == 1 and rows[0][0] is None
-    assert "returns no rows" not in _text("07b-backend-graph-databases.ipynb")
+    assert "returns no rows" not in _text("07.02-backend-graph-databases.ipynb")
 
 
 def test_guide_05_09_section_references_point_at_the_right_sections():

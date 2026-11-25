@@ -41,9 +41,9 @@ This is the single master index for every guide notebook - every notebook's own 
    - **6.c [SRL (SPARQL Rules) as RDF](06c-srl-sparql-rules-as-rdf.ipynb)** - encoding a parsed SRL rule set as RDF under the `srl:` namespace, and SHACL-validating that encoding.
    - **6.d [The SHACL library registry](06d-shacl-library-registry.ipynb)** - loading the bundled ontologies and shapes by name, validating data against them, the StarLayer profiles that tie each shapes graph to its specification, and fetching each file directly from GitHub.
 7. **Other**
-   - **7.a [Serialization formats](07a-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
-   - **7.b [Choosing where your data lives](07b-backend-graph-databases.ipynb)** - an on-disk Oxigraph store, and reading a remote SPARQL endpoint from a query with `SERVICE`.
-   - **7.c [Canonical hashing and graph comparison](07c-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
+   - **07.01 [Serialization formats](07.01-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
+   - **07.02 [Choosing where your data lives](07.02-backend-graph-databases.ipynb)** - an on-disk Oxigraph store, and reading a remote SPARQL endpoint from a query with `SERVICE`.
+   - **07.03 [Canonical hashing and graph comparison](07.03-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
 
 ## Appendices
 
