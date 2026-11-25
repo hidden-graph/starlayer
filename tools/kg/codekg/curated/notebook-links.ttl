@@ -75,8 +75,8 @@ nl:02f-b87b0ce5 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.entailment.infer.infer" .
 
-nl:03a-2e4d34f3 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03a-sparql-12-queries.ipynb" ;
+nl:03.02-2e4d34f3 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.02-sparql-12-queries.ipynb" ;
     slkg:cellId "2e4d34f3" ;
     slkg:cellHash "10d99c7f6a5dce41" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -283,8 +283,8 @@ nl:07.02-252791c5 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.query" .
 
-nl:03-b337c254 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03.01-b337c254 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.01-sparql.ipynb" ;
     slkg:cellId "b337c254" ;
     slkg:cellHash "484e896a49096b89" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -340,8 +340,8 @@ nl:02c-33753b85 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.profile.profile" .
 
-nl:03b-e79f89e7 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
+nl:03.03-e79f89e7 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.03-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "e79f89e7" ;
     slkg:cellHash "ac65df47b7b5ab1f" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -349,8 +349,8 @@ nl:03b-e79f89e7 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.query" .
 
-nl:03-4a5c50bb a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03-sparql.ipynb" ;
+nl:03.01-4a5c50bb a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.01-sparql.ipynb" ;
     slkg:cellId "4a5c50bb" ;
     slkg:cellHash "1cb8c89f0921fa05" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -481,8 +481,8 @@ nl:02d-df2eca05 a slkg:NotebookExample ;
         "starlayer.graph.rewrite.skolemize",
         "starlayer.graph.rewrite.de_skolemize" .
 
-nl:03b-5da96c84 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
+nl:03.03-5da96c84 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.03-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "5da96c84" ;
     slkg:cellHash "c4caf0dd3da88518" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -490,8 +490,8 @@ nl:03b-5da96c84 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.check.check_query" .
 
-nl:03b-a4b5c6d7 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
+nl:03.03-a4b5c6d7 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.03-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "a4b5c6d7" ;
     slkg:cellHash "fd6a07dbcb9d990e" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -555,8 +555,8 @@ nl:05.10-55975daa a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.ui.widget_selection.select_widget" .
 
-nl:03b-32f5f2c6 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03b-preparing-extending-checking-queries.ipynb" ;
+nl:03.03-32f5f2c6 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.03-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "32f5f2c6" ;
     slkg:cellHash "a87bc7dd45e0cca9" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
@@ -564,8 +564,8 @@ nl:03b-32f5f2c6 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.star_query.StarQuery" .
 
-nl:03a-f6a58c6a a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/03a-sparql-12-queries.ipynb" ;
+nl:03.02-f6a58c6a a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/03.02-sparql-12-queries.ipynb" ;
     slkg:cellId "f6a58c6a" ;
     slkg:cellHash "8c333368f9d473e9" ;
     slkg:reviewedOn "2026-11-17"^^xsd:date ;
