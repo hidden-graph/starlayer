@@ -407,11 +407,11 @@ nl:05-a9353f25 a slkg:NotebookExample ;
 nl:05-f41bd5ea a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
     slkg:cellId "f41bd5ea" ;
-    slkg:cellHash "07a356e6f7705249" ;
-    slkg:reviewedOn "2026-11-23"^^xsd:date ;
-    rdfs:comment "Shows ShapeError for a misplaced sh:path and MetaShaclError from meta_shacl=True." ;
+    slkg:cellHash "01c949f15d24a42d" ;
+    slkg:reviewedOn "2026-11-25"^^xsd:date ;
+    rdfs:comment "Shows ShapeCompileError for a misplaced sh:path and MetaShaclError from meta_shacl=True." ;
     slkg:demonstratesIdentifier
-        "starlayer.shacl.engine.plan.ShapeError",
+        "starlayer.shacl.engine.plan.ShapeCompileError",
         "starlayer.shacl.engine.meta.MetaShaclError" .
 
 nl:05-8c133de1 a slkg:NotebookExample ;
