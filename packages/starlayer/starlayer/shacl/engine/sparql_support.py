@@ -236,6 +236,25 @@ def run_query(
     return graph.sparql_query(text, init_bindings, custom_functions)
 
 
+_PENDING = ("shacl-function-failure",)
+
+
+def run_query_with_functions(ctx: Any, text: str, bindings: Mapping[str, Term]) -> Solutions:
+    """``run_query`` on the data graph with the shapes graph's functions, then raises the first failure of a function body that is not
+    a SPARQL error (see ``shacl_functions``); the engine's own queries all go through here. A query a function body runs has its own
+    list, so it cannot clear the failure of the query around it."""
+    outer = ctx.cache.get(_PENDING)
+    pending: list[Exception] = []
+    ctx.cache[_PENDING] = pending
+    try:
+        result = run_query(ctx.data, text, bindings, shacl_functions(ctx))
+    finally:
+        ctx.cache[_PENDING] = outer
+    if pending:
+        raise pending[0]
+    return result
+
+
 def shacl_functions(ctx: Any) -> dict[Any, Any]:
     """The shapes graph's ``sh:ListParameterExpressionFunction`` instances as callables by IRI, for the query being run
     (SPARQL Extensions 7.3: "SHOULD register a function"). The call's arguments become the scope ``0, 1, ...`` of the
@@ -267,7 +286,15 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
             try:
                 # 7.3: "the focusNode passed into a custom SPARQL function based on a node expression is the IRI of the function"
                 out = evaluate_expression(ctx, body, fn, {i: [a] for i, a in enumerate(args)})
-            except (ExecutionError, ShapeError):
+            except (ExecutionError, ShapeError) as error:
+                # Only an expression that cannot be evaluated (kind "expression") is a SPARQL error, so the call gives no value. Any
+                # other failure (nesting, recursion, rule ..., a wrong shapes graph) must reach the caller, as it does when the same
+                # body is evaluated directly. pyoxigraph turns any exception a custom function raises into an unbound value, so the
+                # failure is kept for ``run_query_with_functions``, which raises it once the query has run.
+                if not (isinstance(error, ExecutionError) and error.kind == "expression"):
+                    pending = ctx.cache.get(_PENDING)
+                    if pending is not None and not pending:
+                        pending.append(error)
                 return None
             return out[0] if len(out) == 1 else None
 
@@ -286,7 +313,7 @@ def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_thi
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
         raise ShapeCompileError(_MUST_PROJECT_THIS)
-    return run_query(ctx.data, text, bindings, shacl_functions(ctx))
+    return run_query_with_functions(ctx, text, bindings)
 
 
 def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
@@ -303,8 +330,8 @@ def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
         # pattern as a SELECT and read "any solution" as true.
         m = re.search(r"(?i)\bASK\b", _mask(text))
         select = text[: m.start()] + "SELECT (1 AS ?ask__)" + text[m.end() :]
-        return bool(run_query(ctx.data, select, bindings, shacl_functions(ctx)).rows)
-    return bool(run_query(ctx.data, text, bindings, shacl_functions(ctx)).boolean)
+        return bool(run_query_with_functions(ctx, select, bindings).rows)
+    return bool(run_query_with_functions(ctx, text, bindings).boolean)
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -484,5 +511,5 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         var = _RESULT_ALIAS
     else:
         raise ShapeCompileError(f"{expr!r}: not a SPARQL node expression")
-    rows = run_query(ctx.data, text, bindings, shacl_functions(ctx)).rows
+    rows = run_query_with_functions(ctx, text, bindings).rows
     return [row[var] for row in rows if var in row]

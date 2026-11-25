@@ -38,6 +38,7 @@ import pyoxigraph as ox
 from starlayer.graph import terms
 from starlayer.graph.namespaces import DCTERMS, RDFS, SH
 from starlayer.shacl.engine import xsd_values
+from starlayer.shacl.engine.plan import ExecutionError
 from starlayer.shacl.engine.terms import engine_view, to_engine
 from starlayer.shacl.normalization import normalize_to_starlayer_graph
 from starlayer.shacl.shapes_graphs import referenced_shapes
@@ -363,9 +364,10 @@ def _self_check(data: Any, shapes: Any, shape_node: Any, target: _Target) -> Non
     result = validate(data, shacl_graph=_check_view(shapes, data, shape_node, target))
     if result.conforms:
         return
-    raise RuntimeError(
+    raise ExecutionError(
         "starlayer.shacl.derive_shape() produced a shape that does not conform against the data it was derived from - "
-        f"this is a bug in the shape derivation, not expected behavior.\n{result.report_text}"
+        f"this is a bug in the shape derivation, not expected behavior; please report it.\n{result.report_text}",
+        kind="internal",
     )
 
 

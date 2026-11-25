@@ -354,7 +354,7 @@ class TestTargets:
         shape = derive_shape(g, cls=EX.Person, include_subclasses=False)
         paths = {p for prop in shape.objects(None, SH.property) for p in shape.objects(prop, SH.path)}
         assert EX.school not in paths
-        # the self-check ran on the direct instances: no RuntimeError although carol would break the closed shape
+        # the self-check ran on the direct instances: no ExecutionError although carol would break the closed shape
 
     def test_node_shape_for_a_blank_node(self):
         g = StarLayerGraph()

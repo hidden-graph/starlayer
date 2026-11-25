@@ -40,10 +40,12 @@ class ExecutionError(Exception):
     * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
     * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
     * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
+    * ``"ambiguous"``: a lookup that must give exactly one result gave several.
+    * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
 
     ``str(error)`` is the message. Catch ``ExecutionError`` and test ``error.kind``; inside the engine, ``only_kind`` does the test."""
 
-    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query")
+    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "ambiguous", "internal")
 
     def __init__(self, message: str, *, kind: str) -> None:
         if kind not in self.KINDS:

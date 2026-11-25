@@ -30,7 +30,7 @@ def g(ttl: str) -> StarLayerGraph:
     return graph
 
 
-KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query")
+KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "ambiguous", "internal")
 
 
 def test_execution_error_is_one_class_with_a_kind_and_the_message_as_its_text():
@@ -275,20 +275,99 @@ def test_a_no_value_clause_lets_every_other_kind_through(monkeypatch, site, kind
         run()
 
 
-def test_the_sparql_custom_function_wrapper_gives_no_value_for_an_error_of_the_body(monkeypatch):
-    """The wrapper keeps its broad clause on purpose: a function whose body cannot be evaluated is a SPARQL error, whatever the kind."""
+def test_the_sparql_custom_function_wrapper_gives_no_value_only_for_kind_expression(monkeypatch):
+    """A function whose body cannot be evaluated is a SPARQL error (no value) only for kind "expression"; the wrapper hands every
+    other kind, and a ShapeError of the body, to the query run (``run_query_with_functions``) to raise."""
     from types import SimpleNamespace
 
     from starlayer.shacl.engine import expressions
-    from starlayer.shacl.engine.sparql_support import shacl_functions
+    from starlayer.shacl.engine.sparql_support import _PENDING, shacl_functions
     from starlayer.shacl.engine.terms import NamedNode
 
     fn = NamedNode("http://example.org/fn")
     shapes = g("ex:fn a sh:ListParameterExpressionFunction ; sh:bodyExpression [ shnex:sum ( ) ] .")
-    for kind in KINDS:
-        monkeypatch.setattr(expressions, "evaluate_expression", _raiser(kind))
-        ctx = SimpleNamespace(cache={}, shapes=shapes, plan=SimpleNamespace(sparql_cache={}))
-        assert shacl_functions(ctx)[fn](NamedNode("http://example.org/x")) is None
+
+    def call(raiser):
+        monkeypatch.setattr(expressions, "evaluate_expression", raiser)
+        ctx = SimpleNamespace(cache={_PENDING: []}, shapes=shapes, plan=SimpleNamespace(sparql_cache={}))
+        assert shacl_functions(ctx)[fn](NamedNode("http://example.org/x")) is None  # always unbound to pyoxigraph
+        return ctx.cache[_PENDING]
+
+    assert call(_raiser("expression")) == []
+    for kind in OTHER_KINDS:
+        (pending,) = call(_raiser(kind))
+        assert isinstance(pending, ExecutionError) and pending.kind == kind
+
+    def wrong_shapes(*_a, **_k):
+        raise ShapeCompileError("the body is not a node expression")
+
+    (pending,) = call(wrong_shapes)
+    assert isinstance(pending, ShapeCompileError)
+
+
+_FUNCTION_SHAPES = (
+    "ex:f a sh:ListParameterExpressionFunction ; sh:parameter [ a sh:Parameter ; sh:path shnex:arg0 ] ; sh:bodyExpression {body} . "
+    "ex:S a sh:NodeShape ; sh:targetNode ex:a ; {constraint} ."
+)
+_DIRECT = "sh:expression [ ex:f ( 'x' ) ]"
+_VIA_SPARQL = (
+    "sh:sparql [ sh:select \"PREFIX ex: <http://example.org/> SELECT $this ?value WHERE { BIND (ex:f('x') AS ?value) FILTER(BOUND(?value)) }\" ]"
+)
+_RECURSIVE_BODY = "[ ex:f ( [ shnex:arg 0 ] ) ]"
+_FAILING_BODY = "[ shnex:sum [ shnex:arg 0 ] ]"  # 'x' is not a number: an expression that cannot be evaluated
+
+
+@pytest.mark.parametrize("constraint", [_DIRECT, _VIA_SPARQL], ids=["direct", "via-sparql"])
+def test_a_recursive_function_is_a_nesting_error_called_directly_and_from_a_sparql_expression(constraint):
+    """Before the wrapper was narrowed the SPARQL call swallowed it: the shape conformed."""
+    shapes = g(_FUNCTION_SHAPES.format(body=_RECURSIVE_BODY, constraint=constraint))
+    with raises_kind("nesting", match="nest deeper"):
+        validate(g("ex:a ex:p 1 ."), shapes, meta_shacl=False)
+
+
+def test_a_function_body_that_cannot_be_evaluated_is_a_sparql_error_so_unbound_in_a_sparql_expression():
+    direct = g(_FUNCTION_SHAPES.format(body=_FAILING_BODY, constraint=_DIRECT))
+    with raises_kind("expression", match="not a number"):
+        validate(g("ex:a ex:p 1 ."), direct, meta_shacl=False)
+    via_sparql = g(_FUNCTION_SHAPES.format(body=_FAILING_BODY, constraint=_VIA_SPARQL))
+    assert validate(g("ex:a ex:p 1 ."), via_sparql, meta_shacl=False).conforms  # unbound, so the FILTER removes the row
+
+
+def test_a_function_failure_is_raised_by_the_query_that_called_it_even_among_other_rows():
+    shapes = g(_FUNCTION_SHAPES.format(body=_RECURSIVE_BODY, constraint=_VIA_SPARQL))
+    with raises_kind("nesting"):
+        validate(g("ex:a ex:p 1 ."), shapes, meta_shacl=False)
+    # the pending failure does not leak into the next run on the same plan
+    ok = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .")
+    assert validate(g("ex:a ex:p 1 ."), ok, meta_shacl=False).conforms
+
+
+# ---- "ambiguous" and "internal" ---------------------------------------------------------------------------------------------------
+
+
+def test_value_with_any_false_and_several_matches_is_an_ambiguous_error():
+    from starlayer.shacl.engine.reads import RecordingGraph
+
+    from starlayer.shacl.engine.terms import NamedNode
+
+    recording = RecordingGraph(g("ex:a ex:p 1, 2 .").engine_view())
+    a, p = NamedNode("http://example.org/a"), NamedNode("http://example.org/p")
+    with raises_kind("ambiguous", match="more than one match"):
+        recording.value(a, p, None, any=False)
+    assert recording.value(a, p, None, any=True) is not None
+    assert recording.value(a, NamedNode("http://example.org/none"), None, any=False) is None
+
+
+def test_a_derived_shape_that_fails_its_own_check_is_an_internal_error_to_report(monkeypatch):
+    from types import SimpleNamespace
+
+    from starlayer.shacl import derive, derive_shape
+    from starlayer.shacl.engine.terms import NamedNode
+
+    monkeypatch.setattr(derive, "validate", lambda *a, **k: SimpleNamespace(conforms=False, report_text="the report"))
+    with raises_kind("internal", match="does not conform against the data it was derived from") as info:
+        derive_shape(g("ex:a a ex:C ; ex:p 1 ."), cls=NamedNode("http://example.org/C"))
+    assert "bug" in str(info.value) and "report it" in str(info.value) and "the report" in str(info.value)
 
 
 def test_a_sh_condition_check_that_fails_keeps_its_kind_and_names_the_rule():

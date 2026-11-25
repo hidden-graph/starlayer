@@ -17,6 +17,8 @@ that cannot be resolved) is wrong or asks for something unsupported, found by an
 * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
+* ``"ambiguous"``: a lookup that must give exactly one result gave several.
+* ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
 
 A bad argument to a public call (a role that is not ``"editor"`` or ``"viewer"``, a shape name the shapes graph does not have) is a plain
 ``ValueError`` or ``TypeError``, raised before any shape is read.
