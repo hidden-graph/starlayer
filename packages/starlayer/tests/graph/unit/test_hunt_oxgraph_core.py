@@ -211,22 +211,22 @@ def test_derive_shape_ill_formed_typed_literal():
 def test_derive_shape_template_plain_beside_language_tagged():
     old = _ttl(':n1 a :C ; :p "a"@en .')
     new = _ttl(':n1 a :C ; :p "a"@en, "plain" .')
-    assert len(derive_shape(new, cls=_ex("C"), template_graph=derive_shape(old, cls=_ex("C")))) > 0
+    assert len(derive_shape(new, shape=_ex("CShape"), template_graph=derive_shape(old, cls=_ex("C")))) > 0
 
 
 @pytest.mark.parametrize("pred,val", [("maxExclusive", 2), ("minExclusive", 9)])
 def test_derive_shape_template_exclusive_bound_violated(pred, val):
     data = _ttl(":a a :C ; :n 5 .")
     tpl = _ttl(f":S a sh:NodeShape ; sh:targetClass :C ; sh:property [ sh:path :n ; sh:{pred} {val} ] .")
-    assert len(derive_shape(data, cls=_ex("C"), template_graph=tpl)) > 0
+    assert len(derive_shape(data, shape=_ex("S"), template_graph=tpl)) > 0
 
 
 def test_derive_shape_template_target_node_and_nested_node():
     data = _ttl(':a a :C ; :p "x" .')
     tpl = _ttl(":S a sh:NodeShape ; sh:targetNode :a ; sh:property [ sh:path :p ; sh:minCount 3 ] .")
-    assert len(derive_shape(data, node=_ex("a"), template_graph=tpl)) > 0
+    assert len(derive_shape(data, shape=_ex("S"), template_graph=tpl)) > 0
     nested = _ttl(":S a sh:NodeShape ; sh:targetClass :C ; sh:node :T . :T a sh:NodeShape ; sh:property [ sh:path :p ; sh:minCount 3 ] .")
-    assert len(derive_shape(data, cls=_ex("C"), template_graph=nested)) > 0
+    assert len(derive_shape(data, shape=_ex("S"), template_graph=nested)) > 0
 
 
 def test_derive_shape_subclass_hierarchy():

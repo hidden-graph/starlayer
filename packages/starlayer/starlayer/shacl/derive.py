@@ -1,14 +1,14 @@
 """``derive_shape``: infer one SHACL node shape from the data of a graph (a StarLayer feature; SHACL itself has no such operation).
 
 The shape describes either every instance of a class (``cls=``, ``sh:targetClass``) or one node (``node=``, ``sh:targetNode``), never
-a heuristic clustering of nodes, and is optionally reconciled with a template shape. Native over pyoxigraph terms and the wrapper API
+a heuristic clustering of nodes, and is optionally reconciled with a template shape (named, whose own target then says which). Native over pyoxigraph terms and the wrapper API
 (no rdflib). It lives in ``starlayer.shacl`` and not in ``starlayer.graph`` because it validates its result, and the graph package
 does not depend on the SHACL one.
 
 Two phases:
 
 - Phase A (fresh derivation) is the whole algorithm without a template: pure graph analysis, then a self-check.
-- Phase B (template merge) copies the one template shape that targets the same class or node (and what it references), validates
+- Phase B (template merge) copies the named template shape (and what it references; its single target is the class or node), validates
   it against the data once and dispatches each violation by its ``sh:sourceConstraintComponent``: components with a principled
   data-driven fix are recomputed from the true current data (``_RECOMPUTE_COMPONENTS``); every other violated constraint
   (``sh:pattern``, cross-property comparisons, ``sh:hasValue``, ``sh:sparql``, custom components) is deactivated with a
@@ -638,24 +638,45 @@ def _carry_forward_ignored_properties(working: Any, shape_node: Any, ignored: se
     working.add((shape_node, SH.ignoredProperties, mint.rdf_list(working, merged)))
 
 
-def _copy_scoped_template(template: Any, target: _Target, shape: Any, working: Any) -> Any:
-    """Copy into ``working`` the one template shape that targets ``target`` and what it references; return its node."""
-    candidates = sorted(set(template.subjects(target.predicate, target.term)), key=_sort_key)
-    label = "class" if target.kind == "cls" else "node"
-    if not candidates:
-        raise ValueError(f"template_graph has no shape with {target.predicate.value.rsplit('#', 1)[-1]} {target.term} (the {label} to derive for)")
-    if len(candidates) > 1:
-        if shape not in candidates:
-            raise ValueError(
-                f"template_graph has {len(candidates)} shapes for the {label} {target.term}: "
-                f"{', '.join(str(c) for c in candidates)}; name the one to use with shape="
-            )
-        candidates = [shape]
-    main = candidates[0]
-    for node in [main, *sorted(referenced_shapes(template, [main]), key=_sort_key)]:
+OWL_CLASS = ox.NamedNode("http://www.w3.org/2002/07/owl#Class")
+_OTHER_TARGETS = ("targetSubjectsOf", "targetObjectsOf", "target")
+
+
+def _template_target(template: Any, shape: Any, include_subclasses: bool) -> _Target:
+    """The target of the template shape ``shape``: it must have exactly one, an ``sh:targetClass`` or an ``sh:targetNode``, because
+    the shape then stands for the ``cls`` or ``node`` of a fresh derivation."""
+    if (shape, None, None) not in template:
+        raise ValueError(f"derive_shape(): {shape} is not a shape in template_graph (it has no triples there); shape= must name a node shape of template_graph")
+    declared: list[tuple[str, Any]] = []
+    for name in ("targetClass", "targetNode", *_OTHER_TARGETS):
+        declared += [(f"sh:{name}", o) for o in sorted(template.objects(shape, getattr(SH, name)), key=_sort_key)]
+    if any((shape, RDF_TYPE, c) in template for c in (RDFS.Class, OWL_CLASS)):
+        declared.append(("an implicit class target (the shape is also a class)", shape))
+    if not declared:
+        raise ValueError(f"derive_shape(): the shape {shape} in template_graph has no target; it needs exactly one sh:targetClass or one sh:targetNode")
+    if len(declared) > 1:
+        listing = ", ".join(f"{kind} {term}" if kind.startswith("sh:") else kind for kind, term in declared)
+        raise ValueError(
+            f"derive_shape(): the shape {shape} in template_graph has {len(declared)} targets ({listing}); it needs exactly one "
+            "sh:targetClass or one sh:targetNode"
+        )
+    kind, term = declared[0]
+    if kind == "sh:targetClass" and isinstance(term, ox.NamedNode):
+        return _Target("cls", term, include_subclasses)
+    if kind == "sh:targetNode" and isinstance(term, (ox.NamedNode, ox.BlankNode)):
+        return _Target("node", term, include_subclasses)
+    what = f"{kind} {term}" if kind.startswith("sh:") else kind
+    raise ValueError(
+        f"derive_shape(): the shape {shape} in template_graph has only {what} as its target, which cannot be derived for; "
+        "it needs exactly one sh:targetClass (an IRI) or one sh:targetNode (an IRI or blank node)"
+    )
+
+
+def _copy_template_shape(template: Any, shape: Any, working: Any) -> None:
+    """Copy into ``working`` the template shape ``shape`` and what it references."""
+    for node in [shape, *sorted(referenced_shapes(template, [shape]), key=_sort_key)]:
         template.cbd(node, target_graph=working)
     _copy_declarations(template, working)
-    return main
 
 
 def _copy_declarations(template: Any, working: Any) -> None:
@@ -676,22 +697,11 @@ def _copy_declarations(template: Any, working: Any) -> None:
             template.cbd(entry, target_graph=working)
 
 
-def _rename(g: Any, old: Any, new: Any) -> None:
-    for s, p, o in list(g.triples((old, None, None))):
-        g.remove((s, p, o))
-        g.add((new, p, o))
-    for s, p, o in list(g.triples((None, None, old))):
-        g.remove((s, p, o))
-        g.add((s, p, new))
-
-
 def _derive_with_template(
     data: Any, template: Any, target: _Target, shape: Any, ignored: set[Any], working: Any, mint: _Minter,
 ) -> Any:
-    shape_node = _copy_scoped_template(template, target, shape, working)
-    if shape is not None and shape != shape_node:
-        _rename(working, shape_node, shape)
-        shape_node = shape
+    shape_node = shape
+    _copy_template_shape(template, shape, working)
 
     from starlayer.shacl.engine.plan import Plan
 
@@ -796,7 +806,7 @@ def derive_shape(
     ``StarLayerGraph`` with ``graph``'s prefixes plus ``sh`` and nothing but that shape (and its property shapes); ``graph`` is
     never changed.
 
-    Give exactly one of ``cls`` and ``node``. With ``cls`` the shape has ``sh:targetClass`` and describes all instances of the
+    Without a template give exactly one of ``cls`` and ``node``. With ``cls`` the shape has ``sh:targetClass`` and describes all instances of the
     class: the nodes typed with it and, unless ``include_subclasses`` is False, those typed with an ``rdfs:subClassOf`` subclass of
     it in the data graph (SHACL's own reading of ``sh:targetClass``). With ``node`` it has ``sh:targetNode`` and describes that one
     node from its own triples, so its counts are what that node has; a blank node is allowed. For each predicate the instances use
@@ -806,15 +816,16 @@ def derive_shape(
     and, unless ``use_default_ignored_properties`` is False, ``rdfs:label``, ``rdfs:comment``, ``dcterms:created`` and
     ``dcterms:modified``, plus ``ignored_properties``. Those are left out of the property shapes.
 
-    The shape is named by ``shape`` (an IRI). Without it, the shape gets an IRI in the target's namespace: its local name (after the
+    In a fresh derivation the shape is named by ``shape`` (an IRI). Without it, the shape gets an IRI in the target's namespace: its local name (after the
     last ``#`` or ``/``) with the first letter upper-cased, plus ``Shape``, so ``ex:Person`` gives ``ex:PersonShape`` and
     ``ex:alice`` gives ``ex:AliceShape``. A blank node target, or an IRI without a local name, gives a blank node shape.
 
-    ``template_graph`` is a graph, not a node: a StarLayer graph that holds an earlier version of the shape to keep up to date. The
-    shape in it is found by its target, not named: the one that targets the same class (``sh:targetClass``) or node
-    (``sh:targetNode``) is used, together with what it references (its property shapes, lists, ``sh:node`` and logical shapes); the
-    other shapes of the template graph are not copied. When it holds several shapes for that target, ``shape`` names the one to use;
-    when it holds one, ``shape`` renames the result, which otherwise keeps the template shape's identity.
+    ``template_graph`` is a graph, not a node: a StarLayer graph that holds an earlier version of the shape to keep up to date, and
+    ``shape`` (required with it) names that shape. The shape carries its own target, so ``cls`` and ``node`` are not passed: a
+    template shape stands for the class or node it targets, and one with none, several, or another kind of target (``sh:targetSubjectsOf``,
+    ``sh:targetObjectsOf``, ``sh:target``, an implicit class target) would leave it unclear what to derive for. The shape is used
+    together with what it references (its property shapes, lists, ``sh:node`` and logical shapes); the other shapes of the template
+    graph are not copied. The result keeps the template shape's name: renaming is a separate step, not part of an update.
 
     The template is brought up to date by loosening, never tightening: a constraint the data satisfies stays exactly as it is,
     and so does a property the data lacks. A constraint the data breaks is recomputed from the data when there is a principled way
@@ -840,18 +851,31 @@ def derive_shape(
     those that have other properties.
 
     Raises:
-        ValueError: neither or both of ``cls`` and ``node`` are given; the class has no instances, or the node no triples as
-            subject; the template has no shape for the target, or several (and none is ``shape``).
+        ValueError: without a template, neither or both of ``cls`` and ``node`` are given; with one, ``shape`` is missing,
+            ``cls`` or ``node`` is also given, ``shape`` is not a shape of the template, or it does not have exactly one
+            ``sh:targetClass`` / ``sh:targetNode``; the class has no instances, or the node no triples as subject.
         TypeError: a term is an rdflib term or of a kind the argument does not take, or a graph is not a StarLayer graph.
     """
-    if (cls is None) == (node is None):
-        raise ValueError("derive_shape() needs exactly one of cls= and node=" + (" (got both)" if cls is not None else " (got neither)"))
     data = engine_view(normalize_to_starlayer_graph(graph, name="graph"), "graph")
-    if cls is not None:
-        target = _Target("cls", _as_term(cls, "cls", allowed=(ox.NamedNode,)), include_subclasses)
-    else:
-        target = _Target("node", _as_term(node, "node", allowed=(ox.NamedNode, ox.BlankNode)), include_subclasses)
     shape_term = None if shape is None else _as_term(shape, "shape", allowed=(ox.NamedNode,))
+    template = None
+    if template_graph is not None:
+        if cls is not None or node is not None:
+            raise ValueError(
+                "derive_shape() with template_graph= takes the target from the template shape: do not pass cls= or node=, "
+                "pass shape= (the IRI of the shape in template_graph to update)"
+            )
+        if shape_term is None:
+            raise ValueError("derive_shape() with template_graph= needs shape=, the IRI of the shape in template_graph to update")
+        template = engine_view(normalize_to_starlayer_graph(template_graph, name="template_graph"), "template_graph")
+        target = _template_target(template, shape_term, include_subclasses)
+    else:
+        if (cls is None) == (node is None):
+            raise ValueError("derive_shape() needs exactly one of cls= and node=" + (" (got both)" if cls is not None else " (got neither)"))
+        if cls is not None:
+            target = _Target("cls", _as_term(cls, "cls", allowed=(ox.NamedNode,)), include_subclasses)
+        else:
+            target = _Target("node", _as_term(node, "node", allowed=(ox.NamedNode, ox.BlankNode)), include_subclasses)
     ignored: set[Any] = set(_ALWAYS_IGNORED)
     if use_default_ignored_properties:
         ignored |= DEFAULT_IGNORED_PROPERTIES
@@ -868,8 +892,7 @@ def derive_shape(
     out = StarLayerGraph(prefixes=dict(graph.prefixes))
     out.prefixes.setdefault("sh", _SH_NS)
     mint = _Minter(f"{target.kind}|{target.term}")
-    if template_graph is not None:
-        template = engine_view(normalize_to_starlayer_graph(template_graph, name="template_graph"), "template_graph")
+    if template is not None:
         return _derive_with_template(data, template, target, shape_term, ignored, out, mint)
     shape_node = shape_term or _auto_shape_name(target.term) or mint.node(out)
     return _derive_fresh(data, target, shape_node, ignored, out, mint)

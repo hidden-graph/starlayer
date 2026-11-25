@@ -61,7 +61,7 @@ _:l rdf:first "a"; rdf:rest _:m . _:m rdf:first "b"; rdf:rest rdf:nil .""",
     )
     data = StarLayerGraph()
     data.parse(data=P + 'ex:n a ex:C; ex:p "c"; ex:q "a" .', format="turtle")
-    shapes = derive_shape(data, cls=ox.NamedNode("http://e/C"), template_graph=tmpl)
+    shapes = derive_shape(data, shape=ox.NamedNode("http://e/S"), template_graph=tmpl)
     firsts = {str(o.value) for _, _, o in shapes.triples((None, ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#first"), None))}
     assert {"a", "b", "c"} <= firsts  # p's list gained "c"; q's list is still there
 
