@@ -9,6 +9,7 @@ import textwrap
 import warnings
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 warnings.simplefilter("ignore")
@@ -163,7 +164,7 @@ def test_an_empty_update_does_nothing(make, text):
 
 @pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
 def test_one_blank_node_label_in_two_operations_is_rejected(make):
-    with pytest.raises(SyntaxError, match="shared by multiple blocks|already used"):  # Oxigraph's wording, or the parser's on a graph (update_scope.py)
+    with pytest.raises(FormatError, match="shared by multiple blocks|already used"):  # Oxigraph's wording, or the parser's on a graph (update_scope.py)
         make().update("INSERT DATA { _:a <http://e/p> 1 } ; INSERT DATA { _:a <http://e/p> 3 }")
     # different labels, and one label repeated inside one operation, are fine
     g = make()
@@ -174,7 +175,7 @@ def test_one_blank_node_label_in_two_operations_is_rejected(make):
 @pytest.mark.parametrize("make", [StarLayerGraph, StarLayerDataset])
 @pytest.mark.parametrize("text", ["DELETE WHERE { _:a <http://e/p> ?o }", "DELETE DATA { _:a <http://e/p> 1 }", "DELETE { _:a <http://e/p> ?o } WHERE { ?s <http://e/p> ?o }"])
 def test_blank_nodes_in_a_delete_are_rejected(make, text):
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         make().update(text)
 
 
