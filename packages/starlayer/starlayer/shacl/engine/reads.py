@@ -12,8 +12,6 @@ from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
 from typing import Any
 
-from starlayer.shacl.engine.plan import ExecutionError
-
 _Triple = tuple[Any, Any, Any]
 
 
@@ -108,14 +106,14 @@ class RecordingGraph:
         The term returned is the subject if subject is None, else the predicate if predicate is None, else the object.
 
         Args:
-            any: when false, more than one match raises an ``ExecutionError`` of kind ``"ambiguous"``; when true, the first match is returned.
+            any: when false, more than one match raises ``ValueError``; when true, the first match is returned.
         """
         slot = 0 if subject is None else 1 if predicate is None else 2
         found = [t[slot] for t in self._read((subject, predicate, object))]
         if not found:
             return default
         if not any and len(found) > 1:
-            raise ExecutionError("value() found more than one match", kind="ambiguous")
+            raise ValueError("value() found more than one match")
         return found[0]
 
     def sparql_query(self, text: str, init_bindings: Mapping[str, Any] | None = None, custom_functions: Any = None) -> Any:

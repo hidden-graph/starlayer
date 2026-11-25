@@ -40,8 +40,8 @@ class MetaShaclError(ShapeError):
     used (``None`` for an error raised elsewhere), so a caller can tell a narrow check from a full one."""
 
     def __init__(self, message: str, problems: tuple[str, ...] = (), report_text: str = "", report_graph: Any = None,
-                 scope: Any = None) -> None:
-        super().__init__(message)
+                 scope: Any = None, *, context: str | None = None) -> None:
+        super().__init__(message, context=context)
         self.scope = scope
         self.problems = problems
         self.report_text = report_text

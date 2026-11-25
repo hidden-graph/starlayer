@@ -477,7 +477,7 @@ class _Run:
                     if all(ctx.conforms(c, n) for c in conditions):
                         out[n] = None
                 except (ShapeError, ExecutionError) as exc:
-                    raise _prefixed(exc, f"{rule.node!r}: sh:condition check failed: ")
+                    raise _prefixed(exc, f"{rule.node!r}: sh:condition check failed: ", _rule_context(rule))
         return list(out)
 
     # -- executing one rule: returns the triples it infers (not yet filtered against the view)
@@ -522,10 +522,10 @@ class _Run:
         try:
             check_query(self.plan, text, bindings, construct=True, pre_binding=focus is not None)
             return self.view.construct(text, bindings)
-        except ShapeError as exc:  # the query does not parse, or uses something the engine refuses
-            raise ShapeCompileError(f"{rule.node!r}: SPARQL rule failed: {exc}") from exc
-        except Exception as exc:  # noqa: BLE001  (a query that does not evaluate fails the rule)
-            raise ExecutionError(f"{rule.node!r}: SPARQL rule failed: {exc}", kind="rule") from exc
+        except (ShapeError, ExecutionError) as exc:  # the query does not parse or uses something the engine refuses; or a function of it failed
+            raise _prefixed(exc, f"{rule.node!r}: SPARQL rule failed: ", _rule_context(rule))  # the cause keeps its class and kind
+        except Exception as exc:  # noqa: BLE001  (a foreign exception: the query does not evaluate, which fails the rule)
+            raise ExecutionError(f"{rule.node!r}: SPARQL rule failed: {exc}", kind="rule", context=_rule_context(rule)) from exc
 
     def _template_of(self, rule: Rule) -> Term | None:
         """The rule template ``rule`` instantiates: its type, or the nearest superclass of that type (``rdfs:subClassOf``)
@@ -562,10 +562,12 @@ class _Run:
             if exprs:
                 try:
                     parts.append(list(evaluate(ctx, exprs[0], focus, None)))
-                except ShapeError as exc:
-                    raise ShapeCompileError(f"{rule.node!r}: node expression for {text(pred)} failed: {exc}") from exc
-                except Exception as exc:  # noqa: BLE001
-                    raise ExecutionError(f"{rule.node!r}: node expression for {text(pred)} failed: {exc}", kind="rule") from exc
+                except (ShapeError, ExecutionError) as exc:  # the cause keeps its class and kind; the rule is context
+                    raise _prefixed(exc, f"{rule.node!r}: node expression for {text(pred)} failed: ", _rule_context(rule))
+                except Exception as exc:  # noqa: BLE001  (the evaluator raises only its own errors: anything else is a bug)
+                    raise ExecutionError(
+                        f"{rule.node!r}: node expression for {text(pred)} failed: {exc}", kind="internal", context=_rule_context(rule)
+                    ) from exc
             else:
                 parts.append([] if focus is None else [focus])
         return [(s, p, o) for s in parts[0] for p in parts[1] for o in parts[2]]
@@ -596,8 +598,8 @@ class _Run:
                         evaluate = evaluate or _evaluator()
                         try:
                             values.extend(evaluate(ctx, expr, n, None))
-                        except Exception:  # noqa: BLE001  (a failing expression derives no value)
-                            continue
+                        except (ShapeError, ExecutionError) as exc:  # an error is not an empty result (Node Expressions 3.2): same as validate()
+                            raise _prefixed(exc, f"{ps!r}: sh:values failed at {n!r}: ", f"sh:values of {ps!r}")
                     else:
                         values.append(expr)
                 if not values and not any(True for _ in self.view.objects(n, pred)):
@@ -641,7 +643,7 @@ def _evaluator():
     try:
         from starlayer.shacl.engine.expressions import evaluate_expression
     except ImportError as exc:
-        raise ExecutionError("sh:TripleRule and node-expression values need starlayer.shacl.engine.expressions", kind="rule") from exc
+        raise ExecutionError("sh:TripleRule and node-expression values need starlayer.shacl.engine.expressions", kind="internal") from exc
     return evaluate_expression
 
 
@@ -652,14 +654,22 @@ def _groups(rules: list[Rule]) -> list[list[Rule]]:
     return [by[o] for o in sorted(by)]
 
 
-def _renamed(error: Exception, message: str) -> Exception:
+def _renamed(error: Exception, message: str, context: str | None = None) -> Exception:
+    """``error`` with ``message`` and, if it has none yet, ``context``: the same object, class and kind, for ``raise``."""
     error.args = (message,)
+    if context is not None and getattr(error, "context", None) is None:
+        error.context = context  # type: ignore[attr-defined]
     return error
 
 
-def _prefixed(error: Exception, prefix: str) -> Exception:
-    """``error`` (same class) with ``prefix`` in front of its message, so it names the rule it is about. Returned for ``raise``."""
-    return _renamed(error, prefix + str(error))
+def _prefixed(error: Exception, prefix: str, context: str | None = None) -> Exception:
+    """``error`` (same class and kind) with ``prefix`` in front of its message and ``context`` set (unless it has one), so it names the
+    rule it is about. Returned for ``raise``."""
+    return _renamed(error, prefix + str(error), context)
+
+
+def _rule_context(rule: Any) -> str:
+    return f"sh:rule {rule.node!r}"
 
 
 # The cap on the triples one rule run may infer (``max_triples``; ``None`` removes it). A triple inferred costs about 1.3-1.9 KB and
@@ -681,7 +691,7 @@ def apply_rules(
     """Run the rules of ``shapes_graph`` (default: ``data_graph`` itself) over ``data_graph``.
 
     ``rule_sets``: IRIs of ``sh:RuleSet`` instances to run (with the sets they include); ``None`` runs the default rule set,
-    every rule of the shapes graph. A failing rule fails the whole rule set: the error (``ShapeError`` for a wrong rules graph, an ``ExecutionError`` (kind ``"rule"`` for a rule that failed) when running failed) is raised, or with
+    every rule of the shapes graph. A failing rule fails the whole rule set: the error (``ShapeError`` for a wrong rules graph, an ``ExecutionError`` (kind ``"rule"`` for a failure of the rule itself, such as ``max_iterations``; an expression that fails inside a rule keeps its own kind ``"expression"`` or ``"nesting"``, with the rule as ``context``) when running failed) is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
     data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, an StarLayerGraph copy inside
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
@@ -719,8 +729,9 @@ def apply_rules(
         run.delete_temp_triples()
     except (ShapeError, ExecutionError) as exc:
         message = locate(shapes, str(exc))  # the shape, rule or expression it is about, named, not its blank node label
+        context = locate(shapes, exc.context) if getattr(exc, "context", None) else None
         if raise_on_failure:
-            raise _renamed(exc, message)  # same class: ShapeError for a wrong rules graph, an ExecutionError when running failed
+            raise _renamed(exc, message, context)  # same class and kind: ShapeError for a wrong rules graph, an ExecutionError when running failed
         failures.append(message)
     kept = set(view.inferred)  # temporary triples are gone: a rule's record follows its triple
     recorded = tuple(dict.fromkeys((t, rule) for t, rule in (run.source_rules or ()) if t in kept))

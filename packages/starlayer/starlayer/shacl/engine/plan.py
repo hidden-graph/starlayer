@@ -20,7 +20,15 @@ Term = Any
 class ShapeError(ValueError):
     """The base of the shapes-graph errors: the shapes graph, its rules or its setup is wrong or asks for something unsupported (the
     W3C suite's ``sht:Failure`` cases), found by anyone. Raised as ``ShapeCompileError`` (the engine cannot read or compile it) or
-    ``MetaShaclError`` (the meta check found it); catch ``ShapeError`` for either."""
+    ``MetaShaclError`` (the meta check found it); catch ``ShapeError`` for either.
+
+    The class names the cause and never changes with the path the error travels. ``context`` (default ``None``) is a short string
+    for where it was found, such as ``"sh:rule ex:R1"``; a handler that knows the place sets it and keeps the class. The message
+    carries the same text, so ``str(error)`` is enough for a person and ``context`` is there for a program."""
+
+    def __init__(self, *args: Any, context: str | None = None) -> None:
+        super().__init__(*args)
+        self.context = context
 
 
 class ShapeCompileError(ShapeError):
@@ -40,25 +48,30 @@ class ExecutionError(Exception):
     * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
     * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
     * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
-    * ``"ambiguous"``: a lookup that must give exactly one result gave several.
     * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
+
+    ``kind`` names the cause and never changes with the path the error travels: an expression that cannot be evaluated is
+    ``"expression"`` whether ``validate()`` or a rule met it, and ``"rule"`` is only for a failure that is about the rule itself.
+    Where it happened (which rule, shape, focus node or call) is ``context`` (a short string, default ``None``) and is also in the
+    message, so ``str(error)`` stays the whole text and a program reads ``context`` alone.
 
     ``str(error)`` is the message. Catch ``ExecutionError`` and test ``error.kind``; inside the engine, ``only_kind`` does the test."""
 
-    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "ambiguous", "internal")
+    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal")
 
-    def __init__(self, message: str, *, kind: str) -> None:
+    def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
         if kind not in self.KINDS:
             raise ValueError(f"unknown ExecutionError kind {kind!r}; one of {', '.join(self.KINDS)}")
         super().__init__(message)
         self.kind = kind
+        self.context = context
 
-    def __reduce__(self) -> Any:  # a keyword-only ``kind`` must survive pickle and copy
-        return (_rebuild_execution_error, (self.args[0] if self.args else "", self.kind))
+    def __reduce__(self) -> Any:  # the keyword-only ``kind`` and ``context`` must survive pickle and copy
+        return (_rebuild_execution_error, (self.args[0] if self.args else "", self.kind, self.context))
 
 
-def _rebuild_execution_error(message: str, kind: str) -> ExecutionError:
-    return ExecutionError(message, kind=kind)
+def _rebuild_execution_error(message: str, kind: str, context: str | None = None) -> ExecutionError:
+    return ExecutionError(message, kind=kind, context=context)
 
 
 def only_kind(error: ExecutionError, *kinds: str) -> None:

@@ -33,11 +33,9 @@ from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.paths import parse_path
 from starlayer.shacl.engine.plan import (
     SH,
-    ExecutionError,
     Path,
     Plan,
     Shape,
-    ShapeError,
     Term,
     ShapeCompileError,
 )
@@ -225,10 +223,7 @@ class _Extractor:
         triples: set[_Triple] = set()
         for pred in _SECOND_PATH_PREDICATES:
             for other in _values(shape, pred):
-                try:
-                    path = parse_path(self.shapes, other)
-                except ShapeError:
-                    continue
+                path = parse_path(self.shapes, other)  # a path that cannot be read raises, as validate() does
                 triples |= _walk(self.data, path, focus)[1]
         return triples
 
@@ -286,21 +281,12 @@ class _Extractor:
         with self._recorder.recording() as reads:
             for expr in exprs:
                 for v in value_nodes:
-                    try:
-                        evaluate_expression(ctx, expr, focus, {"value": [v]})
-                    except (ExecutionError, ShapeError):
-                        pass
+                    evaluate_expression(ctx, expr, focus, {"value": [v]})  # a failure raises, as validate() does (Node Expressions 3.2)
             for expr in by_exprs:
                 for v in value_nodes:
-                    try:
-                        computed = evaluate_expression(ctx, expr, v)
-                    except (ExecutionError, ShapeError):
-                        continue
+                    computed = evaluate_expression(ctx, expr, v)
                     for node in computed:
-                        try:
-                            triples |= self.extract(self.plan.shape(node), v, visiting, full_trace)
-                        except (ExecutionError, ShapeError):
-                            continue
+                        triples |= self.extract(self.plan.shape(node), v, visiting, full_trace)
         return triples | reads
 
     def extract(self, shape: Shape, focus: Term, visiting: frozenset = frozenset(), full_trace: bool = False) -> set[_Triple]:

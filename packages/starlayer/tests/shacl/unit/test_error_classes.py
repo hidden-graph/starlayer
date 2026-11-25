@@ -30,7 +30,7 @@ def g(ttl: str) -> StarLayerGraph:
     return graph
 
 
-KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "ambiguous", "internal")
+KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal")
 
 
 def test_execution_error_is_one_class_with_a_kind_and_the_message_as_its_text():
@@ -121,11 +121,121 @@ def test_a_malformed_rule_is_a_shape_error_not_an_execution_error(rule):
     assert not isinstance(exc.value, ExecutionError)
 
 
-def test_a_rule_that_fails_while_running_is_of_kind_rule():
+def test_an_expression_failure_inside_a_rule_keeps_its_kind_and_names_the_rule_as_context():
     shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:subject [ shnex:sum ( 1 'a' ) ] ; sh:predicate ex:q ; sh:object 1 ] .")
-    with raises_kind("rule") as exc:
+    with raises_kind("expression") as exc:
         apply_rules(g("ex:a ex:p 1 ."), shapes)
     assert not isinstance(exc.value, ValueError)
+    assert exc.value.context and exc.value.context.startswith("sh:rule")
+
+
+def test_the_same_expression_failure_has_the_same_kind_direct_and_inside_a_rule():
+    direct = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression [ shnex:sum ( 1 'a' ) ] .")
+    with raises_kind("expression") as a:
+        validate(g("ex:a ex:p 1 ."), direct, meta_shacl=False)
+    rule = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:subject [ shnex:sum ( 1 'a' ) ] ; sh:predicate ex:q ; sh:object 1 ] .")
+    with raises_kind("expression") as b:
+        apply_rules(g("ex:a ex:p 1 ."), rule)
+    assert type(a.value) is type(b.value) and a.value.kind == b.value.kind
+    assert a.value.context is None and b.value.context
+
+
+def test_a_nesting_failure_inside_a_rule_keeps_kind_nesting():
+    shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:subject _:e ; sh:predicate ex:q ; sh:object 1 ] . _:e shnex:exists _:e .")
+    with raises_kind("nesting"):
+        apply_rules(g("ex:a ex:p 1 ."), shapes)
+
+
+def test_an_execution_error_raised_inside_a_sparql_rule_is_not_relabelled(monkeypatch):
+    from starlayer.shacl.engine import rules
+
+    def boom(*_a, **_k):
+        raise ExecutionError("a nesting failure", kind="nesting")
+
+    monkeypatch.setattr(rules, "check_query", boom)
+    shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:SPARQLRule ; sh:construct 'CONSTRUCT { $this <http://example.org/q> 1 } WHERE { }' ] .")
+    with raises_kind("nesting") as exc:
+        apply_rules(g("ex:a ex:p 1 ."), shapes)
+    assert exc.value.context and "SPARQL rule failed" in str(exc.value)
+
+
+def test_a_shape_error_inside_a_rule_keeps_its_class(monkeypatch):
+    from starlayer.shacl.engine import rules
+
+    def boom(*_a, **_k):
+        raise MetaShaclError("meta problem")
+
+    monkeypatch.setattr(rules, "check_query", boom)
+    shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:SPARQLRule ; sh:construct 'CONSTRUCT { $this <http://example.org/q> 1 } WHERE { }' ] .")
+    with pytest.raises(MetaShaclError) as exc:
+        apply_rules(g("ex:a ex:p 1 ."), shapes)
+    assert exc.value.context
+
+
+def test_a_rule_failure_recorded_without_raising_names_the_cause_in_its_message():
+    shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:subject [ shnex:sum ( 1 'a' ) ] ; sh:predicate ex:q ; sh:object 1 ] .")
+    from starlayer.shacl.engine.rules import apply_rules as engine_apply_rules
+
+    result = engine_apply_rules(g("ex:a ex:p 1 ."), shapes, raise_on_failure=False)
+    assert not result.ok and all(isinstance(f, str) for f in result.failures) and "node expression" in result.failures[0]
+
+
+def test_a_sh_values_expression_that_fails_in_a_rule_raises_like_validate():
+    shapes = g(
+        "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property ex:P . "
+        "ex:P sh:path ex:d ; sh:values [ shnex:sum ( 1 'a' ) ] . "
+        "ex:R a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:q ; "
+        "sh:object [ shnex:var 'focusNode' ] ; sh:expectedPredicate ex:d ] ."
+    )
+    with raises_kind("expression") as exc:
+        apply_rules(g("ex:a ex:p 1 ."), shapes)
+    assert exc.value.context
+
+
+def test_a_missing_expressions_module_is_an_internal_error(monkeypatch):
+    import builtins
+
+    from starlayer.shacl.engine import rules
+
+    real = builtins.__import__
+
+    def fake(name, *a, **k):
+        if name == "starlayer.shacl.engine.expressions":
+            raise ImportError("gone")
+        return real(name, *a, **k)
+
+    monkeypatch.setattr(builtins, "__import__", fake)
+    with raises_kind("internal"):
+        rules._evaluator()
+
+
+def test_context_defaults_to_none_and_survives_pickle_and_copy():
+    import copy
+    import pickle
+
+    assert ExecutionError("m", kind="rule").context is None
+    assert ShapeCompileError("m").context is None and MetaShaclError("m").context is None
+    errors = [
+        ExecutionError("m", kind="expression", context="sh:rule ex:R"),
+        ShapeCompileError("m", context="sh:rule ex:R"),
+        MetaShaclError("m", context="sh:rule ex:R"),
+    ]
+    for error in errors:
+        for clone in (pickle.loads(pickle.dumps(error)), copy.copy(error), copy.deepcopy(error)):
+            assert type(clone) is type(error) and clone.context == "sh:rule ex:R" and str(clone) == "m"
+    assert pickle.loads(pickle.dumps(errors[0])).kind == "expression"
+
+
+def test_extraction_raises_like_validate_for_a_failing_sh_expression():
+    from starlayer.shacl import extract_subgraph
+
+    shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:expression [ shnex:sum ( 1 'a' ) ] ] .")
+    data = g("ex:a ex:p 1 .")
+    with raises_kind("expression") as a:
+        validate(data, shapes, meta_shacl=False)
+    with raises_kind("expression") as b:
+        extract_subgraph(data, shapes)
+    assert type(a.value) is type(b.value) and a.value.kind == b.value.kind
 
 
 def test_an_unresolvable_import_is_a_shape_error_at_the_first_validate():
@@ -342,20 +452,20 @@ def test_a_function_failure_is_raised_by_the_query_that_called_it_even_among_oth
     assert validate(g("ex:a ex:p 1 ."), ok, meta_shacl=False).conforms
 
 
-# ---- "ambiguous" and "internal" ---------------------------------------------------------------------------------------------------
+# ---- "internal" ---------------------------------------------------------------------------------------------------
 
 
-def test_value_with_any_false_and_several_matches_is_an_ambiguous_error():
+def test_value_with_any_false_and_several_matches_is_a_plain_value_error_like_the_graph():
     from starlayer.shacl.engine.reads import RecordingGraph
-
     from starlayer.shacl.engine.terms import NamedNode
 
     recording = RecordingGraph(g("ex:a ex:p 1, 2 .").engine_view())
     a, p = NamedNode("http://example.org/a"), NamedNode("http://example.org/p")
-    with raises_kind("ambiguous", match="more than one match"):
+    with pytest.raises(ValueError, match="more than one match"):
         recording.value(a, p, None, any=False)
     assert recording.value(a, p, None, any=True) is not None
     assert recording.value(a, NamedNode("http://example.org/none"), None, any=False) is None
+    assert "ambiguous" not in ExecutionError.KINDS
 
 
 def test_a_derived_shape_that_fails_its_own_check_is_an_internal_error_to_report(monkeypatch):
@@ -397,3 +507,21 @@ def test_an_unknown_term_tag_in_a_plan_file_is_a_shape_compile_error():
 
     with pytest.raises(ShapeCompileError, match="unknown term tag"):
         term_from_json({"t": "nonsense"})
+
+
+def test_extraction_raises_like_validate_for_a_nested_failure_and_for_a_shape_error():
+    from starlayer.shacl import extract_subgraph
+
+    data = g("ex:a ex:p 1 .")
+    cases = {
+        "nested": "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:node [ sh:expression [ shnex:sum ( 1 'a' ) ] ] ] .",
+        "bad second path": "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:equals 5 ] .",
+    }
+    for name, ttl in cases.items():
+        shapes = g(ttl)
+        with pytest.raises((ExecutionError, ShapeError)) as a:
+            validate(data, shapes, meta_shacl=False)
+        with pytest.raises((ExecutionError, ShapeError)) as b:
+            extract_subgraph(data, shapes)
+        assert type(a.value) is type(b.value), name
+        assert getattr(a.value, "kind", None) == getattr(b.value, "kind", None), name

@@ -17,8 +17,13 @@ that cannot be resolved) is wrong or asks for something unsupported, found by an
 * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
-* ``"ambiguous"``: a lookup that must give exactly one result gave several.
 * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
+
+The class and the ``kind`` name the cause and never change with the path an error travels: an expression that cannot be evaluated is an
+``ExecutionError`` of kind ``"expression"`` from ``validate()``, from a rule and from fragment extraction alike, and a malformed shape
+is a ``ShapeError`` wherever it is read. Where it happened (which rule, shape, focus node or call) is ``context`` on every
+``ExecutionError`` and ``ShapeError``, a short string such as ``"sh:rule ex:R1"`` (``None`` when nothing narrows it), repeated in the
+message; a handler that knows the place sets it and re-raises the same class and kind.
 
 A bad argument to a public call (a role that is not ``"editor"`` or ``"viewer"``, a shape name the shapes graph does not have) is a plain
 ``ValueError`` or ``TypeError``, raised before any shape is read.
