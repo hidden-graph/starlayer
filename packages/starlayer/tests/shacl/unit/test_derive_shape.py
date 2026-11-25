@@ -367,6 +367,45 @@ class TestTemplateKeepsItsClosedSetting:
         assert ignored == {RDF.type} | set(DEFAULT_IGNORED_PROPERTIES)
 
 
+class TestEmptyRecomputeIsDeactivated:
+    """A broken constraint is loosened only to a non-empty one; else it is deactivated, its value kept (2026-11-25)."""
+
+    @pytest.mark.parametrize('data, constraint, pred, line', [
+        ('ex:a a ex:P ; ex:v 1, "x" .', 'sh:datatype xsd:integer', SH.datatype,
+         'Deactivated ex:v sh:datatype xsd:integer: the values share no single datatype.'),
+        ('ex:a a ex:P ; ex:v ex:b, ex:c . ex:b a ex:X . ex:c a ex:Y .', 'sh:class ex:Z', SH['class'],
+         'Deactivated ex:v sh:class ex:Z: the values share no class.'),
+        ('ex:a a ex:P ; ex:v "x"@en, "y" .', 'sh:languageIn ("fr")', SH.languageIn,
+         'Deactivated ex:v sh:languageIn ("fr"): a value has no language tag.'),
+        ('ex:a a ex:P ; ex:v ex:b, "s", _:z, <<( ex:q ex:r ex:s )>> .', 'sh:nodeKind sh:IRI', SH.nodeKind,
+         'Deactivated ex:v sh:nodeKind sh:IRI: the values are of every node kind.'),
+    ], ids=['datatype', 'class', 'languageIn', 'nodeKind'])
+    def test_empty_recompute_deactivates_and_keeps_the_value(self, data, constraint, pred, line):
+        d = _ttl(data)
+        template = _ttl(f'ex:S a sh:NodeShape ; sh:targetClass ex:P ; sh:closed true ; sh:property [ sh:path ex:v ; {constraint} ] .')
+        before = _triples(template)
+        result = derive_shape(d, cls=EX.P, template_graph=template)
+        assert not _conforms(d, template)
+        assert _conforms(d, result)
+        assert starlayer.shacl.meta_validate(result)[0] is True
+        (flagged,) = _deactivated(result)
+        assert flagged[1] == pred
+        (comment,) = result.objects(EX.S, RDFS.comment)
+        assert text(comment) == 'derive_shape() changed this shape to fit the data:\n' + line
+        assert 'no constraint' not in text(comment)
+        assert _triples(derive_shape(d, cls=EX.P, template_graph=template)) == _triples(result)
+        assert _triples(template) == before
+
+    def test_node_kind_stays_a_node_kind_when_loosened(self):
+        d = _ttl('ex:a a ex:P ; ex:v 1, 2 .')
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:P ; sh:property [ sh:path ex:v ; sh:nodeKind sh:IRI ] .')
+        result = derive_shape(d, cls=EX.P, template_graph=template)
+        assert _conforms(d, result)
+        (comment,) = result.objects(EX.S, RDFS.comment)
+        assert text(comment).endswith('Loosened ex:v sh:nodeKind from sh:IRI to sh:Literal: a value is of another kind.')
+        assert not list(result.subjects(SH.datatype, None))
+
+
 def test_derive_never_imports_pyshacl_directly():
     import inspect
 

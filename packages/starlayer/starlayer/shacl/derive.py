@@ -393,6 +393,26 @@ def _iter_violations(report_graph: Any) -> Iterable[dict[str, Any]]:
         }
 
 
+def _no_constraint_reason(data: Any, component: Any, values: set[Any]) -> str | None:
+    """Why recomputing ``component`` from ``values`` would leave no constraint at all (then the caller deactivates it instead, so the
+    original value stays visible), or None when there is something to recompute to."""
+    if component == SH.DatatypeConstraintComponent:
+        if values and all(isinstance(v, ox.Literal) for v in values):
+            buckets = {_literal_datatype_bucket(v) for v in values}
+            if len(buckets) == 1 and None not in buckets:
+                return None
+        return "the values share no single datatype"
+    if component == SH.ClassConstraintComponent:
+        return None if _shared_rdf_type(data, values) is not None else "the values share no class"
+    if component == SH.LanguageInConstraintComponent:
+        if values and all(isinstance(v, ox.Literal) and v.language for v in values):
+            return None
+        return "a value has no language tag"
+    if component == SH.NodeKindConstraintComponent:
+        return "the values are of every node kind" if len({_term_kind(v) for v in values}) == 4 else None
+    return None
+
+
 def _recompute_component(
     working: Any, data: Any, shape_node: Any, instances: set[Any], path: Any, component: Any, mint: _Minter,
 ) -> bool:
@@ -412,23 +432,27 @@ def _recompute_component(
         return True
 
     if component == SH.DatatypeConstraintComponent:
+        if _no_constraint_reason(data, component, values) is not None:
+            return False
         working.remove((shape_node, SH.datatype, None))
-        if values and all(isinstance(v, ox.Literal) for v in values):
-            buckets = {_literal_datatype_bucket(v) for v in values}
-            if len(buckets) == 1 and None not in buckets:
-                working.add((shape_node, SH.datatype, next(iter(buckets))))
+        working.add((shape_node, SH.datatype, next(iter({_literal_datatype_bucket(v) for v in values}))))
         return True
 
     if component == SH.ClassConstraintComponent:
-        working.remove((shape_node, SH["class"], None))
         shared = _shared_rdf_type(data, values)
-        if shared is not None:
-            working.add((shape_node, SH["class"], shared))
+        if shared is None:
+            return False
+        working.remove((shape_node, SH["class"], None))
+        working.add((shape_node, SH["class"], shared))
         return True
 
     if component == SH.NodeKindConstraintComponent:
+        if not values or _no_constraint_reason(data, component, values) is not None:
+            return False
+        # stays a sh:nodeKind: the kinds observed, one term or SHACL 1.2's list (never a different constraint such as sh:datatype)
+        terms_ = sorted((_NODE_KIND_TERM[k] for k in {_term_kind(v) for v in values}), key=_text)
         _clear_list_valued(working, shape_node, SH.nodeKind)
-        _set_node_kind_constraints(working, data, shape_node, values, mint)
+        working.add((shape_node, SH.nodeKind, terms_[0] if len(terms_) == 1 else mint.rdf_list(working, terms_)))
         return True
 
     if component in _INCLUSIVE_EXCLUSIVE_PREDICATE:
@@ -456,11 +480,12 @@ def _recompute_component(
         return True
 
     if component == SH.LanguageInConstraintComponent:
-        _clear_list_valued(working, shape_node, SH.languageIn)
-        langs = sorted({v.language for v in values if isinstance(v, ox.Literal) and v.language})
         # a value without a language tag fails sh:languageIn, so the constraint can only stay when every value is tagged
-        if langs and all(isinstance(v, ox.Literal) and v.language for v in values):
-            working.add((shape_node, SH.languageIn, mint.rdf_list(working, [ox.Literal(lang) for lang in langs])))
+        if _no_constraint_reason(data, component, values) is not None:
+            return False
+        langs = sorted({v.language for v in values})
+        _clear_list_valued(working, shape_node, SH.languageIn)
+        working.add((shape_node, SH.languageIn, mint.rdf_list(working, [ox.Literal(lang) for lang in langs])))
         return True
 
     if component == SH.InConstraintComponent:
@@ -517,8 +542,13 @@ def _show_values(g: Any, node: Any, predicates: Iterable[Any]) -> str:
 
 
 def _shown_constraint(g: Any, node: Any, pred: Any, values: list[Any]) -> str:
-    """``sh:pattern "^[a-z]+$"``: the predicate and its value; a blank node value (an ``sh:sparql`` constraint) is left out."""
-    shown = [_show(g, v) for v in sorted(values, key=_sort_key) if not isinstance(v, ox.BlankNode)]
+    """``sh:pattern "^[a-z]+$"``: the predicate and its value; a list in parentheses; any other blank node value (an ``sh:sparql`` constraint) is left out."""
+    shown = []
+    for v in sorted(values, key=_sort_key):
+        if isinstance(v, ox.BlankNode) and (v, RDF_FIRST, None) in g:
+            shown.append("(" + " ".join(_show(g, i) for i in _list_items(g, v)) + ")")
+        elif not isinstance(v, ox.BlankNode):
+            shown.append(_show(g, v))
     return " ".join([g.qname_term(pred), *shown])
 
 
@@ -691,6 +721,11 @@ def _derive_with_template(
                     why = "no node has a value for it" if max(counts, default=0) == 0 else "some node has no value for it"
                     _deactivate(working, data, shape_node, target, source, component, specs, mint, changes, why)
                     continue
+            if focus is not None and path is not None:
+                vacuous = _no_constraint_reason(data, component, _counts_and_values(data, focus, path)[1])
+                if vacuous is not None:
+                    _deactivate(working, data, shape_node, target, source, component, specs, mint, changes, vacuous)
+                    continue
             preds = _RECOMPUTE_PREDICATES[component]
             before = _show_values(working, source, preds)
             if (
@@ -700,7 +735,7 @@ def _derive_with_template(
                 after = _show_values(working, source, preds)
                 if before != after:
                     changes.loosened.append((
-                        _where(working, source, shape_node), f"{working.qname_term(preds[0])} from {before} to {after or 'no constraint'}",
+                        _where(working, source, shape_node), f"{working.qname_term(preds[0])} from {before} to {after}",
                         _RECOMPUTE_REASON[component],
                     ))
                 continue
@@ -786,8 +821,10 @@ def derive_shape(
     (counts, datatype, class, node kind, ranges, lengths, languages, ``sh:in`` widened). When there is none (``sh:pattern``,
     ``sh:hasValue``, pair comparisons) or it cannot be checked at all (``sh:sparql``, custom components) it is deactivated, not
     dropped, with a reifier on that one triple (``{| sh:deactivated true |}``), so a reader still sees what was switched off and
-    the engine still skips it. A ``sh:minCount`` is lowered to the fewest values any node has; when that is 0 it is deactivated
-    instead of removed or set to 0, which is valid but reads as no constraint, so the original value stays visible. Predicates the template does not cover are added, and its ignored properties are kept. The template's own setting of
+    the engine still skips it. The same holds whenever the recomputed constraint would be empty: ``sh:minCount`` when the fewest
+    count is 0 (set to 0 it would read as no constraint), ``sh:datatype`` and ``sh:class`` when the values share none,
+    ``sh:languageIn`` when a value has no language tag, ``sh:nodeKind`` when all four kinds occur. A loosened constraint is never
+    removed, so the comment never says a constraint became none and the original value stays visible. Predicates the template does not cover are added, and its ignored properties are kept. The template's own setting of
     ``sh:closed`` stays: an open shape stays open (no ``sh:closed`` is added), ``sh:closed false`` stays, and only a shape that
     was ``sh:closed true`` gets the default ignored properties merged into its list, because an update changes what the data
     forces and the author's choice to leave a shape open is not altered silently. Shapes it merely references are never changed.
