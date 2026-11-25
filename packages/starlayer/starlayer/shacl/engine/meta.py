@@ -192,6 +192,7 @@ def meta_validate(
     remove: Iterable[Any] = (),
     nodes: Iterable[Any] | None = None,
     with_dependents: bool = True,
+    full: bool = False,
 ) -> MetaResult:
     """Validate ``shapes_graph`` against the SHACL-SHACL meta-shapes with the native engine.
 
@@ -208,7 +209,7 @@ def meta_validate(
     ``add`` / ``remove`` (triples) propose an edit: the check runs on a copy of the shapes graph with the edit applied, and the
     caller's graph is not changed. ``nodes`` names nodes of the graph to check. With any of the three the check is scoped
     (``meta_scope`` says to which nodes, and when a risky edit makes it full); with none it is the whole graph. ``MetaResult.scope``
-    is the scope used.
+    is the scope used. ``full=True`` checks the whole graph as it would be after the edit, whatever the edit is.
     """
     from starlayer.shacl.engine.meta_scope import after_edit, compute_scope
     from starlayer.shacl.meta_shapes import parameter_value_shapes
@@ -221,6 +222,8 @@ def meta_validate(
     shapes_graph = engine_view(shapes_graph, "shapes graph")
     scope, adds, removes = compute_scope(shapes_graph, add=add, remove=remove, nodes=nodes, with_dependents=with_dependents,
                                          prefixes=prefixes)
+    if full and not scope.full:
+        scope = _forced_full(scope)
     scoped = nodes is not None or bool(adds) or bool(removes)
     shapes_graph = after_edit(shapes_graph, adds, removes)
 
@@ -257,6 +260,12 @@ def meta_validate(
     return result
 
 
+def _forced_full(scope: Any) -> Any:
+    from starlayer.shacl.engine.meta_scope import MetaScope
+
+    return MetaScope(True, (), ("full check: requested",))
+
+
 def meta_scope(
     shapes_graph: Any,
     *,
@@ -264,6 +273,7 @@ def meta_scope(
     remove: Iterable[Any] = (),
     nodes: Iterable[Any] | None = None,
     with_dependents: bool = True,
+    full: bool = False,
 ) -> Any:
     """The ``MetaScope`` that ``meta_validate`` would use for the same arguments: nothing is validated and no copy is made, so it is
     cheap. An edit that gives a new subject a type or subclass triple (a new shape) is scoped, not full; the same triple on a node the
@@ -271,8 +281,9 @@ def meta_scope(
     from starlayer.shacl.engine.meta_scope import compute_scope
 
     prefixes = dict(getattr(shapes_graph, "prefixes", None) or {})
-    return compute_scope(engine_view(shapes_graph, "shapes graph"), add=add, remove=remove, nodes=nodes,
-                         with_dependents=with_dependents, prefixes=prefixes)[0]
+    scope = compute_scope(engine_view(shapes_graph, "shapes graph"), add=add, remove=remove, nodes=nodes,
+                          with_dependents=with_dependents, prefixes=prefixes)[0]
+    return _forced_full(scope) if full and not scope.full else scope
 
 
 __all__ = ["META_ERROR_PREFIX", "MetaResult", "MetaShaclError", "meta_scope", "meta_validate"]

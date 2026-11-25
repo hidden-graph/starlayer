@@ -197,8 +197,7 @@ def meta_validate(
     *,
     add: Iterable[Any] = (),
     remove: Iterable[Any] = (),
-    nodes: Iterable[Any] | None = None,
-    with_dependents: bool = True,
+    full: bool = False,
     extra_graphs: Iterable[Any] = (),
 ) -> tuple[bool, Any, str]:
     """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
@@ -212,27 +211,15 @@ def meta_validate(
     error's ``report_graph``, so an editor can still show a warning on its own. ``extra_graphs`` are added to the meta-shapes. The report is
     an ``StarLayerGraph``.
 
-    With none of ``add``, ``remove`` and ``nodes`` the whole graph is checked, at about 3 ms per node shape. For a check after every
-    edit, pass the edit before applying it: ``add`` and ``remove`` are triples ``(s, p, o)``; the check runs on a copy of the graph
-    as it would be after the edit (removals first, then additions; ``shapes_graph`` itself is not changed) and reports only the
-    nodes the edit touches. The whole graph stays visible to the check, so a node that is not covered is simply not reported, not
-    checked against a cut-down graph. ``nodes`` checks those nodes of the graph as it is (alone or together with an edit; the caller
-    then owns the decision that nothing else is affected, and a full check before saving or publishing is still the safe default).
-    ``with_dependents`` adds the shapes that refer to a covered node (``sh:node``, ``sh:and`` / ``sh:or`` / ``sh:xone``, ``sh:not``,
-    ``sh:property``, ``sh:qualifiedValueShape`` ...; the references ``referenced_shapes`` follows, read in reverse, and the owner of a
-    blank node), one step only. An edit that other nodes inherit from (prefix declarations, components and their parameters, rule
-    templates, ``rdf:type`` and ``rdfs:subClassOf`` triples) is checked in full; ``meta_scope`` says which it was and why.
-    A result whose focus node is not covered is not reported, even when the check saw it."""
+    ``add`` and ``remove`` (triples) propose an edit that is checked before it is made: the check runs on the graph as it would be
+    after the edit and ``shapes_graph`` is not changed. The library chooses the extent itself, a fraction of a second against seconds
+    for a large graph: the nodes the edit touches, their inline blank nodes and the shapes that refer to them, or the whole graph when
+    the edit can change what other nodes mean (prefix declarations, components, rule templates, the type of an existing node).
+    ``full=True`` overrides that choice and checks the whole graph as it would be after the edit; a narrow check is for use between
+    edits, and the full check is the one to run before the shapes are saved or published. ``meta_scope`` says what an edit covers."""
     from starlayer.shacl.engine.meta import meta_validate as engine_meta_validate
 
-    result = engine_meta_validate(
-        shapes_graph,
-        extra=extra_graphs,
-        add=add,
-        remove=remove,
-        nodes=nodes,
-        with_dependents=with_dependents,
-    )
+    result = engine_meta_validate(shapes_graph, extra=extra_graphs, add=add, remove=remove, full=full)
     result.raise_if_invalid()
     return result.conforms, result.report_graph, result.report_text
 
@@ -242,15 +229,14 @@ def meta_scope(
     *,
     add: Iterable[Any] = (),
     remove: Iterable[Any] = (),
-    nodes: Iterable[Any] | None = None,
-    with_dependents: bool = True,
+    full: bool = False,
 ) -> MetaScope:
     """What ``meta_validate`` with the same arguments covers and why, as a ``MetaScope``: ``full`` (the edit is one that other nodes
-    inherit from, or nothing was named), the focus ``nodes`` and ``reasons``. It does not validate or copy anything (a few
-    milliseconds on thousands of shapes), so an editor can show it next to a valid result, which has no error to carry it."""
+    inherit from, ``full=True`` was passed, or no edit was given), the focus ``nodes`` and ``reasons``. It does not validate or copy
+    anything (a few milliseconds on thousands of shapes), so an editor can show it next to a valid result, which has no error to carry it."""
     from starlayer.shacl.engine.meta import meta_scope as engine_meta_scope
 
-    return engine_meta_scope(shapes_graph, add=add, remove=remove, nodes=nodes, with_dependents=with_dependents)
+    return engine_meta_scope(shapes_graph, add=add, remove=remove, full=full)
 
 
 def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str]:

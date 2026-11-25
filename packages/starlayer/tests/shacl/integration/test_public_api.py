@@ -200,10 +200,14 @@ def test_profiling_and_meta_validation_are_importable_from_starlayer_shacl():
     assert derive_conforms_to is profiling.derive_conforms_to
     assert declared_conformance_profile is profiling.declared_conformance_profile
     assert meta_validate is submodule_meta_validate
+    import inspect
+
     from starlayer.shacl import MetaScope, meta_scope
 
     assert MetaScope.__dataclass_params__.frozen and callable(meta_scope)
     assert {"full", "nodes", "reasons"} <= set(MetaScope.__dataclass_fields__)
+    assert list(inspect.signature(meta_validate).parameters) == ["shapes_graph", "add", "remove", "full", "extra_graphs"]
+    assert list(inspect.signature(meta_scope).parameters) == ["shapes_graph", "add", "remove", "full"]
     assert CONFORMANCE is conformance.CONFORMANCE
 
 
