@@ -9,8 +9,8 @@
 @prefix slkg: <https://github.com/hidden-graph/starlayer/ns/codekg#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-nl:01-b8032fd8 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
+nl:01.01-b8032fd8 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/01.01-getting-started.ipynb" ;
     slkg:cellId "b8032fd8" ;
     slkg:cellHash "547ce6cdc81d19a5" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -18,8 +18,8 @@ nl:01-b8032fd8 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core.StarLayerGraph" .
 
-nl:01-6f4c59ad a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
+nl:01.01-6f4c59ad a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/01.01-getting-started.ipynb" ;
     slkg:cellId "6f4c59ad" ;
     slkg:cellHash "2494eedc732484d1" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -591,8 +591,8 @@ nl:06.03-df2738a8 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.sqe.shapes.sqe_validate" .
 
-nl:01-2102b1a6 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/01-getting-started.ipynb" ;
+nl:01.01-2102b1a6 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/01.01-getting-started.ipynb" ;
     slkg:cellId "2102b1a6" ;
     slkg:cellHash "df946bb469359d6d" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;

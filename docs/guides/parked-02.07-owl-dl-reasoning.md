@@ -33,7 +33,7 @@ This is a separate guide from `02b` because the prerequisites are meaningfully h
 
 ## How to run this notebook
 
-This guide assumes StarLayer has been pip installed — see [Getting Started](01-getting-started.ipynb). Run cells from top to bottom; later cells reuse variables from earlier ones.
+This guide assumes StarLayer has been pip installed — see [Getting Started](01.01-getting-started.ipynb). Run cells from top to bottom; later cells reuse variables from earlier ones.
 
 `owlready2` additionally requires a Java runtime on `PATH` — HermiT is a Java program. If Java isn't found or isn't configured correctly, an error message is raised.
 

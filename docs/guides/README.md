@@ -8,7 +8,7 @@ This is the single master index for every guide notebook - every notebook's own 
 
 ## The guides
 
-1. **[Getting Started](01-getting-started.ipynb)** - install, first parse, first query, first validate.
+1. **[Getting Started](01.01-getting-started.ipynb)** - install, first parse, first query, first validate.
 2. **[Graphs](02.01-graphs.ipynb)** - RDF 1.2 triple terms, reifiers, annotations and directional language strings, and the Turtle 1.2 syntax for them.
    - **02.02 [Working with datasets](02.02-graphs-datasets.ipynb)** - `StarLayerDataset`, multiple named graphs in one store.
    - **02.03 [The Oxigraph-backed graph](02.03-oxigraph-wrapper.ipynb)** - `StarLayerGraph` / `StarLayerDataset` hold a `pyoxigraph.Store`: any store method can be called through `.ox` on the graph or dataset (`g.ox.load(...)`), which is better than `.store` because the wrapper records writes (the caching warning); converting to and from rdflib.

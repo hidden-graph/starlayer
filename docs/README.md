@@ -3,7 +3,7 @@
 Every document in the repository, by what you want to do. Files marked *generated* are built by `python scripts/build.py`; do not edit them by hand.
 
 ## Learn StarLayer
-- [User guides](guides/README.md): notebooks, from [getting started](guides/01-getting-started.ipynb) through graphs, SPARQL, SHACL, ontologies and storage. [STYLE_GUIDE.md](guides/STYLE_GUIDE.md) is for guide authors.
+- [User guides](guides/README.md): notebooks, from [getting started](guides/01.01-getting-started.ipynb) through graphs, SPARQL, SHACL, ontologies and storage. [STYLE_GUIDE.md](guides/STYLE_GUIDE.md) is for guide authors.
 - [Appendix A: public resources](guides/appendix-a-public-resources.ipynb): the ontologies, shapes and profiles the library publishes, with links.
 
 ## Look something up

@@ -8,7 +8,7 @@
       "docs/guides/README.md"
     ],
     "notebook": [
-      "docs/guides/01-getting-started.ipynb",
+      "docs/guides/01.01-getting-started.ipynb",
       "docs/guides/02.01-graphs.ipynb",
       "docs/guides/02.02-graphs-datasets.ipynb",
       "docs/guides/02.03-oxigraph-wrapper.ipynb",

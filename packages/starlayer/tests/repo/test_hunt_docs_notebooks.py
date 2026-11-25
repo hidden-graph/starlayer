@@ -41,7 +41,7 @@ def test_no_guide_describes_a_rename_to_itself():
 
 
 def test_guide_01_names_the_class_and_does_not_call_it_a_working_name():
-    t = _text("01-getting-started.ipynb")
+    t = _text("01.01-getting-started.ipynb")
     assert "working name" not in t
     assert "`StarLayerGraph`" in t
 

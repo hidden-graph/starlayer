@@ -38,7 +38,7 @@ No exceptions for the entry point: `01-getting-started.ipynb` currently reads `#
 
 Always the **third** cell, immediately after the title — never preceded by a scratch/planning cell, never pushed later. Standard text:
 
-> This guide assumes StarLayer has been pip installed — see [Getting Started](01-getting-started.ipynb) if not. Run cells from top to bottom; later sections may reuse variables from earlier ones.
+> This guide assumes StarLayer has been pip installed — see [Getting Started](01.01-getting-started.ipynb) if not. Run cells from top to bottom; later sections may reuse variables from earlier ones.
 
 Append, don't replace, when a guide has a real extra prerequisite (a JVM, a running Oxigraph/Fuseki instance, an optional extra like `pyshacl`/`rdflib-sqlalchemy`) — state it plainly and say what happens if it's missing (`02f-owl-dl-reasoning.ipynb`'s HermiT/Java note is the right length and specificity). State every real prerequisite here, not scattered across later sections (`06b`'s own `!pip install -q rdflib-sqlalchemy` buried mid-notebook is the anti-example).
 
@@ -110,7 +110,7 @@ No hard cap, but a guideline: if a guide grows past roughly 40–50 cells, it's 
 ```markdown
 ## How to run this notebook
 
-This guide assumes StarLayer has been pip installed — see [Getting Started](01-getting-started.ipynb) if not. Run cells from top to bottom; later sections may reuse variables from earlier ones.
+This guide assumes StarLayer has been pip installed — see [Getting Started](01.01-getting-started.ipynb) if not. Run cells from top to bottom; later sections may reuse variables from earlier ones.
 <+ any real extra prerequisite, stated plainly.>
 ```
 ```markdown
