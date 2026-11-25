@@ -153,7 +153,7 @@ def validate(
     graph run the entailment closure first (see ``entailment.py``); ``ont_graph`` supplies axioms visible to entailment
     only. The entailed copy is the one ``query(entailment=...)`` keeps for the store (shared; ``recompute`` is as for ``query()``:
     ``"onChange"``, ``"never"``, ``"always"``). ``engine`` / ``timeout`` are for the ``OWL-Direct`` regime and raise ``ValueError``
-    for another; ``InconsistentOntologyError`` and ``ReasoningTimeoutError`` propagate. Neither modifies ``data_graph`` unless ``inplace=True``, which then adds the inferred and entailed triples to it
+    for another; an ``ExecutionError`` of kind ``"inconsistent"``, ``"timeout"`` or ``"inference"`` from the reasoner propagates. Neither modifies ``data_graph`` unless ``inplace=True``, which then adds the inferred and entailed triples to it
     (returned as ``Outcome.data_graph``).
 
     Report provenance: a ``sh:ValidationActivity`` that ``prov:generated`` the report (not the report node itself) carries

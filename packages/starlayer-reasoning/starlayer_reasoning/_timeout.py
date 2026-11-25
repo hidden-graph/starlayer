@@ -64,16 +64,11 @@ import time
 from collections.abc import Callable
 from typing import Any
 
+from starlayer.errors import ExecutionError
+
 DEFAULT_TIMEOUT_SECONDS = 120.0
 
 _CTX = multiprocessing.get_context('spawn')
-
-
-class ReasoningTimeoutError(RuntimeError):
-    """Raised when an OWL-DL reasoning call (either engine) exceeds its
-    wall-clock budget and had to be forcibly killed - see this module's
-    own docstring for why a hard process-group kill, not a cooperative
-    cancellation, is the only mechanism available here."""
 
 
 def _trampoline(target: Callable[..., None], args: tuple, queue) -> None:
@@ -116,9 +111,11 @@ def run_with_timeout(target: Callable[..., None], args: tuple, timeout_seconds: 
             unless the caller of *that* overrides it.
 
     Returns:
-        Whatever `target` put on the queue. Raises ReasoningTimeoutError
-        (after killing the child's entire process group) if nothing
-        arrives within `timeout_seconds`.
+        Whatever `target` put on the queue. Raises ExecutionError of kind
+        "timeout" (after killing the child's entire process group, see this
+        module's docstring for why a hard kill) if nothing arrives within
+        `timeout_seconds`, and of kind "inference" if the child exits
+        without a result (a crash).
     """
     queue: Any = _CTX.Queue()
     process = _CTX.Process(target=_trampoline, args=(target, args, queue))
@@ -155,14 +152,15 @@ def run_with_timeout(target: Callable[..., None], args: tuple, timeout_seconds: 
             return result
 
         if not process.is_alive():
-            raise ReasoningTimeoutError(
+            raise ExecutionError(
                 'OWL-DL reasoning subprocess exited without producing a result '
                 '(likely crashed) - see the subprocess for details; this is not '
                 'a wall-clock timeout, but the failure mode looks the same from '
-                'here since nothing was returned to inspect.'
+                'here since nothing was returned to inspect.',
+                kind='inference',
             )
 
-        raise ReasoningTimeoutError(
+        raise ExecutionError(
             f'OWL-DL reasoning did not complete within {timeout_seconds}s and was '
             'forcibly terminated. The reasoner may be stuck on a pathological '
             'input, or the ontology may simply be larger/more complex than this '
@@ -170,7 +168,8 @@ def run_with_timeout(target: Callable[..., None], args: tuple, timeout_seconds: 
             'an issue with a minimal reproduction if a specific construct seems '
             'responsible (docs/future_enhancements.md tracks the one already-known '
             'RustDL hang pattern, caught earlier by a fast pre-flight check rather '
-            'than ever reaching this timeout).'
+            'than ever reaching this timeout).',
+            kind='timeout',
         )
     finally:
         if process.is_alive():

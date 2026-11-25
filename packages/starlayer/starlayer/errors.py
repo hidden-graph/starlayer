@@ -12,7 +12,7 @@ The tree::
      |- ShapeError                  the shapes graph (a shape, a rule, a rules graph) or its setup is wrong; has ``context``
      |   |- ShapeCompileError       the engine cannot read or compile it
      |   `- MetaShaclError          the meta check (shapes-about-shapes) found it: ``problems``, ``report_text``, ``report_graph``, ``scope``
-     `- ExecutionError              the shapes graph is fine and running it failed; has ``kind`` and ``context``
+     `- ExecutionError              running failed (SHACL with a fine shapes graph, or OWL-DL reasoning); has ``kind`` and ``context``
 
 ``ExecutionError`` is one class; its ``kind`` (one of ``ExecutionError.KINDS``) says what failed:
 
@@ -22,6 +22,10 @@ The tree::
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
 * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
+* ``"timeout"``: an OWL-DL reasoning call (either engine) did not finish within its wall-clock budget and was killed.
+* ``"inconsistent"``: the OWL-DL reasoner found the data logically inconsistent under OWL 2 DL semantics.
+* ``"inference"``: the reasoner could not run or died: a Java runtime that is missing or broken, an owlready2 Java error, or a
+  reasoning subprocess that exited without a result (a crash, not a timeout).
 
 The class and the ``kind`` name the cause and never change with the path an error travels. Where it happened is ``context`` (a short
 string such as ``"sh:rule ex:R1"``, ``None`` when nothing narrows it), repeated in the message; a handler that knows the place sets it
@@ -78,8 +82,9 @@ class MetaShaclError(ShapeError):
 
 
 class ExecutionError(StarLayerError):
-    """The shapes graph is fine and running it failed. Not a ``ShapeError`` and not a ``ValueError``: a handler for a wrong shapes
-    graph (or a bad argument) must not swallow it.
+    """Running failed: for SHACL the shapes graph is fine, for OWL-DL reasoning the input is fine and the reasoner timed out, found
+    the data inconsistent or could not run. Not a ``ShapeError`` and not a ``ValueError``: a handler for a wrong shapes graph (or a
+    bad argument) must not swallow it.
 
     One class; ``kind`` says what failed (a plain string, one of ``KINDS``, listed in the module docstring). ``kind`` names the cause
     and never changes with the path the error travels: an expression that cannot be evaluated is ``"expression"`` whether
@@ -89,7 +94,7 @@ class ExecutionError(StarLayerError):
 
     Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
 
-    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal")
+    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference")
 
     def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
         if kind not in self.KINDS:

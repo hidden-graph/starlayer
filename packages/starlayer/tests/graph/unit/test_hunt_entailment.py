@@ -10,6 +10,7 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import ENTAILMENT, StarLayerDataset, StarLayerGraph
 from starlayer_reasoning import _timeout
+from tests.support.errors import raises_kind
 
 warnings.simplefilter("ignore")
 
@@ -146,7 +147,7 @@ def _sleep_then_mark(marker, queue):
 def test_timeout_kills_child_started_but_not_yet_in_its_group():  # bug 10
     d = tempfile.mkdtemp()
     marker = os.path.join(d, "m")
-    with pytest.raises(_timeout.ReasoningTimeoutError):
+    with raises_kind("timeout"):
         _timeout.run_with_timeout(_sleep_then_mark, (marker,), 0.01)
     time.sleep(6)
     assert not os.path.exists(marker)
@@ -165,7 +166,7 @@ def test_no_timeout_still_detects_a_dead_child():  # bug 14
     old = signal.signal(signal.SIGALRM, alarm)
     signal.alarm(20)
     try:
-        with pytest.raises(_timeout.ReasoningTimeoutError):
+        with raises_kind("inference"):
             _timeout.run_with_timeout(_die, (), None)
     finally:
         signal.alarm(0)

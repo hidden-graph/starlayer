@@ -27,6 +27,7 @@ engine="hermit", not a bug to chase down here.
 """
 
 import pytest
+from reasoning_kinds import raises_kind
 from starlayer.graph import RDF, Namespace, StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 
@@ -105,8 +106,6 @@ class TestOwlDlRustdlSubClassClosure:
 @rustdl_extra
 class TestOwlDlRustdlInconsistency:
     def test_inconsistent_ontology_raises(self):
-        from starlayer_reasoning.owl_dl import InconsistentOntologyError
-
         g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
@@ -115,7 +114,7 @@ class TestOwlDlRustdlInconsistency:
             ex:Man owl:disjointWith ex:Woman .
             ex:bob a ex:Man, ex:Woman .
         """, format="turtle12")
-        with pytest.raises(InconsistentOntologyError):
+        with raises_kind('inconsistent'):
             g.infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl")
 
     def test_consistent_ontology_does_not_raise(self):
@@ -227,10 +226,8 @@ class TestOwlDlRustdlTimeout:
         closed = self._simple_graph().infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl")
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
-    def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer_reasoning._timeout import ReasoningTimeoutError
-
-        with pytest.raises(ReasoningTimeoutError):
+    def test_tiny_timeout_raises_a_timeout_error(self):
+        with raises_kind('timeout'):
             self._simple_graph().infer(entailment=ENTAILMENT["OWL-Direct"], engine="rustdl", timeout=0.001)
 
     def test_timeout_none_disables_it(self):
@@ -273,8 +270,8 @@ class TestOwlDlRustdlTimeout:
 def test_missing_rustdl_raises_actionable_error(monkeypatch):
     """Simulates rustdl not being installed (independent of whether it
     actually is, in this test environment) - confirms the "opt-in package
-    missing" case raises a clear, actionable RuntimeError naming the
-    exact extra to install, not a bare ImportError. Mirrors
+    missing" case raises a clear, actionable ImportError naming the
+    exact extra to install. Mirrors
     test_infer_owl_dl.py's identical test for the other engine.
     """
     import sys
@@ -282,5 +279,18 @@ def test_missing_rustdl_raises_actionable_error(monkeypatch):
     from starlayer_reasoning import owl_dl_rustdl
 
     monkeypatch.setitem(sys.modules, "rustdl", None)
-    with pytest.raises(RuntimeError, match=r"starlayer-reasoning\[rustdl\]"):
+    with pytest.raises(ImportError, match=r"starlayer-reasoning\[rustdl\]"):
         owl_dl_rustdl._require_rustdl()
+
+
+def test_an_inconsistent_status_from_the_rustdl_child_becomes_an_execution_error_of_kind_inconsistent(monkeypatch):
+    """No rustdl needed: the child's tagged result is stubbed."""
+    from starlayer_reasoning import owl_dl_rustdl
+
+    monkeypatch.setattr(owl_dl_rustdl, "_require_rustdl", lambda: None)
+    monkeypatch.setattr(owl_dl_rustdl, "_check_rustdl_hang_risk", lambda triples: None)
+    monkeypatch.setattr(owl_dl_rustdl._timeout, "run_with_timeout", lambda target, args, timeout: ("inconsistent", None))
+    g = StarLayerGraph()
+    g.add((EX.alice, RDF.type, EX.Person))
+    with raises_kind("inconsistent"):
+        owl_dl_rustdl.classify_owl_dl_rustdl(g)

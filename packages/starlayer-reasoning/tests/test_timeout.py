@@ -19,7 +19,9 @@ import sys
 import time
 
 import pytest
-from starlayer_reasoning._timeout import ReasoningTimeoutError, run_with_timeout
+from reasoning_kinds import raises_kind
+from starlayer.errors import ExecutionError
+from starlayer_reasoning._timeout import run_with_timeout
 
 
 def _fast_worker(x, queue):
@@ -33,6 +35,20 @@ def _raising_status_worker(queue):
     worker always puts exactly one tuple on queue, never lets an
     exception cross the process boundary uncaught)."""
     queue.put(('some_error', 'a real, non-hang failure'))
+
+
+def _execution_error_worker(kind, queue):
+    """Puts an ``ExecutionError`` object itself (not a tagged tuple) on the queue, as a child that wants the parent to see the
+    real error would."""
+    from starlayer.errors import ExecutionError
+
+    queue.put(('error', ExecutionError(f'raised in the child ({kind})', kind=kind, context='child process')))
+
+
+def _raising_execution_error_worker(queue):
+    from starlayer.errors import ExecutionError
+
+    raise ExecutionError('raised and not caught in the child', kind='inconsistent')
 
 
 def _crashing_worker(queue):
@@ -73,10 +89,26 @@ class TestRunWithTimeoutHappyPath:
         assert result == ('some_error', 'a real, non-hang failure')
 
 
+class TestExecutionErrorAcrossTheProcessBoundary:
+    """``ExecutionError`` has keyword-only ``kind`` and ``context``; ``__reduce__`` must carry them through the pickle the
+    multiprocessing queue applies between the child and the parent."""
+
+    @pytest.mark.parametrize('kind', ['timeout', 'inconsistent', 'inference'])
+    def test_an_error_put_on_the_queue_by_the_child_arrives_with_its_kind_message_and_context(self, kind):
+        status, error = run_with_timeout(_execution_error_worker, (kind,), timeout_seconds=30)
+        assert status == 'error'
+        assert type(error) is ExecutionError
+        assert (error.kind, str(error), error.context) == (kind, f'raised in the child ({kind})', 'child process')
+
+    def test_an_error_the_child_does_not_catch_is_reported_by_the_parent_as_an_inference_failure(self):
+        with raises_kind('inference', match='exited without producing a result'):
+            run_with_timeout(_raising_execution_error_worker, (), timeout_seconds=30)
+
+
 class TestRunWithTimeoutFailureModes:
-    def test_hang_raises_reasoning_timeout_error_near_the_deadline(self):
+    def test_hang_raises_a_timeout_error_near_the_deadline(self):
         t0 = time.monotonic()
-        with pytest.raises(ReasoningTimeoutError):
+        with raises_kind('timeout'):
             run_with_timeout(_hang_worker, (), timeout_seconds=1.5)
         elapsed = time.monotonic() - t0
         # Generous bounds - process spawn overhead varies, but this must
@@ -85,7 +117,7 @@ class TestRunWithTimeoutFailureModes:
 
     def test_crashed_child_raises_promptly_not_after_the_full_budget(self):
         t0 = time.monotonic()
-        with pytest.raises(ReasoningTimeoutError):
+        with raises_kind('inference'):
             run_with_timeout(_crashing_worker, (), timeout_seconds=30)
         elapsed = time.monotonic() - t0
         assert elapsed < 15.0, (
@@ -98,7 +130,7 @@ class TestRunWithTimeoutFailureModes:
         a JVM-like grandchild process must not be left orphaned and
         running after the parent's timeout kills the child."""
         marker_path = str(tmp_path / 'marker.txt')
-        with pytest.raises(ReasoningTimeoutError):
+        with raises_kind('timeout'):
             run_with_timeout(_hang_with_grandchild_worker, (marker_path,), timeout_seconds=2)
 
         deadline = time.monotonic() + 5
@@ -172,7 +204,7 @@ class TestQueueReadErrorsAreNotSwallowed:
         from starlayer_reasoning import _timeout
 
         monkeypatch.setattr(_timeout, '_CTX', _FakeContext(_RaisingQueue(EOFError()), alive=False))
-        with pytest.raises(ReasoningTimeoutError, match='exited without producing a result'):
+        with raises_kind('inference', match='exited without producing a result'):
             run_with_timeout(_fast_worker, (1,), timeout_seconds=5)
 
     def test_an_empty_poll_of_a_dead_child_is_still_reported_as_an_exit_without_a_result(self, monkeypatch):
@@ -181,5 +213,5 @@ class TestQueueReadErrorsAreNotSwallowed:
         from starlayer_reasoning import _timeout
 
         monkeypatch.setattr(_timeout, '_CTX', _FakeContext(_RaisingQueue(queue_module.Empty()), alive=False))
-        with pytest.raises(ReasoningTimeoutError, match='exited without producing a result'):
+        with raises_kind('inference', match='exited without producing a result'):
             run_with_timeout(_fast_worker, (1,), timeout_seconds=5)

@@ -26,6 +26,7 @@ import os
 import shutil
 
 import pytest
+from reasoning_kinds import raises_kind
 from starlayer.graph import RDF, Namespace, StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 
@@ -129,8 +130,6 @@ class TestOwlDlSubClassClosure:
 @java_required
 class TestOwlDlInconsistency:
     def test_inconsistent_ontology_raises(self):
-        from starlayer_reasoning.owl_dl import InconsistentOntologyError
-
         g = StarLayerGraph()
         g.bind("ex", EX)
         g.parse(data="""
@@ -139,7 +138,7 @@ class TestOwlDlInconsistency:
             ex:Man owl:disjointWith ex:Woman .
             ex:bob a ex:Man, ex:Woman .
         """, format="turtle12")
-        with pytest.raises(InconsistentOntologyError):
+        with raises_kind('inconsistent'):
             g.infer(entailment=ENTAILMENT['OWL-Direct'])
 
     def test_consistent_ontology_does_not_raise(self):
@@ -196,10 +195,8 @@ class TestOwlDlTimeout:
         closed = self._simple_graph().infer(entailment=ENTAILMENT['OWL-Direct'], engine="hermit")
         assert (EX.alice, RDF.type, EX.Animal) in closed
 
-    def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer_reasoning._timeout import ReasoningTimeoutError
-
-        with pytest.raises(ReasoningTimeoutError):
+    def test_tiny_timeout_raises_a_timeout_error(self):
+        with raises_kind('timeout'):
             self._simple_graph().infer(entailment=ENTAILMENT['OWL-Direct'], engine="hermit", timeout=0.001)
 
     def test_timeout_none_disables_it(self):
@@ -218,8 +215,8 @@ def test_timeout_rejected_for_non_owl_dl_entailment():
 def test_missing_owlready2_raises_actionable_error(monkeypatch):
     """Simulates owlready2 not being installed (independent of whether it
     actually is, in this test environment) - confirms the "opt-in package
-    missing" case raises a clear, actionable RuntimeError naming the
-    exact extra to install, not a bare ImportError. Mirrors
+    missing" case raises a clear, actionable ImportError naming the
+    exact extra to install. Mirrors
     test_infer_owl_dl_rustdl.py's identical test for the other engine.
     """
     import sys
@@ -227,7 +224,7 @@ def test_missing_owlready2_raises_actionable_error(monkeypatch):
     from starlayer_reasoning import owl_dl
 
     monkeypatch.setitem(sys.modules, "owlready2", None)
-    with pytest.raises(RuntimeError, match=r"starlayer-reasoning\[hermit\]"):
+    with pytest.raises(ImportError, match=r"starlayer-reasoning\[hermit\]"):
         owl_dl._require_owlready2()
 
 
@@ -251,7 +248,7 @@ def test_engine_rejected_for_non_owl_dl_entailment():
 def test_missing_java_raises_a_distinct_clear_error(monkeypatch):
     """Simulates a JVM-missing environment (independent of whether Java is
     actually installed on this machine) to confirm a missing JVM raises
-    its own clear, actionable RuntimeError rather than an opaque failure
+    its own clear, actionable ExecutionError (kind "inference") rather than an opaque failure
     from deep inside owlready2/subprocess.
     """
     from starlayer_reasoning import owl_dl
@@ -260,7 +257,7 @@ def test_missing_java_raises_a_distinct_clear_error(monkeypatch):
     g = StarLayerGraph()
     g.bind("ex", EX)
     g.add((EX.alice, RDF.type, EX.Person))
-    with pytest.raises(RuntimeError, match="Java runtime"):
+    with raises_kind("inference", match="Java runtime"):
         owl_dl.classify_owl_dl(g)
 
 
@@ -274,7 +271,7 @@ def test_broken_java_raises_a_distinct_clear_error(tmp_path, monkeypatch):
     confirms *something* is on PATH, not that it works. Confirmed live
     that this surfaces as owlready2's own OwlReadyJavaError if not
     explicitly caught; this test pins the re-wrap into the same
-    RuntimeError family `_require_java()` already uses.
+    ExecutionError kind ("inference") `_require_java()` uses.
     """
     from starlayer_reasoning import owl_dl
 
@@ -290,5 +287,19 @@ def test_broken_java_raises_a_distinct_clear_error(tmp_path, monkeypatch):
     g = StarLayerGraph()
     g.bind("ex", EX)
     g.add((EX.alice, RDF.type, EX.Person))
-    with pytest.raises(RuntimeError, match="broken or misconfigured"):
+    with raises_kind("inference", match="broken or misconfigured"):
+        owl_dl.classify_owl_dl(g)
+
+
+@pytest.mark.parametrize("status, kind", [("inconsistent", "inconsistent"), ("java_error", "inference")])
+def test_the_status_a_hermit_child_reports_becomes_an_execution_error_of_that_kind(monkeypatch, status, kind):
+    """No Java needed: the child's tagged result is stubbed, so this pins the parent's status-to-kind mapping alone."""
+    from starlayer_reasoning import owl_dl
+
+    monkeypatch.setattr(owl_dl, "_require_owlready2", lambda: None)
+    monkeypatch.setattr(owl_dl, "_require_java", lambda: None)
+    monkeypatch.setattr(owl_dl._timeout, "run_with_timeout", lambda target, args, timeout: (status, "from the child"))
+    g = StarLayerGraph()
+    g.add((EX.alice, RDF.type, EX.Person))
+    with raises_kind(kind):
         owl_dl.classify_owl_dl(g)

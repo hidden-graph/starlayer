@@ -22,6 +22,7 @@ from starlayer.shacl import (
     target_nodes,
     validate,
 )
+from tests.support.errors import raises_kind
 
 try:
     import owlready2  # noqa: F401
@@ -383,19 +384,15 @@ def test_a_declared_owl_direct_in_the_shapes_graph_is_supported():
 
 @direct_needs
 def test_owl_direct_timeout_propagates():
-    from starlayer_reasoning._timeout import ReasoningTimeoutError
-
-    with pytest.raises(ReasoningTimeoutError):
+    with raises_kind("timeout"):
         validate(data(), shapes(), inference=DIRECT, timeout=0.001)
 
 
 @direct_needs
 def test_owl_direct_inconsistency_propagates():
-    from starlayer_reasoning.owl_dl import InconsistentOntologyError
-
     bad = g("ex:x a ex:A , ex:B .")
     bad.parse(data="@prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix ex: <http://example.org/> . ex:A owl:disjointWith ex:B .", format="turtle")
-    with pytest.raises(InconsistentOntologyError):
+    with raises_kind("inconsistent"):
         validate(bad, shapes(), inference=DIRECT)
 
 

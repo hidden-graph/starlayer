@@ -17,11 +17,11 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
+from reasoning_kinds import raises_kind
 from starlayer.graph import RDF, Namespace, StarLayerDataset, StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.entailment import infer as ent
 from starlayer.graph.execution import union
-from starlayer_reasoning.owl_dl import InconsistentOntologyError
 
 try:
     import owlready2  # noqa: F401
@@ -95,11 +95,9 @@ class TestEntailmentDirect:
         with pytest.raises(ValueError, match="only meaningful for entailment="):
             g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-RDF-Based'], timeout=5)
 
-    def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer_reasoning._timeout import ReasoningTimeoutError
-
+    def test_tiny_timeout_raises_a_timeout_error(self):
         g = _disjunctive_graph()
-        with pytest.raises(ReasoningTimeoutError):
+        with raises_kind('timeout'):
             list(g.query(_Q_WOMAN, entailment=ENTAILMENT['OWL-Direct'], timeout=0.001))
 
     def test_inconsistent_ontology_propagates(self):
@@ -112,7 +110,7 @@ class TestEntailmentDirect:
             ex:bob a ex:Man, ex:Woman .
         """, format="turtle12")
         q = "PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Man }"
-        with pytest.raises(InconsistentOntologyError):
+        with raises_kind('inconsistent'):
             list(g.query(q, entailment=ENTAILMENT['OWL-Direct']))
 
     def test_direct_entailment_is_accepted_on_an_empty_graph(self):

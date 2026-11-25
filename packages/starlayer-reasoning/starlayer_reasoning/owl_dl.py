@@ -36,6 +36,7 @@ from pathlib import Path
 from typing import Any
 
 import pyoxigraph as ox
+from starlayer.errors import ExecutionError
 from starlayer.graph import interop
 
 from starlayer_reasoning import _timeout
@@ -43,21 +44,9 @@ from starlayer_reasoning import _timeout
 Triple = tuple[Any, Any, Any]
 
 
-class InconsistentOntologyError(RuntimeError):
-    """Raised when entailment=ENTAILMENT['OWL-Direct'] finds the graph's data logically
-    inconsistent under OWL 2 DL semantics - e.g. an individual typed as two
-    classes declared owl:disjointWith each other. Unlike entailment=ENTAILMENT['OWL-RDF-Based']
-    (whose consistency checking, via owlrl, is partial and silently embeds
-    a synthetic err:error triple into the result instead of raising - see
-    infer()'s own docstring), HermiT's check is sound and complete, so an
-    inconsistency here is surfaced as an unmissable exception rather than
-    left for the caller to notice on their own.
-    """
-
-
 def _require_owlready2():
     """Import and return the owlready2 module, or raise a clear, actionable
-    RuntimeError naming exactly what to install - the "opt-in package
+    ImportError naming exactly what to install - the "opt-in package
     missing" counterpart to _require_java()'s "JVM missing" check below,
     checked first since it's the cheaper, more fundamental question (no
     point checking for a JVM to run a reasoner whose Python package isn't
@@ -65,7 +54,7 @@ def _require_owlready2():
     try:
         import owlready2
     except ImportError as exc:
-        raise RuntimeError(
+        raise ImportError(
             "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='hermit') "
             "requires the optional owlready2 package - install it with "
             "`pip install starlayer-reasoning[hermit]` (or `pip install "
@@ -81,12 +70,13 @@ def _require_java() -> None:
     not a pure-Python one.
     """
     if shutil.which("java") is None:
-        raise RuntimeError(
+        raise ExecutionError(
             "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct']) requires a Java runtime "
             "on PATH - owlready2's HermiT reasoner is a Java program, not a "
             "pure-Python one. Install a JRE/JDK (e.g. `brew install openjdk` "
             "on macOS, or your platform's package manager) and confirm "
-            "`java -version` works, then retry."
+            "`java -version` works, then retry.",
+            kind="inference",
         )
 
 
@@ -136,8 +126,12 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
     returns, so infer()'s mode="full"/"delta"/"in-place" branches can
     treat both engines uniformly without knowing which one ran.
 
-    Raises InconsistentOntologyError if the data is logically inconsistent
-    under OWL 2 DL semantics.
+    Raises ExecutionError of kind "inconsistent" if the data is logically
+    inconsistent under OWL 2 DL semantics (HermiT's check is sound and
+    complete, so unlike the owlrl regime, whose partial check embeds a
+    synthetic err:error triple, an inconsistency is an unmissable exception),
+    of kind "timeout" when the budget below is exceeded, and of kind
+    "inference" when Java is missing or broken or the subprocess crashes.
 
     Args:
         graph: A StarLayerGraph, or an iterable of pyoxigraph (s, p, o) triples.
@@ -145,7 +139,7 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
             (default `_timeout.DEFAULT_TIMEOUT_SECONDS`, 120s) - the call
             runs in its own subprocess/process group so it can be forcibly
             killed, JVM child included, if it's exceeded; raises
-            `_timeout.ReasoningTimeoutError`. Pass `None` to disable the
+            ExecutionError of kind "timeout". Pass `None` to disable the
             timeout entirely (wait indefinitely - the pre-this-feature
             behavior). See `_timeout.py`'s own module docstring for why a
             subprocess kill, not a cooperative cancellation, is the only
@@ -171,9 +165,10 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
             _run_hermit_subprocess, (str(owl_path), str(result_path)), timeout,
         )
         if status == 'inconsistent':
-            raise InconsistentOntologyError(
+            raise ExecutionError(
                 "infer(entailment=ENTAILMENT['OWL-Direct']) found the graph's data logically "
-                "inconsistent under OWL 2 DL semantics."
+                "inconsistent under OWL 2 DL semantics.",
+                kind="inconsistent",
             )
         if status == 'java_error':
             # `_require_java()` above only confirms a `java` binary exists on
@@ -182,13 +177,14 @@ def classify_owl_dl(graph, timeout: float | None = _timeout.DEFAULT_TIMEOUT_SECO
             # JAVA_HOME, missing shared libs, ...) fails here instead,
             # inside the HermiT subprocess call - confirmed live by
             # replacing `java` on PATH with a script that always exits
-            # non-zero. Re-wrapped into the same RuntimeError family
-            # `_require_java()` uses, so both "Java missing" and "Java
-            # present but broken" are one exception type to catch, not two.
-            raise RuntimeError(
+            # non-zero. Re-wrapped into the same ExecutionError kind
+            # `_require_java()` uses, so "Java missing" and "Java present but
+            # broken" are one failure to catch, not two.
+            raise ExecutionError(
                 "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct']) found `java` on PATH, "
                 "but it failed to run HermiT - the JVM itself is broken or "
-                f"misconfigured, not just missing. {message}"
+                f"misconfigured, not just missing. {message}",
+                kind="inference",
             )
 
         expanded = read_rdfxml(result_path)

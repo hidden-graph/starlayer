@@ -25,6 +25,7 @@ from starlayer.sparql.sqe.entailment import (
     rewrite_for_entailment,
 )
 from starlayer.sparql.star_query import StarQuery
+from tests.support.errors import raises_kind
 
 EX = "http://example.org/"
 RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
@@ -405,17 +406,13 @@ class TestEntailmentDirect:
         assert _col(g.query(_Q_WOMAN, entailment=ENTAILMENT["OWL-Direct"])) == _alice()
         assert set(g.store) == before
 
-    def test_tiny_timeout_raises_reasoning_timeout_error(self):
-        from starlayer_reasoning._timeout import ReasoningTimeoutError
-
-        with pytest.raises(ReasoningTimeoutError):
+    def test_tiny_timeout_raises_a_timeout_error(self):
+        with raises_kind("timeout"):
             list(_graph(_DISJUNCTIVE).query(_Q_WOMAN, entailment=ENTAILMENT["OWL-Direct"], timeout=0.001))
 
     def test_inconsistent_ontology_propagates(self):
-        from starlayer_reasoning.owl_dl import InconsistentOntologyError
-
         g = _graph("@prefix ex: <http://example.org/> . @prefix owl: <http://www.w3.org/2002/07/owl#> . ex:Man owl:disjointWith ex:Woman . ex:bob a ex:Man, ex:Woman .")
-        with pytest.raises(InconsistentOntologyError):
+        with raises_kind("inconsistent"):
             list(g.query("PREFIX ex: <http://example.org/> SELECT ?x WHERE { ?x a ex:Man }", entailment=ENTAILMENT["OWL-Direct"]))
 
 
@@ -604,7 +601,5 @@ class TestStarQueryOnOxGraph:
     @owl_dl_extra
     @java_required
     def test_timeout_reaches_owl_direct(self):
-        from starlayer_reasoning._timeout import ReasoningTimeoutError
-
-        with pytest.raises(ReasoningTimeoutError):
+        with raises_kind("timeout"):
             StarQuery(_Q_WOMAN, entailment=ENTAILMENT["OWL-Direct"], timeout=0.001).run(_graph(_DISJUNCTIVE))

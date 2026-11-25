@@ -23,6 +23,10 @@ shapes graph does not catch it. One class; its ``kind`` attribute says what fail
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
 * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
 
+The kinds ``"timeout"``, ``"inconsistent"`` and ``"inference"`` belong to OWL-DL reasoning (``starlayer-reasoning``, see
+``starlayer/errors.py``). They are never raised by the engine's own rules and validation, but an entailment regime run before
+validation (``inference=ENTAILMENT["OWL-Direct"]``) lets them propagate out of ``validate()``.
+
 The class and the ``kind`` name the cause and never change with the path an error travels: an expression that cannot be evaluated is an
 ``ExecutionError`` of kind ``"expression"`` from ``validate()``, from a rule and from fragment extraction alike, and a malformed shape
 is a ``ShapeError`` wherever it is read. Where it happened (which rule, shape, focus node or call) is ``context`` on every

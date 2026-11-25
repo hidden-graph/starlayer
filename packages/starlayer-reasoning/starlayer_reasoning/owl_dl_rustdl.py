@@ -4,7 +4,7 @@ starlayer_reasoning.owl_dl_rustdl
 OWL 2 Direct Semantics reasoning via RustDL - the second engine
 infer(entailment=ENTAILMENT['OWL-Direct']) can dispatch to, alongside engine="hermit"
 (starlayer_reasoning.owl_dl, the default). Same entailment regime, same
-InconsistentOntologyError contract, same (before, delta) return shape -
+ExecutionError(kind="inconsistent") contract, same (before, delta) return shape -
 a genuinely different tradeoff, not a strictly-better replacement, which
 is why both exist rather than one being swapped for the other.
 
@@ -92,6 +92,7 @@ import tempfile
 from pathlib import Path
 
 import pyoxigraph as ox
+from starlayer.errors import ExecutionError
 
 from starlayer_reasoning import _timeout
 from starlayer_reasoning.owl_dl import (
@@ -100,7 +101,6 @@ from starlayer_reasoning.owl_dl import (
     RDF_REST,
     RDF_TYPE,
     RDFS_SUBCLASS,
-    InconsistentOntologyError,
     _delta_from_result,
     _owl,
     _skolemize_individuals,
@@ -149,13 +149,12 @@ def _check_rustdl_hang_risk(triples) -> None:
 
 def _require_rustdl():
     """Import and return the rustdl module, or raise a clear, actionable
-    RuntimeError naming exactly what to install - the same "loud, not a
-    bare ImportError" contract owl_dl._require_owlready2() sets for the
-    other engine."""
+    ImportError naming exactly what to install - the same contract
+    owl_dl._require_owlready2() sets for the other engine."""
     try:
         import rustdl
     except ImportError as exc:
-        raise RuntimeError(
+        raise ImportError(
             "StarLayerGraph.infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') "
             "requires the optional rustdl package - install it with "
             "`pip install starlayer-reasoning[rustdl]` (or `pip install rustdl` "
@@ -226,7 +225,7 @@ def _run_rustdl_subprocess(owl_path: str, result_path: str, queue) -> None:
     itself re-raises it in the parent via the process's exit, but since
     this function's own contract is "always put something on queue," an
     uncaught exception here instead surfaces to the caller as a
-    ReasoningTimeoutError (subprocess exited without a result) rather than
+    ExecutionError of kind "inference" (subprocess exited without a result) rather than
     the original exception type - acceptable because
     `_check_rustdl_hang_risk()` already catches the one exception this
     project's own parser can trigger before ever reaching this function;
@@ -258,7 +257,8 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
     returns, so infer()'s mode="full"/"delta"/"in-place" branches treat
     both engines uniformly without knowing which one ran.
 
-    Raises InconsistentOntologyError if the data is logically inconsistent.
+    Raises ExecutionError of kind "inconsistent" if the data is logically
+    inconsistent (and "timeout" or "inference" as classify_owl_dl() does).
     See this module's own docstring for what RustDL does and doesn't
     guarantee relative to engine="hermit" - notably, forced *property*
     assignments derived only through disjunctive reasoning (no search)
@@ -298,9 +298,10 @@ def classify_owl_dl_rustdl(graph, timeout: float | None = _timeout.DEFAULT_TIMEO
             _run_rustdl_subprocess, (path, str(result_path)), timeout,
         )
         if status == 'inconsistent':
-            raise InconsistentOntologyError(
+            raise ExecutionError(
                 "infer(entailment=ENTAILMENT['OWL-Direct'], engine='rustdl') found the graph's data "
-                "logically inconsistent."
+                "logically inconsistent.",
+                kind="inconsistent",
             )
 
         import pickle
