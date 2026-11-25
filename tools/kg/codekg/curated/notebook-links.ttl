@@ -183,8 +183,8 @@ nl:05.09-80d50838 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.close_shape" .
 
-nl:06b-e00d4c27 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06b-sparql-query-as-rdf.ipynb" ;
+nl:06.03-e00d4c27 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;
     slkg:cellId "e00d4c27" ;
     slkg:cellHash "24656c042875bca4" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
@@ -220,8 +220,8 @@ nl:appendix-34b06f8c a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.cbd" .
 
-nl:06-da3100e0 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06-starlayer-schemas-and-ontologies.ipynb" ;
+nl:06.01-da3100e0 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.01-starlayer-schemas-and-ontologies.ipynb" ;
     slkg:cellId "da3100e0" ;
     slkg:cellHash "0cf3e97a85673e7a" ;
     slkg:reviewedOn "2026-11-21"^^xsd:date ;
@@ -229,8 +229,8 @@ nl:06-da3100e0 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.__init__.get_ontology_graph" .
 
-nl:06d-2957fd17 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06d-shacl-library-registry.ipynb" ;
+nl:06.05-2957fd17 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.05-shacl-library-registry.ipynb" ;
     slkg:cellId "2957fd17" ;
     slkg:cellHash "e768675e75541c26" ;
     slkg:reviewedOn "2026-11-03"^^xsd:date ;
@@ -238,8 +238,8 @@ nl:06d-2957fd17 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.__init__.get_conformance_profiles" .
 
-nl:06a-92f83318 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06a-manchester-syntax.ipynb" ;
+nl:06.02-92f83318 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.02-manchester-syntax.ipynb" ;
     slkg:cellId "92f83318" ;
     slkg:cellHash "5972eccb49cd811c" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
@@ -573,8 +573,8 @@ nl:03a-f6a58c6a a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.run.query" .
 
-nl:06a-f58f1639 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06a-manchester-syntax.ipynb" ;
+nl:06.02-f58f1639 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.02-manchester-syntax.ipynb" ;
     slkg:cellId "f58f1639" ;
     slkg:cellHash "3c1ef1eaaa5fcf9f" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -582,8 +582,8 @@ nl:06a-f58f1639 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.manchester.__init__.manchester_validate" .
 
-nl:06b-df2738a8 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06b-sparql-query-as-rdf.ipynb" ;
+nl:06.03-df2738a8 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;
     slkg:cellId "df2738a8" ;
     slkg:cellHash "69af50747c193bf2" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;

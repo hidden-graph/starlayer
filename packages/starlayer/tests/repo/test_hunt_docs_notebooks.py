@@ -50,7 +50,7 @@ def test_guide_05a_names_an_existing_validation_function():
     import starlayer.sparql as sp
     from starlayer.sparql.sqe.shapes import sqe_validate  # noqa: F401
 
-    t = _text("06a-manchester-syntax.ipynb")
+    t = _text("06.02-manchester-syntax.ipynb")
     assert not hasattr(sp, "validate_query")
     assert "validate_query" not in t
 
@@ -128,4 +128,4 @@ def test_guide_05b_scope_matches_what_the_encoder_accepts():
     for q in ("DESCRIBE <urn:a>", "INSERT DATA { <urn:a> <urn:p> <urn:b> }", "CLEAR ALL"):
         tree, root = sqe.sqe_parse_to_tree(q, StarLayerGraph())
         assert sqe.sqe_tree_to_text(tree, root).startswith(q.split()[0])
-    assert "does not cover `DESCRIBE`" not in _text("06b-sparql-query-as-rdf.ipynb")
+    assert "does not cover `DESCRIBE`" not in _text("06.03-sparql-query-as-rdf.ipynb")
