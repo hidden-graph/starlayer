@@ -245,7 +245,8 @@ def test_sqe_validate_takes_an_oxigraph_tree():
     from starlayer.sparql.sqe.shapes import sqe_validate
 
     tree, _root = sqe.sqe_parse_to_tree(QUERY, StarLayerGraph())
-    conforms, _report, _text = sqe_validate(tree)
+    outcome = sqe_validate(tree)
+    conforms = outcome.conforms
     assert conforms is True
 
 

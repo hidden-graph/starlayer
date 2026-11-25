@@ -45,7 +45,7 @@ def _problems(shapes: Graph, **kwargs) -> tuple[str, ...]:
 def _results(shapes: Graph, **kwargs):
     """The (severity, focus, value, message) of every result of the check, from the report graph."""
     try:
-        report = meta_validate(shapes, **kwargs)[1]
+        report = meta_validate(shapes, **kwargs).report_graph
     except MetaShaclError as error:
         report = error.report_graph
     rdf_type = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")

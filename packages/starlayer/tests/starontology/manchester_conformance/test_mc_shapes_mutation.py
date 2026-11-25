@@ -65,7 +65,7 @@ def _cells(g: Graph, head):
 
 
 def test_the_unmutated_tree_conforms():
-    assert manchester_validate(_tree())[0]
+    assert manchester_validate(_tree()).conforms
 
 
 # --- types: a node must be ASSERTED with a concrete class (pre-flight, no SHACL needed) -----------------
@@ -106,20 +106,22 @@ def test_a_tree_with_no_document_is_rejected():
     g = _tree()
     (doc,) = list(g.subjects(RDF.type, MANCH.Document))
     g.remove((doc, RDF.type, MANCH.Document))
-    assert not manchester_validate(g)[0]
+    assert not manchester_validate(g).conforms
 
 
 def test_two_documents_are_rejected():
     g = _tree()
     g.add((BNode(), RDF.type, MANCH.Document))
-    assert not manchester_validate(g)[0]
+    assert not manchester_validate(g).conforms
 
 
 def test_an_unknown_manch_type_is_rejected():
     g = _tree()
     frame = next(g.subjects(RDF.type, MANCH.ClassFrame))
     g.add((frame, RDF.type, MANCH.NotAClass))
-    ok, _, text = manchester_validate(g)
+    outcome = manchester_validate(g)
+    ok = outcome.conforms
+    text = outcome.report_text
     assert not ok and "not a class" in text
 
 
@@ -128,7 +130,9 @@ def test_the_report_graph_carries_the_preflight_findings():
     g = _tree()
     frame = next(g.subjects(RDF.type, MANCH.ClassFrame))
     g.remove((frame, RDF.type, MANCH.ClassFrame))
-    ok, report, _ = manchester_validate(g)
+    outcome = manchester_validate(g)
+    ok = outcome.conforms
+    report = outcome.report_graph
     assert not ok
     assert any(True for _ in report.subjects(RDF.type, sh.ValidationResult))
     assert (None, sh.conforms, Literal(False)) in report
@@ -145,7 +149,7 @@ def test_an_unterminated_list_is_rejected(predicate):
     g = _tree()
     last = _cells(g, _head_of(g, predicate))[-1]
     g.remove((last, RDF.rest, RDF.nil))
-    assert not manchester_validate(g)[0]
+    assert not manchester_validate(g).conforms
 
 
 @pytest.mark.parametrize("predicate", LIST_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
@@ -155,7 +159,7 @@ def test_a_cyclic_list_is_rejected(predicate):
     last = _cells(g, head)[-1]
     g.remove((last, RDF.rest, RDF.nil))
     g.add((last, RDF.rest, head))
-    assert not manchester_validate(g)[0]
+    assert not manchester_validate(g).conforms
 
 
 @pytest.mark.parametrize(
@@ -174,7 +178,7 @@ def test_a_list_item_of_the_wrong_kind_is_rejected(predicate, bad_item):
     first = _cells(g, _head_of(g, predicate))[0]
     g.remove((first, RDF.first, None))
     g.add((first, RDF.first, bad_item))
-    assert not manchester_validate(g)[0]
+    assert not manchester_validate(g).conforms
 
 
 # --- the property that matters: whatever validates must decode ------------------------------------------
@@ -191,7 +195,7 @@ def test_every_single_triple_removal_that_validates_still_decodes():
         mutant = Graph()
         mutant.extend(list(base))
         mutant.remove(t)
-        if not manchester_validate(mutant)[0]:
+        if not manchester_validate(mutant).conforms:
             continue
         try:
             manchester_tree_to_text(mutant)

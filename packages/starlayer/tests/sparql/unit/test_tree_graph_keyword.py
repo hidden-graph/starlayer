@@ -24,7 +24,7 @@ def test_sqe_tree_graph_keyword():
     tree, root = sqe_parse_to_tree(SQE, tree_graph=target)
     assert tree is target
     assert "SELECT" in sqe_tree_to_text(tree_graph=tree, root=root)
-    assert sqe_validate(tree_graph=tree)[0]
+    assert sqe_validate(tree_graph=tree).conforms
     for call in (
         lambda: sqe_parse_to_tree(SQE, graph=StarLayerGraph()),
         lambda: sqe_tree_to_text(graph=tree, root=root),
@@ -39,7 +39,7 @@ def test_srl_tree_graph_keyword():
     tree, root = srl_parse_to_tree(SRL, tree_graph=target)
     assert tree is target
     assert "RULE" in srl_tree_to_text(tree_graph=tree, root=root)
-    assert srl_validate(tree_graph=tree)[0]
+    assert srl_validate(tree_graph=tree).conforms
     for call in (
         lambda: srl_parse_to_tree(SRL, graph=StarLayerGraph()),
         lambda: srl_tree_to_text(graph=tree, root=root),
@@ -55,7 +55,7 @@ def test_manchester_tree_graph_keyword():
     assert tree is target
     assert "Class" in manchester_tree_to_text(tree_graph=tree)
     assert manchester_tree_to_owl(tree_graph=tree) is not None
-    assert manchester_validate(tree_graph=tree)[0]
+    assert manchester_validate(tree_graph=tree).conforms
     for call in (
         lambda: manchester_parse_to_tree(MANCH, graph=StarLayerGraph()),
         lambda: manchester_tree_to_text(graph=tree),

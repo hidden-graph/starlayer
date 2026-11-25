@@ -85,7 +85,9 @@ def test_update_tree_text_fixpoint(key, text):
 @pytest.mark.sqe_coverage
 @pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])
 def test_update_tree_conforms_to_the_shapes(key, text):
-    ok, _, report = sqe_validate(sparql_update_to_tree(text)[0])
+    outcome = sqe_validate(sparql_update_to_tree(text)[0])
+    ok = outcome.conforms
+    report = outcome.report_text
     assert ok, report
 
 
@@ -283,7 +285,7 @@ def _set(g, subject, predicate, value):
 def _mutate(text: str, edit):
     g, root = sparql_update_to_tree(text)
     edit(g, root)
-    return sqe_validate(g)[0]
+    return sqe_validate(g).conforms
 
 
 def _first_op(g, root):

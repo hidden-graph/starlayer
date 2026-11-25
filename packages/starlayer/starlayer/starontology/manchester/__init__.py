@@ -36,7 +36,7 @@ Four entry points:
   Going through text here is safe, not a shortcut-that-loses-fidelity:
   ``manchester_tree_to_text()`` is a fully faithful renderer of everything this module
   captures, so nothing is lost before the OWL compiler sees it.
-- ``manchester_validate(tree_graph) -> (conforms, report_graph, report_text)`` -
+- ``manchester_validate(tree_graph)``, which returns a ``ValidationReport``, -
   structural SHACL validation of a ``manch:`` graph (e.g. straight out of
   ``manchester_parse_to_tree()``, or LLM-authored, not yet decoded) against the shapes
   in ``manchester_shapes.ttl``. Only needs the tree being checked - which
@@ -104,7 +104,7 @@ this module ever sees them), the same bar ``salg:`` itself holds for SPARQL
 from __future__ import annotations
 
 from collections import namedtuple
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from starlayer.graph.manchester._ox_terms import (
     OWL,
@@ -119,6 +119,9 @@ from starlayer.graph.manchester._ox_terms import (
 )
 
 from .. import get_ontology_graph
+
+if TYPE_CHECKING:
+    from starlayer.shacl.results import ValidationReport
 
 Graph = Any  # a StarLayerGraph (pyoxigraph terms)
 
@@ -1234,7 +1237,7 @@ def _known_classes() -> frozenset:
     )
 
 
-def manchester_validate(tree_graph: Any) -> tuple[bool, Any, str]:
+def manchester_validate(tree_graph: Any) -> ValidationReport:
     """Validate ``tree_graph`` against the shapes in
     ``manchester_shapes.ttl``. Which shapes to check against is this
     module's own, fixed concern, not a parameter.
@@ -1269,18 +1272,19 @@ def manchester_validate(tree_graph: Any) -> tuple[bool, Any, str]:
             ``manch:`` graph not yet decoded.
 
     Returns:
-        ``(conforms, results_graph, results_text)``, unpacked from
-        ``starlayer.shacl``'s own ``ValidationReport``.
+        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives, with the pre-flight findings merged into its
+        graph and text; it is not iterable, so read ``conforms``, ``report_text`` and the rest by name.
     """
 
     # lazy imports: avoid a circular-import deadlock at module load time
     from starlayer.graph.entailment.infer import ENTAILMENT
     from starlayer.shacl._adapter import validate_bounded
+    from starlayer.shacl.results import ValidationReport
 
     problems = _preflight(_as_graph(tree_graph))
     if any("cycle" in message for _, message in problems):
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.
-        return False, _preflight_report(problems, None), _preflight_text(problems, "")
+        return ValidationReport(False, _preflight_report(problems, None), _preflight_text(problems, ""))
 
     result = validate_bounded(
         tree_graph,
@@ -1290,12 +1294,14 @@ def manchester_validate(tree_graph: Any) -> tuple[bool, Any, str]:
         max_validation_depth=100,
     )
     if not problems:
-        return result.conforms, result.report_graph, result.report_text
+        return result
 
-    return (
+    return ValidationReport(
         False,
         _preflight_report(problems, result.report_graph),
         _preflight_text(problems, "" if result.conforms else result.report_text),
+        data_graph=result.data_graph,
+        diagnostics=result.diagnostics,
     )
 
 

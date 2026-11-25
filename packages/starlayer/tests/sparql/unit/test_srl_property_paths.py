@@ -140,5 +140,5 @@ def test_a_path_rule_set_round_trips_through_text_and_rdf_in_its_expanded_form()
     text = srl.ruleset_to_text(rules)
     assert srl.ruleset_to_text(parse_ruleset(text)) == text
     graph, root = srl.ruleset_to_tree(rules)
-    assert srl.srl_validate(graph)[0] is True
+    assert srl.srl_validate(graph).conforms is True
     assert srl.ruleset_to_text(srl.tree_to_ruleset(graph, root)) == text

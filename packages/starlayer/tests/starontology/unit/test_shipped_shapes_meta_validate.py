@@ -32,7 +32,9 @@ def test_shipped_shapes_graph_passes_meta_shacl(name: str) -> None:
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         try:
-            conforms, _report_graph, report_text = meta_validate(graph)
+            outcome = meta_validate(graph)
+            conforms = outcome.conforms
+            report_text = outcome.report_text
         except Exception as exc:  # meta_validate raises on a malformed shapes graph
             pytest.fail(f"{name} is not a well-formed shapes graph:\n{exc}")
     assert conforms, f"{name} is not a well-formed shapes graph:\n{report_text}"

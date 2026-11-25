@@ -197,7 +197,7 @@ def test_a_rule_set_with_triple_terms_round_trips_through_text():
 def test_a_rule_set_with_triple_terms_round_trips_through_rdf_and_conforms_to_the_shapes():
     rules = parse_ruleset(_TEXT)
     graph, root = srl.ruleset_to_tree(rules)
-    assert srl.srl_validate(graph)[0] is True
+    assert srl.srl_validate(graph).conforms is True
     assert srl.ruleset_to_text(srl.tree_to_ruleset(graph, root)) == srl.ruleset_to_text(
         rules
     )

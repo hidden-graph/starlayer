@@ -84,7 +84,7 @@ def test_corruption_is_noticed_unless_it_is_legitimately_valid(index, subject, p
         or (mutation == "duplicate" and name in REPEATABLE)
     )
     try:
-        valid = sqe_validate(corrupted)[0]
+        valid = sqe_validate(corrupted).conforms
     except Exception:  # noqa: BLE001 - a graph the validator cannot even process is also "noticed"
         valid = False
     if allowed:

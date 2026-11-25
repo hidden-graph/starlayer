@@ -58,7 +58,7 @@ QUERIES = {
 def test_modifier_query_matches_rdflib(name, data):
     text = QUERIES[name]
     graph, root = sqe_parse_to_tree(text)
-    assert sqe_validate(graph)[0]
+    assert sqe_validate(graph).conforms
     assert_no_salg_terms(graph)
     expected = _rows(data, text)
 
@@ -72,7 +72,7 @@ def test_select_star_and_projection_are_exclusive():
     from starlayer.sparql.sqe.vocab import PROJECTION
 
     graph.add((root, PROJECTION, Literal("x")))
-    assert not sqe_validate(graph)[0]
+    assert not sqe_validate(graph).conforms
 
 
 def test_distinct_and_reduced_are_exclusive():
@@ -80,7 +80,7 @@ def test_distinct_and_reduced_are_exclusive():
     from starlayer.sparql.sqe.vocab import REDUCED
 
     graph.add((root, REDUCED, Literal(True)))
-    assert not sqe_validate(graph)[0]
+    assert not sqe_validate(graph).conforms
 
 
 def test_negative_limit_is_rejected():
@@ -89,4 +89,4 @@ def test_negative_limit_is_rejected():
 
     graph.remove((root, LIMIT, None))
     graph.add((root, LIMIT, Literal(-1)))
-    assert not sqe_validate(graph)[0]
+    assert not sqe_validate(graph).conforms

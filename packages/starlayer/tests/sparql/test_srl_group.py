@@ -246,7 +246,7 @@ TREE_RULES = [
 @pytest.mark.parametrize("rules", TREE_RULES)
 def test_a_group_survives_text_to_tree_and_back(rules):
     graph, root = srl_parse_to_tree(P + rules)
-    assert srl_validate(graph)
+    assert srl_validate(graph).conforms
     text = srl_tree_to_text(graph, root)
     assert ruleset_to_text(parse_ruleset(text)) == text
     assert tree_to_ruleset(graph, root).rules == parse_ruleset(P + rules).rules
@@ -259,7 +259,7 @@ def test_a_group_with_a_malformed_aggregation_does_not_validate():
     agg = next(graph.subjects(SRL["function"], None))
     graph.remove((agg, SRL["function"], None))
     graph.add((agg, SRL["function"], __import__("pyoxigraph").Literal("AVG")))
-    assert not srl_validate(graph)[0] if isinstance(srl_validate(graph), tuple) else not srl_validate(graph)
+    assert not srl_validate(graph).conforms
 
 
 def test_a_malformed_rule_set_text_is_an_srl_error():

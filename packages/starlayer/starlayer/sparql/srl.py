@@ -45,7 +45,7 @@ text<->RuleSet) plus a third already covered by the first two composed
   encode a ``RuleSet`` (e.g. one built or edited programmatically - rules
   combined, a filter rewritten) back to ``srl:`` tree-RDF.
 
-Plus ``srl_validate(tree_graph) -> (conforms, report_graph, report_text)`` -
+Plus ``srl_validate(tree_graph)``, which returns a ``ValidationReport``, -
 structural SHACL validation of an ``srl:`` tree-RDF graph. Deliberately
 **no** public ``ontology_graph()``/``shapes_graph()`` here (same decision
 ``starontology.manchester`` makes for ``manch:``) - callers who want the
@@ -102,7 +102,7 @@ sibling files:
 from __future__ import annotations
 
 import warnings
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pyoxigraph as ox
 
@@ -121,6 +121,9 @@ from .parse_sparql import _Encoder, _list, _Sink
 from .srl_semantic_checks import _check_ruleset
 from .triple_term import TripleTermNode
 from .vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
+
+if TYPE_CHECKING:
+    from starlayer.shacl.results import ValidationReport
 
 SRL = NS("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
@@ -846,16 +849,17 @@ def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
     with warnings.catch_warnings():
         # the library's own tree and shapes are checked here, not the caller's data: a lexical-form warning is not theirs to act on
         warnings.simplefilter("ignore", StarLayerFidelityWarning)
-        conforms, report_graph, report_text = srl_validate(graph)
-    if conforms:
+        report = srl_validate(graph)
+    if report.conforms:
         return
+    report_graph, report_text = report.report_graph, report.report_text
     shacl_message = ox.NamedNode("http://www.w3.org/ns/shacl#resultMessage")
     messages = sorted({m.value for m in report_graph.objects(None, shacl_message)})
     detail = "; ".join(messages) if messages else report_text.strip().splitlines()[0]
     raise SRLParseError(f"SRL: rule set does not conform to the srl: shapes: {detail}")
 
 
-def srl_validate(tree_graph: Any) -> tuple[bool, Any, str]:
+def srl_validate(tree_graph: Any) -> ValidationReport:
     """Validate ``tree_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
     shapes.
@@ -870,8 +874,8 @@ def srl_validate(tree_graph: Any) -> tuple[bool, Any, str]:
         tree_graph: The ``srl:`` tree-RDF graph to validate.
 
     Returns:
-        A ``(conforms, report_graph, report_text)`` tuple, unpacked from
-        ``starlayer.shacl``'s own ``ValidationReport``.
+        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives; it is not iterable, so read ``conforms``,
+        ``report_text`` and the rest by name.
     """
 
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
@@ -890,7 +894,7 @@ def srl_validate(tree_graph: Any) -> tuple[bool, Any, str]:
             shapes,
             max_validation_depth=100,
         )
-    return result.conforms, result.report_graph, result.report_text
+    return result
 
 
 def __getattr__(name: str) -> Any:

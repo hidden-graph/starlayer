@@ -46,7 +46,8 @@ def types_of(g, node) -> str:
 
 def verdict(g, root):
     try:
-        ok, _, _ = srl_validate(g)
+        outcome = srl_validate(g)
+        ok = outcome.conforms
     except Exception as error:  # noqa: BLE001
         return "validator-crash", f"{type(error).__name__}: {str(error)[:80]}"
     if not ok:

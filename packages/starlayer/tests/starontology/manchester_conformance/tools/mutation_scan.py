@@ -50,7 +50,8 @@ def types_of(g, node) -> str:
 
 def verdict(g):
     try:
-        ok, _, _ = manchester_validate(g)
+        outcome = manchester_validate(g)
+        ok = outcome.conforms
     except Exception as error:  # noqa: BLE001
         return "validator-crash", f"{type(error).__name__}: {str(error)[:80]}"
     if not ok:

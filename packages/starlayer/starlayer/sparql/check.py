@@ -155,10 +155,10 @@ def _shape_problems(ast: Any) -> list[QueryProblem]:
     tree.extend(triples)
     with warnings.catch_warnings():
         warnings.simplefilter("ignore", StarLayerFidelityWarning)
-        conforms, report, _ = sqe_validate(tree)
-    if conforms:
+        report = sqe_validate(tree)
+    if report.conforms:
         return []
-    messages = {row.message.value for row in report.query(f"SELECT ?message WHERE {{ ?result <{_SHACL_RESULT_MESSAGE}> ?message }}")}
+    messages = {row.message.value for row in report.report_graph.query(f"SELECT ?message WHERE {{ ?result <{_SHACL_RESULT_MESSAGE}> ?message }}")}
     return [QueryProblem("shape", "warning", message) for message in sorted(messages)]
 
 

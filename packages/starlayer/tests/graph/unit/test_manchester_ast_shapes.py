@@ -23,7 +23,9 @@ from tests.graph.unit.test_manchester_ast import DOCUMENTS
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_valid_documents_conform(text):
     graph = manchester_parse_to_tree(text)
-    conforms, _, results_text = ms.manchester_validate(graph)
+    outcome = ms.manchester_validate(graph)
+    conforms = outcome.conforms
+    results_text = outcome.report_text
     assert conforms, results_text
 
 
@@ -65,7 +67,9 @@ def test_wrong_item_type_under_data_prop_range_clause_fails():
     graph.remove((item, MANCH.value, None))
     graph.add((item, MANCH.value, bad_and))
 
-    conforms, _, results_text = ms.manchester_validate(graph)
+    outcome = ms.manchester_validate(graph)
+    conforms = outcome.conforms
+    results_text = outcome.report_text
     assert not conforms
     assert 'manch:DataRangeItemListShape' in results_text or 'data range' in results_text
 
@@ -90,7 +94,9 @@ def test_misc_axiom_item_of_wrong_family_fails():
     graph.remove((items_list, RDF.first, None))  # the first cell of the list now holds `bad`
     graph.add((items_list, RDF.first, bad))
 
-    conforms, _, results_text = ms.manchester_validate(graph)
+    outcome = ms.manchester_validate(graph)
+    conforms = outcome.conforms
+    results_text = outcome.report_text
     assert not conforms
 
 
@@ -108,5 +114,7 @@ def test_broken_mid_chain_rdf_list_fails():
         graph.add((extra, RDF.rest, rest))
     # extra deliberately has no rdf:first - a broken mid-chain cell.
 
-    conforms, _, results_text = ms.manchester_validate(graph)
+    outcome = ms.manchester_validate(graph)
+    conforms = outcome.conforms
+    results_text = outcome.report_text
     assert not conforms

@@ -179,7 +179,9 @@ class TestShaclConformance:
             }
         """
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_triple_pattern_missing_predicate_fails(self):
@@ -188,7 +190,9 @@ class TestShaclConformance:
         tp = next(graph.subjects(TRIPLE_PATTERN_PREDICATE, None))
         graph.remove((tp, TRIPLE_PATTERN_PREDICATE, None))
 
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert not conforms
 
 
@@ -218,7 +222,9 @@ class TestUnboundProjectedVariable:
     def test_all_projected_variables_bound_conforms(self):
         query_text = "SELECT ?s ?o WHERE { ?s <http://example.org/knows> ?o }"
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_bound_only_via_optional_conforms(self):
@@ -227,7 +233,9 @@ class TestUnboundProjectedVariable:
             "OPTIONAL { ?s <http://example.org/age> ?z } }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_bound_only_via_union_conforms(self):
@@ -236,7 +244,9 @@ class TestUnboundProjectedVariable:
             "{ ?s <http://example.org/a> ?z } UNION { ?s <http://example.org/b> ?z } }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_bound_only_via_bind_conforms(self):
@@ -244,7 +254,9 @@ class TestUnboundProjectedVariable:
             "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . BIND(?o AS ?z) }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_filter_alone_does_not_count_as_binding(self):
@@ -275,7 +287,9 @@ class TestTemplateListShape:
             "WHERE { ?s <http://example.org/p> ?o }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_template_corrupted_to_bare_literal_fails(self):
@@ -286,7 +300,9 @@ class TestTemplateListShape:
         graph, root = sqe_parse_to_tree(query_text)
         _set(graph, root, TEMPLATE, lit("not a list of triple patterns at all"))
 
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert not conforms
 
 
@@ -307,7 +323,9 @@ class TestAlternativesListShape:
             "UNION { ?s <http://example.org/b> ?o } }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_alternatives_corrupted_fails_even_without_incidental_catch(self):
@@ -319,7 +337,9 @@ class TestAlternativesListShape:
         union_node = next(graph.subjects(RDF.type, UNION))
         _set(graph, union_node, UNION_ALTERNATIVES, lit("garbage, not a list of pattern-lists"))
 
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert not conforms
 
 
@@ -332,7 +352,9 @@ class TestPrefixBindingShape:
     def test_valid_prefix_conforms(self):
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_empty_string_default_prefix_conforms(self):
@@ -341,7 +363,9 @@ class TestPrefixBindingShape:
         not be rejected by the new minCount/datatype constraints."""
         query_text = "PREFIX : <http://example.org/>\nSELECT ?s WHERE { ?s :p ?o }"
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_missing_namespace_fails(self):
@@ -350,7 +374,9 @@ class TestPrefixBindingShape:
         prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
         graph.remove((prefix_node, PREFIX_NAMESPACE, None))
 
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert not conforms
 
     def test_non_string_prefix_label_fails(self):
@@ -359,7 +385,9 @@ class TestPrefixBindingShape:
         prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
         _set(graph, prefix_node, PREFIX_LABEL, lit(12345))
 
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert not conforms
 
 
@@ -386,7 +414,9 @@ class TestUnboundExpressionVariable:
             "SELECT ?s WHERE { ?s <http://example.org/p> ?o . FILTER(?o > 5) }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_ask_filter_unbound_variable_fails(self):
@@ -397,7 +427,9 @@ class TestUnboundExpressionVariable:
     def test_ask_filter_all_bound_conforms(self):
         query_text = "ASK { ?s <http://example.org/p> ?o . FILTER(?o > 5) }"
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
     def test_construct_filter_unbound_variable_fails(self):
@@ -418,7 +450,9 @@ class TestUnboundExpressionVariable:
             "BIND(?o AS ?z) . FILTER(?z > 5) }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
 
@@ -445,7 +479,9 @@ class TestUnboundTemplateVariable:
             "WHERE { ?s <http://example.org/p> ?o }"
         )
         graph, root = sqe_parse_to_tree(query_text)
-        conforms, _report_graph, report_text = sqe_validate(graph)
+        outcome = sqe_validate(graph)
+        conforms = outcome.conforms
+        report_text = outcome.report_text
         assert conforms, report_text
 
 
@@ -469,7 +505,7 @@ class TestShapesForTheWiderVocabulary:
         predicate = SQE[predicate_local]
         tree.remove((node, predicate, None))
         tree.add((node, predicate, lit("JUNK")))
-        return sqe_validate(tree)[0]
+        return sqe_validate(tree).conforms
 
     def test_group_by_must_be_a_list(self):
         assert not self._corrupted("groupBy", lambda t: next(t.subjects(V.GROUP_BY)))
@@ -530,7 +566,7 @@ class TestSqeDoesNotDependOnSalg:
         code = (
             "import sys; from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate, sqe_tree_to_text\\n"
             "t, r = sqe_parse_to_tree('SELECT ?s WHERE { ?s ?p ?o FILTER(STRLEN(STR(?o)) > 1) }')\\n"
-            "assert sqe_validate(t)[0]; sqe_tree_to_text(t, r)\\n"
+            "assert sqe_validate(t).conforms; sqe_tree_to_text(t, r)\\n"
             "loaded = sorted(m for m in sys.modules if m.startswith('starlayer.sparql.salg'))\\n"
             "print('LOADED', loaded)\\n"
         )

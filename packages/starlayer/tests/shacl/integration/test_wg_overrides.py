@@ -121,7 +121,7 @@ def test_meta_validate_works_as_the_first_call_in_a_fresh_process() -> None:
         "import warnings; warnings.simplefilter('ignore')\n"
         "from starlayer import starontology\n"
         "from starlayer.shacl.meta_shapes import meta_validate\n"
-        "print(meta_validate(starontology.get_ontology_graph('shacl_shacl'))[0])\n"
+        "print(meta_validate(starontology.get_ontology_graph('shacl_shacl')).conforms)\n"
     )
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=300)
     assert result.stdout.strip().splitlines()[-1:] == ["True"], result.stdout + result.stderr

@@ -45,5 +45,5 @@ def test_example_round_trips_and_keeps_its_meaning(block, request):
     assert ruleset_to_text(again) == text
     assert expression_results(original) == expression_results(again)
     graph, root = srl_parse_to_tree(TEXT[block])
-    assert srl_validate(graph)[0]
+    assert srl_validate(graph).conforms
     assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(original)))

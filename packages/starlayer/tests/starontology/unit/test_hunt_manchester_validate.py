@@ -12,7 +12,7 @@ P = 'Prefix: : <http://e/>\n'
 
 
 def _conforms_or_decodes(tree):
-    conforms = manchester_validate(tree)[0]
+    conforms = manchester_validate(tree).conforms
     if conforms:
         manchester_tree_to_text(tree)  # must not raise for a tree the validator accepts
     return conforms
@@ -66,4 +66,4 @@ def test_single_axiom_list_cell_without_rdf_first_is_rejected(text, member):
     'ObjectProperty: :p Characteristics: Functional, Transitive, Symmetric\n',
 ])
 def test_valid_trees_still_conform(text):
-    assert manchester_validate(manchester_parse_to_tree(P + text))[0]
+    assert manchester_validate(manchester_parse_to_tree(P + text)).conforms

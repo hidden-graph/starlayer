@@ -27,7 +27,7 @@ def test_spec_function_parses_and_encodes(name, request):
     text = _rule(IN_SPEC[name])
     parse_ruleset(text)
     graph, _ = srl_parse_to_tree(text)
-    assert srl_validate(graph)[0]
+    assert srl_validate(graph).conforms
 
 
 @pytest.mark.srl_conformance

@@ -162,7 +162,9 @@ def test_generated_documents_hold_the_tree_invariants(text):
     direct = parse_to_graph(text)
     tree = manchester_parse_to_tree(text)
 
-    conforms, _report, report_text = manchester_validate(tree)
+    outcome = manchester_validate(tree)
+    conforms = outcome.conforms
+    report_text = outcome.report_text
     assert conforms, report_text[:400]
 
     assert isomorphic(direct, to_graph(manchester_tree_to_owl(tree))), "tree OWL differs from direct parse"

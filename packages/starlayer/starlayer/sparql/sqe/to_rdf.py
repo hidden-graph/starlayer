@@ -135,7 +135,7 @@ def sqe_parse_to_tree(
 
     tree = StarLayerGraph(prefixes={}) if tree_graph is None else tree_graph
     tree.extend(triples)
-    conforms, report_graph, report_text = sqe_validate(tree)
-    if not conforms and _has_violation(report_graph):
-        raise SQEValidationError(report_text, report_graph)
+    report = sqe_validate(tree)
+    if not report.conforms and _has_violation(report.report_graph):
+        raise SQEValidationError(report.report_text, report.report_graph)
     return tree, root

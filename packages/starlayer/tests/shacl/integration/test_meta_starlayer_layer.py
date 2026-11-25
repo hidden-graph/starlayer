@@ -35,7 +35,7 @@ def sources(report) -> set:
 
 def meta_report(shapes: Graph, extra=()):
     try:
-        return meta_validate(shapes, meta_shapes_extra=extra)[1]
+        return meta_validate(shapes, meta_shapes_extra=extra).report_graph
     except MetaShaclError as error:
         return error.report_graph
 
@@ -92,15 +92,16 @@ def test_deactivating_the_shape_gives_no_result_so_the_shape_does_the_work(body,
 
 
 def test_the_layer_does_not_change_what_meta_validate_says_of_a_sound_graph():
-    conforms, _report, _text = meta_validate(graph(EX_PREFIX + 'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:pattern "^a+$" ; sh:flags "i" ] ; '
+    outcome = meta_validate(graph(EX_PREFIX + 'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:pattern "^a+$" ; sh:flags "i" ] ; '
                                                    'sh:sparql [ sh:prefixes ex:P ; sh:select "SELECT $this WHERE { $this a ex:Q }" ] .'))
+    conforms = outcome.conforms
     assert conforms
 
 
 def test_the_layer_passes_its_own_check():
     layer = Graph()
     layer.extend(list(starontology._load_private("shacl_shacl_starlayer").triples((None, None, None))))
-    assert meta_validate(layer)[0]
+    assert meta_validate(layer).conforms
 
 
 # --- the functions -------------------------------------------------------------------------------------------------------------

@@ -683,7 +683,8 @@ def test_meta_validate_reads_the_stored_file_and_the_library_has_no_build_code()
     assert not hasattr(ms, "load_wg_shapes")
     shapes = Graph()
     shapes.parse(data="@prefix sh: <http://www.w3.org/ns/shacl#> . <urn:s> a sh:NodeShape .", format="turtle")
-    conforms, _, _ = ms.meta_validate(shapes)
+    outcome = ms.meta_validate(shapes)
+    conforms = outcome.conforms
     assert conforms
 
 
@@ -735,7 +736,8 @@ class TestSparqlWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_sh_sparql_missing_select_is_rejected(self) -> None:
@@ -763,7 +765,8 @@ class TestRuleWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_triple_rule_missing_object_is_accepted_it_is_the_focus_node(self) -> None:
@@ -777,7 +780,7 @@ class TestRuleWellFormedness:
             """,
             format="turtle",
         )
-        assert meta_validate(shapes)[0] is True
+        assert meta_validate(shapes).conforms is True
 
     def test_triple_rule_with_two_objects_is_rejected(self) -> None:
         shapes = Graph()
@@ -802,7 +805,8 @@ class TestRuleWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_sparql_rule_missing_construct_is_rejected(self) -> None:
@@ -886,7 +890,8 @@ class TestNodeExpressionWellFormedness:
     def test_recognized_node_expression_forms_pass(self, label, obj_expr) -> None:
         shapes = Graph()
         shapes.parse(data=_triple_rule_shape(obj_expr), format="turtle")
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True, label
 
     def test_compound_path_expression_passes(self) -> None:
@@ -902,7 +907,8 @@ class TestNodeExpressionWellFormedness:
             ),
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     @pytest.mark.parametrize(
@@ -964,7 +970,8 @@ class TestConditionWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_untyped_condition_passes_meta_validate_standalone(self) -> None:
@@ -991,7 +998,8 @@ class TestConditionWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_reference_to_a_non_shape_vacuously_conforms_consistent_with_other_shape_referencing_predicates(
@@ -1019,7 +1027,8 @@ class TestConditionWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_list_of_explicitly_typed_conditions_passes(self) -> None:
@@ -1035,7 +1044,8 @@ class TestConditionWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
 
@@ -1051,7 +1061,8 @@ class TestConstraintComponentWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_constraint_component_missing_parameter_is_rejected(self) -> None:
@@ -1114,7 +1125,8 @@ class TestConstraintComponentWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
 
@@ -1145,7 +1157,8 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
+        outcome = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_shui_editor_as_literal_is_rejected(self) -> None:
@@ -1171,7 +1184,8 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
+        outcome = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_shui_viewer_as_blank_node_is_rejected(self) -> None:
@@ -1201,7 +1215,8 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
+        outcome = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_shui_widget_score_with_non_numeric_score_is_rejected(self) -> None:
@@ -1252,7 +1267,8 @@ class TestSparqlPrefixesWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_declare_missing_namespace_is_rejected(self) -> None:
@@ -1520,7 +1536,7 @@ class TestShapesGraphFormCoverage:
         shapes = Graph()
         shapes.parse(data=self._PREFIX + body, format="turtle")
         try:
-            return meta_validate(shapes)[0]
+            return meta_validate(shapes).conforms
         except MetaShaclError:
             return False
 
@@ -1549,7 +1565,8 @@ class TestShapesGraphFormCoverage:
     def test_one_defining_graph_gives_no_warning(self) -> None:
         shapes = Graph()
         shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1 .", format="turtle")
-        _conforms, report_graph, _text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        report_graph = outcome.report_graph
         assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), None) not in report_graph
 
 
@@ -1718,8 +1735,7 @@ def _ui_check(ttl: str):
     ],
 )
 def test_well_formed_configuration_and_data_graph_links_pass(ttl) -> None:
-    conforms, _report, _text = _ui_check(ttl)
-    assert conforms is True
+    assert _ui_check(ttl).conforms is True
 
 
 @pytest.mark.parametrize(
@@ -1930,7 +1946,9 @@ def _warnings(body: str) -> list[str]:
     shapes = Graph()
     shapes.parse(data="@prefix sparql: <http://www.w3.org/ns/sparql#> . " + _PREFIXES + body, format="turtle")
     try:
-        conforms, report_graph, _text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
+        report_graph = outcome.report_graph
         assert conforms is True
     except MetaShaclError as error:  # a Warning result makes the shapes graph invalid; the report is in the error
         report_graph = error.report_graph
@@ -2079,7 +2097,9 @@ def _template_results(instances: str):
     shapes = Graph()
     shapes.parse(data=_TEMPLATE + instances, format="turtle")
     try:
-        conforms, report, _text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
+        report = outcome.report_graph
     except MetaShaclError as error:
         return False, re.findall(r"^(Violation|Warning|Info) in ", error.report_text, re.MULTILINE)
     report = report

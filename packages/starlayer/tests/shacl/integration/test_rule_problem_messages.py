@@ -22,7 +22,8 @@ def messages(turtle: str) -> list[str]:
     """The messages of every result of the shapes about shapes (with the template and parameter shapes) over ``turtle``."""
     shapes = Graph().parse(data=PRE + turtle, format="turtle")
     try:
-        _conforms, _report, text = meta_validate(shapes, meta_shapes_extra=[parameter_value_shapes(shapes)])
+        outcome = meta_validate(shapes, meta_shapes_extra=[parameter_value_shapes(shapes)])
+        text = outcome.report_text
     except MetaShaclError as exc:  # a violation makes the shapes graph invalid; the report is in the message
         text = exc.report_text
     # the defects of the embedded SPARQL are results of the same check now; these tests are about the shapes of shapes
@@ -180,7 +181,8 @@ def test_validate_with_meta_shacl_reports_the_sparql_defects_with_the_other_prob
 def test_sound_shapes_with_sound_queries_pass():
     shapes = shapes_of('ex:C sh:select "SELECT $this WHERE { $this ?p ?o }" .\nex:R a sh:SPARQLRule ; sh:prefixes ex:P ; sh:construct "CONSTRUCT { $this ex:q 1 } WHERE { }" .\n'
                        'ex:P sh:declare [ sh:prefix "ex" ; sh:namespace "http://example.org/" ] .')
-    conforms, _report, _text = meta_validate(shapes)
+    outcome = meta_validate(shapes)
+    conforms = outcome.conforms
     assert conforms
 
 
@@ -254,6 +256,8 @@ def test_the_error_carries_the_report_graph_the_engine_built():
 
 def test_a_sound_graph_returns_a_report_without_results():
     shapes = Graph().parse(data=PRE_S + 'ex:S sh:select "SELECT ?this WHERE { ?this a ?c }" .', format="turtle")
-    conforms, report, _text = meta_validate(shapes)
+    outcome = meta_validate(shapes)
+    conforms = outcome.conforms
+    report = outcome.report_graph
     assert conforms is True
     assert _results(report) == []

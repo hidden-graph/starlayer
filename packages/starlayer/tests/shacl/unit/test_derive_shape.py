@@ -331,7 +331,7 @@ class TestTemplateKeepsItsClosedSetting:
         paths = {p for prop in result.objects(ox.NamedNode('http://example.org/S'), SH.property) for p in result.objects(prop, SH.path)}
         assert EX.age in paths and EX.name in paths  # a property the data has and the template lacks is added
         assert _conforms(data, result)
-        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert starlayer.shacl.meta_validate(result).conforms is True
         assert (_triples(data), _triples(template)) == (before_data, before_template)
 
     def test_closed_true_stays_closed_with_the_default_list_merged(self):
@@ -340,7 +340,7 @@ class TestTemplateKeepsItsClosedSetting:
         assert self._closed(result) == [lit(True)]
         assert self._ignored(result) == {EX.tag, RDF.type} | set(DEFAULT_IGNORED_PROPERTIES)
         assert _conforms(data, result)
-        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert starlayer.shacl.meta_validate(result).conforms is True
 
     def test_closed_false_stays_false_with_its_list_untouched(self):
         data, template = _ttl(self.DATA), self._template('sh:closed false ;')
@@ -348,7 +348,7 @@ class TestTemplateKeepsItsClosedSetting:
         assert self._closed(result) == [lit(False)]
         assert self._ignored(result) == {EX.tag}
         assert _conforms(data, result)
-        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert starlayer.shacl.meta_validate(result).conforms is True
 
     @pytest.mark.parametrize('closed', ['', 'sh:closed true ;', 'sh:closed false ;'])
     def test_deterministic_and_idempotent(self, closed):
@@ -387,7 +387,7 @@ class TestEmptyRecomputeIsDeactivated:
         result = derive_shape(d, shape=EX.S, template_graph=template)
         assert not _conforms(d, template)
         assert _conforms(d, result)
-        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert starlayer.shacl.meta_validate(result).conforms is True
         (flagged,) = _deactivated(result)
         assert flagged[1] == pred
         (comment,) = result.objects(EX.S, RDFS.comment)
@@ -780,7 +780,7 @@ class TestTemplateDeactivation:
         result = derive_shape(data, shape=EX.S, template_graph=template)
         assert not _conforms(data, template)
         assert _conforms(data, result)
-        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert starlayer.shacl.meta_validate(result).conforms is True
         (flagged,) = _deactivated(result)
         assert flagged[1] == pred
         assert _triples(template) == before
@@ -918,7 +918,7 @@ class TestTemplateDeactivation:
         template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
                         'sh:property [ sh:path ex:nick ; sh:pattern "^[a-z]+$" ] , [ sh:path ex:v ; sh:equals ex:w ] .')
         result = derive_shape(data, shape=EX.S, template_graph=template)
-        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert starlayer.shacl.meta_validate(result).conforms is True
 
     def test_an_earlier_derivation_comment_is_replaced_not_stacked(self):
         data = _ttl(self.DATA)
@@ -946,7 +946,7 @@ class TestMinCountTheDataBreaks:
         result = derive_shape(data, shape=EX.S, template_graph=template)
         assert not _conforms(data, template)
         assert _conforms(data, result)
-        assert starlayer.shacl.meta_validate(result)[0] is True
+        assert starlayer.shacl.meta_validate(result).conforms is True
         by_path = {next(result.objects(p, SH.path)): p for p in result.objects(EX.S, SH.property)}
         assert result.value(by_path[EX.phone], SH.minCount) == lit(1)
         assert _deactivated(result) == {(by_path[EX.phone], SH.minCount, lit(1))}

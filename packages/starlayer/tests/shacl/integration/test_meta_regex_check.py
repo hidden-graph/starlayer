@@ -108,7 +108,7 @@ def test_the_flags_of_the_same_node_are_used():
 
 
 def test_a_valid_pattern_gives_no_result():
-    assert meta_validate(_one(r"^[a-z]+\d*$", "i"))[0] is True
+    assert meta_validate(_one(r"^[a-z]+\d*$", "i")).conforms is True
 
 
 def test_the_result_is_an_ordinary_sparql_constraint_result():

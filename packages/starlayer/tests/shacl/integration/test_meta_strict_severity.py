@@ -28,7 +28,7 @@ def shapes(name: str) -> Graph:
 
 def meta_answer(name: str) -> bool:
     try:
-        return bool(meta_validate(shapes(name))[0])
+        return bool(meta_validate(shapes(name)).conforms)
     except MetaShaclError:
         return False
 
@@ -80,7 +80,10 @@ def test_the_warning_names_the_unknown_term() -> None:
 
 
 def test_a_valid_graph_returns_a_conforming_report() -> None:
-    conforms, report, text = meta_validate(shapes("valid"))
+    outcome = meta_validate(shapes("valid"))
+    conforms = outcome.conforms
+    report = outcome.report_graph
+    text = outcome.report_text
     assert conforms is True and "Conforms: True" in text
 
 

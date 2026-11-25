@@ -143,7 +143,9 @@ def test_infer_types_and_meta_validate():
 
     assert_ox(infer_types(_ox(SHAPES)))
     assert_ox(infer_types(_ox(SHAPES)), max_prefixes=40)
-    conforms, report, _text = meta_validate(_ox(SHAPES))
+    outcome = meta_validate(_ox(SHAPES))
+    conforms = outcome.conforms
+    report = outcome.report_graph
     assert isinstance(conforms, bool)
     assert_ox(report, max_prefixes=15)  # the meta shapes graph's own prefixes come along
 
@@ -191,7 +193,9 @@ def test_sqe_tree_and_validate():
     graph, root = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }", StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
-    ok, report, _text = sqe_validate(graph)
+    outcome = sqe_validate(graph)
+    ok = outcome.conforms
+    report = outcome.report_graph
     assert ok is True
     assert_ox(report)
     graph, root = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=StarLayerGraph())
@@ -208,11 +212,13 @@ def test_srl_tree_and_validate():
     graph, root = srl_parse_to_tree(text, tree_graph=StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
-    ok, report, _text = srl_validate(graph)
+    outcome = srl_validate(graph)
+    ok = outcome.conforms
+    report = outcome.report_graph
     assert_ox(report)
     default_graph, _ = srl_parse_to_tree(text)
     assert isinstance(default_graph, StarLayerGraph)  # the default is a StarLayerGraph (pyoxigraph terms)
-    assert_ox(srl_validate(default_graph)[1], max_prefixes=40)
+    assert_ox(srl_validate(default_graph).report_graph, max_prefixes=40)
 
 
 def test_srl_infer_with_schema_returns_ox_parts():
@@ -240,7 +246,9 @@ def test_manchester_tree_functions():
     owl = manchester.manchester_tree_to_owl(tree)
     assert_ox(owl)
     assert ox.NamedNode("http://e/A") in set(owl.subjects())
-    ok, report, _text = manchester.manchester_validate(tree)
+    outcome = manchester.manchester_validate(tree)
+    ok = outcome.conforms
+    report = outcome.report_graph
     assert ok is True
     assert_ox(report)
     default_tree = manchester.manchester_parse_to_tree(MANCHESTER)

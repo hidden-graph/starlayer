@@ -31,7 +31,9 @@ def _meta(path: str, predicate: str) -> tuple[bool, str]:
         format="turtle12",
     )
     try:
-        conforms, _graph, text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
+        text = outcome.report_text
     except MetaShaclError as error:  # meta_validate raises when the shapes graph is not well formed
         return False, f"{error}\n{error.report_text}"
     return conforms, text

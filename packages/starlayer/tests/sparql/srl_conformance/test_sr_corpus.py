@@ -72,7 +72,9 @@ def test_text_round_trip_preserves_meaning(case, request):
 def test_tree_round_trip(case, request):
     _expect(case, "tree", request)
     graph, root = srl_parse_to_tree(case.text)
-    conforms, _report, report_text = srl_validate(graph)
+    outcome = srl_validate(graph)
+    conforms = outcome.conforms
+    report_text = outcome.report_text
     assert conforms, report_text[:500]
     assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(parsed(case.text))))
 

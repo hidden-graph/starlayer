@@ -77,7 +77,7 @@ DEFECT = "ex:Dup a sh:NodeShape ; sh:targetClass ex:Dup ; sh:property [ sh:path 
 
 def test_the_signatures_have_add_remove_full_and_meta_shapes_extra_only():
     g = generated(3)
-    assert meta_validate(g)[0] and meta_validate(g, add=(), remove=(), full=False, meta_shapes_extra=())[0]
+    assert meta_validate(g).conforms and meta_validate(g, add=(), remove=(), full=False, meta_shapes_extra=()).conforms
     meta_scope(g, add=(), remove=(), full=False)
     for keyword in ({"nodes": [iri("S1")]}, {"with_dependents": False}, {"allow_warnings": True}):
         with pytest.raises(TypeError):
@@ -97,9 +97,9 @@ def test_meta_scope_and_the_scope_of_an_error_stay_public():
     assert forced.full and forced.nodes == () and forced.reasons == ("full check: requested",)
     assert meta_scope(g).full and meta_scope(g, full=True).full
     assert meta_scope(g, add=name) == meta_scope(g, add=name)
-    # a valid narrow edit returns only the tuple; meta_scope is how a caller learns what it covered
+    # a valid narrow edit returns only the report; meta_scope is how a caller learns what it covered
     ok = meta_validate(generated(10), add=name)
-    assert len(ok) == 3 and ok[0] is True
+    assert ok.conforms is True
     error = refused(g, add=name, full=True)
     assert error.scope == forced
     assert refused(g, add=[(iri("S3"), to_engine(SH.pattern), lit("[unclosed"))]).scope == meta_scope(
@@ -114,27 +114,27 @@ def test_a_failing_check_carries_the_report_the_problems_and_the_scope():
 
 def test_a_prefix_edit_is_checked_in_full_automatically_and_finds_the_query_in_another_node():
     g = graph(PREFIXED)
-    assert meta_validate(g)[0]
+    assert meta_validate(g).conforms
     entry = next(iter(g.objects(iri("Prefixes"), to_engine(SH.declare))))
     edit = {"remove": [(entry, to_engine(SH.prefix), lit("ex"))], "add": [(entry, to_engine(SH.prefix), lit("other"))]}
     error = refused(g, **edit)  # a risky edit: no full= needed
     assert error.scope.full and "sh:prefix" in error.scope.reasons[0]
     assert error.scope.full and "sh:prefix" in error.scope.reasons[0]
     assert any("Query" in line for line in error.problems), error.problems
-    assert meta_validate(g)[0]  # the graph was not changed
+    assert meta_validate(g).conforms  # the graph was not changed
 
 
 def test_full_true_on_a_harmless_edit_also_reports_a_defect_elsewhere_the_default_does_not():
     g = generated(20, DEFECT)
     add = [(iri("S3"), to_engine(SH.name), lit("three"))]
-    assert meta_validate(g, add=add)[0] is True  # the narrow check sees only S3 and what refers to it
+    assert meta_validate(g, add=add).conforms is True  # the narrow check sees only S3 and what refers to it
     error = refused(g, add=add, full=True)
     assert any("Dup" in line for line in error.problems), error.problems
     # with no edit the default and full=True agree
     assert refused(g).problems == refused(g, full=True).problems
     assert refused(g).scope.full and refused(g, full=True).scope.full
     assert refused(g).scope.full and refused(g, full=True).scope.full
-    assert meta_validate(generated(5), full=True)[0] and meta_validate(generated(5), add=add[:0], full=True)[0]
+    assert meta_validate(generated(5), full=True).conforms and meta_validate(generated(5), add=add[:0], full=True).conforms
 
 
 def test_full_true_checks_the_graph_as_it_would_be_after_the_edit():
@@ -145,7 +145,7 @@ def test_full_true_checks_the_graph_as_it_would_be_after_the_edit():
     fixed = generated(10, DEFECT)
     dup_prop = next(iter(fixed.objects(iri("Dup"), to_engine(SH.property))))
     ok = meta_validate(fixed, remove=[(dup_prop, to_engine(SH.datatype), ox.NamedNode(XSD + "integer"))], full=True)
-    assert ok[0] is True
+    assert ok.conforms is True
     assert refused(fixed).problems  # the caller's graph still has the defect
 
 
@@ -153,12 +153,12 @@ def test_an_edit_adding_a_second_datatype_is_refused_before_it_is_made():
     g = generated(20)
     before = snapshot(g)
     prop = next(p for p in g.objects(iri("S3"), to_engine(SH.property)) if (p, to_engine(SH.path), iri("a")) in g)
-    assert meta_validate(g)[0]
+    assert meta_validate(g).conforms
     error = refused(g, add=[(prop, to_engine(SH.datatype), ox.NamedNode(XSD + "integer"))])
     assert error.problems and all(line for line in error.problems)
     refused(g, remove=[(prop, to_engine(SH.path), iri("a"))])  # a property shape without sh:path
     refused(g, add=[(prop, to_engine(SH.pattern), lit("[unclosed"))])  # a pattern that does not compile
-    assert snapshot(g) == before and meta_validate(g)[0]
+    assert snapshot(g) == before and meta_validate(g).conforms
 
 
 def test_an_edit_that_fixes_a_defect_conforms_and_the_graph_keeps_it():
@@ -166,12 +166,12 @@ def test_an_edit_that_fixes_a_defect_conforms_and_the_graph_keeps_it():
     assert refused(g).problems
     prop = next(iter(g.objects(iri("Dup"), to_engine(SH.property))))
     fixed = meta_validate(g, remove=[(prop, to_engine(SH.datatype), ox.NamedNode(XSD + "integer"))])
-    assert fixed[0] is True and isinstance(fixed[2], str)
+    assert fixed.conforms is True and isinstance(fixed.report_text, str)
     assert refused(g).problems
 
 
 def test_a_node_that_is_not_in_the_graph_has_nothing_to_check():
-    assert meta_validate(generated(3), remove=[(iri("Gone"), to_engine(SH.name), lit("x"))])[0]
+    assert meta_validate(generated(3), remove=[(iri("Gone"), to_engine(SH.name), lit("x"))]).conforms
 
 
 def test_an_rdflib_graph_is_refused():
@@ -184,7 +184,7 @@ def test_a_new_node_shape_in_2000_shapes_is_fast_by_default_and_full_true_takes_
     g = generated(2000)
     before = len(g)
     add = _new_shape_edit()
-    assert meta_validate(g, add=add)[0]  # warm
+    assert meta_validate(g, add=add).conforms  # warm
     narrow = min(_time(lambda: meta_validate(g, add=add)) for _ in range(3))
     full = min(_time(lambda: meta_validate(g, add=add, full=True)) for _ in range(2))
     with capsys.disabled():

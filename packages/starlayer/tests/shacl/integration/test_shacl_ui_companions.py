@@ -68,7 +68,7 @@ def test_loading_the_overlay_never_changes_what_validates(overlay) -> None:
     bad.parse(data=prefixes + 'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount "x" ] .', format="turtle")
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        assert meta_validate(good)[0] and meta_validate(good, meta_shapes_extra=[overlay])[0]
+        assert meta_validate(good).conforms and meta_validate(good, meta_shapes_extra=[overlay]).conforms
         for extra in ((), (overlay,)):
             with pytest.raises(ReportableRuntimeError):
                 meta_validate(bad, meta_shapes_extra=extra)

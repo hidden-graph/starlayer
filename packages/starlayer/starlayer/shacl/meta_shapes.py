@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from collections import OrderedDict
 from collections.abc import Iterable, Iterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pyoxigraph as ox
 
@@ -33,6 +33,9 @@ from starlayer.shacl.engine.terms import (
     text,
     to_engine,
 )
+
+if TYPE_CHECKING:
+    from starlayer.shacl.results import ValidationReport
 
 # sparql_query_problems()'s own sqe structural-validation result cache: validating an encoded query is a real SHACL
 # validation pass, not cheap, and otherwise uncached. Keyed directly on the exact inputs that determine its result
@@ -199,17 +202,18 @@ def meta_validate(
     remove: Iterable[Any] = (),
     full: bool = False,
     meta_shapes_extra: Iterable[Any] = (),
-) -> tuple[bool, Any, str]:
+) -> ValidationReport:
     """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
 
-    Returns ``(conforms, report_graph, report_text)`` and raises ``MetaShaclError`` (message starting "The shapes graph is not valid SHACL",
+    Returns a conforming ``ValidationReport`` (the object ``validate()`` returns, not iterable: read ``conforms``, ``report_graph``,
+    ``report_text`` by name) and raises ``MetaShaclError`` (message starting "The shapes graph is not valid SHACL",
     then one line per problem naming the shape, the property and what is wrong; ``problems``, ``report_text`` and ``scope`` hold the same) when the
     shapes graph does not conform. There is no way to tolerate a warning or an info result: the meta check is strict, whatever a
     processor's ``allow_warnings`` / ``allow_infos`` say (those are for the data validation), because SHACL 1.2 Core's default set
     (Violation, Warning, Info) makes any of them a non-conforming report and the W3C SHACL-for-SHACL says to deactivate a Warning shape
     if a use case needs the construct, not to ignore it; pySHACL's meta check is strict too. The results of every severity are in the
-    error's ``report_graph``, so an editor can still show a warning on its own. ``meta_shapes_extra`` are added to the meta-shapes. The report is
-    an ``StarLayerGraph``.
+    error's ``report_graph``, so an editor can still show a warning on its own. ``meta_shapes_extra`` are added to the meta-shapes. The report graph is
+    a ``StarLayerGraph``.
 
     ``add`` and ``remove`` (triples) propose an edit that is checked before it is made: the check runs on the graph as it would be
     after the edit and ``shapes_graph`` is not changed. The library chooses the extent itself, a fraction of a second against seconds
@@ -218,10 +222,11 @@ def meta_validate(
     ``full=True`` overrides that choice and checks the whole graph as it would be after the edit; a narrow check is for use between
     edits, and the full check is the one to run before the shapes are saved or published. ``meta_scope`` says what an edit covers."""
     from starlayer.shacl.engine.meta import meta_validate as engine_meta_validate
+    from starlayer.shacl.results import ValidationReport
 
     result = engine_meta_validate(shapes_graph, extra=meta_shapes_extra, add=add, remove=remove, full=full)
     result.raise_if_invalid()
-    return result.conforms, result.report_graph, result.report_text
+    return ValidationReport(True, result.report_graph, result.report_text, diagnostics=result.diagnostics)
 
 
 def meta_scope(
@@ -417,7 +422,8 @@ def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str
 
         encoded_graph = StarLayerGraph(prefixes={})
         encoded_graph.extend(ast_to_triples(query)[0])
-        conforms, report_graph, report_text = sqe_validate(encoded_graph)
+        report = sqe_validate(encoded_graph)
+        conforms, report_graph, report_text = report.conforms, report.report_graph, report.report_text
         bound = declared | (_SEARCH_QUERY_PLACEHOLDERS if predicate == SHUI_SEARCH_QUERY else frozenset())
         if not conforms and _is_prebound_variable_only_report(report_graph, bound, _SHACL_PREBOUND_VARIABLE_NAMES):
             conforms = True

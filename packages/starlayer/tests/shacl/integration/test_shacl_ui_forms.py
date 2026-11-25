@@ -155,7 +155,7 @@ def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
     prefixes = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
     good.parse(data=prefixes + "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .", format="turtle")
     bad.parse(data=prefixes + 'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount "x" ] .', format="turtle")
-    assert meta_validate(good, meta_shapes_extra=[ui])[0]
+    assert meta_validate(good, meta_shapes_extra=[ui]).conforms
     with pytest.raises(ReportableRuntimeError):
         meta_validate(bad, meta_shapes_extra=[ui])
 

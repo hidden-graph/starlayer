@@ -46,7 +46,9 @@ def _prepare(case, check: str, request):
 def test_tree_validates(case, request):
     _prepare(case, "validates", request)
     tree = manchester_parse_to_tree(case.text)
-    conforms, _report, text = manchester_validate(tree)
+    outcome = manchester_validate(tree)
+    conforms = outcome.conforms
+    text = outcome.report_text
     assert conforms, text[:600]
 
 

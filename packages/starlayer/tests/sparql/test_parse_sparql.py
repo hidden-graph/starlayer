@@ -118,7 +118,9 @@ def test_every_positive_tree_validates_against_the_sqe_shapes(key, text):
     warning ("never bound"). Apart from that lint, every tree - DESCRIBE, FROM, SERVICE included - conforms."""
     import re
 
-    ok, _, report = sqe_validate(sparql_to_tree(text)[0])
+    outcome = sqe_validate(sparql_to_tree(text)[0])
+    ok = outcome.conforms
+    report = outcome.report_text
     if not ok:
         messages = re.findall(r"Message: (.*)", report)
         assert messages and all("never bound" in m for m in messages), report
@@ -237,12 +239,12 @@ def test_new_tree_validates_against_the_sqe_shapes():
         "BIND(CONCAT(STR(?s), 'x') AS ?k) VALUES ?v { 1 UNDEF } FILTER NOT EXISTS { ?s :n ?m } } "
         "GROUP BY ?s HAVING (COUNT(*) > 1) ORDER BY DESC(?s) LIMIT 5 OFFSET 1"
     )
-    assert sqe_validate(graph)[0]
+    assert sqe_validate(graph).conforms
 
 
 def _round_trip(text: str) -> str:
     tree = sparql_to_tree(text)
-    assert sqe_validate(tree[0])[0]
+    assert sqe_validate(tree[0]).conforms
     rendered = sqe_tree_to_text(*tree)
     from starlayer.graph import isomorphic
 
@@ -294,7 +296,7 @@ def test_describe_star_without_where_is_a_shape_violation():
     from starlayer.sparql.sqe import SQE
 
     g.remove((root, SQE.where, None))
-    assert not sqe_validate(g)[0]
+    assert not sqe_validate(g).conforms
 
 
 def test_existing_trees_are_unchanged_by_the_vocabulary_additions():

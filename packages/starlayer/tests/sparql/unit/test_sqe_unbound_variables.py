@@ -140,7 +140,9 @@ class TestDistinctInAnExtensionFunctionCall:
         )
 
         tree, root = sqe_parse_to_tree(self.TEXT)
-        conforms, report, _ = sqe_validate(tree)
+        outcome = sqe_validate(tree)
+        conforms = outcome.conforms
+        report = outcome.report_graph
         assert not conforms
         assert [str(severity) for severity in report.objects(None, SH.resultSeverity)] == [str(SH.Warning)]
         (message,) = [m.value for m in report.objects(None, SH.resultMessage)]
@@ -152,4 +154,4 @@ class TestDistinctInAnExtensionFunctionCall:
 
         for text in ("SELECT (COUNT(DISTINCT ?s) AS ?n) { ?s ?p ?o }", "SELECT (<http://x/f>(1) AS ?x) {}"):
             tree, _ = sqe_parse_to_tree(text)
-            assert sqe_validate(tree)[0]
+            assert sqe_validate(tree).conforms

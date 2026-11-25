@@ -299,7 +299,7 @@ def test_sqe_parse_render_and_validate_work_without_rdflib():
     for q in QUERIES:
         graph, root = sqe_parse_to_tree(q)
         assert type(graph).__name__ == "StarLayerGraph"
-        assert sqe_validate(graph)[0]
+        assert sqe_validate(graph).conforms
         text = sqe_tree_to_text(graph, root)
         graph2, root2 = sqe_parse_to_tree(text)
         assert sqe_tree_to_text(graph2, root2) == text, (q, text)
@@ -371,7 +371,7 @@ def test_srl_parse_evaluate_encode_and_validate_work_without_rdflib():
     assert len(found) == 2
     assert rules.plan().strata
     tree, root = srl.ruleset_to_tree(rules)
-    assert srl.srl_validate(tree)[0]
+    assert srl.srl_validate(tree).conforms
     again = srl.tree_to_ruleset(tree, root)
     assert srl.ruleset_to_text(again) == srl.ruleset_to_text(rules)
     graph2, root2 = srl.srl_parse_to_tree(RULES)

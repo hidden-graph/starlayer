@@ -97,7 +97,7 @@ def accepted(text: str) -> bool:
     from starlayer.shacl import MetaShaclError as ReportableRuntimeError
 
     try:
-        return bool(meta_validate(parse(text))[0])
+        return bool(meta_validate(parse(text)).conforms)
     except ReportableRuntimeError:
         return False
 

@@ -17,11 +17,14 @@ privately below.
 from __future__ import annotations
 
 import functools
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from starlayer import starontology
 
 from ..expr_validation import rdfs_entailed_copy, rdfs_schema
+
+if TYPE_CHECKING:
+    from starlayer.shacl.results import ValidationReport
 
 SHAPES_TURTLE = starontology.get_ontology_graph("sqe_shacl").serialize(format="turtle12")
 
@@ -66,7 +69,7 @@ def _ontology_graph() -> Any:
     return g
 
 
-def sqe_validate(tree_graph: Any) -> tuple[bool, Any, str]:
+def sqe_validate(tree_graph: Any) -> ValidationReport:
     """Validate ``tree_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
     an LLM-/UI-authored ``sqe:`` graph not yet decoded) against the shapes
     above.
@@ -78,7 +81,8 @@ def sqe_validate(tree_graph: Any) -> tuple[bool, Any, str]:
         tree_graph: The ``sqe:`` RDF graph (a ``StarLayerGraph``) to validate.
 
     Returns:
-        A ``(conforms, report_graph, report_text)`` tuple.
+        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives, ; it is
+        not iterable, so read ``conforms``, ``report_text`` and the rest by name.
     """
 
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
@@ -91,4 +95,4 @@ def sqe_validate(tree_graph: Any) -> tuple[bool, Any, str]:
     tree_graph, _ = as_engine_graph(tree_graph)
     with shared_plans(_PLANS):
         result = validate_bounded(_entailed_copy(tree_graph), _shapes_graph(), max_validation_depth=100)
-    return result.conforms, result.report_graph, result.report_text
+    return result

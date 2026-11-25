@@ -71,8 +71,9 @@ def test_the_node_shape_form_offers_them_too():
 
 
 def test_the_suggestions_do_not_constrain():
-    conforms, _report, _text = meta_validate(graph("ex:S a sh:NodeShape ; sh:severity ex:Loud . ex:T a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:datatype ex:MyType ] ."),
+    outcome = meta_validate(graph("ex:S a sh:NodeShape ; sh:severity ex:Loud . ex:T a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:datatype ex:MyType ] ."),
                                               meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
+    conforms = outcome.conforms
     assert conforms
 
 
@@ -81,7 +82,7 @@ def test_the_suggestions_do_not_constrain():
 @pytest.mark.parametrize("value", ["sh:BlankNode", "sh:IRI", "sh:Literal", "sh:BlankNodeOrIRI", "sh:BlankNodeOrLiteral", "sh:IRIOrLiteral", "sh:TripleTerm",
                                    "( sh:IRI sh:Literal )"])
 def test_a_node_kind_of_the_set_passes(value):
-    assert meta_validate(graph("ex:S a sh:NodeShape ; sh:nodeKind " + value + " ."))[0]
+    assert meta_validate(graph("ex:S a sh:NodeShape ; sh:nodeKind " + value + " .")).conforms
 
 
 @pytest.mark.parametrize("value", ["ex:Weird", "sh:Violation", "'IRI'", "( sh:IRI ex:Weird )"])

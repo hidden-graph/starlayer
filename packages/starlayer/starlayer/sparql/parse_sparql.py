@@ -2242,9 +2242,9 @@ def sparql_to_tree(
         from .sqe.shapes import sqe_validate
         from .sqe.to_rdf import SQEValidationError
 
-        ok, report_graph, report_text = sqe_validate(g)
-        if not ok:
-            raise SQEValidationError(report_text, report_graph)
+        report = sqe_validate(g)
+        if not report.conforms:
+            raise SQEValidationError(report.report_text, report.report_graph)
     return g, r
 
 
@@ -2257,7 +2257,7 @@ def sparql_update_to_tree(
         from .sqe.shapes import sqe_validate
         from .sqe.to_rdf import SQEValidationError
 
-        ok, report_graph, report_text = sqe_validate(g)
-        if not ok:
-            raise SQEValidationError(report_text, report_graph)
+        report = sqe_validate(g)
+        if not report.conforms:
+            raise SQEValidationError(report.report_text, report.report_graph)
     return g, r

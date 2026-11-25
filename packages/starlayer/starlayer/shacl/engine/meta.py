@@ -42,6 +42,7 @@ class MetaResult:
     results: list = field(default_factory=list)
     problems: tuple[str, ...] = ()  # one line per result: the shape it is about, the property and the message
     scope: Any = None  # the MetaScope the check used
+    diagnostics: Any = None  # the engine's ExecutionDiagnostics for the run
 
     def raise_if_invalid(self) -> None:
         """Raise ``MetaShaclError`` naming each problem when the shapes graph did not conform."""
@@ -239,6 +240,7 @@ def meta_validate(
         results=outcome.results,
         problems=_problems(shapes_graph, outcome.results, prefixes),
         scope=scope,
+        diagnostics=getattr(outcome, "diagnostics", None),
     )
     if meta_shacl:
         result.raise_if_invalid()

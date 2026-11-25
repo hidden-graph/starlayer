@@ -43,7 +43,9 @@ def _failures(result) -> dict[str, str]:
 
 def _meta(shapes_ttl: str) -> tuple[bool, str]:
     try:
-        conforms, _, text = meta_validate(_graph(shapes_ttl))
+        outcome = meta_validate(_graph(shapes_ttl))
+        conforms = outcome.conforms
+        text = outcome.report_text
     except ReportableRuntimeError as error:  # meta_validate raises when the shapes graph does not conform
         return False, str(error)
     return conforms, text

@@ -305,7 +305,8 @@ class TestCustomFunctionMetaShaclWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_named_parameter_function_call_recognized(self) -> None:
@@ -327,7 +328,8 @@ class TestCustomFunctionMetaShaclWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes)
+        outcome = meta_validate(shapes)
+        conforms = outcome.conforms
         assert conforms is True
 
     def test_undeclared_predicate_still_rejected(self) -> None:

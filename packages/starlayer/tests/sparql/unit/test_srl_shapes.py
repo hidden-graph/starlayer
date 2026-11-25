@@ -35,7 +35,9 @@ DATA { :db :hasVulnerability :vuln1 . }
 def test_worked_example_conforms():
     rs = parse_ruleset(WORKED_EXAMPLE_RULES)
     g, _root = ruleset_to_tree(rs)
-    conforms, _report_graph, report_text = srl_validate(g)
+    outcome = srl_validate(g)
+    conforms = outcome.conforms
+    report_text = outcome.report_text
     assert conforms, report_text
 
 
@@ -46,7 +48,9 @@ def test_assignment_and_filter_roundtrip_conforms():
     """
     rs = parse_ruleset(text)
     g, _root = ruleset_to_tree(rs)
-    conforms, _report_graph, report_text = srl_validate(g)
+    outcome = srl_validate(g)
+    conforms = outcome.conforms
+    report_text = outcome.report_text
     assert conforms, report_text
 
 
@@ -75,7 +79,8 @@ def test_rule_missing_body_is_rejected():
     rdf_list(g, [rule], rules_list)
     set_triple(g, (root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = srl_validate(g)
+    outcome = srl_validate(g)
+    conforms = outcome.conforms
     assert conforms is False
 
 
@@ -101,7 +106,8 @@ def test_triple_pattern_with_literal_predicate_is_rejected():
     rdf_list(g, [rule], rules_list)
     set_triple(g, (root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = srl_validate(g)
+    outcome = srl_validate(g)
+    conforms = outcome.conforms
     assert conforms is False
 
 
@@ -123,7 +129,8 @@ def test_body_list_rejects_a_non_body_element_member():
     rdf_list(g, [rule], rules_list)
     set_triple(g, (root, SRL.rules, rules_list))
 
-    conforms, _report_graph, _report_text = srl_validate(g)
+    outcome = srl_validate(g)
+    conforms = outcome.conforms
     assert conforms is False
 
 
@@ -201,7 +208,7 @@ def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_met
     text = "PREFIX : <http://e/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y }"
     parse_ruleset(text)
     graph, _root = srl_parse_to_tree(text)
-    assert srl_validate(graph)[0]
+    assert srl_validate(graph).conforms
     assert called == []
 
 

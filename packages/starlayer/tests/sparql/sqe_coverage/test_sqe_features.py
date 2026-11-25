@@ -214,7 +214,7 @@ MAY_BE_EMPTY = {"ask false", "sameterm"}
 
 def _check(data, text, name):
     tree, root = sqe_parse_to_tree(text)
-    assert sqe_validate(tree)[0]
+    assert sqe_validate(tree).conforms
     assert_no_salg_terms(tree)
     expected = _rows(data, text)
     if name not in MAY_BE_EMPTY:

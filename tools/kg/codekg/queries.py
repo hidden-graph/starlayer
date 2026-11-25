@@ -343,9 +343,9 @@ def validate_library() -> list[str]:
         if not len(tree):
             problems.append(f"{name}: the query root {root} has no tree")
             continue
-        conforms, _report, text = sqe_validate(tree)
-        if not conforms:
-            problems.append(f"{name}: the sqe tree is invalid:\n{text}")
+        report = sqe_validate(tree)
+        if not report.conforms:
+            problems.append(f"{name}: the sqe tree is invalid:\n{report.report_text}")
             continue
         try:
             sqe_tree_to_text(library, root)
