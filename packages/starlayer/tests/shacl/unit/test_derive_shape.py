@@ -211,19 +211,22 @@ class TestTemplateMerge:
         prop = next(result.objects(None, SH.property))
         assert result.value(prop, SH.datatype) == XSD.string
 
-    def test_violated_pattern_is_dropped_with_a_comment(self):
+    def test_violated_pattern_is_deactivated_and_listed_in_one_comment(self):
         g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
         g.add((EX.alice, EX.name, lit('Alice')))
-        template, _shape_node, _prop_node = _template_person_shape(pattern='^Z')
+        template, shape_node, _prop_node = _template_person_shape(pattern='^Z')
 
         result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert _conforms(g, result)
+        assert not _conforms(g, template)
         prop = next(result.objects(None, SH.property))
-        assert (prop, SH.pattern, None) not in result
-        comments = list(result.objects(prop, RDFS.comment))
-        assert any('PatternConstraintComponent' in text(c) for c in comments)
+        assert result.value(prop, SH.pattern) == lit('^Z')  # kept, so a reader sees what was switched off
+        assert (prop, RDFS.comment, None) not in result
+        comments = list(result.objects(shape_node, RDFS.comment))
+        assert len(comments) == 1
+        assert 'Deactivated ex:name sh:pattern "^Z"' in text(comments[0])
 
     def test_in_enumeration_is_widened_not_replaced(self):
         g = StarLayerGraph()
@@ -241,7 +244,7 @@ class TestTemplateMerge:
         values = set(list_items(result, in_list))
         assert values == {lit('Alice'), lit('Zed')}
 
-    def test_opaque_sparql_constraint_is_left_untouched_and_annotated(self):
+    def test_opaque_sparql_constraint_is_deactivated(self):
         g = StarLayerGraph()
         g.bind('ex', EX)
         g.add((EX.alice, RDF.type, EX.Person))
@@ -260,13 +263,14 @@ class TestTemplateMerge:
             'SELECT $this WHERE { FILTER(true) }'
         )))
         template.add((shape_node, SH.closed, lit(True)))
+        assert not _conforms(g, template)
 
         result = derive_shape(g, cls=EX.Person, template_graph=template)
-        # The opaque sh:sparql constraint is expected to still be present
-        # and still failing - derive_shape() must not have silently dropped it.
-        assert (shape_node, SH.sparql, sparql_node) in result
+        assert (shape_node, SH.sparql, sparql_node) in result  # kept, switched off by a reifier on that triple
+        assert _conforms(g, result)
         comments = list(result.objects(shape_node, RDFS.comment))
-        assert any('could not be automatically' in text(c) for c in comments)
+        assert len(comments) == 1
+        assert 'Deactivated the shape sh:sparql' in text(comments[0])
 
     def test_new_property_not_in_template_is_added(self):
         g = StarLayerGraph()
@@ -547,3 +551,203 @@ class TestTemplateScoping:
         template.add((EX.NameShape, SH.nodeKind, SH.Literal))
         result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert (EX.NameShape, SH.nodeKind, SH.Literal) in result
+
+
+_PRE = """@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+"""
+
+
+def _ttl(body):
+    g = StarLayerGraph()
+    g.parse(data=_PRE + body, format='turtle12')
+    return g
+
+
+def _triples(g):
+    return sorted(map(str, g.triples((None, None, None))))
+
+
+def _node_shape(result):
+    return next(result.subjects(RDF.type, SH.NodeShape))
+
+
+def _deactivated(result):
+    """The (subject, predicate, object) triples a reifier in the result deactivates."""
+    out = set()
+    for reifier, _p, tt in result.triples((None, RDF.reifies, None)):
+        if (reifier, SH.deactivated, lit(True)) in result:
+            out.add((tt.subject, tt.predicate, tt.object))
+    return out
+
+
+class TestTemplateDeactivation:
+    """A constraint the data breaks and that cannot be recomputed is deactivated (a reifier on its triple), not dropped."""
+
+    DATA = """
+        ex:alice a ex:Person ; ex:nick "ABC" ; ex:v 1 ; ex:w 2 ; ex:u 1 .
+        ex:bob a ex:Person ; ex:nick "DEF" ; ex:v 1 ; ex:w 2 ; ex:u 1 .
+    """
+
+    @pytest.mark.parametrize('prop, pred', [
+        ('sh:path ex:nick ; sh:pattern "^[a-z]+$"', SH.pattern),
+        ('sh:path ex:nick ; sh:hasValue "zzz"', SH.hasValue),
+        ('sh:path ex:v ; sh:equals ex:w', SH.equals),
+        ('sh:path ex:v ; sh:disjoint ex:u', SH.disjoint),
+        ('sh:path ex:w ; sh:lessThan ex:v', SH.lessThan),
+        ('sh:path ex:w ; sh:lessThanOrEquals ex:v', SH.lessThanOrEquals),
+    ], ids=['pattern', 'hasValue', 'equals', 'disjoint', 'lessThan', 'lessThanOrEquals'])
+    def test_each_unrecomputable_kind_is_deactivated(self, prop, pred):
+        data = _ttl(self.DATA)
+        template = _ttl(f'ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; sh:property [ {prop} ] .')
+        before = _triples(template)
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert not _conforms(data, template)
+        assert _conforms(data, result)
+        assert starlayer.shacl.meta_validate(result)[0] is True
+        (flagged,) = _deactivated(result)
+        assert flagged[1] == pred
+        assert _triples(template) == before
+
+    def test_pattern_with_flags_is_one_constraint_switched_off_by_its_pattern_triple(self):
+        data = _ttl(self.DATA)
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:nick ; sh:pattern "^x" ; sh:flags "i" ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _conforms(data, result)
+        assert {t[1] for t in _deactivated(result)} == {SH.pattern}
+        assert len(list(result.objects(None, SH.flags))) == 1
+
+    def test_two_patterns_are_one_constraint_and_are_switched_off_together(self):
+        # the engine reads all the sh:pattern values of a shape as one constraint, so one reifier switches it all off
+        data = _ttl(self.DATA)
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:nick ; sh:pattern "^[A-Z]+$" , "^x" ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _conforms(data, result)
+        assert {t[2] for t in _deactivated(result)} == {lit('^[A-Z]+$'), lit('^x')}
+
+    def test_sparql_constraint_on_a_property_shape_is_deactivated(self):
+        data = _ttl(self.DATA)
+        template = _ttl("""
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ;
+              sh:property [ sh:path ex:v ; sh:sparql [ sh:select "SELECT $this WHERE { FILTER(true) }" ] ] .
+        """)
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert not _conforms(data, template)
+        assert _conforms(data, result)
+        assert {t[1] for t in _deactivated(result)} == {SH.sparql}
+
+    def test_custom_constraint_component_the_data_breaks_is_deactivated(self):
+        data = _ttl('ex:a a ex:Person ; ex:score 80 . ex:b a ex:Person ; ex:score 20 .')
+        template = _ttl("""
+            ex:MinScoreConstraintComponent a sh:ConstraintComponent ;
+              sh:parameter [ sh:path ex:minScore ] ;
+              sh:validator [ a sh:SPARQLAskValidator ; sh:ask "ASK { FILTER (?value >= ?minScore) }" ] .
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ;
+              sh:property [ sh:path ex:score ; ex:minScore 50 ] .
+        """)
+        assert not _conforms(data, template)
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _conforms(data, result)
+        assert {t[1] for t in _deactivated(result)} == {EX.minScore}
+        assert (EX.MinScoreConstraintComponent, RDF.type, SH.ConstraintComponent) in result  # the result still carries what it needs
+        (comment,) = result.objects(EX.S, RDFS.comment)
+        assert 'opaque' in text(comment)
+
+    def test_one_comment_on_the_node_shape_lists_every_change_in_order(self):
+        data = _ttl("""
+            ex:alice a ex:Person ; ex:name "Alice", "Ally" ; ex:nick "Al_1" ; ex:email "a@x" .
+            ex:bob a ex:Person ; ex:name "Bob" ; ex:nick "Bo_" .
+        """)
+        template = _ttl("""
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ;
+              sh:property [ sh:path ex:name ; sh:maxCount 1 ] ,
+                          [ sh:path ex:nick ; sh:pattern "^[a-z]+$" ] .
+        """)
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _conforms(data, result)
+        comments = [c for s_, _p, c in result.triples((None, RDFS.comment, None))]
+        assert len(comments) == 1
+        assert (EX.S, RDFS.comment, comments[0]) in result
+        assert text(comments[0]).split('\n') == [
+            'derive_shape() changed this shape to fit the data:',
+            'Added property ex:email: the data has it and the template shape does not.',
+            'Loosened ex:name sh:maxCount from 1 to 2: some node has more values.',
+            'Deactivated ex:nick sh:pattern "^[a-z]+$": the data breaks it and it cannot be recomputed from the data.',
+        ]
+
+    def test_no_comment_when_nothing_changed(self):
+        data = _ttl('ex:alice a ex:Person ; ex:name "Alice" .')
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:name ; sh:maxCount 5 ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert (None, RDFS.comment, None) not in result
+        assert not _deactivated(result)
+
+    def test_a_template_property_the_data_lacks_stays(self):
+        data = _ttl('ex:alice a ex:Person ; ex:name "Alice" .')
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:name ] , [ sh:path ex:age ; sh:datatype xsd:integer ; sh:maxCount 1 ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        paths = {p for prop in result.objects(EX.S, SH.property) for p in result.objects(prop, SH.path)}
+        assert paths == {EX.name, EX.age}
+        assert (None, SH.datatype, None) in result
+        assert (None, RDFS.comment, None) not in result
+
+    def test_a_satisfied_constraint_is_untouched_beside_a_deactivated_one(self):
+        data = _ttl(self.DATA)
+        template = _ttl("""
+            ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ;
+              sh:property [ sh:path ex:nick ; sh:pattern "^[A-Z]+$" ; sh:minCount 1 ] ,
+                          [ sh:path ex:v ; sh:hasValue 7 ; sh:maxCount 4 ; sh:datatype xsd:integer ] .
+        """)
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _conforms(data, result)
+        assert {t[1] for t in _deactivated(result)} == {SH.hasValue}
+        by_path = {next(result.objects(p, SH.path)): p for p in result.objects(EX.S, SH.property)}
+        assert result.value(by_path[EX.nick], SH.pattern) == lit('^[A-Z]+$')
+        assert result.value(by_path[EX.nick], SH.minCount) == lit(1)
+        assert result.value(by_path[EX.v], SH.maxCount) == lit(4)
+
+    def test_template_and_data_are_not_modified(self):
+        data = _ttl(self.DATA)
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:nick ; sh:pattern "^[a-z]+$" ; sh:maxCount 0 ] .')
+        before = _triples(data), _triples(template)
+        derive_shape(data, cls=EX.Person, template_graph=template)
+        assert (_triples(data), _triples(template)) == before
+
+    def test_same_input_twice_gives_the_same_graph(self):
+        data = _ttl(self.DATA)
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:nick ; sh:pattern "^[a-z]+$" ; sh:maxCount 0 ] , '
+                        '[ sh:path ex:v ; sh:equals ex:w ] .')
+        a = derive_shape(data, cls=EX.Person, template_graph=template)
+        b = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _triples(a) == _triples(b)
+
+    def test_result_round_trips_through_turtle12(self):
+        data = _ttl(self.DATA)
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:nick ; sh:pattern "^[a-z]+$" ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        again = StarLayerGraph()
+        again.parse(data=result.serialize(format='turtle12', pretty=True), format='turtle12')
+        assert len(again) == len(result)
+        assert _conforms(data, again)
+
+    def test_result_passes_meta_validate(self):
+        data = _ttl(self.DATA)
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:nick ; sh:pattern "^[a-z]+$" ] , [ sh:path ex:v ; sh:equals ex:w ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert starlayer.shacl.meta_validate(result)[0] is True
+
+    def test_an_earlier_derivation_comment_is_replaced_not_stacked(self):
+        data = _ttl(self.DATA)
+        template = _ttl('ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+                        'sh:property [ sh:path ex:nick ; sh:pattern "^[a-z]+$" ] .')
+        once = derive_shape(data, cls=EX.Person, template_graph=template)
+        more = _ttl(self.DATA + ' ex:carol a ex:Person ; ex:nick "x" ; ex:extra 1 .')
+        twice = derive_shape(more, cls=EX.Person, template_graph=once)
+        assert len(list(twice.objects(EX.S, RDFS.comment))) == 1

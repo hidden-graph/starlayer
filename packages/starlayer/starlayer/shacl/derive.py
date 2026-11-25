@@ -10,14 +10,14 @@ Two phases:
 - Phase A (fresh derivation) is the whole algorithm without a template: pure graph analysis, then a self-check.
 - Phase B (template merge) copies the one template shape that targets the same class or node (and what it references), validates
   it against the data once and dispatches each violation by its ``sh:sourceConstraintComponent``: components with a principled
-  data-driven fix are recomputed from the true current data (``_RECOMPUTE_COMPONENTS``); those with none (``sh:pattern``,
-  cross-property comparisons) are dropped with an ``rdfs:comment`` (``_DROP_COMPONENTS``); an opaque one (``sh:sparql``, custom)
-  is left with a comment.
+  data-driven fix are recomputed from the true current data (``_RECOMPUTE_COMPONENTS``); every other violated constraint
+  (``sh:pattern``, cross-property comparisons, ``sh:hasValue``, ``sh:sparql``, custom components) is deactivated with a
+  reifier on its own triple, ``{| sh:deactivated true |}``, so it keeps its value and the engine skips it. Everything that
+  changed is listed in one ``rdfs:comment`` on the node shape.
 
 Value kinds are Literal, IRI, BlankNode and TripleTerm (SHACL 1.2's ``sh:nodeKind sh:TripleTerm``, list-valued when mixed), so a
 triple-term-valued property is never silently dropped. Both phases end by validating the result against the same data, restricted
-to the shape's own targets: Phase A's result must conform; Phase B's must conform except at the opaque violations deliberately left
-alone.
+to the shape's own targets, and both results must conform.
 
 The output has no randomness: every blank node it makes (property shapes, list cells, an unnamed shape) gets an identifier computed
 from the target and the order of creation, and everything is visited in sorted order, so the same input gives the same graph, triple
@@ -71,21 +71,6 @@ _RECOMPUTE_COMPONENTS = frozenset({
     SH.LanguageInConstraintComponent, SH.InConstraintComponent,
 })
 
-# Components with no generic auto-fix: dropped outright, with an rdfs:comment note.
-_DROP_COMPONENTS = frozenset({
-    SH.PatternConstraintComponent, SH.HasValueConstraintComponent, SH.EqualsConstraintComponent,
-    SH.DisjointConstraintComponent, SH.LessThanConstraintComponent, SH.LessThanOrEqualsConstraintComponent,
-})
-
-_COMPONENT_TO_PREDICATES = {
-    SH.PatternConstraintComponent: (SH.pattern, SH.flags),
-    SH.HasValueConstraintComponent: (SH.hasValue,),
-    SH.EqualsConstraintComponent: (SH.equals,),
-    SH.DisjointConstraintComponent: (SH.disjoint,),
-    SH.LessThanConstraintComponent: (SH.lessThan,),
-    SH.LessThanOrEqualsConstraintComponent: (SH.lessThanOrEquals,),
-}
-
 _RECOMPUTE_PREDICATES = {
     SH.MinCountConstraintComponent: (SH.minCount,), SH.MaxCountConstraintComponent: (SH.maxCount,),
     SH.DatatypeConstraintComponent: (SH.datatype,), SH.ClassConstraintComponent: (SH["class"],),
@@ -95,6 +80,26 @@ _RECOMPUTE_PREDICATES = {
     SH.MinLengthConstraintComponent: (SH.minLength,), SH.MaxLengthConstraintComponent: (SH.maxLength,),
     SH.LanguageInConstraintComponent: (SH.languageIn,), SH.InConstraintComponent: (SH["in"],),
 }
+
+# Why a recomputed constraint changed, for the comment on the shape.
+_RECOMPUTE_REASON = {
+    SH.MinCountConstraintComponent: "some node has fewer values",
+    SH.MaxCountConstraintComponent: "some node has more values",
+    SH.DatatypeConstraintComponent: "the values do not have this datatype",
+    SH.ClassConstraintComponent: "the values are not all of this class",
+    SH.NodeKindConstraintComponent: "a value is of another kind",
+    SH.MinInclusiveConstraintComponent: "a value is below it",
+    SH.MaxInclusiveConstraintComponent: "a value is above it",
+    SH.MinExclusiveConstraintComponent: "a value is not above it",
+    SH.MaxExclusiveConstraintComponent: "a value is not below it",
+    SH.MinLengthConstraintComponent: "a value is shorter",
+    SH.MaxLengthConstraintComponent: "a value is longer",
+    SH.LanguageInConstraintComponent: "a value has another language or none",
+    SH.InConstraintComponent: "a value is not in the list",
+}
+
+_COMMENT_HEADER = "derive_shape() changed this shape to fit the data:"
+_RDF_REIFIES = terms.RDF_REIFIES
 
 _INCLUSIVE_EXCLUSIVE_PREDICATE = {
     SH.MinInclusiveConstraintComponent: SH.minInclusive,
@@ -354,14 +359,10 @@ def _check_view(shapes: Any, data: Any, shape_node: Any, target: _Target) -> Any
     return view
 
 
-def _self_check(data: Any, shapes: Any, shape_node: Any, target: _Target, *, allow_opaque_only: bool = False) -> None:
+def _self_check(data: Any, shapes: Any, shape_node: Any, target: _Target) -> None:
     result = validate(data, shacl_graph=_check_view(shapes, data, shape_node, target))
     if result.conforms:
         return
-    if allow_opaque_only:
-        leftover = {v["component"] for v in _iter_violations(result.report_graph)}
-        if not (leftover & (_RECOMPUTE_COMPONENTS | _DROP_COMPONENTS)):  # only opaque components remain
-            return
     raise RuntimeError(
         "starlayer.shacl.derive_shape() produced a shape that does not conform against the data it was derived from - "
         f"this is a bug in the shape derivation, not expected behavior.\n{result.report_text}"
@@ -471,35 +472,122 @@ def _recompute_component(
     return False
 
 
-def _component_name(component: Any) -> str:
-    return _text(component).rsplit("#", 1)[-1] if component else "unknown constraint"
+class _Changes:
+    """What the derivation changed in the template shape, for the one comment on the node shape. ``text()`` lists them in a fixed
+    order (added, loosened, deactivated; then by property, then by constraint), so the comment is the same every run."""
+
+    def __init__(self) -> None:
+        self.added: list[tuple[str, str]] = []
+        self.loosened: list[tuple[str, str, str]] = []
+        self.deactivated: list[tuple[str, str, str]] = []
+
+    def __bool__(self) -> bool:
+        return bool(self.added or self.loosened or self.deactivated)
+
+    def text(self) -> str:
+        lines = [_COMMENT_HEADER]
+        lines += [f"Added property {where}: {why}." for where, why in sorted(self.added)]
+        lines += [f"Loosened {where} {what}: {why}." for where, what, why in sorted(self.loosened)]
+        lines += [f"Deactivated {where} {what}: {why}." for where, what, why in sorted(self.deactivated)]
+        return "\n".join(lines)
 
 
-def _drop_and_annotate(working: Any, shape_node: Any, component: Any) -> None:
-    for pred in _COMPONENT_TO_PREDICATES.get(component, ()):
-        working.remove((shape_node, pred, None))
-    for pred in _RECOMPUTE_PREDICATES.get(component, ()):  # nothing to recompute from: drop the violated constraint
-        _clear_list_valued(working, shape_node, pred)
-    working.add((shape_node, RDFS.comment, ox.Literal(
-        f"derive_shape(): {_component_name(component)} no longer holds for the current data and has no principled "
-        "auto-fix - dropped."
-    )))
+_BARE = frozenset(_XSD + n for n in ("integer", "decimal", "double", "boolean"))
 
 
-def _annotate_opaque(working: Any, shape_node: Any, component: Any) -> None:
-    working.add((shape_node, RDFS.comment, ox.Literal(
-        f"derive_shape(): {_component_name(component)} could not be automatically verified or fixed (an opaque "
-        "constraint, e.g. sh:sparql or a custom component) - left as-is; the derived shape may not conform on this point."
-    )))
+def _show(g: Any, term: Any) -> str:
+    """A term as Turtle for the comment; a number or boolean is bare (``2``, not ``"2"^^xsd:integer``)."""
+    if isinstance(term, ox.Literal) and term.datatype.value in _BARE:
+        return term.value
+    return g.qname_term(term)
 
 
-def _extend_new_properties(working: Any, data: Any, shape_node: Any, target: _Target, ignored: set[Any], mint: _Minter) -> None:
+def _show_values(g: Any, node: Any, predicates: Iterable[Any]) -> str:
+    """The values of ``predicates`` on ``node`` as Turtle, lists in parentheses; empty when there are none."""
+    parts = []
+    for pred in predicates:
+        for v in sorted(g.objects(node, pred), key=_sort_key):
+            if isinstance(v, ox.BlankNode) and (v, RDF_FIRST, None) in g:
+                parts.append("(" + " ".join(_show(g, i) for i in _list_items(g, v)) + ")")
+            else:
+                parts.append(_show(g, v))
+    return " ".join(parts)
+
+
+def _shown_constraint(g: Any, node: Any, pred: Any, values: list[Any]) -> str:
+    """``sh:pattern "^[a-z]+$"``: the predicate and its value; a blank node value (an ``sh:sparql`` constraint) is left out."""
+    shown = [_show(g, v) for v in sorted(values, key=_sort_key) if not isinstance(v, ox.BlankNode)]
+    return " ".join([g.qname_term(pred), *shown])
+
+
+def _where(g: Any, shape: Any, main: Any) -> str:
+    """Where a constraint sits, for the comment: the property's path, or the shape itself when it has no simple path."""
+    paths = list(g.objects(shape, SH.path))
+    if len(paths) == 1 and isinstance(paths[0], ox.NamedNode):
+        return g.qname_term(paths[0])
+    if paths:
+        return "a property with a complex path"
+    if shape == main:
+        return "the shape"
+    return f"shape {g.qname_term(shape)}" if isinstance(shape, ox.NamedNode) else "a nested shape"
+
+
+def _violated_values(
+    working: Any, data: Any, shape_node: Any, target: _Target, source: Any, component: Any, pred: Any, values: list[Any],
+) -> list[Any]:
+    """Which of several values of one parameter the data breaks: each is validated alone. One value is the answer without a check."""
+    if len(values) < 2:
+        return values
+    view = _check_view(working, data, shape_node, target)
+    broken = []
+    for keep in values:
+        probe = view.empty_like() if hasattr(view, "empty_like") else type(view)()
+        probe.extend(t for t in view.triples((None, None, None)) if not (t[0] == source and t[1] == pred and t[2] != keep))
+        report = validate(data, shacl_graph=probe).report_graph
+        if any(v["component"] == component and v["source_shape"] == source for v in _iter_violations(report)):
+            broken.append(keep)
+    return broken or values
+
+
+def _deactivate(
+    working: Any, data: Any, shape_node: Any, target: _Target, source: Any, component: Any, specs: list, mint: _Minter,
+    changes: _Changes,
+) -> None:
+    """Switch off the constraint the data breaks with ``{| sh:deactivated true |}`` on its own triple. A component of several
+    parameters is one constraint and any of its triples switches it off, so the first parameter present carries it (the engine skips the whole constraint, so with several values of that parameter, such as two
+    ``sh:pattern``, all are switched off and listed)."""
+    spec = next((sp for sp in specs if sp.iri == component), None)
+    if spec is None:
+        return  # unknown component: the final check reports it
+    for pred in spec.predicates:
+        values = sorted(working.objects(source, pred), key=_sort_key)
+        if not values:
+            continue
+        if len(spec.predicates) == 1:
+            values = _violated_values(working, data, shape_node, target, source, component, pred, values)
+        for value in values:
+            reifier = mint.node(working)
+            working.add((reifier, _RDF_REIFIES, ox.Triple(source, pred, value)))
+            working.add((reifier, SH.deactivated, _TRUE))
+        what = _shown_constraint(working, source, pred, values)
+        if component == SH.SPARQLConstraintComponent or not _text(component).startswith(_SH_NS):
+            why = "the data breaks it and it cannot be checked or recomputed (an opaque constraint)"
+        else:
+            why = "the data breaks it and it cannot be recomputed from the data"
+        changes.deactivated.append((_where(working, source, shape_node), what, why))
+        return
+
+
+def _extend_new_properties(
+    working: Any, data: Any, shape_node: Any, target: _Target, ignored: set[Any], mint: _Minter, changes: _Changes,
+) -> None:
     """Add a property shape for each predicate the target's instances use that the template shape does not cover."""
     instances = sorted(_shape_instances(working, data, shape_node, target.include_subclasses) or target.instances(data), key=_sort_key)
     existing = {p for prop in working.objects(shape_node, SH.property) for p in working.objects(prop, SH.path)}
     for pred in _class_predicates(data, instances, ignored):
         if pred not in existing:
             working.add((shape_node, SH.property, _derive_property_shape(working, data, instances, pred, mint)))
+            changes.added.append((working.qname_term(pred), "the data has it and the template shape does not"))
 
 
 def _carry_forward_ignored_properties(working: Any, shape_node: Any, ignored: set[Any], mint: _Minter) -> None:
@@ -526,7 +614,26 @@ def _copy_scoped_template(template: Any, target: _Target, shape: Any, working: A
     main = candidates[0]
     for node in [main, *sorted(referenced_shapes(template, [main]), key=_sort_key)]:
         template.cbd(node, target_graph=working)
+    _copy_declarations(template, working)
     return main
+
+
+def _copy_declarations(template: Any, working: Any) -> None:
+    """Copy what the copied shapes need to be read: the declaration of each custom ``sh:ConstraintComponent`` one of them uses a
+    parameter of (without it the parameter is an ordinary triple and the constraint silently checks nothing), and the
+    ``sh:prefixes`` declarations of their SPARQL text."""
+    used = {p for _s, p, _o in working.triples((None, None, None))}
+    for comp in sorted(template.subjects(RDF_TYPE, SH.ConstraintComponent), key=_sort_key):
+        params = {path for par in template.objects(comp, SH.parameter) for path in template.objects(par, SH.path)}
+        if params & used:
+            template.cbd(comp, target_graph=working)
+            for pred in (SH.validator, SH.nodeValidator, SH.propertyValidator):
+                for validator in template.objects(comp, pred):
+                    template.cbd(validator, target_graph=working)
+    for _s, _p, decl in list(working.triples((None, SH.prefixes, None))):
+        template.cbd(decl, target_graph=working)
+        for entry in template.objects(decl, SH.declare):
+            template.cbd(entry, target_graph=working)
 
 
 def _rename(g: Any, old: Any, new: Any) -> None:
@@ -546,33 +653,52 @@ def _derive_with_template(
         _rename(working, shape_node, shape)
         shape_node = shape
 
+    from starlayer.shacl.engine.plan import Plan
+
+    specs = Plan(working).components()
+    changes = _Changes()
     detect = validate(data, shacl_graph=_check_view(working, data, shape_node, target))
-    for violation in list(_iter_violations(detect.report_graph)):
+    seen: set[tuple[Any, Any]] = set()
+    violations = sorted(
+        (v for v in _iter_violations(detect.report_graph) if v["source_shape"] is not None and v["component"] is not None),
+        key=lambda v: (_sort_key(v["source_shape"]), _sort_key(v["component"]), _sort_key(v["path"]) if v["path"] is not None else ("", "")),
+    )
+    for violation in violations:
         component, source = violation["component"], violation["source_shape"]
-        if component == SH.ClosedConstraintComponent or source is None:
+        if component == SH.ClosedConstraintComponent or (component, source) in seen:
             # _extend_new_properties finds every uncovered predicate straight from the data, so the closed-shape violation
             # this situation also produces needs no reaction of its own.
             continue
+        seen.add((component, source))
         if (source, None, None) not in working:
             continue  # the shape was renamed or is not in the copy: nothing to change
         if component in _RECOMPUTE_COMPONENTS:
             focus, path = _shape_instances(working, data, source, target.include_subclasses), violation["path"]
-            handled = (
+            preds = _RECOMPUTE_PREDICATES[component]
+            before = _show_values(working, source, preds)
+            if (
                 focus is not None and path is not None
                 and _recompute_component(working, data, source, focus, path, component, mint)
-            )
-            if not handled:
-                _drop_and_annotate(working, source, component)
-        elif component in _DROP_COMPONENTS:
-            _drop_and_annotate(working, source, component)
-        else:
-            _annotate_opaque(working, source, component)
+            ):
+                after = _show_values(working, source, preds)
+                if before != after:
+                    changes.loosened.append((
+                        _where(working, source, shape_node), f"{working.qname_term(preds[0])} from {before} to {after or 'no constraint'}",
+                        _RECOMPUTE_REASON[component],
+                    ))
+                continue
+        _deactivate(working, data, shape_node, target, source, component, specs, mint, changes)
 
-    _extend_new_properties(working, data, shape_node, target, ignored, mint)
+    _extend_new_properties(working, data, shape_node, target, ignored, mint, changes)
     _carry_forward_ignored_properties(working, shape_node, ignored, mint)
     working.remove((shape_node, SH.closed, None))
     working.add((shape_node, SH.closed, _TRUE))
-    _self_check(data, working, shape_node, target, allow_opaque_only=True)
+    if changes:
+        for old in list(working.objects(shape_node, RDFS.comment)):  # the comment of an earlier derivation is replaced, not stacked
+            if isinstance(old, ox.Literal) and old.value.startswith(_COMMENT_HEADER):
+                working.remove((shape_node, RDFS.comment, old))
+        working.add((shape_node, RDFS.comment, ox.Literal(changes.text())))
+    _self_check(data, working, shape_node, target)
     return working
 
 
@@ -634,11 +760,20 @@ def derive_shape(
     shape in it is found by its target, not named: the one that targets the same class (``sh:targetClass``) or node
     (``sh:targetNode``) is used, together with what it references (its property shapes, lists, ``sh:node`` and logical shapes); the
     other shapes of the template graph are not copied. When it holds several shapes for that target, ``shape`` names the one to use;
-    when it holds one, ``shape`` renames the result, which otherwise keeps the template shape's identity. Its constraints that the data now breaks are recomputed from the data when there is a principled way (counts, datatype,
-    class, node kind, ranges, lengths, languages, ``sh:in`` widened), dropped with an ``rdfs:comment`` when there is none (pattern,
-    ``sh:hasValue``, pair comparisons), or left in place with a comment when they cannot be checked (``sh:sparql``, custom
-    components); predicates the template does not cover are added, and its ignored properties are kept. Only the main shape is
-    closed, not shapes it merely references.
+    when it holds one, ``shape`` renames the result, which otherwise keeps the template shape's identity.
+
+    The template is brought up to date by loosening, never tightening: a constraint the data satisfies stays exactly as it is,
+    and so does a property the data lacks. A constraint the data breaks is recomputed from the data when there is a principled way
+    (counts, datatype, class, node kind, ranges, lengths, languages, ``sh:in`` widened). When there is none (``sh:pattern``,
+    ``sh:hasValue``, pair comparisons) or it cannot be checked at all (``sh:sparql``, custom components) it is deactivated, not
+    dropped, with a reifier on that one triple (``{| sh:deactivated true |}``), so a reader still sees what was switched off and
+    the engine still skips it. Predicates the template does not cover are added, and its ignored properties are kept. Only the
+    main shape is closed, not shapes it merely references. The declarations of the custom constraint components the shape uses
+    are copied along, or the parameter would be an ordinary triple that checks nothing.
+
+    Every change is written in one ``rdfs:comment`` on the node shape, one line each in a fixed order (properties added,
+    constraints loosened, constraints deactivated); no comment when nothing changed. A comment of an earlier derivation is
+    replaced, not added to.
 
     The result is validated against ``graph``, for the shape's own targets only, before it is returned. With
     ``include_subclasses=False`` the shape still targets subclass instances under SHACL's rules, so validating it by hand reports
