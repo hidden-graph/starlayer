@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclProcessor
+from starlayer.shacl import ShapeCompileError, StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -93,7 +93,7 @@ def test_sibling_shape_reached_via_target_class_extends_allowed_properties() -> 
 
 
 class TestClosedMalformedValueRejectedCleanly:
-    """A non-boolean sh:closed value must raise a clean ValueError, not crash
+    """A non-boolean sh:closed value must raise a clean ShapeCompileError, not crash
     unpredictably or - the more dangerous case - be silently misinterpreted.
     Found 2026-07-20 while investigating a matching pySHACL bug (see
     docs/upstream-issues/pyshacl-upstream-issues.md, Issue 3): starShacl's own
@@ -127,7 +127,7 @@ class TestClosedMalformedValueRejectedCleanly:
         data = StarLayerGraph()
         data.parse(data=self._data(), format="turtle")
 
-        with pytest.raises(ValueError, match="sh:closed must be an xsd:boolean"):
+        with pytest.raises(ShapeCompileError, match="sh:closed must be an xsd:boolean"):
             StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     def test_iri_value_is_still_rejected_cleanly(self) -> None:
@@ -136,7 +136,7 @@ class TestClosedMalformedValueRejectedCleanly:
         data = StarLayerGraph()
         data.parse(data=self._data(), format="turtle")
 
-        with pytest.raises(ValueError, match="sh:closed must be an xsd:boolean"):
+        with pytest.raises(ShapeCompileError, match="sh:closed must be an xsd:boolean"):
             StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)
 
     def test_real_boolean_true_still_works(self) -> None:

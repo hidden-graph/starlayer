@@ -4,6 +4,7 @@ private layer ``shacl_shacl_starlayer``, kept out of ``shacl_shacl`` so that sta
 import pyoxigraph as ox
 import pytest
 from starlayer import starontology
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import ExecutionError, MetaShaclError, StarShaclProcessor
 from starlayer.shacl.engine.api import validate as engine_validate
@@ -14,7 +15,6 @@ from starlayer.shacl.engine.builtin_functions import (
     SPARQL_PROBLEM,
     TIME_ZONE_PROBLEM,
 )
-from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.meta_shapes import meta_validate, sparql_query_problems
 
 SH = "http://www.w3.org/ns/shacl#"

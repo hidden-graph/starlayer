@@ -8,7 +8,7 @@ on (follows blank-node objects recursively, never named-IRI ones).
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclProcessor, extract_subgraph
+from starlayer.shacl import ShapeCompileError, StarShaclProcessor, extract_subgraph
 from starlayer.shacl.engine.terms import NS as Namespace
 from tests.support.datasets import dataset_of, name_of
 
@@ -197,7 +197,7 @@ def test_owl_imports_to_a_module_absent_entirely_raises() -> None:
     g.add((EX.ModuleB, OWL.imports, EX.SomeOtherModule))
 
     schema = StarShaclProcessor(shacl_graph=g)
-    with pytest.raises(ValueError, match="SomeOtherModule"):
+    with pytest.raises(ShapeCompileError, match="SomeOtherModule"):
         schema.extract_shapes_graph(EX.ModuleB)
 
 
@@ -214,7 +214,7 @@ def test_owl_imports_to_a_module_present_but_not_typed_shapesgraph_raises() -> N
     g.add((EX.SomeShape, RDF.type, SH.NodeShape))
 
     schema = StarShaclProcessor(shacl_graph=g)
-    with pytest.raises(ValueError, match="SomeOtherModule"):
+    with pytest.raises(ShapeCompileError, match="SomeOtherModule"):
         schema.extract_shapes_graph(EX.ModuleB)
 
 

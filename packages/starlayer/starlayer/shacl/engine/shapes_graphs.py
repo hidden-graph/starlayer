@@ -20,8 +20,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine.graphs import add_list, copy_cbd, list_items, new_graph
-from starlayer.shacl.engine.plan import ShapeCompileError
 from starlayer.shacl.engine.terms import (
     OWL,
     RDF,

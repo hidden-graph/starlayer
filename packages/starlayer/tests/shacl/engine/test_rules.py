@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.rules import (
     InferredView,
-    ShapeError,
     apply_rules,
     entailment_selection,
     validate_with_rules,

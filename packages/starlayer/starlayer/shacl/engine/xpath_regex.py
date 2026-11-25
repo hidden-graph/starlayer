@@ -23,7 +23,7 @@ import re
 import sys
 import unicodedata
 
-from starlayer.shacl.engine.plan import ShapeCompileError
+from starlayer.errors import ShapeCompileError
 
 __all__ = ["needs_translation", "xpath_regex_to_python"]
 

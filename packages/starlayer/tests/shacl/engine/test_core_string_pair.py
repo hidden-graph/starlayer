@@ -3,9 +3,9 @@
 from __future__ import annotations
 
 import pytest
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
-from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import text
 
 PRE = """@prefix ex: <http://example.com/> . @prefix sh: <http://www.w3.org/ns/shacl#> .

@@ -6,8 +6,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from starlayer.errors import ExecutionError, only_kind
 from starlayer.shacl.engine.expressions import evaluate_expression
-from starlayer.shacl.engine.plan import ExecutionError, Shape, Term, only_kind
+from starlayer.shacl.engine.plan import Shape, Term
 from starlayer.shacl.engine.terms import TRUE
 
 

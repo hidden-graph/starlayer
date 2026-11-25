@@ -1,16 +1,20 @@
-"""The errors SHACL processing raises, importable from ``starlayer.shacl``. They are classified by cause.
+"""The errors SHACL processing raises, importable from ``starlayer.shacl``. They are defined in ``starlayer.errors``,
+the library's leaf error module; this module and ``starlayer.shacl`` re-export the same class objects. They are classified by cause.
+
+Each derives from ``StarLayerError`` and from nothing else, so none is a ``ValueError``: a plain ``ValueError`` or ``TypeError`` is
+only a bad argument at the entry of a public call, and ``except ValueError`` never catches one of these.
 
 ``ShapeError``: the base of the shapes-graph errors. The shapes graph (a shape, a rule, a rules graph) or its setup (an ``owl:imports``
-that cannot be resolved) is wrong or asks for something unsupported, found by anyone. A ``ValueError`` subclass, never raised bare, so
-``except ShapeError`` catches either kind below:
+that cannot be resolved) is wrong or asks for something unsupported, found by anyone. Never raised bare, so ``except ShapeError`` catches either kind
+below:
 
 * ``ShapeCompileError``: the engine itself cannot read or compile the shapes graph, its rules or its setup, whenever it finds out (when a
   processor is built, or later in a run).
 * ``MetaShaclError``: the meta check (the shapes-about-shapes, ``meta_shacl=True``) found it. Carries ``problems``, ``report_text``,
   ``report_graph`` and ``scope``.
 
-``ExecutionError``: the shapes graph is fine and running it failed. A plain ``Exception`` on purpose, not a ``ValueError`` and not a
-``ShapeError``, so that an ``except ValueError`` cannot swallow it. One class; its ``kind`` attribute says what failed:
+``ExecutionError``: the shapes graph is fine and running it failed. Not a ``ShapeError``, so that an ``except ShapeError`` for a wrong
+shapes graph does not catch it. One class; its ``kind`` attribute says what failed:
 
 * ``"rule"``: a rule failed while running, ``max_iterations`` or ``max_triples`` was exceeded, or the rule set failed as a whole.
 * ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
@@ -31,9 +35,9 @@ A bad argument to a public call (a role that is not ``"editor"`` or ``"viewer"``
 
 from __future__ import annotations
 
-from starlayer.shacl.engine.meta import MetaShaclError
-from starlayer.shacl.engine.plan import (
+from starlayer.errors import (
     ExecutionError,
+    MetaShaclError,
     ShapeCompileError,
     ShapeError,
 )

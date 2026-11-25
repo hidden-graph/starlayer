@@ -148,7 +148,7 @@ def test_a_shapes_graph_with_only_sparql_defects_is_a_meta_shacl_error():
         meta_validate(shapes)
     assert len(raised.value.problems) == 2
     assert sorted(line.split(": ")[0] for line in raised.value.problems) == ["ex:C, sh:select", "ex:D, sh:ask"]
-    assert isinstance(raised.value, ValueError)
+    assert not isinstance(raised.value, ValueError)
 
 
 @pytest.mark.parametrize("turtle, fragment", [

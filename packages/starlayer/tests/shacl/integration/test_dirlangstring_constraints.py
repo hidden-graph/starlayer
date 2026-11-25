@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclProcessor
+from starlayer.shacl import ShapeCompileError, StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -249,7 +249,7 @@ def test_unique_lang_string_literal_false_is_rejected_not_silently_enabled() -> 
     checking the literal's datatype - bool("false") is True in Python
     regardless of the string's content, so sh:uniqueLang "false" was
     silently *enabling* the check instead of disabling it. Now raises a
-    clean ValueError instead.
+    clean ShapeCompileError instead.
     """
     data = _data(
         """
@@ -265,7 +265,7 @@ def test_unique_lang_string_literal_false_is_rejected_not_silently_enabled() -> 
           sh:property [ sh:path ex:greeting ; sh:uniqueLang "false" ] .
         """
     )
-    with pytest.raises(ValueError, match="xsd:boolean literal"):
+    with pytest.raises(ShapeCompileError, match="xsd:boolean literal"):
         _validator(shapes).validate(data_graph=data, meta_shacl=False)
 
 

@@ -7,11 +7,12 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError, ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.expressions import evaluate_expression
-from starlayer.shacl.engine.plan import ExecutionError, Plan, ShapeError
+from starlayer.shacl.engine.plan import Plan
 from starlayer.shacl.engine.subgraph import extract_subgraph
 from starlayer.shacl.engine.terms import NS
 

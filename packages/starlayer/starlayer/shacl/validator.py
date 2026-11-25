@@ -13,9 +13,9 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ShapeError
 from starlayer.shacl import _adapter
 from starlayer.shacl.candidates import Candidates
-from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import RDF, SH, BlankNode, n3
 from starlayer.shacl.form_model import FormModel
 from starlayer.shacl.normalization import normalize_to_starlayer_graph

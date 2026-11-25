@@ -5,9 +5,9 @@ from __future__ import annotations
 import warnings
 
 import pytest
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
-from starlayer.shacl.engine.plan import ShapeError
 from tests.support.errors import raises_kind
 
 warnings.filterwarnings("ignore")

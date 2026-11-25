@@ -13,10 +13,11 @@ from collections.abc import Iterator
 from types import SimpleNamespace
 from typing import Any
 
+from starlayer.errors import ShapeCompileError, ShapeError
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.registry import Violation, component, words
 from starlayer.shacl.engine.executor import Result
-from starlayer.shacl.engine.plan import SH, ShapeCompileError, ShapeError
+from starlayer.shacl.engine.plan import SH
 from starlayer.shacl.engine.terms import RDF, XSD, BlankNode, Literal, NamedNode
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 from starlayer.shacl.engine.terms import text as term_text
@@ -193,7 +194,7 @@ def _compile(shape: Any, pattern: str, flags: str) -> re.Pattern:
             if "x" in flags:
                 text = _strip_free_space(text)
         return re.compile(text, py_flags)
-    except (re.error, ValueError, OverflowError) as exc:  # OverflowError: a repetition count such as a{99999999999}
+    except (re.error, ValueError, ShapeCompileError, OverflowError) as exc:  # ShapeCompileError: the XPath translation; OverflowError: a repetition count such as a{99999999999}
         raise ShapeCompileError(f"{term_text(shape.node)}: invalid sh:pattern {pattern!r}: {exc}") from exc
 
 

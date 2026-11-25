@@ -5,11 +5,12 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.interface import Solutions
-from starlayer.shacl.engine.plan import Path, ShapeError
+from starlayer.shacl.engine.plan import Path
 from starlayer.shacl.engine.sparql_support import fill_template, path_to_sparql
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import integer, text

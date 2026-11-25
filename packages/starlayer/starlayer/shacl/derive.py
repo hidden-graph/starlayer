@@ -35,10 +35,10 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError
 from starlayer.graph import terms
 from starlayer.graph.namespaces import DCTERMS, RDFS, SH
 from starlayer.shacl.engine import xsd_values
-from starlayer.shacl.engine.plan import ExecutionError
 from starlayer.shacl.engine.terms import engine_view, to_engine
 from starlayer.shacl.normalization import normalize_to_starlayer_graph
 from starlayer.shacl.shapes_graphs import referenced_shapes

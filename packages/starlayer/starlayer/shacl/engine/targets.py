@@ -11,8 +11,9 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine import xsd_values as xv
-from starlayer.shacl.engine.plan import SH, ShapeCompileError, Term
+from starlayer.shacl.engine.plan import SH, Term
 from starlayer.shacl.engine.terms import OWL, RDF, RDFS, XSD, BlankNode, Literal, text
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 

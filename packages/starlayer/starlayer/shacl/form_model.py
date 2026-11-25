@@ -463,8 +463,8 @@ class _Builder:
         return computed, default
 
     def expression_values(self, props: list[Any]) -> set:
+        from starlayer.errors import ExecutionError, only_kind
         from starlayer.shacl.engine import expressions
-        from starlayer.shacl.engine.plan import ExecutionError, only_kind
 
         found: set = set()
         for prop in props:

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine.components.registry import Violation, component
-from starlayer.shacl.engine.plan import SH, ShapeCompileError
+from starlayer.shacl.engine.plan import SH
 from starlayer.shacl.engine.terms import RDF
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 

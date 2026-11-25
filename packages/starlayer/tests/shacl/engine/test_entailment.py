@@ -6,6 +6,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.entailment import ENTAILMENT
+from starlayer.shacl import ShapeCompileError
 from starlayer.shacl.engine import entailment as _entailment
 from starlayer.shacl.engine.api import validate as engine_validate
 from starlayer.shacl.engine.terms import NS as Namespace
@@ -130,10 +131,10 @@ def test_pyshacl_style_names_are_not_regimes(name) -> None:
 
 
 def test_unsupported_regime_raises() -> None:
-    with pytest.raises(ValueError, match="Unsupported entailment"):
+    with pytest.raises(ValueError, match="Unsupported entailment"):  # a bad argument
         resolve_data_view(_g(DOMAIN), _g(SHAPES), inference=ENTAILMENT.D)
     shapes = _g(SHAPES + " ex:Shapes sh:entailment ex:NotARuleSet .")
-    with pytest.raises(ValueError, match="Unsupported entailment"):
+    with pytest.raises(ShapeCompileError, match="Unsupported entailment"):
         resolve_data_view(_g(DOMAIN), shapes)
 
 

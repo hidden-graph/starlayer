@@ -10,10 +10,11 @@ import operator
 from collections.abc import Iterator
 from typing import Any
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.registry import Violation, component, words
 from starlayer.shacl.engine.naming import short
-from starlayer.shacl.engine.plan import SH, ShapeCompileError
+from starlayer.shacl.engine.plan import SH
 from starlayer.shacl.engine.terms import (
     RDF,
     RDFS,

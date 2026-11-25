@@ -6,8 +6,9 @@ import re
 from collections.abc import Iterator
 from typing import Any
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine.components.registry import Violation, component, words
-from starlayer.shacl.engine.plan import SH, Path, ShapeCompileError
+from starlayer.shacl.engine.plan import SH, Path
 from starlayer.shacl.engine.terms import (
     RDF,
     RDFS,

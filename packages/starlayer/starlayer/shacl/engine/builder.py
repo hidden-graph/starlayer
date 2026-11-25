@@ -4,8 +4,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine.components.registry import all_param_predicates
-from starlayer.shacl.engine.plan import SH, Path, Shape, ShapeCompileError, Term, most_severe
+from starlayer.shacl.engine.plan import SH, Path, Shape, Term, most_severe
 from starlayer.shacl.engine.targets import (  # noqa: F401  (re-exported)
     declared_shape_nodes,
     shape_targets,

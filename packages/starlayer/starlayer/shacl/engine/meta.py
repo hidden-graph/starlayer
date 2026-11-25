@@ -19,8 +19,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import MetaShaclError
 from starlayer.shacl.engine.naming import describe, short
-from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import (
     SH,
     engine_view,
@@ -30,22 +30,6 @@ from starlayer.shacl.engine.terms import (
 )
 
 META_ERROR_PREFIX = "The shapes graph is not valid SHACL: it does not validate against the SHACL shapes for shapes (MetaSHACL)."
-
-
-class MetaShaclError(ShapeError):
-    """The shapes graph does not validate against the meta-shapes (the meta check found it, as against ``ShapeCompileError``, where the engine cannot compile it); the message says which shape and property each problem is about.
-
-    ``problems`` has one line per result, ``report_text`` is the full validation report of the check and ``report_graph`` the same
-    report as a graph, for a caller that shows each result next to its focus node. ``scope`` is the ``MetaScope`` the failed check
-    used (``None`` for an error raised elsewhere), so a caller can tell a narrow check from a full one."""
-
-    def __init__(self, message: str, problems: tuple[str, ...] = (), report_text: str = "", report_graph: Any = None,
-                 scope: Any = None, *, context: str | None = None) -> None:
-        super().__init__(message, context=context)
-        self.scope = scope
-        self.problems = problems
-        self.report_text = report_text
-        self.report_graph = report_graph
 
 
 @dataclass
@@ -287,4 +271,4 @@ def meta_scope(
     return _forced_full(scope) if full and not scope.full else scope
 
 
-__all__ = ["META_ERROR_PREFIX", "MetaResult", "MetaShaclError", "meta_scope", "meta_validate"]
+__all__ = ["META_ERROR_PREFIX", "MetaResult", "meta_scope", "meta_validate"]

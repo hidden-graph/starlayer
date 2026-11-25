@@ -24,16 +24,11 @@ from decimal import Decimal
 from functools import cmp_to_key
 from typing import Any
 
+from starlayer.errors import ExecutionError, ShapeCompileError, only_kind
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.core_shape_based import shacl_list
 from starlayer.shacl.engine.paths import eval_path, parse_path
-from starlayer.shacl.engine.plan import (
-    SH,
-    ExecutionError,
-    ShapeCompileError,
-    Term,
-    only_kind,
-)
+from starlayer.shacl.engine.plan import SH, Term
 from starlayer.shacl.engine.targets import _all_nodes, _class_closure
 from starlayer.shacl.engine.terms import (
     FALSE,

@@ -26,6 +26,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ShapeCompileError
 from starlayer.graph.entailment.cache import (
     RECOMPUTE,
     entailed_store_view,
@@ -35,7 +36,6 @@ from starlayer.graph.entailment.infer import (
     OWL_DIRECT_REGIME,
     SUPPORTED_REGIMES,
 )
-from starlayer.shacl.engine.plan import ShapeCompileError
 from starlayer.shacl.engine.terms import (
     RDF,
     SH,

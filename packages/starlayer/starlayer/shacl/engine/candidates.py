@@ -24,11 +24,12 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
+from starlayer.errors import ShapeCompileError
 from starlayer.graph import StarLayerDataset
 from starlayer.shacl.engine.components.core_shape_based import _lists, _roots
 from starlayer.shacl.engine.components.core_value import alternatives, rdf_list
 from starlayer.shacl.engine.executor import Context, validate_shape_at
-from starlayer.shacl.engine.plan import SH, Plan, Shape, ShapeCompileError
+from starlayer.shacl.engine.plan import SH, Plan, Shape
 from starlayer.shacl.engine.report import conforms
 from starlayer.shacl.engine.terms import (
     RDF,

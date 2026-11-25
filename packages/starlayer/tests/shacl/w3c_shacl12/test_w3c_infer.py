@@ -34,12 +34,9 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from starlayer.errors import ExecutionError, ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclProcessor  # noqa: E402
-from starlayer.shacl.engine.plan import (
-    ExecutionError,  # noqa: E402
-    ShapeError,  # noqa: E402
-)
 
 from .ids import portable_id  # noqa: E402
 from .known_failures import ENGINE_GAPS, KNOWN_FAILURES  # noqa: E402

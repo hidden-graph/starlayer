@@ -7,9 +7,10 @@ property shape, ``$PATH`` is replaced by the shape's path. One result per soluti
 
 from __future__ import annotations
 
+from starlayer.errors import ExecutionError, ShapeCompileError, only_kind
 from starlayer.shacl.engine.components.registry import Violation, component
 from starlayer.shacl.engine.expressions import evaluate_expression
-from starlayer.shacl.engine.plan import SH, ExecutionError, ShapeCompileError, only_kind
+from starlayer.shacl.engine.plan import SH
 from starlayer.shacl.engine.sparql_support import (
     is_true,
     run_select,

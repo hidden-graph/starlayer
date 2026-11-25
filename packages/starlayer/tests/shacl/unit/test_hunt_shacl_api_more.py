@@ -5,7 +5,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph.core import StarLayerGraph
-from starlayer.shacl import validate
+from starlayer.shacl import ShapeCompileError, validate
 
 pytestmark = pytest.mark.filterwarnings("ignore")
 
@@ -61,7 +61,7 @@ def test_validate_without_shapes_graph_resolves_imports_with_loader():
 
 def test_validate_without_shapes_graph_unresolved_import_raises():
     data = g("ex:a ex:p 1 . <http://e/onto> a owl:Ontology ; owl:imports <http://e/imp> .")
-    with pytest.raises(ValueError):
+    with pytest.raises(ShapeCompileError):
         validate(data)
 
 

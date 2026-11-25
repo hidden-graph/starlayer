@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import Literal
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import paths as _paths
 from starlayer.shacl.engine import targets as _targets
-from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import SH, text
 

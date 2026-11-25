@@ -4,10 +4,10 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
+from starlayer.errors import MetaShaclError, ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.imports import declared_imports, resolve_imports
-from starlayer.shacl.engine.meta import META_ERROR_PREFIX, MetaShaclError, meta_validate
-from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.meta import META_ERROR_PREFIX, meta_validate
 from starlayer.shacl.engine.terms import OWL, RDF
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"

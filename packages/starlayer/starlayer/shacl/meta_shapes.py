@@ -251,7 +251,7 @@ def _collect_query_prefixes(shapes_graph: Any, query_node: Any) -> dict[str, str
     """
     prefixes: dict[str, str] = {}
 
-    from starlayer.shacl.engine.plan import ShapeError
+    from starlayer.errors import ShapeError
     from starlayer.shacl.engine.sparql_support import prefixes_of
 
     try:

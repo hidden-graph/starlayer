@@ -23,6 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine import (
     components,  # noqa: F401  (registers the constraint components)
 )
@@ -31,14 +32,7 @@ from starlayer.shacl.engine.entailment import resolve_data_view
 from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.paths import parse_path
-from starlayer.shacl.engine.plan import (
-    SH,
-    Path,
-    Plan,
-    Shape,
-    Term,
-    ShapeCompileError,
-)
+from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, Term
 from starlayer.shacl.engine.reads import RecordingGraph
 from starlayer.shacl.engine.terms import (
     RDF,

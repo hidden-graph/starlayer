@@ -33,16 +33,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from starlayer.shacl.engine.plan import (
-    SH,
-    Path,
-    Plan,
-    Shape,
-    ShapeCompileError,
-    ShapeError,
-    Term,
-    is_shape_type,
-)
+from starlayer.errors import ShapeCompileError, ShapeError
+from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, Term, is_shape_type
 from starlayer.shacl.engine.terms import (
     OWL,
     RDF,

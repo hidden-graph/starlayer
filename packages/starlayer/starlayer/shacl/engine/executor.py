@@ -9,21 +9,12 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from typing import Any
 
+from starlayer.errors import ExecutionError, ShapeError, only_kind
 from starlayer.shacl.engine.deactivation import any_true, deactivated_at
 from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.naming import add_where
 from starlayer.shacl.engine.paths import eval_path
-from starlayer.shacl.engine.plan import (
-    SH,
-    ExecutionError,
-    Path,
-    Plan,
-    Shape,
-    ShapeError,
-    Term,
-    most_severe,
-    only_kind,
-)
+from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, Term, most_severe
 from starlayer.shacl.engine.targets import focus_nodes
 from starlayer.shacl.engine.terms import RDFS, engine_view, unmask
 

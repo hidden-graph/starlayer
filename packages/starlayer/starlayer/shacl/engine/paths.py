@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.shacl.engine.plan import SH, Path, ShapeCompileError, Term
+from starlayer.errors import ShapeCompileError
+from starlayer.shacl.engine.plan import SH, Path, Term
 from starlayer.shacl.engine.terms import RDF, BlankNode, Literal, NamedNode
 
 _UNARY = {

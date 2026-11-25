@@ -24,8 +24,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine.graphs import new_graph
-from starlayer.shacl.engine.plan import ShapeCompileError
 from starlayer.shacl.engine.terms import OWL, engine_view, text
 
 Loader = Callable[[Any], Any]

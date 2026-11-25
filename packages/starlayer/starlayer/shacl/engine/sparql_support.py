@@ -15,19 +15,11 @@ from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from typing import Any
 
+from starlayer.errors import ExecutionError, ShapeCompileError, ShapeError
 from starlayer.shacl.engine.builtin_functions import BUILTIN_FUNCTIONS
 from starlayer.shacl.engine.components.registry import Violation
 from starlayer.shacl.engine.interface import Solutions
-from starlayer.shacl.engine.plan import (
-    SH,
-    ExecutionError,
-    Path,
-    Plan,
-    Shape,
-    ShapeCompileError,
-    ShapeError,
-    Term,
-)
+from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, Term
 from starlayer.shacl.engine.terms import OWL, RDF, XSD, BlankNode, Literal
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 from starlayer.shacl.engine.terms import text as text_of

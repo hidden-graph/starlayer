@@ -6,6 +6,7 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.executor import Context
@@ -13,7 +14,7 @@ from starlayer.shacl.engine.expressions import (
     OPERATORS,
     evaluate_expression,
 )
-from starlayer.shacl.engine.plan import Plan, ShapeError
+from starlayer.shacl.engine.plan import Plan
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import XSD, boolean, integer, lexical, text
 from tests.support.errors import raises_kind
@@ -197,7 +198,7 @@ def test_failing_values_expression_gives_no_values():
 
 def test_a_list_member_that_is_a_node_expression_is_not_a_constant():
     """Node Expressions 4.1.3: a list expression's members are constants. The workbench shows this error to the user."""
-    from starlayer.shacl.engine.plan import ShapeError
+    from starlayer.errors import ShapeError
 
     assert ev("( 1 2 )") == [integer(1), integer(2)]
     with pytest.raises(ShapeError, match="not a constant"):

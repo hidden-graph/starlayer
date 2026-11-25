@@ -233,7 +233,7 @@ def test_malformed_shape_is_a_recorded_plan_error():
     )
     obj = plan_to_json(plan)
     assert [e["node"]["v"] for e in obj["errors"]] == ["http://e/S"]
-    from starlayer.shacl.engine.plan import ShapeError
+    from starlayer.errors import ShapeError
 
     with pytest.raises(ShapeError):
         plan_from_json(json.loads(json.dumps(obj))).shape(URIRef("http://e/S"))

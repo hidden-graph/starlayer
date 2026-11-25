@@ -6,8 +6,9 @@ import time
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import MetaShaclError
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl.engine.meta import MetaShaclError, meta_scope
+from starlayer.shacl.engine.meta import meta_scope
 from starlayer.shacl.engine.meta import meta_validate as engine_meta_validate
 from starlayer.shacl.engine.meta_scope import MetaScope
 from starlayer.shacl.engine.terms import RDF, SH, to_engine

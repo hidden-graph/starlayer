@@ -33,17 +33,12 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
+from starlayer.errors import ExecutionError, ShapeCompileError, ShapeError
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.interface import Solutions, Term
 from starlayer.shacl.engine.naming import locate
-from starlayer.shacl.engine.plan import (
-    SH,
-    ExecutionError,
-    Plan,
-    ShapeCompileError,
-    ShapeError,
-)
+from starlayer.shacl.engine.plan import SH, Plan
 from starlayer.shacl.engine.sparql_support import (
     check_query,
     is_true,

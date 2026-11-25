@@ -8,8 +8,8 @@ import warnings
 
 import pytest
 from starlayer import StarLayerGraph
+from starlayer.errors import ShapeError
 from starlayer.shacl import apply_rules, validate
-from starlayer.shacl.engine.plan import ShapeError
 
 PRE = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <urn:ex:> .\n"
 

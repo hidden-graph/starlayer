@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import ShapeError, StarShaclProcessor
+from starlayer.shacl import ShapeCompileError, ShapeError, StarShaclProcessor
 from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -170,7 +170,7 @@ def test_bare_validate_function_raises_too() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeCompileError, match="owl:imports"):
         validate(data, _myapp_shapes(), meta_shacl=False)
 
 

@@ -18,12 +18,13 @@ import itertools
 import re
 from typing import Any
 
+from starlayer.errors import ShapeCompileError
 from starlayer.shacl.engine.components.registry import (
     REGISTRY,
     ComponentSpec,
     Violation,
 )
-from starlayer.shacl.engine.plan import SH, Plan, Shape, ShapeCompileError, Term
+from starlayer.shacl.engine.plan import SH, Plan, Shape, Term
 from starlayer.shacl.engine.sparql_support import (
     fill_template,
     is_true,

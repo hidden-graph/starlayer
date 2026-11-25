@@ -1,11 +1,12 @@
 """Errors are classified by cause: ``ShapeError`` (the shapes graph or its setup is wrong, whenever the engine finds it) and
-``ExecutionError`` (the shapes graph is fine and running it failed). ``ExecutionError`` is one plain ``Exception`` class whose ``kind``
+``ExecutionError`` (the shapes graph is fine and running it failed). ``ExecutionError`` is one ``StarLayerError`` class whose ``kind``
 says what failed; ``ShapeError`` is the base of ``ShapeCompileError`` (the engine cannot compile it) and ``MetaShaclError`` (the meta
 check found it)."""
 
 from __future__ import annotations
 
 import pytest
+from starlayer.errors import StarLayerError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
     ExecutionError,
@@ -67,10 +68,10 @@ def test_the_old_per_kind_classes_are_gone():
 
 
 def test_a_shape_error_is_not_an_execution_error():
-    assert issubclass(ShapeError, ValueError)
+    assert not issubclass(ShapeError, ValueError)
     assert not issubclass(ShapeError, ExecutionError)
     assert not issubclass(MetaShaclError, ExecutionError)
-    assert issubclass(ExecutionError, Exception) and not issubclass(ExecutionError, ValueError)
+    assert issubclass(ExecutionError, StarLayerError) and not issubclass(ExecutionError, ValueError)
 
 
 def test_an_expression_error_comes_out_of_validate_through_the_engines_except_clauses():
@@ -251,7 +252,7 @@ BAD_COUNT = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex
 
 def test_the_shape_error_hierarchy():
     for cls in (ShapeCompileError, MetaShaclError):
-        assert issubclass(cls, ShapeError) and issubclass(cls, ValueError)
+        assert issubclass(cls, ShapeError) and not issubclass(cls, ValueError)
         assert not issubclass(cls, ExecutionError)
     assert not issubclass(ShapeCompileError, MetaShaclError) and not issubclass(MetaShaclError, ShapeCompileError)
     assert not issubclass(ExecutionError, ShapeError)

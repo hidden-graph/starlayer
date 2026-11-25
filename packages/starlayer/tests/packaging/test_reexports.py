@@ -22,7 +22,7 @@ def test_reexports_are_the_same_objects_not_copies() -> None:
 
 def test_all_matches_actual_module_exports() -> None:
     """``dir(starlayer)`` also legitimately includes ``graph``/``sparql``/
-    ``shacl``/``starontology`` - Python always binds an
+    ``shacl``/``starontology``/``errors`` - Python always binds an
     imported submodule as an attribute of its parent package as a side
     effect of the import (not something any of this project's own code
     opts into). ``graph``/``shacl``/``sparql`` are always present -
@@ -55,7 +55,7 @@ def test_all_matches_actual_module_exports() -> None:
     *curated* re-export is genuinely present, not that nothing else is
     ever visible."""
     exported = {name for name in dir(starlayer) if not name.startswith("_")}
-    submodule_attrs = {"graph", "sparql", "shacl", "starontology"}
+    submodule_attrs = {"graph", "sparql", "shacl", "starontology", "errors"}  # errors: the leaf module starlayer/errors.py, imported by every subpackage
     assert exported - submodule_attrs == set(starlayer.__all__)
 
 

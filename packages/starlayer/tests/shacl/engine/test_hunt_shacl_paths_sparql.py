@@ -45,7 +45,7 @@ def test_failure_binding_only_boolean_true_aborts(literal):
     ],
 )
 def test_minus_and_service_rejected_in_order_by_and_having(tail):
-    from starlayer.shacl.engine.plan import ShapeError
+    from starlayer.errors import ShapeError
 
     shapes = G(f'ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:select """SELECT $this WHERE {{ $this ?p ?o }} {tail}""" ; sh:message "m" ] .')
     with pytest.raises(ShapeError):
@@ -127,7 +127,7 @@ def test_cyclic_expression_is_nesting_too_deep_not_recursion_error(shapes):
     ],
 )
 def test_wrong_argument_count_is_a_shape_error(call):
-    from starlayer.shacl.engine.plan import ShapeError
+    from starlayer.errors import ShapeError
 
     shapes = G(f"@prefix sparql: <http://www.w3.org/ns/sparql#> . ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:expression {call} .")
     with pytest.raises(ShapeError):
