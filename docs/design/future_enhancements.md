@@ -484,3 +484,15 @@ An opt-in is consistent with how the report records its configuration (`include_
 1. **A flag such as `include_run_time=True`** on `validate()` and `validate_each()` that adds `prov:startedAtTime` and `prov:endedAtTime` (`xsd:dateTime` in UTC) to the `sh:ValidationActivity` that already carries `sh:usedDataGraph`, `sh:usedShapesGraph` and `sh:usedConfiguration` (the report node gets nothing). Decide whether the activity is also written when no name is known and no configuration is asked for, since it is skipped then today.
 2. **An injectable clock.** The time has to come from a function the caller can replace, so that tests and any caller who needs deterministic output can fix it. A rule run already fixes one "now" for the whole run, so every `NOW()` in it agrees (`_Run.now` in `shacl/engine/rules.py`), but the caller cannot set it; one clock option could serve both.
 3. **Decide the scope** with the rest of the report annotations: the data-graph and shapes-graph names, the configuration and the `sh:conformsToShapesGraph` link are all opt-in or conditional today, so the time should follow the same pattern.
+
+
+## Error handling in SHACL, and uniformity across StarLayer (2026-11-25)
+
+The SHACL errors are now classified by cause (`shacl/errors.py`): `ShapeError` (with `ShapeCompileError` and `MetaShaclError`) for a wrong shapes graph, one `ExecutionError` with a `kind` for a failed run, and a plain `ValueError` or `TypeError` only for a bad call. The rest of StarLayer has not been looked at the same way, and the two should read as one scheme.
+
+**To do**
+- **Audit the raises outside `starlayer/shacl`.** About 100 `ValueError` raises in `graph/`, `sparql/` and `starontology/` were left out of the SHACL audit (2026-11-25). Sort each into: a bad argument (stays a plain `ValueError` or `TypeError`), a bad document or data format (parse and format errors), or a failure while running (a query, an inference, an entailment).
+- **Decide the scheme for the other subsystems.** Whether SPARQL, the graph layer and the reasoner get their own error base (as SHACL has `ShapeError` and `ExecutionError`), or share one, and whether the `kind` idea of `ExecutionError` carries over (one class with a `kind` that a caller reads, instead of a class per case).
+- **Write down the rule once.** A plain `ValueError` is only a bad argument value at the entry of a public call. A problem found while compiling or running is a library error with a cause. The same wording in each subsystem's `CLAUDE.md` and in the guides.
+- **Align the SHACL leftovers.** `max_iterations` is not validated for type or sign, as `max_triples` now is, and its error message does not name the option, as the `max_triples` message does. `apply_rules()` options are checked in the adapter.
+- **Check the catch clauses.** The engine's `except` clauses by kind (`plan.only_kind`) are the pattern for catching a kind; the other subsystems should not catch a broad class and swallow a failure the same way (the custom-function wrapper in `sparql_support.py` did, 2026-11-25).
