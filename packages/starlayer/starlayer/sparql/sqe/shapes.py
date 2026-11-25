@@ -66,8 +66,8 @@ def _ontology_graph() -> Any:
     return g
 
 
-def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
-    """Validate ``data_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
+def sqe_validate(tree_graph: Any) -> tuple[bool, Any, str]:
+    """Validate ``tree_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
     an LLM-/UI-authored ``sqe:`` graph not yet decoded) against the shapes
     above.
 
@@ -75,7 +75,7 @@ def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
     genuine RDF 1.2 content (a triple term).
 
     Args:
-        data_graph: The ``sqe:`` RDF graph (a ``StarLayerGraph``) to validate.
+        tree_graph: The ``sqe:`` RDF graph (a ``StarLayerGraph``) to validate.
 
     Returns:
         A ``(conforms, report_graph, report_text)`` tuple.
@@ -88,7 +88,7 @@ def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
 
     from ._memtree import as_engine_graph
 
-    data_graph, _ = as_engine_graph(data_graph)
+    tree_graph, _ = as_engine_graph(tree_graph)
     with shared_plans(_PLANS):
-        result = validate_bounded(_entailed_copy(data_graph), _shapes_graph(), max_validation_depth=100)
+        result = validate_bounded(_entailed_copy(tree_graph), _shapes_graph(), max_validation_depth=100)
     return result.conforms, result.report_graph, result.report_text

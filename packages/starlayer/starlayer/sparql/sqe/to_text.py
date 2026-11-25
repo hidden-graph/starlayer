@@ -126,13 +126,13 @@ class SqeTextTooDeepError(ValueError):
     """The tree is nested more deeply than the renderer can follow within Python's stack."""
 
 
-def sqe_tree_to_text(graph: Any, root) -> str:
+def sqe_tree_to_text(tree_graph: Any, root) -> str:
     """Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
     into SPARQL query text, re-abbreviating terms using the ``PREFIX``
     declarations preserved on ``root`` wherever one matches.
 
     Args:
-        graph: The ``sqe:`` RDF graph containing ``root``.
+        tree_graph: The ``sqe:`` RDF graph containing ``root``.
         root: The query root node to render.
 
     Returns:
@@ -144,7 +144,7 @@ def sqe_tree_to_text(graph: Any, root) -> str:
     from ..parse_sparql import run_with_deeper_stack
     from ._memtree import as_engine_graph
 
-    graph, root = as_engine_graph(graph, root)
+    graph, root = as_engine_graph(tree_graph, root)
     try:
         return run_with_deeper_stack(_tree_to_text, graph, root)
     except RecursionError:

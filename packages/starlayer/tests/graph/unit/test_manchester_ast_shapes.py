@@ -44,7 +44,7 @@ def _encode_data_prop_range():
         '    Domain: Person\n'
         '    Range: xsd:integer\n'
     )
-    return manchester_parse_to_tree(text, graph=StarLayerGraph())  # edited below
+    return manchester_parse_to_tree(text, tree_graph=StarLayerGraph())  # edited below
 
 
 def test_wrong_item_type_under_data_prop_range_clause_fails():
@@ -80,7 +80,7 @@ def test_misc_axiom_item_of_wrong_family_fails():
         'Prefix: : <http://example.org/>\n'
         'EquivalentClasses: Cat, Feline\n'
     )
-    graph = manchester_parse_to_tree(text, graph=StarLayerGraph())  # edited below
+    graph = manchester_parse_to_tree(text, tree_graph=StarLayerGraph())  # edited below
     misc = next(graph.subjects(RDF.type, MANCH.MiscEquivalentClassesAxiom))
     items_list = next(graph.objects(misc, MANCH.items))
 

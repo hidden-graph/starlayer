@@ -155,7 +155,7 @@ class TestRootParameter:
         iri1, iri2 = ox.NamedNode("urn:test:q1"), ox.NamedNode("urn:test:q2")
         graph, root1 = sqe_parse_to_tree(self.QUERY_TEXT, root=iri1)
         graph, root2 = sqe_parse_to_tree(
-            "SELECT ?s WHERE { ?s a <http://example.org/Other> }", graph=graph, root=iri2
+            "SELECT ?s WHERE { ?s a <http://example.org/Other> }", tree_graph=graph, root=iri2
         )
 
         assert root1 == ox.NamedNode("urn:test:q1") and root2 == ox.NamedNode("urn:test:q2")

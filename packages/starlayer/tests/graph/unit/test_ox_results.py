@@ -205,7 +205,7 @@ def test_srl_tree_and_validate():
     from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
 
     text = "RULE { ?x <http://e/q> ?y } WHERE { ?x <http://e/p> ?y }"
-    graph, root = srl_parse_to_tree(text, graph=StarLayerGraph())
+    graph, root = srl_parse_to_tree(text, tree_graph=StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
     ok, report, _text = srl_validate(graph)
@@ -234,7 +234,7 @@ MANCHESTER = "Class: <http://e/A> SubClassOf: <http://e/B>"
 def test_manchester_tree_functions():
     from starlayer.starontology import manchester
 
-    tree = manchester.manchester_parse_to_tree(MANCHESTER, graph=StarLayerGraph())
+    tree = manchester.manchester_parse_to_tree(MANCHESTER, tree_graph=StarLayerGraph())
     assert_ox(tree)
     assert "manch" in tree.prefixes
     owl = manchester.manchester_tree_to_owl(tree)

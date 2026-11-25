@@ -25,9 +25,9 @@ Four entry points:
   ``salg:QueryCollection``-style use case), so ``_find_root()`` locates it
   internally wherever it's needed instead of making every caller carry it
   around separately.
-- ``manchester_tree_to_text(graph) -> str`` - the inverse: render ``manch:`` tree-RDF
+- ``manchester_tree_to_text(tree_graph) -> str`` - the inverse: render ``manch:`` tree-RDF
   back to real Manchester Syntax text.
-- ``manchester_tree_to_owl(graph) -> StarLayerGraph`` - the tree's compiled OWL
+- ``manchester_tree_to_owl(tree_graph) -> StarLayerGraph`` - the tree's compiled OWL
   content, as a real graph (not a bare ``list[tuple]``, changed
   2026-10-03) - by composing ``manchester_tree_to_text()`` with
   ``manchester_parser.parse_manchester()`` (the real, trusted OWL compiler)
@@ -36,7 +36,7 @@ Four entry points:
   Going through text here is safe, not a shortcut-that-loses-fidelity:
   ``manchester_tree_to_text()`` is a fully faithful renderer of everything this module
   captures, so nothing is lost before the OWL compiler sees it.
-- ``manchester_validate(data_graph) -> (conforms, report_graph, report_text)`` -
+- ``manchester_validate(tree_graph) -> (conforms, report_graph, report_text)`` -
   structural SHACL validation of a ``manch:`` graph (e.g. straight out of
   ``manchester_parse_to_tree()``, or LLM-authored, not yet decoded) against the shapes
   in ``manchester_shapes.ttl``. Only needs the tree being checked - which
@@ -532,7 +532,7 @@ def _find_root(graph: Graph) -> BNode:
     return root
 
 
-def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = None) -> Any:
+def manchester_parse_to_tree(text: str, base: str | None = None, tree_graph: Any = None) -> Any:
     """Parse Manchester Syntax text straight to its ``manch:``-encoded
     syntax tree.
 
@@ -545,22 +545,22 @@ def manchester_parse_to_tree(text: str, base: str | None = None, graph: Any = No
     Args:
         text: The Manchester Syntax document text to parse.
         base: Base IRI for resolving relative IRIs, if any.
-        graph: Write the tree into this graph instead of a fresh one - an ``StarLayerGraph`` (or ``StarLayerDataset`` / ``pyoxigraph.Store``)
+        tree_graph: Write the tree into this graph instead of a fresh one - an ``StarLayerGraph`` (or ``StarLayerDataset`` / ``pyoxigraph.Store``)
             gets pyoxigraph terms and the ``manch:`` prefix. ``None`` (the default) builds a fresh ``StarLayerGraph``.
 
     Returns:
-        ``graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:Document`` tree.
+        ``tree_graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:Document`` tree.
     """
-    if graph is None:
+    if tree_graph is None:
         from starlayer.graph.core import StarLayerGraph
 
-        graph = StarLayerGraph()
+        tree_graph = StarLayerGraph()
     tree = _manchester_parse_to_tree_graph(text, base)
-    if _holds_document(graph):
+    if _holds_document(tree_graph):
         raise ValueError("the graph already holds a manch:Document: a graph holds one Manchester syntax tree, parse into a fresh graph")
-    graph.bind("manch", str(MANCH))
-    graph.extend(list(tree))  # triples only: no prefixes are copied
-    return graph
+    tree_graph.bind("manch", str(MANCH))
+    tree_graph.extend(list(tree))  # triples only: no prefixes are copied
+    return tree_graph
 
 
 def _holds_document(graph: Any) -> bool:
@@ -1110,10 +1110,10 @@ def _document_to_text(document: Document) -> str:
     return '\n'.join(lines).rstrip() + '\n'
 
 
-def manchester_tree_to_text(graph: Graph) -> str:
+def manchester_tree_to_text(tree_graph: Graph) -> str:
     """Thin wrapper composing ``_tree_to_document`` + ``_document_to_text``
-    for a caller who just wants text back. ``graph`` may be an ``StarLayerGraph`` (read as a snapshot)."""
-    graph = _as_graph(graph)
+    for a caller who just wants text back. ``tree_graph`` may be an ``StarLayerGraph`` (read as a snapshot)."""
+    graph = _as_graph(tree_graph)
     root = _find_root(graph)
     try:
         return _document_to_text(_tree_to_document(graph, root))
@@ -1122,7 +1122,7 @@ def manchester_tree_to_text(graph: Graph) -> str:
         raise ManchesterSyntaxError('class expression nested too deeply to render', '', pos=0) from None
 
 
-def manchester_tree_to_owl(graph: Any) -> Any:
+def manchester_tree_to_owl(tree_graph: Any) -> Any:
     """The tree's compiled OWL triples, as an ``StarLayerGraph`` -
     renders the tree to Manchester text via ``manchester_tree_to_text()``,
     then compiles that text the same way any other caller would:
@@ -1137,7 +1137,7 @@ def manchester_tree_to_owl(graph: Any) -> Any:
     lost before the OWL compiler sees it - see this module's own docstring.
 
     Args:
-        graph: A ``manch:`` syntax tree, e.g. from ``manchester_parse_to_tree()``.
+        tree_graph: A ``manch:`` syntax tree, e.g. from ``manchester_parse_to_tree()``.
 
     Returns:
         The compiled OWL content as a fresh ``StarLayerGraph``.
@@ -1145,7 +1145,7 @@ def manchester_tree_to_owl(graph: Any) -> Any:
     from starlayer.graph.core import StarLayerGraph
 
     owl_graph = StarLayerGraph()
-    owl_graph.parse(data=manchester_tree_to_text(graph), format='manchester')
+    owl_graph.parse(data=manchester_tree_to_text(tree_graph), format='manchester')
     return owl_graph
 
 
@@ -1234,8 +1234,8 @@ def _known_classes() -> frozenset:
     )
 
 
-def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
-    """Validate ``data_graph`` against the shapes in
+def manchester_validate(tree_graph: Any) -> tuple[bool, Any, str]:
+    """Validate ``tree_graph`` against the shapes in
     ``manchester_shapes.ttl``. Which shapes to check against is this
     module's own, fixed concern, not a parameter.
 
@@ -1256,7 +1256,7 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
     privately.
 
     Goes through ``starlayer.shacl.validate()``, never bare ``pyshacl`` -
-    this validates a caller-supplied ``data_graph`` that may be genuine
+    this validates a caller-supplied ``tree_graph`` that may be genuine
     RDF 1.2 content, which only ``starlayer.shacl`` understands correctly.
 
     Before SHACL runs, a pre-flight check looks at the graph as asserted (see ``_preflight``): inference
@@ -1264,7 +1264,7 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
     decoder cannot read. Its findings are merged into the returned report.
 
     Args:
-        data_graph: The ``manch:`` syntax tree to validate - e.g. straight
+        tree_graph: The ``manch:`` syntax tree to validate - e.g. straight
             out of ``manchester_parse_to_tree()``, or an LLM-authored
             ``manch:`` graph not yet decoded.
 
@@ -1277,13 +1277,13 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
     from starlayer.graph.entailment.infer import ENTAILMENT
     from starlayer.shacl._adapter import validate_bounded
 
-    problems = _preflight(_as_graph(data_graph))
+    problems = _preflight(_as_graph(tree_graph))
     if any("cycle" in message for _, message in problems):
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.
         return False, _preflight_report(problems, None), _preflight_text(problems, "")
 
     result = validate_bounded(
-        data_graph,
+        tree_graph,
         get_ontology_graph("manchester_shacl"),
         ont_graph=get_ontology_graph("manchester_owl"),
         inference=ENTAILMENT.RDFS,

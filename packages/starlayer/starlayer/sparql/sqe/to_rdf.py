@@ -68,7 +68,7 @@ def _has_violation(report_graph: Any) -> bool:
 
 def sqe_parse_to_tree(
     text: str,
-    graph: Any = None,
+    tree_graph: Any = None,
     root: Any = None,
 ) -> tuple[Any, Any]:
     """Encode SPARQL ``SELECT``/``ASK``/``CONSTRUCT``/``DESCRIBE`` query text (or SPARQL Update text) as
@@ -91,7 +91,7 @@ def sqe_parse_to_tree(
 
     Args:
         text: The SPARQL query text to encode.
-        graph: The graph to add the ``sqe:`` RDF to: a ``StarLayerGraph`` (pyoxigraph terms), or an rdflib graph (filled with
+        tree_graph: The graph to add the ``sqe:`` RDF to: a ``StarLayerGraph`` (pyoxigraph terms), or an rdflib graph (filled with
             rdflib terms; rdflib is then needed). Defaults to a fresh ``StarLayerGraph``.
         root: The node to use as the query's own root - any ``NamedNode``/
             ``BlankNode``. Defaults to a fresh blank node. Give a real
@@ -99,12 +99,12 @@ def sqe_parse_to_tree(
             (e.g. ``graph.value(my_iri, RDF.type, SQE.Query)``), rather
             than only via the ``root`` value this function itself
             returns - useful once a graph accumulates more than one
-            encoded query (via repeated calls sharing one ``graph=``),
+            encoded query (via repeated calls sharing one ``tree_graph=``),
             where a bare `?s a sqe:Query` lookup can no longer tell them
             apart on its own.
 
     Returns:
-        A ``(graph, root)`` tuple; with no ``graph`` given, a ``StarLayerGraph`` and a pyoxigraph ``root``.
+        A ``(tree_graph, root)`` tuple; with no ``tree_graph`` given, a ``StarLayerGraph`` and a pyoxigraph ``root``.
 
     Raises:
         SparqlSyntaxError: For text outside the SPARQL 1.2 query
@@ -133,7 +133,7 @@ def sqe_parse_to_tree(
     triples, root = ast_to_triples(ast, root)
     from starlayer.graph.core import StarLayerGraph
 
-    tree = StarLayerGraph(prefixes={}) if graph is None else graph
+    tree = StarLayerGraph(prefixes={}) if tree_graph is None else tree_graph
     tree.extend(triples)
     conforms, report_graph, report_text = sqe_validate(tree)
     if not conforms and _has_violation(report_graph):

@@ -21,10 +21,10 @@ Six entry points, forming two independent round trips (text<->tree-RDF,
 text<->RuleSet) plus a third already covered by the first two composed
 (tree-RDF<->RuleSet):
 
-- ``srl_parse_to_tree(text, base=None) -> (graph, root)`` - SRL text straight
+- ``srl_parse_to_tree(text, base=None, tree_graph=None) -> (tree_graph, root)`` - SRL text straight
   to its ``srl:``-encoded tree-RDF. Composes ``parse_ruleset`` +
   ``ruleset_to_tree``.
-- ``srl_tree_to_text(graph, root) -> str`` - the inverse. Composes
+- ``srl_tree_to_text(tree_graph, root) -> str`` - the inverse. Composes
   ``tree_to_ruleset`` + ``ruleset_to_text``.
 - ``parse_ruleset(text, base=None, *, validate=True) -> RuleSet`` - SRL text
   straight to a real ``RuleSet`` object, skipping RDF entirely in the result
@@ -45,7 +45,7 @@ text<->RuleSet) plus a third already covered by the first two composed
   encode a ``RuleSet`` (e.g. one built or edited programmatically - rules
   combined, a filter rewritten) back to ``srl:`` tree-RDF.
 
-Plus ``srl_validate(data_graph) -> (conforms, report_graph, report_text)`` -
+Plus ``srl_validate(tree_graph) -> (conforms, report_graph, report_text)`` -
 structural SHACL validation of an ``srl:`` tree-RDF graph. Deliberately
 **no** public ``ontology_graph()``/``shapes_graph()`` here (same decision
 ``starontology.manchester`` makes for ``manch:``) - callers who want the
@@ -666,16 +666,16 @@ def _rule_text(rule: srl_ast._Rule, prefixes: dict) -> str:
 # srl_parse_to_tree()/srl_tree_to_text() naming.
 # ---------------------------------------------------------------------------
 
-def srl_parse_to_tree(text: str, base: str | None = None, graph: Any = None) -> tuple[Any, Any]:
+def srl_parse_to_tree(text: str, base: str | None = None, tree_graph: Any = None) -> tuple[Any, Any]:
     """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
-    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(graph, root)``; ``graph`` (a ``StarLayerGraph``) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
-    return ruleset_to_tree(parse_ruleset(text, base), graph)
+    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(tree_graph, root)``; ``tree_graph`` (a ``StarLayerGraph``) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
+    return ruleset_to_tree(parse_ruleset(text, base), tree_graph)
 
 
-def srl_tree_to_text(graph: Any, root) -> str:
+def srl_tree_to_text(tree_graph: Any, root) -> str:
     """The inverse of ``srl_parse_to_tree``. Composes ``tree_to_ruleset`` +
     ``ruleset_to_text``."""
-    return ruleset_to_text(tree_to_ruleset(graph, root))
+    return ruleset_to_text(tree_to_ruleset(tree_graph, root))
 
 
 # ---------------------------------------------------------------------------
@@ -855,8 +855,8 @@ def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
     raise SRLParseError(f"SRL: rule set does not conform to the srl: shapes: {detail}")
 
 
-def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
-    """Validate ``data_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
+def srl_validate(tree_graph: Any) -> tuple[bool, Any, str]:
+    """Validate ``tree_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
     shapes.
 
@@ -867,7 +867,7 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
     understands correctly.
 
     Args:
-        data_graph: The ``srl:`` tree-RDF graph to validate.
+        tree_graph: The ``srl:`` tree-RDF graph to validate.
 
     Returns:
         A ``(conforms, report_graph, report_text)`` tuple, unpacked from
@@ -883,10 +883,10 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
     from .sqe._memtree import as_engine_graph
 
     shapes, _ontology, schema = _validation_graphs()
-    data_graph, _ = as_engine_graph(data_graph)
+    tree_graph, _ = as_engine_graph(tree_graph)
     with shared_plans(_validation_plans):
         result = validate_bounded(
-            rdfs_entailed_copy(data_graph, schema),  # the RDFS closure the shapes rely on, done natively
+            rdfs_entailed_copy(tree_graph, schema),  # the RDFS closure the shapes rely on, done natively
             shapes,
             max_validation_depth=100,
         )

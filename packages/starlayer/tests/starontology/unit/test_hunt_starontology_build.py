@@ -78,7 +78,7 @@ def test_manchester_second_document_into_one_graph_is_rejected():
     pre = "Prefix: : <http://ex/>\n"
     g = M.manchester_parse_to_tree(pre + "Class: :A\n")
     with pytest.raises(ValueError, match="manch:Document"):
-        M.manchester_parse_to_tree(pre + "Class: :B\n", graph=g)
+        M.manchester_parse_to_tree(pre + "Class: :B\n", tree_graph=g)
     text = M.manchester_tree_to_text(g)
     assert "ex/A" in text and "ex/B" not in text
 

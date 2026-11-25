@@ -164,7 +164,7 @@ def test_decoded_document_is_a_plain_namedtuple_tree():
     tree-RDF, not this intermediate object - see the module's own
     docstring), but this still verifies its internal shape directly."""
     text = HEADER + 'Class: Cat\n    SubClassOf: Animal\n'
-    graph = manchester_parse_to_tree(text, graph=StarLayerGraph())
+    graph = manchester_parse_to_tree(text, tree_graph=StarLayerGraph())
     document = _tree_to_document(graph, _find_root(graph))
 
     assert document.frames[0].kind == 'Class'
