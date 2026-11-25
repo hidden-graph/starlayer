@@ -397,13 +397,13 @@ def _recompute_component(
     working: Any, data: Any, shape_node: Any, instances: set[Any], path: Any, component: Any, mint: _Minter,
 ) -> bool:
     """Recompute ``component`` on ``shape_node`` from the true current data of the ``instances`` / ``path``. False when there is
-    nothing to recompute from (no numeric values for a range component), so the caller drops and annotates instead."""
+    nothing to recompute from (no numeric values for a range component), so the caller deactivates instead. A ``sh:minCount`` the
+    data breaks only reaches the count branch when the fewest count is above 0 (the caller deactivates the zero case)."""
     counts, values = _counts_and_values(data, instances, path)
 
     if component == SH.MinCountConstraintComponent:
         working.remove((shape_node, SH.minCount, None))
-        if (m := min(counts, default=0)) > 0:
-            working.add((shape_node, SH.minCount, _int(m)))
+        working.add((shape_node, SH.minCount, _int(max(min(counts, default=1), 1))))
         return True
 
     if component == SH.MaxCountConstraintComponent:
@@ -553,9 +553,10 @@ def _violated_values(
 
 def _deactivate(
     working: Any, data: Any, shape_node: Any, target: _Target, source: Any, component: Any, specs: list, mint: _Minter,
-    changes: _Changes,
+    changes: _Changes, why: str | None = None,
 ) -> None:
-    """Switch off the constraint the data breaks with ``{| sh:deactivated true |}`` on its own triple. A component of several
+    """Switch off the constraint the data breaks with ``{| sh:deactivated true |}`` on its own triple. ``why`` replaces the
+    default reason in the comment. A component of several
     parameters is one constraint and any of its triples switches it off, so the first parameter present carries it (the engine skips the whole constraint, so with several values of that parameter, such as two
     ``sh:pattern``, all are switched off and listed)."""
     spec = next((sp for sp in specs if sp.iri == component), None)
@@ -572,11 +573,13 @@ def _deactivate(
             working.add((reifier, _RDF_REIFIES, ox.Triple(source, pred, value)))
             working.add((reifier, SH.deactivated, _TRUE))
         what = _shown_constraint(working, source, pred, values)
-        if component == SH.SPARQLConstraintComponent or not _text(component).startswith(_SH_NS):
-            why = "the data breaks it and it cannot be checked or recomputed (an opaque constraint)"
+        if why is not None:
+            reason = why
+        elif component == SH.SPARQLConstraintComponent or not _text(component).startswith(_SH_NS):
+            reason = "the data breaks it and it cannot be checked or recomputed (an opaque constraint)"
         else:
-            why = "the data breaks it and it cannot be recomputed from the data"
-        changes.deactivated.append((_where(working, source, shape_node), what, why))
+            reason = "the data breaks it and it cannot be recomputed from the data"
+        changes.deactivated.append((_where(working, source, shape_node), what, reason))
         return
 
 
@@ -676,6 +679,13 @@ def _derive_with_template(
             continue  # the shape was renamed or is not in the copy: nothing to change
         if component in _RECOMPUTE_COMPONENTS:
             focus, path = _shape_instances(working, data, source, target.include_subclasses), violation["path"]
+            if component == SH.MinCountConstraintComponent and focus is not None and path is not None:
+                counts = _counts_and_values(data, focus, path)[0]
+                if min(counts, default=0) == 0:
+                    # sh:minCount 0 is valid but means no constraint: keep the value the template had, switched off
+                    why = "no node has a value for it" if max(counts, default=0) == 0 else "some node has no value for it"
+                    _deactivate(working, data, shape_node, target, source, component, specs, mint, changes, why)
+                    continue
             preds = _RECOMPUTE_PREDICATES[component]
             before = _show_values(working, source, preds)
             if (
@@ -769,7 +779,8 @@ def derive_shape(
     (counts, datatype, class, node kind, ranges, lengths, languages, ``sh:in`` widened). When there is none (``sh:pattern``,
     ``sh:hasValue``, pair comparisons) or it cannot be checked at all (``sh:sparql``, custom components) it is deactivated, not
     dropped, with a reifier on that one triple (``{| sh:deactivated true |}``), so a reader still sees what was switched off and
-    the engine still skips it. Predicates the template does not cover are added, and its ignored properties are kept. Only the
+    the engine still skips it. A ``sh:minCount`` is lowered to the fewest values any node has; when that is 0 it is deactivated
+    instead of removed or set to 0, which is valid but reads as no constraint, so the original value stays visible. Predicates the template does not cover are added, and its ignored properties are kept. Only the
     main shape is closed, not shapes it merely references. The declarations of the custom constraint components the shape uses
     are copied along, or the parameter would be an ordinary triple that checks nothing.
 

@@ -751,3 +751,69 @@ class TestTemplateDeactivation:
         more = _ttl(self.DATA + ' ex:carol a ex:Person ; ex:nick "x" ; ex:extra 1 .')
         twice = derive_shape(more, cls=EX.Person, template_graph=once)
         assert len(list(twice.objects(EX.S, RDFS.comment))) == 1
+
+
+class TestMinCountTheDataBreaks:
+    """A ``sh:minCount`` the data breaks is lowered to the fewest values any node has; when that is 0 it is kept and deactivated."""
+
+    HEAD = 'ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:closed true ; '
+
+    def _zero(self):
+        data = _ttl('ex:alice a ex:Person ; ex:name "Alice" . ex:bob a ex:Person ; ex:name "Bob" .')
+        template = _ttl(self.HEAD + 'sh:property [ sh:path ex:name ] , [ sh:path ex:phone ; sh:minCount 1 ] .')
+        return data, template
+
+    def test_fewest_zero_keeps_the_value_and_deactivates_it(self):
+        data, template = self._zero()
+        before = _triples(template)
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert not _conforms(data, template)
+        assert _conforms(data, result)
+        assert starlayer.shacl.meta_validate(result)[0] is True
+        by_path = {next(result.objects(p, SH.path)): p for p in result.objects(EX.S, SH.property)}
+        assert result.value(by_path[EX.phone], SH.minCount) == lit(1)
+        assert _deactivated(result) == {(by_path[EX.phone], SH.minCount, lit(1))}
+        (comment,) = result.objects(EX.S, RDFS.comment)
+        assert text(comment).split('\n') == [
+            'derive_shape() changed this shape to fit the data:',
+            'Deactivated ex:phone sh:minCount 1: no node has a value for it.',
+        ]
+        assert _triples(template) == before
+
+    def test_some_node_without_a_value_says_so(self):
+        data = _ttl('ex:alice a ex:Person ; ex:phone "1" . ex:bob a ex:Person .')
+        template = _ttl(self.HEAD + 'sh:property [ sh:path ex:phone ; sh:minCount 2 ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _conforms(data, result)
+        assert result.value(next(result.objects(EX.S, SH.property)), SH.minCount) == lit(2)
+        (comment,) = result.objects(EX.S, RDFS.comment)
+        assert text(comment).endswith('Deactivated ex:phone sh:minCount 2: some node has no value for it.')
+
+    def test_fewest_above_zero_still_lowers(self):
+        data = _ttl('ex:alice a ex:Person ; ex:nick "a", "b" . ex:bob a ex:Person ; ex:nick "c" .')
+        template = _ttl(self.HEAD + 'sh:property [ sh:path ex:nick ; sh:minCount 3 ] .')
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _conforms(data, result)
+        assert not _deactivated(result)
+        assert result.value(next(result.objects(EX.S, SH.property)), SH.minCount) == lit(1)
+        (comment,) = result.objects(EX.S, RDFS.comment)
+        assert text(comment).endswith('Loosened ex:nick sh:minCount from 3 to 1: some node has fewer values.')
+
+    def test_deterministic_idempotent_and_inputs_unchanged(self):
+        data, template = self._zero()
+        before = _triples(data), _triples(template)
+        a = derive_shape(data, cls=EX.Person, template_graph=template)
+        b = derive_shape(data, cls=EX.Person, template_graph=template)
+        assert _triples(a) == _triples(b)
+        assert (_triples(data), _triples(template)) == before
+        again = derive_shape(data, cls=EX.Person, template_graph=a)
+        assert _triples(again) == _triples(a)
+
+    def test_result_round_trips_through_turtle12(self):
+        data, template = self._zero()
+        result = derive_shape(data, cls=EX.Person, template_graph=template)
+        again = StarLayerGraph()
+        again.parse(data=result.serialize(format='turtle12', pretty=True), format='turtle12')
+        assert len(again) == len(result)
+        assert _conforms(data, again)
+        assert {t[1:] for t in _deactivated(again)} == {t[1:] for t in _deactivated(result)} == {(SH.minCount, lit(1))}
