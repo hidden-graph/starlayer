@@ -84,7 +84,7 @@ Known pySHACL limitations are handled transparently - a caller does not need to 
 
 Full technical detail and reproduction steps for each are in `docs/upstream-issues/pyshacl-upstream-issues.md`.
 
-One additional, deliberate deviation from pySHACL's own defaults: the meta-shacl preflight (not ordinary data validation) raises pySHACL's default `max_validation_depth` from 15 to 30, since meta-shape nesting goes deeper than ordinary data shapes. A caller relying on pySHACL's own default depth limit to reject a very deeply nested *shapes graph* during meta-shacl validation will see a higher threshold under starshacl than under plain `pyshacl.validate(..., meta_shacl=True)`. Overridable via the same `max_validation_depth` kwarg.
+One additional, deliberate deviation from pySHACL's own defaults: the nesting depth of shapes. pySHACL stops at 15 nested shapes by default, and the meta-shacl preflight raised that to 30 because meta-shape nesting goes deeper than ordinary data shapes. The engine's limit is 500 for all validation, the meta-shacl check included. A caller relying on pySHACL's default to reject a very deeply nested shapes graph will see a higher threshold under StarLayer than under plain `pyshacl.validate(..., meta_shacl=True)`. The limit is an internal engine limit and not an option of `validate()`, `validate_each()` or `apply_rules()` (2026-11-24); exceeding it raises `ShapeError`.
 
 ## Semantic Versioning Policy
 
