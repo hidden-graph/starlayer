@@ -34,6 +34,38 @@ Loader = Callable[[Any], Any]
 #: know SHACL can read the vocabulary; the engine has that vocabulary built in, so the import is satisfied without a loader.
 SHACL_VOCABULARY = ox.NamedNode("http://www.w3.org/ns/shacl#")
 
+_OWL_ONTOLOGY = "http://www.w3.org/2002/07/owl#Ontology"
+_RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+_BUILTIN_KEYS: frozenset[str] | None = None
+
+
+def _import_key(iri: str) -> str:
+    """An ontology IRI without one trailing ``#`` or ``/``: ``http://www.w3.org/ns/shacl#``, ``.../shacl``, ``.../shacl-ui/`` and ``.../shacl-ui`` name
+    the same ontology, and an author writes whichever form the namespace was given in."""
+    return iri[:-1] if iri.endswith(("#", "/")) else iri
+
+
+def builtin_import_keys() -> frozenset[str]:
+    """The ontology IRIs StarLayer has built in, each without a trailing ``#`` or ``/``: every ``owl:Ontology`` a registered ``starontology`` graph
+    declares, read from the registry (no list is kept here, so a new registered ontology is covered by registering it) plus the SHACL vocabulary.
+    Computed on first use and cached; ``starontology`` is imported then, not when this module is."""
+    global _BUILTIN_KEYS
+    if _BUILTIN_KEYS is None:
+        from starlayer.starontology import get_ontology_graph, get_ontology_list
+
+        keys = {_import_key(SHACL_VOCABULARY.value)}
+        for info in get_ontology_list():
+            for s, p, o in get_ontology_graph(info.name).triples((None, None, None)):
+                if isinstance(s, ox.NamedNode) and p.value == _RDF_TYPE and isinstance(o, ox.NamedNode) and o.value == _OWL_ONTOLOGY:
+                    keys.add(_import_key(s.value))
+        _BUILTIN_KEYS = frozenset(keys)
+    return _BUILTIN_KEYS
+
+
+def is_builtin_import(iri: Any) -> bool:
+    """Whether ``owl:imports iri`` names an ontology the engine already has: it is then neither passed to a loader nor an error without one."""
+    return isinstance(iri, ox.NamedNode) and _import_key(iri.value) in builtin_import_keys()
+
 
 def declared_imports(graph: Any) -> tuple[Any, ...]:
     """Every object of an ``owl:imports`` triple, deduplicated, in first-seen order."""
@@ -55,7 +87,7 @@ def resolve_imports(
     shapes_graph = engine_view(shapes_graph, "shapes graph")
     if loader is None:
         if not ignore_imports:
-            missing = [o for o in declared_imports(shapes_graph) if o != SHACL_VOCABULARY and not _has_subject(shapes_graph, o)]
+            missing = [o for o in declared_imports(shapes_graph) if not is_builtin_import(o) and not _has_subject(shapes_graph, o)]
             if missing:
                 raise ShapeCompileError(
                     f"shacl_graph declares owl:imports {[text(m) for m in missing]!r} that aren't already "
@@ -74,7 +106,7 @@ def resolve_imports(
         if iri in fetched:
             continue
         fetched.add(iri)
-        if iri == SHACL_VOCABULARY or _has_subject(shapes_graph, iri):
+        if is_builtin_import(iri) or _has_subject(shapes_graph, iri):
             continue
         graph = engine_view(loader(iri), "imported graph")  # a loader may return an rdflib / StarLayer graph or an StarLayerGraph
         if graph is None:
@@ -99,4 +131,4 @@ def resolve_imports(
     return result
 
 
-__all__ = ["declared_imports", "resolve_imports"]
+__all__ = ["builtin_import_keys", "declared_imports", "is_builtin_import", "resolve_imports"]

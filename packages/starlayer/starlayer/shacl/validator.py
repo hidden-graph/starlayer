@@ -51,7 +51,8 @@ def validate(
         mode: A named preset of options (``"validation"``, ``"rules"`` or ``"debug"``); any of its options can be overridden per
             call through ``**kwargs``.
         shapes_graph_loader: Resolves the shapes graph's ``owl:imports``. With no loader, an import that is not already in the
-            graph raises ``ShapeError`` unless ``ignore_imports=True``.
+            graph raises ``ShapeError`` unless ``ignore_imports=True``. An import of an ontology StarLayer has built in (a registered
+            ``starontology`` ontology, ``sh:`` among them) needs neither and is never passed to the loader.
         ignore_imports: Do not complain about imports that cannot be resolved.
         meta_shapes_extra: Extra graphs for the shapes-about-shapes check when ``meta_shacl=True``.
         data_graph_iri, shapes_graph_iri: Recorded as ``sh:usedDataGraph`` / ``sh:usedShapesGraph`` on the ``sh:ValidationActivity`` that generated the report; each defaults

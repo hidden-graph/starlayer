@@ -143,7 +143,7 @@ def reject_unknown_options(kwargs: dict[str, Any]) -> None:
 
 
 def _check_imports(shapes: Any, loader: Any, ignore_imports: bool) -> None:
-    """``owl:imports`` that are not locally satisfied, with no loader and without ``ignore_imports``, is an error (the engine
+    """``owl:imports`` that are neither locally satisfied nor an ontology StarLayer has built in, with no loader and without ``ignore_imports``, is an error (the engine
     resolves imports only when a loader is given)."""
     if shapes is not None and loader is None and not ignore_imports:
         from starlayer.shacl.engine.imports import resolve_imports
