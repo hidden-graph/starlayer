@@ -515,11 +515,11 @@ def _copy_scoped_template(template: Any, target: _Target, shape: Any, working: A
     candidates = sorted(set(template.subjects(target.predicate, target.term)), key=_sort_key)
     label = "class" if target.kind == "cls" else "node"
     if not candidates:
-        raise ValueError(f"template_shape has no shape with {target.predicate.value.rsplit('#', 1)[-1]} {target.term} (the {label} to derive for)")
+        raise ValueError(f"template_graph has no shape with {target.predicate.value.rsplit('#', 1)[-1]} {target.term} (the {label} to derive for)")
     if len(candidates) > 1:
         if shape not in candidates:
             raise ValueError(
-                f"template_shape has {len(candidates)} shapes for the {label} {target.term}: "
+                f"template_graph has {len(candidates)} shapes for the {label} {target.term}: "
                 f"{', '.join(str(c) for c in candidates)}; name the one to use with shape="
             )
         candidates = [shape]
@@ -606,7 +606,7 @@ def derive_shape(
     cls: Any = None,
     node: Any = None,
     shape: Any = None,
-    template_shape: Any = None,
+    template_graph: Any = None,
     ignored_properties: Any = None,
     use_default_ignored_properties: bool = True,
     include_subclasses: bool = True,
@@ -630,10 +630,11 @@ def derive_shape(
     last ``#`` or ``/``) with the first letter upper-cased, plus ``Shape``, so ``ex:Person`` gives ``ex:PersonShape`` and
     ``ex:alice`` gives ``ex:AliceShape``. A blank node target, or an IRI without a local name, gives a blank node shape.
 
-    ``template_shape`` (a graph) is an earlier version of the shape to keep up to date. Only the shape in it that targets the same
-    class (``sh:targetClass``) or node (``sh:targetNode``) is used, together with what it references (its property shapes, lists,
-    ``sh:node`` and logical shapes); the other shapes of the template are not copied. It keeps its identity unless ``shape`` is
-    given. Its constraints that the data now breaks are recomputed from the data when there is a principled way (counts, datatype,
+    ``template_graph`` is a graph, not a node: a StarLayer graph that holds an earlier version of the shape to keep up to date. The
+    shape in it is found by its target, not named: the one that targets the same class (``sh:targetClass``) or node
+    (``sh:targetNode``) is used, together with what it references (its property shapes, lists, ``sh:node`` and logical shapes); the
+    other shapes of the template graph are not copied. When it holds several shapes for that target, ``shape`` names the one to use;
+    when it holds one, ``shape`` renames the result, which otherwise keeps the template shape's identity. Its constraints that the data now breaks are recomputed from the data when there is a principled way (counts, datatype,
     class, node kind, ranges, lengths, languages, ``sh:in`` widened), dropped with an ``rdfs:comment`` when there is none (pattern,
     ``sh:hasValue``, pair comparisons), or left in place with a comment when they cannot be checked (``sh:sparql``, custom
     components); predicates the template does not cover are added, and its ignored properties are kept. Only the main shape is
@@ -672,8 +673,8 @@ def derive_shape(
     out = StarLayerGraph(prefixes=dict(graph.prefixes))
     out.prefixes.setdefault("sh", _SH_NS)
     mint = _Minter(f"{target.kind}|{target.term}")
-    if template_shape is not None:
-        template = engine_view(normalize_to_starlayer_graph(template_shape, name="template_shape"), "template_shape")
+    if template_graph is not None:
+        template = engine_view(normalize_to_starlayer_graph(template_graph, name="template_graph"), "template_graph")
         return _derive_with_template(data, template, target, shape_term, ignored, out, mint)
     shape_node = shape_term or _auto_shape_name(target.term) or mint.node(out)
     return _derive_fresh(data, target, shape_node, ignored, out, mint)

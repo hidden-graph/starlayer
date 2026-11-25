@@ -191,7 +191,7 @@ class TestTemplateMerge:
         g.add((EX.bob, EX.name, lit('Bobby')))
         template, _shape_node, _prop_node = _template_person_shape(min_count=2)
 
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         assert result.value(prop, SH.minCount) == lit(1)
@@ -206,7 +206,7 @@ class TestTemplateMerge:
         from tests.support.terms import XSD
         template, _shape_node, _prop_node = _template_person_shape(datatype=XSD.integer)
 
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         assert result.value(prop, SH.datatype) == XSD.string
@@ -218,7 +218,7 @@ class TestTemplateMerge:
         g.add((EX.alice, EX.name, lit('Alice')))
         template, _shape_node, _prop_node = _template_person_shape(pattern='^Z')
 
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         assert (prop, SH.pattern, None) not in result
@@ -234,7 +234,7 @@ class TestTemplateMerge:
         g.add((EX.bob, EX.name, lit('Zed')))
         template, _shape_node, _prop_node = _template_person_shape(in_values=[lit('Alice')])
 
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert _conforms(g, result)
         prop = next(result.objects(None, SH.property))
         in_list = result.value(prop, SH['in'])
@@ -261,7 +261,7 @@ class TestTemplateMerge:
         )))
         template.add((shape_node, SH.closed, lit(True)))
 
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         # The opaque sh:sparql constraint is expected to still be present
         # and still failing - derive_shape() must not have silently dropped it.
         assert (shape_node, SH.sparql, sparql_node) in result
@@ -276,7 +276,7 @@ class TestTemplateMerge:
         g.add((EX.alice, EX.age, lit(30)))
         template, _shape_node, _prop_node = _template_person_shape()
 
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert _conforms(g, result)
         node_shape = next(result.subjects(RDF.type, SH.NodeShape))
         paths = {p for prop in result.objects(node_shape, SH.property) for p in result.objects(prop, SH.path)}
@@ -292,7 +292,7 @@ class TestTemplateMerge:
         ignored_list = rdf_list(template, [EX.secret])
         template.add((shape_node, SH.ignoredProperties, ignored_list))
 
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert _conforms(g, result)
         result_ignored_list = result.value(shape_node, SH.ignoredProperties)
         result_ignored = set(list_items(result, result_ignored_list))
@@ -483,7 +483,7 @@ class TestTemplateScoping:
         g.add((EX.acme, RDF.type, EX.Organization))
         g.add((EX.acme, EX.name, lit('Acme')))
         template, shape_node = self._two_shape_template()
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert set(result.subjects(RDF.type, SH.NodeShape)) == {shape_node}
         assert (EX.OrgShape, None, None) not in result
 
@@ -493,32 +493,49 @@ class TestTemplateScoping:
         template.add((EX.AliceShape, RDF.type, SH.NodeShape))
         template.add((EX.AliceShape, SH.targetNode, EX.alice))
         template.add((EX.OtherShape, SH.targetNode, EX.bob))
-        result = derive_shape(g, node=EX.alice, template_shape=template)
+        result = derive_shape(g, node=EX.alice, template_graph=template)
         assert _conforms(g, result)
         assert (EX.OtherShape, None, None) not in result
         assert {p for prop in result.objects(EX.AliceShape, SH.property) for p in result.objects(prop, SH.path)} == {EX.name, EX.age, EX.knows}
 
-    def test_no_template_shape_for_the_target_raises(self):
+    def test_no_template_graph_shape_for_the_target_raises(self):
         g = _make_people_graph()
         template, _ = self._two_shape_template()
         with pytest.raises(ValueError, match='no shape'):
-            derive_shape(g, cls=EX.Person, template_shape=Graph())
+            derive_shape(g, cls=EX.Person, template_graph=Graph())
         with pytest.raises(ValueError, match='no shape'):
-            derive_shape(g, node=EX.alice, template_shape=template)
+            derive_shape(g, node=EX.alice, template_graph=template)
 
     def test_two_template_shapes_for_one_target_need_shape(self):
         g = _make_people_graph()
         template, _ = self._two_shape_template()
         template.add((EX.Second, SH.targetClass, EX.Person))
         with pytest.raises(ValueError, match='shape='):
-            derive_shape(g, cls=EX.Person, template_shape=template)
-        result = derive_shape(g, cls=EX.Person, shape=EX.Second, template_shape=template)
+            derive_shape(g, cls=EX.Person, template_graph=template)
+        result = derive_shape(g, cls=EX.Person, shape=EX.Second, template_graph=template)
         assert (EX.Second, SH.targetClass, EX.Person) in result
+
+    def test_template_shape_keyword_is_gone(self):
+        g = _make_people_graph()
+        template, shape_node = self._two_shape_template()
+        with pytest.raises(TypeError, match="unexpected keyword argument 'template_shape'"):
+            derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
+        assert set(result.subjects(RDF.type, SH.NodeShape)) == {shape_node}
+
+    def test_template_errors_name_template_graph(self):
+        g = _make_people_graph()
+        template, _ = self._two_shape_template()
+        with pytest.raises(ValueError, match='^template_graph has no shape with targetNode'):
+            derive_shape(g, node=EX.alice, template_graph=template)
+        template.add((EX.Second, SH.targetClass, EX.Person))
+        with pytest.raises(ValueError, match='^template_graph has 2 shapes for the class'):
+            derive_shape(g, cls=EX.Person, template_graph=template)
 
     def test_shape_renames_the_template_shape(self):
         g = _make_people_graph()
         template, shape_node = self._two_shape_template()
-        result = derive_shape(g, cls=EX.Person, shape=EX.Renamed, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, shape=EX.Renamed, template_graph=template)
         assert (EX.Renamed, SH.targetClass, EX.Person) in result
         assert (shape_node, None, None) not in result
 
@@ -528,5 +545,5 @@ class TestTemplateScoping:
         template.add((prop_node, SH.node, EX.NameShape))
         template.add((EX.NameShape, RDF.type, SH.NodeShape))
         template.add((EX.NameShape, SH.nodeKind, SH.Literal))
-        result = derive_shape(g, cls=EX.Person, template_shape=template)
+        result = derive_shape(g, cls=EX.Person, template_graph=template)
         assert (EX.NameShape, SH.nodeKind, SH.Literal) in result
