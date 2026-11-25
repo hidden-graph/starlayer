@@ -148,17 +148,16 @@ def _normalise(data: Any, shapes: Any, ont: Any) -> tuple[Any, Any, Any]:
     return normalize_graph_inputs(data, shapes, ont)
 
 
-def _meta_preflight(shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
-    """The ``meta_shacl=True`` preflight on the shapes graph: the caller's ``allow_warnings`` / ``allow_infos`` relax it too (the
-    engine's own default tolerates Warning and Info). The defects of the embedded SPARQL text are part of the same error."""
+def _meta_preflight(shapes: Any, meta_shapes_extra: Any) -> None:
+    """The ``meta_shacl=True`` preflight on the shapes graph. Strict whatever ``allow_warnings`` / ``allow_infos`` say (those
+    describe the data validation, and the shapes-about-shapes warnings are not meant to be ignored: the W3C SHACL-for-SHACL says to
+    deactivate the shape instead; pySHACL's meta check is strict too). The defects of the embedded SPARQL text are part of the same error."""
     from starlayer.shacl.engine.meta import meta_validate
 
     meta_validate(
         shapes,
         meta_shacl=True,
         meta_shapes_extra=meta_shapes_extra,
-        allow_warnings=floor == SH.Violation,
-        allow_infos=floor == SH.Warning,
     )
 
 
@@ -200,12 +199,12 @@ class CheckedShapes:
             self.compile(shapes)
         return self.plan
 
-    def check_meta(self, shapes: Any, meta_shapes_extra: Any, floor: Any) -> None:
-        """``_meta_preflight`` unless this shapes graph (with these extras and this floor) already passed it."""
+    def check_meta(self, shapes: Any, meta_shapes_extra: Any) -> None:
+        """``_meta_preflight`` unless this shapes graph (with these extras) already passed it."""
         extras = tuple(meta_shapes_extra)
-        key = (self._fingerprint(shapes), floor, tuple((id(x), self._fingerprint(x)) for x in extras))
+        key = (self._fingerprint(shapes), tuple((id(x), self._fingerprint(x)) for x in extras))
         if key not in self._meta_ok:
-            _meta_preflight(shapes, extras, floor)
+            _meta_preflight(shapes, extras)
             self._meta_ok.add(key)  # only a pass is kept: a failing graph raises again on the next call
 
 
@@ -281,15 +280,14 @@ def validate(
         )
     _check_imports(shapes if shapes is not None else data, shapes_graph_loader, ignore_imports)
     meta_shacl = engine_kwargs.pop("meta_shacl", None)
-    floor = engine_kwargs.get("conformance_disallows")
     if checked is not None and shapes is not None:
         if meta_shacl:
-            checked.check_meta(shapes, meta_shapes_extra, floor)
+            checked.check_meta(shapes, meta_shapes_extra)
         prebuilt_plan = checked.plan_for(shapes)
     else:
         prebuilt_plan = None
         if meta_shacl:
-            _meta_preflight(shapes if shapes is not None else data, meta_shapes_extra, floor)
+            _meta_preflight(shapes if shapes is not None else data, meta_shapes_extra)
     outcome = api.validate(
         data,
         shapes,
@@ -425,7 +423,7 @@ def apply_rules(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph
     )
     if options.get("meta_shacl"):  # the same preflight as validate(), on the shapes graph as given
-        _meta_preflight(shapes, options.get("meta_shapes_extra") or (), None)
+        _meta_preflight(shapes, options.get("meta_shapes_extra") or ())
     loader = options.get("shapes_graph_loader")
     ignore_imports = bool(options.get("ignore_imports"))
     if loader is not None:  # the rules of an imported module run too: imports first, as validate() does

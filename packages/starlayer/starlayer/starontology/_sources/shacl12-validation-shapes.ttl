@@ -534,7 +534,8 @@ stsh:NodeValidatorQueryPathShape
 # sh:this was the focus node in SHACL Advanced Features. In SHACL 1.2 it is an ordinary IRI, so a node expression that is just sh:this is a constant (the shape is valid and the engine
 # evaluates it as that IRI). A shapes graph ported from SHACL-AF then gives a different result without any error, hence advice (a Warning). The shape is targeted at the IRI sh:this itself
 # and looks at where it is used as a value, so every position of a node expression is covered at once (sh:values, sh:defaultValue, sh:targetNode, a rule's sh:subject / sh:predicate / sh:object,
-# the members of a list, the arguments of a call) without a list of positions to keep up to date. Annotation properties that only talk about the term are left out.
+# the members of a list, the arguments of a call) without a list of positions to keep up to date. Annotation properties that only talk about the term are left out, and so is this
+# shape's own sh:targetNode, so that a graph holding the shape (shacl_shacl itself) does not warn about it.
 stsh:ThisIsAnIRIShape
 	a sh:NodeShape ;
 	rdfs:label "sh:this used as a node expression is an ordinary IRI, not the focus node"@en ;
@@ -545,10 +546,12 @@ stsh:ThisIsAnIRIShape
 		sh:select """
 			PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 			PREFIX skos: <http://www.w3.org/2004/02/skos/core#>
+			PREFIX stsh: <https://github.com/hidden-graph/starlayer/ns/shacl#>
 			SELECT DISTINCT $this ?user ?property
 			WHERE {
 				?user ?property $this .
 				FILTER (?property NOT IN (rdfs:seeAlso, rdfs:isDefinedBy, skos:related, skos:exactMatch))
+				FILTER (?user != stsh:ThisIsAnIRIShape)
 			}
 		""" ;
 	] .

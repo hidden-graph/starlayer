@@ -44,12 +44,7 @@ def _validate(data_ttl: str, shapes_ttl: str, **kwargs):
     # meta_shacl is off by default (a development-time check); these tests are about it
     kwargs.setdefault("meta_shacl", True)
     # a bad shapes graph is refused when the processor is built, so the options the meta check reads are bound there too
-    processor = StarShaclProcessor(
-        shacl_graph=shapes,
-        meta_shacl=kwargs["meta_shacl"],
-        allow_warnings=kwargs.get("allow_warnings"),
-        allow_infos=kwargs.get("allow_infos"),
-    )
+    processor = StarShaclProcessor(shacl_graph=shapes, meta_shacl=kwargs["meta_shacl"])
     return processor.validate(data_graph=data, **kwargs)
 
 
@@ -611,48 +606,6 @@ def test_meta_shacl_false_still_skips_preflight_entirely() -> None:
     assert not isinstance(exc_info.value, MetaShaclError)
 
 
-def test_allow_infos_on_validate_relaxes_info_severity_meta_shacl_check() -> None:
-    """meta_validate() itself already forwards allow_warnings/allow_infos
-    to pySHACL correctly (it calls pyshacl.validate() directly, so pySHACL's
-    own handling of these two kwargs applies unmodified) - the gap was
-    validator.py's own call site never forwarding the caller's
-    validate(..., allow_infos=...) through to meta_validate() at all. Uses
-    the sh:DataGraph/owl:imports check (Info severity) as the probe.
-    ignore_imports=True on both calls for the same reason as the two
-    tests above - the owl:imports here is incidental probe data, not a
-    genuine shapes-graph dependency."""
-    shapes_ttl = """
-        @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
-        @prefix owl: <http://www.w3.org/2002/07/owl#> .
-        ex:MyDataGraph a sh:DataGraph ; owl:imports ex:Other .
-    """
-    with pytest.raises(Exception) as exc_info:
-        _validate(_TRIVIAL_DATA, shapes_ttl, ignore_imports=True)
-    assert "metashacl" in str(exc_info.value).lower()
-
-    result = _validate(_TRIVIAL_DATA, shapes_ttl, allow_infos=True, ignore_imports=True)
-    assert result.conforms is True
-
-
-def test_allow_warnings_on_validate_relaxes_warning_severity_meta_shacl_check() -> None:
-    # sh:in (), not sh:xone () - an empty sh:xone list also trips pySHACL's
-    # own separate "Shape-Expecting & List-Expecting predicate" shape-load
-    # requirement once the meta-shacl preflight is relaxed past it, which
-    # would fail this test for an unrelated reason. sh:in's value is an
-    # ordinary value list, not a list-of-shapes, so it has no such
-    # pySHACL-side load requirement.
-    shapes_ttl = """
-        @prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> .
-        ex:S a sh:NodeShape ; sh:targetClass ex:Record ; sh:property [ sh:path ex:p ; sh:in () ] .
-    """
-    with pytest.raises(Exception) as exc_info:
-        _validate(_TRIVIAL_DATA, shapes_ttl)
-    assert "metashacl" in str(exc_info.value).lower()
-
-    result = _validate(_TRIVIAL_DATA, shapes_ttl, allow_warnings=True)
-    assert result.conforms is True
-
-
 # ---------------------------------------------------------------------------
 # meta_shapes_extra extensibility hook - the "let other users/editors add
 # their own rules" requirement, exercised end-to-end through the public
@@ -767,8 +720,8 @@ def test_meta_validate_raises_meta_shacl_error_with_expected_message() -> None:
 # conforms=False - every "malformed" case below asserts that raise.
 # ---------------------------------------------------------------------------
 
-_RULES_PREFIX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
-_RULES_PREFIX_SHNEX = _RULES_PREFIX + "@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . "
+_RULES_PREFIX_SHNEX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . "
+_RULES_PREFIX = _RULES_PREFIX_SHNEX  # (the shnex: prefix is there for [ shnex:var "focusNode" ], what sh:this was in SHACL-AF)
 
 
 class TestSparqlWellFormedness:
@@ -806,7 +759,7 @@ class TestRuleWellFormedness:
             data=_RULES_PREFIX
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ; sh:object [ sh:path ex:q ] ] .
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ; sh:object [ sh:path ex:q ] ] .
             """,
             format="turtle",
         )
@@ -820,7 +773,7 @@ class TestRuleWellFormedness:
             data=_RULES_PREFIX
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ] .
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ] .
             """,
             format="turtle",
         )
@@ -832,7 +785,7 @@ class TestRuleWellFormedness:
             data=_RULES_PREFIX
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ; sh:object sh:this, ex:o ] .
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ; sh:object [ shnex:var "focusNode" ], ex:o ] .
             """,
             format="turtle",
         )
@@ -871,7 +824,7 @@ def _triple_rule_shape(obj_expr: str, *, prefix: str = _RULES_PREFIX_SHNEX) -> s
         prefix
         + f"""
         ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-          sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ; sh:object {obj_expr} ] .
+          sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ; sh:object {obj_expr} ] .
         """
     )
 
@@ -891,7 +844,6 @@ class TestNodeExpressionWellFormedness:
         "label,obj_expr",
         [
             ("constant IRI", "ex:SomeConstant"),
-            ("sh:this", "sh:this"),
             ("old sh:path form", "[ sh:path ex:q ]"),
             ("old sh:union form", "[ sh:union ( ex:a ex:b ) ]"),
             ("old sh:intersection form", "[ sh:intersection ( ex:a ex:b ) ]"),
@@ -1007,7 +959,7 @@ class TestConditionWellFormedness:
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
               sh:rule [ a sh:TripleRule ; sh:condition ex:AdultShape ;
-                        sh:subject sh:this ; sh:predicate ex:p ; sh:object ex:v ] .
+                        sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ; sh:object ex:v ] .
             ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
             """,
             format="turtle",
@@ -1034,7 +986,7 @@ class TestConditionWellFormedness:
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
               sh:rule [ a sh:TripleRule ; sh:condition ex:AdultShape ;
-                        sh:subject sh:this ; sh:predicate ex:p ; sh:object ex:v ] .
+                        sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ; sh:object ex:v ] .
             ex:AdultShape sh:class ex:Adult .
             """,
             format="turtle",
@@ -1062,7 +1014,7 @@ class TestConditionWellFormedness:
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
               sh:rule [ a sh:TripleRule ; sh:condition ex:NotAShape ;
-                        sh:subject sh:this ; sh:predicate ex:p ; sh:object ex:v ] .
+                        sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ; sh:object ex:v ] .
             ex:NotAShape a ex:SomeRandomClass .
             """,
             format="turtle",
@@ -1077,7 +1029,7 @@ class TestConditionWellFormedness:
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
               sh:rule [ a sh:TripleRule ; sh:condition ( ex:AdultShape ex:ActiveShape ) ;
-                        sh:subject sh:this ; sh:predicate ex:p ; sh:object ex:v ] .
+                        sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ; sh:object ex:v ] .
             ex:AdultShape a sh:NodeShape ; sh:class ex:Adult .
             ex:ActiveShape a sh:NodeShape ; sh:hasValue ex:active .
             """,
@@ -1586,13 +1538,13 @@ class TestShapesGraphFormCoverage:
     def test_a_shape_has_at_most_one_sh_path(self) -> None:
         assert not self._conforms("ex:S a sh:NodeShape ; sh:property [ sh:path ex:p, ex:q ] .")
 
-    def test_two_defining_graphs_is_a_warning_not_a_failure(self) -> None:
-        """GitHub issue #18: advice only, so the shapes graph still validates, and the report names the problem."""
+    def test_two_defining_graphs_is_a_warning_and_a_warning_blocks(self) -> None:
+        """GitHub issue #18: advice, a Warning result; like any result of SHACL's default set it makes the shapes graph invalid, and the report names the problem."""
         shapes = Graph()
         shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1, ex:G2 .", format="turtle")
-        conforms, report_graph, _text = meta_validate(shapes)
-        assert conforms is True
-        assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), NamedNode("http://www.w3.org/ns/shacl#Warning")) in report_graph
+        with pytest.raises(MetaShaclError) as error:
+            meta_validate(shapes)
+        assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), NamedNode("http://www.w3.org/ns/shacl#Warning")) in error.value.report_graph
 
     def test_one_defining_graph_gives_no_warning(self) -> None:
         shapes = Graph()
@@ -1971,8 +1923,13 @@ _LIST_FN = "ex:f a sh:ListParameterExpressionFunction ; %s sh:bodyExpression %s 
 def _warnings(body: str) -> list[str]:
     shapes = Graph()
     shapes.parse(data="@prefix sparql: <http://www.w3.org/ns/sparql#> . " + _PREFIXES + body, format="turtle")
-    conforms, report_graph, _text = meta_validate(shapes)
-    assert conforms is True, "a Warning does not make a shapes graph invalid"
+    try:
+        conforms, report_graph, _text = meta_validate(shapes)
+        assert conforms is True
+    except MetaShaclError as error:  # a Warning result makes the shapes graph invalid; the report is in the error
+        report_graph = error.report_graph
+    violation = NamedNode("http://www.w3.org/ns/shacl#Violation")
+    assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), violation) not in report_graph, "only advice"
     warning = NamedNode("http://www.w3.org/ns/shacl#Warning")
     return [str(m) for r in report_graph.subjects(NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), warning) for m in report_graph.objects(r, NamedNode("http://www.w3.org/ns/shacl#resultMessage"))]
 
@@ -2067,16 +2024,14 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
     shapes = Graph()
     shapes.parse(data=_APPENDIX_A_PREFIXES + "_:r sh:sourceRule [ ] . _:s sh:sourceRule ex:Rule .", format="turtle")
 
-    conforms, report, _text = meta_validate(shapes)
-
-    assert conforms is True
     from tests.support.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
+    with pytest.raises(MetaShaclError) as error:
+        meta_validate(shapes)
+    report = error.value.report_graph
     assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
     assert (None, sh.resultSeverity, sh.Warning) in report
-    with pytest.raises(MetaShaclError):
-        meta_validate(shapes, allow_warnings=False)
 
 
 def test_a_rule_that_names_a_rule_processor_is_a_warning_because_this_engine_provides_none() -> None:
@@ -2087,9 +2042,9 @@ def test_a_rule_that_names_a_rule_processor_is_a_warning_because_this_engine_pro
     shapes = Graph()
     shapes.parse(data=_APPENDIX_A_PREFIXES + "ex:R a sh:TripleRule ; sh:ruleProcessor 'SRL 1.2' .", format="turtle")
 
-    conforms, report, _text = meta_validate(shapes)
-
-    assert conforms is True
+    with pytest.raises(MetaShaclError) as error:
+        meta_validate(shapes)
+    report = error.value.report_graph
     assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
     assert (None, sh.resultSeverity, sh.Warning) in report
 
@@ -2130,8 +2085,8 @@ def test_an_instance_with_its_parameters_is_well_formed() -> None:
 
 
 def test_an_instance_without_a_required_parameter_is_a_warning() -> None:
-    """A warning, not an error: an instance is typed before its values are given, and the edit half way there must not be refused."""
-    assert _template_results("ex:R a ex:Scale .") == (True, ["Warning"])
+    """A warning, not a violation: an instance is typed before its values are given. A warning still makes the shapes graph invalid; an editor reads it from the error's report and decides what to do with the half-finished edit."""
+    assert _template_results("ex:R a ex:Scale .") == (False, ["Warning"])
 
 
 def test_an_optional_parameter_may_be_left_out() -> None:
@@ -2167,12 +2122,13 @@ def test_sh_this_as_a_node_expression_is_a_warning(body) -> None:
     assert len(found) == 1 and "ordinary IRI" in found[0] and '[ shnex:var "focusNode" ]' in found[0]
 
 
-def test_sh_this_warning_blocks_conforms_unless_warnings_are_allowed() -> None:
-    """With meta_shacl=True a warning raises MetaShaclError from validate(); with allow_warnings=True validation runs (here: conforms)."""
+def test_sh_this_warning_blocks_whatever_allow_warnings_says() -> None:
+    """With meta_shacl=True a warning raises MetaShaclError from validate(), and the processor's allow_warnings (an option of the data validation) does not change that."""
     shapes = _THIS_SHAPE % "sh:values sh:this"
     with pytest.raises(MetaShaclError):
         _validate(_TRIVIAL_DATA, shapes)
-    assert _validate(_TRIVIAL_DATA, shapes, allow_warnings=True).conforms is True
+    with pytest.raises(MetaShaclError):
+        _validate(_TRIVIAL_DATA, shapes, allow_warnings=True)
 
 
 def test_the_focus_node_variable_and_other_values_give_no_sh_this_warning() -> None:

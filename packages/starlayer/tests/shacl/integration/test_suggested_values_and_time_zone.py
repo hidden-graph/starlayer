@@ -29,13 +29,14 @@ def graph(body: str) -> Graph:
     return Graph().parse(data=PRE + body, format="turtle")
 
 
-def ui_check(body: str, allow_warnings: bool = True):
-    return meta_validate(graph(body), extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")], allow_warnings=allow_warnings)
+def ui_check(body: str):
+    return meta_validate(graph(body), extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])
 
 
-def problems(body: str, allow_warnings: bool = False) -> str:
+def problems(body: str) -> str:
+    """The report text of the strict meta check (a warning or info result counts), "" when the graph is valid."""
     try:
-        ui_check(body, allow_warnings)
+        ui_check(body)
     except MetaShaclError as error:
         return error.report_text
     return ""
@@ -71,7 +72,7 @@ def test_the_node_shape_form_offers_them_too():
 
 def test_the_suggestions_do_not_constrain():
     conforms, _report, _text = meta_validate(graph("ex:S a sh:NodeShape ; sh:severity ex:Loud . ex:T a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:datatype ex:MyType ] ."),
-                                              extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")], allow_warnings=False)
+                                              extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])
     assert conforms
 
 
@@ -113,16 +114,18 @@ def test_a_malformed_zone_is_reported_by_the_pattern(zone):
     assert "IANA time-zone identifier" in text
 
 
-def test_a_malformed_zone_is_a_warning_the_caller_can_allow():
-    assert problems('ex:G shui:timeZone "Europe Vienna" .', allow_warnings=True) == ""
-    assert "Europe Vienna" in ui_check('ex:G shui:timeZone "Europe Vienna" .')[2]  # still in the report, which does not conform to the strict reading
+def test_a_malformed_zone_is_a_warning_and_a_warning_makes_the_shapes_graph_invalid():
+    with pytest.raises(MetaShaclError) as error:
+        ui_check('ex:G shui:timeZone "Europe Vienna" .')
+    assert "Europe Vienna" in error.value.report_text
+    assert (None, SH.resultSeverity, SH.Warning) in error.value.report_graph
 
 
 def test_an_unknown_zone_is_reported_by_the_existence_check_only():
     text = problems('ex:G shui:timeZone "Mars/Olympus" .')
     assert "platform's time-zone database" in text
     assert "IANA time-zone identifier" not in text  # it is well formed
-    assert problems('ex:G shui:timeZone "Mars/Olympus" .', allow_warnings=True) == ""
+    assert "Warning" in text  # advice, and advice makes the shapes graph invalid
 
 
 def test_the_existence_check_is_in_the_layer_not_in_shacl_shacl_ui():
@@ -165,4 +168,4 @@ def test_default_order_of_a_number_passes(value):
 
 @pytest.mark.parametrize("value", ["'first'", "'3'", "1e3"])
 def test_default_order_that_is_not_decimal_or_integer_is_a_violation(value):
-    assert problems("ex:G shui:defaultOrder " + value + " .", allow_warnings=True)
+    assert "Violation" in problems("ex:G shui:defaultOrder " + value + " .")

@@ -633,9 +633,7 @@ class StarShaclProcessor:
             return
         checked = _adapter.CheckedShapes()
         if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ShapeError
-            defaults = self._option_defaults(_VALIDATION_DEFAULTS)
-            floor = _adapter.conformance_disallows_for(defaults.get("allow_warnings"), defaults.get("allow_infos"))
-            checked.check_meta(shapes, self.meta_shapes_extra or (), floor)
+            checked.check_meta(shapes, self.meta_shapes_extra or ())
         checked.compile(shapes, resolved)
         self._checked = checked
 

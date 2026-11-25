@@ -25,7 +25,7 @@ OWL = Namespace("http://www.w3.org/2002/07/owl#")
 PREFIXES = (
     "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> . "
     "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . "
-    "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . "
+    "@prefix shui: <http://www.w3.org/ns/shacl-ui/> . @prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . "
 )
 
 # The kind of element each form is for (stsh:formFor), per GitHub issue #105
@@ -79,6 +79,18 @@ def order_of(ui, subject):
 
 def parse(text: str) -> Graph:
     return Graph().parse(data=PREFIXES + text, format="turtle")
+
+
+def no_violation(text: str) -> bool:
+    """No Violation result: the form's own shapes accept it. Advice (a Warning, such as the one on sh:ruleProcessor) is in the
+    report and makes the shapes graph invalid, which is not what this asks."""
+    from starlayer.shacl import MetaShaclError as ReportableRuntimeError
+
+    try:
+        meta_validate(parse(text))
+    except ReportableRuntimeError as error:
+        return not any(severity != SH.Warning and severity != SH.Info for severity in error.report_graph.objects(None, SH.resultSeverity))
+    return True
 
 
 def accepted(text: str) -> bool:
@@ -297,13 +309,13 @@ def test_some_value_takes_a_shape_so_its_form_field_is_not_a_literal_or_iri(ui) 
 @pytest.mark.parametrize("absent", [(), ("subject",), ("predicate",), ("object",), ("subject", "predicate", "object")])
 def test_a_triple_rule_may_leave_out_its_subject_predicate_and_object(absent) -> None:
     """SHACL 1.2 Inference Rules 11.2: an absent term is the focus node. starlayer.shacl.triple_rule implements that, so the meta-shapes accept it."""
-    parts = {"subject": "sh:subject sh:this", "predicate": "sh:predicate ex:p", "object": "sh:object [ sh:path ex:q ]"}
+    parts = {"subject": "sh:subject [ shnex:var 'focusNode' ]", "predicate": "sh:predicate ex:p", "object": "sh:object [ sh:path ex:q ]"}
     body = " ; ".join(text for key, text in parts.items() if key not in absent)
     assert accepted(f"ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; {body} ] .")
 
 
 def test_a_triple_rule_still_may_not_have_two_subjects() -> None:
-    assert not accepted("ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:subject sh:this, ex:other ; sh:predicate ex:p ; sh:object sh:this ] .")
+    assert not accepted("ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var 'focusNode' ], ex:other ; sh:predicate ex:p ; sh:object [ shnex:var 'focusNode' ] ] .")
 
 
 def test_a_triple_rule_with_no_subject_runs_with_the_focus_node_as_subject() -> None:
@@ -385,7 +397,7 @@ def test_each_field_set_alone_on_a_minimal_element_of_its_kind_still_validates(u
             continue
         for value in _SAMPLES[predicate]:
             checked += 1
-            if not accepted(f"{context} {subject} {predicate} {value} ."):
+            if not no_violation(f"{context} {subject} {predicate} {value} ."):
                 bad.append((predicate, value))
     assert not bad, bad
     assert checked >= 2 or name == "PrefixDeclarationForm"  # its fields are all structures or required

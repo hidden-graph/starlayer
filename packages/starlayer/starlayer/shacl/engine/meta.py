@@ -3,8 +3,9 @@
 The meta-shapes are the project's stored ``shacl12-shacl.ttl`` (``starontology`` entry ``shacl_shacl``: the pinned W3C
 SHACL-SHACL plus ``packages/starlayer/starlayer/starontology/_sources/shacl12-validation-shapes.ttl``, built by ``scripts/build_meta_shapes.py``), read through
 ``starlayer.shacl.meta_shapes.load_meta_shapes_graph`` exactly as the old preflight does, plus the parameter-value shapes
-(SPARQL Extensions 4.2.1) and any ``extra`` graphs (``meta_shapes_extra``). Only warnings and infos are tolerated, as in the
-old preflight (``allow_warnings=True``).
+(SPARQL Extensions 4.2.1) and any ``extra`` graphs (``meta_shapes_extra``). The default is the draft's: a result of any severity makes the shapes graph invalid. The public
+``meta_validate`` and the processor's ``meta_shacl`` never pass a floor; ``allow_warnings`` / ``allow_infos`` here exist only for
+tests that read a warning's report without the check failing.
 
 The engine's ``validate`` is imported lazily (``api`` may import this module).
 """
@@ -185,7 +186,7 @@ def meta_validate(
     engine_validate: Callable[..., Any] | None = None,
     meta_shapes_extra: Iterable[Any] | None = None,
     meta_shacl: Any = None,
-    allow_warnings: Any = True,
+    allow_warnings: Any = False,
     allow_infos: Any = None,
     add: Iterable[Any] = (),
     remove: Iterable[Any] = (),
@@ -198,7 +199,7 @@ def meta_validate(
     engine's ``validate`` (same signature; tests). Returns a ``MetaResult``; call ``raise_if_invalid()`` for the old
     preflight's raise. ``shapes_graph`` is never modified.
 
-    ``allow_warnings`` (default True when called directly) / ``allow_infos`` choose which severities are tolerated.
+    ``allow_warnings`` / ``allow_infos`` choose which severities are tolerated (default: none, as in SHACL 1.2 Core's disallowed set); no public path sets them.
     ``meta_shapes_extra`` is an alias of ``extra`` and ``meta_shacl`` the validate-option spelling: when ``meta_shacl`` is
     truthy the call raises ``MetaShaclError`` on an invalid shapes graph (the preflight form ``api.validate`` uses).
     The meta-shapes include the layer ``shacl_shacl_starlayer``, whose shapes find the SPARQL text the shapes graph embeds that is not valid and the
@@ -236,7 +237,7 @@ def meta_validate(
 
         meta, kwargs = load_meta_shapes_graph(extras), {}
         meta += parameter_shapes
-    # old preflight: allow_warnings tolerates Warning and Info, allow_infos only Info; passing None/False (what
+    # allow_warnings tolerates Warning and Info, allow_infos only Info; None/False (what
     # ``validate(allow_warnings=None)`` forwards) makes them count
     disallows = SH.Violation if allow_warnings else SH.Warning if allow_infos else SH.Info
     if scoped and not scope.full:

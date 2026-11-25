@@ -200,15 +200,16 @@ def meta_validate(
     nodes: Iterable[Any] | None = None,
     with_dependents: bool = True,
     extra_graphs: Iterable[Any] = (),
-    **kwargs: Any,
 ) -> tuple[bool, Any, str]:
     """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
 
     Returns ``(conforms, report_graph, report_text)`` and raises ``MetaShaclError`` (message starting "The shapes graph is not valid SHACL",
     then one line per problem naming the shape, the property and what is wrong; ``problems``, ``report_text`` and ``scope`` hold the same) when the
-    shapes graph does not conform. A warning-severity meta-shape is
-    advice: it appears in the report but does not make the graph invalid (``allow_warnings=True``; pass ``allow_warnings=False`` to
-    count warnings, ``allow_infos=True`` to tolerate infos only). ``extra_graphs`` are added to the meta-shapes. The report is
+    shapes graph does not conform. There is no way to tolerate a warning or an info result: the meta check is strict, whatever a
+    processor's ``allow_warnings`` / ``allow_infos`` say (those are for the data validation), because SHACL 1.2 Core's default set
+    (Violation, Warning, Info) makes any of them a non-conforming report and the W3C SHACL-for-SHACL says to deactivate a Warning shape
+    if a use case needs the construct, not to ignore it; pySHACL's meta check is strict too. The results of every severity are in the
+    error's ``report_graph``, so an editor can still show a warning on its own. ``extra_graphs`` are added to the meta-shapes. The report is
     an ``StarLayerGraph``.
 
     With none of ``add``, ``remove`` and ``nodes`` the whole graph is checked, at about 3 ms per node shape. For a check after every
@@ -227,15 +228,11 @@ def meta_validate(
     result = engine_meta_validate(
         shapes_graph,
         extra=extra_graphs,
-        allow_warnings=kwargs.pop("allow_warnings", True),
-        allow_infos=kwargs.pop("allow_infos", None),
         add=add,
         remove=remove,
         nodes=nodes,
         with_dependents=with_dependents,
     )
-    if kwargs:
-        raise TypeError(f"unknown option(s) {', '.join(sorted(kwargs))}")
     result.raise_if_invalid()
     return result.conforms, result.report_graph, result.report_text
 

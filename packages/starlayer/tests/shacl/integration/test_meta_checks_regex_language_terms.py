@@ -151,18 +151,17 @@ def test_a_subject_in_the_shacl_namespace_is_not_checked():
     assert not _terms_results(_graph("sh:Local a sh:NodeShape ; sh:targetClass ex:C ."))
 
 
-def test_unknown_term_is_a_warning_the_default_tolerates_and_allow_warnings_false_counts():
+def test_unknown_term_is_a_warning_and_a_warning_makes_the_shapes_graph_invalid():
     shapes = _graph("ex:S a sh:NodeShape ; sh:minCountt 1 .")
-    assert meta_validate(shapes)[0] is True
-    assert not _problems(shapes)
-    problems = _problems(shapes, allow_warnings=False)
-    assert problems == ("Warning: ex:S: sh:minCountt is not a term of the SHACL vocabulary",)
+    with pytest.raises(MetaShaclError):
+        meta_validate(shapes)
+    assert _problems(shapes) == ("Warning: ex:S: sh:minCountt is not a term of the SHACL vocabulary",)
 
 
 def test_unknown_term_check_is_what_reports_it():
     shapes = _graph("ex:S a sh:NodeShape ; sh:minCountt 1 .")
-    assert _problems(shapes, allow_warnings=False)
-    assert not _problems(shapes, allow_warnings=False, extra_graphs=[_deactivate(UNKNOWN)])
+    assert _problems(shapes)
+    assert not _problems(shapes, extra_graphs=[_deactivate(UNKNOWN)])
 
 
 def test_list_in_the_shape_is_the_shipped_vocabulary():

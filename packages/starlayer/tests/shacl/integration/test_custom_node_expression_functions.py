@@ -300,7 +300,7 @@ class TestCustomFunctionMetaShaclWellFormedness:
             + SPACED_CONCAT_FUNCTION
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ;
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ;
                         sh:object [ ex:spacedConcat ( "a" "b" ) ] ] .
             """,
             format="turtle",
@@ -322,7 +322,7 @@ class TestCustomFunctionMetaShaclWellFormedness:
             + AVERAGE_FUNCTION
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ;
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ;
                         sh:object [ ex:average [ shnex:pathValues ex:employee ] ] ] .
             """,
             format="turtle",
@@ -343,7 +343,7 @@ class TestCustomFunctionMetaShaclWellFormedness:
             + AVERAGE_FUNCTION
             + """
             ex:S a sh:NodeShape ; sh:targetClass ex:Person ;
-              sh:rule [ a sh:TripleRule ; sh:subject sh:this ; sh:predicate ex:p ;
+              sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var "focusNode" ] ; sh:predicate ex:p ;
                         sh:object [ ex:totallyUndeclared ex:x ] ] .
             """,
             format="turtle",
