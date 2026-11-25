@@ -84,8 +84,8 @@ nl:03a-2e4d34f3 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.query" .
 
-nl:04-7790f87d a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/04-srl-sparql-rules.ipynb" ;
+nl:04.01-7790f87d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04.01-srl-sparql-rules.ipynb" ;
     slkg:cellId "7790f87d" ;
     slkg:cellHash "df0be795383955e4" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
@@ -93,8 +93,8 @@ nl:04-7790f87d a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl.parse_ruleset" .
 
-nl:04-4d30d29d a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/04-srl-sparql-rules.ipynb" ;
+nl:04.01-4d30d29d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04.01-srl-sparql-rules.ipynb" ;
     slkg:cellId "4d30d29d" ;
     slkg:cellHash "a3f9a91f91d99d28" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
@@ -102,8 +102,8 @@ nl:04-4d30d29d a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.infer" .
 
-nl:04a-d9a10023 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/04a-srl-running-rule-sets.ipynb" ;
+nl:04.02-d9a10023 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04.02-srl-running-rule-sets.ipynb" ;
     slkg:cellId "d9a10023" ;
     slkg:cellHash "f3b29728acf6a7a1" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
@@ -247,8 +247,8 @@ nl:06.02-92f83318 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.manchester.__init__" .
 
-nl:04-c0a10008 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/04-srl-sparql-rules.ipynb" ;
+nl:04.01-c0a10008 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04.01-srl-sparql-rules.ipynb" ;
     slkg:cellId "c0a10008" ;
     slkg:cellHash "6a5e8200b8887846" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
@@ -256,8 +256,8 @@ nl:04-c0a10008 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql._srl_ast.RuleSet.query" .
 
-nl:04a-c0a10006 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/04a-srl-running-rule-sets.ipynb" ;
+nl:04.02-c0a10006 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/04.02-srl-running-rule-sets.ipynb" ;
     slkg:cellId "c0a10006" ;
     slkg:cellHash "d4369e795a570ef7" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;

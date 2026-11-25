@@ -837,7 +837,8 @@ def verify_notebook(name: str, nb: dict, available: set[str], chapter: str | Non
                     pass
             for stem in OLD_STEMS:
                 r = BY_FILE[stem + ".ipynb"]
-                if r.chapter in done and stem in line and not _inside(line.index(stem), spans):
+                hit = re.search(r"(?<![\w.-])" + re.escape(stem) + r"(?![\w-])", line) if r.chapter in done else None
+                if hit and not _inside(hit.start(), spans):
                     problems.append(f"{name} cell {cell['id']}: old name {stem} remains")
     if fully_qualified and row and row.new_id:
         for h in own:
