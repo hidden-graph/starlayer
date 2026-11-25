@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from starlayer.shacl.engine.components.registry import Violation, component
 from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
-from starlayer.shacl.engine.plan import SH, ShapeError
+from starlayer.shacl.engine.plan import SH, ShapeCompileError
 from starlayer.shacl.engine.sparql_support import (
     is_true,
     run_select,
@@ -33,7 +33,7 @@ def _prepared(ctx, shape, constraint):
     else:
         selects = list(graph.objects(constraint, SH.select))
         if len(selects) != 1:
-            raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
+            raise ShapeCompileError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
         severities = list(graph.objects(constraint, SH.severity))
         text = substitute_path(with_prefixes(ctx.plan, constraint, selects[0].value), shape)
         prepared = (
@@ -64,7 +64,7 @@ def _check_sparql(shapes, shape, params) -> None:
         if any(is_true(d) for d in shapes.objects(constraint, SH.deactivated) if isinstance(d, Literal)):
             continue
         if len(list(shapes.objects(constraint, SH.select))) != 1:
-            raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
+            raise ShapeCompileError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
 
 
 @component(SH.SPARQLConstraintComponent, SH.sparql, check=_check_sparql)

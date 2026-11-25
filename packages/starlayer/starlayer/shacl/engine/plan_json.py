@@ -41,6 +41,7 @@ from starlayer.shacl.engine.plan import (
     ShapeError,
     Term,
     is_shape_type,
+    ShapeCompileError,
 )
 from starlayer.shacl.engine.terms import (
     OWL,
@@ -468,7 +469,7 @@ class SerializedPlan(Plan):
     def shape(self, node: Term) -> Shape:
         """The shape for a node, raising ShapeError with the recorded message if the plan file lists it as failed."""
         if node in self.errors:
-            raise ShapeError(self.errors[node])
+            raise ShapeCompileError(self.errors[node])
         return super().shape(node)
 
     def all_shape_nodes(self) -> list[Term]:

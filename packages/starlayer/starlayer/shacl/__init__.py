@@ -15,6 +15,7 @@ from starlayer.shacl.errors import (
     NestingTooDeep,
     RecursionThroughNot,
     RuleError,
+    ShapeCompileError,
     ShapeError,
 )
 from starlayer.shacl.form_model import (
@@ -152,6 +153,7 @@ __all__ = [
     "rule_dependencies",
     "path_values",
     "is_inverse",
+    "ShapeCompileError",
     "ShapeError",
     "ExecutionError",
     "RuleError",

@@ -7,7 +7,7 @@ from collections.abc import Iterator
 from typing import Any
 
 from starlayer.shacl.engine.components.registry import Violation, component, words
-from starlayer.shacl.engine.plan import SH, Path, ShapeError
+from starlayer.shacl.engine.plan import SH, Path, ShapeCompileError
 from starlayer.shacl.engine.terms import (
     RDF,
     RDFS,
@@ -29,22 +29,22 @@ def shacl_list(graph: Any, head: Any) -> list[Any]:
     cell = head
     while cell != RDF.nil:
         if cell in seen or not isinstance(cell, NamedNode | BlankNode):
-            raise ShapeError(f"malformed list at {text(head)}")
+            raise ShapeCompileError(f"malformed list at {text(head)}")
         seen.add(cell)
         firsts, rests = list(graph.objects(cell, RDF.first)), list(graph.objects(cell, RDF.rest))
         if len(firsts) != 1 or len(rests) != 1:
-            raise ShapeError(f"malformed list at {text(head)}")
+            raise ShapeCompileError(f"malformed list at {text(head)}")
         members.append(firsts[0])
         cell = rests[0]
     if any(True for _ in graph.objects(RDF.nil, RDF.first)) or any(True for _ in graph.objects(RDF.nil, RDF.rest)):
-        raise ShapeError(f"malformed list at {text(head)}")
+        raise ShapeCompileError(f"malformed list at {text(head)}")
     return members
 
 
 def _boolean(term: Any, what: str) -> bool:
     if isinstance(term, Literal) and term.datatype == XSD.boolean and term.value in ("true", "false", "1", "0"):
         return term.value in ("true", "1")
-    raise ShapeError(f"{what} must be an xsd:boolean literal, got {term!r}")
+    raise ShapeCompileError(f"{what} must be an xsd:boolean literal, got {term!r}")
 
 
 def _only_true(term: Any, what: str) -> bool:
@@ -58,13 +58,13 @@ _INTEGER = re.compile(r"[+-]?[0-9]+")  # the xsd:integer lexical form; str.isdig
 def _count(term: Any, what: str) -> int:
     if isinstance(term, Literal) and term.datatype == XSD.integer and _INTEGER.fullmatch(term.value):
         return int(term.value)
-    raise ShapeError(f"{what} must be an xsd:integer literal, got {term!r}")
+    raise ShapeCompileError(f"{what} must be an xsd:integer literal, got {term!r}")
 
 
 def _shape_refs(terms: tuple, what: str) -> tuple:
     for t in terms:
         if isinstance(t, Literal):
-            raise ShapeError(f"{what} must be an IRI or blank node, got {t!r}")
+            raise ShapeCompileError(f"{what} must be an IRI or blank node, got {t!r}")
     return terms
 
 
@@ -255,7 +255,7 @@ def _closed_setup(shapes: Any, shape: Any, params: dict) -> tuple[bool, set] | N
     if not closed_vals:
         return None  # sh:closed is the only required parameter: sh:ignoredProperties alone is not an instance of the component
     if len(closed_vals) != 1:
-        raise ShapeError(f"{text(shape.node)}: more than one sh:closed")
+        raise ShapeCompileError(f"{text(shape.node)}: more than one sh:closed")
     mode = closed_vals[0]
     by_types = mode == SH.ByTypes
     if not by_types and not _boolean(mode, "sh:closed"):
@@ -263,7 +263,7 @@ def _closed_setup(shapes: Any, shape: Any, params: dict) -> tuple[bool, set] | N
     ignored: set = set()
     for members in _lists(shapes, params.get(SH.ignoredProperties, ()), "sh:ignoredProperties"):
         if not all(isinstance(m, NamedNode) for m in members):
-            raise ShapeError("sh:ignoredProperties members must be IRIs")
+            raise ShapeCompileError("sh:ignoredProperties members must be IRIs")
         ignored.update(members)
     return by_types, ignored
 
@@ -304,7 +304,7 @@ def closed(ctx, shape, params, focus, values):
 def _reifier_params(shape: Any, params: dict) -> tuple[bool, tuple]:
     """``(reification required, reifier shapes)``; ShapeError unless the shape is a property shape with an IRI path."""
     if shape.path is None or shape.path.kind != "pred":
-        raise ShapeError(f"{text(shape.node)}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
+        raise ShapeCompileError(f"{text(shape.node)}: sh:reifierShape/sh:reificationRequired need a property shape with an IRI path")
     required = any(_only_true(r, "sh:reificationRequired") for r in params.get(SH.reificationRequired, ()))
     return required, _shape_refs(params.get(SH.reifierShape, ()), "sh:reifierShape")
 
@@ -340,10 +340,10 @@ def _roots(shapes: Any, params: dict) -> set:
         elif isinstance(r, BlankNode):  # Core 6.10.9.4: a blank node is a SHACL list of IRIs
             members = shacl_list(shapes, r)
             if not all(isinstance(m, NamedNode) for m in members):
-                raise ShapeError(f"sh:rootClass list members must be IRIs, got {text(r)}")
+                raise ShapeCompileError(f"sh:rootClass list members must be IRIs, got {text(r)}")
             roots.update(members)
         else:
-            raise ShapeError(f"sh:rootClass must be an IRI or a list of IRIs, got {r!r}")
+            raise ShapeCompileError(f"sh:rootClass must be an IRI or a list of IRIs, got {r!r}")
     return roots
 
 

@@ -18,8 +18,15 @@ Term = Any
 
 
 class ShapeError(ValueError):
-    """The shapes graph, its rules or its setup (an ``owl:imports`` that cannot be resolved) are wrong or ask for something
-    unsupported (the W3C suite's ``sht:Failure`` cases), whenever the engine finds it."""
+    """The base of the shapes-graph errors: the shapes graph, its rules or its setup is wrong or asks for something unsupported (the
+    W3C suite's ``sht:Failure`` cases), found by anyone. Raised as ``ShapeCompileError`` (the engine cannot read or compile it) or
+    ``MetaShaclError`` (the meta check found it); catch ``ShapeError`` for either."""
+
+
+class ShapeCompileError(ShapeError):
+    """The engine itself cannot read or compile the shapes graph, its rules or its setup: a malformed shape, path, constraint
+    parameter, query or rule, an unsupported construct, or an ``owl:imports`` it cannot resolve. Not a ``MetaShaclError``, which the
+    meta check (shacl_shacl) raises."""
 
 
 class ExecutionError(Exception):
@@ -50,7 +57,7 @@ def reject_removed_constructs(graph: Any) -> None:
         found += [f"{text(s)} is a {name}" for s in graph.subjects(RDF.type, cls)]
     if found:
         shown = "; ".join(found[:5]) + (f"; and {len(found) - 5} more" if len(found) > 5 else "")
-        raise ShapeError(
+        raise ShapeCompileError(
             "the shapes graph uses SHACL Advanced Features constructs that SHACL 1.2 no longer defines (SHACL SPARQL-Related Features, "
             f"Appendix F): {shown}. Use sh:targetNode with a node expression, for example sh:targetNode [ sh:select \"...\" ] (section 6.1), "
             "and sh:ListParameterExpressionFunction for a function (section 7)"

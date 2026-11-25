@@ -13,7 +13,7 @@ from typing import Any
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.registry import Violation, component, words
 from starlayer.shacl.engine.naming import short
-from starlayer.shacl.engine.plan import SH, ShapeError
+from starlayer.shacl.engine.plan import SH, ShapeCompileError
 from starlayer.shacl.engine.terms import (
     RDF,
     RDFS,
@@ -62,7 +62,7 @@ def alternatives(graph: Any, term: Any, what: str) -> list[Any]:
     if isinstance(term, BlankNode) and (term, RDF.first, None) in graph:
         members = rdf_list(graph, term)
         if not members:
-            raise ShapeError(f"{what}: malformed list {term!r}")
+            raise ShapeCompileError(f"{what}: malformed list {term!r}")
         return members
     return [term]
 
@@ -71,7 +71,7 @@ def _single_int(params: dict, pred: NamedNode) -> int:
     (v,) = params[pred] if len(params[pred]) == 1 else (None,)
     value = xv.numeric(v)
     if not isinstance(value, int) or isinstance(value, bool) or value < 0:
-        raise ShapeError(f"{short(pred)} needs exactly one non-negative xsd:integer, got {[text(x) for x in params[pred]]!r}")  # str-ok: short() returns text
+        raise ShapeCompileError(f"{short(pred)} needs exactly one non-negative xsd:integer, got {[text(x) for x in params[pred]]!r}")  # str-ok: short() returns text
     return value
 
 
@@ -100,7 +100,7 @@ def _is_instance(data: Any, node: Any, cls: Any, superclasses_of: Any = None) ->
 def _classes(shapes: Any, param: Any) -> list[Any]:
     classes = alternatives(shapes, param, "sh:class")
     if any(is_literal(c) or is_triple_term(c) for c in classes):
-        raise ShapeError(f"sh:class needs IRIs or blank nodes, got {param!r}")
+        raise ShapeCompileError(f"sh:class needs IRIs or blank nodes, got {param!r}")
     return classes
 
 
@@ -134,7 +134,7 @@ def _has_datatype(v: Any, datatypes: list[Any]) -> bool:
 def _datatypes(shapes: Any, dt: Any) -> list[Any]:
     allowed = alternatives(shapes, dt, "sh:datatype")  # a list of datatype IRIs is a union
     if not all(isinstance(a, NamedNode) for a in allowed):
-        raise ShapeError(f"sh:datatype needs an IRI or a list of IRIs, got {dt!r}")
+        raise ShapeCompileError(f"sh:datatype needs an IRI or a list of IRIs, got {dt!r}")
     return allowed
 
 
@@ -180,7 +180,7 @@ def _kind(t: Any) -> str:
 def _kinds(shapes: Any, nk: Any) -> list[Any]:
     kinds = alternatives(shapes, nk, "sh:nodeKind")
     if not all(k in _KINDS for k in kinds):
-        raise ShapeError(f"sh:nodeKind needs sh: node kinds, got {nk!r}")
+        raise ShapeCompileError(f"sh:nodeKind needs sh: node kinds, got {nk!r}")
     return kinds
 
 
@@ -243,7 +243,7 @@ def _range_component(pred: NamedNode, op):
     def check_params(shapes, shape, params) -> None:
         for bound in params[pred]:
             if not isinstance(bound, Literal):
-                raise ShapeError(f"{text(pred)} needs a literal, got {bound!r}")
+                raise ShapeCompileError(f"{text(pred)} needs a literal, got {bound!r}")
 
     def check(ctx, shape, params, focus, values) -> Iterator[Violation]:
         check_params(ctx.shapes, shape, params)
@@ -280,7 +280,7 @@ def has_value(ctx, shape, params, focus, values) -> Iterator[Violation]:
 def _in_members(shapes: Any, head: Any) -> list[Any]:
     members = rdf_list(shapes, head) if not isinstance(head, Literal) else None
     if members is None:
-        raise ShapeError(f"sh:in needs an rdf:list, got {head!r}")
+        raise ShapeCompileError(f"sh:in needs an rdf:list, got {head!r}")
     return members
 
 

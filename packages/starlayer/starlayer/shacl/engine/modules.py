@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from starlayer.shacl.engine.graphs import copy_cbd, new_graph
-from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.plan import ShapeCompileError
 from starlayer.shacl.engine.terms import (
     OWL,
     RDF,
@@ -52,7 +52,7 @@ def _module_nodes(graph: Any, module: Any) -> set:
             if imported in nodes:
                 continue
             if not _is_graph_node(graph, imported):
-                raise ShapeError(f"{text(current)} declares owl:imports {text(imported)}, which is not a sh:Graph in this graph")
+                raise ShapeCompileError(f"{text(current)} declares owl:imports {text(imported)}, which is not a sh:Graph in this graph")
             nodes.add(imported)
             pending.append(imported)
     return nodes

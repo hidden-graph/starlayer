@@ -39,6 +39,7 @@ from starlayer.shacl.engine.plan import (
     Shape,
     ShapeError,
     Term,
+    ShapeCompileError,
 )
 from starlayer.shacl.engine.reads import RecordingGraph
 from starlayer.shacl.engine.terms import (
@@ -160,7 +161,7 @@ def _walk(data: Any, path: Path, focus: Term) -> tuple[frozenset, set[_Triple]]:
             frontier = nxt
         # every edge of every step, including those leaving the focus of a oneOrMore path (it is not itself reached)
         return frozenset(reachable), triples
-    raise ShapeError(f"unknown path kind {k}")
+    raise ShapeCompileError(f"unknown path kind {k}")
 
 
 def _type_paths(graph: Any, node: Term, cls: Term | None = None) -> set[_Triple]:

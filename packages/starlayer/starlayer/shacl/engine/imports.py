@@ -25,7 +25,7 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.shacl.engine.graphs import new_graph
-from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.plan import ShapeCompileError
 from starlayer.shacl.engine.terms import OWL, engine_view, text
 
 Loader = Callable[[Any], Any]
@@ -57,7 +57,7 @@ def resolve_imports(
         if not ignore_imports:
             missing = [o for o in declared_imports(shapes_graph) if o != SHACL_VOCABULARY and not _has_subject(shapes_graph, o)]
             if missing:
-                raise ShapeError(
+                raise ShapeCompileError(
                     f"shacl_graph declares owl:imports {[text(m) for m in missing]!r} that aren't already "
                     "locally satisfied, but no shapes_graph_loader was given to resolve them. "
                     "Pass shapes_graph_loader=... to resolve them, or ignore_imports=True if "

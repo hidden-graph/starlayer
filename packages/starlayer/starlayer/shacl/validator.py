@@ -633,7 +633,7 @@ class StarShaclProcessor:
         except ShapeError:  # unresolved owl:imports and no loader to resolve them with
             return
         checked = _adapter.CheckedShapes()
-        if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ShapeError
+        if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ShapeCompileError
             checked.check_meta(shapes, self.meta_shapes_extra or ())
         checked.compile(shapes, resolved)
         self._checked = checked

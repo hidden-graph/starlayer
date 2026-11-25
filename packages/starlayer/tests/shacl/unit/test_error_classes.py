@@ -1,5 +1,6 @@
 """Errors are classified by cause: ``ShapeError`` (the shapes graph or its setup is wrong, whenever the engine finds it) and
-``ExecutionError`` (the shapes graph is fine and running it failed). ``ExecutionError`` is a plain ``Exception``."""
+``ExecutionError`` (the shapes graph is fine and running it failed). ``ExecutionError`` is a plain ``Exception``. ``ShapeError`` is the
+base of ``ShapeCompileError`` (the engine cannot compile it) and ``MetaShaclError`` (the meta check found it)."""
 
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from starlayer.shacl import (
     NestingTooDeep,
     RecursionThroughNot,
     RuleError,
+    ShapeCompileError,
     ShapeError,
     StarShaclProcessor,
     apply_rules,
@@ -112,3 +114,48 @@ def test_an_unresolvable_import_is_a_shape_error_at_the_first_validate():
     with pytest.raises(ShapeError, match="owl:imports") as exc:
         processor.validate(data_graph=g("ex:a ex:p 1 ."), meta_shacl=False)
     assert not isinstance(exc.value, ExecutionError)
+
+
+BAD_COUNT = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minCount \"many\" ] ."
+
+
+def test_the_shape_error_hierarchy():
+    for cls in (ShapeCompileError, MetaShaclError):
+        assert issubclass(cls, ShapeError) and issubclass(cls, ValueError)
+        assert not issubclass(cls, ExecutionError)
+    assert not issubclass(ShapeCompileError, MetaShaclError) and not issubclass(MetaShaclError, ShapeCompileError)
+    assert not issubclass(ExecutionError, ShapeError)
+
+
+def test_a_compile_error_is_a_shape_compile_error_and_not_a_meta_error():
+    with pytest.raises(ShapeCompileError) as exc:
+        StarShaclProcessor(shacl_graph=g(BAD_COUNT))
+    assert type(exc.value) is ShapeCompileError and not isinstance(exc.value, MetaShaclError)
+
+
+def test_the_meta_check_raises_a_meta_error_that_is_a_shape_error_and_not_a_compile_error():
+    with pytest.raises(MetaShaclError) as exc:
+        StarShaclProcessor(shacl_graph=g(BAD_COUNT), meta_shacl=True)
+    assert isinstance(exc.value, ShapeError) and not isinstance(exc.value, ShapeCompileError)
+
+
+def test_except_shape_error_catches_both_kinds():
+    for kwargs in ({}, {"meta_shacl": True}):
+        try:
+            StarShaclProcessor(shacl_graph=g(BAD_COUNT), **kwargs)
+        except ShapeError:
+            pass
+        else:
+            raise AssertionError("no error raised")
+
+
+def test_an_unresolvable_import_is_a_shape_compile_error():
+    shapes = g("ex:SG a sh:Graph ; owl:imports <http://example.org/missing> . ex:S a sh:NodeShape ; sh:targetNode ex:a .")
+    with pytest.raises(ShapeCompileError):
+        validate(g("ex:a ex:p 1 ."), shapes, meta_shacl=False)
+
+
+def test_a_malformed_rule_is_a_shape_compile_error():
+    shapes = "ex:R a sh:SPARQLRule ; sh:construct 'not a query' ."
+    with pytest.raises(ShapeCompileError):
+        apply_rules(g("ex:a ex:p 1 ."), g(shapes))

@@ -16,7 +16,7 @@ from typing import Any
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.registry import Violation, component, words
 from starlayer.shacl.engine.executor import Result
-from starlayer.shacl.engine.plan import SH, ShapeError
+from starlayer.shacl.engine.plan import SH, ShapeError, ShapeCompileError
 from starlayer.shacl.engine.terms import RDF, XSD, BlankNode, Literal, NamedNode
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 from starlayer.shacl.engine.terms import text as term_text
@@ -48,19 +48,19 @@ def _int_param(shape: Any, pred: URIRef, term: Any) -> int:
             return int(term.value)
         except ValueError:
             pass
-    raise ShapeError(f"{term_text(shape.node)}: {term_text(pred)} must be an xsd:integer literal, got {term!r}")
+    raise ShapeCompileError(f"{term_text(shape.node)}: {term_text(pred)} must be an xsd:integer literal, got {term!r}")
 
 
 def _bool_param(shape: Any, pred: URIRef, term: Any) -> bool:
     if isinstance(term, Literal) and term.datatype == XSD.boolean and term.value in ("true", "false", "1", "0"):
         return term.value == "true"  # only the lexical form "true" activates (W3C uniqueLang-002)
-    raise ShapeError(f"{term_text(shape.node)}: {term_text(pred)} must be an xsd:boolean literal, got {term!r}")
+    raise ShapeCompileError(f"{term_text(shape.node)}: {term_text(pred)} must be an xsd:boolean literal, got {term!r}")
 
 
 def _string_param(shape: Any, pred: URIRef, term: Any) -> str:
     if isinstance(term, Literal) and term.datatype == XSD.string:
         return term.value
-    raise ShapeError(f"{term_text(shape.node)}: {term_text(pred)} must be a string literal, got {term!r}")
+    raise ShapeCompileError(f"{term_text(shape.node)}: {term_text(pred)} must be a string literal, got {term!r}")
 
 
 def _members_or_none(graph: Any, head: Any) -> list[Any] | None:
@@ -86,7 +86,7 @@ def _members_or_none(graph: Any, head: Any) -> list[Any] | None:
 def _list_items(graph: Any, head: Any, what: str) -> list[Any]:
     items = _members_or_none(graph, head)
     if items is None:
-        raise ShapeError(f"{what}: {term_text(head)!r} is not a well-formed rdf:List")
+        raise ShapeCompileError(f"{what}: {term_text(head)!r} is not a well-formed rdf:List")
     return items
 
 
@@ -180,7 +180,7 @@ def max_length(ctx, shape, params, focus, values) -> Iterator[Violation]:
 
 def _compile(shape: Any, pattern: str, flags: str) -> re.Pattern:
     if set(flags) - set("smixq"):
-        raise ShapeError(f"{term_text(shape.node)}: invalid sh:flags {flags!r}")
+        raise ShapeCompileError(f"{term_text(shape.node)}: invalid sh:flags {flags!r}")
     py_flags = 0
     for ch, flag in (("s", re.DOTALL), ("m", re.MULTILINE), ("i", re.IGNORECASE)):
         if ch in flags:
@@ -194,7 +194,7 @@ def _compile(shape: Any, pattern: str, flags: str) -> re.Pattern:
                 text = _strip_free_space(text)
         return re.compile(text, py_flags)
     except (re.error, ValueError, OverflowError) as exc:  # OverflowError: a repetition count such as a{99999999999}
-        raise ShapeError(f"{term_text(shape.node)}: invalid sh:pattern {pattern!r}: {exc}") from exc
+        raise ShapeCompileError(f"{term_text(shape.node)}: invalid sh:pattern {pattern!r}: {exc}") from exc
 
 
 def regex_problem(node: Any, pattern: str, flags: str) -> str | None:
@@ -234,7 +234,7 @@ def _regexes(shape: Any, params: dict) -> list[re.Pattern]:
         return []
     flag_values = params.get(SH.flags, ())
     if len(flag_values) > 1:
-        raise ShapeError(f"{term_text(shape.node)}: more than one sh:flags")
+        raise ShapeCompileError(f"{term_text(shape.node)}: more than one sh:flags")
     flags = _string_param(shape, SH.flags, flag_values[0]) if flag_values else ""
     return [_compile(shape, _string_param(shape, SH.pattern, param), flags) for param in params[SH.pattern]]
 

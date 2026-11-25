@@ -31,7 +31,7 @@ from starlayer.shacl.engine.plan import (
     SH,
     ExecutionError,
     NestingTooDeep,
-    ShapeError,
+    ShapeCompileError,
     Term,
 )
 from starlayer.shacl.engine.targets import _all_nodes, _class_closure
@@ -144,7 +144,7 @@ def _eval_once(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[T
         members = list(shacl_list(g, expr))  # list expression: its members, which are constants (Node Expressions 4.1.3)
         for member in members:
             if isinstance(member, BNode) and is_expression(g, member):
-                raise ShapeError(f"{member!r}: a member of a list expression is not a constant, it is a node expression")
+                raise ShapeCompileError(f"{member!r}: a member of a list expression is not a constant, it is a node expression")
         return members
     keys = [p for p in preds if p in OPERATORS]
     if not keys:  # a call of a custom function declared in the shapes graph
@@ -153,9 +153,9 @@ def _eval_once(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[T
         if len(called) == 1 and len({custom[p] for p in called}) == 1:
             return _call_custom(ctx, expr, custom[called[0]], called[0], focus, scope)
         if len(called) > 1:
-            raise ShapeError(f"{expr!r}: a node expression may call only one custom function, found {sorted(text(c) for c in called)}")
+            raise ShapeCompileError(f"{expr!r}: a node expression may call only one custom function, found {sorted(text(c) for c in called)}")
     if len(keys) != 1:
-        raise ShapeError(
+        raise ShapeCompileError(
             f"{expr!r}: a node expression needs exactly one operator predicate, found {sorted(text(k) for k in keys)}"
         )
     return OPERATORS[keys[0]](ctx, expr, focus, scope)
@@ -208,7 +208,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
     g = ctx.shapes
     body = next(iter(g.objects(fn, SH.bodyExpression)), None)
     if body is None:
-        raise ShapeError(f"{fn!r}: a custom node expression function needs an sh:bodyExpression")
+        raise ShapeCompileError(f"{fn!r}: a custom node expression function needs an sh:bodyExpression")
     arg_scope: dict = {}
     if (fn, RDF.type, SH.ListParameterExpressionFunction) in g:
         head = _one(ctx, expr, pred)
@@ -244,7 +244,7 @@ def _arg(ctx, expr, focus, scope):
         try:
             key = int(key.value)
         except ValueError:
-            raise ShapeError(f"{expr!r}: shnex:arg must be an integer or a parameter path IRI") from None
+            raise ShapeCompileError(f"{expr!r}: shnex:arg must be an integer or a parameter path IRI") from None
     return scope_nodes(ctx, scope.get(key, []), focus)
 
 
@@ -255,7 +255,7 @@ def _values(ctx: Any, expr: Term, pred: URIRef) -> list:
 def _one(ctx: Any, expr: Term, pred: URIRef, *, required: bool = True) -> Term | None:
     vs = _values(ctx, expr, pred)
     if len(vs) > 1 or (required and not vs):
-        raise ShapeError(f"{expr!r}: exactly one {text(pred)} is required")
+        raise ShapeCompileError(f"{expr!r}: exactly one {text(pred)} is required")
     return vs[0] if vs else None
 
 
@@ -299,7 +299,7 @@ def _integer(term: Term, what: str) -> int:
         n = int(term.value)
         if n >= 0:
             return n
-    raise ShapeError(f"{what} must be a non-negative xsd:integer, got {term!r}")
+    raise ShapeCompileError(f"{what} must be a non-negative xsd:integer, got {term!r}")
 
 
 def _bool(value: bool) -> list:
@@ -568,7 +568,7 @@ def _nodes_matching(ctx, expr, focus, scope):
 def _conforms_to_shape(ctx, expr, focus, scope):
     members = _args(ctx, expr, _n("conformsToShape"))
     if problem := arity_problem(_n("conformsToShape"), len(members)):
-        raise ShapeError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
+        raise ShapeCompileError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
     outs = [_eval(ctx, m, focus, scope) for m in members]
     if any(len(o) > 1 for o in outs):
         raise EvaluationFailure(
@@ -662,7 +662,7 @@ def _sparql_args(ctx, expr, pred, focus, scope) -> list[tuple[str, Term | None]]
     another count is a malformed expression, a ShapeError."""
     members = _args(ctx, expr, pred)
     if problem := arity_problem(pred, len(members)):
-        raise ShapeError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
+        raise ShapeCompileError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
     return [_arg_state(ctx, a, focus, scope) for a in members]
 
 
@@ -745,7 +745,7 @@ def _sp_coalesce(ctx, expr, focus, scope):
 def _sp_if(ctx, expr, focus, scope):
     members = _args(ctx, expr, _s("if"))
     if problem := arity_problem(_s("if"), len(members)):
-        raise ShapeError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
+        raise ShapeCompileError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
     cond, then, other = members
     kind, c = _arg_state(ctx, cond, focus, scope)
     truth = _ebv(c) if kind == _VALUE else None

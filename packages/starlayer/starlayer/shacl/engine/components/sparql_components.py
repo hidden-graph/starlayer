@@ -23,7 +23,7 @@ from starlayer.shacl.engine.components.registry import (
     ComponentSpec,
     Violation,
 )
-from starlayer.shacl.engine.plan import SH, Plan, Shape, ShapeError, Term
+from starlayer.shacl.engine.plan import SH, Plan, Shape, ShapeCompileError, Term
 from starlayer.shacl.engine.sparql_support import (
     fill_template,
     is_true,
@@ -62,18 +62,18 @@ def _parameters(graph: Any, comp: Term, *, allow_all_optional: bool = False) -> 
     for param in graph.objects(comp, SH.parameter):
         paths = list(graph.objects(param, SH.path))
         if len(paths) != 1 or not isinstance(paths[0], URIRef):
-            raise ShapeError(f"{param!r}: a parameter needs exactly one IRI sh:path")
+            raise ShapeCompileError(f"{param!r}: a parameter needs exactly one IRI sh:path")
         name = _local_name(paths[0])
         if not _VARNAME.match(name) or name in _RESERVED:
-            raise ShapeError(f"{param!r}: {name!r} is not a usable parameter name")
+            raise ShapeCompileError(f"{param!r}: {name!r} is not a usable parameter name")
         optionals = list(graph.objects(param, SH.optional))
         if len(optionals) > 1:
-            raise ShapeError(f"{param!r}: more than one sh:optional")
+            raise ShapeCompileError(f"{param!r}: more than one sh:optional")
         out.append((paths[0], name, bool(optionals) and is_true(optionals[0])))
     if len({n for _p, n, _o in out}) != len(out):
-        raise ShapeError(f"{comp!r}: two parameters have the same name")
+        raise ShapeCompileError(f"{comp!r}: two parameters have the same name")
     if out and all(opt for _p, _n, opt in out) and not allow_all_optional:
-        raise ShapeError(f"{comp!r}: a constraint component needs at least one non-optional parameter")
+        raise ShapeCompileError(f"{comp!r}: a constraint component needs at least one non-optional parameter")
     return out
 
 
@@ -115,7 +115,7 @@ def _make_queries(comp: Term, params: list[tuple[URIRef, str, bool]]):
             asks = list(graph.objects(validator, SH.ask))
             selects = list(graph.objects(validator, SH.select))
             if len(asks) + len(selects) != 1:
-                raise ShapeError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select")
+                raise ShapeCompileError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select")
             if asks:
                 text = with_prefixes(ctx.plan, validator, asks[0].value)
                 out.extend((text, {"this": focus, "value": value, **bound}) for value in values)
@@ -133,7 +133,7 @@ def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, 
     asks = list(graph.objects(validator, SH.ask))
     selects = list(graph.objects(validator, SH.select))
     if len(asks) + len(selects) != 1:
-        raise ShapeError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select")
+        raise ShapeCompileError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select")
     if asks:
         text = with_prefixes(ctx.plan, validator, asks[0].value)
         out = []

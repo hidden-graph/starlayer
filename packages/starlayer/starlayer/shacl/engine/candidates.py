@@ -28,7 +28,7 @@ from starlayer.graph import StarLayerDataset
 from starlayer.shacl.engine.components.core_shape_based import _lists, _roots
 from starlayer.shacl.engine.components.core_value import alternatives, rdf_list
 from starlayer.shacl.engine.executor import Context, validate_shape_at
-from starlayer.shacl.engine.plan import SH, Plan, Shape, ShapeError
+from starlayer.shacl.engine.plan import SH, Plan, Shape, ShapeCompileError
 from starlayer.shacl.engine.report import conforms
 from starlayer.shacl.engine.terms import (
     RDF,
@@ -115,7 +115,7 @@ class _Reader:
         for head in params.get(SH["in"], ()):
             members = rdf_list(self.shapes, head) if not isinstance(head, Literal) else None
             if members is None:
-                raise ShapeError(f"sh:in needs an rdf:list, got {text(head)}")
+                raise ShapeCompileError(f"sh:in needs an rdf:list, got {text(head)}")
             found.append(_Found(frozenset(members), True))
         if params.get(SH.hasValue):
             found.append(_Found(frozenset(params[SH.hasValue]), True))

@@ -1,10 +1,16 @@
 """The errors SHACL processing raises, importable from ``starlayer.shacl``. They are classified by cause.
 
-``ShapeError``: the shapes graph (a shape, a rule, a rules graph) or its setup (an ``owl:imports`` that cannot be resolved) is wrong or asks
-for something unsupported, whenever the engine finds it (when a processor is built, or later in a run). A ``ValueError`` subclass.
-``MetaShaclError``: the shapes graph fails the shapes-about-shapes check (``meta_shacl=True``), also a ``ValueError`` subclass.
-``ExecutionError``: the shapes graph is fine and running it failed. A plain ``Exception`` on purpose, not a ``ValueError``, so that an
-``except ValueError`` cannot swallow it. Its subclasses:
+``ShapeError``: the base of the shapes-graph errors. The shapes graph (a shape, a rule, a rules graph) or its setup (an ``owl:imports``
+that cannot be resolved) is wrong or asks for something unsupported, found by anyone. A ``ValueError`` subclass, never raised bare, so
+``except ShapeError`` catches either kind below:
+
+* ``ShapeCompileError``: the engine itself cannot read or compile the shapes graph, its rules or its setup, whenever it finds out (when a
+  processor is built, or later in a run).
+* ``MetaShaclError``: the meta check (the shapes-about-shapes, ``meta_shacl=True``) found it. Carries ``problems``, ``report_text``,
+  ``report_graph`` and ``scope``.
+
+``ExecutionError``: the shapes graph is fine and running it failed. A plain ``Exception`` on purpose, not a ``ValueError`` and not a
+``ShapeError``, so that an ``except ValueError`` cannot swallow it. Its subclasses:
 
 * ``RuleError``: a rule failed while running, or the rules did not reach a fixpoint within ``max_iterations``.
 * ``EvaluationFailure``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
@@ -22,6 +28,7 @@ from starlayer.shacl.engine.plan import (
     ExecutionError,
     NestingTooDeep,
     RecursionThroughNot,
+    ShapeCompileError,
     ShapeError,
 )
 from starlayer.shacl.engine.rules import RuleError
@@ -34,5 +41,6 @@ __all__ = [
     "NestingTooDeep",
     "RecursionThroughNot",
     "RuleError",
+    "ShapeCompileError",
     "ShapeError",
 ]

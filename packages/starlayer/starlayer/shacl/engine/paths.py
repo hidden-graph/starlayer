@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.shacl.engine.plan import SH, Path, ShapeError, Term
+from starlayer.shacl.engine.plan import SH, Path, ShapeCompileError, Term
 from starlayer.shacl.engine.terms import RDF, BlankNode, Literal, NamedNode
 
 _UNARY = {
@@ -27,12 +27,12 @@ def _read_list(graph: Any, head: Term, what: str) -> list[Term]:
     node = head
     while node != RDF.nil:
         if node in seen:
-            raise ShapeError(f"{what}: cyclic rdf:List")
+            raise ShapeCompileError(f"{what}: cyclic rdf:List")
         seen.add(node)
         firsts = list(graph.objects(node, RDF.first))
         rests = list(graph.objects(node, RDF.rest))
         if len(firsts) != 1 or len(rests) != 1:
-            raise ShapeError(f"{what}: malformed rdf:List at {node!r}")
+            raise ShapeCompileError(f"{what}: malformed rdf:List at {node!r}")
         items.append(firsts[0])
         node = rests[0]
     return items
@@ -46,30 +46,30 @@ def parse_path(graph: Any, node: Term, _stack: tuple = ()) -> Path:
     if isinstance(node, NamedNode):
         return Path(kind="pred", iri=node, node=node)
     if isinstance(node, Literal) or not isinstance(node, BlankNode):
-        raise ShapeError(f"a property path must be an IRI or blank node, got {node!r}")
+        raise ShapeCompileError(f"a property path must be an IRI or blank node, got {node!r}")
     if node in _stack:
-        raise ShapeError(f"cyclic property path at {node!r}")
+        raise ShapeCompileError(f"cyclic property path at {node!r}")
     stack = _stack + (node,)
     present = [kw for kw in _KEYWORDS if (node, kw, None) in graph]
     is_list = (node, RDF.first, None) in graph
     if len(present) + (1 if is_list else 0) != 1:
-        raise ShapeError(f"{node!r} is not a well-formed property path ({len(present)} path keywords)")
+        raise ShapeCompileError(f"{node!r} is not a well-formed property path ({len(present)} path keywords)")
     if is_list:
         members = _read_list(graph, node, "sequence path")
         if len(members) < 2:
-            raise ShapeError("a sequence path needs at least two members")
+            raise ShapeCompileError("a sequence path needs at least two members")
         return Path(kind="seq", args=tuple(parse_path(graph, m, stack) for m in members), node=node)
     kw = present[0]
     values = list(graph.objects(node, kw))
     if len(values) != 1:
-        raise ShapeError(f"{node!r}: {kw} must have exactly one value")
+        raise ShapeCompileError(f"{node!r}: {kw} must have exactly one value")
     if kw == SH.alternativePath:
         head = values[0]
         if head == RDF.nil or isinstance(head, Literal):
-            raise ShapeError("an alternative path needs an rdf:List of at least two members")
+            raise ShapeCompileError("an alternative path needs an rdf:List of at least two members")
         members = _read_list(graph, head, "alternative path")
         if len(members) < 2:
-            raise ShapeError("an alternative path needs at least two members")
+            raise ShapeCompileError("an alternative path needs at least two members")
         return Path(kind="alt", args=tuple(parse_path(graph, m, stack) for m in members), node=node)
     return Path(kind=_UNARY[kw], args=(parse_path(graph, values[0], stack),), node=node)
 
