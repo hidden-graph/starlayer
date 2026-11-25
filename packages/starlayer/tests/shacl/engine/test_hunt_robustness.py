@@ -61,7 +61,7 @@ def test_sparql_rule_construct_rejects_service_and_minus(clause):
             warnings.simplefilter("ignore")
             with pytest.raises(Exception) as ei:
                 apply_rules(data, rule)
-        assert type(ei.value).__name__ in ("ShapeCompileError", "RuleError")
+        assert type(ei.value).__name__ in ("ShapeCompileError", "ExecutionError")
         assert not hits
     finally:
         srv.shutdown()
@@ -80,4 +80,4 @@ def test_global_sparql_rule_may_use_minus_but_not_service():
         assert len(out.inferred_graph) == 1  # only ex:a: ex:b is removed by the MINUS
         with pytest.raises(Exception) as ei:
             apply_rules(data, rule("SERVICE <http://127.0.0.1:9/sparql> { ?x ?y ?z }"))
-    assert type(ei.value).__name__ in ("ShapeCompileError", "RuleError")
+    assert type(ei.value).__name__ in ("ShapeCompileError", "ExecutionError")

@@ -7,9 +7,10 @@ import inspect
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import MetaShaclError, RuleError, ShapeError, StarShaclProcessor
+from starlayer.shacl import MetaShaclError, ShapeError, StarShaclProcessor
 from tests.shacl.integration._shape_loader import load_shape
 from tests.support.datasets import dataset_of
+from tests.support.errors import raises_kind
 from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
@@ -169,10 +170,10 @@ def test_max_iterations_constructor_and_call() -> None:
     assert linear_shapes() is not None
     StarShaclProcessor(linear_shapes()).apply_rules(data)  # built-in 1000
     p = StarShaclProcessor(linear_shapes(), max_iterations=3)
-    with pytest.raises(RuleError, match="fixpoint"):
+    with raises_kind("rule", match="fixpoint"):
         p.apply_rules(data)
     p.apply_rules(data, max_iterations=50)  # the call beats the constructor
-    with pytest.raises(RuleError, match="fixpoint"):
+    with raises_kind("rule", match="fixpoint"):
         StarShaclProcessor(linear_shapes()).apply_rules(data, max_iterations=3)
 
 

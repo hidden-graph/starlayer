@@ -11,8 +11,9 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.executor import Context
-from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
+from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.plan import Plan
+from tests.support.errors import raises_kind
 
 from .closure import node_closure
 from .comparison import conforms_of, find_report_node, result_multiset
@@ -74,7 +75,7 @@ def _eval(entry: ManifestEntry) -> None:
         scope,
     )
     if result == SHT.Failure:  # the expression must fail to evaluate (SHACL 1.2 Node Expressions: evaluation failure)
-        with pytest.raises(EvaluationFailure):
+        with raises_kind("expression"):
             evaluate_expression(*args)
         return
     expected = list(entry.graph.items(result))

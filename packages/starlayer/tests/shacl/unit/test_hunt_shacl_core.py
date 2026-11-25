@@ -7,7 +7,8 @@ import warnings
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
-from starlayer.shacl.engine.plan import NestingTooDeep, ShapeError
+from starlayer.shacl.engine.plan import ShapeError
+from tests.support.errors import raises_kind
 
 warnings.filterwarnings("ignore")
 
@@ -187,13 +188,13 @@ def test_recursive_sh_node_chain_below_the_depth_limit_does_not_hit_the_python_s
 
 def test_recursive_chain_past_the_depth_limit_is_nesting_too_deep_not_a_recursion_error():
     d, s = _chain(60)
-    with pytest.raises(NestingTooDeep):
+    with raises_kind("nesting"):
         validate(d, s, max_validation_depth=20)
 
 
 def test_chain_deeper_than_the_default_depth_limit_is_nesting_too_deep():
     d, s = _chain(300)
-    with pytest.raises(NestingTooDeep):
+    with raises_kind("nesting"):
         validate(d, s)
 
 

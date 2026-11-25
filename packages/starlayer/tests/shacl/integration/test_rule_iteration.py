@@ -1,5 +1,4 @@
 import pyoxigraph as ox
-import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.engine.terms import to_engine
@@ -120,18 +119,18 @@ def test_rule_iteration_converges_within_iteration_limit() -> None:
 
 
 def test_rule_iteration_raises_when_exceeding_iteration_limit() -> None:
-    from starlayer.shacl import RuleError
+    from tests.support.errors import raises_kind
 
     data = _build_linear_chain(10)
-    with pytest.raises(RuleError, match="fixpoint"):
+    with raises_kind("rule", match="fixpoint"):
         _linear_rules(data, max_iterations=3)
 
 
 def test_engine_triple_cap_raises_rule_error_and_no_cap_is_the_default() -> None:
-    from starlayer.shacl import RuleError
+    from tests.support.errors import raises_kind
 
     data = _build_linear_chain(10)
-    with pytest.raises(RuleError, match="triples inferred"):
+    with raises_kind("rule", match="triples inferred"):
         _linear_rules(data, max_triples=5)
     assert len(_linear_rules(data).inferred) > 5  # no cap by default
     assert len(_linear_rules(data, max_triples=1000).inferred) > 5

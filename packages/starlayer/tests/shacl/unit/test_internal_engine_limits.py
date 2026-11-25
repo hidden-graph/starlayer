@@ -10,8 +10,6 @@ import inspect
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
-    NestingTooDeep,
-    RuleError,
     StarShaclProcessor,
     apply_rules,
     validate,
@@ -20,6 +18,7 @@ from starlayer.shacl import (
 from starlayer.shacl.engine.api import DEFAULT_MAX_VALIDATION_DEPTH
 from tests.shacl.integration._shape_loader import load_shape
 from tests.support.datasets import dataset_of
+from tests.support.errors import raises_kind
 from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
@@ -98,9 +97,9 @@ def test_the_default_depth_limit_is_500_through_public_validate() -> None:
     assert DEFAULT_MAX_VALIDATION_DEPTH == 500
     data = g(DATA)
     assert validate(data, chain(300)).conforms
-    with pytest.raises(NestingTooDeep):
+    with raises_kind("nesting"):
         validate(data, chain(520))  # 520 nested sh:node shapes: past the default 500
-    with pytest.raises(NestingTooDeep):
+    with raises_kind("nesting"):
         StarShaclProcessor(chain(520)).validate(data)
 
 
@@ -108,9 +107,9 @@ def test_max_iterations_stays_public_with_default_1000() -> None:
     data = linear_chain(10)  # one hop per iteration
     assert inspect.signature(StarShaclProcessor).parameters["max_iterations"].default is None
     assert len(apply_rules(data, linear_shapes()).inferred_graph) > 0  # built-in 1000, converges
-    with pytest.raises(RuleError, match="fixpoint"):
+    with raises_kind("rule", match="fixpoint"):
         apply_rules(data, linear_shapes(), max_iterations=3)
-    with pytest.raises(RuleError, match="fixpoint"):
+    with raises_kind("rule", match="fixpoint"):
         StarShaclProcessor(linear_shapes(), max_iterations=3).apply_rules(data)
 
 

@@ -11,12 +11,12 @@ from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.expressions import (
     OPERATORS,
-    EvaluationFailure,
     evaluate_expression,
 )
 from starlayer.shacl.engine.plan import Plan, ShapeError
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import XSD, boolean, integer, lexical, text
+from tests.support.errors import raises_kind
 
 EX = Namespace("http://example.com/")
 PREFIXES = """
@@ -73,7 +73,7 @@ def test_if_is_lazy_and_errors_in_the_unselected_branch_do_not_matter():
 
 def test_path_values_focus_node_with_several_nodes_is_a_failure():
     data = "ex:a ex:p ex:b, ex:c ."
-    with pytest.raises(EvaluationFailure):
+    with raises_kind("expression"):
         ev(
             "[ shnex:pathValues ex:q ; shnex:focusNode [ shnex:pathValues ex:p ] ]",
             data,
@@ -85,7 +85,7 @@ def test_sum_promotes_types():
     assert ev("[ shnex:sum ( 1 2 ) ]") == [integer(3)]
     assert ev("[ shnex:sum ( 1 2.5 ) ]") == [Literal("3.5", datatype=XSD.decimal)]
     assert ev("[ shnex:sum ( 1 2.5e0 ) ]")[0].datatype == XSD.double
-    with pytest.raises(EvaluationFailure):
+    with raises_kind("expression"):
         ev('[ shnex:sum ( 1 "a" ) ]')
 
 
@@ -109,11 +109,11 @@ def test_min_max_use_sparql_ordering_across_types():
 def test_sparql_function_argument_rules():
     assert ev('[ sparql:coalesce ( [] "ok" ) ]') == [Literal("ok")]
     assert ev("[ sparql:strlen ( [] ) ]") == []  # an unbound argument gives no output
-    with pytest.raises(EvaluationFailure):
+    with raises_kind("expression"):
         ev("[ sparql:abs ( ( -1 -2 ) ) ]")  # two output nodes: an error
-    with pytest.raises(EvaluationFailure):
+    with raises_kind("expression"):
         ev("[ sparql:abs ( ( -1 -2 ) [] ) ]")  # an error beats an unbound argument
-    with pytest.raises(EvaluationFailure):
+    with raises_kind("expression"):
         ev('[ sparql:if ( true [] "no" ) ]')  # the selected branch is unbound
     assert ev("[ sparql:logical-or ( [ sparql:abs ( ( 1 2 ) ) ] true ) ]") == [
         boolean(True)
@@ -162,7 +162,7 @@ def test_sh_expression_scope_has_value_and_reports_the_expression():
 
 def test_sh_expression_failure_propagates():
     shapes = """ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression [ sparql:abs ( ( 1 2 ) ) ] ."""
-    with pytest.raises(EvaluationFailure):
+    with raises_kind("expression"):
         validate(graph("ex:a ex:p 1 ."), graph(shapes))
 
 

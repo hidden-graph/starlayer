@@ -20,14 +20,13 @@ from starlayer.shacl.engine.components.registry import Violation
 from starlayer.shacl.engine.interface import Solutions
 from starlayer.shacl.engine.plan import (
     SH,
-    ConstraintQueryFailure,
     ExecutionError,
     Path,
     Plan,
     Shape,
+    ShapeCompileError,
     ShapeError,
     Term,
-    ShapeCompileError,
 )
 from starlayer.shacl.engine.terms import OWL, RDF, XSD, BlankNode, Literal
 from starlayer.shacl.engine.terms import NamedNode as URIRef
@@ -381,7 +380,7 @@ def violations_from_solutions(
     for row in solutions.rows:
         failure = row.get("failure")
         if failure is not None and isinstance(failure, Literal) and is_true(failure):
-            raise ConstraintQueryFailure("a SPARQL constraint query reported ?failure true")
+            raise ExecutionError("a SPARQL constraint query reported ?failure true", kind="constraint-query")
         path_term = row.get("path")
         path = Path(kind="pred", iri=path_term, node=path_term) if isinstance(path_term, URIRef) else None
         value = row.get("value", None if shape.is_property else focus)
@@ -456,7 +455,7 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
     """Output nodes of a ``sh:select`` or ``sh:sparqlExpr`` expression (called by ``expressions.py`` for those two
     operators; every other kind is evaluated there). ``this`` is pre-bound to ``focus`` when there is one, and every
     scope variable with exactly one value is pre-bound under its name (``sh:expression`` binds ``value``)."""
-    from starlayer.shacl.engine.expressions import EvaluationFailure, scope_nodes
+    from starlayer.shacl.engine.expressions import scope_nodes
 
     plan = ctx.plan
     graph = plan.shapes_graph
@@ -465,7 +464,7 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         name = _scope_variable(key)
         # SPARQL-Related Features 6.1 / 6.2: a scope variable called "this", or whose name is no SPARQL VARNAME, is a failure
         if name == "this" or not _VARNAME.fullmatch(name):
-            raise EvaluationFailure(f"the scope variable {name!r} cannot be a SPARQL variable of a sparql expression")
+            raise ExecutionError(f"the scope variable {name!r} cannot be a SPARQL variable of a sparql expression", kind="expression")
         nodes = scope_nodes(ctx, value, focus)
         if len(nodes) == 1:
             bindings[name] = nodes[0]

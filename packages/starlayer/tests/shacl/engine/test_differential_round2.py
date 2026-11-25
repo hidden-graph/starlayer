@@ -3,12 +3,11 @@ list parameter functions called from SPARQL, SPARQL-based custom components, con
 
 from __future__ import annotations
 
-import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
-from starlayer.shacl.engine.expressions import EvaluationFailure
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import text
+from tests.support.errors import raises_kind
 
 EX = Namespace("http://example.org/")
 SH = Namespace("http://www.w3.org/ns/shacl#")
@@ -90,7 +89,7 @@ def test_conformstoshape_with_several_output_nodes_is_an_evaluation_failure_and_
     ex:S a sh:NodeShape ; sh:targetNode ex:n ;
       sh:expression [ shnex:conformsToShape ( [ shnex:concat ( ex:a ex:b ) ] ex:P ) ] .
     """
-    with pytest.raises(EvaluationFailure):
+    with raises_kind("expression"):
         run(shapes, "ex:n ex:q 1 .")
 
 

@@ -1,7 +1,8 @@
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import EvaluationFailure, StarShaclProcessor
+from starlayer.shacl import StarShaclProcessor
+from tests.support.errors import raises_kind
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -339,7 +340,7 @@ def test_conformstoshape_over_expression_yielding_multiple_nodes() -> None:
     # Node Expressions 4.5.3: conformsToShape is a list parameter function, so an argument with more than one
     # output node is an evaluation failure; the native engine lets sh:expression's evaluation failure propagate
     # out of validate() instead of silently requiring all of the nodes to conform (issue #95).
-    with pytest.raises(EvaluationFailure, match="more than one output node"):
+    with raises_kind("expression", match="more than one output node"):
         _boolean_expr_conforms(
             "shnex:conformsToShape ( [ shnex:concat ( ex:bob ex:carol ) ] ex:PersonShape )"
         )

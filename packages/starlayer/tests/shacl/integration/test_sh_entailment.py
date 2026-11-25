@@ -15,7 +15,7 @@ to take effect - a real, not vacuous, exercise of this feature.
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
-from starlayer.shacl import StarShaclProcessor, target_nodes
+from starlayer.shacl import ShapeCompileError, StarShaclProcessor, target_nodes
 from starlayer.shacl.engine.terms import to_engine
 from tests.support.terms import RDF, Namespace
 
@@ -85,7 +85,7 @@ class TestValidateRespectsShEntailment:
         shapes = _shapes()
         shapes.add((EX.EmployeeShape, SH.entailment, ENTAILMENT.D))
 
-        with pytest.raises(ValueError, match="Unsupported entailment regime"):
+        with pytest.raises(ShapeCompileError, match="Unsupported entailment regime"):
             StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False)
 
 

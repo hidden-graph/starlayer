@@ -31,20 +31,39 @@ class ShapeCompileError(ShapeError):
 
 class ExecutionError(Exception):
     """The shapes graph is fine and running it failed. A plain ``Exception``, not a ``ValueError``: the engine's narrow
-    ``except ValueError`` clauses (and a caller's) must not swallow it, as they must not swallow ``EvaluationFailure``."""
+    ``except ValueError`` clauses (and a caller's) must not swallow it.
+
+    One class; ``kind`` says what failed (a plain string, one of ``KINDS``):
+
+    * ``"rule"``: a rule failed while running, ``max_iterations`` or ``max_triples`` was exceeded, or the rule set failed as a whole.
+    * ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
+    * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
+    * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
+    * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
+
+    ``str(error)`` is the message. Catch ``ExecutionError`` and test ``error.kind``; inside the engine, ``only_kind`` does the test."""
+
+    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query")
+
+    def __init__(self, message: str, *, kind: str) -> None:
+        if kind not in self.KINDS:
+            raise ValueError(f"unknown ExecutionError kind {kind!r}; one of {', '.join(self.KINDS)}")
+        super().__init__(message)
+        self.kind = kind
+
+    def __reduce__(self) -> Any:  # a keyword-only ``kind`` must survive pickle and copy
+        return (_rebuild_execution_error, (self.args[0] if self.args else "", self.kind))
 
 
-class NestingTooDeep(ExecutionError):
-    """Shapes (``Validation path too deep``) or node expressions (a cyclic expression, a recursive function) nest deeper than the
-    limit, or deeper than the interpreter's recursion limit allows."""
+def _rebuild_execution_error(message: str, kind: str) -> ExecutionError:
+    return ExecutionError(message, kind=kind)
 
 
-class RecursionThroughNot(ExecutionError):
-    """A shape reaches itself on a focus node through ``sh:not``: a cycle in the data that has no consistent answer."""
-
-
-class ConstraintQueryFailure(ExecutionError):
-    """A ``sh:sparql`` constraint query reported ``?failure true`` for a solution (the whole validation fails)."""
+def only_kind(error: ExecutionError, *kinds: str) -> None:
+    """For an ``except ExecutionError as error`` clause that handles only some kinds: returns when ``error.kind`` is one of ``kinds``
+    and raises ``error`` again otherwise, so a clause that means "no value" cannot swallow a rule, nesting or recursion failure."""
+    if error.kind not in kinds:
+        raise error
 
 
 def reject_removed_constructs(graph: Any) -> None:

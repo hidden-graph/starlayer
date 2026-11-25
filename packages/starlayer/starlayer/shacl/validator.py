@@ -218,7 +218,7 @@ def apply_rules(
             ``subclass_of_in_shapes_graph`` (also for the rules' class targets), ``meta_shacl`` and the named ``meta_shapes_extra``,
             ``ignore_imports``, ``shapes_graph_loader`` (how the shapes graph is read and checked), and the rule limits
             the rule limit
-            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise ``RuleError``).
+            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise an ``ExecutionError`` of kind ``"rule"``).
             An option that only describes a validation (``allow_warnings``, ``allow_infos``, ``abort_on_first``,
             ``include_used_configuration``, ``rules``, ...) is a ``TypeError`` naming ``validate()``.
             On a ``StarShaclProcessor`` the constructor's values of the options above are the defaults, and a keyword here

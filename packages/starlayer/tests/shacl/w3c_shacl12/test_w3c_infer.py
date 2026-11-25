@@ -36,8 +36,10 @@ from pathlib import Path
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclProcessor  # noqa: E402
-from starlayer.shacl.engine.plan import ShapeError  # noqa: E402
-from starlayer.shacl.engine.rules import RuleError  # noqa: E402
+from starlayer.shacl.engine.plan import (
+    ExecutionError,  # noqa: E402
+    ShapeError,  # noqa: E402
+)
 
 from .ids import portable_id  # noqa: E402
 from .known_failures import ENGINE_GAPS, KNOWN_FAILURES  # noqa: E402
@@ -137,7 +139,7 @@ def _check_infer(entry: ManifestEntry, new_graph, known_failures) -> None:
     data_graph = _resolve_action_graph(entry, SHT.dataGraph, new_graph)
     shapes_graph = _resolve_action_graph(entry, SHT.shapesGraph, new_graph)
     if next(entry.graph.objects(entry.iri, MF.result), None) == SHT.Failure:  # rule processing must fail (an unknown rule type, a bad rule)
-        with pytest.raises((ShapeError, RuleError)):  # a rules graph that is wrong, or a rule that fails while running
+        with pytest.raises((ShapeError, ExecutionError)):  # a rules graph that is wrong, or a rule that fails while running
             StarShaclProcessor(shacl_graph=shapes_graph).apply_rules(data_graph=data_graph, meta_shacl=False)
         return
     expected = _expected_triples(entry)

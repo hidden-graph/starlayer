@@ -29,7 +29,7 @@ def evaluate_expression(
     ``shapes_graph`` holds the expression and what it refers to (shapes, declared functions). ``scope`` binds variables
     (``shnex:var "name"``) by name to a term or a list of terms, and the arguments of a function call by position (``0``, ``1``,
     ...); ``focusNode`` is the focus node unless given. An expression that has an evaluation failure raises
-    ``EvaluationFailure`` (SHACL 1.2 Node Expressions 3.2). A ``sh:targetNode`` expression is evaluated with the shape as the focus node
+    an ``ExecutionError`` of kind ``"expression"`` (SHACL 1.2 Node Expressions 3.2). A ``sh:targetNode`` expression is evaluated with the shape as the focus node
     (Core 3.1.3.1): pass the shape. The nodes come back as pyoxigraph terms when ``expression``, ``focus`` and the ``scope`` values
     are all pyoxigraph terms (no rdflib needed), and as rdflib / StarLayer terms as soon as one of them is one."""
 

@@ -8,8 +8,8 @@ property shape, ``$PATH`` is replaced by the shape's path. One result per soluti
 from __future__ import annotations
 
 from starlayer.shacl.engine.components.registry import Violation, component
-from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
-from starlayer.shacl.engine.plan import SH, ShapeCompileError
+from starlayer.shacl.engine.expressions import evaluate_expression
+from starlayer.shacl.engine.plan import SH, ExecutionError, ShapeCompileError, only_kind
 from starlayer.shacl.engine.sparql_support import (
     is_true,
     run_select,
@@ -53,7 +53,8 @@ def _deactivated_at(ctx, exprs, focus) -> bool:
         try:
             if evaluate_expression(ctx, expr, focus) == [TRUE]:
                 return True
-        except EvaluationFailure:
+        except ExecutionError as error:
+            only_kind(error, "expression")
             continue
     return False
 

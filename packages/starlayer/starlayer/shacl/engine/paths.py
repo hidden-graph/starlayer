@@ -122,7 +122,7 @@ def _step(data: Any, path: Path, focus: Term) -> list[Term]:
         if k == "zero_or_more":
             return _dedupe([focus, *reached])
         return list(reached)
-    raise ValueError(f"unknown path kind {k}")
+    raise ShapeCompileError(f"unknown path kind {k}")
 
 
 def _reverse(path: Path) -> Path:

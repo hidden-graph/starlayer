@@ -607,7 +607,8 @@ class TestInputsAndHelpers:
         assert (EX.alice, EX.seen, lit(True)) in data
 
     def test_apply_rules_stops_a_runaway_rule_at_max_iterations(self) -> None:
-        from starlayer.shacl import RuleError, apply_rules
+        from starlayer.shacl import apply_rules
+        from tests.support.errors import raises_kind
 
         shapes = self._graph(
             "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -616,5 +617,5 @@ class TestInputsAndHelpers:
             "WHERE { $this <http://example.org/next> ?o }' ."
         )
         data = self._graph("@prefix ex: <http://example.org/> . ex:a ex:next ex:b . ex:b ex:next ex:c . ex:c ex:next ex:d .")
-        with pytest.raises(RuleError, match="fixpoint"):
+        with raises_kind("rule", match="fixpoint"):
             apply_rules(data, shapes, max_iterations=1)

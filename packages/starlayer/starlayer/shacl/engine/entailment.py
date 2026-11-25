@@ -35,6 +35,7 @@ from starlayer.graph.entailment.infer import (
     OWL_DIRECT_REGIME,
     SUPPORTED_REGIMES,
 )
+from starlayer.shacl.engine.plan import ShapeCompileError
 from starlayer.shacl.engine.terms import (
     RDF,
     SH,
@@ -114,7 +115,7 @@ def entailed_view(
 
 def declared_regimes(shapes: Any) -> frozenset:
     """The entailment regime IRIs named by ``sh:entailment`` in ``shapes`` (rules entailment and rule sets excluded). An IRI
-    that is neither a regime nor ``sh:RulesEntailment`` nor a ``sh:RuleSet`` raises ``ValueError``, as does a known but
+    that is neither a regime nor ``sh:RulesEntailment`` nor a ``sh:RuleSet`` raises ``ShapeCompileError``, as does a known but
     unsupported regime (D-entailment)."""
     out = set()
     shapes = engine_view(shapes)
@@ -122,7 +123,7 @@ def declared_regimes(shapes: Any) -> frozenset:
         if o == SH.RulesEntailment or (o, RDF.type, SH.RuleSet) in shapes:
             continue
         if text(o) not in SUPPORTED_REGIMES:
-            raise ValueError(f"Unsupported entailment regime {text(o)!r}")
+            raise ShapeCompileError(f"Unsupported entailment regime {text(o)!r}")
         out.add(o)
     return frozenset(out)
 

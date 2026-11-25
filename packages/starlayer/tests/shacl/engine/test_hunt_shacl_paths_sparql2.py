@@ -10,8 +10,8 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.executor import Context
-from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
-from starlayer.shacl.engine.plan import Plan, ShapeError
+from starlayer.shacl.engine.expressions import evaluate_expression
+from starlayer.shacl.engine.plan import ExecutionError, Plan, ShapeError
 from starlayer.shacl.engine.subgraph import extract_subgraph
 from starlayer.shacl.engine.terms import NS
 
@@ -158,7 +158,7 @@ def test_scope_variable_named_this_fails():
     g = G('ex:root ex:expr [ sh:select "SELECT ?r WHERE { BIND($this AS ?r) }" ] .')
     expr = next(g.objects(EX.root, EX.expr))
     ctx = Context(data=g, plan=Plan(shapes_graph=g))
-    with pytest.raises((EvaluationFailure, ShapeError)):
+    with pytest.raises((ExecutionError, ShapeError)):
         list(evaluate_expression(ctx, expr, EX.f, {"this": [ox.Literal("5", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer"))]}))
 
 
@@ -166,7 +166,7 @@ def test_scope_variable_invalid_varname_is_a_failure_not_value_error():
     g = G('ex:root ex:expr [ sh:select "SELECT ?r WHERE { BIND(1 AS ?r) }" ] .')
     expr = next(g.objects(EX.root, EX.expr))
     ctx = Context(data=g, plan=Plan(shapes_graph=g))
-    with pytest.raises((EvaluationFailure, ShapeError)):
+    with pytest.raises((ExecutionError, ShapeError)):
         list(evaluate_expression(ctx, expr, EX.f, {"a b": [ox.Literal("5")]}))
 
 

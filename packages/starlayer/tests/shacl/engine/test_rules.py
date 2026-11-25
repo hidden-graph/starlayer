@@ -7,13 +7,13 @@ from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.rules import (
     InferredView,
-    RuleError,
     ShapeError,
     apply_rules,
     entailment_selection,
     validate_with_rules,
 )
 from starlayer.shacl.engine.terms import integer
+from tests.support.errors import raises_kind
 
 EX = "http://example.com/ns#"
 PRE = """
@@ -91,7 +91,7 @@ def test_iterates_to_fixpoint() -> None:
 
 def test_non_terminating_rule_fails() -> None:
     data = g(CHAIN.replace("$this ex:p 1", "$this ex:p _:fresh"))
-    with pytest.raises(RuleError):
+    with raises_kind("rule"):
         apply_rules(data, max_iterations=5)
     res = apply_rules(data, max_iterations=5, raise_on_failure=False)
     assert not res.ok and res.failures

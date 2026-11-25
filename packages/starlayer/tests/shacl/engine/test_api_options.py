@@ -9,8 +9,8 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.shacl import validate as old_validate
 from starlayer.shacl.engine.api import validate as new_validate
-from starlayer.shacl.engine.plan import NestingTooDeep, RecursionThroughNot
 from starlayer.shacl.engine.terms import RDF, SH, XSD
+from tests.support.errors import raises_kind
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> . "
 EX = "http://example.org/"
@@ -174,7 +174,7 @@ DEEP = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:node [ sh:node [ sh:node [
 
 
 def test_max_validation_depth_is_a_failure() -> None:
-    with pytest.raises(NestingTooDeep, match="too deep"):
+    with raises_kind("nesting", match="too deep"):
         new_validate(g("ex:a ex:p 1 ."), g(DEEP), max_validation_depth=2)
     assert new_validate(g("ex:a ex:p 1 ."), g(DEEP), max_validation_depth=10).conforms
     assert old_validate(g("ex:a ex:p 1 ."), g(DEEP), meta_shacl=False, ignore_imports=True).conforms
@@ -207,7 +207,7 @@ NOT_CYCLE = "ex:N a sh:NodeShape ; sh:targetNode ex:a ; sh:not [ sh:property [ s
 
 def test_a_cycle_through_sh_not_is_a_failure() -> None:
     data = "ex:a ex:next ex:a ."
-    with pytest.raises(RecursionThroughNot, match="sh:not"):
+    with raises_kind("recursion", match="sh:not"):
         new_validate(g(data), g(NOT_CYCLE))
 
 
@@ -220,7 +220,7 @@ def test_sh_not_without_a_data_cycle_is_fine() -> None:
 def test_double_negation_cycle_is_a_failure_too() -> None:
     """Even through two sh:not the cycle has two consistent readings (the old validator picks one by evaluation order)."""
     shapes = "ex:N a sh:NodeShape ; sh:targetNode ex:a ; sh:not [ sh:not [ sh:property [ sh:path ex:next ; sh:node ex:N ] ] ] ."
-    with pytest.raises(RecursionThroughNot, match="sh:not"):
+    with raises_kind("recursion", match="sh:not"):
         new_validate(g("ex:a ex:next ex:a ."), g(shapes))
 
 

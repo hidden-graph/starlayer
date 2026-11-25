@@ -5,7 +5,7 @@ Public API::
     evaluate_expression(ctx, expr, focus, bindings=None) -> list[Term]
 
 ``expr`` is a node of the shapes graph (``ctx.shapes``); ``focus`` the focus node (``None`` for none); ``bindings`` maps variable names to a term or a list of terms (``shnex:var``). The result
-is the ordered list of output nodes; an evaluation failure raises ``EvaluationFailure``, a malformed expression
+is the ordered list of output nodes; an evaluation failure raises an ``ExecutionError`` of kind ``"expression"``, a malformed expression
 ``ShapeError``. Expressions read the shapes graph; paths, class membership and shape conformance run on the data graph
 (the "focus graph").
 
@@ -30,9 +30,9 @@ from starlayer.shacl.engine.paths import eval_path, parse_path
 from starlayer.shacl.engine.plan import (
     SH,
     ExecutionError,
-    NestingTooDeep,
     ShapeCompileError,
     Term,
+    only_kind,
 )
 from starlayer.shacl.engine.targets import _all_nodes, _class_closure
 from starlayer.shacl.engine.terms import (
@@ -48,10 +48,6 @@ from starlayer.shacl.engine.terms import NamedNode as URIRef
 
 SHNEX = "http://www.w3.org/ns/shacl-node-expr#"
 SPARQL_NS = "http://www.w3.org/ns/sparql#"
-
-
-class EvaluationFailure(ExecutionError):
-    """A node expression has no result for this data (Node Expressions 3.3), as opposed to an empty result."""
 
 
 Scope = Mapping[str, list]
@@ -122,10 +118,10 @@ _MAX_EXPRESSION_DEPTH = 100  # nested evaluations; a cyclic expression or a func
 
 def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     """Evaluate ``expr``; nesting deeper than ``_MAX_EXPRESSION_DEPTH`` (a blank-node expression that refers to itself, a
-    function that never stops calling itself) is a ``NestingTooDeep``, not a Python RecursionError."""
+    function that never stops calling itself) is an ``ExecutionError`` of kind ``"nesting"``, not a Python RecursionError."""
     state = ctx.cache.setdefault(("expression-depth",), [0])
     if state[0] >= _MAX_EXPRESSION_DEPTH:
-        raise NestingTooDeep(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (a cyclic expression or a recursive function)")
+        raise ExecutionError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (a cyclic expression or a recursive function)", kind="nesting")
     state[0] += 1
     try:
         return _eval_once(ctx, expr, focus, scope)
@@ -216,7 +212,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
         for i, arg in enumerate(_arg_terms(ctx, head)):
             nodes = _eval(ctx, arg, focus, scope)  # arguments are evaluated in the caller's scope
             if len(nodes) > 1:
-                raise EvaluationFailure(f"argument {i} of a call of {text(fn)} has more than one output node")
+                raise ExecutionError(f"argument {i} of a call of {text(fn)} has more than one output node", kind="expression")
             if nodes:
                 arg_scope[i] = nodes
             else:
@@ -225,7 +221,7 @@ def _call_custom(ctx: Any, expr: Term, fn: Term, pred: URIRef, focus: Term | Non
             return []
         out = _eval(ctx, body, focus, arg_scope)
         if len(out) > 1:
-            raise EvaluationFailure(f"the body of the list parameter function {text(fn)} has more than one output node")
+            raise ExecutionError(f"the body of the list parameter function {text(fn)} has more than one output node", kind="expression")
         return out
     for param in g.objects(fn, SH.parameter):  # every declared parameter, not only the key ones
         for path in g.objects(param, SH.path):
@@ -330,9 +326,9 @@ def _path_values(ctx, expr, focus, scope):
     if fexpr is not None:
         foci = _eval(ctx, fexpr, focus, scope)
     if len(foci) > 1:
-        raise EvaluationFailure(
+        raise ExecutionError(
             "shnex:focusNode of a path values expression has more than one output node"
-        )
+        , kind="expression")
     if not foci:
         return []
     key = ("path", node)
@@ -505,7 +501,7 @@ def _sum(ctx, expr, focus, scope):
         parsed = xv.parse(n) if isinstance(n, Literal) else None
         v = parsed.value if parsed is not None and parsed.kind == xv.NUMERIC else None
         if v is None:
-            raise EvaluationFailure(f"shnex:sum: {text(n)!r} is not a number")
+            raise ExecutionError(f"shnex:sum: {text(n)!r} is not a number", kind="expression")
         rank = max(rank, _NUMERIC_RANK.get(n.datatype, 0 if isinstance(v, int) else 1))
         values.append(v)
     if rank == 0:
@@ -551,7 +547,7 @@ def _instances_of(ctx, expr, focus, scope):
     out: dict = {}
     for cls in _eval(ctx, _one(ctx, expr, _n("instancesOf")), focus, scope):
         if not isinstance(cls, URIRef):
-            raise EvaluationFailure(f"shnex:instancesOf: {text(cls)!r} is not an IRI")
+            raise ExecutionError(f"shnex:instancesOf: {text(cls)!r} is not an IRI", kind="expression")
         for c in _class_closure(ctx.data, cls, ctx.subclasses_of):
             for inst in ctx.data.subjects(RDF.type, c):
                 out.setdefault(inst, None)
@@ -571,16 +567,16 @@ def _conforms_to_shape(ctx, expr, focus, scope):
         raise ShapeCompileError(f"{expr!r}: {problem}")  # str-ok: the text of arity_problem
     outs = [_eval(ctx, m, focus, scope) for m in members]
     if any(len(o) > 1 for o in outs):
-        raise EvaluationFailure(
+        raise ExecutionError(
             "an argument of shnex:conformsToShape has more than one output node"
-        )
+        , kind="expression")
     if not all(outs):
         return []
     node, shape = outs[0][0], outs[1][0]
     if not isinstance(shape, URIRef):
-        raise EvaluationFailure(
+        raise ExecutionError(
             f"shnex:conformsToShape: the shape {text(shape)!r} is not an IRI"
-        )
+        , kind="expression")
     return _bool(ctx.conforms(shape, node))
 
 
@@ -638,9 +634,9 @@ def _run_call(template: str, values: list) -> list:
             )
         rows = [sol["result"] for sol in result]
     except Exception as exc:  # noqa: BLE001  (a SPARQL evaluation error is an evaluation failure)
-        raise EvaluationFailure(f"SPARQL error in {template}: {exc}") from exc  # str-ok: SPARQL text
+        raise ExecutionError(f"SPARQL error in {template}: {exc}", kind="expression") from exc  # str-ok: SPARQL text
     if not rows or rows[0] is None:
-        raise EvaluationFailure(f"SPARQL error in {template}")  # str-ok: SPARQL text
+        raise ExecutionError(f"SPARQL error in {template}", kind="expression")  # str-ok: SPARQL text
     return [rows[0]]
 
 
@@ -650,7 +646,8 @@ _ERROR, _UNBOUND, _VALUE = "error", "unbound", "value"
 def _arg_state(ctx, arg, focus, scope) -> tuple[str, Term | None]:
     try:
         out = _eval(ctx, arg, focus, scope)
-    except EvaluationFailure:
+    except ExecutionError as error:
+        only_kind(error, "expression")
         return (_ERROR, None)
     if len(out) > 1:
         return (_ERROR, None)
@@ -669,9 +666,9 @@ def _sparql_args(ctx, expr, pred, focus, scope) -> list[tuple[str, Term | None]]
 def _bound_values(states: list) -> list | None:
     """Values of the arguments; None if one is unbound; failure if one is in error (an error beats an unbound)."""
     if any(k == _ERROR for k, _ in states):
-        raise EvaluationFailure(
+        raise ExecutionError(
             "an argument of a sparql: function has more than one output node or failed"
-        )
+        , kind="expression")
     return None if any(k == _UNBOUND for k, _ in states) else [v for _, v in states]
 
 
@@ -729,7 +726,7 @@ ARITY.update({_s("bound"): (1,), _s("if"): (3,), _s("hasLang"): (1, 2), _n("conf
 def _sp_bound(ctx, expr, focus, scope):
     ((kind, _),) = _sparql_args(ctx, expr, _s("bound"), focus, scope)
     if kind == _ERROR:
-        raise EvaluationFailure("the argument of sparql:bound failed")
+        raise ExecutionError("the argument of sparql:bound failed", kind="expression")
     return _bool(kind == _VALUE)
 
 
@@ -738,7 +735,7 @@ def _sp_coalesce(ctx, expr, focus, scope):
     for kind, value in _sparql_args(ctx, expr, _s("coalesce"), focus, scope):
         if kind == _VALUE:
             return [value]
-    raise EvaluationFailure("every argument of sparql:coalesce is unbound or failed")
+    raise ExecutionError("every argument of sparql:coalesce is unbound or failed", kind="expression")
 
 
 @operator(SPARQL_NS + "if")
@@ -750,14 +747,14 @@ def _sp_if(ctx, expr, focus, scope):
     kind, c = _arg_state(ctx, cond, focus, scope)
     truth = _ebv(c) if kind == _VALUE else None
     if truth is None:
-        raise EvaluationFailure(
+        raise ExecutionError(
             "the condition of sparql:if is unbound, failed or not boolean"
-        )
+        , kind="expression")
     kind, value = _arg_state(
         ctx, then if truth else other, focus, scope
     )  # lazy: only the selected branch
     if kind != _VALUE:
-        raise EvaluationFailure("the selected branch of sparql:if is unbound or failed")
+        raise ExecutionError("the selected branch of sparql:if is unbound or failed", kind="expression")
     return [value]
 
 
@@ -771,7 +768,7 @@ def _logical(name: str, absorbing: bool) -> None:
             elif truth == absorbing:
                 return _bool(absorbing)
         if errored:
-            raise EvaluationFailure(f"an operand of sparql:{name} is unbound or failed")
+            raise ExecutionError(f"an operand of sparql:{name} is unbound or failed", kind="expression")
         return _bool(not absorbing)
 
     OPERATORS[_s(name)] = fn

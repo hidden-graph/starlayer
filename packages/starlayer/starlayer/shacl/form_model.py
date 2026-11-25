@@ -464,14 +464,15 @@ class _Builder:
 
     def expression_values(self, props: list[Any]) -> set:
         from starlayer.shacl.engine import expressions
-        from starlayer.shacl.errors import EvaluationFailure
+        from starlayer.shacl.engine.plan import ExecutionError, only_kind
 
         found: set = set()
         for prop in props:
             for expr in self.plan.shape(prop).values:
                 try:
                     found |= set(expressions.evaluate_expression(self.ctx, expr, self.node, {}))
-                except EvaluationFailure:
+                except ExecutionError as error:
+                    only_kind(error, "expression")
                     continue
         return found
 

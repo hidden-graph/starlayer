@@ -10,20 +10,19 @@ from dataclasses import dataclass, field, replace
 from typing import Any
 
 from starlayer.shacl.engine.deactivation import any_true, deactivated_at
-from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
+from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.naming import add_where
 from starlayer.shacl.engine.paths import eval_path
 from starlayer.shacl.engine.plan import (
     SH,
     ExecutionError,
-    NestingTooDeep,
     Path,
     Plan,
-    RecursionThroughNot,
     Shape,
     ShapeError,
     Term,
     most_severe,
+    only_kind,
 )
 from starlayer.shacl.engine.targets import focus_nodes
 from starlayer.shacl.engine.terms import RDFS, engine_view, unmask
@@ -117,7 +116,7 @@ class Context:
         if key in self._active:
             self.recursion_revisits += 1
             if self._negations != self._active[key]:
-                raise RecursionThroughNot(f"recursive shape {shape_node!r} reaches itself on {node!r} through sh:not")
+                raise ExecutionError(f"recursive shape {shape_node!r} reaches itself on {node!r} through sh:not", kind="recursion")
             self._assumed += 1
             return True
         self._active[key] = self._negations
@@ -190,8 +189,8 @@ class Context:
         for expr in exprs:
             try:
                 out.extend(evaluate_expression(self, expr, focus))
-            except EvaluationFailure:
-                pass
+            except ExecutionError as error:
+                only_kind(error, "expression")
         return out
 
     def target_expression(self, expr: Term, shape_node: Term) -> list[Term]:
@@ -208,13 +207,13 @@ def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:
 def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     """Validate one focus node against a shape and its property shapes.
 
-    A deactivated shape yields no results. Entering a shape beyond ``ctx.max_validation_depth`` raises ``NestingTooDeep``.
+    A deactivated shape yields no results. Entering a shape beyond ``ctx.max_validation_depth`` raises an ``ExecutionError`` of kind ``"nesting"``.
     """
     if shape.deactivated or deactivated_at(ctx, shape, focus):
         return []
     limit = ctx.max_validation_depth
     if limit is not None and ctx._depth >= limit:
-        raise NestingTooDeep(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r}")
+        raise ExecutionError(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r}", kind="nesting")
     if ctx._depth > ctx._peak:
         ctx._peak = ctx._depth
     ctx._depth += 1
@@ -413,7 +412,7 @@ def run(
                         return results
         return results
     except RecursionError as exc:
-        raise NestingTooDeep("Validation path too deep: the shapes nest more deeply than the interpreter's recursion limit allows") from exc
+        raise ExecutionError("Validation path too deep: the shapes nest more deeply than the interpreter's recursion limit allows", kind="nesting") from exc
     finally:
         if stats is not None:
             stats["recursion_revisits"] = ctx.recursion_revisits

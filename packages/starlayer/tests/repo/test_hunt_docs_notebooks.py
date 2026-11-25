@@ -97,7 +97,7 @@ def test_guide_04_names_the_rule_error_class_that_exists():
     import starlayer.shacl.engine.rules as rules
 
     assert not hasattr(rules, "RuleLoadError")
-    assert hasattr(rules, "RuleError")
+    assert not hasattr(rules, "RuleError")  # one ExecutionError class with a kind
     assert "RuleLoadError" not in _text("05.01-validating-with-shacl-1.2.ipynb")
 
 

@@ -5,14 +5,14 @@ import pyoxigraph as ox
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, RuleError, StarShaclProcessor
+from starlayer.shacl import ExecutionError, MetaShaclError, StarShaclProcessor
 from starlayer.shacl.engine.api import validate as engine_validate
 from starlayer.shacl.engine.builtin_functions import (
+    ARGUMENT_COUNT_PROBLEM,
     BUILTIN_FUNCTIONS,
     REGEX_PROBLEM,
     SPARQL_PROBLEM,
     TIME_ZONE_PROBLEM,
-    ARGUMENT_COUNT_PROBLEM,
 )
 from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.meta_shapes import meta_validate, sparql_query_problems
@@ -200,11 +200,11 @@ HEAD = PRE + "@prefix shnex: <http://www.w3.org/ns/shacl-node-expr#> . @prefix s
 
 
 def engine_text(body: str) -> str | None:
-    """What the engine raises (a ShapeError, or a RuleError for a rule) for the shapes graph, or None when it accepts it."""
+    """What the engine raises (a ShapeError, or an ExecutionError for a rule) for the shapes graph, or None when it accepts it."""
     shapes = Graph().parse(data=HEAD + body, format="turtle")
     try:
         StarShaclProcessor(shacl_graph=shapes).validate(data_graph=graph(DATA), rules=True)
-    except (ShapeError, RuleError) as error:
+    except (ShapeError, ExecutionError) as error:
         return str(error)
     return None
 

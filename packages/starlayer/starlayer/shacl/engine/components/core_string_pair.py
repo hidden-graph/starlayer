@@ -16,7 +16,7 @@ from typing import Any
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.registry import Violation, component, words
 from starlayer.shacl.engine.executor import Result
-from starlayer.shacl.engine.plan import SH, ShapeError, ShapeCompileError
+from starlayer.shacl.engine.plan import SH, ShapeCompileError, ShapeError
 from starlayer.shacl.engine.terms import RDF, XSD, BlankNode, Literal, NamedNode
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 from starlayer.shacl.engine.terms import text as term_text

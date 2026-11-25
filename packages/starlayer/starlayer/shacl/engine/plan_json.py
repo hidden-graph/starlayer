@@ -38,10 +38,10 @@ from starlayer.shacl.engine.plan import (
     Path,
     Plan,
     Shape,
+    ShapeCompileError,
     ShapeError,
     Term,
     is_shape_type,
-    ShapeCompileError,
 )
 from starlayer.shacl.engine.terms import (
     OWL,
@@ -89,7 +89,7 @@ def term_to_json(term: Term) -> dict:
 
 
 def term_from_json(obj: dict) -> Term:
-    """The RDF term a tagged JSON object stands for; raises ``ValueError`` for an unknown tag."""
+    """The RDF term a tagged JSON object stands for; raises ``ShapeCompileError`` for an unknown tag."""
     kind = obj["t"]
     if kind == "iri":
         return NamedNode(obj["v"])
@@ -105,7 +105,7 @@ def term_from_json(obj: dict) -> Term:
         return Literal(obj["v"], datatype=NamedNode(dt)) if dt else Literal(obj["v"])
     if kind == "triple":
         return Triple(term_from_json(obj["s"]), term_from_json(obj["p"]), term_from_json(obj["o"]))
-    raise ValueError(f"unknown term tag {kind!r}")
+    raise ShapeCompileError(f"unknown term tag {kind!r}")
 
 
 def _terms(items: Iterable[Term]) -> list[dict]:
@@ -482,7 +482,7 @@ def plan_from_json(obj: dict, shapes_graph: Any = None) -> Plan:
     given graph is used for expressions, lists and SPARQL nodes (it must be the graph the plan was built from)."""
     version = obj.get("format_version")
     if version != FORMAT_VERSION:
-        raise ValueError(f"unsupported plan format_version {version!r} (this reader reads {FORMAT_VERSION})")
+        raise ShapeCompileError(f"unsupported plan format_version {version!r} (this reader reads {FORMAT_VERSION})")
     if shapes_graph is None:
         from starlayer.shacl.engine.graphs import new_graph
 
