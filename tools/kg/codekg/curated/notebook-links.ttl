@@ -111,7 +111,7 @@ nl:04a-d9a10023 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl.resolve_imports" .
 
-nl:05-22edd3bd a slkg:NotebookExample ;
+nl:05.01-22edd3bd a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
     slkg:cellId "22edd3bd" ;
     slkg:cellHash "c63ff64d728f0e79" ;
@@ -121,8 +121,8 @@ nl:05-22edd3bd a slkg:NotebookExample ;
         "starlayer.shacl.validator.StarShaclProcessor",
         "starlayer.shacl.validator.StarShaclProcessor.validate" .
 
-nl:05c-442768db a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05c-shacl-inference-rules.ipynb" ;
+nl:05.06-442768db a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.06-shacl-inference-rules.ipynb" ;
     slkg:cellId "442768db" ;
     slkg:cellHash "dbb477a092f927b6" ;
     slkg:reviewedOn "2026-11-21"^^xsd:date ;
@@ -130,8 +130,8 @@ nl:05c-442768db a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.apply_rules" .
 
-nl:04d-n13-editors a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05d-shacl-ui.ipynb" ;
+nl:05.07-n13-editors a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.07-shacl-ui.ipynb" ;
     slkg:cellId "n13-editors" ;
     slkg:cellHash "8cc2198884edbf32" ;
     slkg:reviewedOn "2026-10-19"^^xsd:date ;
@@ -139,8 +139,8 @@ nl:04d-n13-editors a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.ui.widget_selection.select_widgets" .
 
-nl:04d-n45-schema-select a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05d-shacl-ui.ipynb" ;
+nl:05.07-n45-schema-select a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.07-shacl-ui.ipynb" ;
     slkg:cellId "n45-schema-select" ;
     slkg:cellHash "e1e6dab014e2fe6f" ;
     slkg:reviewedOn "2026-11-21"^^xsd:date ;
@@ -148,16 +148,16 @@ nl:04d-n45-schema-select a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.select_widgets" .
 
-nl:05e-96560f37 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05e-shacl-profiling.ipynb" ;
+nl:05.08-96560f37 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.08-shacl-profiling.ipynb" ;
     slkg:cellId "96560f37" ;
     slkg:cellHash "72560ef26540d3ba" ;
     slkg:reviewedOn "2026-11-24"^^xsd:date ;
     rdfs:comment "Validates against a profile and then calls derive_conforms_to() explicitly to add the conformance statements from the report." ;
     slkg:demonstratesIdentifier "starlayer.shacl.profiling.profiles.derive_conforms_to" .
 
-nl:05e-c2a7c429 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05e-shacl-profiling.ipynb" ;
+nl:05.08-c2a7c429 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.08-shacl-profiling.ipynb" ;
     slkg:cellId "c2a7c429" ;
     slkg:cellHash "6d2bc14a5219df2d" ;
     slkg:reviewedOn "2026-11-21"^^xsd:date ;
@@ -165,8 +165,8 @@ nl:05e-c2a7c429 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.extract_shapes_graph" .
 
-nl:05f-98caadf5 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05f-shacl-subgraph-extraction.ipynb" ;
+nl:05.09-98caadf5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.09-shacl-subgraph-extraction.ipynb" ;
     slkg:cellId "98caadf5" ;
     slkg:cellHash "d756d05c2528330d" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;
@@ -174,8 +174,8 @@ nl:05f-98caadf5 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.subgraph_extraction.extract_subgraph" .
 
-nl:05f-80d50838 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05f-shacl-subgraph-extraction.ipynb" ;
+nl:05.09-80d50838 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.09-shacl-subgraph-extraction.ipynb" ;
     slkg:cellId "80d50838" ;
     slkg:cellHash "ccfe1abab27f6972" ;
     slkg:reviewedOn "2026-11-21"^^xsd:date ;
@@ -265,8 +265,8 @@ nl:04a-c0a10006 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl_eval" .
 
-nl:05h-88a5feb0 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05h-shacl-evaluate.ipynb" ;
+nl:05.11-88a5feb0 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.11-shacl-evaluate.ipynb" ;
     slkg:cellId "88a5feb0" ;
     slkg:cellHash "aea933b170883afe" ;
     slkg:reviewedOn "2026-11-22"^^xsd:date ;
@@ -358,8 +358,8 @@ nl:03-4a5c50bb a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.result.Result.serialize" .
 
-nl:05d-98809341 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05d-shacl-ui.ipynb" ;
+nl:05.07-98809341 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.07-shacl-ui.ipynb" ;
     slkg:cellId "98809341" ;
     slkg:cellHash "20f89000e0b4b774" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -367,8 +367,8 @@ nl:05d-98809341 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.ui.widget_selection.explain_widgets" .
 
-nl:05e-352c1708 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05e-shacl-profiling.ipynb" ;
+nl:05.08-352c1708 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.08-shacl-profiling.ipynb" ;
     slkg:cellId "352c1708" ;
     slkg:cellHash "349b85aefbfb0b11" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -377,7 +377,7 @@ nl:05e-352c1708 a slkg:NotebookExample ;
         "starlayer.shacl.shapes_graphs.rule_dependencies",
         "starlayer.shacl.shapes_graphs.referenced_shapes" .
 
-nl:05i-30c67e26 a slkg:NotebookExample ;
+nl:05.02-30c67e26 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.02-starlayer-shacl-engine.ipynb" ;
     slkg:cellId "30c67e26" ;
     slkg:cellHash "76e95c170fee261f" ;
@@ -386,7 +386,7 @@ nl:05i-30c67e26 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.derive.derive_shape" .
 
-nl:05-57dcbbde a slkg:NotebookExample ;
+nl:05.01-57dcbbde a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
     slkg:cellId "57dcbbde" ;
     slkg:cellHash "70605b2f1cf0f7ec" ;
@@ -395,7 +395,7 @@ nl:05-57dcbbde a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.validate" .
 
-nl:05-a9353f25 a slkg:NotebookExample ;
+nl:05.01-a9353f25 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
     slkg:cellId "a9353f25" ;
     slkg:cellHash "e64f1ed5b5df2480" ;
@@ -404,7 +404,7 @@ nl:05-a9353f25 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.validate_each" .
 
-nl:05-f41bd5ea a slkg:NotebookExample ;
+nl:05.01-f41bd5ea a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
     slkg:cellId "f41bd5ea" ;
     slkg:cellHash "01c949f15d24a42d" ;
@@ -414,7 +414,7 @@ nl:05-f41bd5ea a slkg:NotebookExample ;
         "starlayer.shacl.engine.plan.ShapeCompileError",
         "starlayer.shacl.engine.meta.MetaShaclError" .
 
-nl:05-8c133de1 a slkg:NotebookExample ;
+nl:05.01-8c133de1 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
     slkg:cellId "8c133de1" ;
     slkg:cellHash "b633ec2e092889d2" ;
@@ -499,8 +499,8 @@ nl:03b-a4b5c6d7 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.relevant.relevant_subgraph" .
 
-nl:05g-64f05da5 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05g-building-on-shacl.ipynb" ;
+nl:05.10-64f05da5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.10-building-on-shacl.ipynb" ;
     slkg:cellId "64f05da5" ;
     slkg:cellHash "778dc610631a4db4" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -508,8 +508,8 @@ nl:05g-64f05da5 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.shape_types.infer_types" .
 
-nl:05g-263cfdfb a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05g-building-on-shacl.ipynb" ;
+nl:05.10-263cfdfb a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.10-building-on-shacl.ipynb" ;
     slkg:cellId "263cfdfb" ;
     slkg:cellHash "7eeb3b276d065f62" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -517,8 +517,8 @@ nl:05g-263cfdfb a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.shapes_graphs.shapes_graph_members" .
 
-nl:05g-f5157b68 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05g-building-on-shacl.ipynb" ;
+nl:05.10-f5157b68 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.10-building-on-shacl.ipynb" ;
     slkg:cellId "f5157b68" ;
     slkg:cellHash "151feb2c6366f5ca" ;
     slkg:reviewedOn "2026-11-24"^^xsd:date ;
@@ -526,8 +526,8 @@ nl:05g-f5157b68 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.meta_shapes.meta_validate" .
 
-nl:05g-0cd16b52 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05g-building-on-shacl.ipynb" ;
+nl:05.10-0cd16b52 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.10-building-on-shacl.ipynb" ;
     slkg:cellId "0cd16b52" ;
     slkg:cellHash "477c4736f6c82dcb" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -536,8 +536,8 @@ nl:05g-0cd16b52 a slkg:NotebookExample ;
         "starlayer.shacl.paths.path_values",
         "starlayer.shacl.paths.is_inverse" .
 
-nl:05g-5839b261 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05g-building-on-shacl.ipynb" ;
+nl:05.10-5839b261 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.10-building-on-shacl.ipynb" ;
     slkg:cellId "5839b261" ;
     slkg:cellHash "18851ae7e30e140e" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -546,8 +546,8 @@ nl:05g-5839b261 a slkg:NotebookExample ;
         "starlayer.shacl.node_expression_api.evaluate_expression",
         "starlayer.shacl.node_expression_api.node_expression_functions" .
 
-nl:05g-55975daa a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/05g-building-on-shacl.ipynb" ;
+nl:05.10-55975daa a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/05.10-building-on-shacl.ipynb" ;
     slkg:cellId "55975daa" ;
     slkg:cellHash "c534379a539dad85" ;
     slkg:reviewedOn "2026-11-24"^^xsd:date ;

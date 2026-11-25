@@ -602,8 +602,7 @@ def test_the_real_chapter_05_dry_run_has_no_unmapped_reference_and_no_check_fail
 def test_the_real_chapter_05_dry_run_counts_follow_the_plan():
     plan = rg.make_plan(ROOT / "docs/guides", "05")
     heading_rules = [rule for _n, r in plan.results for _c, rule, _o, _n2 in r.heading_changes]
-    renamed = sum(1 for _n, r in plan.results if r.row.renamed)
-    if renamed == 0:
+    if not (ROOT / "docs/guides/05a-shacl-node-expressions.ipynb").exists():
         pytest.skip("chapter 05 is already renumbered in the working guides")
     assert heading_rules.count("H1") == 8 and heading_rules.count("H2") == 54 and heading_rules.count("H3") == 37
     assert heading_rules.count("H3-relative") == 18 and heading_rules.count("H4-relative") == 16

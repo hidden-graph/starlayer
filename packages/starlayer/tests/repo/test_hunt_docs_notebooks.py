@@ -66,7 +66,7 @@ def test_guides_have_no_empty_code_span_and_registry_functions_return_one_class(
 
     assert list(inspect.signature(so.get_ontology_graph).parameters) == ["name"]
     assert isinstance(so.get_ontology_graph("skos_owl"), StarLayerGraph)
-    assert "keyword to ask for" not in _text("05e-shacl-profiling.ipynb")
+    assert "keyword to ask for" not in _text("05.08-shacl-profiling.ipynb")
 
 
 def test_guide_04_does_not_say_node_kind_delegates_to_pyshacl():
@@ -111,9 +111,9 @@ def test_guide_06b_service_silent_row_claim_matches_behaviour():
     assert "returns no rows" not in _text("07b-backend-graph-databases.ipynb")
 
 
-def test_guide_04f_section_references_point_at_the_right_sections():
-    nb = _text("05f-shacl-subgraph-extraction.ipynb", ("markdown", "code"))
-    heads = dict(re.findall(r"^## (\d+)\. (.*)$", nb, re.M))
+def test_guide_05_09_section_references_point_at_the_right_sections():
+    nb = _text("05.09-shacl-subgraph-extraction.ipynb", ("markdown", "code"))
+    heads = dict(re.findall(r"^## 05\.09\.(\d+) (.*)$", nb, re.M))
     for m in re.finditer(r"[Ss]ection (\d+)(?:'s| below)? (staging pattern|commitment)|see section (\d+)\)", nb):
         n = m.group(1) or m.group(3)
         topic = m.group(2) or "hash"
