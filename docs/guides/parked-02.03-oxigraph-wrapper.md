@@ -1,6 +1,6 @@
-# 02b The Oxigraph-backed graph: material removed from the guide
+# 02.03 The Oxigraph-backed graph: material removed from the guide
 
-Not part of the guide, and not run or linked. This is sections 5 (handing a graph to an RDF 1.1 consumer) and 4 (what the store keeps of a literal) of [02b](02b-oxigraph-wrapper.ipynb), removed because neither is about the store as such; each is a broader topic. It may become part of another user guide. The cell ids are the ids the cells had in the notebook. Section 3 of the guide points to `serialize(rdf_version="1.1")` and `starlayer.graph.interop` for the same conversion.
+Not part of the guide, and not run or linked. This is sections 5 (handing a graph to an RDF 1.1 consumer) and 4 (what the store keeps of a literal) of [02.03](02.03-oxigraph-wrapper.ipynb), removed because neither is about the store as such; each is a broader topic. It may become part of another user guide. The cell ids are the ids the cells had in the notebook. Section 3 of the guide points to `serialize(rdf_version="1.1")` and `starlayer.graph.interop` for the same conversion.
 
 <!-- old cell b8985022, markdown -->
 
@@ -55,7 +55,7 @@ has a triple term: True
 round trip restores it: True
 ```
 
-# Section 4 of 02b: what the store keeps of a literal
+# Section 4 of 02.03: what the store keeps of a literal
 
 Parked 2026-11-15. Removed because the literal normalisation is not specific to the Oxigraph wrapper (see `docs/upstream-issues/oxigraph-upstream-issues.md`, starlayer issue #190). If a guide takes it up, open with what it costs: distinct terms merge (`"04"`, `"4"` and `"+4"` are one stored term), text-based checks see the stored form (`str(?o)`, `sh:pattern`), a round trip is not byte-identical, `rdfc10_hash` covers the stored form, and SHACL `sh:datatype` / `sh:sparql` can differ on ill-formed or non-canonical values (`StarLayerFidelityWarning`). Ill-formed values and plain strings are kept as written.
 

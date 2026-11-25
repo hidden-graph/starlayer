@@ -86,7 +86,7 @@ def test_guides_02b_02c_do_not_say_query_entailment_raises():
         warnings.simplefilter("ignore")
         rows = list(g.query("SELECT ?x WHERE { ?x a <http://e.org/B> }", entailment=ENTAILMENT.RDFS))
     assert len(rows) == 1
-    for name in ("02e-graphs-inferencing.ipynb", "02f-owl-dl-reasoning.ipynb"):
+    for name in ("02.06-graphs-inferencing.ipynb", "02.07-owl-dl-reasoning.ipynb"):
         t = _text(name)
         assert "not yet available" not in t, name
         assert "until the query-time rewrite" not in t, name

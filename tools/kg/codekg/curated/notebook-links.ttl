@@ -28,8 +28,8 @@ nl:01-6f4c59ad a slkg:NotebookExample ;
         "starlayer.graph.core._Base.query",
         "starlayer.graph.core._Base.query" .
 
-nl:02-3f4f3ecb a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
+nl:02.01-3f4f3ecb a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.01-graphs.ipynb" ;
     slkg:cellId "3f4f3ecb" ;
     slkg:cellHash "5daec121067ea510" ;
     slkg:reviewedOn "2026-11-13"^^xsd:date ;
@@ -37,8 +37,8 @@ nl:02-3f4f3ecb a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.serialize" .
 
-nl:02-7334cc46 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02-graphs.ipynb" ;
+nl:02.01-7334cc46 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.01-graphs.ipynb" ;
     slkg:cellId "7334cc46" ;
     slkg:cellHash "951890e51cbab9be" ;
     slkg:reviewedOn "2026-11-14"^^xsd:date ;
@@ -48,8 +48,8 @@ nl:02-7334cc46 a slkg:NotebookExample ;
         "starlayer.graph.core._Base.reified_triples",
         "starlayer.graph.core._Base.annotations" .
 
-nl:02a-122b54fa a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02a-graphs-datasets.ipynb" ;
+nl:02.02-122b54fa a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.02-graphs-datasets.ipynb" ;
     slkg:cellId "122b54fa" ;
     slkg:cellHash "9758b0bfc5a257cd" ;
     slkg:reviewedOn "2026-11-14"^^xsd:date ;
@@ -57,8 +57,8 @@ nl:02a-122b54fa a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core.StarLayerDataset" .
 
-nl:02e-2c6151e0 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02e-graphs-inferencing.ipynb" ;
+nl:02.06-2c6151e0 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.06-graphs-inferencing.ipynb" ;
     slkg:cellId "2c6151e0" ;
     slkg:cellHash "c94ddeb4ef53d42d" ;
     slkg:reviewedOn "2026-11-14"^^xsd:date ;
@@ -66,8 +66,8 @@ nl:02e-2c6151e0 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.infer" .
 
-nl:02f-b87b0ce5 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02f-owl-dl-reasoning.ipynb" ;
+nl:02.07-b87b0ce5 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.07-owl-dl-reasoning.ipynb" ;
     slkg:cellId "b87b0ce5" ;
     slkg:cellHash "7a0cfd78f15b8f0b" ;
     slkg:reviewedOn "2026-11-14"^^xsd:date ;
@@ -291,8 +291,8 @@ nl:03.01-b337c254 a slkg:NotebookExample ;
     rdfs:comment "Runs a SPARQL 1.2 INSERT DATA with a triple term through update() on a StarLayerGraph." ;
     slkg:demonstratesIdentifier "starlayer.graph.core._Base.update" .
 
-nl:02c-0e389edf a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02c-graph-content.ipynb" ;
+nl:02.04-0e389edf a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "0e389edf" ;
     slkg:cellHash "1888abe5aa7fc46f" ;
     slkg:reviewedOn "2026-11-15"^^xsd:date ;
@@ -302,8 +302,8 @@ nl:02c-0e389edf a slkg:NotebookExample ;
         "starlayer.graph.terms.to_python",
         "starlayer.graph.terms.parse_term" .
 
-nl:02c-b720f67c a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02c-graph-content.ipynb" ;
+nl:02.04-b720f67c a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "b720f67c" ;
     slkg:cellHash "43f01db56bf23458" ;
     slkg:reviewedOn "2026-11-15"^^xsd:date ;
@@ -313,8 +313,8 @@ nl:02c-b720f67c a slkg:NotebookExample ;
         "starlayer.graph.rdflist.remove_list",
         "starlayer.graph.rdflist.set_list" .
 
-nl:02c-a2e50006 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02c-graph-content.ipynb" ;
+nl:02.04-a2e50006 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "a2e50006" ;
     slkg:cellHash "bae7dc46cc49ec48" ;
     slkg:reviewedOn "2026-11-15"^^xsd:date ;
@@ -322,8 +322,8 @@ nl:02c-a2e50006 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.rdflist.transitive_objects" .
 
-nl:02d-86299ef1 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-combining-comparing-graphs.ipynb" ;
+nl:02.05-86299ef1 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.05-combining-comparing-graphs.ipynb" ;
     slkg:cellId "86299ef1" ;
     slkg:cellHash "d69f0e4fbbab132e" ;
     slkg:reviewedOn "2026-11-16"^^xsd:date ;
@@ -331,8 +331,8 @@ nl:02d-86299ef1 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.delta.diff" .
 
-nl:02c-33753b85 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02c-graph-content.ipynb" ;
+nl:02.04-33753b85 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "33753b85" ;
     slkg:cellHash "970a6a4b80143552" ;
     slkg:reviewedOn "2026-11-16"^^xsd:date ;
@@ -423,8 +423,8 @@ nl:05.01-8c133de1 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.target_nodes" .
 
-nl:02c-a8ec380e a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02c-graph-content.ipynb" ;
+nl:02.04-a8ec380e a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "a8ec380e" ;
     slkg:cellHash "74386f6173c39054" ;
     slkg:reviewedOn "2026-11-15"^^xsd:date ;
@@ -433,8 +433,8 @@ nl:02c-a8ec380e a slkg:NotebookExample ;
         "starlayer.graph.core._Base.unbind",
         "starlayer.graph.config.set_default_prefixes" .
 
-nl:02c-a2e50007 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02c-graph-content.ipynb" ;
+nl:02.04-a2e50007 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "a2e50007" ;
     slkg:cellHash "68712ece2858d9e3" ;
     slkg:reviewedOn "2026-11-16"^^xsd:date ;
@@ -443,8 +443,8 @@ nl:02c-a2e50007 a slkg:NotebookExample ;
         "starlayer.graph.core._Base.expand_curie",
         "starlayer.graph.core._Base.used_prefixes" .
 
-nl:02d-a2e5000d a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-combining-comparing-graphs.ipynb" ;
+nl:02.05-a2e5000d a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.05-combining-comparing-graphs.ipynb" ;
     slkg:cellId "a2e5000d" ;
     slkg:cellHash "069d2fd589aaff9b" ;
     slkg:reviewedOn "2026-11-16"^^xsd:date ;
@@ -452,8 +452,8 @@ nl:02d-a2e5000d a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.bnode_align.align_blank_nodes" .
 
-nl:02c-a2e50011 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02c-graph-content.ipynb" ;
+nl:02.04-a2e50011 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "a2e50011" ;
     slkg:cellHash "b6b82c847c7e8ab3" ;
     slkg:reviewedOn "2026-11-16"^^xsd:date ;
@@ -461,8 +461,8 @@ nl:02c-a2e50011 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.profile.GraphProfile.graphs" .
 
-nl:02d-f1925477 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-combining-comparing-graphs.ipynb" ;
+nl:02.05-f1925477 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.05-combining-comparing-graphs.ipynb" ;
     slkg:cellId "f1925477" ;
     slkg:cellHash "2495d67f6a556090" ;
     slkg:reviewedOn "2026-11-16"^^xsd:date ;
@@ -471,8 +471,8 @@ nl:02d-f1925477 a slkg:NotebookExample ;
         "starlayer.graph.core._Base.owl_imports",
         "starlayer.graph.core._Base.resolve_imports" .
 
-nl:02d-df2eca05 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/02d-combining-comparing-graphs.ipynb" ;
+nl:02.05-df2eca05 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.05-combining-comparing-graphs.ipynb" ;
     slkg:cellId "df2eca05" ;
     slkg:cellHash "37590ad3b474de84" ;
     slkg:reviewedOn "2026-11-16"^^xsd:date ;
