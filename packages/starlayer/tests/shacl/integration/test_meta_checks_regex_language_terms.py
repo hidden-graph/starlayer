@@ -82,7 +82,7 @@ def test_language_range_check_is_what_rejects_it():
     """Without the new shape the base accepts a malformed string, so the rejection above is its work."""
     shapes = _lang_shapes('"e n"')
     assert _problems(shapes)
-    assert not _problems(shapes, extra_graphs=[_deactivate(LANGUAGE_SHAPE)])
+    assert not _problems(shapes, meta_shapes_extra=[_deactivate(LANGUAGE_SHAPE)])
 
 
 def test_language_range_violation_is_in_the_report_text():
@@ -161,7 +161,7 @@ def test_unknown_term_is_a_warning_and_a_warning_makes_the_shapes_graph_invalid(
 def test_unknown_term_check_is_what_reports_it():
     shapes = _graph("ex:S a sh:NodeShape ; sh:minCountt 1 .")
     assert _problems(shapes)
-    assert not _problems(shapes, extra_graphs=[_deactivate(UNKNOWN)])
+    assert not _problems(shapes, meta_shapes_extra=[_deactivate(UNKNOWN)])
 
 
 def test_list_in_the_shape_is_the_shipped_vocabulary():

@@ -35,7 +35,7 @@ def sources(report) -> set:
 
 def meta_report(shapes: Graph, extra=()):
     try:
-        return meta_validate(shapes, extra_graphs=extra)[1]
+        return meta_validate(shapes, meta_shapes_extra=extra)[1]
     except MetaShaclError as error:
         return error.report_graph
 

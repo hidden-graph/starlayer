@@ -976,7 +976,7 @@ sh:expression         sh:nodeKind sh:BlankNodeOrIRI .
 # Well-formedness of shui: terms (moved here from shacl_shacl, 2026-10-23, GitHub issue #23)
 #############################################################################
 # Unlike the form shapes, these two DO validate: load this graph beside shacl_shacl
-# (meta_validate(shapes, extra_graphs=[ui])) to have shui: terms in a shapes graph checked.
+# (meta_validate(shapes, meta_shapes_extra=[ui])) to have shui: terms in a shapes graph checked.
 
 stsh:ShuiPredicateShapes
 	a sh:NodeShape ;

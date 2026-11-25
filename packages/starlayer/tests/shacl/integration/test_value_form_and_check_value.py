@@ -203,7 +203,7 @@ def test_meta_validate_rejects_a_value_that_is_not_a_list(turtle, problem):
 
     shapes = g(SHAPES_PFX + turtle)
     with pytest.raises(MetaShaclError) as raised:
-        meta_validate(shapes, extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])
+        meta_validate(shapes, meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
     assert problem in str(raised.value)
 
 
@@ -220,7 +220,7 @@ def test_meta_validate_rejects_a_value_that_is_not_a_list(turtle, problem):
 def test_meta_validate_accepts_a_list(turtle):
     from starlayer.shacl import meta_validate
 
-    conforms, _, _ = meta_validate(g(SHAPES_PFX + turtle), extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])
+    conforms, _, _ = meta_validate(g(SHAPES_PFX + turtle), meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
     assert conforms
 
 
@@ -229,7 +229,7 @@ def test_default_namespace_accepts_a_literal_that_is_an_absolute_iri(value):
     from starlayer.shacl import meta_validate
 
     shapes = g(SHAPES_PFX + f"ex:C a shui:Configuration ; shui:defaultNamespace {value} .")
-    assert meta_validate(shapes, extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])[0]
+    assert meta_validate(shapes, meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])[0]
 
 
 @pytest.mark.parametrize("value", ['"not an iri"', '"http://a b/"', '""', "ex:ns"])
@@ -238,7 +238,7 @@ def test_default_namespace_refuses_what_is_not_an_absolute_iri_literal(value):
 
     shapes = g(SHAPES_PFX + f"ex:C a shui:Configuration ; shui:defaultNamespace {value} .")
     with pytest.raises(MetaShaclError) as raised:
-        meta_validate(shapes, extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])
+        meta_validate(shapes, meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
     assert "shui:defaultNamespace" in str(raised.value)
 
 

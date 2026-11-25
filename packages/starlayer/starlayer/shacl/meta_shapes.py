@@ -159,7 +159,7 @@ def _template_unbound_variables(shapes_graph: Any, template: Any) -> list[str]:
     return sorted(used - bound - parameters - {"this"})
 
 
-def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
+def load_meta_shapes_graph(meta_shapes_extra: Iterable[Any] = ()) -> Any:
     """The meta-shapes graph ``meta_validate()`` checks against, read from
     the stored ``shacl12-shacl.ttl`` (``starontology``'s ``"shacl_shacl"``
     entry) rather than reassembled from the Working Group's meta-shapes and
@@ -173,7 +173,7 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
 
     The private layer ``shacl_shacl_starlayer`` (the two checks that call StarLayer-internal SPARQL functions) is merged in; ``shacl_shacl`` alone
     holds only standard SHACL and SPARQL. The files are parsed once per process by ``starontology`` and cached there;
-    each call returns a fresh ``StarLayerGraph`` copy, so ``extra_graphs`` can be added (plain
+    each call returns a fresh ``StarLayerGraph`` copy, so ``meta_shapes_extra`` can be added (plain
     triple addition) without affecting later calls.
     """
     # Lazy: starontology must finish importing before this module reads it.
@@ -184,7 +184,7 @@ def load_meta_shapes_graph(extra_graphs: Iterable[Any] = ()) -> Any:
     graph.extend(list(stored.triples((None, None, None))))
     # The layer of shapes that call StarLayer's own SPARQL functions; shacl_shacl alone stays standard SHACL and SPARQL.
     graph.extend(list(starontology._load_private("shacl_shacl_starlayer").triples((None, None, None))))
-    for extra in extra_graphs:
+    for extra in meta_shapes_extra:
         triples = engine_view(extra, "extra meta-shapes graph").triples((None, None, None)) if hasattr(extra, "triples") else extra
         graph.extend([tuple(to_engine(x) for x in triple) for triple in triples])
     return graph
@@ -198,7 +198,7 @@ def meta_validate(
     add: Iterable[Any] = (),
     remove: Iterable[Any] = (),
     full: bool = False,
-    extra_graphs: Iterable[Any] = (),
+    meta_shapes_extra: Iterable[Any] = (),
 ) -> tuple[bool, Any, str]:
     """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
 
@@ -208,7 +208,7 @@ def meta_validate(
     processor's ``allow_warnings`` / ``allow_infos`` say (those are for the data validation), because SHACL 1.2 Core's default set
     (Violation, Warning, Info) makes any of them a non-conforming report and the W3C SHACL-for-SHACL says to deactivate a Warning shape
     if a use case needs the construct, not to ignore it; pySHACL's meta check is strict too. The results of every severity are in the
-    error's ``report_graph``, so an editor can still show a warning on its own. ``extra_graphs`` are added to the meta-shapes. The report is
+    error's ``report_graph``, so an editor can still show a warning on its own. ``meta_shapes_extra`` are added to the meta-shapes. The report is
     an ``StarLayerGraph``.
 
     ``add`` and ``remove`` (triples) propose an edit that is checked before it is made: the check runs on the graph as it would be
@@ -219,7 +219,7 @@ def meta_validate(
     edits, and the full check is the one to run before the shapes are saved or published. ``meta_scope`` says what an edit covers."""
     from starlayer.shacl.engine.meta import meta_validate as engine_meta_validate
 
-    result = engine_meta_validate(shapes_graph, extra=extra_graphs, add=add, remove=remove, full=full)
+    result = engine_meta_validate(shapes_graph, extra=meta_shapes_extra, add=add, remove=remove, full=full)
     result.raise_if_invalid()
     return result.conforms, result.report_graph, result.report_text
 

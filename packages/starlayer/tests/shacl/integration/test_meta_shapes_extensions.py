@@ -1145,7 +1145,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+        conforms, _report_graph, _report_text = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
         assert conforms is True
 
     def test_shui_editor_as_literal_is_rejected(self) -> None:
@@ -1159,7 +1159,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(MetaShaclError):
-            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+            meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
     def test_valid_shui_property_role_passes(self) -> None:
         shapes = Graph()
@@ -1171,7 +1171,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+        conforms, _report_graph, _report_text = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
         assert conforms is True
 
     def test_shui_viewer_as_blank_node_is_rejected(self) -> None:
@@ -1185,7 +1185,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(MetaShaclError):
-            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+            meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
     def test_valid_shui_widget_score_passes(self) -> None:
         """stsh:WidgetScoreShape (starontology.trig, 2026-10-16) -
@@ -1201,7 +1201,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        conforms, _report_graph, _report_text = meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+        conforms, _report_graph, _report_text = meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
         assert conforms is True
 
     def test_shui_widget_score_with_non_numeric_score_is_rejected(self) -> None:
@@ -1214,7 +1214,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(MetaShaclError):
-            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+            meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
     def test_shui_widget_score_missing_widget_is_rejected(self) -> None:
         shapes = Graph()
@@ -1226,7 +1226,7 @@ class TestShuiWellFormedness:
             format="turtle",
         )
         with pytest.raises(MetaShaclError):
-            meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+            meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
 
 class TestSparqlPrefixesWellFormedness:
@@ -1706,7 +1706,7 @@ _UI = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/sha
 def _ui_check(ttl: str):
     shapes = Graph()
     shapes.parse(data=_UI + ttl, format="turtle")
-    return meta_validate(shapes, extra_graphs=[_shui_ui_graph()])
+    return meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
 
 @pytest.mark.parametrize(

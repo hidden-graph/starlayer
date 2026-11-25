@@ -155,9 +155,9 @@ def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
     prefixes = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
     good.parse(data=prefixes + "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .", format="turtle")
     bad.parse(data=prefixes + 'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount "x" ] .', format="turtle")
-    assert meta_validate(good, extra_graphs=[ui])[0]
+    assert meta_validate(good, meta_shapes_extra=[ui])[0]
     with pytest.raises(ReportableRuntimeError):
-        meta_validate(bad, extra_graphs=[ui])
+        meta_validate(bad, meta_shapes_extra=[ui])
 
 
 def test_uncommon_predicates_are_marked_secondary_on_the_node_shape_form_only(ui) -> None:

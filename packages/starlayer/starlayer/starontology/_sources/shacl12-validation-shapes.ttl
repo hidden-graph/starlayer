@@ -1337,7 +1337,7 @@ stsh:ResultAnnotationHolderShapes
 
 # stsh:ShuiPredicateShapes and stsh:WidgetScoreShape (well-formedness of shui: predicates and shui:WidgetScore) moved to
 # shacl12-shacl-ui-overlay.ttl (registry entry shacl_shacl_ui) on 2026-10-23: they are about the UI, not about SHACL itself.
-# Pass the UI companion as extra_graphs= to meta_validate() to check them.
+# Pass the UI companion as meta_shapes_extra= to meta_validate() to check them.
 
 #############################################################################
 # Predicate documentation content (full SHACL Core + SHACL 1.2 coverage)

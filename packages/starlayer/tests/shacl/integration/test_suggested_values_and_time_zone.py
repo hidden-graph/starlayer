@@ -30,7 +30,7 @@ def graph(body: str) -> Graph:
 
 
 def ui_check(body: str):
-    return meta_validate(graph(body), extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])
+    return meta_validate(graph(body), meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
 
 
 def problems(body: str) -> str:
@@ -72,7 +72,7 @@ def test_the_node_shape_form_offers_them_too():
 
 def test_the_suggestions_do_not_constrain():
     conforms, _report, _text = meta_validate(graph("ex:S a sh:NodeShape ; sh:severity ex:Loud . ex:T a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:datatype ex:MyType ] ."),
-                                              extra_graphs=[starontology.get_ontology_graph("shacl_shacl_ui")])
+                                              meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
     assert conforms
 
 

@@ -75,9 +75,9 @@ ex:Query a sh:NodeShape ; sh:targetClass ex:Q ; sh:sparql [ sh:select "SELECT $t
 DEFECT = "ex:Dup a sh:NodeShape ; sh:targetClass ex:Dup ; sh:property [ sh:path ex:a ; sh:datatype xsd:string , xsd:integer ] ."
 
 
-def test_the_signatures_have_add_remove_full_and_extra_graphs_only():
+def test_the_signatures_have_add_remove_full_and_meta_shapes_extra_only():
     g = generated(3)
-    assert meta_validate(g)[0] and meta_validate(g, add=(), remove=(), full=False, extra_graphs=())[0]
+    assert meta_validate(g)[0] and meta_validate(g, add=(), remove=(), full=False, meta_shapes_extra=())[0]
     meta_scope(g, add=(), remove=(), full=False)
     for keyword in ({"nodes": [iri("S1")]}, {"with_dependents": False}, {"allow_warnings": True}):
         with pytest.raises(TypeError):

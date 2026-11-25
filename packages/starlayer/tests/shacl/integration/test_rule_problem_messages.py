@@ -22,7 +22,7 @@ def messages(turtle: str) -> list[str]:
     """The messages of every result of the shapes about shapes (with the template and parameter shapes) over ``turtle``."""
     shapes = Graph().parse(data=PRE + turtle, format="turtle")
     try:
-        _conforms, _report, text = meta_validate(shapes, extra_graphs=[parameter_value_shapes(shapes)])
+        _conforms, _report, text = meta_validate(shapes, meta_shapes_extra=[parameter_value_shapes(shapes)])
     except MetaShaclError as exc:  # a violation makes the shapes graph invalid; the report is in the message
         text = exc.report_text
     # the defects of the embedded SPARQL are results of the same check now; these tests are about the shapes of shapes
