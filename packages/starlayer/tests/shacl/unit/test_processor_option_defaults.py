@@ -7,7 +7,7 @@ import inspect
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import MetaShaclError, RuleError, StarShaclProcessor
+from starlayer.shacl import MetaShaclError, RuleError, ShapeError, StarShaclProcessor
 from tests.shacl.integration._shape_loader import load_shape
 from tests.support.datasets import dataset_of
 from tests.support.terms import Namespace
@@ -113,7 +113,7 @@ def importing(**kw) -> StarShaclProcessor:
 
 
 def test_unset_imports_behaviour_is_unchanged() -> None:
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         importing().validate(g(DATA))
     assert importing().validate(g(DATA), ignore_imports=True).conforms
     assert not importing().validate(g(DATA), shapes_graph_loader=loader).conforms
@@ -122,10 +122,10 @@ def test_unset_imports_behaviour_is_unchanged() -> None:
 def test_constructor_ignore_imports() -> None:
     p = importing(ignore_imports=True)
     assert p.validate(g(DATA)).conforms
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         p.validate(g(DATA), ignore_imports=False)  # the default-looking value on the call wins
     assert len(p.apply_rules(g(DATA)).inferred_graph) == 0  # the constructor's ignore_imports applies to the rules' shapes graph too
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         p.apply_rules(g(DATA), ignore_imports=False)
 
 
@@ -133,9 +133,9 @@ def test_constructor_loader() -> None:
     p = importing(shapes_graph_loader=loader)
     assert not p.validate(g(DATA)).conforms  # the imported shape applies
     assert len(p.apply_rules(g(DATA)).inferred_graph) == 0  # the constructor's loader resolves the imports for the rules too
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         p.apply_rules(g(DATA), shapes_graph_loader=None)
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         p.validate(g(DATA), shapes_graph_loader=None)  # None on the call drops the constructor's loader
     assert p.validate(g(DATA), shapes_graph_loader=lambda iri: None).conforms  # another loader replaces it
     assert p.validate(g(DATA), ignore_imports=True, shapes_graph_loader=None).conforms

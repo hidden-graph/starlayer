@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, ShapeError, apply_rules, validate
+from starlayer.shacl import ShapeError, apply_rules, validate
 from tests.support.terms import NamedNode, Namespace
 
 pytestmark = pytest.mark.shacl
@@ -142,7 +142,7 @@ def test_non_numeric_order_is_a_rule_error(order):
         "ex:S a sh:NodeShape ; sh:targetClass ex:C ; sh:rule [ a sh:TripleRule ; "
         f"sh:order {order} ; sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:cond ; sh:object 1 ] ."
     )
-    with pytest.raises(RuleError):
+    with pytest.raises(ShapeError):
         apply_rules(g("ex:a a ex:C ."), g(shapes))
 
 

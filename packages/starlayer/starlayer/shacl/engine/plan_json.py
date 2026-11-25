@@ -273,11 +273,11 @@ def shape_references(graph: Any, shape: Shape) -> list[Term]:
 
 
 def _rule_to_json(graph: Any, node: Term) -> dict:
-    from starlayer.shacl.engine.rules import RuleError, read_rule
+    from starlayer.shacl.engine.rules import read_rule
 
     try:
         rule = read_rule(graph, node)
-    except RuleError as exc:
+    except ShapeError as exc:
         return {"node": term_to_json(node), "error": str(exc)}
     return {
         "node": term_to_json(rule.node),

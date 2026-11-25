@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -135,7 +135,7 @@ def test_without_loader_or_ignore_imports_raises() -> None:
 
     validator = StarShaclProcessor(shacl_graph=_myapp_shapes())
 
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         validator.validate(data_graph=data, meta_shacl=False)
 
 
@@ -200,7 +200,7 @@ def test_pre_resolved_imports_need_ignore_imports_too() -> None:
 
     validator = StarShaclProcessor(shacl_graph=pre_resolved)
 
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         validator.validate(data_graph=data, meta_shacl=False)
 
     # With the explicit acknowledgment, the already-merged content (from

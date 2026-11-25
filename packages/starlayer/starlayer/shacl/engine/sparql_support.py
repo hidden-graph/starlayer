@@ -18,7 +18,16 @@ from typing import Any
 from starlayer.shacl.engine.builtin_functions import BUILTIN_FUNCTIONS
 from starlayer.shacl.engine.components.registry import Violation
 from starlayer.shacl.engine.interface import Solutions
-from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, ShapeError, Term
+from starlayer.shacl.engine.plan import (
+    SH,
+    ConstraintQueryFailure,
+    ExecutionError,
+    Path,
+    Plan,
+    Shape,
+    ShapeError,
+    Term,
+)
 from starlayer.shacl.engine.terms import OWL, RDF, XSD, BlankNode, Literal
 from starlayer.shacl.engine.terms import NamedNode as URIRef
 from starlayer.shacl.engine.terms import text as text_of
@@ -248,7 +257,6 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
             if isinstance(fn, URIRef) and (body := next(iter(shapes.objects(fn, SH.bodyExpression)), None)) is not None
         ]
     from starlayer.shacl.engine.expressions import (
-        EvaluationFailure,
         evaluate_expression,
     )
 
@@ -259,7 +267,7 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
             try:
                 # 7.3: "the focusNode passed into a custom SPARQL function based on a node expression is the IRI of the function"
                 out = evaluate_expression(ctx, body, fn, {i: [a] for i, a in enumerate(args)})
-            except (EvaluationFailure, ShapeError):
+            except (ExecutionError, ShapeError):
                 return None
             return out[0] if len(out) == 1 else None
 
@@ -372,7 +380,7 @@ def violations_from_solutions(
     for row in solutions.rows:
         failure = row.get("failure")
         if failure is not None and isinstance(failure, Literal) and is_true(failure):
-            raise ShapeError("a SPARQL constraint query reported ?failure true")
+            raise ConstraintQueryFailure("a SPARQL constraint query reported ?failure true")
         path_term = row.get("path")
         path = Path(kind="pred", iri=path_term, node=path_term) if isinstance(path_term, URIRef) else None
         value = row.get("value", None if shape.is_property else focus)

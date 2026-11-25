@@ -9,7 +9,7 @@ Semantics (``StarLayerGraph.resolve_imports`` and ``validate(shapes_graph_loader
   loader returns ``None`` for is skipped, not an error. An import whose IRI already has triples as a subject in the
   graph is satisfied locally and never reaches the loader, and so is an import of the SHACL vocabulary (``sh:``), which is built in. ``ignore_imports`` is irrelevant when a loader is given.
 * Without a loader, and not ``ignore_imports``: a declared ``owl:imports`` target that is not satisfied locally raises
-  ``ValueError`` (silently skipping would make a shape that refers to the import never fire). ``ignore_imports=True``
+  ``ShapeError`` (silently skipping would make a shape that refers to the import never fire). ``ignore_imports=True``
   returns the graph unchanged.
 * Cycles: an IRI already fetched is never fetched twice; a fetched graph that declares the IRI it was fetched under as
   its ``owl:versionIRI`` is identified by that graph's base IRI (the subject of the ``owl:versionIRI`` triple), so
@@ -25,6 +25,7 @@ from typing import Any
 import pyoxigraph as ox
 
 from starlayer.shacl.engine.graphs import new_graph
+from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import OWL, engine_view, text
 
 Loader = Callable[[Any], Any]
@@ -56,7 +57,7 @@ def resolve_imports(
         if not ignore_imports:
             missing = [o for o in declared_imports(shapes_graph) if o != SHACL_VOCABULARY and not _has_subject(shapes_graph, o)]
             if missing:
-                raise ValueError(
+                raise ShapeError(
                     f"shacl_graph declares owl:imports {[text(m) for m in missing]!r} that aren't already "
                     "locally satisfied, but no shapes_graph_loader was given to resolve them. "
                     "Pass shapes_graph_loader=... to resolve them, or ignore_imports=True if "

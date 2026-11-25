@@ -1,10 +1,10 @@
-"""A ShapeError or RuleError says which shape, property or rule it is about, not a blank node's label."""
+"""A ShapeError says which shape, property or rule it is about, not a blank node's label."""
 
 from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, ShapeError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from starlayer.shacl.engine.naming import describe
 
 PFX = ("@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -43,7 +43,7 @@ def test_a_malformed_node_expression_names_where_it_sits():
 
 def test_a_failing_rule_names_the_shape_that_holds_it():
     shapes = _graph('ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:rule [ a sh:SPARQLRule ; sh:construct "CONSTRUCT {{{ " ] .')
-    with pytest.raises(RuleError) as exc:
+    with pytest.raises(ShapeError) as exc:
         StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=_graph(DATA))
     assert str(exc.value).startswith("the sh:rule of http://example.org/S: SPARQL rule failed")
     assert "BlankNode" not in str(exc.value)

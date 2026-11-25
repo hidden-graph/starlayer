@@ -232,7 +232,7 @@ IMPORTED_SHAPES = "<http://example.org/imported> a owl:Ontology . ex:T a sh:Node
 
 def test_unresolved_imports_do_not_raise_at_construction_but_at_validate() -> None:
     processor = StarShaclProcessor(shacl_graph=g(IMPORTING))
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         processor.validate(g(DATA))
     loaded = []
 

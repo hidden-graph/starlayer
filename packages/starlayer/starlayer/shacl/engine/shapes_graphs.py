@@ -21,6 +21,7 @@ from __future__ import annotations
 from typing import Any
 
 from starlayer.shacl.engine.graphs import add_list, copy_cbd, list_items, new_graph
+from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import (
     OWL,
     RDF,
@@ -78,7 +79,7 @@ def _is_graph_node(graph: Any, node: Any) -> bool:
 
 
 def module_nodes(graph: Any, shapes_graph: Any) -> set:
-    """``shapes_graph`` and every ``sh:Graph`` it imports, transitively, among the nodes of ``graph``. ``ValueError`` when an
+    """``shapes_graph`` and every ``sh:Graph`` it imports, transitively, among the nodes of ``graph``. ``ShapeError`` when an
     ``owl:imports`` target is not a ``sh:Graph`` in ``graph``."""
     nodes = {shapes_graph}
     pending = [shapes_graph]
@@ -88,7 +89,7 @@ def module_nodes(graph: Any, shapes_graph: Any) -> set:
             if imported in nodes:
                 continue
             if not _is_graph_node(graph, imported):
-                raise ValueError(
+                raise ShapeError(
                     f"{text(current)} declares owl:imports {text(imported)}, but {text(imported)} is not typed `a sh:Graph` (or "
                     "sh:ShapesGraph, sh:DataGraph, sh:RulesGraph) in this graph: it has no triples describing it, or is not a "
                     "packaging module (resolve the import first)."

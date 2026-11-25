@@ -29,9 +29,17 @@ from starlayer.shacl.engine import (
 from starlayer.shacl.engine.components.core_shape_based import _boolean, _siblings
 from starlayer.shacl.engine.entailment import resolve_data_view
 from starlayer.shacl.engine.executor import Context
-from starlayer.shacl.engine.expressions import EvaluationFailure, evaluate_expression
+from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.paths import parse_path
-from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, ShapeError, Term
+from starlayer.shacl.engine.plan import (
+    SH,
+    ExecutionError,
+    Path,
+    Plan,
+    Shape,
+    ShapeError,
+    Term,
+)
 from starlayer.shacl.engine.reads import RecordingGraph
 from starlayer.shacl.engine.terms import (
     RDF,
@@ -279,18 +287,18 @@ class _Extractor:
                 for v in value_nodes:
                     try:
                         evaluate_expression(ctx, expr, focus, {"value": [v]})
-                    except (EvaluationFailure, ShapeError):
+                    except (ExecutionError, ShapeError):
                         pass
             for expr in by_exprs:
                 for v in value_nodes:
                     try:
                         computed = evaluate_expression(ctx, expr, v)
-                    except (EvaluationFailure, ShapeError):
+                    except (ExecutionError, ShapeError):
                         continue
                     for node in computed:
                         try:
                             triples |= self.extract(self.plan.shape(node), v, visiting, full_trace)
-                        except ShapeError:
+                        except (ExecutionError, ShapeError):
                             continue
         return triples | reads
 

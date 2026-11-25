@@ -8,6 +8,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.rules import (
     InferredView,
     RuleError,
+    ShapeError,
     apply_rules,
     entailment_selection,
     validate_with_rules,
@@ -226,12 +227,12 @@ def test_sparql_rule_template() -> None:
 
 
 def test_unsupported_rule_processor_fails() -> None:
-    with pytest.raises(RuleError):
+    with pytest.raises(ShapeError):
         apply_rules(g(CHAIN + "ex:R1 sh:ruleProcessor ex:Custom ."))
 
 
 def test_rule_without_type_fails() -> None:
-    with pytest.raises(RuleError):
+    with pytest.raises(ShapeError):
         apply_rules(g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule ex:Bad ."))
 
 

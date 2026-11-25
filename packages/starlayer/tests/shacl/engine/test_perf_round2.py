@@ -16,7 +16,7 @@ from starlayer.shacl.engine import executor
 from starlayer.shacl.engine.api import validate
 from starlayer.shacl.engine.oxigraph_view import OxigraphGraph
 from starlayer.shacl.engine.paths import _dedupe
-from starlayer.shacl.engine.plan import ShapeError
+from starlayer.shacl.engine.plan import NestingTooDeep, RecursionThroughNot
 from starlayer.shacl.engine.terms import text
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
@@ -99,7 +99,7 @@ def test_recursive_shapes_keep_the_greatest_fixpoint_answer():
 
 def test_recursion_through_not_still_fails():
     shapes = "ex:S a sh:NodeShape ; sh:targetClass ex:T ; sh:not [ sh:property [ sh:path ex:next ; sh:node ex:S ] ] ."
-    with pytest.raises(ShapeError):
+    with pytest.raises(RecursionThroughNot):
         validate(g("ex:a a ex:T ; ex:next ex:a ."), g(shapes))
 
 
@@ -109,7 +109,7 @@ def test_depth_limit_is_enforced_on_a_memoised_replay():
     chain += "ex:L6 a sh:NodeShape ."
     data = "ex:a a ex:T ; ex:next ex:b . ex:b ex:next ex:c . ex:c ex:next ex:d . ex:d ex:next ex:e ."
     assert validate(g(data), g(chain)).conforms  # plenty of depth
-    with pytest.raises(ShapeError):
+    with pytest.raises(NestingTooDeep):
         validate(g(data), g(chain), max_validation_depth=3)
 
 

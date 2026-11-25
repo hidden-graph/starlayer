@@ -15,8 +15,11 @@ from starlayer.shacl.engine.naming import add_where
 from starlayer.shacl.engine.paths import eval_path
 from starlayer.shacl.engine.plan import (
     SH,
+    ExecutionError,
+    NestingTooDeep,
     Path,
     Plan,
+    RecursionThroughNot,
     Shape,
     ShapeError,
     Term,
@@ -114,7 +117,7 @@ class Context:
         if key in self._active:
             self.recursion_revisits += 1
             if self._negations != self._active[key]:
-                raise ShapeError(f"recursive shape {shape_node!r} reaches itself on {node!r} through sh:not")
+                raise RecursionThroughNot(f"recursive shape {shape_node!r} reaches itself on {node!r} through sh:not")
             self._assumed += 1
             return True
         self._active[key] = self._negations
@@ -205,20 +208,20 @@ def _deactivated(shape: Shape, pred: Term, value: Term) -> bool:
 def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     """Validate one focus node against a shape and its property shapes.
 
-    A deactivated shape yields no results. Entering a shape beyond ``ctx.max_validation_depth`` raises ``ShapeError``.
+    A deactivated shape yields no results. Entering a shape beyond ``ctx.max_validation_depth`` raises ``NestingTooDeep``.
     """
     if shape.deactivated or deactivated_at(ctx, shape, focus):
         return []
     limit = ctx.max_validation_depth
     if limit is not None and ctx._depth >= limit:
-        raise ShapeError(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r}")
+        raise NestingTooDeep(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r}")
     if ctx._depth > ctx._peak:
         ctx._peak = ctx._depth
     ctx._depth += 1
     try:
         try:
             return _validate_shape_at(ctx, shape, focus)
-        except ShapeError as error:
+        except (ShapeError, ExecutionError) as error:
             raise add_where(error, ctx.plan.shapes_graph, shape.node) from None
     finally:
         ctx._depth -= 1
@@ -410,7 +413,7 @@ def run(
                         return results
         return results
     except RecursionError as exc:
-        raise ShapeError("Validation path too deep: the shapes nest more deeply than the interpreter's recursion limit allows") from exc
+        raise NestingTooDeep("Validation path too deep: the shapes nest more deeply than the interpreter's recursion limit allows") from exc
     finally:
         if stats is not None:
             stats["recursion_revisits"] = ctx.recursion_revisits

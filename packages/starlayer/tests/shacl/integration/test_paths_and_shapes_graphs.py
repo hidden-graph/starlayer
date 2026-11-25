@@ -120,7 +120,7 @@ def test_an_iri_that_is_not_a_shapes_graph_gives_none_not_empty() -> None:
 
 
 def test_an_import_that_is_not_a_local_shapes_graph_raises() -> None:
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         shapes_graph_members(_graph("ex:G1 a sh:ShapesGraph ; owl:imports ex:Missing ."), EX.G1)
 
 

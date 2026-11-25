@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> .\n"
 
@@ -30,5 +30,5 @@ def test_the_loader_is_not_asked_for_the_shacl_vocabulary():
 
 def test_another_import_that_nothing_supplies_still_raises():
     shapes = _graph("ex:Shapes a owl:Ontology ; owl:imports sh:, <http://example.org/other> . ex:S a sh:NodeShape .")
-    with pytest.raises(ValueError, match="http://example.org/other"):
+    with pytest.raises(ShapeError, match="http://example.org/other"):
         StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_graph(DATA))

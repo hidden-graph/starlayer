@@ -9,7 +9,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.interface import Solutions
-from starlayer.shacl.engine.plan import Path, ShapeError
+from starlayer.shacl.engine.plan import ConstraintQueryFailure, Path, ShapeError
 from starlayer.shacl.engine.sparql_support import fill_template, path_to_sparql
 from starlayer.shacl.engine.terms import NS as Namespace
 from starlayer.shacl.engine.terms import integer, text
@@ -91,7 +91,7 @@ def test_forbidden_or_malformed_queries_fail(select):
 
 
 def test_failure_variable_fails_validation():
-    with pytest.raises(ShapeError):
+    with pytest.raises(ConstraintQueryFailure):
         run('ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:sparql [ sh:select "SELECT $this (true AS ?failure) WHERE {}" ] .')
 
 

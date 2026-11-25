@@ -224,7 +224,7 @@ layer; `sh:TripleRule` and `sh:SPARQLRule`; conditions are shapes the focus node
 
 `conforms(shape, node)` is "no result of `shape` at `node`". It keeps an active set of `(shape, node)` pairs and a count of `sh:not`
 crossings. A re-entry on an active pair is assumed to conform (greatest fixpoint), unless the number of `sh:not` crossings
-differs from when the pair was entered: then the cycle passes through `sh:not` and the run fails with `ShapeError` (no fixpoint
+differs from when the pair was entered: then the cycle passes through `sh:not` and the run fails with `RecursionThroughNot` (an `ExecutionError`; no fixpoint
 or several). Answers that leaned on an assumption are not memoised; assumption-free answers are memoised with their nesting
 height so `max_validation_depth` is still enforced on replay. Core 6.7.3 leaves recursion to implementations: this is a choice
 (section 6).

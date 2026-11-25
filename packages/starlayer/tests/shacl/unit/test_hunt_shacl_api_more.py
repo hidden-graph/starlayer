@@ -210,11 +210,11 @@ def _chain(n):
 
 
 def test_deep_shape_chain_is_bounded_by_the_default_depth_not_the_interpreter():
-    from starlayer.shacl import ShapeError
+    from starlayer.shacl import NestingTooDeep
 
     data = g("ex:a ex:p 1 .")
     assert validate(data, _chain(300)).conforms is True  # under the default bound of 500
-    with pytest.raises(ShapeError):
+    with pytest.raises(NestingTooDeep):
         validate(data, _chain(600))
 
 

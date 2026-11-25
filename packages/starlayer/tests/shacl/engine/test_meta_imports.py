@@ -7,6 +7,7 @@ from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.imports import declared_imports, resolve_imports
 from starlayer.shacl.engine.meta import META_ERROR_PREFIX, MetaShaclError, meta_validate
+from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import OWL, RDF
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
@@ -100,7 +101,7 @@ def _graphs():
 
 def test_no_loader_unresolved_import_raises_unless_ignored():
     g = _app()
-    with pytest.raises(ValueError, match="owl:imports"):
+    with pytest.raises(ShapeError, match="owl:imports"):
         resolve_imports(g)
     assert resolve_imports(g, ignore_imports=True) is g
 

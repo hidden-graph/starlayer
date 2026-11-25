@@ -18,7 +18,26 @@ Term = Any
 
 
 class ShapeError(ValueError):
-    """The shapes graph is malformed (the W3C suite's ``sht:Failure`` cases)."""
+    """The shapes graph, its rules or its setup (an ``owl:imports`` that cannot be resolved) are wrong or ask for something
+    unsupported (the W3C suite's ``sht:Failure`` cases), whenever the engine finds it."""
+
+
+class ExecutionError(Exception):
+    """The shapes graph is fine and running it failed. A plain ``Exception``, not a ``ValueError``: the engine's narrow
+    ``except ValueError`` clauses (and a caller's) must not swallow it, as they must not swallow ``EvaluationFailure``."""
+
+
+class NestingTooDeep(ExecutionError):
+    """Shapes (``Validation path too deep``) or node expressions (a cyclic expression, a recursive function) nest deeper than the
+    limit, or deeper than the interpreter's recursion limit allows."""
+
+
+class RecursionThroughNot(ExecutionError):
+    """A shape reaches itself on a focus node through ``sh:not``: a cycle in the data that has no consistent answer."""
+
+
+class ConstraintQueryFailure(ExecutionError):
+    """A ``sh:sparql`` constraint query reported ``?failure true`` for a solution (the whole validation fails)."""
 
 
 def reject_removed_constructs(graph: Any) -> None:

@@ -15,7 +15,7 @@ coincidentally both named sh:values but serve entirely different purposes.
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from tests.support.terms import Namespace
 
 EX = Namespace("http://example.org/")
@@ -316,5 +316,5 @@ def test_property_rule_sh_values_remains_a_separate_unimplemented_mechanism() ->
     data = StarLayerGraph()
     data.add((EX.alice, EX.dummy, EX.dummy))
 
-    with pytest.raises(RuleError):
+    with pytest.raises(ShapeError):
         StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)

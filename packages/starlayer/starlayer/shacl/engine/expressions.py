@@ -27,7 +27,13 @@ from typing import Any
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.core_shape_based import shacl_list
 from starlayer.shacl.engine.paths import eval_path, parse_path
-from starlayer.shacl.engine.plan import SH, ShapeError, Term
+from starlayer.shacl.engine.plan import (
+    SH,
+    ExecutionError,
+    NestingTooDeep,
+    ShapeError,
+    Term,
+)
 from starlayer.shacl.engine.targets import _all_nodes, _class_closure
 from starlayer.shacl.engine.terms import (
     FALSE,
@@ -44,7 +50,7 @@ SHNEX = "http://www.w3.org/ns/shacl-node-expr#"
 SPARQL_NS = "http://www.w3.org/ns/sparql#"
 
 
-class EvaluationFailure(Exception):
+class EvaluationFailure(ExecutionError):
     """A node expression has no result for this data (Node Expressions 3.3), as opposed to an empty result."""
 
 
@@ -116,10 +122,10 @@ _MAX_EXPRESSION_DEPTH = 100  # nested evaluations; a cyclic expression or a func
 
 def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     """Evaluate ``expr``; nesting deeper than ``_MAX_EXPRESSION_DEPTH`` (a blank-node expression that refers to itself, a
-    function that never stops calling itself) is an ill-formed shapes graph, a ``ShapeError``, not a Python RecursionError."""
+    function that never stops calling itself) is a ``NestingTooDeep``, not a Python RecursionError."""
     state = ctx.cache.setdefault(("expression-depth",), [0])
     if state[0] >= _MAX_EXPRESSION_DEPTH:
-        raise ShapeError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (a cyclic expression or a recursive function)")
+        raise NestingTooDeep(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (a cyclic expression or a recursive function)")
     state[0] += 1
     try:
         return _eval_once(ctx, expr, focus, scope)

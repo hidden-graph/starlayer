@@ -9,6 +9,7 @@ from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.shacl import (
     RulesResult,
+    ShapeError,
     StarShaclProcessor,
     ValidationReport,
     apply_rules,
@@ -210,7 +211,7 @@ class TestTranslation:
 
     def test_unresolved_owl_imports_raise_like_the_old_default(self):
         shapes = g(SHAPES + " <http://example.org/onto> <http://www.w3.org/2002/07/owl#imports> <http://example.org/missing> .")
-        with pytest.raises(ValueError, match="owl:imports"):
+        with pytest.raises(ShapeError, match="owl:imports"):
             validate(g(GOOD), shapes)
         assert validate(g(GOOD), shapes, ignore_imports=True).conforms is True
 

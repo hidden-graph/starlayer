@@ -76,7 +76,7 @@ def test_a_node_with_no_graph_type_still_has_no_members() -> None:
 
 
 def test_an_import_of_an_untyped_node_still_raises() -> None:
-    with pytest.raises(ValueError, match="not typed"):
+    with pytest.raises(ShapeError, match="not typed"):
         shapes_graph_members(_graph("ex:G a sh:DataGraph ; owl:imports ex:Untyped ."), EX.G)
 
 

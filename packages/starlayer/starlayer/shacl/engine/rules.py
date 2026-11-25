@@ -37,7 +37,7 @@ from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.interface import Solutions, Term
 from starlayer.shacl.engine.naming import locate
-from starlayer.shacl.engine.plan import SH, Plan, ShapeError
+from starlayer.shacl.engine.plan import SH, ExecutionError, Plan, ShapeError
 from starlayer.shacl.engine.sparql_support import (
     check_query,
     is_true,
@@ -58,8 +58,10 @@ Triple = tuple[Term, Term, Term]
 _REIFIES = RDF.reifies
 
 
-class RuleError(ValueError):
-    """A rule failed, or the rules graph is ill-formed or needs something unsupported (the rule set fails as a whole)."""
+class RuleError(ExecutionError):
+    """A rule failed while running (a query that does not evaluate, a node expression that fails, more than ``max_iterations``
+    iterations or ``max_triples`` inferred triples): the rule set fails as a whole. A rules graph that is not well formed, or a
+    rule that cannot be read, is a ``ShapeError``."""
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -204,7 +206,7 @@ class InferredView:
 
         raw = self.materialised().engine_view()._run(text, dict(init_bindings or {}), None, None)
         if not isinstance(raw, ox.QueryTriples):
-            raise RuleError("sh:construct must be a CONSTRUCT query")
+            raise ShapeError("sh:construct must be a CONSTRUCT query")
         return [(t.subject, t.predicate, t.object) for t in raw]
 
 
@@ -266,20 +268,20 @@ class RuleResult:
 def _number(graph: Any, node: Term, pred: Term, default: float = 0) -> float:
     values = list(graph.objects(node, pred))
     if len(values) > 1:
-        raise RuleError(f"{node!r}: more than one {text(pred)}")
+        raise ShapeError(f"{node!r}: more than one {text(pred)}")
     if not values:
         return default
     v = values[0]
     n = xv.numeric(v)
     if n is None:
-        raise RuleError(f"{node!r}: {text(pred)} must be a numeric literal")
+        raise ShapeError(f"{node!r}: {text(pred)} must be a numeric literal")
     return float(n)
 
 
 def _boolean(graph: Any, node: Term, pred: Term) -> bool:
     values = list(graph.objects(node, pred))
     if len(values) > 1:
-        raise RuleError(f"{node!r}: more than one {text(pred)}")
+        raise ShapeError(f"{node!r}: more than one {text(pred)}")
     return bool(values) and is_true(values[0])
 
 
@@ -323,7 +325,7 @@ def rule_set_members(graph: Any, rule_sets: Iterable[Term]) -> list[Term]:
     members: dict = {}
     for s in sets:
         if (s, SH.ruleProcessor, None) in graph:  # a rule set that names a processor needs it, and none is available
-            raise RuleError(f"{s!r}: sh:ruleProcessor is declared and no custom rule processor is available")
+            raise ShapeError(f"{s!r}: sh:ruleProcessor is declared and no custom rule processor is available")
         for r in graph.objects(s, SH.hasRule):
             members.setdefault(r, None)
     return list(members)
@@ -343,14 +345,14 @@ def entailment_selection(shapes: Any) -> tuple[bool, list[Term]]:
 def read_rule(graph: Any, node: Term) -> Rule:
     """Read the rule at ``node`` from the shapes graph.
 
-    Raises ``RuleError`` if the node has no rule type, has several values or a non-numeric value for ``sh:layer`` /
+    Raises ``ShapeError`` if the node has no rule type, has several values or a non-numeric value for ``sh:layer`` /
     ``sh:order``, has several ``sh:runOnce`` values, or has a ``sh:ruleProcessor`` on it, its types or a rule set
     containing it.
     """
     classes = _rule_classes(graph)
     types = tuple(t for t in graph.objects(node, RDF.type) if t in classes)
     if not types:
-        raise RuleError(f"{node!r}: a rule needs an rdf:type that is a subclass of sh:Rule")
+        raise ShapeError(f"{node!r}: a rule needs an rdf:type that is a subclass of sh:Rule")
     # "A rules engine that encounters rules or rule sets with a value for sh:ruleProcessor that they are unable to handle MUST report
     # a failure" (SHACL 1.2 Inference Rules): a rule that runs is asked about itself and its types, and about every rule set that
     # contains it and every rule set those include ("the values of sh:ruleProcessor from an included rule set also apply to the
@@ -359,7 +361,7 @@ def read_rule(graph: Any, node: Term) -> Rule:
     containing = _closure(graph, graph.subjects(SH.hasRule, node), lambda rs: graph.objects(rs, SH.includesRuleSet))
     for holder in (node, *types, *containing):
         if (holder, SH.ruleProcessor, None) in graph:
-            raise RuleError(f"{holder!r}: sh:ruleProcessor is declared and no custom rule processor is available")
+            raise ShapeError(f"{holder!r}: sh:ruleProcessor is declared and no custom rule processor is available")
     return Rule(
         node=node,
         types=types,
@@ -474,8 +476,8 @@ class _Run:
                 try:
                     if all(ctx.conforms(c, n) for c in conditions):
                         out[n] = None
-                except ShapeError as exc:
-                    raise RuleError(f"{rule.node!r}: sh:condition check failed: {exc}") from exc
+                except (ShapeError, ExecutionError) as exc:
+                    raise _prefixed(exc, f"{rule.node!r}: sh:condition check failed: ")
         return list(out)
 
     # -- executing one rule: returns the triples it infers (not yet filtered against the view)
@@ -509,9 +511,9 @@ class _Run:
             constructs = list(g.objects(template, SH.construct))
             bindings.update(self._template_bindings(rule, template))
         if SH.SPARQLRule not in rule.types and template is None:
-            raise RuleError(f"{rule.node!r}: unsupported rule type {sorted(text(t) for t in rule.types)}")
+            raise ShapeError(f"{rule.node!r}: unsupported rule type {sorted(text(t) for t in rule.types)}")
         if len(constructs) != 1 or not isinstance(constructs[0], Literal):
-            raise RuleError(f"{rule.node!r}: exactly one string sh:construct is required")
+            raise ShapeError(f"{rule.node!r}: exactly one string sh:construct is required")
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
         text = _fix_now(with_prefixes(self.plan, prefix_holder, constructs[0].value), self.now)
         # the same forbidden constructs as for sh:select and sh:ask (SHACL 1.2 SPARQL Extensions, "Pre-binding of Variables"):
@@ -520,9 +522,9 @@ class _Run:
         try:
             check_query(self.plan, text, bindings, construct=True, pre_binding=focus is not None)
             return self.view.construct(text, bindings)
-        except RuleError:
-            raise
-        except Exception as exc:  # noqa: BLE001  (a query that does not parse or evaluate fails the rule)
+        except ShapeError as exc:  # the query does not parse, or uses something the engine refuses
+            raise ShapeError(f"{rule.node!r}: SPARQL rule failed: {exc}") from exc
+        except Exception as exc:  # noqa: BLE001  (a query that does not evaluate fails the rule)
             raise RuleError(f"{rule.node!r}: SPARQL rule failed: {exc}") from exc
 
     def _template_of(self, rule: Rule) -> Term | None:
@@ -543,11 +545,11 @@ class _Run:
         for pred, name, optional in _parameters(self.shapes, template, allow_all_optional=True):
             values = list(self.shapes.objects(rule.node, pred))
             if len(values) > 1:
-                raise RuleError(f"{rule.node!r}: more than one value for template parameter {text(pred)}")
+                raise ShapeError(f"{rule.node!r}: more than one value for template parameter {text(pred)}")
             if values:
                 out[name] = values[0]
             elif not optional:
-                raise RuleError(f"{rule.node!r}: missing value for template parameter {text(pred)}")
+                raise ShapeError(f"{rule.node!r}: missing value for template parameter {text(pred)}")
         return out
 
     def _triple_rule(self, ctx: Context, rule: Rule, focus: Term | None) -> list[Triple]:
@@ -556,10 +558,12 @@ class _Run:
         for pred in (SH.subject, SH.predicate, SH.object):
             exprs = list(self.shapes.objects(rule.node, pred))
             if len(exprs) > 1:
-                raise RuleError(f"{rule.node!r}: more than one {text(pred)}")
+                raise ShapeError(f"{rule.node!r}: more than one {text(pred)}")
             if exprs:
                 try:
                     parts.append(list(evaluate(ctx, exprs[0], focus, None)))
+                except ShapeError as exc:
+                    raise ShapeError(f"{rule.node!r}: node expression for {text(pred)} failed: {exc}") from exc
                 except Exception as exc:  # noqa: BLE001
                     raise RuleError(f"{rule.node!r}: node expression for {text(pred)} failed: {exc}") from exc
             else:
@@ -646,9 +650,14 @@ def _groups(rules: list[Rule]) -> list[list[Rule]]:
     return [by[o] for o in sorted(by)]
 
 
-def _renamed(error: RuleError, message: str) -> RuleError:
+def _renamed(error: Exception, message: str) -> Exception:
     error.args = (message,)
     return error
+
+
+def _prefixed(error: Exception, prefix: str) -> Exception:
+    """``error`` (same class) with ``prefix`` in front of its message, so it names the rule it is about. Returned for ``raise``."""
+    return _renamed(error, prefix + str(error))
 
 
 def apply_rules(
@@ -665,7 +674,7 @@ def apply_rules(
     """Run the rules of ``shapes_graph`` (default: ``data_graph`` itself) over ``data_graph``.
 
     ``rule_sets``: IRIs of ``sh:RuleSet`` instances to run (with the sets they include); ``None`` runs the default rule set,
-    every rule of the shapes graph. A failing rule fails the whole rule set: ``RuleError`` is raised, or with
+    every rule of the shapes graph. A failing rule fails the whole rule set: the error (``ShapeError`` for a wrong rules graph, ``RuleError`` or another ``ExecutionError`` when running failed) is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
     data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, an StarLayerGraph copy inside
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
@@ -701,10 +710,10 @@ def apply_rules(
                         changed = True
             run.end_layer()
         run.delete_temp_triples()
-    except (RuleError, ShapeError) as exc:
+    except (ShapeError, ExecutionError) as exc:
         message = locate(shapes, str(exc))  # the shape, rule or expression it is about, named, not its blank node label
         if raise_on_failure:
-            raise (RuleError(message) if not isinstance(exc, RuleError) else _renamed(exc, message)) from exc
+            raise _renamed(exc, message)  # same class: ShapeError for a wrong rules graph, an ExecutionError when running failed
         failures.append(message)
     kept = set(view.inferred)  # temporary triples are gone: a rule's record follows its triple
     recorded = tuple(dict.fromkeys((t, rule) for t, rule in (run.source_rules or ()) if t in kept))

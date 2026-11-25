@@ -10,8 +10,8 @@ import inspect
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
+    NestingTooDeep,
     RuleError,
-    ShapeError,
     StarShaclProcessor,
     apply_rules,
     validate,
@@ -98,9 +98,9 @@ def test_the_default_depth_limit_is_500_through_public_validate() -> None:
     assert DEFAULT_MAX_VALIDATION_DEPTH == 500
     data = g(DATA)
     assert validate(data, chain(300)).conforms
-    with pytest.raises(ShapeError):
+    with pytest.raises(NestingTooDeep):
         validate(data, chain(520))  # 520 nested sh:node shapes: past the default 500
-    with pytest.raises(ShapeError):
+    with pytest.raises(NestingTooDeep):
         StarShaclProcessor(chain(520)).validate(data)
 
 

@@ -108,10 +108,10 @@ ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://exampl
         ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:expression [ ex:f ( 1 ) ] .""",
     ],
 )
-def test_cyclic_expression_is_a_shape_error_not_recursion_error(shapes):
-    from starlayer.shacl.engine.plan import ShapeError
+def test_cyclic_expression_is_nesting_too_deep_not_recursion_error(shapes):
+    from starlayer.shacl.engine.plan import NestingTooDeep
 
-    with pytest.raises(ShapeError):
+    with pytest.raises(NestingTooDeep):
         validate(G("ex:n ex:p 1 ."), G(NX + shapes), meta_shacl=False)
 
 

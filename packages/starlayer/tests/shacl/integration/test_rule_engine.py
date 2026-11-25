@@ -9,7 +9,7 @@ triples of a layer are removed when the layer ends. Each test below fails with p
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from starlayer.shacl.engine.terms import RDF as OXRDF
 from starlayer.shacl.engine.terms import text, to_engine
 from tests.support.terms import NamedNode, Namespace, lit
@@ -225,7 +225,7 @@ class TestRunOnceAcrossShapes:
 def test_a_rule_that_is_neither_a_triple_rule_nor_a_sparql_rule_is_a_failure() -> None:
     shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:n ; sh:rule ex:Weird . ex:Weird a ex:Other ."
 
-    with pytest.raises(RuleError):
+    with pytest.raises(ShapeError):
         _apply(shapes)
 
 

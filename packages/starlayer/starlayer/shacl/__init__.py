@@ -8,8 +8,12 @@ from starlayer.shacl.candidates import Candidates
 from starlayer.shacl.derive import derive_shape
 from starlayer.shacl.engine.terms import SH
 from starlayer.shacl.errors import (
+    ConstraintQueryFailure,
     EvaluationFailure,
+    ExecutionError,
     MetaShaclError,
+    NestingTooDeep,
+    RecursionThroughNot,
     RuleError,
     ShapeError,
 )
@@ -149,7 +153,11 @@ __all__ = [
     "path_values",
     "is_inverse",
     "ShapeError",
+    "ExecutionError",
     "RuleError",
     "EvaluationFailure",
+    "NestingTooDeep",
+    "RecursionThroughNot",
+    "ConstraintQueryFailure",
     "MetaShaclError",
 ]

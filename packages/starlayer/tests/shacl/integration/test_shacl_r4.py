@@ -7,7 +7,6 @@ cannot colour the answer."""
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
-    RuleError,
     ShapeError,
     StarShaclProcessor,
     apply_rules,
@@ -107,14 +106,14 @@ def test_global_sparql_rule_resolves_its_own_sh_prefixes_not_the_data_graphs_bin
 )
 def test_global_sparql_rule_with_a_bad_construct_raises(construct):
     shapes = _graph(P + f'<http://ex/R> a sh:SPARQLRule ; sh:construct "{construct}" .')
-    with pytest.raises(RuleError, match="SPARQL rule failed"):
+    with pytest.raises(ShapeError, match="SPARQL rule failed"):
         apply_rules(_graph(_NO_BINDING_DATA), shacl_graph=shapes)
 
 
 @pytest.mark.parametrize("form", ["SELECT * WHERE { ?s ?p ?o }", "ASK { ?s ?p ?o }"])
 def test_global_sparql_rule_with_a_non_construct_query_raises_a_clear_error(form):
     shapes = _graph(P + f'<http://ex/R> a sh:SPARQLRule ; sh:construct "{form}" .')
-    with pytest.raises(RuleError, match="must be a CONSTRUCT query"):
+    with pytest.raises(ShapeError, match="must be a CONSTRUCT query"):
         apply_rules(_graph(_NO_BINDING_DATA), shacl_graph=shapes)
 
 

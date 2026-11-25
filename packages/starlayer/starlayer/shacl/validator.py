@@ -15,6 +15,7 @@ import pyoxigraph as ox
 
 from starlayer.shacl import _adapter
 from starlayer.shacl.candidates import Candidates
+from starlayer.shacl.engine.plan import ShapeError
 from starlayer.shacl.engine.terms import RDF, SH, BlankNode, n3
 from starlayer.shacl.form_model import FormModel
 from starlayer.shacl.normalization import normalize_to_starlayer_graph
@@ -50,7 +51,7 @@ def validate(
         mode: A named preset of options (``"validation"``, ``"rules"`` or ``"debug"``); any of its options can be overridden per
             call through ``**kwargs``.
         shapes_graph_loader: Resolves the shapes graph's ``owl:imports``. With no loader, an import that is not already in the
-            graph raises ``ValueError`` unless ``ignore_imports=True``.
+            graph raises ``ShapeError`` unless ``ignore_imports=True``.
         ignore_imports: Do not complain about imports that cannot be resolved.
         meta_shapes_extra: Extra graphs for the shapes-about-shapes check when ``meta_shacl=True``.
         data_graph_iri, shapes_graph_iri: Recorded as ``sh:usedDataGraph`` / ``sh:usedShapesGraph`` on the ``sh:ValidationActivity`` that generated the report; each defaults
@@ -629,7 +630,7 @@ class StarShaclProcessor:
         loader, ignore = self.shapes_graph_loader, bool(self.ignore_imports)
         try:
             resolved = resolve_imports(shapes, loader, ignore)
-        except ValueError:  # unresolved owl:imports and no loader to resolve them with
+        except ShapeError:  # unresolved owl:imports and no loader to resolve them with
             return
         checked = _adapter.CheckedShapes()
         if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ShapeError

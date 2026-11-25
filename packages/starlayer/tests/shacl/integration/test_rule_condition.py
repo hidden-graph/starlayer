@@ -1,7 +1,7 @@
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import RuleError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from tests.support.terms import Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -157,7 +157,7 @@ def test_condition_excludes_all_focus_nodes_when_none_conform() -> None:
 
 
 def test_property_rule_sh_values_is_not_implemented() -> None:
-    """``sh:PropertyRule`` is not a SHACL 1.2 rule type: an unrecognized rule type is a RuleError.
+    """``sh:PropertyRule`` is not a SHACL 1.2 rule type: an unrecognized rule type is a ShapeError.
 
     SHACL 1.2 Inference Rules defines exactly ``sh:SPARQLRule`` and ``sh:TripleRule``; a rule
     whose type is not a subclass of ``sh:Rule`` must not silently no-op. Update or remove this
@@ -182,5 +182,5 @@ def test_property_rule_sh_values_is_not_implemented() -> None:
           ] .
     """, format="turtle")
 
-    with pytest.raises(RuleError):
+    with pytest.raises(ShapeError):
         StarShaclProcessor(shacl_graph=shapes).apply_rules(data_graph=data, meta_shacl=False)
