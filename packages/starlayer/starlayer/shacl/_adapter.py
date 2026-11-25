@@ -111,14 +111,24 @@ def _warn_advanced_deprecated() -> None:
 
 
 # Engine limits that the public functions do not take (decision 2026-11-24): the engine keeps them as parameters
-# (``engine.api.validate(max_validation_depth=)``, ``engine.rules.apply_rules(max_triples=)``).
-_INTERNAL_LIMITS = frozenset({"max_validation_depth", "max_triples"})
+# (``engine.api.validate(max_validation_depth=)``).
+_INTERNAL_LIMITS = frozenset({"max_validation_depth"})
 
 
 def _reject_internal_limits(options: Any) -> None:
     refused = sorted(set(options) & _INTERNAL_LIMITS)
     if refused:
         raise TypeError(f"{', '.join(refused)} is not an option of the public validate(), validate_each() and apply_rules(): it is an internal engine limit")
+
+
+def check_max_triples(value: Any) -> None:
+    """``TypeError`` unless ``max_triples`` is ``None`` (no cap) or an ``int``; ``ValueError`` for a negative one."""
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"max_triples must be an int or None (no cap), not {value!r}")
+    if value < 0:
+        raise ValueError(f"max_triples must not be negative, not {value!r}")
 
 
 def reject_unknown_options(kwargs: dict[str, Any]) -> None:
@@ -374,6 +384,7 @@ RULES_OPTIONS = frozenset(
         "ignore_imports",
         "shapes_graph_loader",
         "max_iterations",
+        "max_triples",
     }
 )
 
@@ -418,7 +429,9 @@ def apply_rules(
     from starlayer.shacl.results import RulesResult
 
     reject_options_for_rules(options)
-    rule_limits = {name: options[name] for name in ("max_iterations",) if name in options}
+    rule_limits = {name: options[name] for name in ("max_iterations", "max_triples") if name in options}
+    if "max_triples" in rule_limits:
+        check_max_triples(rule_limits["max_triples"])
     data, shapes, ont = _normalise(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph
     )

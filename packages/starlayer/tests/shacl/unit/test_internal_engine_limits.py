@@ -1,6 +1,6 @@
-"""``max_validation_depth`` and ``max_triples`` are internal engine limits (decision 2026-11-24): the public ``validate()``,
-``validate_each()``, ``apply_rules()`` and ``StarShaclProcessor`` refuse them, and the defaults they stood for are unchanged.
-``max_iterations`` stays public. The limits' own behaviour is tested on the engine (``engine/test_api_options.py``,
+"""``max_validation_depth`` is an internal engine limit (decision 2026-11-24): the public ``validate()``,
+``validate_each()``, ``apply_rules()`` and ``StarShaclProcessor`` refuse it, and the default it stood for is unchanged.
+``max_iterations`` and ``max_triples`` (public again, decision 2026-11-25) are options of ``apply_rules()``. The limits' own behaviour is tested on the engine (``engine/test_api_options.py``,
 ``integration/test_rule_iteration.py``)."""
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ def g(ttl: str) -> StarLayerGraph:
 
 DATA = "ex:a ex:p 1 ."
 SHAPES = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:nodeKind sh:IRI ."
-REMOVED = ("max_validation_depth", "max_triples")
+REMOVED = ("max_validation_depth",)
 
 
 def chain(n: int) -> StarLayerGraph:
@@ -113,5 +113,57 @@ def test_max_iterations_stays_public_with_default_1000() -> None:
         StarShaclProcessor(linear_shapes(), max_iterations=3).apply_rules(data)
 
 
-def test_no_triple_cap_by_default() -> None:
-    assert len(list(apply_rules(linear_chain(10), linear_shapes()).inferred_graph)) > 5
+def test_max_triples_is_public_with_default_5_million() -> None:
+    from starlayer.shacl.engine import rules as engine_rules
+
+    assert engine_rules.DEFAULT_MAX_TRIPLES == 5_000_000
+    assert inspect.signature(engine_rules.apply_rules).parameters["max_triples"].default == engine_rules.DEFAULT_MAX_TRIPLES
+    assert "max_triples" in inspect.signature(StarShaclProcessor).parameters
+    assert len(list(apply_rules(linear_chain(10), linear_shapes()).inferred_graph)) > 5  # far below the default
+
+
+def test_max_triples_caps_the_public_apply_rules_and_none_removes_the_cap() -> None:
+    data = linear_chain(10)
+    with raises_kind("rule", match="more than 5 triples inferred: raise max_triples= or pass None"):
+        apply_rules(data, linear_shapes(), max_triples=5)
+    with raises_kind("rule", match="more than 5 triples inferred"):
+        StarShaclProcessor(linear_shapes()).apply_rules(data, max_triples=5)
+    assert len(apply_rules(data, linear_shapes(), max_triples=None).inferred_graph) > 5
+    assert len(apply_rules(data, linear_shapes(), max_triples=1000).inferred_graph) > 5
+
+
+def test_max_triples_processor_default_and_call_override() -> None:
+    data = linear_chain(10)
+    p = StarShaclProcessor(linear_shapes(), max_triples=5)
+    with raises_kind("rule", match="more than 5 triples"):
+        p.apply_rules(data)
+    assert len(p.apply_rules(data, max_triples=1000).inferred_graph) > 5  # the call beats the constructor
+    assert len(p.apply_rules(data, max_triples=None).inferred_graph) > 5
+    unlimited = StarShaclProcessor(linear_shapes(), max_triples=None)  # None at construction is a real value: no cap
+    assert len(unlimited.apply_rules(data).inferred_graph) > 5
+    with raises_kind("rule", match="more than 5 triples"):
+        unlimited.apply_rules(data, max_triples=5)
+
+
+@pytest.mark.parametrize("value", ["5", 1.5, True])
+def test_max_triples_rejects_a_non_int(value: object) -> None:
+    with pytest.raises(TypeError, match="max_triples"):
+        apply_rules(linear_chain(2), linear_shapes(), max_triples=value)
+    with pytest.raises(TypeError, match="max_triples"):
+        StarShaclProcessor(linear_shapes(), max_triples=value)  # type: ignore[arg-type]
+    with pytest.raises(TypeError, match="max_triples"):
+        StarShaclProcessor(linear_shapes()).apply_rules(linear_chain(2), max_triples=value)
+
+
+def test_max_triples_rejects_a_negative_value() -> None:
+    with pytest.raises(ValueError, match="max_triples"):
+        apply_rules(linear_chain(2), linear_shapes(), max_triples=-1)
+    with pytest.raises(ValueError, match="max_triples"):
+        StarShaclProcessor(linear_shapes(), max_triples=-1)
+
+
+def test_max_triples_is_not_a_validate_option() -> None:
+    with pytest.raises(TypeError, match="max_triples"):
+        validate(g(DATA), g(SHAPES), max_triples=5)
+    with pytest.raises(TypeError, match="max_triples"):
+        StarShaclProcessor(g(SHAPES)).validate(g(DATA), max_triples=5)

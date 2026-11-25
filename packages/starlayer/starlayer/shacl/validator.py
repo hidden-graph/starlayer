@@ -217,8 +217,9 @@ def apply_rules(
             to match over, together with the shapes graph's own ``sh:entailment``), ``engine``, ``timeout``, ``recompute``,
             ``subclass_of_in_shapes_graph`` (also for the rules' class targets), ``meta_shacl`` and the named ``meta_shapes_extra``,
             ``ignore_imports``, ``shapes_graph_loader`` (how the shapes graph is read and checked), and the rule limits
-            the rule limit
-            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise an ``ExecutionError`` of kind ``"rule"``).
+            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise an ``ExecutionError`` of kind ``"rule"``)
+            and ``max_triples`` (default 5,000,000: more inferred triples than that raise an ``ExecutionError`` of kind ``"rule"``;
+            an inferred triple costs about 1.3-1.9 KB, so a million is about 1.3 GB; ``None`` removes the cap; a non-int or negative value is refused).
             An option that only describes a validation (``allow_warnings``, ``allow_infos``, ``abort_on_first``,
             ``include_used_configuration``, ``rules``, ...) is a ``TypeError`` naming ``validate()``.
             On a ``StarShaclProcessor`` the constructor's values of the options above are the defaults, and a keyword here
@@ -484,7 +485,8 @@ _VALIDATION_DEFAULTS = (
     "recompute",
 )
 _SHAPES_GRAPH_DEFAULTS = ("meta_shapes_extra", "ignore_imports", "shapes_graph_loader")
-_RULE_LIMIT_DEFAULTS = ("max_iterations",)
+_RULE_LIMIT_DEFAULTS = ("max_iterations", "max_triples")
+_NONE_IS_A_VALUE = frozenset({"max_triples"})  # constructor options where None is a real value (no cap), unset is _UNSET
 _RULES_DEFAULTS = (
     "meta_shacl",
     "subclass_of_in_shapes_graph",
@@ -535,6 +537,7 @@ class StarShaclProcessor:
     - ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``: how the shapes graph is read, for ``validate()`` and
       ``apply_rules()``. On a call, ``shapes_graph_loader=None`` drops a constructor loader.
     - ``max_iterations``: ``apply_rules()`` only (built-in: 1000).
+    - ``max_triples``: ``apply_rules()`` only (built-in: 5,000,000 inferred triples; ``None`` removes the cap).
 
     ``target_nodes()`` takes ``subclass_of_in_shapes_graph`` (its default is the constructor's value, a keyword overrides it), since
     it answers what ``validate()`` targets; ``evaluate()``, ``select_widgets()``, ``close_shape()`` and ``extract_shapes_graph()``
@@ -557,6 +560,7 @@ class StarShaclProcessor:
         ignore_imports: bool | None = None,
         shapes_graph_loader: Callable[[Any], Any | None] | None = None,
         max_iterations: int | None = None,
+        max_triples: int | None = _UNSET,  # type: ignore[assignment]
         subclass_of_in_shapes_graph: bool | None = None,
         engine: str | None = None,
         timeout: float | None = None,
@@ -609,6 +613,9 @@ class StarShaclProcessor:
         self.ignore_imports = ignore_imports
         self.shapes_graph_loader = shapes_graph_loader
         self.max_iterations = max_iterations
+        if max_triples is not _UNSET:
+            _adapter.check_max_triples(max_triples)
+        self.max_triples = max_triples
         self.subclass_of_in_shapes_graph = subclass_of_in_shapes_graph
         self.engine = engine
         self.timeout = timeout
@@ -644,7 +651,7 @@ class StarShaclProcessor:
         return {
             name: value
             for name, value in values.items()
-            if value is not _UNSET and value is not None
+            if value is not _UNSET and (value is not None or name in _NONE_IS_A_VALUE)
         }
 
     def _bound(self, name: str) -> Any | None:

@@ -101,8 +101,8 @@ def _build_linear_chain(length: int) -> StarLayerGraph:
 # rules_reach_linear_sparql.ttl's immutable-base-relation join grows ex:reach
 # by exactly one hop per rule iteration, so "iterations needed" == "chain
 # length". The iteration cap (max_iterations, default 1000) is not an option of
-# validate(); the tests use the engine's apply_rules directly with a small cap. The triple cap (max_triples, default None) is
-# an engine parameter only: the public apply_rules() does not take it.
+# validate(); the tests use the engine's apply_rules directly with a small cap. The triple cap (max_triples, default 5,000,000) is
+# a public apply_rules() option too (tests/shacl/unit/test_internal_engine_limits.py); here the engine default is overridden with None.
 def _linear_rules(data, max_iterations=1000, max_triples=None):
     from starlayer.shacl.engine.rules import apply_rules
 

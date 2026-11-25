@@ -1,5 +1,5 @@
 """``StarShaclProcessor`` constructor defaults for the options that describe the shapes graph or are safety limits:
-``meta_shacl``, ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``, ``max_iterations``. Precedence, lowest first: built-in default, constructor, ``mode=`` preset, call keyword."""
+``meta_shacl``, ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``, ``max_iterations``, ``max_triples``. Precedence, lowest first: built-in default, constructor, ``mode=`` preset, call keyword."""
 
 from __future__ import annotations
 
@@ -207,4 +207,4 @@ def test_signature_stays_readable() -> None:
     params = inspect.signature(StarShaclProcessor.validate).parameters
     assert repr(params["ignore_imports"].default) == "<not set>"
     assert "max_validation_depth" not in inspect.signature(StarShaclProcessor).parameters
-    assert "max_triples" not in inspect.signature(StarShaclProcessor).parameters
+    assert "max_triples" in inspect.signature(StarShaclProcessor).parameters

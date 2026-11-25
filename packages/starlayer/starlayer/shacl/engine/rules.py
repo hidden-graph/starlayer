@@ -622,7 +622,9 @@ class _Run:
             elif self.view.add(t):
                 changed = True
         if self.max_triples is not None and len(self.view.inferred) > self.max_triples:
-            raise ExecutionError(f"more than {self.max_triples} triples inferred", kind="rule")
+            raise ExecutionError(
+                f"more than {self.max_triples} triples inferred: raise max_triples= or pass None to remove the cap", kind="rule"
+            )
         return changed
 
     def delete_temp_triples(self) -> None:
@@ -660,13 +662,18 @@ def _prefixed(error: Exception, prefix: str) -> Exception:
     return _renamed(error, prefix + str(error))
 
 
+# The cap on the triples one rule run may infer (``max_triples``; ``None`` removes it). A triple inferred costs about 1.3-1.9 KB and
+# 35 microseconds (measured: a million triples took about 1.3 GB and 35 s), so this default is about 7-9 GB and 3 minutes at the limit.
+DEFAULT_MAX_TRIPLES = 5_000_000
+
+
 def apply_rules(
     data_graph: Any,
     shapes_graph: Any = None,
     *,
     rule_sets: Iterable[Term] | None = None,
     max_iterations: int = 1000,
-    max_triples: int | None = None,
+    max_triples: int | None = DEFAULT_MAX_TRIPLES,
     raise_on_failure: bool = True,
     source_rules: bool = False,
     subclass_of_in_shapes_graph: bool = False,
