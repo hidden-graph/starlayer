@@ -23,7 +23,7 @@ from starlayer.sparql.srl import (
 )
 from starlayer.sparql.srl_eval import _eval_expr
 
-__all__ = ["canonical_blank_nodes", "expression_results", "isomorphic", "parse_ruleset", "parsed", "ruleset_to_text", "ruleset_to_tree",
+__all__ = ["canonical_blank_nodes", "expression_results", "isomorphic", "parse_ruleset", "assert_rejected", "parsed", "ruleset_to_text", "ruleset_to_tree",
            "srl_parse_to_tree", "srl_tree_to_text", "srl_validate", "tree_of", "as_stored"]
 
 
@@ -133,3 +133,21 @@ def as_stored(ruleset):
     rules = [_Rule(head=_stored(r.head), body=_stored(r.body), evaldata=r.evaldata, id=r.id) for r in ruleset.rules]
     data = [_Data(triples=_stored(d.triples)) for d in ruleset.data]
     return replace(ruleset, rules=rules, data=data)
+
+
+def assert_rejected(text: str) -> None:
+    """The text is refused: a FormatError at parse, or (for text the rule set can still hold) a report that does not conform from
+    ``srl_validate`` and an error when the rules run."""
+    import pytest
+    from starlayer.errors import FormatError
+    from starlayer.graph import StarLayerGraph
+    from starlayer.sparql.srl_eval import StratificationError
+
+    try:
+        ruleset = parse_ruleset(text)
+    except FormatError as caught:
+        assert caught.kind == "srl"
+        return
+    assert not srl_validate(ruleset_to_tree(ruleset)[0]).conforms, "srl_validate accepted it"
+    with pytest.raises((FormatError, StratificationError)):
+        ruleset.infer(StarLayerGraph())

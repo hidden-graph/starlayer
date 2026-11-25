@@ -7,6 +7,7 @@ adversarially, not just by existence.
 """
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import (  # noqa: E402
     parse_ruleset,
@@ -134,7 +135,7 @@ def test_body_list_rejects_a_non_body_element_member():
     assert conforms is False
 
 
-# --- parse_ruleset() also validates against the shapes ------------------------
+# --- srl_validate() on a parsed rule set: the shapes, then the §4.2 conditions ------------------------
 
 _AGGREGATE_IN_SET = "PREFIX : <http://example.org/>\nRULE { ?x :n ?n } WHERE { ?x :p ?y . SET(?n := COUNT(?y)) }"
 
@@ -150,26 +151,24 @@ _AGGREGATE_IN_SET = "PREFIX : <http://example.org/>\nRULE { ?x :n ?n } WHERE { ?
         "edited yet."
     ),
 )
-def test_parse_ruleset_raises_when_the_rule_set_does_not_conform_to_the_shapes(
-    monkeypatch,
-):
-    """The Python well-formedness check normally catches an aggregate in SET first, so switch
-    it off to reach the shapes, which reject the same rule set."""
+def test_the_shapes_alone_reject_the_rule_set(monkeypatch):
+    """The Python well-formedness check normally catches an aggregate in SET, so switch it off to reach the shapes alone."""
     from starlayer.sparql import srl
 
     monkeypatch.setattr(srl, "_check_ruleset", lambda ruleset: [])
-    with pytest.raises(srl.SRLParseError, match="does not conform to the srl: shapes"):
-        srl.parse_ruleset(_AGGREGATE_IN_SET)
+    assert not srl.srl_validate(srl.ruleset_to_tree(srl.parse_ruleset(_AGGREGATE_IN_SET))[0]).conforms
 
 
-def test_validate_false_skips_the_shape_check(monkeypatch):
+def test_a_rule_set_that_breaks_the_conditions_loads_and_validate_reports_it():
     from starlayer.sparql import srl
 
-    monkeypatch.setattr(srl, "_check_ruleset", lambda ruleset: [])
-    assert len(srl.parse_ruleset(_AGGREGATE_IN_SET, validate=False).rules) == 1
+    ruleset = srl.parse_ruleset(_AGGREGATE_IN_SET)
+    assert len(ruleset.rules) == 1
+    report = srl.srl_validate(srl.ruleset_to_tree(ruleset)[0])
+    assert not report.conforms and "aggregate_in_expression" in report.report_text
 
 
-def test_a_valid_rule_set_passes_the_shape_check_at_parse_time():
+def test_a_valid_rule_set_passes_the_shape_check():
     from starlayer.sparql import srl
 
     ruleset = srl.parse_ruleset(
@@ -232,12 +231,10 @@ class TestALiteralIsNotASubject:
             "DATA { 5 ex:p ex:o } RULE { ?x ex:p ?a } WHERE { ?x ex:age ?a }",
         ],
     )
-    def test_a_constant_literal_subject_is_rejected_at_parse(self, rule):
-        with pytest.raises(srl.SRLParseError, match="literal cannot be the subject"):
-            srl.parse_ruleset(self.H + rule)
-
-    def test_validate_false_skips_the_check(self):
-        assert srl.parse_ruleset(self.H + "RULE { 5 ex:p ?x } WHERE { ?x ex:age ?a }", validate=False).rules
+    def test_a_constant_literal_subject_loads_and_validate_rejects_it(self, rule):
+        ruleset = srl.parse_ruleset(self.H + rule)
+        report = srl.srl_validate(srl.ruleset_to_tree(ruleset)[0])
+        assert not report.conforms and "literal cannot be the subject" in report.report_text
 
     @pytest.mark.parametrize(
         "rule",

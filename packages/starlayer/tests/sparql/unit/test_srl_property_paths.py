@@ -8,7 +8,8 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.rdflib_bridge import engine_to_foreign as from_engine
 from starlayer.sparql import srl
-from starlayer.sparql.srl import SRLParseError, parse_ruleset
+from starlayer.errors import FormatError
+from starlayer.sparql.srl import parse_ruleset
 
 EX = "http://example.org/"
 P = f"PREFIX ex: <{EX}>\n"
@@ -115,12 +116,12 @@ def test_a_path_inside_not():
     ],
 )
 def test_any_other_path_operator_is_rejected_with_a_clear_message(path):
-    with pytest.raises(SRLParseError, match="only the / and \\^ operators"):
+    with pytest.raises(FormatError, match="only the / and \\^ operators"):
         parse_ruleset(P + f"RULE {{ ?x ex:r ?v }} WHERE {{ ?x {path} ?v }}")
 
 
 def test_a_path_is_not_allowed_in_a_rule_head():
-    with pytest.raises(SRLParseError):
+    with pytest.raises(FormatError):
         parse_ruleset(P + "RULE { ?x ex:a/ex:b ?v } WHERE { ?x ex:dependsOn ?v }")
 
 

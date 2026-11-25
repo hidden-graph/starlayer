@@ -147,8 +147,7 @@ def test_both_ways_of_finding_the_new_triples_agree(name, threshold, monkeypatch
 
 
 def _rule(rule_text: str, filter_first: bool = False):
-    """The one rule of ``rule_text``; with ``filter_first`` its last body element moves to second place (the parser refuses a rule
-    written that way, so this is the only way to get one)."""
+    """The one rule of ``rule_text``; with ``filter_first`` its last body element moves to second place (a rule written that way is not well-formed, §4.2)."""
     ruleset = srl.parse_ruleset(PRELUDE + rule_text)
     (rule,) = ruleset.rules
     if filter_first:
@@ -175,9 +174,11 @@ def test_which_rules_the_store_takes():
     assert _plan("RULE { ?a :q ?s } WHERE { GROUP BY ?a { ?a :p ?v } [ ?s := SUM(?v) ] }") is None
 
 
-def test_a_filter_before_its_variable_is_bound_keeps_the_in_order_meaning():
+def test_a_filter_before_its_variable_is_bound_keeps_the_in_order_meaning(monkeypatch):
     """The store would answer with the group-scoped filter; the evaluator must answer as the spec's element order does (an error
     is false, so the row is dropped), and does, because such a rule is not given to the store."""
+    # running a rule set that breaks §4.2 raises; the evaluator's own meaning for such a rule is what is checked here
+    monkeypatch.setattr("starlayer.sparql.srl_semantic_checks._check_ruleset", lambda ruleset: [])
     ruleset, _ = _rule("RULE { ?a :q ?b } WHERE { ?a :p ?x . ?a :r ?b . FILTER(?x != ?b) }", filter_first=True)
     g = StarLayerGraph()
     g.parse(data=f"@prefix : <{EX}> . :a :p :x ; :r :y .", format="turtle")

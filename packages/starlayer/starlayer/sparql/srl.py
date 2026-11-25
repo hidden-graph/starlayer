@@ -26,10 +26,9 @@ text<->RuleSet) plus a third already covered by the first two composed
   ``ruleset_to_tree``.
 - ``srl_tree_to_text(tree_graph, root) -> str`` - the inverse. Composes
   ``tree_to_ruleset`` + ``ruleset_to_text``.
-- ``parse_ruleset(text, base=None, *, validate=True) -> RuleSet`` - SRL text
+- ``parse_ruleset(text, base=None, *, imports_loader=None) -> RuleSet`` - SRL text
   straight to a real ``RuleSet`` object, skipping RDF entirely in the result
-  (with ``validate=True`` the rule set is also checked against the ``srl:``
-  SHACL shapes, which encodes it as RDF internally; see below). Kept as its own
+  (any text the grammar accepts gives a rule set; ``srl_validate`` reports its problems). Kept as its own
   entry point (not just an implementation detail of ``srl_parse_to_tree``)
   because ``RuleSet`` is independently useful - ``RuleSet.infer()``/
   ``.query()`` run it directly, with no RDF involved at all. This is
@@ -93,15 +92,12 @@ sibling files:
   already-bound variable) - deliberately kept out of SHACL (see
   ``srl_validate()``'s own docstring for why structural-only is the line), so
   this is a separate, plain-Python check, not part of this module as a
-  *file* - but ``parse_ruleset()`` above calls into it directly (its own
-  ``_check_ruleset``) as the well-formedness half
-  of this module's one real parse-time gate, the grammar being the other
-  half.
+  *file* - but ``srl_validate()`` calls into it (its own
+  ``_check_ruleset``), and so does running a rule set.
 """
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any
 
 import pyoxigraph as ox
@@ -120,7 +116,7 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     TriplePattern,
 )
 from .parse_sparql import _Encoder, _list, _Sink
-from .srl_semantic_checks import _check_ruleset
+from .srl_semantic_checks import _check_ruleset, _problem_text
 from .triple_term import TripleTermNode
 from .vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
 
@@ -178,22 +174,12 @@ _AGG_DISTINCT = SRL["distinct"]
 
 class SRLError(ValueError):
     """Base class for every SRL-specific exception
-    (``SRLParseError``/``SRLDecodeError`` here, ``SRLEvalError`` and its
-    own subclasses in ``srl_eval.py``) - gives a caller two real catch
-    granularities, "this specific failure" (``SRLParseError``/
-    ``SRLDecodeError``) vs. "any SRL failure" (``SRLError`` itself), the
+    (``SRLDecodeError`` here, ``SRLEvalError`` and its
+    own subclasses in ``srl_eval.py``; malformed SRL text is a ``FormatError`` of kind ``"srl"``) - gives a caller two real catch
+    granularities, "this specific failure" (``SRLDecodeError``) vs. "any SRL failure" (``SRLError`` itself), the
     same two-tier shape rdflib (``rdflib.exceptions.Error``) and pyshacl
     (``pyshacl.errors.ReportableRuntimeError``) each give their own
     callers."""
-
-
-class SRLParseError(SRLError):
-    """Raised by :func:`parse_ruleset` for malformed SRL text, or for text
-    that parses fine but fails a §4.2 well-formedness check (see
-    `srl_semantic_checks.py`) - one error type for "this SRL text doesn't
-    produce a usable `RuleSet`", matching how a caller already has to
-    handle this exception from this function regardless of which case
-    occurred."""
 
 
 class SRLImportError(SRLError):
@@ -202,106 +188,49 @@ class SRLImportError(SRLError):
     either case)."""
 
 
-class SRLUnresolvedImportsWarning(UserWarning):
-    """A check made on a rule set that has ``IMPORTS`` that are not resolved yet may be incomplete: the imported rules can add what the
-    check was looking for. Raised as a warning by :func:`parse_ruleset` (stratification is checked on the rules in the text only)."""
-
-
-def parse_ruleset(
-    text: str, base: str | None = None, *, validate: bool = True, imports_loader: Any | None = None
-) -> srl_ast.RuleSet:
+def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | None = None) -> srl_ast.RuleSet:
     """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
 
     The text is read by StarLayer's own SPARQL 1.2 parser (``parse_srl``), with prefixed and relative names resolved
     against the text's own ``PREFIX`` / ``BASE`` declarations.
 
-    A successfully-returned ``RuleSet`` is also guaranteed §4.2 well-formed
-    (every filter/assignment/head variable properly bound, no ``SET(...)``
-    reusing an already-bound variable) - this function is the one real gate,
-    the same contract plain SPARQL's own ``prepareQuery()`` has. ``SRLParseError``
-    is raised for a §4.2 well-formedness violation too, not just a
-    grammar/syntax error: this is what prevents a violating ruleset from
-    silently parsing *and* evaluating to a wrong answer with no error at all.
-
-    By default the rule set is then also encoded as RDF and checked against
-    the ``srl:`` SHACL shapes (the same check as :func:`srl_validate`), and
-    ``SRLParseError`` is raised if it does not conform. That costs on the
-    order of 150 ms, against a few ms for parsing alone, so a caller parsing
-    many rule sets that it already trusts can pass ``validate=False``.
-
-    The rules are also checked to have an evaluation order (the stratification of §4.4),
-    and ``StratificationError`` is raised if they do not. A rule set with ``IMPORTS`` is
-    only checked on the rules in its own text: the imported rules can add a dependency
-    that makes the combined rule set impossible to order, so a rule set that passes
-    gets an :class:`SRLUnresolvedImportsWarning`, and :func:`resolve_imports`,
-    ``plan()`` and ``infer()`` check the combined rule set again. A check on
-    the rules in the text is sound, because an import only adds rules. ``validate=False``
-    skips this check too, to look at a rule set that cannot be ordered.
+    Any text the grammar accepts gives a rule set, so a rule set with a problem can still be loaded and fixed. Nothing else
+    is checked here: not the §4.2 well-formedness conditions (an unbound head, filter or assignment variable, a ``SET(...)``
+    reusing a bound variable), not the ``srl:`` shapes, not that the rules can be ordered. :func:`srl_validate` reports all three
+    for the rule set's tree (``ruleset_to_tree``); running (``infer()``, ``query()``, ``materialize()``) a rule set that breaks a §4.2 condition raises a ``FormatError`` (kind
+    ``"srl"``), and one that cannot be ordered a ``StratificationError``, so it never evaluates to a wrong answer.
 
     With ``imports_loader`` (as for :func:`resolve_imports`) the ``IMPORTS`` are resolved while the
-    text is parsed, and the result is the resolved rule set (``is_resolved`` is true), checked as
-    a whole, with no warning. ``base`` is then also the IRI the text was read from, so a
-    document that imports itself is not read again.
+    text is parsed, and the result is the resolved rule set (``is_resolved`` is true). ``base`` is then also the IRI the
+    text was read from, so a document that imports itself is not read again.
 
     Args:
         text: The SRL rule-set text to parse.
         base: Base IRI for resolving relative IRIs, if any.
-        validate: Also validate the rule set against the ``srl:`` shapes and check
-            that its rules can be ordered. Defaults to ``True``.
         imports_loader: ``loader(iri) -> str | RuleSet``, as for :func:`resolve_imports`. Without
             one, a rule set with ``IMPORTS`` is returned with them unresolved.
 
     Returns:
-        The parsed, well-formed ``RuleSet``.
+        The parsed ``RuleSet``.
 
     Raises:
-        SRLParseError: For malformed SRL text, text that parses but fails a
-            §4.2 well-formedness check, or (with ``validate=True``) a rule set
-            that does not conform to the ``srl:`` shapes.
-        StratificationError: With ``validate=True``, if the rules cannot be ordered.
+        FormatError: (kind "srl") For text outside the SRL grammar, an undeclared prefix or a property path SRL does not allow.
         SRLImportError: With ``imports_loader``, as for :func:`resolve_imports`.
     """
     from .parse_srl import parse_srl
 
     ruleset = parse_srl(text, base)
-
-    issues = _check_ruleset(ruleset)
-    if issues:
-        summary = "; ".join(
-            f"{i.kind} ({i.variable} in {i.context})" if i.variable is not None else f"{i.kind} (in {i.context})"
-            for i in issues
-        )
-        raise SRLParseError(f"SRL: rule set is not well-formed per §4.2: {summary}")
-    if validate:
-        _check_against_shapes(ruleset)
     if imports_loader is not None and ruleset.imports:
-        return _resolve_imports(ruleset, imports_loader, location=base, check=validate)
-    if validate:
-        _check_stratification(ruleset)
+        return _resolve_imports(ruleset, imports_loader, location=base, check=False)
     return ruleset
 
 
 def _check_stratification(ruleset: srl_ast.RuleSet) -> None:
-    """Raise ``StratificationError`` if the rules of ``ruleset`` cannot be ordered, and warn when ``IMPORTS`` are not resolved, since
-    the check then covers only the rules in the text."""
-    from .srl_eval import StratificationError, _stratify
+    """Raise ``StratificationError`` if the rules of ``ruleset`` cannot be ordered."""
+    from .srl_eval import _stratify
 
-    unresolved = ", ".join(f"<{_T.iri_text(iri)}>" for iri in ruleset.imports)
-    try:
-        _stratify(ruleset)
-    except StratificationError as error:
-        if ruleset.imports:
-            raise StratificationError(f"{error} (checked on the rules in this text; not yet resolved: {unresolved})") from error
-        raise
-    if ruleset.imports:
-        warnings.warn(
-            f"SRL: the evaluation order was checked on the rules in this text only; these IMPORTS are not resolved yet: {unresolved}. "
-            "Pass imports_loader= to parse_ruleset(), or resolve them with resolve_imports(), infer(), query() or plan(): "
-            "the combined rule set is checked then.",
-            SRLUnresolvedImportsWarning,
-            stacklevel=3,
-        )
+    _stratify(ruleset)
 
 
 # ---------------------------------------------------------------------------
@@ -732,7 +661,7 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
 
 
 def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, check: bool) -> srl_ast.RuleSet:
-    """``resolve_imports``; ``check=False`` leaves the stratification of the combined rule set unchecked (``parse_ruleset(validate=False)``)."""
+    """``resolve_imports``; ``check=False`` leaves the stratification of the combined rule set unchecked (``parse_ruleset`` does not check it)."""
     visited: set[str] = {str(location)} if location else set()
 
     def _merge(rs: srl_ast.RuleSet, renamed: bool) -> tuple[list, list]:
@@ -765,11 +694,8 @@ def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, 
                 raise SRLImportError(f"SRL: cannot read the import <{import_iri}>: {reason}") from exc
             if isinstance(loaded, str):
                 try:
-                    with warnings.catch_warnings():
-                        # the imports of an import are resolved by this very call
-                        warnings.simplefilter("ignore", SRLUnresolvedImportsWarning)
-                        loaded = parse_ruleset(loaded, base=_T.iri_text(import_iri))
-                except SRLParseError as exc:
+                    loaded = parse_ruleset(loaded, base=_T.iri_text(import_iri))
+                except FormatError as exc:
                     raise SRLImportError(f"SRL: the import <{import_iri}> is not a valid rule set: {exc}") from exc
             sub_rules, sub_data = _merge(loaded, renamed=True)
             rules += sub_rules
@@ -842,25 +768,6 @@ def _validation_graphs() -> tuple[Any, Any, Any]:
     return _validation_graphs_cache
 
 
-def _check_against_shapes(ruleset: srl_ast.RuleSet) -> None:
-    """Raise ``SRLParseError`` if ``ruleset``'s RDF encoding does not conform to
-    the ``srl:`` shapes."""
-    from starlayer.shacl.engine.terms import StarLayerFidelityWarning
-
-    graph, _root = ruleset_to_tree(ruleset)
-    with warnings.catch_warnings():
-        # the library's own tree and shapes are checked here, not the caller's data: a lexical-form warning is not theirs to act on
-        warnings.simplefilter("ignore", StarLayerFidelityWarning)
-        report = srl_validate(graph)
-    if report.conforms:
-        return
-    report_graph, report_text = report.report_graph, report.report_text
-    shacl_message = ox.NamedNode("http://www.w3.org/ns/shacl#resultMessage")
-    messages = sorted({m.value for m in report_graph.objects(None, shacl_message)})
-    detail = "; ".join(messages) if messages else report_text.strip().splitlines()[0]
-    raise SRLParseError(f"SRL: rule set does not conform to the srl: shapes: {detail}")
-
-
 def srl_validate(tree_graph: Any) -> ValidationReport:
     """Validate ``tree_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
@@ -872,12 +779,17 @@ def srl_validate(tree_graph: Any) -> ValidationReport:
     as a ``srl:subject``/``srl:object``) that only ``starlayer.shacl``
     understands correctly.
 
+    When the shapes conform, the tree is also decoded and checked for what shapes cannot say: the §4.2 well-formedness
+    conditions (``srl_semantic_checks``) and that the rules can be ordered (§4.4, a ``StratificationError`` when running). Each
+    finding is an ``sh:Violation`` in the report, with the ``srl:RuleSet`` node as its focus node, and the report then does not
+    conform. A tree that cannot be decoded is left to the shapes.
+
     Args:
         tree_graph: The ``srl:`` tree-RDF graph to validate.
 
     Returns:
-        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives; it is not iterable, so read ``conforms``,
-        ``report_text`` and the rest by name.
+        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives, with those findings added; it is not iterable, so read
+        ``conforms``, ``report_text`` and the rest by name.
     """
 
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
@@ -896,7 +808,34 @@ def srl_validate(tree_graph: Any) -> ValidationReport:
             shapes,
             max_validation_depth=100,
         )
-    return result
+    if not result.conforms:
+        return result
+    problems = _rule_set_problems(tree_graph)
+    if not problems:
+        return result
+    from .sqe.shapes import _with_violations
+
+    return _with_violations(result, problems)
+
+
+def _rule_set_problems(tree_graph: Any) -> list[tuple[Any, str]]:
+    """``(srl:RuleSet node, message)`` for each §4.2 condition and ordering problem of the rule set a conforming tree holds."""
+    from .srl_eval import StratificationError, _stratify
+
+    problems: list[tuple[Any, str]] = []
+    for root in sorted(tree_graph.subjects(RDF.type, SRL.RuleSet), key=str):
+        try:
+            ruleset = tree_to_ruleset(tree_graph, root)
+        except SRLError:
+            continue
+        issues = _check_ruleset(ruleset)
+        if issues:
+            problems.append((root, _problem_text(issues)))
+        try:
+            _stratify(ruleset)
+        except StratificationError as error:
+            problems.append((root, str(error)))
+    return problems
 
 
 def __getattr__(name: str) -> Any:

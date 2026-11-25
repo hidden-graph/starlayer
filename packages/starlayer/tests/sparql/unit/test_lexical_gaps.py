@@ -12,7 +12,7 @@ PRE = "PREFIX : <http://e/>\n"
 
 
 def _objects(text: str):
-    rs = parse_ruleset(PRE + text, validate=False)
+    rs = parse_ruleset(PRE + text)
     return [t.object for t in rs.data[0].triples]
 
 
@@ -42,7 +42,7 @@ def test_unicode_escapes():
 
 
 def test_local_name_escapes():
-    rs = parse_ruleset(PRE + r"DATA { :a\-b :c\.d :e%20f }", validate=False)
+    rs = parse_ruleset(PRE + r"DATA { :a\-b :c\.d :e%20f }")
     (t,) = rs.data[0].triples
     assert (t.subject, t.predicate, t.object) == (
         ox.NamedNode("http://e/a-b"),
@@ -52,7 +52,7 @@ def test_local_name_escapes():
 
 
 def test_bare_tilde_in_a_reified_triple_names_a_fresh_reifier():
-    rs = parse_ruleset(PRE + "RULE { ?x :p ?y } WHERE { << ?x :q ?y ~ >> :source ?s }", validate=False)
+    rs = parse_ruleset(PRE + "RULE { ?x :p ?y } WHERE { << ?x :q ?y ~ >> :source ?s }")
     triples = rs.rules[0].body
     reifies = [t for t in triples if t.predicate == RDF.reifies]
     assert len(reifies) == 1
@@ -64,7 +64,6 @@ def test_evaluation_compares_values_not_lexical_forms():
 
     rs = parse_ruleset(
         PRE + "RULE { ?s :neg true } WHERE { ?s :v ?n FILTER(?n < 0 && ?n = -0.5) }\nDATA { :a :v -.5 . :b :v .5 }",
-        validate=False,
     )
     out = rs.infer(Graph())
     assert (ox.NamedNode("http://e/a"), ox.NamedNode("http://e/neg"), ox.Literal("true", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))) in out

@@ -204,7 +204,7 @@ def _run(rule_list, base, data=()):
     strata = [group for group in strata if group]
     text = PRELUDE + "\n".join(r.srl() for r in rule_list) + "\n"
     oracle = oracle_infer(set(base), [[r.oracle() for r in group] for group in strata], set(data))
-    actual = _from_graph(parse_ruleset(text, validate=False).infer(_to_graph(base)))
+    actual = _from_graph(parse_ruleset(text).infer(_to_graph(base)))
     return oracle, actual
 
 
@@ -251,7 +251,7 @@ def test_data_blocks_start_the_evaluation_graph_but_only_new_triples_are_inferre
     derive = _rule("p0", ("x", "y"), [("tp", _tp("?x", "b0", "?y"))])
     text = PRELUDE + "DATA { :a :b0 :b . :c :b0 :d . }\n" + derive.srl() + "\n"
     oracle = oracle_infer(set(base), [[derive.oracle()]], data)
-    actual = _from_graph(parse_ruleset(text, validate=False).infer(_to_graph(base)))
+    actual = _from_graph(parse_ruleset(text).infer(_to_graph(base)))
     assert oracle == actual == {("c", "b0", "d"), ("a", "p0", "b"), ("c", "p0", "d")}
 
 
@@ -447,7 +447,7 @@ def test_infer_matches_the_independent_evaluator(rule_list, base, data):
     text = PRELUDE + data_text + "\n".join(r.srl() for r in rule_list) + "\n"
 
     expected = oracle_infer(set(base), [[r.oracle() for r in group] for group in strata], set(data))
-    actual = _from_graph(parse_ruleset(text, validate=False).infer(_to_graph(base)))
+    actual = _from_graph(parse_ruleset(text).infer(_to_graph(base)))
     assert actual == expected, (
         f"rule set:\n{text}\nbase: {sorted(base, key=str)}\n"
         f"expected - actual: {sorted(expected - actual, key=str)}\nactual - expected: {sorted(actual - expected, key=str)}"

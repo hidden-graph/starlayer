@@ -1,4 +1,4 @@
-"""Negative corpus: ill-formed SRL must be rejected, never silently accepted.
+"""Negative corpus: ill-formed SRL must be rejected (at parse, or by srl_validate and when run), never silently accepted.
 
 Four groups: grammar errors; constructs that are SPARQL but not SRL (the parser reuses rdflib's grammar, so
 these are the likeliest to leak through); the section 4.2 well-formedness conditions, which the grammar cannot
@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from .corpus import PRELUDE
-from .helpers import parse_ruleset
+from .helpers import assert_rejected, parse_ruleset
 from .known_failures import NEGATIVE_FAILURES
 
 HEAD_BODY = "RULE {{ {head} }} WHERE {{ {body} }}"
@@ -103,9 +103,7 @@ UNSUPPORTED_FUNCTIONS = [
 def _check(case_id, text, request):
     if case_id in NEGATIVE_FAILURES:
         request.applymarker(pytest.mark.xfail(reason=NEGATIVE_FAILURES[case_id], strict=True))
-    with pytest.raises(Exception) as caught:  # noqa: PT011 - the type is asserted next
-        parse_ruleset(PRELUDE + text)
-    assert type(caught.value).__name__ in {"SRLParseError", "SRLError"}, f"raised {type(caught.value).__name__}, not an SRL error"
+    assert_rejected(PRELUDE + text)
 
 
 @pytest.mark.srl_conformance
@@ -141,8 +139,11 @@ def test_non_stratifiable_rule_sets_are_refused(case_id, text, request):
 
     if case_id in NEGATIVE_FAILURES:
         request.applymarker(pytest.mark.xfail(reason=NEGATIVE_FAILURES[case_id], strict=True))
-    with pytest.raises(StratificationError):  # the grammar cannot see a cycle, but parse_ruleset() stratifies the rules
-        parse_ruleset(PRELUDE + text)
+    from starlayer.graph import StarLayerGraph
+
+    ruleset = parse_ruleset(PRELUDE + text)  # the grammar cannot see a cycle: it loads, and running the rules refuses it
+    with pytest.raises(StratificationError):
+        ruleset.infer(StarLayerGraph())
 
 
 @pytest.mark.srl_conformance

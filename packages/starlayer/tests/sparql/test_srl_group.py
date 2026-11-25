@@ -8,11 +8,10 @@ are in scope afterwards."""
 from __future__ import annotations
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql.parse_srl import parse_srl
 from starlayer.sparql.srl import (
-    SRLError,
-    SRLParseError,
     parse_ruleset,
     ruleset_to_text,
     srl_parse_to_tree,
@@ -199,7 +198,7 @@ def test_the_grammar_accepts(text):
     ],
 )
 def test_the_grammar_rejects(text):
-    with pytest.raises(SRLParseError):
+    with pytest.raises(FormatError):
         parse_srl("PREFIX : <http://e/>\n" + text)
 
 
@@ -225,8 +224,9 @@ def test_the_grammar_rejects(text):
     ],
 )
 def test_the_well_formedness_conditions(rules, kind):
-    with pytest.raises(SRLParseError, match=kind):
-        parse_ruleset(P + rules)
+    ruleset = parse_ruleset(P + rules)  # it loads; running it is where §4.2 is required
+    with pytest.raises(FormatError, match=kind):
+        ruleset.infer(StarLayerGraph())
 
 
 def test_a_key_bound_before_the_group_is_visible_in_its_pattern_filter():
@@ -263,5 +263,6 @@ def test_a_group_with_a_malformed_aggregation_does_not_validate():
 
 
 def test_a_malformed_rule_set_text_is_an_srl_error():
-    with pytest.raises(SRLError):
+    with pytest.raises(FormatError) as caught:
         parse_ruleset(P + "RULE { :s :p :o } WHERE { GROUP { ?s :p ?o } [ ?n := AVG(?o) ] }")
+    assert caught.value.kind == "srl" and caught.value.line == 2

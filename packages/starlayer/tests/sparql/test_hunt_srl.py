@@ -2,6 +2,7 @@
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql import srl
 
@@ -26,8 +27,8 @@ def _g(*triples):
     return g
 
 
-def _hits(g, body, validate=True):
-    rs = srl.parse_ruleset(PRE + "RULE { ?s :hit 1 } WHERE { ?s :p ?o " + body + " }", validate=validate)
+def _hits(g, body):
+    rs = srl.parse_ruleset(PRE + "RULE { ?s :hit 1 } WHERE { ?s :p ?o " + body + " }")
     return len(list(rs.infer(g)))
 
 
@@ -48,7 +49,6 @@ def test_stratifier_unifies_repeated_variables():
 def test_stratifier_keeps_a_real_dependency_with_repeated_variables():
     rs = srl.parse_ruleset(
         PRE + "RULE { ?x :ok ?x } WHERE { ?x :q ?o NOT { ?x :bad ?x } }\nRULE { ?s :bad ?s } WHERE { ?s :ok ?s }\n",
-        validate=False,  # it cannot be ordered, and infer() is what is tested
     )
     with pytest.raises(srl.SRLError):
         list(rs.infer(_data(":a :q :b")))
@@ -81,9 +81,9 @@ def test_filter_comparison_with_an_unknown_datatype_is_an_error(expr):
 
 def test_bare_variable_expressions_evaluate():
     g = _g(("s", "p", ox.NamedNode("http://e/o")))
-    rs = srl.parse_ruleset(PRE + "RULE { :r :out ?z } WHERE { ?s :p ?y SET(?z := ?y) }", validate=False)
+    rs = srl.parse_ruleset(PRE + "RULE { :r :out ?z } WHERE { ?s :p ?y SET(?z := ?y) }")
     assert [str(t[2]) for t in rs.infer(g)] == ["<http://e/o>"]
-    assert _hits(_g(("a", "p", _lit("true", XSD + "boolean"))), "FILTER(?o)", validate=False) == 1
+    assert _hits(_g(("a", "p", _lit("true", XSD + "boolean"))), "FILTER(?o)") == 1
 
 
 def test_if_with_a_variable_branch_evaluates():
@@ -103,7 +103,7 @@ def test_bnode_gives_a_fresh_blank_node_per_solution():
 
 def test_a_blank_node_value_passes_through_an_expression():
     g = _g(("a", "p", ox.BlankNode("n")))
-    rs = srl.parse_ruleset(PRE + "RULE { ?s :b ?x } WHERE { ?s :p ?o SET(?x := ?o) }", validate=False)
+    rs = srl.parse_ruleset(PRE + "RULE { ?s :b ?x } WHERE { ?s :p ?o SET(?x := ?o) }")
     assert {t[2] for t in rs.infer(g)} == {ox.BlankNode("n")}
     assert _hits(g, "FILTER(isBlank(?o))") == 1
 
@@ -135,14 +135,14 @@ def test_infer_on_a_store_uses_the_union_of_its_graphs():
 def test_deep_nesting_is_a_parse_error(filler):
     close = {"(": ")", "STR(": ")"}[filler]
     expr = filler * 300 + "?y" + close * 300
-    with pytest.raises(srl.SRLParseError, match="nested too deeply"):
+    with pytest.raises(FormatError, match="nested too deeply"):
         srl.parse_ruleset(PRE + "RULE { :a :p :b } WHERE { :a :q ?y FILTER(" + expr + ") }")
 
 
 @pytest.mark.parametrize("assign", ["?y : = ?z + 1", "?y :\n= ?z + 1", "?y :# comment\n= ?z + 1"])
 def test_a_split_assignment_operator_is_rejected(assign):
     text = PRE + "RULE { ?x :r ?y } WHERE { ?x :q ?z SET(" + assign + ") }"
-    with pytest.raises(srl.SRLParseError):
+    with pytest.raises(FormatError):
         srl.parse_ruleset(text)
 
 
@@ -169,8 +169,8 @@ def test_a_path_modifier_before_a_number_still_parses_in_sparql():
 @pytest.mark.parametrize("body", ["SET(?z := <http://e/f>(?y))", "FILTER(<http://e/f>(?y))"])
 @pytest.mark.parametrize("validate", [True, False])
 def test_a_function_called_by_iri_other_than_a_cast_is_rejected_at_parse_time(body, validate):
-    with pytest.raises(srl.SRLParseError, match="not one SRL supports"):
-        srl.parse_ruleset(PRE + "RULE { :r :out ?z } WHERE { :s :q ?y " + body + " }", validate=validate)
+    with pytest.raises(FormatError, match="not one SRL supports"):
+        srl.parse_ruleset(PRE + "RULE { :r :out ?z } WHERE { :s :q ?y " + body + " }")
 
 
 def test_an_xsd_cast_is_not_a_custom_function():
@@ -182,10 +182,10 @@ def test_an_xsd_cast_is_not_a_custom_function():
 
 def test_a_triple_term_with_a_triple_term_subject_is_rejected():
     nested = "<<( <<( :a :b :c )>> :a ?y )>>"
-    with pytest.raises(srl.SRLParseError):
-        srl.parse_ruleset(PRE + "RULE { ?x :q " + nested + " } WHERE { ?x :p ?y }")
-    with pytest.raises(srl.SRLError):
-        srl.parse_ruleset(PRE + "DATA { :a :p <<( <<( :a :b :c )>> :p :b )>> }")
+    for text in ("RULE { ?x :q " + nested + " } WHERE { ?x :p ?y }", "DATA { :a :p <<( <<( :a :b :c )>> :p :b )>> }"):
+        rs = srl.parse_ruleset(PRE + text)  # it loads; running it is refused
+        with pytest.raises(FormatError):
+            rs.infer(StarLayerGraph())
 
 
 def test_a_nested_triple_term_in_object_position_is_fine():
@@ -194,7 +194,7 @@ def test_a_nested_triple_term_in_object_position_is_fine():
 
 def test_a_data_triple_with_a_literal_subject_is_an_srl_error():
     # the srl: shapes reject it at parse; with validate=False it is still caught when the rules run
-    rs = srl.parse_ruleset(PRE + "DATA { \"a\" :p :b }", validate=False)
+    rs = srl.parse_ruleset(PRE + "DATA { \"a\" :p :b }")
     with pytest.raises(srl.SRLError):
         rs.infer(StarLayerGraph())
 
@@ -221,9 +221,10 @@ def test_a_variable_named_like_the_internal_target_evaluates():
     assert len(list(rs.infer(g))) == 1
 
 
-def test_a_variable_name_above_the_bmp_is_refused_at_parse_time():
-    with pytest.raises(srl.SRLParseError, match="variable name"):
-        srl.parse_ruleset(PRE + "RULE { ?s :r ?\U00010000 } WHERE { ?s :p ?\U00010000 }")
+def test_a_variable_name_above_the_bmp_is_refused_when_the_rules_run():
+    rs = srl.parse_ruleset(PRE + "RULE { ?s :r ?\U00010000 } WHERE { ?s :p ?\U00010000 }")  # it loads
+    with pytest.raises(FormatError, match="unsupported_variable_name"):
+        rs.infer(StarLayerGraph())
 
 
 # ---- rdflib graphs and direction-tagged literals ----------------------------------

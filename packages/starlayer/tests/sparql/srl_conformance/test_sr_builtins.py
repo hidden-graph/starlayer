@@ -11,7 +11,7 @@ import pytest
 
 from .builtins_table import IN_SPEC, NOT_IN_SPEC
 from .corpus import PRELUDE
-from .helpers import parse_ruleset, srl_parse_to_tree, srl_validate
+from .helpers import assert_rejected, parse_ruleset, srl_parse_to_tree, srl_validate
 from .known_failures import BUILTIN_FAILURES, BUILTIN_LEAKS
 
 
@@ -35,9 +35,7 @@ def test_spec_function_parses_and_encodes(name, request):
 def test_function_outside_the_spec_is_rejected(name, request):
     if name in BUILTIN_LEAKS:
         request.applymarker(pytest.mark.xfail(reason=BUILTIN_LEAKS[name], strict=True))
-    with pytest.raises(Exception) as caught:  # noqa: PT011 - any SRLError subclass; checked below
-        parse_ruleset(_rule(NOT_IN_SPEC[name]))
-    assert type(caught.value).__name__ in {"SRLParseError", "SRLError"}
+    assert_rejected(_rule(NOT_IN_SPEC[name]))
 
 
 @pytest.mark.srl_conformance

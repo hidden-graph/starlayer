@@ -90,7 +90,12 @@ def _validate_shapes(tree_graph: Any) -> ValidationReport:
 def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
     """``(query root, message)`` for each query in ``tree_graph`` that its own rendered text shows to be wrong: not in the grammar, a
     ``VERSION`` it contradicts, or refused by Oxigraph (``check_query``'s rules: updates and queries with ``SERVICE`` are not run)."""
-    from starlayer.sparql.check import _engine_problem, _has_service, _parse, _version_problem
+    from starlayer.sparql.check import (
+        _engine_problem,
+        _has_service,
+        _parse,
+        _version_problem,
+    )
 
     from ._memtree import as_engine_graph
     from .to_text import SqeTextTooDeepError, sqe_tree_to_text
@@ -143,10 +148,16 @@ def sqe_validate(tree_graph: Any) -> ValidationReport:
     problems = _engine_problems(tree_graph)
     if not problems:
         return report
+    return _with_violations(report, problems)
+
+
+def _with_violations(report: ValidationReport, problems: list[tuple[Any, str]]) -> ValidationReport:
+    """``report`` with one ``sh:Violation`` result added per ``(focus node, message)`` of ``problems``; the report then does not
+    conform. For a finding a check outside the shapes makes (Oxigraph's rejection of a query, an SRL well-formedness condition)."""
+    import pyoxigraph as ox
+
     from starlayer.shacl.engine.terms import SH
     from starlayer.shacl.results import ValidationReport
-
-    import pyoxigraph as ox
 
     graph = report.report_graph
     top = next(iter(graph.subjects(SH.conforms, None)))

@@ -8,7 +8,8 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql import srl
-from starlayer.sparql.srl import SRLParseError, parse_ruleset
+from starlayer.errors import FormatError
+from starlayer.sparql.srl import parse_ruleset
 from tests.support.terms import NamedNode, lit
 
 EX = "http://example.org/"
@@ -215,11 +216,12 @@ def test_a_variable_bound_only_inside_a_body_triple_term_counts_as_bound():
 
 
 def test_a_head_variable_that_nothing_binds_inside_a_triple_term_is_rejected():
-    with pytest.raises(SRLParseError, match="unbound_head_variable"):
-        parse_ruleset(
-            P
-            + "RULE { ?w ex:says <<( ?p ex:age ?z )>> } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> }"
-        )
+    ruleset = parse_ruleset(  # it loads; running it is refused
+        P
+        + "RULE { ?w ex:says <<( ?p ex:age ?z )>> } WHERE { ?w ex:believes <<( ?p ex:age ?n )>> }"
+    )
+    with pytest.raises(FormatError, match="unbound_head_variable"):
+        ruleset.infer(StarLayerGraph())
 
 
 @pytest.mark.parametrize(
@@ -231,8 +233,9 @@ def test_a_head_variable_that_nothing_binds_inside_a_triple_term_is_rejected():
     ],
 )
 def test_a_triple_term_as_a_subject_is_rejected(text):
-    with pytest.raises(SRLParseError, match="triple_term_in_subject"):
-        parse_ruleset(P + text)
+    ruleset = parse_ruleset(P + text)  # it loads; running it is refused
+    with pytest.raises(FormatError, match="triple_term_in_subject"):
+        ruleset.infer(StarLayerGraph())
 
 
 def test_a_body_triple_term_depends_on_the_rule_that_can_produce_it():
@@ -337,5 +340,6 @@ def test_a_blank_node_property_list_and_a_collection():
 
 
 def test_a_variable_in_a_data_block_is_rejected():
-    with pytest.raises(SRLParseError, match="variable_in_data"):
-        parse_ruleset(P + "DATA { ?x ex:p ex:o . }")
+    ruleset = parse_ruleset(P + "DATA { ?x ex:p ex:o . }")  # it loads; running it is refused
+    with pytest.raises(FormatError, match="variable_in_data"):
+        ruleset.infer(StarLayerGraph())

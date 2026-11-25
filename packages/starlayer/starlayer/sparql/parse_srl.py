@@ -9,7 +9,7 @@ new in the SRL grammar (``RULE``, ``DATA``, ``WHERE [GROUND]``, ``NOT [GROUND]``
 the form the SRL evaluator and the ``srl:`` tree encoder consume.
 
 Static checks that belong to the rule set (a variable bound, ``SET`` not reusing a variable) stay in
-``srl_semantic_checks``; ``srl.parse_ruleset`` calls them and the ``srl:`` shapes after this.
+``srl_semantic_checks``; ``srl_validate`` and running a rule set call them.
 """
 
 from __future__ import annotations
@@ -47,9 +47,7 @@ _CASTS = {_XSD + name for name in ("boolean", "double", "float", "decimal", "int
 
 
 def _srl_error(message: str, cause: Exception | None = None) -> Exception:
-    from .srl import SRLParseError  # srl imports this module: resolved at call time
-
-    err = SRLParseError(message)
+    err = FormatError(message, kind="srl", why=message)
     err.__cause__ = cause
     return err
 
@@ -88,7 +86,7 @@ def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
     A blank node introduced here behaves as a variable in a rule body.
 
     Raises:
-        SRLParseError: For any other path operator (``|``, ``*``, ``+``, ``?``, ``!``).
+        FormatError: (kind "srl") For any other path operator (``|``, ``*``, ``+``, ``?``, ``!``).
     """
     if isinstance(predicate, Node):
         if predicate.kind == "SequencePath":
@@ -306,14 +304,16 @@ def parse_srl(text: str, base: str | None = None) -> srl_ast.RuleSet:
     """SRL rule-set text as a ``RuleSet`` (no well-formedness or shape check: see ``srl.parse_ruleset``).
 
     Raises:
-        SRLParseError: For a syntax error, an undeclared prefix, or a property path SRL does not allow.
+        FormatError: (kind "srl") For a syntax error, an undeclared prefix, or a property path SRL does not allow.
     """
     from .parse_sparql import _syntax_error
 
     try:
         return _SrlParser(text, base).parse_ruleset()
     except FormatError as exc:
-        raise _srl_error(str(exc), exc) from exc
+        if exc.kind == "srl":
+            raise
+        raise FormatError(str(exc), kind="srl", why=exc.why, context=exc.context, line=exc.line, col=exc.col, pos=exc.pos) from exc
     except RecursionError:  # the grammar nests without limit, Python's stack does not (as in parse_sparql)
         exc = _syntax_error("expression or pattern nested too deeply to parse", text, 0)
-        raise _srl_error(str(exc), exc) from None
+        raise FormatError(str(exc), kind="srl", why=exc.why, line=exc.line, col=exc.col, pos=exc.pos) from None

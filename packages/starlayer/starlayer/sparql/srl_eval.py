@@ -2,6 +2,7 @@
 <https://www.w3.org/TR/sparql12-rl/>`_ (dependency graph updated from the
 2026-09-19 draft: WHERE GROUND / NOT GROUND add no dependencies) §4.3 (Rule Dependency),
 §4.4 (Stratification), and §6 (Rule Set Evaluation), translated directly
+from starlayer.errors import FormatError
 from the spec's own verbatim pseudocode rather than an approximation of it.
 
 **Reuses Oxigraph's SPARQL engine for triple-pattern matching and expression
@@ -55,7 +56,7 @@ class SRLEvalError(SRLError):
     """Base class for SRL evaluation errors. Subclasses ``SRLError``
     (``srl.py``) so a caller can catch either "any evaluation failure"
     (this type) or "any SRL failure at all" (``SRLError``, which also
-    covers ``SRLParseError``/``SRLDecodeError``)."""
+    covers ``FormatError``/``SRLDecodeError``)."""
 
 
 class StratificationError(SRLEvalError):
@@ -870,6 +871,9 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet) -> _E
             "A rule set with IMPORTS is never run with its imports ignored (§4.5)."
         )
 
+    from .srl_semantic_checks import _require_well_formed
+
+    _require_well_formed(ruleset)
     d = new_graph()
     for block in ruleset.data:
         for t in block.triples:

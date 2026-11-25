@@ -5,7 +5,8 @@ import warnings
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.sparql.srl import SRLError, SRLParseError, parse_ruleset
+from starlayer.errors import FormatError
+from starlayer.sparql.srl import parse_ruleset
 from tests.support.terms import Namespace
 
 warnings.simplefilter("ignore")
@@ -50,10 +51,10 @@ def test_base_argument_is_the_initial_base():
     assert parse_ruleset(text, base="http://c/").rules[0].head[0].predicate.value == "http://c/q"
 
 
-def test_undeclared_prefix_is_an_srl_parse_error():
-    with pytest.raises(SRLParseError) as info:
+def test_undeclared_prefix_is_a_format_error():
+    with pytest.raises(FormatError) as info:
         parse_ruleset("RULE { ?x u:q ?y } WHERE { ?x u:p ?y }")
-    assert isinstance(info.value, SRLError)
+    assert info.value.kind == "srl" and "undeclared prefix" in str(info.value)
 
 
 @pytest.mark.parametrize("make", [Graph, StarLayerGraph])

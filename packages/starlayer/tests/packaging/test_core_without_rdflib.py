@@ -358,7 +358,7 @@ SRL_CODE = """
 
 def test_srl_parse_evaluate_encode_and_validate_work_without_rdflib():
     out = ok(SRL_CODE + """
-    rules = srl.parse_ruleset(RULES)  # parses, checks well-formedness and validates against the srl: shapes
+    rules = srl.parse_ruleset(RULES)  # parses
     g = StarLayerGraph()
     g.update('PREFIX : <http://e/> INSERT DATA { :a :parent :b . :b :parent :c . :a :age 20 . :c :banned 1 . :c :age 5 }')
     inferred = rules.infer(g)
@@ -384,11 +384,12 @@ def test_srl_parse_evaluate_encode_and_validate_work_without_rdflib():
 
 def test_srl_errors_work_without_rdflib():
     out = ok("""
+        from starlayer.errors import FormatError
         from starlayer.sparql import srl
-        for bad in ("RULE { ?x <http://e/p> ?y } WHERE { ?z <http://e/q> ?w }", "RULE { ?x"):
+        for bad in ("RULE { ?x", "RULE { ?x <http://e/p> ?y } WHERE { ?x <http://e/q> ?y } FILTER"):
             try:
                 srl.parse_ruleset(bad)
-            except srl.SRLParseError:
+            except FormatError:
                 print("rejected")
     """)
     assert out.count("rejected") == 2

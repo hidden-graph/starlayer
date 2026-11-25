@@ -6,14 +6,10 @@ on every element before it in the same rule body), which SHACL's own
 per-node shape model structurally can't express - so this lives here as a
 function over the decoded ``srl_ast`` tree, not a SHACL shape.
 
-Private: ``srl.parse_ruleset()`` runs ``_check_ruleset`` on every
-successfully-parsed ``RuleSet`` and raises ``SRLParseError`` if any issue is
-found - the same "one real gate" contract plain SPARQL's own
-``prepareQuery()`` has (succeed with a usable object, or raise - never hand
-back something that looks fine but silently misbehaves later). Without
-this gate, a ruleset violating the "SET(...) must not reuse an already-
-bound variable" condition parses *and evaluates* with zero error, just
-silently rebinding the variable to the wrong value.
+Private: ``srl.parse_ruleset()`` does not run these checks (a rule set with a problem still loads, so it can be fixed).
+``srl_validate`` reports each issue as a violation, and running or planning a rule set (``_require_well_formed``) raises a
+``FormatError`` (kind ``"srl"``) for one - without that, a ruleset violating the "SET(...) must not reuse an already-bound
+variable" condition would evaluate with zero error, just silently rebinding the variable to the wrong value.
 
 Implements the spec's own formalism directly and verbatim (not an
 approximation): for a sequence of rule elements given initial variables V0
@@ -33,6 +29,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import pyoxigraph as ox
+
+from starlayer.errors import FormatError
 
 from . import _srl_ast as srl_ast
 from .expr_text import expr_nodes, expr_variables
@@ -276,3 +274,23 @@ def _check_ruleset(ruleset: srl_ast.RuleSet) -> list[_SRLWellFormednessIssue]:
             for v in sorted(_term_vars(t.subject) | _term_vars(t.predicate) | _term_vars(t.object), key=lambda x: x.value):
                 issues.append(_SRLWellFormednessIssue(None, "variable_in_data", v, "DATA block"))
     return issues
+
+
+def _describe(issue: _SRLWellFormednessIssue) -> str:
+    """One issue as text: its kind, the variable and where it was found."""
+    if issue.variable is not None:
+        return f"{issue.kind} ({issue.variable} in {issue.context})"
+    return f"{issue.kind} (in {issue.context})"
+
+
+def _problem_text(issues: list[_SRLWellFormednessIssue]) -> str:
+    """The issues of ``_check_ruleset`` as one message."""
+    return "SRL: rule set is not well-formed per §4.2: " + "; ".join(_describe(i) for i in issues)
+
+
+def _require_well_formed(ruleset: srl_ast.RuleSet) -> None:
+    """Raise a ``FormatError`` (kind ``"srl"``) if ``ruleset`` breaks a §4.2 condition: a rule set that loads is not run."""
+    issues = _check_ruleset(ruleset)
+    if issues:
+        text = _problem_text(issues)
+        raise FormatError(text, kind="srl", why=text, context="rule set")

@@ -5,7 +5,8 @@ import warnings
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.sparql.srl import SRLParseError, parse_ruleset
+from starlayer.errors import FormatError
+from starlayer.sparql.srl import parse_ruleset
 from tests.support.terms import NamedNode, lit
 
 warnings.simplefilter("ignore")
@@ -63,7 +64,7 @@ def test_valid_head_instances_are_still_inferred():
     ["FILTER NOT EXISTS { ?x :q ?y }", "FILTER EXISTS { ?x :q ?y }", "SET(?z := EXISTS { ?x :q ?y })"],
 )
 def test_exists_is_rejected_when_the_rule_set_is_parsed(body):
-    with pytest.raises(SRLParseError):
+    with pytest.raises(FormatError):
         parse_ruleset(PREFIX + f"RULE {{ ?x :q ?y }} WHERE {{ ?x :p ?y {body} }}")
 
 

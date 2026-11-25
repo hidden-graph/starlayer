@@ -12,6 +12,7 @@ spec's stated output" assertion.
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.sparql._oxterms import RDF
 from starlayer.sparql._srl_ast import (
     _AssignmentElement as AssignmentElement,
@@ -23,7 +24,6 @@ from starlayer.sparql._srl_ast import (
     _NegationElement as NegationElement,
 )
 from starlayer.sparql.srl import (
-    SRLParseError,
     TriplePattern,
     parse_ruleset,
 )
@@ -165,18 +165,18 @@ def test_negation_rejects_nested_negation():
     forbids nested negation/assignment inside a NOT { } block - enforced
     by the grammar itself, not just documented."""
     text = WORKED_EXAMPLE_PREFIXES + "RULE { ?x :p ?y } WHERE { ?x :q ?y . NOT { NOT { ?x :r ?y } } }"
-    with pytest.raises(SRLParseError):
+    with pytest.raises(FormatError):
         parse_ruleset(text)
 
 
 def test_negation_rejects_nested_assignment():
     text = WORKED_EXAMPLE_PREFIXES + "RULE { ?x :p ?y } WHERE { ?x :q ?y . NOT { SET (?z := 1) } }"
-    with pytest.raises(SRLParseError):
+    with pytest.raises(FormatError):
         parse_ruleset(text)
 
 
 def test_malformed_text_raises_srl_parse_error():
-    with pytest.raises(SRLParseError):
+    with pytest.raises(FormatError):
         parse_ruleset("this is not SRL text at all")
 
 

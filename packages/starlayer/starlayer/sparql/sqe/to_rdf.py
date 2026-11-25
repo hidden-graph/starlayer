@@ -16,7 +16,6 @@ import pyoxigraph as ox
 
 from starlayer.errors import FormatError
 
-
 _UPDATE_START = re.compile(
     r"(?is)\A(?:\s+|#[^\n]*|(?:PREFIX\s+[^\s:]*:\s*<[^>]*>)|(?:BASE\s*<[^>]*>)|(?:VERSION\s+(?:'[^']*'|\"[^\"]*\")))*"
     r"(INSERT|DELETE|LOAD|CLEAR|DROP|CREATE|ADD|MOVE|COPY|WITH)\b"

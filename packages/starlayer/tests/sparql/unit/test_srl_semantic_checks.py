@@ -2,31 +2,37 @@
 Conditions, a cross-referential check that can't be expressed as a
 per-node SHACL shape - see that module's own docstring.
 
-Private since 2026-10-05: `_check_ruleset`/`_check_rule` are no longer
-separately callable - `parse_ruleset()` runs this check on every
-successfully-parsed `RuleSet` and raises `SRLParseError` if any issue is
-found, so these tests exercise it exclusively through `parse_ruleset()`,
-the same way a real caller would hit it.
+`parse_ruleset()` does not run this check (a rule set with a problem still loads). `srl_validate` reports each issue as a
+violation, and running the rule set raises a `FormatError` (kind "srl"); these tests go through `srl_validate`
+and `infer()`, the way a real caller would hit it.
 """
 
 import pytest
 from rdflib import Variable
-from starlayer.sparql.srl import SRLParseError, parse_ruleset
+from starlayer.errors import FormatError
+from starlayer.graph import StarLayerGraph
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree, srl_validate
 
 PREFIX = "PREFIX : <http://example.org/>\n"
 
 
 def _assert_well_formed(text):
-    """No SRLParseError means the ruleset parsed *and* passed §4.2."""
-    parse_ruleset(PREFIX + text)
+    """The ruleset loads, and srl_validate and infer() find nothing wrong with it."""
+    ruleset = parse_ruleset(PREFIX + text)
+    report = srl_validate(ruleset_to_tree(ruleset)[0])
+    assert report.conforms, report.report_text
+    ruleset.infer(StarLayerGraph())
 
 
 def _assert_violation(text, kind, variable):
-    with pytest.raises(SRLParseError) as excinfo:
-        parse_ruleset(PREFIX + text)
-    message = str(excinfo.value)
-    assert kind in message
-    assert str(variable) in message
+    ruleset = parse_ruleset(PREFIX + text)  # it loads
+    report = srl_validate(ruleset_to_tree(ruleset)[0])
+    assert not report.conforms
+    assert kind in report.report_text
+    assert str(variable) in report.report_text
+    with pytest.raises(FormatError) as excinfo:  # and it is not run
+        ruleset.infer(StarLayerGraph())
+    assert kind in str(excinfo.value) and str(variable) in str(excinfo.value)
 
 
 def test_worked_example_is_fully_well_formed():
@@ -121,10 +127,10 @@ def test_filter_inside_negation_referencing_unbound_variable_is_rejected():
         "?x :p ?y . SET(?n := SUM(?y) + 1)",
     ],
 )
-def test_aggregate_inside_filter_or_set_is_rejected_at_parse_time(body):
+def test_aggregate_inside_filter_or_set_is_reported_by_validate_and_not_run(body):
     """Aggregation is a separate rule element in SRL (still an open issue), never a
     function inside FILTER or SET - rejected here rather than crashing at infer()."""
-    with pytest.raises(SRLParseError, match="aggregate_in_expression"):
-        parse_ruleset(
-            f"PREFIX : <http://example.org/>\nRULE {{ ?x :n ?n }} WHERE {{ {body} }}"
-        )
+    ruleset = parse_ruleset(f"PREFIX : <http://example.org/>\nRULE {{ ?x :n ?n }} WHERE {{ {body} }}")
+    assert "aggregate_in_expression" in srl_validate(ruleset_to_tree(ruleset)[0]).report_text
+    with pytest.raises(FormatError, match="aggregate_in_expression"):
+        ruleset.infer(StarLayerGraph())

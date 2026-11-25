@@ -186,7 +186,7 @@ def test_stratification_error_on_closed_self_cycle():
     PREFIX : <{EX}>
     RULE {{ ?x :p true }} WHERE {{ ?x :q true . NOT {{ ?x :p true }} }}
     """
-    ruleset = parse_ruleset(text, validate=False)  # parse_ruleset() would raise it
+    ruleset = parse_ruleset(text)
     with pytest.raises(StratificationError):
         _stratify(ruleset)
 
@@ -262,9 +262,9 @@ class TestQueryGoalText:
         ["?a ex:anc ?b . ?b ex:anc ?c", "?s ex:anc << ex:a ex:p ex:b >>", "?x ex:anc+ ?y", "?x nope:anc ?y", ""],
     )
     def test_a_goal_that_is_not_one_triple_pattern_raises(self, goal):
-        from starlayer.sparql.srl import SRLParseError
+        from starlayer.errors import FormatError
 
-        with pytest.raises(SRLParseError):
+        with pytest.raises(FormatError):
             parse_ruleset(self.RULES).query(self._base(), goal)
 
 
@@ -435,7 +435,7 @@ def test_plan_shows_strata_and_dependency_edges_for_the_worked_example():
 
 def test_plan_raises_stratification_error_without_running_anything():
     ruleset = parse_ruleset(
-        f"PREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . NOT {{ ?x :p ?y }} }}", validate=False
+        f"PREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . NOT {{ ?x :p ?y }} }}"
     )
     with pytest.raises(StratificationError):
         ruleset.plan()
@@ -493,7 +493,6 @@ def test_plain_not_over_the_rules_own_output_is_still_a_stratification_error():
     ruleset = parse_ruleset(
         f"PREFIX : <{EX}>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
         "RULE { ?x :km ?k } WHERE { ?x :miles ?m . NOT { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }",
-        validate=False,
     )
     with pytest.raises(StratificationError):
         ruleset.plan()
@@ -637,7 +636,6 @@ class TestQueryRunsOnlyWhatTheGoalNeeds:
 
         ruleset = parse_ruleset(
             f"PREFIX ex: <{EX}>\nRULE {{ ?x ex:a ?y }} WHERE {{ ?x ex:b ?y . NOT {{ ?x ex:a ?y }} }}\nRULE {{ ?x ex:c ?y }} WHERE {{ ?x ex:d ?y }}",
-            validate=False,
         )
         with pytest.raises(StratificationError):
             ruleset.query(self._graph(), "?x ex:c ?y")

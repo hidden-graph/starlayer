@@ -21,10 +21,11 @@ from pathlib import Path
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.sparql.parse_srl import parse_srl
-from starlayer.sparql.srl import SRLError, parse_ruleset
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree, srl_validate
 from starlayer.sparql.srl_eval import StratificationError
 
 ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite" / "tests" / "sparql-rl"
@@ -103,20 +104,26 @@ def test_sparql_rl(entry) -> None:
         if kind == "RulesPositiveSyntaxTest":
             parse_srl(text)
         elif kind == "RulesNegativeSyntaxTest":
-            with pytest.raises(SRLError):
-                parse_ruleset(text, validate=False)
+            # text outside the grammar is a FormatError; text the rule set can still hold (a variable in DATA, an aggregate in a
+            # FILTER) loads, and srl_validate reports it
+            try:
+                ruleset = parse_ruleset(text)
+            except FormatError:
+                pass
+            else:
+                assert not srl_validate(ruleset_to_tree(ruleset)[0]).conforms
         elif kind == "RulesPositiveWellFormednessTest":
-            parse_ruleset(text, validate=False)
+            parse_ruleset(text)
         elif kind == "RulesNegativeWellFormednessTest":
-            with pytest.raises(SRLError):
-                parse_ruleset(text, validate=False)
+            with pytest.raises(FormatError):  # the text loads; running it is where §4.2 is required
+                parse_ruleset(text).infer(_graph(None))
         elif kind == "RulesPositiveStratificationTest":
-            parse_ruleset(text, validate=False).plan()
+            parse_ruleset(text).plan()
         elif kind == "RulesNegativeStratificationTest":
             with pytest.raises(StratificationError):
-                parse_ruleset(text, validate=False).plan()
+                parse_ruleset(text).plan()
         elif kind == "RulesEvalTest":
-            inferred = parse_ruleset(text, validate=False).infer(_graph(data))
+            inferred = parse_ruleset(text).infer(_graph(data))
             assert isomorphic(inferred, _graph(result)), "the inferred triples differ from the expected graph"
         else:  # pragma: no cover - a new test type upstream
             pytest.fail(f"unknown SPARQL-RL test type {kind}")

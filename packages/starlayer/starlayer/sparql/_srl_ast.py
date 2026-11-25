@@ -69,16 +69,18 @@ def goal_from_text(text: str, prefixes: dict[str, str]) -> TriplePattern:
     """The triple pattern written in ``text`` (SPARQL syntax, without the ``.``), with ``prefixes`` (prefix to namespace) declared.
 
     Raises:
-        SRLParseError: If the text is not exactly one triple pattern, or uses an undeclared prefix.
+        FormatError: (kind "srl") If the text is not exactly one triple pattern, or uses an undeclared prefix.
     """
+    from starlayer.errors import FormatError
+
     from .parse_srl import parse_srl
-    from .srl import SRLParseError
 
     header = "".join(f"PREFIX {prefix}: <{namespace}>\n" for prefix, namespace in prefixes.items())
     # the text is parsed as the body of a rule, so it gets the parser, the prefixes and the term syntax of a rule body
     body = parse_srl(f"{header}RULE {{ {text} }} WHERE {{ {text} }}").rules[0].body
     if len(body) != 1 or not isinstance(body[0], TriplePattern):
-        raise SRLParseError(f"a goal is one triple pattern, such as '?who ex:ancestorOf ex:carol'; got {text!r}")
+        message = f"a goal is one triple pattern, such as '?who ex:ancestorOf ex:carol'; got {text!r}"
+        raise FormatError(message, kind="srl", why=message, context="goal")
     return body[0]
 
 
@@ -613,7 +615,7 @@ class RuleSet:
             results (``result.vars``), and the values pyoxigraph terms.
 
         Raises:
-            SRLParseError: If ``goal_pattern`` text is not exactly one triple pattern, or uses an undeclared prefix.
+            FormatError: (kind "srl") If ``goal_pattern`` text is not exactly one triple pattern, or uses an undeclared prefix.
             TypeError: If a position of a ``TriplePattern`` goal is not an RDF term or variable (nothing is silently matched).
         """
         from . import srl_eval
