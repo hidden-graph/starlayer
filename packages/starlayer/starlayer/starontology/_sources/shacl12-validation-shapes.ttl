@@ -945,8 +945,8 @@ stsh:ConstraintComponentShape
 # Rule settings, where targets, and code hints
 #############################################################################
 # From the SHACL vocabulary's own ranges. sh:layer is numeric (Inference Rules: "numeric layer", default 0), sh:runOnce an xsd:boolean, sh:expectedPredicate an IRI (a property);
-# sh:targetWhere links a shape to a shape that is well formed (Core: "Where Targets"); sh:codeIdentifier is an xsd:string and sh:codeType a datatype IRI (rdfs:Datatype), both
-# hints for code generators. SHACL-AF's sh:target is not checked: SPARQL Extensions, Appendix F says SPARQL-based targets are no longer defined.
+# sh:targetWhere links a shape to a shape that is well formed (Core: "Where Targets"); sh:codeIdentifier is one xsd:string that matches ^[a-zA-Z_][a-zA-Z0-9_]*$ and sh:codeType one datatype IRI (rdfs:Datatype)
+# (Core, Non-Validating Shape Characteristics), both hints for code generators. SHACL-AF's sh:target is not checked: SPARQL Extensions, Appendix F says SPARQL-based targets are no longer defined.
 stsh:RuleSettingsShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for sh:layer, sh:runOnce and sh:expectedPredicate"@en ;
@@ -965,8 +965,8 @@ stsh:CodeHintsShape
 	a sh:NodeShape ;
 	rdfs:label "Well-formedness rules for sh:codeIdentifier and sh:codeType"@en ;
 	sh:targetSubjectsOf sh:codeIdentifier, sh:codeType ;
-	sh:property [ sh:path sh:codeIdentifier ; sh:datatype xsd:string ] ;
-	sh:property [ sh:path sh:codeType ; sh:nodeKind sh:IRI ] .
+	sh:property [ sh:path sh:codeIdentifier ; sh:maxCount 1 ; sh:datatype xsd:string ; sh:pattern "^[a-zA-Z_][a-zA-Z0-9_]*$" ; sh:message "sh:codeIdentifier is one xsd:string of letters, digits and underscores that does not start with a digit."@en ] ;
+	sh:property [ sh:path sh:codeType ; sh:maxCount 1 ; sh:nodeKind sh:IRI ; sh:message "sh:codeType is one datatype IRI."@en ] .
 
 #############################################################################
 # Parameter declarations (SHACL 1.2 SPARQL Extensions 4.2.1 and Node Expressions 6.1)

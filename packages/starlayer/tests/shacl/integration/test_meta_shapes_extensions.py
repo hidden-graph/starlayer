@@ -1752,6 +1752,7 @@ def test_malformed_configuration_and_data_graph_links_are_caught(ttl) -> None:
         "ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:layer 2 ; sh:runOnce true ; sh:expectedPredicate ex:p, ex:q ] .",
         "ex:S a sh:NodeShape ; sh:targetWhere ex:T . ex:T a sh:NodeShape ; sh:class ex:C .",
         "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier 'age' ; sh:codeType xsd:integer ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier '_a1' ] .",
     ],
 )
 def test_well_formed_rule_settings_target_where_and_code_hints_pass(ttl) -> None:
@@ -1766,6 +1767,11 @@ def test_well_formed_rule_settings_target_where_and_code_hints_pass(ttl) -> None
         "ex:S a sh:NodeShape ; sh:rule [ a sh:TripleRule ; sh:expectedPredicate 'p' ] .",
         "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier 5 ] .",
         "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeType 'integer' ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier '1st' ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier 'a name' ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier '' ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeIdentifier 'a', 'b' ] .",
+        "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:codeType xsd:integer, xsd:string ] .",
     ],
 )
 def test_malformed_rule_settings_target_where_and_code_hints_are_caught(ttl) -> None:
