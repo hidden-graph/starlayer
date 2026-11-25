@@ -214,8 +214,8 @@ nl:07.03-9e831b35 a slkg:NotebookExample ;
 nl:appendix-34b06f8c a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/appendix-b1-sqe-shared-parts.ipynb" ;
     slkg:cellId "34b06f8c" ;
-    slkg:cellHash "0907f1669b1fdb6d" ;
-    slkg:reviewedOn "2026-11-12"^^xsd:date ;
+    slkg:cellHash "9e0ce6c2cc514595" ;
+    slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Uses cbd() to delete a shared filter and everything hanging from it in a query graph." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.cbd" .
@@ -576,8 +576,8 @@ nl:03.02-f6a58c6a a slkg:NotebookExample ;
 nl:06.02-f58f1639 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06.02-manchester-syntax.ipynb" ;
     slkg:cellId "f58f1639" ;
-    slkg:cellHash "3c1ef1eaaa5fcf9f" ;
-    slkg:reviewedOn "2026-11-13"^^xsd:date ;
+    slkg:cellHash "2e6c535696e0deac" ;
+    slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Validates a Manchester syntax tree against the manch: shapes." ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.manchester.__init__.manchester_validate" .
