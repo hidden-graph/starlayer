@@ -35,7 +35,6 @@ VALIDATE_OPTIONS = frozenset(
         "allow_infos",
         "abort_on_first",
         "abort_on_error",
-        "max_validation_depth",
         "inference",
         "engine",
         "timeout",
@@ -85,8 +84,6 @@ def translate_validate_options(options: dict[str, Any]) -> dict[str, Any]:
     out["conformance_disallows"] = conformance_disallows_for(options.get("allow_warnings"), options.get("allow_infos"))
     out["inplace"] = bool(options.get("inplace"))
     out["abort_on_first"] = bool(options.get("abort_on_first") or options.get("abort_on_error"))
-    if "max_validation_depth" in options:  # ``None`` is meaningful: it removes the bound
-        out["max_validation_depth"] = options["max_validation_depth"]
     if options.get("subclass_of_in_shapes_graph"):
         out["subclass_of_in_shapes_graph"] = True
     for name in ("engine", "timeout", "recompute"):  # entailment: the engine's own defaults apply when not given
@@ -113,8 +110,20 @@ def _warn_advanced_deprecated() -> None:
     )
 
 
+# Engine limits that the public functions do not take (decision 2026-11-24): the engine keeps them as parameters
+# (``engine.api.validate(max_validation_depth=)``, ``engine.rules.apply_rules(max_triples=)``).
+_INTERNAL_LIMITS = frozenset({"max_validation_depth", "max_triples"})
+
+
+def _reject_internal_limits(options: Any) -> None:
+    refused = sorted(set(options) & _INTERNAL_LIMITS)
+    if refused:
+        raise TypeError(f"{', '.join(refused)} is not an option of the public validate(), validate_each() and apply_rules(): it is an internal engine limit")
+
+
 def reject_unknown_options(kwargs: dict[str, Any]) -> None:
     """``TypeError`` for an option nobody knows (a typo, or a keyword of the validator this one replaced)."""
+    _reject_internal_limits(kwargs)
     unknown = sorted(set(kwargs) - VALIDATE_OPTIONS)
     if unknown:
         raise TypeError(
@@ -239,11 +248,14 @@ def validate(
     specification_graph: Any = None,
     include_used_configuration: bool = False,
     checked: CheckedShapes | None = None,
+    engine_limits: dict[str, Any] | None = None,
 ) -> Any:
     """``validate()`` on the engine: a ``ValidationReport``. ``options`` is the caller's ``**kwargs`` (option overrides);
     ``inference`` is the keyword of ``validate()``, or the schema's bound regime.
     ``option_defaults`` are a processor's constructor options: below the ``mode`` preset, which is below ``options``.
-    ``checked`` is a processor's ``CheckedShapes``: its compiled plan and meta-SHACL result are reused for its shapes graph."""
+    ``checked`` is a processor's ``CheckedShapes``: its compiled plan and meta-SHACL result are reused for its shapes graph.
+    ``engine_limits`` are engine parameters the public functions do not take (``max_validation_depth``), for callers inside
+    the package that validate their own shapes (:func:`validate_bounded`)."""
     from starlayer.shacl.engine import api
     from starlayer.shacl.results import ValidationReport
     from starlayer.shacl.validation_modes import resolve_mode_options
@@ -252,6 +264,7 @@ def validate(
     resolved = resolve_mode_options(mode, overrides=options, defaults=option_defaults)
     inference = resolved.get("inference", inference) if "inference" in options else inference
     engine_kwargs = translate_validate_options(resolved)
+    engine_kwargs.update(engine_limits or {})
 
     original = data_graph
     data, shapes, ont = _normalise(data_graph, shacl_graph, ont_graph)
@@ -310,6 +323,19 @@ def validate(
     )
 
 
+def validate_bounded(data_graph: Any, shacl_graph: Any, *, ont_graph: Any = None, inference: Any = None, max_validation_depth: int) -> Any:
+    """:func:`validate` with an explicit shape-nesting bound, for the package's own checks of its fixed shapes (``sqe:``, SRL,
+    Manchester syntax), which the public ``starlayer.shacl.validate()`` no longer lets a caller set."""
+    return validate(
+        data_graph=data_graph,
+        shacl_graph=shacl_graph,
+        ont_graph=ont_graph,
+        inference=inference,
+        options={},
+        engine_limits={"max_validation_depth": max_validation_depth},
+    )
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # apply_rules
 
@@ -350,7 +376,6 @@ RULES_OPTIONS = frozenset(
         "ignore_imports",
         "shapes_graph_loader",
         "max_iterations",
-        "max_triples",
     }
 )
 
@@ -364,6 +389,7 @@ _VALIDATE_ONLY = (
 def reject_options_for_rules(options: dict[str, Any]) -> None:
     """``TypeError`` for a keyword ``apply_rules()`` does not take: one that only ``validate()`` uses says so (the rules are not
     followed by a validation any more), any other is an unknown option."""
+    _reject_internal_limits(options)
     refused = sorted(set(options) & _VALIDATE_ONLY)
     if refused:
         raise TypeError(
@@ -394,7 +420,7 @@ def apply_rules(
     from starlayer.shacl.results import RulesResult
 
     reject_options_for_rules(options)
-    rule_limits = {name: options[name] for name in ("max_iterations", "max_triples") if name in options}
+    rule_limits = {name: options[name] for name in ("max_iterations",) if name in options}
     data, shapes, ont = _normalise(
         data_graph, shacl_graph if shacl_graph is not None else data_graph, ont_graph
     )

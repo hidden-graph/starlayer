@@ -65,7 +65,7 @@ def validate(
             ``engine`` (``"hermit"``, the default, or ``"rustdl"``) and ``timeout`` (seconds, default 120) for the ``OWL-Direct`` regime
             (a ``ValueError`` for any other), ``recompute`` (``"onChange"``, the default, ``"never"``, ``"always"``: when the entailed copy
             of the data, which ``query(entailment=...)`` shares, is made again; see ``StarLayerGraph.query``),
-            ``abort_on_first``, ``max_validation_depth``, ``subclass_of_in_shapes_graph`` (default ``False``: SHACL 1.2 Core's
+            ``abort_on_first``, ``subclass_of_in_shapes_graph`` (default ``False``: SHACL 1.2 Core's
             optional parameter; ``True`` reads ``rdfs:subClassOf`` for ``sh:class``, ``sh:targetClass``, implicit class targets,
             ``sh:rootClass`` and ``shnex:instancesOf`` from the shapes graph as well as the data graph, ``rdf:type`` from the data graph
             only). An unknown option is a ``TypeError``.
@@ -216,10 +216,10 @@ def apply_rules(
             to match over, together with the shapes graph's own ``sh:entailment``), ``engine``, ``timeout``, ``recompute``,
             ``subclass_of_in_shapes_graph`` (also for the rules' class targets), ``meta_shacl`` and the named ``meta_shapes_extra``,
             ``ignore_imports``, ``shapes_graph_loader`` (how the shapes graph is read and checked), and the rule limits
-            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise ``RuleError``) and
-            ``max_triples`` (default ``None``: no cap; otherwise stop with ``RuleError`` when more triples than that are inferred).
+            the rule limit
+            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise ``RuleError``).
             An option that only describes a validation (``allow_warnings``, ``allow_infos``, ``abort_on_first``,
-            ``max_validation_depth``, ``include_used_configuration``, ``rules``, ...) is a ``TypeError`` naming ``validate()``.
+            ``include_used_configuration``, ``rules``, ...) is a ``TypeError`` naming ``validate()``.
             On a ``StarShaclProcessor`` the constructor's values of the options above are the defaults, and a keyword here
             overrides them; its validation defaults are not applied.
 
@@ -456,35 +456,34 @@ def _find_genuine_report_node(report_graph: Any) -> Any | None:
 
 
 class _Unset:
-    """The type of ``_UNSET``: "not given", for an option where ``None`` is a real value."""
+    """The type of ``_UNSET``: "not given", for a parameter where ``None`` is a real value."""
 
     def __repr__(self) -> str:
         return "<not set>"
 
 
-# "Not set" where ``None`` means something: ``max_validation_depth=None`` removes the bound, ``max_triples=None`` means no cap,
-# ``shapes_graph_loader=None`` on a call means no loader. A call that says ``None`` must be able to beat a constructor value.
+# "Not set" where ``None`` means something: ``shapes_graph_loader=None`` on a call means no loader, ``inference=None`` no regime.
+# A call that says ``None`` must be able to beat a constructor value.
 _UNSET: Any = _Unset()
 
 # What a StarShaclProcessor can bind at construction, as defaults of the calls that use them (stored as same-named attributes;
-# ``None`` = not set, except for the names in ``_NONE_IS_A_VALUE``, which use ``_UNSET``). Three groups, by where they apply:
+# ``None`` = not set). Three groups, by where they apply:
 # - validation options (``validate()`` and the other calls that check or target against the shapes): keys of the call's ``**kwargs``;
 # - the named parameters of ``validate()`` and ``apply_rules()`` that say how the shapes graph is read;
-# - the limits of rule execution (``apply_rules()`` only).
+# - the limit of rule execution (``apply_rules()`` only).
 # ``apply_rules()`` takes the ``_RULES_DEFAULTS`` among them: the options that only describe a validation stay out.
 # Precedence, lowest first: built-in default, constructor, ``mode=`` preset, keyword on the call.
 _VALIDATION_DEFAULTS = (
     "allow_warnings",
     "allow_infos",
     "meta_shacl",
-    "max_validation_depth",
     "subclass_of_in_shapes_graph",
     "engine",
     "timeout",
     "recompute",
 )
 _SHAPES_GRAPH_DEFAULTS = ("meta_shapes_extra", "ignore_imports", "shapes_graph_loader")
-_RULE_LIMIT_DEFAULTS = ("max_iterations", "max_triples")
+_RULE_LIMIT_DEFAULTS = ("max_iterations",)
 _RULES_DEFAULTS = (
     "meta_shacl",
     "subclass_of_in_shapes_graph",
@@ -495,7 +494,6 @@ _RULES_DEFAULTS = (
     *_RULE_LIMIT_DEFAULTS,
 )
 _CONSTRUCTOR_OPTIONS = _VALIDATION_DEFAULTS + _SHAPES_GRAPH_DEFAULTS + _RULE_LIMIT_DEFAULTS
-_NONE_IS_A_VALUE = ("max_validation_depth", "max_triples")
 
 
 class StarShaclProcessor:
@@ -528,21 +526,19 @@ class StarShaclProcessor:
     default, constructor, ``mode=`` preset, call keyword. A preset names only what it changes, so it never undoes a constructor
     value.
 
-    - ``allow_warnings``, ``allow_infos``, ``max_validation_depth``: ``validate()`` only (``apply_rules()`` validates nothing and
+    - ``allow_warnings``, ``allow_infos``: ``validate()`` only (``apply_rules()`` validates nothing and
       refuses them). ``meta_shacl``, ``subclass_of_in_shapes_graph``, ``engine``, ``timeout``, ``recompute``: ``validate()`` and
-      ``apply_rules()``. ``max_validation_depth=None`` removes the bound
-      (built-in: 500). ``subclass_of_in_shapes_graph=True`` (built-in: ``False``) is the SHACL 1.2 Core parameter of that name:
+      ``apply_rules()``. ``subclass_of_in_shapes_graph=True`` (built-in: ``False``) is the SHACL 1.2 Core parameter of that name:
       ``rdfs:subClassOf`` triples for ``sh:class``, ``sh:targetClass``, implicit class targets and ``sh:rootClass`` are read from
       the shapes graph as well as the data graph (``rdf:type`` from the data graph only).
     - ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``: how the shapes graph is read, for ``validate()`` and
       ``apply_rules()``. On a call, ``shapes_graph_loader=None`` drops a constructor loader.
-    - ``max_iterations``, ``max_triples``: ``apply_rules()`` only (built-in: 1000 iterations, no triple cap;
-      ``max_triples=None`` on a call removes a constructor cap).
+    - ``max_iterations``: ``apply_rules()`` only (built-in: 1000).
 
     ``target_nodes()`` takes ``subclass_of_in_shapes_graph`` (its default is the constructor's value, a keyword overrides it), since
     it answers what ``validate()`` targets; ``evaluate()``, ``select_widgets()``, ``close_shape()`` and ``extract_shapes_graph()``
     use none of them: they never took these options. An unset ``None`` default is the unbound state; where ``None`` is a real value the parameter's
-    default shows as ``<not set>``.
+    default shows as ``<not set>`` (a call's ``shapes_graph_loader`` and ``inference``).
     """
 
     def __init__(
@@ -559,9 +555,7 @@ class StarShaclProcessor:
         meta_shapes_extra: Iterable[Any] | None = None,
         ignore_imports: bool | None = None,
         shapes_graph_loader: Callable[[Any], Any | None] | None = None,
-        max_validation_depth: int | None = _UNSET,
         max_iterations: int | None = None,
-        max_triples: int | None = _UNSET,
         subclass_of_in_shapes_graph: bool | None = None,
         engine: str | None = None,
         timeout: float | None = None,
@@ -570,8 +564,7 @@ class StarShaclProcessor:
         """Bind the shapes, ontology, default data and scoring graphs for validation.
 
         The keyword-only options after ``inference`` are defaults of the calls that use them (see the class docstring for which);
-        a call's own keyword overrides them. ``None`` means not set (the built-in default applies) for all but
-        ``max_validation_depth`` and ``max_triples``, whose default is ``<not set>`` because ``None`` there removes the bound.
+        a call's own keyword overrides them. ``None`` means not set (the built-in default applies).
         ``subclass_of_in_shapes_graph`` (``None``: built-in ``False``) makes ``validate()`` and ``apply_rules()`` read
         ``rdfs:subClassOf`` from the shapes graph too, as in :func:`validate`.
         ``engine`` (``"hermit"`` or ``"rustdl"``) and ``timeout`` (seconds) are for the ``OWL-Direct`` regime, as for
@@ -614,9 +607,7 @@ class StarShaclProcessor:
         self.meta_shapes_extra = None if meta_shapes_extra is None else tuple(meta_shapes_extra)
         self.ignore_imports = ignore_imports
         self.shapes_graph_loader = shapes_graph_loader
-        self.max_validation_depth = max_validation_depth
         self.max_iterations = max_iterations
-        self.max_triples = max_triples
         self.subclass_of_in_shapes_graph = subclass_of_in_shapes_graph
         self.engine = engine
         self.timeout = timeout
@@ -654,7 +645,7 @@ class StarShaclProcessor:
         return {
             name: value
             for name, value in values.items()
-            if value is not _UNSET and (value is not None or name in _NONE_IS_A_VALUE)
+            if value is not _UNSET and value is not None
         }
 
     def _bound(self, name: str) -> Any | None:
@@ -986,8 +977,8 @@ class StarShaclProcessor:
     ) -> RulesResult:
         """Runs the rules of the bound shapes graph over ``data_graph`` (default: the bound one); see :func:`apply_rules`.
         ``shapes_graph_resource`` selects a named ``sh:ShapesGraph`` module of the bound shapes graph. The constructor's options
-        that rule execution uses are the defaults of the keywords of the same name here; ``allow_warnings``, ``allow_infos`` and
-        ``max_validation_depth`` stay defaults of ``validate()`` only. ``inference`` replaces the constructor's regime(s) for
+        that rule execution uses are the defaults of the keywords of the same name here; ``allow_warnings`` and ``allow_infos``
+        stay defaults of ``validate()`` only. ``inference`` replaces the constructor's regime(s) for
         this call (``None``: none of its own; ``<not set>``: the constructor's), for the entailment the rules match over; the
         shapes graph's ``sh:entailment`` applies too."""
         if inference is _UNSET:

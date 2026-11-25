@@ -874,8 +874,10 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
         ``starlayer.shacl``'s own ``ValidationReport``.
     """
 
-    import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
-    from starlayer.shacl._adapter import shared_plans
+    from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
+        shared_plans,
+        validate_bounded,
+    )
 
     from .expr_validation import rdfs_entailed_copy
     from .sqe._memtree import as_engine_graph
@@ -883,9 +885,9 @@ def srl_validate(data_graph: Any) -> tuple[bool, Any, str]:
     shapes, _ontology, schema = _validation_graphs()
     data_graph, _ = as_engine_graph(data_graph)
     with shared_plans(_validation_plans):
-        result = starlayer.shacl.validate(
+        result = validate_bounded(
             rdfs_entailed_copy(data_graph, schema),  # the RDFS closure the shapes rely on, done natively
-            shacl_graph=shapes,
+            shapes,
             max_validation_depth=100,
         )
     return result.conforms, result.report_graph, result.report_text

@@ -1273,17 +1273,18 @@ def manchester_validate(data_graph: Any) -> tuple[bool, Any, str]:
         ``starlayer.shacl``'s own ``ValidationReport``.
     """
 
-    import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
+    # lazy imports: avoid a circular-import deadlock at module load time
     from starlayer.graph.entailment.infer import ENTAILMENT
+    from starlayer.shacl._adapter import validate_bounded
 
     problems = _preflight(_as_graph(data_graph))
     if any("cycle" in message for _, message in problems):
         # pySHACL cannot even load a graph with a cyclic list, so report without running it.
         return False, _preflight_report(problems, None), _preflight_text(problems, "")
 
-    result = starlayer.shacl.validate(
+    result = validate_bounded(
         data_graph,
-        shacl_graph=get_ontology_graph("manchester_shacl"),
+        get_ontology_graph("manchester_shacl"),
         ont_graph=get_ontology_graph("manchester_owl"),
         inference=ENTAILMENT.RDFS,
         max_validation_depth=100,

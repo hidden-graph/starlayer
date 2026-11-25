@@ -48,7 +48,6 @@ REMOVED = {
     "allow_warnings": True,
     "allow_infos": True,
     "abort_on_first": True,
-    "max_validation_depth": 5,
     "include_used_configuration": True,
     "data_graph_iri": "http://example.org/d",
     "inplace": True,
@@ -90,14 +89,13 @@ def test_the_options_rule_execution_uses_are_accepted() -> None:
         ignore_imports=False,
         shapes_graph_loader=None,
         max_iterations=10,
-        max_triples=100,
     )
     assert len(result.inferred_graph) == 1
 
 
 def test_a_processor_with_validation_defaults_runs_apply_rules_and_validate_still_uses_them() -> None:
     shapes = "ex:W a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:nick ; sh:minCount 1 ; sh:severity sh:Warning ] ."
-    processor = StarShaclProcessor(g(RULE + shapes), allow_warnings=False, allow_infos=False, max_validation_depth=3)
+    processor = StarShaclProcessor(g(RULE + shapes), allow_warnings=False, allow_infos=False)
     assert len(processor.apply_rules(g(DATA)).inferred_graph) == 1
     assert processor.validate(g(DATA)).conforms is False  # the Warning blocks
     assert StarShaclProcessor(g(RULE + shapes), allow_warnings=True).validate(g(DATA)).conforms is True

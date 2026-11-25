@@ -142,10 +142,10 @@ class TestTranslation:
 
     def test_direct_options_pass_through(self):
         options = resolve_mode_options(
-            None, overrides={"abort_on_first": True, "max_validation_depth": 7, "inplace": True, "meta_shacl": True}
+            None, overrides={"abort_on_first": True, "inplace": True, "meta_shacl": True}
         )
         out = translate_validate_options(options)
-        assert out["abort_on_first"] is True and out["max_validation_depth"] == 7
+        assert out["abort_on_first"] is True and "max_validation_depth" not in out
         assert out["inplace"] is True and out["meta_shacl"] is True
 
     @pytest.mark.parametrize(

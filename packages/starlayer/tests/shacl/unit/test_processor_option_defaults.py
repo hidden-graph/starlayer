@@ -1,6 +1,5 @@
 """``StarShaclProcessor`` constructor defaults for the options that describe the shapes graph or are safety limits:
-``meta_shacl``, ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``, ``max_validation_depth``, ``max_iterations``,
-``max_triples``. Precedence, lowest first: built-in default, constructor, ``mode=`` preset, call keyword."""
+``meta_shacl``, ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``, ``max_iterations``. Precedence, lowest first: built-in default, constructor, ``mode=`` preset, call keyword."""
 
 from __future__ import annotations
 
@@ -8,7 +7,7 @@ import inspect
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import MetaShaclError, RuleError, ShapeError, StarShaclProcessor
+from starlayer.shacl import MetaShaclError, RuleError, StarShaclProcessor
 from tests.shacl.integration._shape_loader import load_shape
 from tests.support.datasets import dataset_of
 from tests.support.terms import Namespace
@@ -148,52 +147,7 @@ def test_constructor_loader_and_ignore_imports_in_validate_each() -> None:
     assert all(r.conforms for r in importing(ignore_imports=True).validate_each(dataset_of([g(DATA)])).values())
 
 
-# --- max_validation_depth ---------------------------------------------------------------------------------------------------
-
-
-def chain(n: int) -> StarLayerGraph:
-    return g(
-        "ex:S0 a sh:NodeShape ; sh:targetNode ex:a ; sh:node ex:S1 .\n"
-        + "".join(f"ex:S{i} a sh:NodeShape ; sh:node ex:S{i + 1} .\n" for i in range(1, n))
-        + f"ex:S{n} a sh:NodeShape ; sh:nodeKind sh:IRI ."
-    )
-
-
-def test_max_validation_depth_unset_is_the_engine_default() -> None:
-    data = g("ex:a ex:p 1 .")
-    assert StarShaclProcessor(chain(300)).validate(data).conforms
-    with pytest.raises(ShapeError):
-        StarShaclProcessor(chain(600)).validate(data)
-
-
-def test_max_validation_depth_none_at_construction_removes_the_bound() -> None:
-    data = g("ex:a ex:p 1 .")
-    p = StarShaclProcessor(chain(600), max_validation_depth=None)
-    assert p.validate(data).conforms
-    with pytest.raises(ShapeError):
-        p.validate(data, max_validation_depth=20)  # a call can set a number
-    assert len(p.apply_rules(data).inferred_graph) == 0
-    with pytest.raises(TypeError, match="validate"):
-        p.apply_rules(data, max_validation_depth=20)  # a validation option: not an option of apply_rules()
-
-
-def test_max_validation_depth_number_at_construction_and_call_none() -> None:
-    data = g("ex:a ex:p 1 .")
-    p = StarShaclProcessor(chain(60), max_validation_depth=20)
-    with pytest.raises(ShapeError):
-        p.validate(data)
-    assert len(p.apply_rules(data).inferred_graph) == 0  # the constructor's depth is a default of validate() only
-    assert p.validate(data, max_validation_depth=None).conforms  # None on the call beats the constructor's number
-    assert p.validate(data, max_validation_depth=200).conforms
-
-
-@pytest.mark.parametrize("mode", ["validation", "rules", "debug"])
-def test_mode_preset_does_not_reset_max_validation_depth(mode: str) -> None:
-    with pytest.raises(ShapeError):
-        StarShaclProcessor(chain(60), max_validation_depth=20).validate(g("ex:a ex:p 1 ."), mode=mode)
-
-
-# --- max_iterations, max_triples (apply_rules only) -------------------------------------------------------------------------
+# --- max_iterations (apply_rules only) -------------------------------------------------------------------------
 
 
 def linear_chain(length: int) -> StarLayerGraph:
@@ -222,21 +176,9 @@ def test_max_iterations_constructor_and_call() -> None:
         StarShaclProcessor(linear_shapes()).apply_rules(data, max_iterations=3)
 
 
-def test_max_triples_constructor_and_call() -> None:
-    data = linear_chain(10)
-    p = StarShaclProcessor(linear_shapes(), max_triples=5)
-    with pytest.raises(RuleError, match="triples inferred"):
-        p.apply_rules(data)
-    assert len(list(p.apply_rules(data, max_triples=None).inferred_graph)) > 5  # None on the call removes the cap
-    p.apply_rules(data, max_triples=1000)
-    StarShaclProcessor(linear_shapes()).apply_rules(data)  # unset: no cap
-    with pytest.raises(RuleError, match="triples inferred"):
-        StarShaclProcessor(linear_shapes(), max_triples=None).apply_rules(data, max_triples=5)
-
-
 def test_rule_limits_are_not_validate_options() -> None:
-    p = StarShaclProcessor(linear_shapes(), max_iterations=3, max_triples=5)
-    assert p.validate(linear_chain(2)).conforms  # bound limits do not reach validate(), which has no rules to cap
+    p = StarShaclProcessor(linear_shapes(), max_iterations=3)
+    assert p.validate(linear_chain(2)).conforms  # a bound limit does not reach validate(), which has no rules to cap
     with pytest.raises(TypeError):
         p.validate(linear_chain(2), max_iterations=3)
 
@@ -263,4 +205,5 @@ def test_other_options_are_not_constructor_options() -> None:
 def test_signature_stays_readable() -> None:
     params = inspect.signature(StarShaclProcessor.validate).parameters
     assert repr(params["ignore_imports"].default) == "<not set>"
-    assert repr(inspect.signature(StarShaclProcessor).parameters["max_triples"].default) == "<not set>"
+    assert "max_validation_depth" not in inspect.signature(StarShaclProcessor).parameters
+    assert "max_triples" not in inspect.signature(StarShaclProcessor).parameters

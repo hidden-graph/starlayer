@@ -81,16 +81,14 @@ def sqe_validate(data_graph: Any) -> tuple[bool, Any, str]:
         A ``(conforms, report_graph, report_text)`` tuple.
     """
 
-    import starlayer.shacl  # lazy: avoids a circular-import deadlock at module load time
-    from starlayer.shacl._adapter import shared_plans
+    from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
+        shared_plans,
+        validate_bounded,
+    )
 
     from ._memtree import as_engine_graph
 
     data_graph, _ = as_engine_graph(data_graph)
     with shared_plans(_PLANS):
-        result = starlayer.shacl.validate(
-            _entailed_copy(data_graph),
-            shacl_graph=_shapes_graph(),
-            max_validation_depth=100,
-        )
+        result = validate_bounded(_entailed_copy(data_graph), _shapes_graph(), max_validation_depth=100)
     return result.conforms, result.report_graph, result.report_text

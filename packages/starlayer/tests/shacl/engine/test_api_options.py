@@ -169,17 +169,15 @@ def test_abort_on_first_conforming() -> None:
     assert old.conforms is new.conforms is True
 
 
-# --- max_validation_depth -------------------------------------------------------------------------------------------
+# --- max_validation_depth (an engine parameter; the public validate() does not take it) -----------------------------------
 DEEP = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:node [ sh:node [ sh:node [ sh:closed false ] ] ] ."
 
 
-def test_max_validation_depth_is_a_failure_in_both() -> None:
-    with pytest.raises(Exception):  # noqa: B017  (old: ReportableRuntimeError)
-        old_validate(g("ex:a ex:p 1 ."), g(DEEP), meta_shacl=False, ignore_imports=True, max_validation_depth=2)
+def test_max_validation_depth_is_a_failure() -> None:
     with pytest.raises(ShapeError, match="too deep"):
         new_validate(g("ex:a ex:p 1 ."), g(DEEP), max_validation_depth=2)
     assert new_validate(g("ex:a ex:p 1 ."), g(DEEP), max_validation_depth=10).conforms
-    assert old_validate(g("ex:a ex:p 1 ."), g(DEEP), meta_shacl=False, ignore_imports=True, max_validation_depth=30).conforms
+    assert old_validate(g("ex:a ex:p 1 ."), g(DEEP), meta_shacl=False, ignore_imports=True).conforms
 
 
 # --- recursion ------------------------------------------------------------------------------------------------------

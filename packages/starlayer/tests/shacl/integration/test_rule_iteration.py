@@ -102,13 +102,14 @@ def _build_linear_chain(length: int) -> StarLayerGraph:
 # rules_reach_linear_sparql.ttl's immutable-base-relation join grows ex:reach
 # by exactly one hop per rule iteration, so "iterations needed" == "chain
 # length". The iteration cap (max_iterations, default 1000) is not an option of
-# validate(); the tests use the engine's apply_rules directly with a small cap.
-def _linear_rules(data, max_iterations):
+# validate(); the tests use the engine's apply_rules directly with a small cap. The triple cap (max_triples, default None) is
+# an engine parameter only: the public apply_rules() does not take it.
+def _linear_rules(data, max_iterations=1000, max_triples=None):
     from starlayer.shacl.engine.rules import apply_rules
 
     shapes = StarLayerGraph()
     shapes.parse(data=load_shape("rules_reach_linear_sparql.ttl"), format="turtle")
-    return apply_rules(data, shapes, max_iterations=max_iterations)
+    return apply_rules(data, shapes, max_iterations=max_iterations, max_triples=max_triples)
 
 
 def test_rule_iteration_converges_within_iteration_limit() -> None:
@@ -124,3 +125,13 @@ def test_rule_iteration_raises_when_exceeding_iteration_limit() -> None:
     data = _build_linear_chain(10)
     with pytest.raises(RuleError, match="fixpoint"):
         _linear_rules(data, max_iterations=3)
+
+
+def test_engine_triple_cap_raises_rule_error_and_no_cap_is_the_default() -> None:
+    from starlayer.shacl import RuleError
+
+    data = _build_linear_chain(10)
+    with pytest.raises(RuleError, match="triples inferred"):
+        _linear_rules(data, max_triples=5)
+    assert len(_linear_rules(data).inferred) > 5  # no cap by default
+    assert len(_linear_rules(data, max_triples=1000).inferred) > 5

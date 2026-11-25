@@ -209,14 +209,13 @@ def _chain(n):
     )
 
 
-def test_deep_shape_chain_is_bounded_by_max_validation_depth_not_the_interpreter():
+def test_deep_shape_chain_is_bounded_by_the_default_depth_not_the_interpreter():
     from starlayer.shacl import ShapeError
 
     data = g("ex:a ex:p 1 .")
     assert validate(data, _chain(300)).conforms is True  # under the default bound of 500
     with pytest.raises(ShapeError):
         validate(data, _chain(600))
-    assert validate(data, _chain(600), max_validation_depth=None).conforms is True  # None removes the bound
 
 
 def test_used_configuration_records_the_inference_regime():

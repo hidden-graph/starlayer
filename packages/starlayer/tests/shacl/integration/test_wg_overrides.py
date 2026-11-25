@@ -45,7 +45,7 @@ FIXED_UPSTREAM = {
 def _conforms(shapes_ttl: str, meta: Graph) -> bool:
     shapes = Graph()
     shapes.parse(data=_PREFIXES + shapes_ttl, format="turtle")
-    return validate(shapes, meta, ignore_imports=True, max_validation_depth=30).conforms
+    return validate(shapes, meta, ignore_imports=True).conforms
 
 
 @pytest.fixture(scope="module")
