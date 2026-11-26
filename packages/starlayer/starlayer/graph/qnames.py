@@ -31,7 +31,7 @@ def _iri(uri: Any) -> str:
 
 def compute_qname(prefixes: dict[str, str], uri: Any, generate: bool = True) -> tuple[str, str, str]:
     """``(prefix, namespace, local)`` for an IRI. Raises ``KeyError`` when no bound namespace fits and ``generate`` is false,
-    ``ValueError`` when the IRI cannot be split at all."""
+    ``FormatError`` (kind ``"rdf"``, context ``"prefixed name"``) when the IRI has no namespace and local name Turtle can write."""
     iri = _iri(uri)
     best: tuple[str, str] | None = None
     for prefix, ns in prefixes.items():
@@ -42,7 +42,7 @@ def compute_qname(prefixes: dict[str, str], uri: Any, generate: bool = True) -> 
         return best[0], best[1], iri[len(best[1]) :]
     m = _SPLIT.match(iri)
     if m is None or not _LOCAL.fullmatch(m.group(2)) or not m.group(2):
-        raise ValueError(f"cannot split {iri!r} into a namespace and a local name")
+        raise FormatError(f"cannot write {iri!r} as a prefixed name; write it in full as <{iri}>", kind="rdf", context="prefixed name")
     ns, local = m.groups()
     if not generate:
         raise KeyError(f"no prefix is bound for {ns!r}")
@@ -84,7 +84,7 @@ def n3(prefixes: dict[str, str], term: Any) -> str:
     if isinstance(term, ox.NamedNode):
         try:
             prefix, _ns, local = compute_qname(prefixes, term, generate=False)
-        except (KeyError, ValueError):
+        except (KeyError, FormatError):
             return f"<{term.value}>"
         return f"{prefix}:{local}"
     if isinstance(term, ox.Literal):

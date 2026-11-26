@@ -6,6 +6,7 @@ import random
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerDataset, StarLayerGraph, interop
 from starlayer.graph.pretty import pretty_trig
 
@@ -132,8 +133,12 @@ def test_qname_follows_the_turtle_local_name_rules(local):
 def test_qname_refuses_a_name_turtle_cannot_write(bad):
     g = StarLayerGraph()
     g.bind("e", EX)
-    with pytest.raises(ValueError):
+    with pytest.raises(FormatError, match="cannot write .* as a prefixed name; write it in full as <") as info:
         g.qname(N(EX + bad))
+    assert (info.value.kind, info.value.context) == ("rdf", "prefixed name")
+    assert g.qname_term(N(EX + bad)) == f"<{EX}{bad}>"  # the N3 writer keeps the IRI in full
+    with pytest.raises(KeyError):
+        g.compute_qname(N("http://other/x"), generate=False)  # no prefix bound stays a KeyError
 
 
 @pytest.mark.parametrize("prefix", ["", "a", "a.b", "éx"])
