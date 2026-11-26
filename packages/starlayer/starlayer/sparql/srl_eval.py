@@ -845,13 +845,9 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet) -> _E
 
     base_graph = flatten_dataset(base_graph)
     if ruleset.imports:
-        iris = ", ".join(f"<{iri.value}>" for iri in ruleset.imports)
-        raise ExecutionError(
-            f"SRL: this rule set has IMPORTS that are not resolved ({iris}). Pass imports_loader= to infer(), query() or plan() "
-            "to resolve them for the call, or resolve them once with srl.resolve_imports() or parse_ruleset(imports_loader=). "
-            "A rule set with IMPORTS is never run with its imports ignored (§4.5).",
-            kind="import", context=f"IMPORTS {iris}",
-        )
+        from .srl import unresolved_imports_error
+
+        raise unresolved_imports_error(tuple(ruleset.imports), "the rule set was not resolved before it ran")
 
     from .srl_semantic_checks import _require_well_formed
 
@@ -1357,11 +1353,12 @@ class Materialization:
     kept result keeps the ones it made.
     """
 
-    def __init__(self, ruleset: srl_ast.RuleSet, base_graph, *, inference=None, imports_loader=None):
+    def __init__(self, ruleset: srl_ast.RuleSet, base_graph, *, inference=None, imports_loader=None, ignore_imports=False):
         self.ruleset = ruleset
         self._source = base_graph
         self._inference = inference
         self._imports_loader = imports_loader
+        self._ignore_imports = ignore_imports
         self._evaluation: _Evaluation | None = None
         self._inferred = None
         self._watch = None
@@ -1374,7 +1371,7 @@ class Materialization:
         base = flatten_dataset(self._source)
         if self._inference is not None:
             base = base.infer(entailment=self._inference, mode="full")
-        self._evaluation = _evaluate(base, self.ruleset._with_imports_resolved(self._imports_loader))
+        self._evaluation = _evaluate(base, self.ruleset._with_imports_resolved(self._imports_loader, self._ignore_imports))
         self._inferred = None
         self._stamp = stamp
 

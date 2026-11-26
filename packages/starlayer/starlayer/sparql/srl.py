@@ -168,7 +168,7 @@ _AGG_ARGUMENT = SRL["argument"]
 _AGG_DISTINCT = SRL["distinct"]
 
 
-def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | None = None) -> srl_ast.RuleSet:
+def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | None = None, ignore_imports: bool = False) -> srl_ast.RuleSet:
     """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
 
@@ -189,7 +189,9 @@ def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | N
         text: The SRL rule-set text to parse.
         base: Base IRI for resolving relative IRIs, if any.
         imports_loader: ``loader(iri) -> str | RuleSet``, as for :func:`resolve_imports`. Without
-            one, a rule set with ``IMPORTS`` is returned with them unresolved.
+            one, a rule set with ``IMPORTS`` is returned with them unresolved (parsing text is not resolving it: running it raises, and
+            ``validate_sparql_tree`` reports them); with one, every import must be resolved or this raises.
+        ignore_imports: Resolve nothing, even with a loader: the rule set is returned as parsed.
 
     Returns:
         The parsed ``RuleSet``.
@@ -202,7 +204,7 @@ def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | N
 
     ruleset = parse_srl(text, base)
     if imports_loader is not None and ruleset.imports:
-        return _resolve_imports(ruleset, imports_loader, location=base, check=False)
+        return _resolve_imports(ruleset, imports_loader, location=base, check=False, ignore_imports=ignore_imports)
     return ruleset
 
 
@@ -608,14 +610,15 @@ def _rename_blank_nodes(term, mapping: dict):
     return term
 
 
-def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = None) -> srl_ast.RuleSet:
+def resolve_imports(ruleset: srl_ast.RuleSet, loader=None, *, location: str | None = None, ignore_imports: bool = False) -> srl_ast.RuleSet:
     """Return the *resolved* rule set (§4.5): ``ruleset`` with every ``IMPORTS``
     document read, recursively, and its rules and ``DATA`` merged in. The result
     has no imports left. ``ruleset`` itself is not changed.
 
-    Reading a document from the web has security implications, so nothing is read
-    unless the caller supplies ``loader`` - there is no default. The loader decides
-    where documents come from: a directory, a verified copy, a dictionary.
+    Every import must be resolved or the call raises, as for ``owl:imports`` (``starlayer.graph.imports``): an import is satisfied when
+    the loader produced a rule set for its IRI. Reading a document from the web has security implications, so nothing is read
+    unless the caller supplies ``loader`` - there is no default; with none (or a loader that returns ``None`` for an import) the rule
+    set cannot be resolved and the call raises. The loader decides where documents come from: a directory, a verified copy, a dictionary.
 
     Each document is imported only once (§3.7), so a diamond or a cycle among the
     imports does not repeat or loop. The merge follows Appendix B: the importing rule
@@ -625,26 +628,32 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
 
     Args:
         ruleset: The rule set whose imports are resolved.
-        loader: ``loader(iri) -> str | RuleSet``: given an import IRI (a string),
+        loader: ``loader(iri) -> str | RuleSet | None``: given an import IRI (a string),
             returns the document's SRL text (parsed with ``base=iri``) or an already
-            parsed ``RuleSet``. It may raise to say the document cannot be read.
+            parsed ``RuleSet``; ``None`` says it has none (the import is then unresolved). It may raise to say the document cannot be
+            read (wrapped, see below).
         location: The IRI ``ruleset`` was read from, if any. It counts as already
             imported, so a document that imports itself is not read again.
+        ignore_imports: Load nothing and check nothing: ``ruleset`` is returned as it is, imports and all.
 
     Returns:
-        A new ``RuleSet`` with ``imports == []``.
+        A new ``RuleSet`` with ``imports == []`` (``ruleset`` itself with ``ignore_imports=True``).
 
     Raises:
-        ExecutionError: (kind ``"import"``) If the loader fails for an import.
+        ExecutionError: (kind ``"import"``) If an import is not resolved (no loader, or it returned ``None``; the IRIs are
+            ``error.unresolved``), or if the loader raises (the exception is ``__cause__``).
         FormatError: (kind ``"srl"``) If the loader returns text that is not a valid rule set.
         ExecutionError: (kind ``"rule"``) If the rules of the combined rule set cannot be ordered.
     """
-    return _resolve_imports(ruleset, loader, location=location, check=True)
+    return _resolve_imports(ruleset, loader, location=location, check=True, ignore_imports=ignore_imports)
 
 
-def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, check: bool) -> srl_ast.RuleSet:
+def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, check: bool, ignore_imports: bool = False) -> srl_ast.RuleSet:
     """``resolve_imports``; ``check=False`` leaves the stratification of the combined rule set unchecked (``parse_ruleset`` does not check it)."""
+    if ignore_imports or not ruleset.imports:
+        return ruleset
     visited: set[str] = {str(location)} if location else set()
+    unresolved: list = []
 
     def _merge(rs: srl_ast.RuleSet, renamed: bool) -> tuple[list, list]:
         rules = list(rs.rules)
@@ -669,12 +678,18 @@ def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, 
             if _T.iri_text(import_iri) in visited:
                 continue
             visited.add(_T.iri_text(import_iri))
+            if loader is None:
+                unresolved.append(import_iri)
+                continue
             try:
                 loaded = loader(_T.iri_text(import_iri))
             except Exception as exc:
                 reason = "not found" if isinstance(exc, KeyError) else f"{type(exc).__name__}: {exc}"
                 message = f"SRL: cannot read the import <{import_iri}>: {reason}"
-                raise ExecutionError(message, kind="import", context=f"IMPORTS <{import_iri}>") from exc
+                raise ExecutionError(message, kind="import", context=f"IMPORTS <{import_iri}>", unresolved=(import_iri,)) from exc
+            if loaded is None:
+                unresolved.append(import_iri)
+                continue
             if isinstance(loaded, str):
                 try:
                     loaded = parse_ruleset(loaded, base=_T.iri_text(import_iri))
@@ -687,10 +702,23 @@ def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, 
         return rules, data
 
     rules, data = _merge(ruleset, renamed=False)
+    if unresolved:
+        raise unresolved_imports_error(tuple(unresolved), "no imports_loader was given" if loader is None else "imports_loader returned no rule set for it")
     resolved = srl_ast.RuleSet(rules=rules, data=data, imports=[], prefixes=dict(ruleset.prefixes))
     if check:
         _check_stratification(resolved)  # now the whole rule set: an import can add a dependency the text alone does not have
     return resolved
+
+
+def unresolved_imports_error(iris: tuple, why: str) -> ExecutionError:
+    """The ``ExecutionError`` (kind ``"import"``, ``unresolved`` the IRIs) for ``IMPORTS`` of a rule set that are not resolved."""
+    names = ", ".join(f"<{i.value}>" for i in iris)
+    return ExecutionError(
+        f"SRL: IMPORTS {names} {'is' if len(iris) == 1 else 'are'} not resolved: {why}. Pass imports_loader= (to parse_ruleset(), "
+        "resolve_imports(), infer(), query(), plan() or materialize()) with a loader that returns each document's rule set, "
+        "resolve them once with srl.resolve_imports(), or pass ignore_imports=True to run the rules of the document alone.",
+        kind="import", context=f"IMPORTS {names}", unresolved=iris,
+    )
 
 
 # ---------------------------------------------------------------------------

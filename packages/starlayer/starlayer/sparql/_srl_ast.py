@@ -417,17 +417,23 @@ class RuleSet:
         it was parsed covered only the rules in its own text, until :func:`~starlayer.sparql.srl.resolve_imports` resolves it."""
         return not self.imports
 
-    def _with_imports_resolved(self, imports_loader) -> RuleSet:
-        """This rule set with its ``IMPORTS`` resolved by ``imports_loader``, or ``self``
-        when no loader is given (then ``infer()`` rejects any imports, as §4.5 requires
-        of a processor that does not support them)."""
-        if imports_loader is None or not self.imports:
+    def _with_imports_resolved(self, imports_loader, ignore_imports: bool = False) -> RuleSet:
+        """This rule set with its ``IMPORTS`` resolved by ``imports_loader`` (every one resolved or ``ExecutionError`` kind ``"import"``);
+        with ``ignore_imports`` a copy without them (the rules of the document alone, nothing loaded or checked); ``self`` when there
+        are none or no loader is given (``infer()`` then rejects the imports, as §4.5 requires of a processor that does not resolve them)."""
+        if not self.imports:
+            return self
+        if ignore_imports:
+            import dataclasses
+
+            return dataclasses.replace(self, imports=[])
+        if imports_loader is None:
             return self
         from . import srl
 
         return srl.resolve_imports(self, imports_loader)
 
-    def plan(self, *, imports_loader: Any | None = None) -> RulePlan:
+    def plan(self, *, imports_loader: Any | None = None, ignore_imports: bool = False) -> RulePlan:
         """Shows how this rule set would be evaluated, without running it:
         the strata in evaluation order and the rule dependency graph they
         were computed from (§4.3.2 and §4.4.2 of the spec). Rules are
@@ -435,12 +441,12 @@ class RuleSet:
 
         Useful for seeing why a rule fires in a later stratum than another,
         which matters with negation, and for checking that a rule set
-        stratifies before running it. ``IMPORTS`` are not resolved here;
-        ``infer()`` rejects them.
+        stratifies before running it. ``IMPORTS`` are resolved first or the call raises, as for :meth:`infer`.
 
         Args:
             imports_loader: Resolves ``IMPORTS`` first, as for :meth:`infer`; the plan
-                then covers the imported rules too. Without one, imports are ignored.
+                then covers the imported rules too.
+            ignore_imports: As for :meth:`infer`: plan the rules of the document alone.
 
         Returns:
             The :class:`RulePlan`.
@@ -448,10 +454,14 @@ class RuleSet:
         Raises:
             ExecutionError: (kind ``"rule"``) If a recursive dependency involves a
                 negation, so no valid evaluation order exists (§4.4.1).
+            ExecutionError: (kind ``"import"``) If ``IMPORTS`` are not resolved (no loader, none that produces them, or a loader that
+                raises) and ``ignore_imports`` is false.
         """
         from . import srl, srl_eval
 
-        self = self._with_imports_resolved(imports_loader)
+        self = self._with_imports_resolved(imports_loader, ignore_imports)
+        if self.imports:
+            raise srl.unresolved_imports_error(tuple(self.imports), "no imports_loader was given")
 
         edges = srl_eval._build_dependency_graph(self)
         layers = srl_eval._stratify(self)
@@ -475,6 +485,7 @@ class RuleSet:
         inference: Any | None = None,
         schema: Any | None = None,
         imports_loader: Any | None = None,
+        ignore_imports: bool = False,
     ):
         """Runs this rule set against ``base_graph`` to a fixpoint and
         returns the inferred-triples-only graph (§4.1's ``Infer``) - the
@@ -507,7 +518,9 @@ class RuleSet:
                 :func:`starlayer.sparql.srl.resolve_imports`). There is no default
                 loader, because reading a document has security implications; without
                 one, a rule set that has imports is rejected with
-                an ``ExecutionError`` of kind ``"import"``.
+                an ``ExecutionError`` of kind ``"import"``, as is one whose loader returns ``None`` for an import (``error.unresolved``
+                lists the IRIs) or raises (wrapped).
+            ignore_imports: Load nothing, check nothing: run the rules of this document alone, its ``IMPORTS`` left out.
             schema: A ``starlayer.shacl.StarShaclProcessor`` instance, or a
                 bare SHACL shapes graph, to validate the inferred result
                 against. A bare shapes graph is wrapped in a throwaway
@@ -532,7 +545,7 @@ class RuleSet:
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
-        inferred = srl_eval._srl_infer(base_graph, self._with_imports_resolved(imports_loader))
+        inferred = srl_eval._srl_infer(base_graph, self._with_imports_resolved(imports_loader, ignore_imports))
 
         if schema is None:
             return self._with_own_prefixes(self._with_prefixes_of(inferred, original_graph))
@@ -576,7 +589,7 @@ class RuleSet:
             goal = goal_from_text(goal, prefixes)
         return check_goal_pattern(goal)
 
-    def materialize(self, base_graph: Any, *, inference: Any | None = None, imports_loader: Any | None = None):
+    def materialize(self, base_graph: Any, *, inference: Any | None = None, imports_loader: Any | None = None, ignore_imports: bool = False):
         """Runs this rule set on ``base_graph`` once and keeps what it derives, as a :class:`~starlayer.sparql.srl.Materialization`.
 
         Where ``query()`` runs the rules each time, a materialization answers any number of goals from the kept triples
@@ -587,10 +600,11 @@ class RuleSet:
             base_graph: The graph to run the rule set against.
             inference: As for :meth:`infer`.
             imports_loader: As for :meth:`infer`.
+            ignore_imports: As for :meth:`infer`.
         """
         from . import srl_eval
 
-        return srl_eval.Materialization(self, base_graph, inference=inference, imports_loader=imports_loader)
+        return srl_eval.Materialization(self, base_graph, inference=inference, imports_loader=imports_loader, ignore_imports=ignore_imports)
 
     def query(
         self,
@@ -599,6 +613,7 @@ class RuleSet:
         *,
         inference: Any | None = None,
         imports_loader: Any | None = None,
+        ignore_imports: bool = False,
     ) -> list[dict]:
         """Runs :meth:`infer` then returns every match of
         ``goal_pattern`` against ``base_graph`` union the inferred triples
@@ -614,6 +629,7 @@ class RuleSet:
                 is no ``schema=`` here - this method returns rows, not a
                 graph, so there is nothing to validate.
             imports_loader: Same meaning as :meth:`infer`'s own ``imports_loader=``.
+            ignore_imports: Same meaning as :meth:`infer`'s own ``ignore_imports=``.
 
         Returns:
             One ``dict[Variable, term]`` solution per match: the keys are ``pyoxigraph.Variable``, as in the wrapper's own query
@@ -630,7 +646,7 @@ class RuleSet:
         if inference is not None:
             base_graph = base_graph.infer(entailment=inference, mode="full")
 
-        rows = srl_eval._srl_query(base_graph, self._with_imports_resolved(imports_loader), goal_pattern)
+        rows = srl_eval._srl_query(base_graph, self._with_imports_resolved(imports_loader, ignore_imports), goal_pattern)
         import pyoxigraph as ox
 
         return [{ox.Variable(var.value): value for var, value in row.items()} for row in rows]

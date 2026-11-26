@@ -257,3 +257,73 @@ class TestParseWithAnImportsLoader:
 
         with pytest.raises(ExecutionError, match="not found"):
             parse_ruleset(self.TEXT, imports_loader=loader)
+
+
+class TestTheImportRule:
+    """The one import rule (decision 2026-11-26) for rule sets: a loader that returns ``None``, a missing loader and a loader that raises are
+    all ``ExecutionError`` kind ``"import"`` (with ``unresolved``), ``ignore_imports=True`` runs the document's own rules."""
+
+    def test_a_loader_that_returns_none_is_an_error_naming_the_iri(self):
+        with pytest.raises(ExecutionError) as caught:
+            resolve_imports(parse_ruleset(P + f"IMPORTS <{BASE_LIB}>"), lambda iri: None)
+        assert caught.value.kind == "import"
+        assert caught.value.unresolved == (ox.NamedNode(BASE_LIB),)
+        assert BASE_LIB in caught.value.context
+
+    def test_no_loader_is_an_error_too(self):
+        with pytest.raises(ExecutionError) as caught:
+            resolve_imports(parse_ruleset(P + f"IMPORTS <{BASE_LIB}>"), None)
+        assert caught.value.kind == "import" and caught.value.unresolved == (ox.NamedNode(BASE_LIB),)
+
+    def test_every_unresolved_import_is_listed_and_the_resolved_one_is_not(self):
+        root = parse_ruleset(P + f"IMPORTS <{BASE_LIB}>\nIMPORTS <{EXPOSURE_LIB}>\n")
+        with pytest.raises(ExecutionError) as caught:
+            resolve_imports(root, {BASE_LIB: DOCS[BASE_LIB]}.get)
+        assert caught.value.unresolved == (ox.NamedNode(EXPOSURE_LIB),)
+
+    def test_a_loader_that_raises_is_wrapped_with_the_original_as_cause(self):
+        def broken(iri):
+            raise OSError("no such file")
+
+        with pytest.raises(ExecutionError) as caught:
+            resolve_imports(parse_ruleset(P + f"IMPORTS <{BASE_LIB}>"), broken)
+        assert isinstance(caught.value.__cause__, OSError)
+        assert caught.value.unresolved == (ox.NamedNode(BASE_LIB),)
+
+    def test_ignore_imports_returns_the_rule_set_as_it_is_and_never_calls_the_loader(self):
+        loader = _Loader({})
+        root = parse_ruleset(ROOT)
+        assert resolve_imports(root, loader, ignore_imports=True) is root
+        assert loader.calls == []
+
+    def test_parse_ruleset_with_a_loader_that_returns_none_raises_and_with_ignore_imports_does_not(self):
+        with pytest.raises(ExecutionError) as caught:
+            parse_ruleset(ROOT, imports_loader=lambda iri: None)
+        assert caught.value.kind == "import"
+        assert not parse_ruleset(ROOT, imports_loader=lambda iri: None, ignore_imports=True).is_resolved
+
+    def test_infer_query_materialize_and_plan_run_the_documents_own_rules_with_ignore_imports(self):
+        root = parse_ruleset(ROOT)
+        inferred = root.infer(_graph(), ignore_imports=True)
+        assert len(inferred) == 0  # ex:status needs ex:exposedTo, which only the imports derive
+        assert root.query(_graph(), "?x ex:status ex:critical", ignore_imports=True) == []
+        assert root.materialize(_graph(), ignore_imports=True).inferred is not None
+        assert len(root.plan(ignore_imports=True).strata) >= 1
+
+    def test_plan_without_a_loader_raises_like_infer(self):
+        with pytest.raises(ExecutionError) as caught:
+            parse_ruleset(ROOT).plan()
+        assert caught.value.kind == "import" and caught.value.unresolved == (ox.NamedNode(EXPOSURE_LIB),)
+
+    def test_infer_without_a_loader_names_the_iris_on_the_error(self):
+        with pytest.raises(ExecutionError) as caught:
+            parse_ruleset(ROOT).infer(_graph())
+        assert caught.value.unresolved == (ox.NamedNode(EXPOSURE_LIB),)
+
+    def test_the_error_survives_pickle(self):
+        import pickle
+
+        with pytest.raises(ExecutionError) as caught:
+            parse_ruleset(ROOT).infer(_graph())
+        again = pickle.loads(pickle.dumps(caught.value))
+        assert again.unresolved == caught.value.unresolved and again.kind == "import"

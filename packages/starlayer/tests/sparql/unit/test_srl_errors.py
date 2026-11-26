@@ -68,6 +68,13 @@ def test_an_import_the_loader_cannot_read_is_an_execution_error_of_kind_import()
     with pytest.raises(ExecutionError, match="no such file") as caught:
         resolve_imports(parse_ruleset(P + f"IMPORTS <{LIB}>"), broken)
     assert caught.value.kind == "import" and LIB in caught.value.context
+    assert isinstance(caught.value.__cause__, OSError) and [i.value for i in caught.value.unresolved] == [LIB]
+
+
+def test_an_import_the_loader_has_no_rule_set_for_is_an_execution_error_of_kind_import():
+    with pytest.raises(ExecutionError) as caught:
+        resolve_imports(parse_ruleset(P + f"IMPORTS <{LIB}>"), lambda iri: None)
+    assert caught.value.kind == "import" and LIB in caught.value.context and [i.value for i in caught.value.unresolved] == [LIB]
 
 
 def test_an_import_that_is_not_a_rule_set_is_a_format_error_of_kind_srl():
@@ -81,6 +88,7 @@ def test_an_import_left_unresolved_when_the_rules_run_is_an_execution_error_of_k
     with pytest.raises(ExecutionError) as caught:
         rs.infer(StarLayerGraph())
     assert caught.value.kind == "import" and LIB in caught.value.context and LIB in str(caught.value)
+    assert [i.value for i in caught.value.unresolved] == [LIB]
 
 
 def test_a_rule_set_that_cannot_be_ordered_is_an_execution_error_of_kind_rule():
