@@ -104,7 +104,7 @@ from typing import TYPE_CHECKING, Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError, only_kind
 from starlayer.graph import ordinals
 
 from . import _oxterms as _T
@@ -174,22 +174,6 @@ _AGG_ARGUMENT = SRL["argument"]
 _AGG_DISTINCT = SRL["distinct"]
 
 
-class SRLError(ValueError):
-    """Base class for every SRL-specific exception
-    (``SRLDecodeError`` here, ``SRLEvalError`` and its
-    own subclasses in ``srl_eval.py``; malformed SRL text is a ``FormatError`` of kind ``"srl"``) - gives a caller two real catch
-    granularities, "this specific failure" (``SRLDecodeError``) vs. "any SRL failure" (``SRLError`` itself), the
-    same two-tier shape rdflib (``rdflib.exceptions.Error``) and pyshacl
-    (``pyshacl.errors.ReportableRuntimeError``) each give their own
-    callers."""
-
-
-class SRLImportError(SRLError):
-    """Raised by :func:`resolve_imports` when an ``IMPORTS`` document cannot be
-    read, or is not a valid rule set (§4.5: a processor MUST signal an error in
-    either case)."""
-
-
 def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | None = None) -> srl_ast.RuleSet:
     """Parse SRL rule-set text into a real ``RuleSet``, with no RDF
     involved at all.
@@ -201,7 +185,7 @@ def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | N
     is checked here: not the §4.2 well-formedness conditions (an unbound head, filter or assignment variable, a ``SET(...)``
     reusing a bound variable), not the ``srl:`` shapes, not that the rules can be ordered. :func:`srl_validate` reports all three
     for the rule set's tree (``ruleset_to_tree``); running (``infer()``, ``query()``, ``materialize()``) a rule set that breaks a §4.2 condition raises a ``FormatError`` (kind
-    ``"srl"``), and one that cannot be ordered a ``StratificationError``, so it never evaluates to a wrong answer.
+    ``"srl"``), and one that cannot be ordered an ``ExecutionError`` (kind ``"rule"``), so it never evaluates to a wrong answer.
 
     With ``imports_loader`` (as for :func:`resolve_imports`) the ``IMPORTS`` are resolved while the
     text is parsed, and the result is the resolved rule set (``is_resolved`` is true). ``base`` is then also the IRI the
@@ -218,7 +202,7 @@ def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | N
 
     Raises:
         FormatError: (kind "srl") For text outside the SRL grammar, an undeclared prefix or a property path SRL does not allow.
-        SRLImportError: With ``imports_loader``, as for :func:`resolve_imports`.
+        ExecutionError: (kind ``"import"``) and FormatError (kind ``"srl"``): With ``imports_loader``, as for :func:`resolve_imports`.
     """
     from .parse_srl import parse_srl
 
@@ -229,7 +213,7 @@ def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | N
 
 
 def _check_stratification(ruleset: srl_ast.RuleSet) -> None:
-    """Raise ``StratificationError`` if the rules of ``ruleset`` cannot be ordered."""
+    """Raise an ``ExecutionError`` (kind ``"rule"``) if the rules of ``ruleset`` cannot be ordered."""
     from .srl_eval import _stratify
 
     _stratify(ruleset)
@@ -356,13 +340,14 @@ class _Writer:
 # srl: tree-RDF -> RuleSet - the inverse, same "bespoke containers, delegate leaves" split.
 # ---------------------------------------------------------------------------
 
-class SRLDecodeError(SRLError):
-    """Raised for an ``srl:`` graph shape ``tree_to_ruleset`` doesn't recognize."""
+def _tree_error(message: str) -> FormatError:
+    """The error for an ``srl:`` tree that is not a usable rule set (a missing part, an unknown element, a loop)."""
+    return FormatError(message, kind="srl", why=message, context="srl: tree")
 
 
 def _children(graph, node, prop) -> list:
     """The ordered children of ``node`` for ``prop`` (``graph/ordinals.py``); none is an empty list. A tie, a missing or non-integer
-    ordinal is a ``FormatError`` (kind ``"rdf"``) and is not turned into an ``SRLDecodeError``: the tree has no order to decode."""
+    ordinal is a ``FormatError`` (kind ``"rdf"``) and is not turned into kind ``"srl"``: the tree has no order to decode."""
     return ordinals.ordered_items(graph, node, prop)
 
 
@@ -382,7 +367,7 @@ def _decode_expr(node, graph):
             if parser.peek().kind != "EOF":
                 raise _syntax_error("trailing text after the expression")
         except FormatError as exc:
-            raise SRLDecodeError(f"srl: cannot read the expression {text!r}: {exc}") from exc
+            raise _tree_error(f"srl: cannot read the expression {text!r}: {exc}") from exc
         return _convert(expr)
     return _decode_term(node, graph)
 
@@ -431,7 +416,7 @@ def _is_true(node) -> bool:
 def _decode_body_element(node, graph, path: tuple = ()) -> srl_ast.BodyElement:
     """``path`` is the elements being decoded above ``node``: an element that holds itself (a loop through the ordered children) cannot be decoded."""
     if node in path:
-        raise SRLDecodeError(f"srl: the rule body element {node!r} contains itself")
+        raise _tree_error(f"srl: the rule body element {node!r} contains itself")
     path = (*path, node)
     t = graph.value(node, RDF.type)
     if t == _TRIPLE_PATTERN:
@@ -452,13 +437,13 @@ def _decode_body_element(node, graph, path: tuple = ()) -> srl_ast.BodyElement:
             pattern=[_decode_body_element(n, graph, path) for n in _children(graph, node, _GROUP_PATTERN)],
             aggregations=[_decode_aggregation(n, graph) for n in _children(graph, node, _GROUP_AGGREGATIONS)],
         )
-    raise SRLDecodeError(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
+    raise _tree_error(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
 
 
 def _decode_aggregation(node, graph) -> srl_ast._Aggregation:
     function = graph.value(node, _AGG_FUNCTION)
     if not isinstance(function, ox.Literal) or function.value not in ("COUNT", "MIN", "MAX", "SUM"):
-        raise SRLDecodeError(f"aggregation node {node!r} has no aggregation function COUNT, MIN, MAX or SUM")
+        raise _tree_error(f"aggregation node {node!r} has no aggregation function COUNT, MIN, MAX or SUM")
     argument = graph.value(node, _AGG_ARGUMENT)
     return srl_ast._Aggregation(
         var=_decode_term(graph.value(node, _VAR), graph),
@@ -485,7 +470,7 @@ def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
     not yet decoded) back into a real ``srl_ast.RuleSet``.
 
     Raises:
-        SRLDecodeError: A part of the tree is missing or is not what the rule set needs (a damaged or hand-edited tree).
+        FormatError: (kind ``"srl"``) A part of the tree is missing or is not what the rule set needs (a damaged or hand-edited tree).
         FormatError: (kind ``"rdf"``) The order of some children is not defined: two children of one parent and property with the same
             ``tree:ord``, or a child with a missing, repeated, negative or non-integer ordinal.
     """
@@ -496,12 +481,12 @@ def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
         rules = [_decode_rule(n, graph) for n in _children(graph, root, _RULES)]
         data = [_decode_data(n, graph) for n in _children(graph, root, _DATA)]
         imports = _children(graph, root, _IMPORTS)
-    except SRLError:
+    except FormatError:
         raise
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
         # a damaged tree (a missing part, a triple term that is not one) is the one error
         # a caller reading hand-edited trees catches
-        raise SRLDecodeError(f"srl: the tree cannot be read as a rule set: {exc}") from exc
+        raise _tree_error(f"srl: the tree cannot be read as a rule set: {exc}") from exc
     return srl_ast.RuleSet(rules=rules, data=data, imports=imports)
 
 
@@ -670,9 +655,9 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None = 
         A new ``RuleSet`` with ``imports == []``.
 
     Raises:
-        SRLImportError: If the loader fails for an import, or returns text that is
-            not a valid rule set.
-        StratificationError: If the rules of the combined rule set cannot be ordered.
+        ExecutionError: (kind ``"import"``) If the loader fails for an import.
+        FormatError: (kind ``"srl"``) If the loader returns text that is not a valid rule set.
+        ExecutionError: (kind ``"rule"``) If the rules of the combined rule set cannot be ordered.
     """
     return _resolve_imports(ruleset, loader, location=location, check=True)
 
@@ -708,12 +693,14 @@ def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, 
                 loaded = loader(_T.iri_text(import_iri))
             except Exception as exc:
                 reason = "not found" if isinstance(exc, KeyError) else f"{type(exc).__name__}: {exc}"
-                raise SRLImportError(f"SRL: cannot read the import <{import_iri}>: {reason}") from exc
+                message = f"SRL: cannot read the import <{import_iri}>: {reason}"
+                raise ExecutionError(message, kind="import", context=f"IMPORTS <{import_iri}>") from exc
             if isinstance(loaded, str):
                 try:
                     loaded = parse_ruleset(loaded, base=_T.iri_text(import_iri))
                 except FormatError as exc:
-                    raise SRLImportError(f"SRL: the import <{import_iri}> is not a valid rule set: {exc}") from exc
+                    message = f"SRL: the import <{import_iri}> is not a valid rule set: {exc}"
+                    raise FormatError(message, kind="srl", why=message, context=f"IMPORTS <{import_iri}>") from exc
             sub_rules, sub_data = _merge(loaded, renamed=True)
             rules += sub_rules
             data += sub_data
@@ -868,8 +855,8 @@ def srl_validate(tree_graph: Any) -> ValidationReport:
     (``srl_semantic_checks``, a ``FormatError``): a SPARQL constraint per element costs too much to run on every ``infer()``
     (a 40-rule set takes about half a second), and ``test_srl_wellformedness_agreement.py`` keeps the two the same.
 
-    Two things shapes cannot say are added when the structure conforms: that the rules can be ordered (§4.4, a
-    ``StratificationError`` when running) is an ``sh:Violation`` with the ``srl:RuleSet`` node as its focus node; and an
+    Two things shapes cannot say are added when the structure conforms: that the rules can be ordered (§4.4, an
+    ``ExecutionError`` of kind ``"rule"`` when running) is an ``sh:Violation`` with the ``srl:RuleSet`` node as its focus node; and an
     ``IMPORTS`` entry that is not resolved is an ``sh:Warning`` (``srl:UnresolvedImportsShape``, one result per import IRI, focus
     node the ``srl:RuleSet``), which does not make the report non-conforming: the ordering check covers only the rules in the
     document, and an imported rule can add a dependency that makes them unorderable. A tree that cannot be decoded is left to the
@@ -898,17 +885,18 @@ def srl_validate(tree_graph: Any) -> ValidationReport:
 
 def _ordering_problems(tree_graph: Any) -> list[tuple[Any, str]]:
     """``(srl:RuleSet node, message)`` for each rule set of a structurally sound tree whose rules cannot be ordered (§4.4)."""
-    from .srl_eval import StratificationError, _stratify
+    from .srl_eval import _stratify
 
     problems: list[tuple[Any, str]] = []
     for root in sorted(tree_graph.subjects(RDF.type, SRL.RuleSet), key=str):
         try:
             ruleset = tree_to_ruleset(tree_graph, root)
-        except SRLError:
+        except FormatError:
             continue
         try:
             _stratify(ruleset)
-        except StratificationError as error:
+        except ExecutionError as error:
+            only_kind(error, "rule")
             problems.append((root, str(error)))
     return problems
 

@@ -14,7 +14,7 @@ from __future__ import annotations
 import pytest
 from rdflib import Graph
 from starlayer.sparql.srl import parse_ruleset
-from starlayer.sparql.srl_eval import StratificationError
+from starlayer.errors import ExecutionError
 
 pytestmark = pytest.mark.srl_stratification
 
@@ -51,7 +51,7 @@ def test_negation_cycle_through_two_rules_is_rejected():
         "RULE { ?x :p ?y } WHERE { ?x :q ?y . NOT { ?x :r ?y } }",
         "RULE { ?x :r ?y } WHERE { ?x :p ?y }",
     )
-    with pytest.raises(StratificationError):
+    with pytest.raises(ExecutionError, match="stratification"):
         ruleset.plan()
 
 
@@ -61,7 +61,7 @@ def test_negation_cycle_through_three_rules_is_rejected():
         "RULE { ?x :b ?y } WHERE { ?x :a ?y }",
         "RULE { ?x :c ?y } WHERE { ?x :b ?y }",
     )
-    with pytest.raises(StratificationError):
+    with pytest.raises(ExecutionError, match="stratification"):
         ruleset.plan()
 
 

@@ -143,7 +143,7 @@ def test_a_loop_through_the_ordered_children_cannot_be_decoded_or_conform():
     inner = srl.SRL["inner"]
     g.add((negation, inner, negation))  # the negation holds itself; it also needs a position
     g.add((negation, ordinals.ORD, ordinals._integer(9)))
-    with pytest.raises((srl.SRLDecodeError, FormatError)):
+    with pytest.raises(FormatError):
         srl.tree_to_ruleset(g, root)
     assert not srl.srl_validate(g).conforms
 

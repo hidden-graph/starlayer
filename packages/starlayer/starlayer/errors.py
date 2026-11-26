@@ -17,7 +17,8 @@ The tree::
 
 ``ExecutionError`` is one class; its ``kind`` (one of ``ExecutionError.KINDS``) says what failed:
 
-* ``"rule"``: a rule failed while running, ``max_iterations`` or ``max_triples`` was exceeded, or the rule set failed as a whole.
+* ``"rule"``: a rule failed while running, ``max_iterations`` or ``max_triples`` was exceeded, or the rule set failed as a whole (an SRL
+  rule set whose rules cannot be ordered, §4.4.1).
 * ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
 * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
@@ -28,6 +29,8 @@ The tree::
 * ``"query"``: the SPARQL engine (Oxigraph) failed while evaluating a query or update (its ``RuntimeError``), for text that parsed.
 * ``"inference"``: the reasoner could not run or died: a Java runtime that is missing or broken, an owlready2 Java error, or a
   reasoning subprocess that exited without a result (a crash, not a timeout).
+* ``"import"``: an SRL ``IMPORTS`` document cannot be loaded (the loader failed) or an imported rule set was never resolved, so the
+  rule set cannot be run (§4.5). An imported text that is not a valid rule set is a ``FormatError`` of kind ``"srl"`` instead.
 
 ``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
 update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"``, ``"term"``, ``"manchester"``, ``"owl"``. A position
@@ -100,7 +103,7 @@ class ExecutionError(StarLayerError):
 
     Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
 
-    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query")
+    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import")
 
     def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
         if kind not in self.KINDS:

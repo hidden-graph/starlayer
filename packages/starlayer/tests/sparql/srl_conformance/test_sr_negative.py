@@ -135,14 +135,14 @@ STRATIFICATION = [
 @pytest.mark.srl_conformance
 @pytest.mark.parametrize(("case_id", "text"), STRATIFICATION, ids=[c[0] for c in STRATIFICATION])
 def test_non_stratifiable_rule_sets_are_refused(case_id, text, request):
-    from starlayer.sparql.srl_eval import StratificationError
+    from starlayer.errors import ExecutionError
 
     if case_id in NEGATIVE_FAILURES:
         request.applymarker(pytest.mark.xfail(reason=NEGATIVE_FAILURES[case_id], strict=True))
     from starlayer.graph import StarLayerGraph
 
     ruleset = parse_ruleset(PRELUDE + text)  # the grammar cannot see a cycle: it loads, and running the rules refuses it
-    with pytest.raises(StratificationError):
+    with pytest.raises(ExecutionError, match="stratification"):
         ruleset.infer(StarLayerGraph())
 
 

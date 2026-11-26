@@ -2,7 +2,7 @@
 
 import pyoxigraph as ox
 import pytest
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql import srl
 
@@ -50,7 +50,7 @@ def test_stratifier_keeps_a_real_dependency_with_repeated_variables():
     rs = srl.parse_ruleset(
         PRE + "RULE { ?x :ok ?x } WHERE { ?x :q ?o NOT { ?x :bad ?x } }\nRULE { ?s :bad ?s } WHERE { ?s :ok ?s }\n",
     )
-    with pytest.raises(srl.SRLError):
+    with pytest.raises((ExecutionError, FormatError)):
         list(rs.infer(_data(":a :q :b")))
 
 
@@ -195,7 +195,7 @@ def test_a_nested_triple_term_in_object_position_is_fine():
 def test_a_data_triple_with_a_literal_subject_is_an_srl_error():
     # the srl: shapes reject it at parse; with validate=False it is still caught when the rules run
     rs = srl.parse_ruleset(PRE + "DATA { \"a\" :p :b }")
-    with pytest.raises(srl.SRLError):
+    with pytest.raises((ExecutionError, FormatError)):
         rs.infer(StarLayerGraph())
 
 
@@ -234,7 +234,7 @@ def test_a_variable_name_above_the_bmp_is_refused_when_the_rules_run():
 
 
 def test_every_single_triple_deletion_decodes_or_raises_a_decode_or_format_error():
-    """A dropped ordinal is a FormatError (kind "rdf", from graph/ordinals.py); any other damage an SRLDecodeError."""
+    """A dropped ordinal is a FormatError (kind "rdf", from graph/ordinals.py); any other damage a FormatError (kind "srl")."""
     rs = srl.parse_ruleset(PRE + "RULE { :a :p <<( :a :b ?y )>> } WHERE { :a :q ?y FILTER(?y > 1) NOT { :a :z ?y } }")
     g, root = srl.ruleset_to_tree(rs)
     triples = list(g)
@@ -243,5 +243,5 @@ def test_every_single_triple_deletion_decodes_or_raises_a_decode_or_format_error
         g2.extend([t for t in triples if t != dropped])
         try:
             srl.tree_to_ruleset(g2, root)
-        except (srl.SRLError, FormatError):
+        except FormatError:
             pass

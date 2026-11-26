@@ -7,8 +7,8 @@ import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql import srl
-from starlayer.sparql.srl import SRLImportError, parse_ruleset, resolve_imports
-from starlayer.sparql.srl_eval import SRLImportsNotSupportedError
+from starlayer.errors import ExecutionError, FormatError
+from starlayer.sparql.srl import parse_ruleset, resolve_imports
 
 EX = "http://example.org/"
 P = f"PREFIX ex: <{EX}>\n"
@@ -53,7 +53,7 @@ ROOT = (
 
 
 def test_a_rule_set_with_imports_is_still_rejected_without_a_loader():
-    with pytest.raises(SRLImportsNotSupportedError):
+    with pytest.raises(ExecutionError, match="IMPORTS"):
         parse_ruleset(ROOT).infer(_graph())
 
 
@@ -133,13 +133,13 @@ def test_a_loader_that_fails_is_reported_with_the_import_iri():
     def broken(iri):
         raise OSError("no such file")
 
-    with pytest.raises(SRLImportError, match="lib/base.srl.*no such file"):
+    with pytest.raises(ExecutionError, match="lib/base.srl.*no such file"):
         resolve_imports(parse_ruleset(P + f"IMPORTS <{BASE_LIB}>"), broken)
 
 
 def test_an_import_that_is_not_a_valid_rule_set_is_an_error():
     loader = _Loader({BASE_LIB: "RULE { this is not srl"})
-    with pytest.raises(SRLImportError, match="not a valid rule set"):
+    with pytest.raises(FormatError, match="not a valid rule set"):
         resolve_imports(parse_ruleset(P + f"IMPORTS <{BASE_LIB}>"), loader)
 
 
@@ -193,9 +193,9 @@ class TestParseDoesNotCheckTheOrder:
         assert not report.conforms and "no well-defined evaluation" in report.report_text or "closed edge" in report.report_text
 
     def test_running_it_raises(self):
-        from starlayer.sparql.srl_eval import StratificationError
+        from starlayer.errors import ExecutionError
 
-        with pytest.raises(StratificationError):
+        with pytest.raises(ExecutionError, match="stratification"):
             parse_ruleset(self.P + self.SELF_NOT).infer(Graph())
 
     def test_a_rule_set_with_imports_loads_without_a_warning(self, recwarn):
@@ -210,11 +210,11 @@ class TestParseDoesNotCheckTheOrder:
 
     def test_an_import_that_adds_the_cycle_is_caught_when_the_imports_are_resolved(self):
         from starlayer.sparql.srl import resolve_imports
-        from starlayer.sparql.srl_eval import StratificationError
+        from starlayer.errors import ExecutionError
 
         library = self.P + "RULE { ?x ex:b ?y } WHERE { ?x ex:c ?y . NOT { ?x ex:a ?y } }"
         ruleset = parse_ruleset("IMPORTS <http://example.org/lib>\n" + self.P + "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y }")
-        with pytest.raises(StratificationError):
+        with pytest.raises(ExecutionError, match="stratification"):
             resolve_imports(ruleset, lambda iri: library)
 
 
@@ -236,12 +236,12 @@ class TestParseWithAnImportsLoader:
         assert len(ruleset.infer(base)) == 2
 
     def test_the_combined_rule_set_loads_and_running_it_is_checked(self):
-        from starlayer.sparql.srl_eval import StratificationError
+        from starlayer.errors import ExecutionError
 
         library = self.P + "RULE { ?x ex:e ?y } WHERE { ?x ex:h ?y . NOT { ?x ex:s ?y } }"
         ruleset = parse_ruleset(self.TEXT, imports_loader=lambda iri: library)
         assert ruleset.is_resolved
-        with pytest.raises(StratificationError):
+        with pytest.raises(ExecutionError, match="stratification"):
             ruleset.infer(Graph())
 
     def test_the_loader_is_not_called_when_there_are_no_imports(self):
@@ -254,5 +254,5 @@ class TestParseWithAnImportsLoader:
         def loader(iri):
             raise KeyError(iri)
 
-        with pytest.raises(SRLImportError, match="not found"):
+        with pytest.raises(ExecutionError, match="not found"):
             parse_ruleset(self.TEXT, imports_loader=loader)

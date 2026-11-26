@@ -141,7 +141,7 @@ def assert_rejected(text: str) -> None:
     import pytest
     from starlayer.errors import FormatError
     from starlayer.graph import StarLayerGraph
-    from starlayer.sparql.srl_eval import StratificationError
+    from starlayer.errors import ExecutionError
 
     try:
         ruleset = parse_ruleset(text)
@@ -149,5 +149,5 @@ def assert_rejected(text: str) -> None:
         assert caught.kind == "srl"
         return
     assert not srl_validate(ruleset_to_tree(ruleset)[0]).conforms, "srl_validate accepted it"
-    with pytest.raises((FormatError, StratificationError)):
+    with pytest.raises((FormatError, ExecutionError)):
         ruleset.infer(StarLayerGraph())

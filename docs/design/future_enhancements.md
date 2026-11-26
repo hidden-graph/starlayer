@@ -266,7 +266,7 @@ The curated capability list (`codekg/curated/functionality.ttl`) and the guide n
 |---|---|---|---|---|
 | `owl:imports` on a graph | `StarLayerGraph.resolve_imports()` | `loader=` | a graph, or `None` | skipped, no error |
 | `owl:imports` in SHACL validation | `validate(shapes_graph_loader=, ignore_imports=)` | `shapes_graph_loader=` | a graph, or `None` | skipped, no error |
-| SRL `IMPORTS` | `srl.resolve_imports()`; `imports_loader=` on `RuleSet.infer()`/`.query()`/`.plan()` | `loader` (positional) / `imports_loader=` | SRL text or a `RuleSet` | `SRLImportError` |
+| SRL `IMPORTS` | `srl.resolve_imports()`; `imports_loader=` on `RuleSet.infer()`/`.query()`/`.plan()` | `loader` (positional) / `imports_loader=` | SRL text or a `RuleSet` | `ExecutionError` kind `"import"` (`FormatError` kind `"srl"` for an imported text that is not a rule set) |
 
 The differences in error policy and in the merge (graph union with `owl:versionIRI` identity, against rules appended plus an RDF merge of `DATA` with blank nodes renamed) come from the specs and should stay. A single generic resolver is not worth it: its core is a visited set and a queue, about 15 lines, and the parsing step, the merge and the missing-import policy would all have to be parameters.
 

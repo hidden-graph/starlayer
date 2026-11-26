@@ -42,34 +42,15 @@ from dataclasses import dataclass
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError, FormatError
+
 from . import _srl_ast as srl_ast
 from .expr_text import expr_variables
 from .parse_sparql import Node
-from .srl import SRLError
 from .triple_term import TripleTermNode
 
 Variable = ox.Variable
 BNode = ox.BlankNode
-
-
-class SRLEvalError(SRLError):
-    """Base class for SRL evaluation errors. Subclasses ``SRLError``
-    (``srl.py``) so a caller can catch either "any evaluation failure"
-    (this type) or "any SRL failure at all" (``SRLError``, which also
-    covers ``FormatError``/``SRLDecodeError``)."""
-
-
-class StratificationError(SRLEvalError):
-    """§4.4.1: the rule set's dependency graph has a recursive dependency
-    involving a closed dependency - the spec explicitly leaves evaluation
-    undefined for this case, so this is raised rather than producing a
-    silently-wrong or non-terminating result."""
-
-
-class SRLImportsNotSupportedError(SRLEvalError):
-    """A rule set that still has ``IMPORTS`` was run. §4.5 requires a processor to reject such a rule set, or resolve the imports,
-    and never to ignore them. StarLayer resolves imports only through a caller-supplied loader (``imports_loader=``, or
-    ``srl.resolve_imports()``), so a run without one is rejected with this error."""
 
 
 # ---------------------------------------------------------------------------
@@ -228,7 +209,7 @@ def _stratify(ruleset: srl_ast.RuleSet) -> list[tuple[list[srl_ast._Rule], list[
         stratum, in evaluation order.
 
     Raises:
-        StratificationError: If the §4.4.1 Stratification Condition is
+        ExecutionError: (kind ``"rule"``, context ``"stratification"``) If the §4.4.1 Stratification Condition is
             violated (a recursive dependency involving a closed edge).
     """
     edges = _build_dependency_graph(ruleset)
@@ -249,10 +230,11 @@ def _stratify(ruleset: srl_ast.RuleSet) -> list[tuple[list[srl_ast._Rule], list[
                 if stratum[p] <= stratum[q]:
                     x = 1 + stratum[q]
                     if x > limit:
-                        raise StratificationError(
+                        raise ExecutionError(
                             "SRL: stratification condition violated - a recursive "
                             "dependency involves a closed edge, so this rule set has "
-                            "no well-defined evaluation outcome per §4.4.1"
+                            "no well-defined evaluation outcome per §4.4.1",
+                            kind="rule", context="stratification",
                         )
                     stratum[p] = x
                     max_stratum = max(max_stratum, x)
@@ -741,7 +723,7 @@ def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[
         The substituted ``(subject, predicate, object)`` tuple.
 
     Raises:
-        SRLEvalError: If the head uses a variable not bound in ``mu``.
+        FormatError: (kind ``"srl"``) If the head uses a variable not bound in ``mu``.
     """
 
     def _sub(t):
@@ -749,10 +731,9 @@ def _subst_head_triple(triple: srl_ast.TriplePattern, mu: dict, bnode_map: dict[
             try:
                 return mu[t]
             except KeyError as exc:
-                raise SRLEvalError(
-                    f"SRL: rule head uses variable {t!r} not bound by its own body - "
-                    "the rule is not well-formed per §4.2 (see srl_semantic_checks.py)"
-                ) from exc
+                text = (f"SRL: rule head uses variable {t!r} not bound by its own body - "
+                        "the rule is not well-formed per §4.2 (see srl_semantic_checks.py)")
+                raise FormatError(text, kind="srl", why=text, context="rule head") from exc
         if isinstance(t, BNode):
             if t not in bnode_map:
                 bnode_map[t] = ox.BlankNode()
@@ -842,7 +823,7 @@ def _evaluate_ruleset(base_graph, ruleset: srl_ast.RuleSet):
         contract) - not the combined evaluation graph.
 
     Raises:
-        SRLImportsNotSupportedError: If ``ruleset.imports`` is non-empty.
+        ExecutionError: (kind ``"import"``) If ``ruleset.imports`` is non-empty.
     """
     return _evaluate(base_graph, ruleset).inferred_graph()
 
@@ -865,10 +846,11 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet) -> _E
     base_graph = flatten_dataset(base_graph)
     if ruleset.imports:
         iris = ", ".join(f"<{iri.value}>" for iri in ruleset.imports)
-        raise SRLImportsNotSupportedError(
+        raise ExecutionError(
             f"SRL: this rule set has IMPORTS that are not resolved ({iris}). Pass imports_loader= to infer(), query() or plan() "
             "to resolve them for the call, or resolve them once with srl.resolve_imports() or parse_ruleset(imports_loader=). "
-            "A rule set with IMPORTS is never run with its imports ignored (§4.5)."
+            "A rule set with IMPORTS is never run with its imports ignored (§4.5).",
+            kind="import", context=f"IMPORTS {iris}",
         )
 
     from .srl_semantic_checks import _require_well_formed
@@ -880,9 +862,11 @@ def _evaluate_ruleset_at_one_instant(base_graph, ruleset: srl_ast.RuleSet) -> _E
             try:
                 triple = tuple(_graph_term(part) for part in (t.subject, t.predicate, t.object))
             except _InvalidInstance as exc:
-                raise SRLEvalError(f"SRL: a DATA block has an invalid triple term: {exc}") from exc
+                text = f"SRL: a DATA block has an invalid triple term: {exc}"
+                raise FormatError(text, kind="srl", why=text, context="DATA") from exc
             if isinstance(triple[0], (ox.Literal, ox.Triple)) or not isinstance(triple[1], ox.NamedNode):
-                raise SRLEvalError(f"SRL: a DATA block has a triple that is not an RDF triple (literal subject or non-IRI predicate): {t}")
+                text = f"SRL: a DATA block has a triple that is not an RDF triple (literal subject or non-IRI predicate): {t}"
+                raise FormatError(text, kind="srl", why=text, context="DATA")
             d.add(triple)
 
     evaluation = _Evaluation(base_graph, [t for t in d if t not in base_graph])

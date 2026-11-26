@@ -11,11 +11,10 @@ independent reference implementation.
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.srl import parse_ruleset
 from starlayer.sparql.srl_eval import (
-    SRLImportsNotSupportedError,
-    StratificationError,
     _build_dependency_graph,
     _stratify,
 )
@@ -187,14 +186,14 @@ def test_stratification_error_on_closed_self_cycle():
     RULE {{ ?x :p true }} WHERE {{ ?x :q true . NOT {{ ?x :p true }} }}
     """
     ruleset = parse_ruleset(text)
-    with pytest.raises(StratificationError):
+    with pytest.raises(ExecutionError, match="stratification"):
         _stratify(ruleset)
 
 
 def test_imports_rejected():
     text = f"IMPORTS <{EX}other>\nPREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . }}"
     ruleset = parse_ruleset(text)
-    with pytest.raises(SRLImportsNotSupportedError):
+    with pytest.raises(ExecutionError, match="IMPORTS"):
         ruleset.infer(Graph())
 
 
@@ -437,7 +436,7 @@ def test_plan_raises_stratification_error_without_running_anything():
     ruleset = parse_ruleset(
         f"PREFIX : <{EX}>\nRULE {{ ?x :p ?y }} WHERE {{ ?x :q ?y . NOT {{ ?x :p ?y }} }}"
     )
-    with pytest.raises(StratificationError):
+    with pytest.raises(ExecutionError, match="stratification"):
         ruleset.plan()
 
 
@@ -468,7 +467,7 @@ def _km_triples(graph):
 def test_not_data_does_not_count_as_a_dependency_on_the_rules_own_output():
     """Spec Example 9: a default-value rule negates a pattern over the same predicate it
     produces. ``NOT GROUND`` matches only the base graph, so it adds no dependency edge and
-    the rule set stratifies (a plain ``NOT`` here is a StratificationError)."""
+    the rule set stratifies (a plain ``NOT`` here is an ExecutionError)."""
     ruleset = parse_ruleset(
         f"PREFIX : <{EX}>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
         "RULE { ?x :km ?k } WHERE { ?x :miles ?m . NOT GROUND { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }"
@@ -494,7 +493,7 @@ def test_plain_not_over_the_rules_own_output_is_still_a_stratification_error():
         f"PREFIX : <{EX}>\nPREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
         "RULE { ?x :km ?k } WHERE { ?x :miles ?m . NOT { ?x :km ?old } SET(?k := xsd:integer(?m * 1.60934)) }",
     )
-    with pytest.raises(StratificationError):
+    with pytest.raises(ExecutionError, match="stratification"):
         ruleset.plan()
 
 
@@ -632,12 +631,12 @@ class TestQueryRunsOnlyWhatTheGoalNeeds:
         assert {rule.head[0].predicate for rule in derived} == {ox.NamedNode(EX + "grandparentOf"), ox.NamedNode(EX + "ancestorOf")}
 
     def test_a_rule_set_that_does_not_stratify_is_still_rejected(self):
-        from starlayer.sparql.srl_eval import StratificationError
+        from starlayer.errors import ExecutionError
 
         ruleset = parse_ruleset(
             f"PREFIX ex: <{EX}>\nRULE {{ ?x ex:a ?y }} WHERE {{ ?x ex:b ?y . NOT {{ ?x ex:a ?y }} }}\nRULE {{ ?x ex:c ?y }} WHERE {{ ?x ex:d ?y }}",
         )
-        with pytest.raises(StratificationError):
+        with pytest.raises(ExecutionError, match="stratification"):
             ruleset.query(self._graph(), "?x ex:c ?y")
 
     def _graph(self):

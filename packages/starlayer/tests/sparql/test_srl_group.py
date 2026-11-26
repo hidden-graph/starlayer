@@ -8,7 +8,7 @@ are in scope afterwards."""
 from __future__ import annotations
 
 import pytest
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql.parse_srl import parse_srl
 from starlayer.sparql.srl import (
@@ -19,7 +19,6 @@ from starlayer.sparql.srl import (
     srl_validate,
     tree_to_ruleset,
 )
-from starlayer.sparql.srl_eval import StratificationError
 
 P = "PREFIX : <http://e/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
 
@@ -161,7 +160,7 @@ def test_the_group_rule_runs_after_the_rules_that_produce_what_its_pattern_match
 
 def test_a_rule_that_groups_over_its_own_output_is_a_stratification_error():
     rules = "RULE { ?x :n ?n } WHERE { ?x rdf:type :C . GROUP BY ?x { ?x :n ?m } [ ?n := COUNT(*) ] }"
-    with pytest.raises(StratificationError):
+    with pytest.raises(ExecutionError, match="stratification"):
         parse_ruleset(P + rules).plan()
 
 

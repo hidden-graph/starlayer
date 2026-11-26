@@ -441,7 +441,7 @@ class RuleSet:
             The :class:`RulePlan`.
 
         Raises:
-            StratificationError: If a recursive dependency involves a
+            ExecutionError: (kind ``"rule"``) If a recursive dependency involves a
                 negation, so no valid evaluation order exists (§4.4.1).
         """
         from . import srl, srl_eval
@@ -502,7 +502,7 @@ class RuleSet:
                 :func:`starlayer.sparql.srl.resolve_imports`). There is no default
                 loader, because reading a document has security implications; without
                 one, a rule set that has imports is rejected with
-                ``SRLImportsNotSupportedError``.
+                an ``ExecutionError`` of kind ``"import"``.
             schema: A ``starlayer.shacl.StarShaclProcessor`` instance, or a
                 bare SHACL shapes graph, to validate the inferred result
                 against. A bare shapes graph is wrapped in a throwaway

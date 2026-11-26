@@ -8,7 +8,7 @@ Each directory has a ``manifest.ttl`` with ``srt:`` test types (read with pyoxig
   ``parse_srl``, since a syntax test is "regardless of well-formedness and stratification".
 * ``RulesPositiveWellFormednessTest`` / ``RulesNegativeWellFormednessTest``: ``parse_ruleset`` accepts / rejects.
 * ``RulesPositiveStratificationTest`` / ``RulesNegativeStratificationTest``: ``RuleSet.plan()`` succeeds / raises
-  ``StratificationError``.
+  ``ExecutionError`` (kind ``"rule"``).
 * ``RulesEvalTest``: ``RuleSet.infer(data)`` is isomorphic with the expected graph (the triples the rule set adds).
 
 Known failures are strict xfails with a reason (``KNOWN``): the entry fails loudly when the gap closes.
@@ -21,12 +21,11 @@ from pathlib import Path
 
 import pyoxigraph as ox
 import pytest
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.sparql.parse_srl import parse_srl
 from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree, srl_validate
-from starlayer.sparql.srl_eval import StratificationError
 
 ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite" / "tests" / "sparql-rl"
 
@@ -120,7 +119,7 @@ def test_sparql_rl(entry) -> None:
         elif kind == "RulesPositiveStratificationTest":
             parse_ruleset(text).plan()
         elif kind == "RulesNegativeStratificationTest":
-            with pytest.raises(StratificationError):
+            with pytest.raises(ExecutionError, match="stratification"):
                 parse_ruleset(text).plan()
         elif kind == "RulesEvalTest":
             inferred = parse_ruleset(text).infer(_graph(data))
