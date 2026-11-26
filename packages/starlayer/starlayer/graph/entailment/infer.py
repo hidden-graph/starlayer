@@ -166,15 +166,15 @@ def _rules_delta(g: Any, regimes: frozenset[str]) -> set[tuple[Any, Any, Any]]:
     return delta
 
 
-def _with_imports(g: Any, regimes: frozenset[str], imports_loader: Any, ignore_imports: bool) -> Any:
+def _with_imports(g: Any, regimes: frozenset[str], imports_loader: Any, ignore_imports: bool | None) -> Any:
     """``g`` as the reasoner reads it: for the OWL regimes (``OWL-RDF-Based``, ``OWL-Direct``), ``g`` plus the triples of its ``owl:imports``
-    closure, resolved or raising (``graph.imports.resolve_or_raise``: ``ExecutionError`` kind ``"import"``); ``g`` itself for RDF and RDFS,
-    which give ``owl:imports`` no meaning, and when nothing is imported."""
-    if ignore_imports or not regimes & {OWL_RL_REGIME, OWL_DIRECT_REGIME}:
+    closure, resolved or raising (``g.resolved_imports()``, the graph's own loader and flag unless the call overrides them: ``ExecutionError``
+    kind ``"import"``); ``g`` itself for RDF and RDFS, which give ``owl:imports`` no meaning, and when nothing is imported."""
+    if not regimes & {OWL_RL_REGIME, OWL_DIRECT_REGIME}:
         return g
-    from starlayer.graph.imports import resolve_or_raise
+    from starlayer.graph.imports import graph_imports
 
-    imported = resolve_or_raise(g, imports_loader, loader_name="imports_loader")
+    imported = graph_imports(g, imports_loader, ignore_imports)
     if not imported:
         return g
     from starlayer.graph import core
@@ -185,18 +185,19 @@ def _with_imports(g: Any, regimes: frozenset[str], imports_loader: Any, ignore_i
 
 
 def infer(g: Any, entailment: Any = ENTAILMENT.RDFS, *, mode: str = "full", target_graph: Any = None, engine: str = "hermit",
-          timeout: Any = DEFAULT_TIMEOUT, imports_loader: Any = None, ignore_imports: bool = False) -> Any:
+          timeout: Any = DEFAULT_TIMEOUT, imports_loader: Any = None, ignore_imports: bool | None = None) -> Any:
     """Materialize an RDFS / RDF / OWL-RL / OWL-DL entailment closure. See ``StarLayerGraph.infer`` for the contract.
 
     ``mode`` "full" returns a new graph with the originals plus the entailed triples, "delta" one with only the new triples,
     "in-place" adds the new triples to ``g`` and returns it. ``entailment`` is a regime IRI (``NamedNode`` or ``str``) or an
     iterable of them. ``target_graph`` must be an ``StarLayerGraph`` / ``StarLayerDataset``.
 
-    For the OWL regimes (``OWL-RDF-Based``, ``OWL-Direct``) the ontology's ``owl:imports`` count: each must be resolved or the call raises
-    ``ExecutionError`` kind ``"import"`` (``error.unresolved`` lists the IRIs), as for ``resolve_imports()``. An import is satisfied when its
-    IRI is a subject of ``g``, a built-in ontology of the ``starontology`` registry, or loaded by ``imports_loader(iri) -> graph | None``
-    (nothing is fetched without one). The imported triples are read by the reasoner and are not part of the result. ``ignore_imports=True``
-    loads and checks nothing. RDF and RDFS entailment give ``owl:imports`` no meaning and ignore both parameters.
+    For the OWL regimes (``OWL-RDF-Based``, ``OWL-Direct``) the ontology's ``owl:imports`` count: ``g.resolved_imports()``, each import must be
+    resolved or the call raises ``ExecutionError`` kind ``"import"`` (``error.unresolved`` lists the IRIs), as for ``resolve_imports()``. An
+    import is satisfied when its IRI is a subject of ``g``, a built-in ontology of the ``starontology`` registry, or loaded by the graph's
+    ``imports_loader`` (nothing is fetched without one). ``imports_loader=`` (``loader(iri) -> graph | None``) and ``ignore_imports=``
+    override the graph's own settings for this call. The imported triples are read by the reasoner and are not part of the result.
+    ``ignore_imports=True`` loads and checks nothing. RDF and RDFS entailment give ``owl:imports`` no meaning and ignore all of it.
     """
     if mode not in VALID_INFER_RETURN_MODES:
         raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")

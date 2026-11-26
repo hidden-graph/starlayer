@@ -28,8 +28,8 @@ def ontology(iri: ox.NamedNode, *more: tuple) -> StarLayerGraph:
     return g
 
 
-def importing(*iris: ox.NamedNode) -> StarLayerGraph:
-    g = StarLayerGraph()
+def importing(*iris: ox.NamedNode, **kw) -> StarLayerGraph:
+    g = StarLayerGraph(**kw)
     g.add((n("root"), RDF_TYPE, ONTOLOGY))
     for iri in iris:
         g.add((n("root"), IMPORTS, iri))
@@ -79,3 +79,62 @@ def test_query_with_an_owl_regime_raises_for_an_unresolved_import():
         g.query("ASK { ?s ?p ?o }", entailment=OWL_RL)
     assert caught.value.kind == "import"
     assert g.query("ASK { ?s ?p ?o }", entailment=OWL_RL, ignore_imports=True).askAnswer is True
+
+
+# ---- the graph's own settings (maintainer decision 2026-11-26) --------------------------------------------------------------
+
+SUBCLASS = ox.NamedNode("http://www.w3.org/2000/01/rdf-schema#subClassOf")
+
+
+def _dog_world(**kw) -> tuple[StarLayerGraph, Loader]:
+    loader = Loader({n("a"): ontology(n("a"), (n("fido"), RDF_TYPE, n("Dog")))})
+    g = importing(n("a"), **kw)
+    g.add((n("Dog"), SUBCLASS, n("Animal")))
+    return g, loader
+
+
+def test_infer_and_query_use_the_loader_the_graph_carries():
+    pytest.importorskip("owlrl")
+    g, loader = _dog_world()
+    g.imports_loader = loader
+    assert (n("fido"), RDF_TYPE, n("Animal")) in g.infer(OWL_RL)
+    assert g.query("ASK { <http://example.org/fido> a <http://example.org/Animal> }", entailment=OWL_RL).askAnswer is True
+    assert loader.calls == [n("a")]  # one resolution served both, kept until the graph changes
+
+
+def test_the_call_overrides_the_graph_setting():
+    pytest.importorskip("owlrl")
+    g, loader = _dog_world()
+    g.imports_loader = loader
+    other = Loader({n("a"): ontology(n("a"), (n("rex"), RDF_TYPE, n("Dog")))})
+    result = g.infer(OWL_RL, imports_loader=other)
+    assert (n("rex"), RDF_TYPE, n("Animal")) in result and (n("fido"), RDF_TYPE, n("Animal")) not in result
+    assert g.infer(OWL_RL, ignore_imports=True) is not None  # beats the graph's loader
+    flagged, _ = _dog_world(ignore_imports=True)
+    with pytest.raises(ExecutionError):
+        flagged.infer(OWL_RL, ignore_imports=False)  # and beats the graph's flag
+
+
+def test_a_graph_that_ignores_its_imports_skips_the_step():
+    pytest.importorskip("owlrl")
+    g, _ = _dog_world(ignore_imports=True)
+    assert g.infer(OWL_RL) is not None
+    assert g.query("ASK { ?s ?p ?o }", entailment=OWL_RL).askAnswer is True
+
+
+def test_a_changed_loader_is_a_different_entailed_copy():
+    pytest.importorskip("owlrl")
+    g, loader = _dog_world()
+    ask = "ASK { <http://example.org/rex> a <http://example.org/Animal> }"
+    g.imports_loader = loader
+    assert g.query(ask, entailment=OWL_RL).askAnswer is False
+    g.imports_loader = Loader({n("a"): ontology(n("a"), (n("rex"), RDF_TYPE, n("Dog")))})
+    assert g.query(ask, entailment=OWL_RL).askAnswer is True  # the same store, other imported triples: not the kept copy
+
+
+def test_rdf_and_rdfs_never_ask_the_loader():
+    loader = Loader({})
+    g = importing(n("a"), imports_loader=loader)
+    g.infer(ENTAILMENT.RDFS)
+    g.query("ASK { ?s ?p ?o }", entailment=ENTAILMENT.RDFS)
+    assert loader.calls == []
