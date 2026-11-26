@@ -238,8 +238,8 @@ nl:06.06-2957fd17 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.__init__.get_conformance_profiles" .
 
-nl:06.02-92f83318 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06.02-manchester-syntax.ipynb" ;
+nl:02.08-92f83318 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.08-manchester-syntax.ipynb" ;
     slkg:cellId "92f83318" ;
     slkg:cellHash "5972eccb49cd811c" ;
     slkg:reviewedOn "2026-11-04"^^xsd:date ;

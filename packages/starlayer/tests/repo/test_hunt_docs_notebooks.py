@@ -50,7 +50,7 @@ def test_guide_05a_names_an_existing_validation_function():
     import starlayer.sparql as sp
     from starlayer.sparql.sqe.shapes import sqe_validate  # noqa: F401
 
-    t = _text("06.02-manchester-syntax.ipynb")
+    t = _text("02.08-manchester-syntax.ipynb")
     assert not hasattr(sp, "validate_query")
     assert "validate_query" not in t
 
