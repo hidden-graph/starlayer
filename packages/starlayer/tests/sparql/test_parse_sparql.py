@@ -184,7 +184,7 @@ def test_annotation_and_reifier_expand_to_rdf_reifies():
 def test_property_path_flattening():
     q = parse_sparql(P + "SELECT * { ?s (:a|:b)|:c/^:d ?o }")
     path = q["where"][0]["p"]
-    assert path.kind == "AlternativePath" and len(path["args"]) == 3
+    assert path.kind == "PathAlternative" and len(path["args"]) == 3
 
 
 def test_version_and_prologue_are_kept():

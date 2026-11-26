@@ -27,7 +27,7 @@ from starlayer.sparql.sqe import (
     sqe_validate,
 )
 from starlayer.sparql.sqe.vocab import (
-    PREFIX_BINDING,
+    PREFIX_DECL,
     PREFIX_LABEL,
     PREFIX_NAMESPACE,
     QUERY,
@@ -342,8 +342,8 @@ class TestAlternativesListShape:
         assert not conforms
 
 
-class TestPrefixBindingShape:
-    """sqe:PrefixBinding (the whole prologue encoding) had zero shape of
+class TestPrefixDeclShape:
+    """sqe:PrefixDecl (the whole prologue encoding) had zero shape of
     any kind targeting it (added 2026-10-15) - removing sqe:namespace
     entirely and replacing sqe:prefixLabel with a plain integer both
     previously conformed."""
@@ -370,7 +370,7 @@ class TestPrefixBindingShape:
     def test_missing_namespace_fails(self):
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
         graph, root = sqe_parse_to_tree(query_text)
-        prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
+        prefix_node = next(graph.subjects(RDF.type, PREFIX_DECL))
         graph.remove((prefix_node, PREFIX_NAMESPACE, None))
 
         outcome = sqe_validate(graph)
@@ -381,7 +381,7 @@ class TestPrefixBindingShape:
     def test_non_string_prefix_label_fails(self):
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
         graph, root = sqe_parse_to_tree(query_text)
-        prefix_node = next(graph.subjects(RDF.type, PREFIX_BINDING))
+        prefix_node = next(graph.subjects(RDF.type, PREFIX_DECL))
         _set(graph, prefix_node, PREFIX_LABEL, lit(12345))
 
         outcome = sqe_validate(graph)

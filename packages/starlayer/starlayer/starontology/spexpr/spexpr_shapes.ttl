@@ -4,25 +4,16 @@
 @prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-spexpr:AlternativePathShape a sh:NodeShape ;
+spexpr:PathAlternativeShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "spexpr:AlternativePath must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
+        sh:message "spexpr:PathAlternative must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
         sh:minCount 1 ;
         sh:node spexpr:PathArgsListShape ;
         sh:path spexpr:args
     ] ;
-    sh:targetClass spexpr:AlternativePath .
-
-spexpr:DistinctMarkerShape a sh:NodeShape ;
-    rdfs:isDefinedBy spexpr:ShapesGraph ;
-    sh:or ( [
-        sh:datatype spexpr:PlainString ;
-        sh:nodeKind sh:Literal
-    ] [
-        sh:hasValue ()
-    ] ) .
+    sh:targetClass spexpr:PathAlternative .
 
 spexpr:ExpressionListShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
@@ -57,44 +48,44 @@ spexpr:ExpressionShape a sh:NodeShape ;
         sh:nodeKind sh:BlankNode
     ] ) .
 
-spexpr:InvPathShape a sh:NodeShape ;
+spexpr:PathInverseShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "spexpr:InvPath must have exactly one spexpr:arg, a path or IRI" ;
+        sh:message "spexpr:PathInverse must have exactly one spexpr:arg, a path or IRI" ;
         sh:minCount 1 ;
         sh:node spexpr:PathOrIriShape ;
         sh:path spexpr:arg
     ] ;
-    sh:targetClass spexpr:InvPath .
+    sh:targetClass spexpr:PathInverse .
 
-spexpr:MulPathShape a sh:NodeShape ;
+spexpr:PathEltShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "spexpr:MulPath must have exactly one spexpr:path, a path or IRI" ;
+        sh:message "spexpr:PathElt must have exactly one spexpr:path, a path or IRI" ;
         sh:minCount 1 ;
         sh:node spexpr:PathOrIriShape ;
         sh:path spexpr:path
     ], [
         sh:in ( "*" "+" "?" ) ;
         sh:maxCount 1 ;
-        sh:message "spexpr:MulPath must have exactly one spexpr:mod, a bare asterisk/plus/question-mark modifier string" ;
+        sh:message "spexpr:PathElt must have exactly one spexpr:mod, a bare asterisk/plus/question-mark modifier string" ;
         sh:minCount 1 ;
         sh:path spexpr:mod
     ] ;
-    sh:targetClass spexpr:MulPath .
+    sh:targetClass spexpr:PathElt .
 
-spexpr:NegatedPathShape a sh:NodeShape ;
+spexpr:PathNegatedPropertySetShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "spexpr:NegatedPath must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
+        sh:message "spexpr:PathNegatedPropertySet must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
         sh:minCount 1 ;
         sh:node spexpr:PathArgsListShape ;
         sh:path spexpr:args
     ] ;
-    sh:targetClass spexpr:NegatedPath .
+    sh:targetClass spexpr:PathNegatedPropertySet .
 
 spexpr:OperatorStringListShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
@@ -150,16 +141,16 @@ spexpr:PathShape a sh:NodeShape ;
     sh:class spexpr:Path ;
     sh:message "expected a recognized property-path operator (see spexpr:Path)" .
 
-spexpr:SequencePathShape a sh:NodeShape ;
+spexpr:PathSequenceShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "spexpr:SequencePath must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
+        sh:message "spexpr:PathSequence must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
         sh:minCount 1 ;
         sh:node spexpr:PathArgsListShape ;
         sh:path spexpr:args
     ] ;
-    sh:targetClass spexpr:SequencePath .
+    sh:targetClass spexpr:PathSequence .
 
 spexpr:ShapesGraph a sh:ShapesGraph .
 
@@ -205,35 +196,25 @@ spexpr:_ConditionalExprBodyShape a sh:NodeShape ;
         sh:path spexpr:other
     ] .
 
-spexpr:_ExistsExprBodyShape a sh:NodeShape ;
+spexpr:_FunctionCallExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "expected exactly one spexpr:graph" ;
-        sh:minCount 1 ;
-        sh:path spexpr:graph
-    ] .
-
-spexpr:_FunctionExprBodyShape a sh:NodeShape ;
-    rdfs:isDefinedBy spexpr:ShapesGraph ;
-    sh:property [
-        sh:maxCount 1 ;
-        sh:message "spexpr:Function must have exactly one spexpr:iri, an IRI" ;
+        sh:message "spexpr:FunctionCall must have exactly one spexpr:iri, an IRI" ;
         sh:minCount 1 ;
         sh:nodeKind sh:IRI ;
         sh:path spexpr:iri
     ], [
+        sh:datatype xsd:boolean ;
+        sh:in ( true ) ;
         sh:maxCount 1 ;
-        sh:message "spexpr:Function's spexpr:distinct must have exactly one value (a spexpr:PlainString-tagged DISTINCT keyword, or rdf:nil when absent) - confirmed always present, empirically, same as the aggregate bodies' own spexpr:distinct above" ;
-        sh:minCount 1 ;
-        sh:node spexpr:DistinctMarkerShape ;
+        sh:message "spexpr:distinct of a function call is true when DISTINCT was written, and absent otherwise" ;
         sh:path spexpr:distinct
     ], [
         sh:maxCount 1 ;
-        sh:message "spexpr:Function must have exactly one spexpr:expr, a well-formed rdf:List of call arguments" ;
-        sh:minCount 1 ;
+        sh:message "spexpr:args of a function call is a well-formed rdf:List of call arguments (absent for a call with none)" ;
         sh:node spexpr:ExpressionListShape ;
-        sh:path spexpr:expr
+        sh:path spexpr:args
     ] .
 
 spexpr:_OneArgExprBodyShape a sh:NodeShape ;
@@ -402,10 +383,10 @@ spexpr:_VariadicArgExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "expected exactly one spexpr:arg, a well-formed rdf:List of expression values" ;
+        sh:message "expected exactly one spexpr:args, a well-formed rdf:List of expression values" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionListShape ;
-        sh:path spexpr:arg
+        sh:path spexpr:args
     ] .
 
 spexpr:_ZeroArgExprBodyShape a sh:NodeShape ;
@@ -437,14 +418,15 @@ spexpr:AggregateBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "an aggregate must have exactly one spexpr:vars, the aggregated expression (or the marker *)" ;
+        sh:message "an aggregate must have exactly one spexpr:expr, the aggregated expression (or the marker *)" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
-        sh:path spexpr:vars
+        sh:path spexpr:expr
     ], [
+        sh:datatype xsd:boolean ;
+        sh:in ( true ) ;
         sh:maxCount 1 ;
-        sh:message "spexpr:distinct must be empty (rdf:nil) or the string DISTINCT" ;
-        sh:in ( rdf:nil "DISTINCT"^^spexpr:PlainString ) ;
+        sh:message "spexpr:distinct of an aggregate is true when DISTINCT was written, and absent otherwise" ;
         sh:path spexpr:distinct
     ], [
         sh:maxCount 1 ;
@@ -452,5 +434,5 @@ spexpr:AggregateBodyShape a sh:NodeShape ;
         sh:nodeKind sh:Literal ;
         sh:path spexpr:separator
     ] ;
-    sh:targetClass spexpr:Aggregate_Avg, spexpr:Aggregate_Count, spexpr:Aggregate_GroupConcat,
-        spexpr:Aggregate_Max, spexpr:Aggregate_Min, spexpr:Aggregate_Sample, spexpr:Aggregate_Sum .
+    sh:targetClass spexpr:AVG, spexpr:COUNT, spexpr:GROUP_CONCAT,
+        spexpr:MAX, spexpr:MIN, spexpr:SAMPLE, spexpr:SUM .

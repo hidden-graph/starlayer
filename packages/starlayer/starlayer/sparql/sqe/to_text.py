@@ -413,7 +413,7 @@ def _triple_pattern_text(node, graph: Any, prefixes: dict) -> str:
     return f"{s} {p} {o}"
 
 
-_PATH_TYPES = {SPEXPR[n]: n for n in ("InvPath", "SequencePath", "AlternativePath", "MulPath", "NegatedPath")}
+_PATH_TYPES = {SPEXPR[n]: n for n in ("PathInverse", "PathSequence", "PathAlternative", "PathElt", "PathNegatedPropertySet")}
 
 
 def _path_type(node, graph) -> str | None:
@@ -426,8 +426,8 @@ def _path_type(node, graph) -> str | None:
 
 
 def _predicate_text(node, graph: Any, prefixes: dict) -> str:
-    """A predicate position is a term or a property path (a nested blank node structure typed ``spexpr:InvPath``,
-    ``spexpr:SequencePath``, ...): a path is written with the parentheses SPARQL needs."""
+    """A predicate position is a term or a property path (a nested blank node structure typed ``spexpr:PathInverse``,
+    ``spexpr:PathSequence``, ...): a path is written with the parentheses SPARQL needs."""
     if _path_type(node, graph) is not None:
         return _path_text(node, graph, prefixes)
     return _term_text(node, prefixes)
@@ -435,7 +435,7 @@ def _predicate_text(node, graph: Any, prefixes: dict) -> str:
 
 def _is_multi(node, graph) -> bool:
     kind = _path_type(node, graph)
-    return kind in ("SequencePath", "AlternativePath") and len(_args(node, graph)) > 1
+    return kind in ("PathSequence", "PathAlternative") and len(_args(node, graph)) > 1
 
 
 def _args(node, graph) -> list:
@@ -448,21 +448,21 @@ def _path_text(node, graph: Any, prefixes: dict) -> str:
     kind = _path_type(node, graph)
     if kind is None:
         return _term_text(node, prefixes)
-    if kind == "MulPath":
+    if kind == "PathElt":
         path = graph.value(node, SPEXPR.path)
         inner = _path_text(path, graph, prefixes)
-        if _path_type(path, graph) in ("MulPath", "InvPath") or _is_multi(path, graph):
+        if _path_type(path, graph) in ("PathElt", "PathInverse") or _is_multi(path, graph):
             inner = f"({inner})"
         return f"{inner}{graph.value(node, SPEXPR.mod).value}"
-    if kind == "InvPath":
+    if kind == "PathInverse":
         arg = graph.value(node, SPEXPR.arg)
         inner = _path_text(arg, graph, prefixes)
-        if _path_type(arg, graph) == "InvPath" or _is_multi(arg, graph):
+        if _path_type(arg, graph) == "PathInverse" or _is_multi(arg, graph):
             inner = f"({inner})"
         return f"^{inner}"
-    if kind == "NegatedPath":
+    if kind == "PathNegatedPropertySet":
         return "!(" + "|".join(_path_text(a, graph, prefixes) for a in _args(node, graph)) + ")"
-    sep = "/" if kind == "SequencePath" else "|"
+    sep = "/" if kind == "PathSequence" else "|"
     parts = []
     for arg in _args(node, graph):
         text = _path_text(arg, graph, prefixes)

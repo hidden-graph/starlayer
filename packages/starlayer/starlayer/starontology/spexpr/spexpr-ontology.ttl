@@ -3,147 +3,138 @@
 
 spexpr:AdditiveExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
-spexpr:AlternativePath rdfs:comment "path1|path2 (alternative) - spexpr:args, same list shape as SequencePath." ;
+spexpr:PathAlternative rdfs:comment "path1|path2 (alternative) - spexpr:args, same list shape as PathSequence." ;
     rdfs:subClassOf spexpr:Path .
 
-spexpr:ArithmeticExpression rdfs:comment "+/-/*// chains - spexpr:expr, spexpr:op, spexpr:other (always a list)." ;
+spexpr:ArithmeticExpression rdfs:comment "Modelling helper (the grammar has AdditiveExpression and MultiplicativeExpression only): the superclass of the two chains, which share one shape. +/-/*// chains - spexpr:expr, spexpr:op, spexpr:other (always a list)." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:Builtin_ABS rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:ABS rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_BNODE rdfs:subClassOf spexpr:OptionalOneArgExpression .
+spexpr:BNODE rdfs:subClassOf spexpr:OptionalOneArgExpression .
 
-spexpr:Builtin_BOUND rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:BOUND rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_CEIL rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:CEIL rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_COALESCE rdfs:subClassOf spexpr:VariadicArgExpression .
+spexpr:COALESCE rdfs:subClassOf spexpr:VariadicArgExpression .
 
-spexpr:Builtin_CONCAT rdfs:subClassOf spexpr:VariadicArgExpression .
+spexpr:CONCAT rdfs:subClassOf spexpr:VariadicArgExpression .
 
-spexpr:Builtin_CONTAINS rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:CONTAINS rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_DATATYPE rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:DATATYPE rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_DAY rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:DAY rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_ENCODE_FOR_URI rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:ENCODE_FOR_URI rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_EXISTS rdfs:subClassOf spexpr:ExistsExpression .
+spexpr:FLOOR rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_FLOOR rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:HOURS rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_HOURS rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:IF rdfs:subClassOf spexpr:ThreeArgExpression .
 
-spexpr:Builtin_IF rdfs:subClassOf spexpr:ThreeArgExpression .
+spexpr:IRI rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_IRI rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:LANG rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_LANG rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:LANGMATCHES rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_LANGMATCHES rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:LCASE rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_LCASE rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:MD5 rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_MD5 rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:MINUTES rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_MINUTES rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:MONTH rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_MONTH rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:NOW rdfs:subClassOf spexpr:ZeroArgExpression .
 
-spexpr:Builtin_NOTEXISTS rdfs:subClassOf spexpr:ExistsExpression .
+spexpr:RAND rdfs:subClassOf spexpr:ZeroArgExpression .
 
-spexpr:Builtin_NOW rdfs:subClassOf spexpr:ZeroArgExpression .
+spexpr:REGEX rdfs:subClassOf spexpr:RegexExpression .
 
-spexpr:Builtin_RAND rdfs:subClassOf spexpr:ZeroArgExpression .
+spexpr:REPLACE rdfs:subClassOf spexpr:ReplaceExpression .
 
-spexpr:Builtin_REGEX rdfs:subClassOf spexpr:RegexExpression .
+spexpr:ROUND rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_REPLACE rdfs:subClassOf spexpr:ReplaceExpression .
+spexpr:SECONDS rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_ROUND rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:SHA1 rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_SECONDS rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:SHA256 rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_SHA1 rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:SHA384 rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_SHA256 rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:SHA512 rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_SHA384 rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:STR rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_SHA512 rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:STRAFTER rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_STR rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:STRBEFORE rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_STRAFTER rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:STRDT rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_STRBEFORE rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:STRENDS rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_STRDT rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:STRLANG rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_STRENDS rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:STRLEN rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_STRLANG rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:STRSTARTS rdfs:subClassOf spexpr:TwoArgExpression .
 
-spexpr:Builtin_STRLEN rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:STRUUID rdfs:subClassOf spexpr:ZeroArgExpression .
 
-spexpr:Builtin_STRSTARTS rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:SUBSTR rdfs:subClassOf spexpr:SubstrExpression .
 
-spexpr:Builtin_STRUUID rdfs:subClassOf spexpr:ZeroArgExpression .
+spexpr:TIMEZONE rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_SUBSTR rdfs:subClassOf spexpr:SubstrExpression .
+spexpr:TZ rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_TIMEZONE rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:UCASE rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_TZ rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:URI rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_UCASE rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:UUID rdfs:subClassOf spexpr:ZeroArgExpression .
 
-spexpr:Builtin_URI rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:YEAR rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_UUID rdfs:subClassOf spexpr:ZeroArgExpression .
+spexpr:isBLANK rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_YEAR rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:isIRI rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_isBLANK rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:isLITERAL rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_isIRI rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:isNUMERIC rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_isLITERAL rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:isURI rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_isNUMERIC rdfs:subClassOf spexpr:OneArgExpression .
-
-spexpr:Builtin_isURI rdfs:subClassOf spexpr:OneArgExpression .
-
-spexpr:Builtin_sameTerm rdfs:subClassOf spexpr:TwoArgExpression .
+spexpr:sameTerm rdfs:subClassOf spexpr:TwoArgExpression .
 
 spexpr:ConditionalAndExpression rdfs:subClassOf spexpr:ConditionalExpression .
 
-spexpr:ConditionalExpression rdfs:comment "&&/|| chains - spexpr:expr plus an optional spexpr:other list." ;
+spexpr:ConditionalExpression rdfs:comment "Modelling helper (the grammar has ConditionalOrExpression and ConditionalAndExpression only): the superclass of the two chains, which share one shape. &&/|| chains - spexpr:expr plus an optional spexpr:other list." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ConditionalOrExpression rdfs:subClassOf spexpr:ConditionalExpression .
 
-spexpr:ExistsExpression rdfs:comment "EXISTS{}/NOT EXISTS{} - spexpr:graph, not spexpr:expr (a raw, untranslated parse-tree fragment, deliberately unshaped further - see shapes.py)." ;
-    rdfs:subClassOf spexpr:Expression .
-
-spexpr:Expression rdfs:comment "A SPARQL expression-tree node (a FILTER/BIND/ORDER BY expression, or any of rdflib's ~63 expression builtins)." ;
+spexpr:Expression rdfs:comment "A SPARQL expression-tree node (grammar: Expression): a FILTER/BIND/ORDER BY/HAVING expression, a built-in call, an aggregate, a function call or an operator chain. Superclass of every expression class." ;
     rdfs:label "Expression" .
 
-spexpr:Function rdfs:subClassOf spexpr:FunctionExpression .
-
-spexpr:FunctionExpression rdfs:comment "A call to any registered/custom SPARQL function - spexpr:iri/distinct/expr." ;
+spexpr:FunctionCall rdfs:comment "A call of a function that is not a built-in, by IRI: f(args) or f(DISTINCT args) (grammar: FunctionCall, ArgList). spexpr:iri the function, spexpr:args the arguments in order, spexpr:distinct true when DISTINCT was written." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:InvPath rdfs:comment "^path (inverse) - spexpr:arg the wrapped path/IRI." ;
+spexpr:PathInverse rdfs:comment "^path (inverse; grammar: PathEltOrInverse) - spexpr:arg the wrapped path/IRI." ;
     rdfs:subClassOf spexpr:Path .
 
-spexpr:MulPath rdfs:comment "path* / path+ / path? (repetition) - spexpr:path the repeated path/IRI, spexpr:mod the bare \"*\"/\"+\"/\"?\" modifier string. The modifier is a plain literal, not spexpr:PlainString-tagged, which is what makes the MulPathShape sh:in (\"*\" \"+\" \"?\") check match (sh:in compares terms exactly, so a datatype would break it)." ;
+spexpr:PathElt rdfs:comment "path* / path+ / path? (grammar: PathElt with a PathMod; a path element without a modifier has no node) - spexpr:path the repeated path/IRI, spexpr:mod the bare \"*\"/\"+\"/\"?\" modifier string. The modifier is a plain literal, not spexpr:PlainString-tagged, which is what makes the PathEltShape sh:in (\"*\" \"+\" \"?\") check match (sh:in compares terms exactly, so a datatype would break it)." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:MultiplicativeExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
-spexpr:NegatedPath rdfs:comment "!path / !(path1|path2) (negated property set) - spexpr:args, same list shape as SequencePath/AlternativePath." ;
+spexpr:PathNegatedPropertySet rdfs:comment "!path / !(path1|path2) (negated property set; always stored with its members, even for one) - spexpr:args, same list shape as PathSequence/PathAlternative." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:OneArgExpression rdfs:comment "Exactly one required argument (spexpr:arg)." ;
@@ -152,7 +143,7 @@ spexpr:OneArgExpression rdfs:comment "Exactly one required argument (spexpr:arg)
 spexpr:OptionalOneArgExpression rdfs:comment "Zero or one argument (spexpr:arg) - BNODE()/BNODE(?x) only." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:Path rdfs:comment "A SPARQL property-path expression - the property-path class hierarchy." .
+spexpr:Path rdfs:comment "A SPARQL property path (grammar: Path); the superclass of the five path classes PathSequence, PathAlternative, PathInverse, PathElt and PathNegatedPropertySet. A plain IRI is a path without a node." .
 
 spexpr:PlainString a rdfs:Datatype ;
     rdfs:comment "A plain, untagged bare string value (not a real RDF term) that needs a reserved datatype to survive RDF round-trip without colliding with an ordinary xsd:string-typed value - e.g. an operator symbol, a prefix label, a bare SPARQL grammar keyword. The shared, technology-neutral home for this concept (reused directly by spexpr:/sqe:, see vocab.py's PY_STR_DATATYPE) - renamed and moved here from PyStr 2026-10-15." .
@@ -166,7 +157,7 @@ spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN." ;
 spexpr:ReplaceExpression rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:SequencePath rdfs:comment "path1/path2 (sequence) - spexpr:args a well-formed rdf:List of the sequenced paths/IRIs." ;
+spexpr:PathSequence rdfs:comment "path1/path2 (sequence) - spexpr:args a well-formed rdf:List of the sequenced paths/IRIs." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." ;
@@ -175,13 +166,10 @@ spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key 
 spexpr:ThreeArgExpression rdfs:comment "Exactly three required arguments (spexpr:arg1/arg2/arg3) - IF() only." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:TrueFilter rdfs:comment "The constant-true expression rdflib substitutes for an OPTIONAL with no inline FILTER. No properties of its own." ;
-    rdfs:subClassOf spexpr:Expression .
-
 spexpr:TwoArgExpression rdfs:comment "Exactly two required arguments (spexpr:arg1/arg2)." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:UnaryExpression rdfs:comment "Exactly one required operand (spexpr:expr) - !/-/+ prefix operators." ;
+spexpr:UnaryExpression rdfs:comment "Superclass of the three prefix operators UnaryNot (!), UnaryMinus (-) and UnaryPlus (+); exactly one required operand (spexpr:expr)." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:UnaryMinus rdfs:subClassOf spexpr:UnaryExpression .
@@ -196,38 +184,41 @@ spexpr:VariadicArgExpression rdfs:comment "spexpr:arg is itself a list of argume
 spexpr:ZeroArgExpression rdfs:comment "No arguments (NOW/UUID/STRUUID/RAND)." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:Builtin_isTRIPLE rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:isTRIPLE rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_SUBJECT rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:SUBJECT rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_PREDICATE rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:PREDICATE rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_OBJECT rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:OBJECT rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_LANGDIR rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:LANGDIR rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_hasLANG rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:hasLANG rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_hasLANGDIR rdfs:subClassOf spexpr:OneArgExpression .
+spexpr:hasLANGDIR rdfs:subClassOf spexpr:OneArgExpression .
 
-spexpr:Builtin_STRLANGDIR rdfs:subClassOf spexpr:StrLangDirExpression .
+spexpr:STRLANGDIR rdfs:subClassOf spexpr:StrLangDirExpression .
 
 spexpr:StrLangDirExpression rdfs:comment "STRLANGDIR(lex, lang, direction) - three required arguments under their own key names." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:Aggregate rdfs:comment "An aggregate call (COUNT/SUM/MIN/MAX/AVG/SAMPLE/GROUP_CONCAT) in a projection, HAVING or ORDER BY expression - spexpr:vars the aggregated expression (or the marker *), spexpr:distinct DISTINCT or empty." ;
+spexpr:Aggregate rdfs:comment "An aggregate call (grammar: Aggregate) in a projection, HAVING or ORDER BY expression; the class is the keyword as typed: COUNT, SUM, MIN, MAX, AVG, SAMPLE, GROUP_CONCAT. spexpr:expr the aggregated expression (or the marker * for COUNT(*)), spexpr:distinct true when DISTINCT was written, spexpr:separator the GROUP_CONCAT separator." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:Aggregate_Count rdfs:subClassOf spexpr:Aggregate .
+spexpr:COUNT rdfs:subClassOf spexpr:Aggregate .
 
-spexpr:Aggregate_Sum rdfs:subClassOf spexpr:Aggregate .
+spexpr:SUM rdfs:subClassOf spexpr:Aggregate .
 
-spexpr:Aggregate_Min rdfs:subClassOf spexpr:Aggregate .
+spexpr:MIN rdfs:subClassOf spexpr:Aggregate .
 
-spexpr:Aggregate_Max rdfs:subClassOf spexpr:Aggregate .
+spexpr:MAX rdfs:subClassOf spexpr:Aggregate .
 
-spexpr:Aggregate_Avg rdfs:subClassOf spexpr:Aggregate .
+spexpr:AVG rdfs:subClassOf spexpr:Aggregate .
 
-spexpr:Aggregate_Sample rdfs:subClassOf spexpr:Aggregate .
+spexpr:SAMPLE rdfs:subClassOf spexpr:Aggregate .
 
-spexpr:Aggregate_GroupConcat rdfs:subClassOf spexpr:Aggregate .
+spexpr:GROUP_CONCAT rdfs:subClassOf spexpr:Aggregate .
+
+spexpr:Variable a rdfs:Datatype ;
+    rdfs:comment "Modelling helper: a SPARQL variable is not an RDF term, so it is stored as a literal whose lexical form is the name (without ? or $) and whose datatype is spexpr:Variable. The same encoding is used in patterns, expressions and projections." .

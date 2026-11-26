@@ -31,7 +31,7 @@ sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List 
     rdfs:subClassOf sqe:Query .
 
 sqe:TriplePattern a rdfs:Class ;
-    rdfs:comment "One (subject, predicate, object) triple pattern - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path uses the shared spexpr: path encoding." .
+    rdfs:comment "One (subject, predicate, object) triple pattern (the spec concept; a property list with ; or , is stored as one node per triple) - exactly one of each, via sqe:subject/sqe:predicate/sqe:object. A predicate that's a real property path uses the shared spexpr: path encoding." .
 
 sqe:TripleTerm a rdfs:Class ;
     rdfs:comment "An RDF 1.2 triple term <<( s p o )>> in a pattern's object position (or nested as another triple term's object) - sqe:subject/sqe:predicate/sqe:object, each a term or variable. Reified-triple and annotation shorthand is written out as its expansion: a rdf:reifies triple plus ordinary triples." .
@@ -94,13 +94,14 @@ sqe:TripleTerm rdfs:subClassOf spexpr:Expression .
 
 sqe:Exists a rdfs:Class ;
     rdfs:subClassOf spexpr:Expression ;
-    rdfs:comment "EXISTS { ... } (or NOT EXISTS when sqe:negated is true) inside an expression - sqe:where -> its own flat pattern list." .
+    rdfs:comment "EXISTS { ... } inside an expression (grammar: ExistsFunc) - sqe:where -> its own flat pattern list." .
 
-sqe:negated a rdf:Property ;
-    rdfs:domain sqe:Exists .
+sqe:NotExists a rdfs:Class ;
+    rdfs:subClassOf spexpr:Expression ;
+    rdfs:comment "NOT EXISTS { ... } inside an expression (grammar: NotExistsFunc) - sqe:where -> its own flat pattern list." .
 
 sqe:Alias a rdfs:Class ;
-    rdfs:comment "(expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
+    rdfs:comment "Modelling helper (the grammar has no name for it): (expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
 
 sqe:groupBy a rdf:Property ;
     rdfs:comment "GROUP BY on a SELECT, ASK, CONSTRUCT or DESCRIBE root (no rdfs:domain: a domain would type the other forms as SELECT)." .
@@ -166,10 +167,10 @@ sqe:version a rdf:Property ;
     rdfs:comment "A VERSION \"x\" declaration of the query prologue (a plain string) on a query root; may repeat." .
 
 sqe:UpdateRequest a rdfs:Class ;
-    rdfs:comment "The root of an encoded SPARQL Update request. sqe:operations -> the rdf:List of operations in source order (empty for an empty request); a prologue written after the last operation is stored on the root (sqe:base, sqe:prologuePrefix, sqe:version)." .
+    rdfs:comment "The root of an encoded SPARQL Update request. sqe:operations -> the rdf:List of operations in source order (empty for an empty request); a prologue written after the last operation is stored on the root (sqe:base, sqe:prefixDecl, sqe:version)." .
 
 sqe:UpdateOperation a rdfs:Class ;
-    rdfs:comment "One operation of an update request. Carries the prologue (sqe:base, sqe:prologuePrefix, sqe:version) written in front of it; the prefixes of earlier operations stay in force for later ones." .
+    rdfs:comment "One operation of an update request (modelling helper: superclass of the eleven operations; the grammar calls the alternatives Update1). Carries the prologue (sqe:base, sqe:prefixDecl, sqe:version) written in front of it; the prefixes of earlier operations stay in force for later ones." .
 
 sqe:operations a rdf:Property ;
     rdfs:domain sqe:UpdateRequest .
@@ -238,7 +239,7 @@ sqe:using a rdf:Property ;
     rdfs:comment "The USING / USING NAMED clauses of a Modify: an rdf:List of sqe:DatasetClause." .
 
 sqe:QuadGraph a rdfs:Class ;
-    rdfs:comment "GRAPH iri-or-variable { triples } inside a quad list - sqe:graphName, sqe:triples (an rdf:List of sqe:TriplePattern, may be empty)." .
+    rdfs:comment "GRAPH iri-or-variable { triples } inside a quad list (grammar: QuadsNotTriples; sqe:Graph is the graph pattern) - sqe:graphName, sqe:triples (an rdf:List of sqe:TriplePattern, may be empty)." .
 
 sqe:graphName a rdf:Property ;
     rdfs:domain sqe:QuadGraph .
@@ -270,10 +271,30 @@ sqe:graphIri a rdf:Property ;
     rdfs:domain sqe:GraphRef .
 
 sqe:DefaultGraph a rdfs:Class ;
-    rdfs:comment "The graph reference DEFAULT (the default graph)." .
+    rdfs:comment "The graph reference DEFAULT (the default graph); a keyword stand-in." .
 
 sqe:NamedGraphs a rdfs:Class ;
-    rdfs:comment "The graph reference NAMED (all named graphs)." .
+    rdfs:comment "The graph reference NAMED (all named graphs); a keyword stand-in." .
 
 sqe:AllGraphs a rdfs:Class ;
-    rdfs:comment "The graph reference ALL (the default graph and all named graphs)." .
+    rdfs:comment "The graph reference ALL (the default graph and all named graphs); a keyword stand-in." .
+
+sqe:PrefixDecl a rdfs:Class ;
+    rdfs:comment "One PREFIX declaration of a prologue (grammar: PrefixDecl) - sqe:prefixLabel the label, sqe:namespace the IRI. Prefixed names are stored as full IRIs; a PrefixDecl only remembers the author's spelling, so the text can be written with the same prefixes." .
+
+sqe:prefixDecl a rdf:Property ;
+    rdfs:comment "Links a query root, an update request or an update operation to a sqe:PrefixDecl it declares; several allowed, no order. Shared by those node types, so no rdfs:domain." .
+
+sqe:prefixLabel a rdf:Property ;
+    rdfs:domain sqe:PrefixDecl ;
+    rdfs:comment "The label before the colon of a PREFIX declaration (grammar: PNAME_NS), a spexpr:PlainString; empty for the default prefix." .
+
+sqe:namespace a rdf:Property ;
+    rdfs:domain sqe:PrefixDecl ;
+    rdfs:comment "The namespace IRI of a PREFIX declaration (grammar: IRIREF)." .
+
+sqe:base a rdf:Property ;
+    rdfs:comment "The BASE declaration of a query or operation, an IRI. Relative IRIs in the tree are already resolved against it; it is kept so the text can be written again. Shared by query roots and operations, so no rdfs:domain." .
+
+sqe:undef a rdfs:Resource ;
+    rdfs:comment "The UNDEF marker in a row of a VALUES block: a constant IRI used as a cell value, neither a class nor a property." .

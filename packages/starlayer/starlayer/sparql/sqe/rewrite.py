@@ -127,7 +127,7 @@ def _vars(x, out: set) -> set:
 def _kinds_ok(x) -> bool:
     """No nondeterministic call, and no pattern kind inside a nested EXISTS that substitution treats differently."""
     if isinstance(x, Node):
-        if x.kind in _NO_NESTED or x.kind.removeprefix("Builtin_").upper() in _NONDETERMINISTIC:
+        if x.kind in _NO_NESTED or x.kind.upper() in _NONDETERMINISTIC:
             return False
         return all(_kinds_ok(v) for v in x.f.values())
     if isinstance(x, (list, tuple)):
@@ -149,7 +149,7 @@ def _rewrite_here(where: list) -> bool:
             triples.append(el)
         elif isinstance(el, Node) and el.kind == "Filter":
             e = el.f["expr"]
-            if isinstance(e, Node) and e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+            if isinstance(e, Node) and e.kind in ("Exists", "NotExists"):
                 candidates.append(el)
         else:
             return False
@@ -159,7 +159,7 @@ def _rewrite_here(where: list) -> bool:
     changed = False
     for filt in candidates:
         e = filt.f["expr"]
-        q = e.f["graph"]
+        q = e.f["where"]
         q_triples, q_filters = [], []
         for x in q:
             if isinstance(x, Node) and x.kind == "TriplePattern":
@@ -184,7 +184,7 @@ def _rewrite_here(where: list) -> bool:
                 offset=None, values=None,
             )
             where.remove(filt)
-            where.append(Node("Minus", where=[sub]) if e.kind == "Builtin_NOTEXISTS" else Node("Union", alts=[[sub]]))
+            where.append(Node("Minus", where=[sub]) if e.kind == "NotExists" else Node("Union", alts=[[sub]]))
             changed = True
     return changed
 

@@ -37,7 +37,7 @@ from starlayer.errors import FormatError
 
 from . import _srl_ast as srl_ast
 from .expr_text import expr_nodes, expr_variables
-from .parse_sparql import Node
+from .parse_sparql import _AGGS, _EXISTS_KINDS, Node
 from .triple_term import TripleTermNode
 
 Variable = ox.Variable
@@ -73,12 +73,12 @@ def _expr_vars(expr) -> set[Variable]:
 
 
 def _has_aggregate(expr) -> bool:
-    """True if an ``Aggregate_*`` node (COUNT, SUM, ...) or an ``EXISTS`` / ``NOT EXISTS`` occurs anywhere in ``expr``.
+    """True if an aggregate node (COUNT, SUM, ...) or an ``EXISTS`` / ``NOT EXISTS`` occurs anywhere in ``expr``.
     Aggregation is a separate rule element in SRL (``GROUP``), never a function inside ``FILTER`` or ``SET``; use a
     ``NOT { ... }`` negation element instead of ``NOT EXISTS``."""
     # EXISTS needs a graph pattern the rule evaluator does not run: reject it here rather than crash later (#96)
     return any(
-        isinstance(n, Node) and (n.kind.startswith("Aggregate_") or n.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"))
+        isinstance(n, Node) and (n.kind in _AGGS or n.kind in _EXISTS_KINDS)
         for n in expr_nodes(expr)
     )
 

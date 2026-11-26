@@ -346,18 +346,18 @@ ql:call-chain-from-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "reached"^^spexpr:Variable ] ) ;
     sqe:projection ( "reached"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
                 sqe:object "b"^^spexpr:Variable ;
-                sqe:predicate [ a spexpr:MulPath ;
+                sqe:predicate [ a spexpr:PathElt ;
                         spexpr:mod "+" ;
                         spexpr:path slkg:calls ] ;
                 sqe:subject "a"^^spexpr:Variable ] [ a sqe:TriplePattern ;
@@ -374,13 +374,13 @@ ql:call-cycles-tree a sqe:Query,
                 sqe:expr "first"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "second"^^spexpr:Variable ] ) ;
     sqe:projection ( "first"^^spexpr:Variable "second"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -397,10 +397,10 @@ ql:call-cycles-tree a sqe:Query,
                 sqe:predicate dcterms:identifier ;
                 sqe:subject "b"^^spexpr:Variable ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:RelationalExpression ;
-                        spexpr:expr [ a spexpr:Builtin_STR ;
+                        spexpr:expr [ a spexpr:STR ;
                                 spexpr:arg "a"^^spexpr:Variable ] ;
                         spexpr:op "<"^^spexpr:PlainString ;
-                        spexpr:other [ a spexpr:Builtin_STR ;
+                        spexpr:other [ a spexpr:STR ;
                                 spexpr:arg "b"^^spexpr:Variable ] ] ] ) .
 
 ql:callees-of-tree a sqe:Query,
@@ -408,13 +408,13 @@ ql:callees-of-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "callee"^^spexpr:Variable ] ) ;
     sqe:projection ( "callee"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -441,13 +441,13 @@ ql:callers-of-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "caller"^^spexpr:Variable ] ) ;
     sqe:projection ( "caller"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -476,13 +476,13 @@ ql:capabilities-by-role-tree a sqe:Query,
                 sqe:expr "capability"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "area"^^spexpr:Variable "capability"^^spexpr:Variable "status"^^spexpr:Variable "symbol"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -529,13 +529,13 @@ ql:capabilities-by-specification-tree a sqe:Query,
                 sqe:expr "capability"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "area"^^spexpr:Variable "capability"^^spexpr:Variable "status"^^spexpr:Variable "specification"^^spexpr:Variable "symbol"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -561,13 +561,13 @@ ql:capabilities-by-specification-tree a sqe:Query,
                 sqe:subject "a"^^spexpr:Variable ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "spec"^^spexpr:Variable ] ] ;
-                        spexpr:other ( [ a spexpr:Builtin_CONTAINS ;
-                                    spexpr:arg1 [ a spexpr:Builtin_LCASE ;
-                                            spexpr:arg [ a spexpr:Builtin_STR ;
+                        spexpr:other ( [ a spexpr:CONTAINS ;
+                                    spexpr:arg1 [ a spexpr:LCASE ;
+                                            spexpr:arg [ a spexpr:STR ;
                                                     spexpr:arg "specification"^^spexpr:Variable ] ] ;
-                                    spexpr:arg2 [ a spexpr:Builtin_LCASE ;
+                                    spexpr:arg2 [ a spexpr:LCASE ;
                                             spexpr:arg "spec"^^spexpr:Variable ] ] ) ] ] [ a sqe:Optional ;
                 sqe:where ( [ a sqe:TriplePattern ;
                             sqe:object "symbol"^^spexpr:Variable ;
@@ -593,13 +593,13 @@ ql:capabilities-tree a sqe:Query,
                 sqe:expr "capability"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "area"^^spexpr:Variable "capability"^^spexpr:Variable "status"^^spexpr:Variable "symbol"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -622,12 +622,12 @@ ql:capabilities-tree a sqe:Query,
                 sqe:subject "a"^^spexpr:Variable ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "text"^^spexpr:Variable ] ] ;
-                        spexpr:other ( [ a spexpr:Builtin_CONTAINS ;
-                                    spexpr:arg1 [ a spexpr:Builtin_LCASE ;
+                        spexpr:other ( [ a spexpr:CONTAINS ;
+                                    spexpr:arg1 [ a spexpr:LCASE ;
                                             spexpr:arg "capability"^^spexpr:Variable ] ;
-                                    spexpr:arg2 [ a spexpr:Builtin_LCASE ;
+                                    spexpr:arg2 [ a spexpr:LCASE ;
                                             spexpr:arg "text"^^spexpr:Variable ] ] ) ] ] [ a sqe:Optional ;
                 sqe:where ( [ a sqe:TriplePattern ;
                             sqe:object "symbol"^^spexpr:Variable ;
@@ -652,13 +652,13 @@ ql:capability-of-symbol-tree a sqe:Query,
                 sqe:expr "area"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "capability"^^spexpr:Variable ] ) ;
     sqe:projection ( "area"^^spexpr:Variable "capability"^^spexpr:Variable "status"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -778,13 +778,13 @@ ql:find-symbol-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "symbol"^^spexpr:Variable "kind"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable "summary"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -793,10 +793,10 @@ ql:find-symbol-tree a sqe:Query,
                 sqe:object "symbol"^^spexpr:Variable ;
                 sqe:predicate dcterms:identifier ;
                 sqe:subject "s"^^spexpr:Variable ] [ a sqe:Filter ;
-                sqe:expr [ a spexpr:Builtin_CONTAINS ;
-                        spexpr:arg1 [ a spexpr:Builtin_LCASE ;
+                sqe:expr [ a spexpr:CONTAINS ;
+                        spexpr:arg1 [ a spexpr:LCASE ;
                                 spexpr:arg "symbol"^^spexpr:Variable ] ;
-                        spexpr:arg2 [ a spexpr:Builtin_LCASE ;
+                        spexpr:arg2 [ a spexpr:LCASE ;
                                 spexpr:arg "text"^^spexpr:Variable ] ] ] [ a sqe:TriplePattern ;
                 sqe:object "type"^^spexpr:Variable ;
                 sqe:predicate rdf:type ;
@@ -805,9 +805,9 @@ ql:find-symbol-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Class slkg:Function slkg:Method slkg:Module ) ] ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_LCASE ;
-                        spexpr:arg [ a spexpr:Builtin_REPLACE ;
-                                spexpr:arg [ a spexpr:Builtin_STR ;
+                sqe:expr [ a spexpr:LCASE ;
+                        spexpr:arg [ a spexpr:REPLACE ;
+                                spexpr:arg [ a spexpr:STR ;
                                         spexpr:arg "type"^^spexpr:Variable ] ;
                                 spexpr:pattern "^.*#" ;
                                 spexpr:replacement "" ] ] ;
@@ -831,13 +831,13 @@ ql:leaky-private-functions-tree a sqe:Query,
                 sqe:expr "private"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "caller"^^spexpr:Variable ] ) ;
     sqe:projection ( "private"^^spexpr:Variable "callerModule"^^spexpr:Variable "caller"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -854,9 +854,9 @@ ql:leaky-private-functions-tree a sqe:Query,
                 sqe:subject "f"^^spexpr:Variable ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "prefix"^^spexpr:Variable ] ] ;
-                        spexpr:other ( [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:other ( [ a spexpr:STRSTARTS ;
                                     spexpr:arg1 "private"^^spexpr:Variable ;
                                     spexpr:arg2 "prefix"^^spexpr:Variable ] ) ] ] [ a sqe:TriplePattern ;
                 sqe:object "caller"^^spexpr:Variable ;
@@ -865,19 +865,19 @@ ql:leaky-private-functions-tree a sqe:Query,
                 sqe:object "f"^^spexpr:Variable ;
                 sqe:predicate slkg:calls ;
                 sqe:subject "c"^^spexpr:Variable ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_STRBEFORE ;
-                        spexpr:arg1 [ a spexpr:Builtin_STR ;
+                sqe:expr [ a spexpr:STRBEFORE ;
+                        spexpr:arg1 [ a spexpr:STR ;
                                 spexpr:arg "c"^^spexpr:Variable ] ;
                         spexpr:arg2 "#" ] ;
                 sqe:var "callerFile"^^spexpr:Variable ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:RelationalExpression ;
                         spexpr:expr "callerFile"^^spexpr:Variable ;
                         spexpr:op "!="^^spexpr:PlainString ;
-                        spexpr:other [ a spexpr:Builtin_STRBEFORE ;
-                                spexpr:arg1 [ a spexpr:Builtin_STR ;
+                        spexpr:other [ a spexpr:STRBEFORE ;
+                                spexpr:arg1 [ a spexpr:STR ;
                                         spexpr:arg "f"^^spexpr:Variable ] ;
                                 spexpr:arg2 "#" ] ] ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_REPLACE ;
+                sqe:expr [ a spexpr:REPLACE ;
                         spexpr:arg "callerFile"^^spexpr:Variable ;
                         spexpr:pattern "^.*/blob/main/" ;
                         spexpr:replacement "" ] ;
@@ -890,13 +890,13 @@ ql:longest-functions-tree a sqe:Query,
                 sqe:expr "lines"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "symbol"^^spexpr:Variable "lines"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -921,14 +921,14 @@ ql:longest-functions-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Function slkg:Method ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a spexpr:Builtin_STRSTARTS ;
+                sqe:expr [ a spexpr:STRSTARTS ;
                         spexpr:arg1 "file"^^spexpr:Variable ;
                         spexpr:arg2 "packages/starlayer/starlayer/" ] ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "prefix"^^spexpr:Variable ] ] ;
-                        spexpr:other ( [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:other ( [ a spexpr:STRSTARTS ;
                                     spexpr:arg1 "symbol"^^spexpr:Variable ;
                                     spexpr:arg2 "prefix"^^spexpr:Variable ] ) ] ] [ a sqe:Bind ;
                 sqe:expr [ a spexpr:AdditiveExpression ;
@@ -943,18 +943,18 @@ ql:members-of-class-tree a sqe:Query,
                 sqe:expr "line"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "member"^^spexpr:Variable ] ) ;
     sqe:projection ( "member"^^spexpr:Variable "kind"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
                 sqe:object "m"^^spexpr:Variable ;
-                sqe:predicate [ a spexpr:AlternativePath ;
+                sqe:predicate [ a spexpr:PathAlternative ;
                         spexpr:args ( slkg:declares slkg:hasAttribute ) ] ;
                 sqe:subject "c"^^spexpr:Variable ] [ a sqe:TriplePattern ;
                 sqe:object "type"^^spexpr:Variable ;
@@ -970,19 +970,18 @@ ql:members-of-class-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Method slkg:Attribute ) ] ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_LCASE ;
-                        spexpr:arg [ a spexpr:Builtin_REPLACE ;
-                                spexpr:arg [ a spexpr:Builtin_STR ;
+                sqe:expr [ a spexpr:LCASE ;
+                        spexpr:arg [ a spexpr:REPLACE ;
+                                spexpr:arg [ a spexpr:STR ;
                                         spexpr:arg "type"^^spexpr:Variable ] ;
                                 spexpr:pattern "^.*#" ;
                                 spexpr:replacement "" ] ] ;
                 sqe:var "kind"^^spexpr:Variable ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:UnaryNot ;
-                        spexpr:expr [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:expr [ a spexpr:STRSTARTS ;
                                 spexpr:arg1 "member"^^spexpr:Variable ;
                                 spexpr:arg2 "_" ] ] ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object true ;
                                     sqe:predicate slkg:isPrivate ;
@@ -997,13 +996,13 @@ ql:module-imports-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "imported"^^spexpr:Variable ] ) ;
     sqe:projection ( "imported"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -1013,8 +1012,8 @@ ql:module-imports-tree a sqe:Query,
                 sqe:object "i"^^spexpr:Variable ;
                 sqe:predicate slkg:importsModule ;
                 sqe:subject "m"^^spexpr:Variable ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_REPLACE ;
-                        spexpr:arg [ a spexpr:Builtin_STR ;
+                sqe:expr [ a spexpr:REPLACE ;
+                        spexpr:arg [ a spexpr:STR ;
                                 spexpr:arg "i"^^spexpr:Variable ] ;
                         spexpr:pattern "^.*#" ;
                         spexpr:replacement "" ] ;
@@ -1026,13 +1025,13 @@ ql:overrides-tree a sqe:Query,
                 sqe:expr "relation"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "method"^^spexpr:Variable ] ) ;
     sqe:projection ( "relation"^^spexpr:Variable "method"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -1062,13 +1061,13 @@ ql:parameters-of-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "position"^^spexpr:Variable ] ) ;
     sqe:projection ( "position"^^spexpr:Variable "name"^^spexpr:Variable "kind"^^spexpr:Variable "annotation"^^spexpr:Variable "default"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -1103,13 +1102,13 @@ ql:public-api-of-module-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "line"^^spexpr:Variable ] ) ;
     sqe:projection ( "name"^^spexpr:Variable "kind"^^spexpr:Variable "line"^^spexpr:Variable "summary"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -1129,15 +1128,14 @@ ql:public-api-of-module-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Class slkg:Function ) ] ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_LCASE ;
-                        spexpr:arg [ a spexpr:Builtin_REPLACE ;
-                                spexpr:arg [ a spexpr:Builtin_STR ;
+                sqe:expr [ a spexpr:LCASE ;
+                        spexpr:arg [ a spexpr:REPLACE ;
+                                spexpr:arg [ a spexpr:STR ;
                                         spexpr:arg "type"^^spexpr:Variable ] ;
                                 spexpr:pattern "^.*#" ;
                                 spexpr:replacement "" ] ] ;
                 sqe:var "kind"^^spexpr:Variable ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object true ;
                                     sqe:predicate slkg:isPrivate ;
@@ -1156,13 +1154,13 @@ ql:public-without-docstring-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "symbol"^^spexpr:Variable "kind"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -1181,31 +1179,29 @@ ql:public-without-docstring-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Class slkg:Function slkg:Method ) ] ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_LCASE ;
-                        spexpr:arg [ a spexpr:Builtin_REPLACE ;
-                                spexpr:arg [ a spexpr:Builtin_STR ;
+                sqe:expr [ a spexpr:LCASE ;
+                        spexpr:arg [ a spexpr:REPLACE ;
+                                spexpr:arg [ a spexpr:STR ;
                                         spexpr:arg "type"^^spexpr:Variable ] ;
                                 spexpr:pattern "^.*#" ;
                                 spexpr:replacement "" ] ] ;
                 sqe:var "kind"^^spexpr:Variable ] [ a sqe:Filter ;
-                sqe:expr [ a spexpr:Builtin_STRSTARTS ;
+                sqe:expr [ a spexpr:STRSTARTS ;
                         spexpr:arg1 "file"^^spexpr:Variable ;
                         spexpr:arg2 "packages/starlayer/starlayer/" ] ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "prefix"^^spexpr:Variable ] ] ;
-                        spexpr:other ( [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:other ( [ a spexpr:STRSTARTS ;
                                     spexpr:arg1 "symbol"^^spexpr:Variable ;
                                     spexpr:arg2 "prefix"^^spexpr:Variable ] ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object true ;
                                     sqe:predicate slkg:isPrivate ;
                                     sqe:subject "s"^^spexpr:Variable ] ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object "c"^^spexpr:Variable ;
                                     sqe:predicate rdfs:comment ;
@@ -1224,17 +1220,16 @@ ql:subpackage-coupling-tree a sqe:Query,
                 sqe:expr "from"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "to"^^spexpr:Variable ] ) ;
     sqe:projection ( "from"^^spexpr:Variable "to"^^spexpr:Variable [ a sqe:Alias ;
-                sqe:expr [ a spexpr:Aggregate_Count ;
-                        spexpr:distinct () ;
-                        spexpr:vars "*"^^spexpr:PlainString ] ;
+                sqe:expr [ a spexpr:COUNT ;
+                        spexpr:expr "*"^^spexpr:PlainString ] ;
                 sqe:var "calls"^^spexpr:Variable ] ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -1248,18 +1243,18 @@ ql:subpackage-coupling-tree a sqe:Query,
                 sqe:predicate dcterms:identifier ;
                 sqe:subject "b"^^spexpr:Variable ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalAndExpression ;
-                        spexpr:expr [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:expr [ a spexpr:STRSTARTS ;
                                 spexpr:arg1 "id1"^^spexpr:Variable ;
                                 spexpr:arg2 "starlayer." ] ;
-                        spexpr:other ( [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:other ( [ a spexpr:STRSTARTS ;
                                     spexpr:arg1 "id2"^^spexpr:Variable ;
                                     spexpr:arg2 "starlayer." ] ) ] ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_REPLACE ;
+                sqe:expr [ a spexpr:REPLACE ;
                         spexpr:arg "id1"^^spexpr:Variable ;
                         spexpr:pattern "^(starlayer\\.[^.]+).*$" ;
                         spexpr:replacement "$1" ] ;
                 sqe:var "from"^^spexpr:Variable ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_REPLACE ;
+                sqe:expr [ a spexpr:REPLACE ;
                         spexpr:arg "id2"^^spexpr:Variable ;
                         spexpr:pattern "^(starlayer\\.[^.]+).*$" ;
                         spexpr:replacement "$1" ] ;
@@ -1272,13 +1267,13 @@ ql:subpackage-coupling-tree a sqe:Query,
 ql:symbol-info-tree a sqe:Query,
         sqe:SelectQuery ;
     sqe:projection ( "kind"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable "lineEnd"^^spexpr:Variable "signature"^^spexpr:Variable "summary"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -1292,9 +1287,9 @@ ql:symbol-info-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Class slkg:Function slkg:Method slkg:Module ) ] ] [ a sqe:Bind ;
-                sqe:expr [ a spexpr:Builtin_LCASE ;
-                        spexpr:arg [ a spexpr:Builtin_REPLACE ;
-                                spexpr:arg [ a spexpr:Builtin_STR ;
+                sqe:expr [ a spexpr:LCASE ;
+                        spexpr:arg [ a spexpr:REPLACE ;
+                                spexpr:arg [ a spexpr:STR ;
                                         spexpr:arg "type"^^spexpr:Variable ] ;
                                 spexpr:pattern "^.*#" ;
                                 spexpr:replacement "" ] ] ;
@@ -1325,13 +1320,13 @@ ql:tests-of-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "test"^^spexpr:Variable ] ) ;
     sqe:projection ( "test"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;
@@ -1347,7 +1342,7 @@ ql:tests-of-tree a sqe:Query,
                 sqe:object "symbol"^^spexpr:Variable ;
                 sqe:predicate dcterms:identifier ;
                 sqe:subject "target"^^spexpr:Variable ] [ a sqe:Filter ;
-                sqe:expr [ a spexpr:Builtin_STRSTARTS ;
+                sqe:expr [ a spexpr:STRSTARTS ;
                         spexpr:arg1 "file"^^spexpr:Variable ;
                         spexpr:arg2 "packages/starlayer/tests/" ] ] [ a sqe:Optional ;
                 sqe:where ( [ a sqe:TriplePattern ;
@@ -1364,13 +1359,13 @@ ql:unreferenced-functions-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "symbol"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -1389,24 +1384,22 @@ ql:unreferenced-functions-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Function slkg:Method ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a spexpr:Builtin_STRSTARTS ;
+                sqe:expr [ a spexpr:STRSTARTS ;
                         spexpr:arg1 "file"^^spexpr:Variable ;
                         spexpr:arg2 "packages/starlayer/starlayer/" ] ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "prefix"^^spexpr:Variable ] ] ;
-                        spexpr:other ( [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:other ( [ a spexpr:STRSTARTS ;
                                     spexpr:arg1 "symbol"^^spexpr:Variable ;
                                     spexpr:arg2 "prefix"^^spexpr:Variable ] ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object true ;
                                     sqe:predicate slkg:isPrivate ;
                                     sqe:subject "f"^^spexpr:Variable ] ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object "f"^^spexpr:Variable ;
                                     sqe:predicate slkg:calls ;
@@ -1421,13 +1414,13 @@ ql:untested-functions-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "symbol"^^spexpr:Variable ] ) ;
     sqe:projection ( "symbol"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -1446,24 +1439,22 @@ ql:untested-functions-tree a sqe:Query,
                         spexpr:expr "type"^^spexpr:Variable ;
                         spexpr:op "IN"^^spexpr:PlainString ;
                         spexpr:other ( slkg:Function slkg:Method ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a spexpr:Builtin_STRSTARTS ;
+                sqe:expr [ a spexpr:STRSTARTS ;
                         spexpr:arg1 "file"^^spexpr:Variable ;
                         spexpr:arg2 "packages/starlayer/starlayer/" ] ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "prefix"^^spexpr:Variable ] ] ;
-                        spexpr:other ( [ a spexpr:Builtin_STRSTARTS ;
+                        spexpr:other ( [ a spexpr:STRSTARTS ;
                                     spexpr:arg1 "symbol"^^spexpr:Variable ;
                                     spexpr:arg2 "prefix"^^spexpr:Variable ] ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object true ;
                                     sqe:predicate slkg:isPrivate ;
                                     sqe:subject "f"^^spexpr:Variable ] ) ] ] [ a sqe:Filter ;
-                sqe:expr [ a sqe:Exists ;
-                        sqe:negated true ;
+                sqe:expr [ a sqe:NotExists ;
                         sqe:where ( [ a sqe:TriplePattern ;
                                     sqe:object "f"^^spexpr:Variable ;
                                     sqe:predicate slkg:calls ;
@@ -1471,7 +1462,7 @@ ql:untested-functions-tree a sqe:Query,
                                     sqe:object "testFile"^^spexpr:Variable ;
                                     sqe:predicate slkg:filePath ;
                                     sqe:subject "t"^^spexpr:Variable ] [ a sqe:Filter ;
-                                    sqe:expr [ a spexpr:Builtin_STRSTARTS ;
+                                    sqe:expr [ a spexpr:STRSTARTS ;
                                             spexpr:arg1 "testFile"^^spexpr:Variable ;
                                             spexpr:arg2 "packages/starlayer/tests/" ] ] ) ] ] [ a sqe:Optional ;
                 sqe:where ( [ a sqe:TriplePattern ;
@@ -1486,13 +1477,13 @@ ql:upstream-workarounds-tree a sqe:Query,
                 sqe:expr "number"^^spexpr:Variable ] [ a sqe:OrderCondition ;
                 sqe:expr "workaround"^^spexpr:Variable ] ) ;
     sqe:projection ( "upstream"^^spexpr:Variable "number"^^spexpr:Variable "issue"^^spexpr:Variable "status"^^spexpr:Variable "workaround"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:Values ;
@@ -1534,17 +1525,17 @@ ql:upstream-workarounds-tree a sqe:Query,
                                                     sqe:subject "s"^^spexpr:Variable ] ) ] ) ] ) ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "project"^^spexpr:Variable ] ] ;
                         spexpr:other ( [ a spexpr:RelationalExpression ;
-                                    spexpr:expr [ a spexpr:Builtin_LCASE ;
+                                    spexpr:expr [ a spexpr:LCASE ;
                                             spexpr:arg "upstream"^^spexpr:Variable ] ;
                                     spexpr:op "="^^spexpr:PlainString ;
-                                    spexpr:other [ a spexpr:Builtin_LCASE ;
+                                    spexpr:other [ a spexpr:LCASE ;
                                             spexpr:arg "project"^^spexpr:Variable ] ] ) ] ] [ a sqe:Filter ;
                 sqe:expr [ a spexpr:ConditionalOrExpression ;
                         spexpr:expr [ a spexpr:UnaryNot ;
-                                spexpr:expr [ a spexpr:Builtin_BOUND ;
+                                spexpr:expr [ a spexpr:BOUND ;
                                         spexpr:arg "symbol"^^spexpr:Variable ] ] ;
                         spexpr:other ( [ a spexpr:RelationalExpression ;
                                     spexpr:expr "workaround"^^spexpr:Variable ;
@@ -1556,13 +1547,13 @@ ql:who-instantiates-tree a sqe:Query,
     sqe:orderBy ( [ a sqe:OrderCondition ;
                 sqe:expr "constructor"^^spexpr:Variable ] ) ;
     sqe:projection ( "constructor"^^spexpr:Variable "file"^^spexpr:Variable "line"^^spexpr:Variable ) ;
-    sqe:prologuePrefix [ a sqe:PrefixBinding ;
+    sqe:prefixDecl [ a sqe:PrefixDecl ;
             sqe:namespace dcterms: ;
             sqe:prefixLabel "dcterms"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace rdfs: ;
             sqe:prefixLabel "rdfs"^^spexpr:PlainString ],
-        [ a sqe:PrefixBinding ;
+        [ a sqe:PrefixDecl ;
             sqe:namespace slkg: ;
             sqe:prefixLabel "slkg"^^spexpr:PlainString ] ;
     sqe:where ( [ a sqe:TriplePattern ;

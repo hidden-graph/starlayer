@@ -13,7 +13,8 @@ import pyoxigraph as ox
 from .. import _oxterms as T
 from .._oxterms import RDF
 from ..vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
-from .vocab import NEGATED, TRIPLE_TERM, WHERE
+from ..expr_families import _EXPR_NODE_FAMILY
+from .vocab import TRIPLE_TERM, WHERE
 from .vocab import TRIPLE_PATTERN_OBJECT as SQE_OBJECT
 from .vocab import TRIPLE_PATTERN_PREDICATE as SQE_PREDICATE
 from .vocab import TRIPLE_PATTERN_SUBJECT as SQE_SUBJECT
@@ -32,15 +33,9 @@ _COMPOUND = {
 _ZERO_ARG = {"NOW", "UUID", "STRUUID", "RAND"}
 _TWO_ARG = {"STRSTARTS", "STRENDS", "CONTAINS", "STRBEFORE", "STRAFTER", "STRLANG", "STRDT", "sameTerm", "LANGMATCHES"}
 _LIST_ARG = {"CONCAT", "COALESCE"}
-_AGGREGATES = {
-    "Count": "COUNT",
-    "Sum": "SUM",
-    "Min": "MIN",
-    "Max": "MAX",
-    "Avg": "AVG",
-    "Sample": "SAMPLE",
-    "GroupConcat": "GROUP_CONCAT",
-}
+_AGGREGATES = {"COUNT", "SUM", "MIN", "MAX", "AVG", "SAMPLE", "GROUP_CONCAT"}
+_BUILTIN_FAMILIES = {"ZeroArg", "OneArg", "OptionalOneArg", "TwoArg", "ThreeArg", "VariadicArg", "StrLangDir", "Regex", "Replace", "Substr"}
+_BUILTINS = {name for name, family in _EXPR_NODE_FAMILY.items() if family in _BUILTIN_FAMILIES}
 
 
 def _local(uri) -> str:
@@ -174,10 +169,10 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
             return "TRIPLE(" + ", ".join(parts) + ")"
         return "<<( " + " ".join(parts) + " )>>"
 
-    if "Exists" in names:
+    if "Exists" in names or "NotExists" in names:
         from .to_text import _where_group_text
 
-        keyword = "NOT EXISTS" if (node, NEGATED, None) in graph else "EXISTS"
+        keyword = "NOT EXISTS" if "NotExists" in names else "EXISTS"
         return f"{keyword} {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
 
     # a blank node used directly as a term (no recognized expression type)
@@ -216,33 +211,26 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
     if "UnaryPlus" in names:
         return "+" + sub("expr")
 
-    if "Function" in names:
-        distinct = "DISTINCT " if "distinct" in props and _is_plain_string(props["distinct"]) else ""
-        args = ", ".join(expr_text(a, graph, prefixes) for a in _list_items(props.get("expr"), graph))
+    if "FunctionCall" in names:
+        distinct = "DISTINCT " if "distinct" in props else ""
+        args = ", ".join(expr_text(a, graph, prefixes) for a in _list_items(props.get("args"), graph))
         return f"{_abbreviate(T.iri_text(props['iri']), prefixes)}({distinct}{args})"
 
-    for name in names:
-        if name.startswith("Aggregate_"):
-            keyword = _AGGREGATES[name[len("Aggregate_"):]]
-            distinct = "DISTINCT " if "distinct" in props and _is_plain_string(props["distinct"]) else ""
-            inner = expr_text(props["vars"], graph, prefixes)
-            separator = ""
-            if "separator" in props:
-                separator = f"; SEPARATOR={_literal_text(props['separator'])}"
-            return f"{keyword}({distinct}{inner}{separator})"
+    for keyword in names & _AGGREGATES:
+        distinct = "DISTINCT " if "distinct" in props else ""
+        inner = expr_text(props["expr"], graph, prefixes)
+        separator = ""
+        if "separator" in props:
+            separator = f"; SEPARATOR={_literal_text(props['separator'])}"
+        return f"{keyword}({distinct}{inner}{separator})"
 
-    for name in names:
-        if not name.startswith("Builtin_"):
-            continue
-        base = name[len("Builtin_"):]
-        if base == "NOTEXISTS" or base == "EXISTS":
-            raise NotImplementedError("sqe: EXISTS must be an sqe:Exists node")  # pragma: no cover
+    for base in names & _BUILTINS:
         if base in _ZERO_ARG:
             return f"{base}()"
         if base == "BNODE":
             return _call("BNODE", [opt("arg")])
         if base in _LIST_ARG:
-            return _call(base, [expr_text(a, graph, prefixes) for a in _list_items(props.get("arg"), graph)])
+            return _call(base, [expr_text(a, graph, prefixes) for a in _list_items(props.get("args"), graph)])
         if base in _TWO_ARG:
             return _call(base, [sub("arg1"), sub("arg2")])
         if base == "IF":

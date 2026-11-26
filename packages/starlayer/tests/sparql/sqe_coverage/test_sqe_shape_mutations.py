@@ -3,10 +3,10 @@ replace its value with a junk literal, add a second value) and require the shape
 
 Some corruptions are legitimately valid and are listed here, with the reason:
 
-* removing an optional property (modifiers, ``sqe:negated``, prefixes, ...);
+* removing an optional property (modifiers, prefixes, ...);
 * a string literal where an expression operand is expected - a literal is a valid SPARQL operand;
 * a literal as the object of a triple pattern or triple term - a valid RDF term;
-* ``sqe:prologuePrefix`` / ``sqe:values`` ... repeated or removed - a query may declare many prefixes.
+* ``sqe:prefixDecl`` / ``sqe:values`` ... repeated or removed - a query may declare many prefixes.
 
 Opt-in (``pytest --sqe-coverage``); about 5 minutes.
 """
@@ -38,11 +38,11 @@ SELECT DISTINCT ?s (COUNT(?o) AS ?c) WHERE { ?s ex:p ?o . VALUES ?o { 1 2 } BIND
 # (property local names) whose removal is fine because they are optional
 OPTIONAL_PROPERTIES = {
     "distinct", "reduced", "limit", "offset", "orderBy", "groupBy", "having", "values",
-    "prologuePrefix", "base", "negated", "descending", "separator", "flags", "length", "other",
+    "prefixDecl", "base", "descending", "separator", "flags", "length", "other",
 }
 # (property local names) that may hold a plain literal because a literal is a valid operand or term
 LITERAL_OK = {"expr", "other", "arg", "pattern", "text", "vars", "object", "arg1", "arg2", "arg3", "start", "length", "flags"}
-REPEATABLE = {"prologuePrefix"}
+REPEATABLE = {"prefixDecl"}
 
 
 def _local(uri) -> str:

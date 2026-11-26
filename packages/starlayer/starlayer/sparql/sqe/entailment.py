@@ -68,9 +68,9 @@ RDFS_REGIME = "http://www.w3.org/ns/entailment/RDFS"
 _TYPE = RDF.type
 _SUBCLASS = RDFS.subClassOf
 _SUBPROPERTY = RDFS.subPropertyOf
-_SUBPROPERTY_PLUS = Node("MulPath", path=_SUBPROPERTY, mod="+")
+_SUBPROPERTY_PLUS = Node("PathElt", path=_SUBPROPERTY, mod="+")
 # a subject of one of these is an rdf:Property (the domains of rdfs:subPropertyOf, rdfs:domain and rdfs:range are rdf:Property)
-_PROPERTY_SUBJECT_PATH = Node("AlternativePath", args=[_SUBPROPERTY, RDFS.domain, RDFS.range])
+_PROPERTY_SUBJECT_PATH = Node("PathAlternative", args=[_SUBPROPERTY, RDFS.domain, RDFS.range])
 _RESOURCE = RDFS.Resource
 _CLASS = RDFS.Class
 _DATATYPE = RDFS.Datatype
@@ -156,7 +156,7 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
 
 
 def _mul(path: Any, mod: str) -> Node:
-    return Node("MulPath", path=path, mod=mod)
+    return Node("PathElt", path=path, mod=mod)
 
 
 def _tp(s: Any, p: Any, o: Any) -> Node:
@@ -172,11 +172,11 @@ def _not(expr: Node) -> Node:
 
 
 def _exists(*elements: Any) -> Node:
-    return Node("Filter", expr=Node("Builtin_EXISTS", graph=list(elements)))
+    return Node("Filter", expr=Node("Exists", where=list(elements)))
 
 
 def _not_exists(*elements: Any) -> Node:
-    return Node("Filter", expr=Node("Builtin_NOTEXISTS", graph=list(elements)))
+    return Node("Filter", expr=Node("NotExists", where=list(elements)))
 
 
 def _is_node(t: Any) -> bool:
@@ -214,7 +214,7 @@ class _Rewriter:
         if not s_var and not o_var:
             return [] if s == o else [_tp(s, _mul(step, "+"), o)]
         var, const = (s, o) if s_var else (o, s)
-        plus = [_tp(s, _mul(step, "+"), o), Node("Filter", expr=Node("UnaryNot", expr=Node("Builtin_sameTerm", arg1=var, arg2=const)))]
+        plus = [_tp(s, _mul(step, "+"), o), Node("Filter", expr=Node("UnaryNot", expr=Node("sameTerm", arg1=var, arg2=const)))]
         return [_union([plus, [Node("Values", vars=[var], rows=[[const]])]])]
 
     # ---- is there anything to widen? ----------------------------------------------------------------------------------
@@ -258,8 +258,8 @@ class _Rewriter:
 
     def expr(self, e: Any) -> None:
         if isinstance(e, Node):
-            if e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
-                e.f["graph"] = self.group(e.f["graph"])
+            if e.kind in ("Exists", "NotExists"):
+                e.f["where"] = self.group(e.f["where"])
                 return
             for v in e.f.values():
                 self.expr(v)
@@ -412,10 +412,10 @@ class _Rewriter:
             [_tp(x, a, b)],
             [_tp(a, x, b)],
             [_tp(a, b, x)],
-            *([_tp(a, b, t), Node("Filter", expr=Node("Builtin_isTRIPLE", arg=t)), Node("Bind", expr=Node(f"Builtin_{part}", arg=t), var=x)] for part in ("SUBJECT", "PREDICATE", "OBJECT")),
+            *([_tp(a, b, t), Node("Filter", expr=Node("isTRIPLE", arg=t)), Node("Bind", expr=Node(part, arg=t), var=x)] for part in ("SUBJECT", "PREDICATE", "OBJECT")),
             *(guard for term_set, why in _DERIVED for guard in self.vocabulary_alts(x, term_set, why)),
         ]
-        where = [_union(parts), Node("Filter", expr=_not(Node("Builtin_isLITERAL", arg=x))), Node("Filter", expr=_not(Node("Builtin_isTRIPLE", arg=x)))]
+        where = [_union(parts), Node("Filter", expr=_not(Node("isLITERAL", arg=x))), Node("Filter", expr=_not(Node("isTRIPLE", arg=x)))]
         return Node("SubSelect", modifier="DISTINCT", projection=[Node("ProjectVar", var=x)], datasets=[], where=where,
                     group_by=None, having=None, order_by=None, limit=None, offset=None, values=None)
 
@@ -424,8 +424,8 @@ class _Rewriter:
         a, b, t = self.fresh(3)
         parts = [[_tp(c, a, b)], [_tp(a, c, b)], [_tp(a, b, c)]]
         for part in ("SUBJECT", "PREDICATE", "OBJECT"):
-            parts.append([_tp(a, b, t), Node("Filter", expr=Node("Builtin_isTRIPLE", arg=t)),
-                          Node("Filter", expr=Node("Builtin_sameTerm", arg1=Node(f"Builtin_{part}", arg=t), arg2=c))])
+            parts.append([_tp(a, b, t), Node("Filter", expr=Node("isTRIPLE", arg=t)),
+                          Node("Filter", expr=Node("sameTerm", arg1=Node(part, arg=t), arg2=c))])
         parts.extend(guard for term_set, why in _DERIVED for guard in self.vocabulary_alts(c, term_set, why))
         return [_exists(_union(parts))]
 
@@ -475,7 +475,7 @@ class _Rewriter:
             return alts
         alts.append([_union(self.type_alts(s, o)), *self.star(_TYPE, _SUBPROPERTY, p)])
         for predicate in (_SUBCLASS, _SUBPROPERTY):  # rdfs11 / rdfs5: two steps or more (one step is the asserted triple)
-            alts.append([*self.star(predicate, _SUBPROPERTY, p), _tp(s, Node("SequencePath", args=[predicate, _mul(predicate, "+")]), o)])
+            alts.append([*self.star(predicate, _SUBPROPERTY, p), _tp(s, Node("PathSequence", args=[predicate, _mul(predicate, "+")]), o)])
             for extra in self.schema_alts(s, predicate, o, strict=False):  # the facts a class or a property gives about itself
                 alts.append([*self.star(predicate, _SUBPROPERTY, p), *extra])
         return alts

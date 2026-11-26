@@ -279,13 +279,13 @@ def _path_text(path: Any) -> str:
     if not isinstance(path, Node):
         raise _NotComputable("unknown path")
     k = path.kind
-    if k == "InvPath":
+    if k == "PathInverse":
         return f"^({_path_text(path.f['arg'])})"
-    if k == "SequencePath":
+    if k == "PathSequence":
         return "(" + "/".join(_path_text(a) for a in path.f["args"]) + ")"
-    if k == "AlternativePath":
+    if k == "PathAlternative":
         return "(" + "|".join(_path_text(a) for a in path.f["args"]) + ")"
-    if k == "MulPath":
+    if k == "PathElt":
         return f"({_path_text(path.f['path'])}){path.f['mod']}"
     raise _NotComputable(f"path {k}")  # a negated property set: its edges are every edge but a few
 
@@ -298,13 +298,13 @@ def _nullable(path: Any) -> bool:
     if isinstance(path, ox.NamedNode):
         return False
     k = path.kind
-    if k == "InvPath":
+    if k == "PathInverse":
         return _nullable(path.f["arg"])
-    if k == "SequencePath":
+    if k == "PathSequence":
         return all(_nullable(a) for a in path.f["args"])
-    if k == "AlternativePath":
+    if k == "PathAlternative":
         return any(_nullable(a) for a in path.f["args"])
-    if k == "MulPath":
+    if k == "PathElt":
         return path.f["mod"] in ("*", "?") or _nullable(path.f["path"])
     return False
 
@@ -316,9 +316,9 @@ def _edges(path: Any, a: str, b: str, fresh: _Fresh) -> list[tuple[list[str], li
     if isinstance(path, ox.NamedNode):
         return [([(a, str(path), b)], [])]
     k = path.kind
-    if k == "InvPath":
+    if k == "PathInverse":
         return _edges(path.f["arg"], b, a, fresh)
-    if k == "SequencePath":
+    if k == "PathSequence":
         steps = path.f["args"]
         nodes = [a] + [fresh.var() for _ in steps[:-1]] + [b]
         chain = [f"{nodes[i]} {_path_text(step)} {nodes[i + 1]} ." for i, step in enumerate(steps)]
@@ -327,13 +327,13 @@ def _edges(path: Any, a: str, b: str, fresh: _Fresh) -> list[tuple[list[str], li
             for i, step in enumerate(steps)
             for template, guards in _edges(step, nodes[i], nodes[i + 1], fresh)
         ]
-    if k == "AlternativePath":
+    if k == "PathAlternative":
         return [
             (template, guards + [f"{a} {_path_text(alt)} {b} ."])
             for alt in path.f["args"]
             for template, guards in _edges(alt, a, b, fresh)
         ]
-    if k == "MulPath":
+    if k == "PathElt":
         inner = path.f["path"]
         if path.f["mod"] == "?":
             return [(t, g + [f"{a} {_path_text(inner)} {b} ."]) for t, g in _edges(inner, a, b, fresh)]
@@ -669,7 +669,7 @@ def _path_predicates(path: Any) -> list[Any]:
         if isinstance(item, ox.NamedNode):
             out.append(item)
         elif isinstance(item, Node):
-            if item.kind == "NegatedPath":
+            if item.kind == "PathNegatedPropertySet":
                 return False
             return all(walk(v) for v in item.f.values())
         elif isinstance(item, (list, tuple)):

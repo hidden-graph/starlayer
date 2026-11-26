@@ -38,22 +38,9 @@ than inventing a new one:
   real IRI can always be re-abbreviated by any Turtle/display layer with
   its own prefix map, so this isn't a readability loss.
 - **The query's own original `PREFIX`/`BASE` declarations are preserved
-  separately**, under ``sqe:``'s own ``sqe:base``/``sqe:prologuePrefix``/
-  ``sqe:PrefixBinding``/``sqe:prefixLabel``/``sqe:namespace`` terms
-  (2026-10-14 - previously reused ``salg:``'s identically-shaped terms
-  verbatim; moved to a real, independent ``sqe:`` duplicate instead,
-  since an ``sqe:`` graph's own encoder/decoder - ``to_rdf.py``'s
-  ``_encode_raw_prologue``/``to_text.py``'s ``_prefix_map`` - never
-  actually called ``salg:``'s own ``_encode_prologue``/decode logic in
-  the first place; they're two independently-maintained implementations
-  that merely *happened* to target the same predicate names, not a real
-  shared dependency - so duplicating cost nothing). ``prefixLabel``'s own
-  bare-string value is tagged with ``spexpr:PlainString`` (reused directly
-  from ``vocab.PY_STR_DATATYPE``, not a separate ``sqe:PyStr`` - that
-  independent copy existed only because the datatype was ``salg:``-owned
-  at the time; renamed and moved to ``spexpr:`` 2026-10-15, so there's no
-  longer a reason to duplicate it - see ``vocab.py``'s own comment on
-  ``PY_STR_DATATYPE`` for why).
+  separately**, under ``sqe:``'s own ``sqe:base``/``sqe:prefixDecl``/
+  ``sqe:PrefixDecl``/``sqe:prefixLabel``/``sqe:namespace`` terms.
+  ``prefixLabel``'s own bare-string value is tagged with ``spexpr:PlainString`` (``vocab.PY_STR_DATATYPE``).
   This is for direct, prefix-aware rendering (see
   ``to_text.py``) and for the UI's own display purposes - **not** for
   execution, which never needs prefixes at all once every term is already
@@ -150,8 +137,8 @@ FILTER = SQE.Filter  # .expr -> salg: expression (fallback boundary)
 BIND = SQE.Bind  # .expr -> salg: expression (fallback boundary), .var
 BIND_VAR = SQE.var
 
-EXISTS = SQE.Exists  # EXISTS { ... } / NOT EXISTS { ... } inside an expression - .where, .negated
-NEGATED = SQE.negated  # boolean true on a NOT EXISTS
+EXISTS = SQE.Exists  # EXISTS { ... } inside an expression - .where
+NOT_EXISTS = SQE.NotExists  # NOT EXISTS { ... } inside an expression - .where
 ALIAS = SQE.Alias  # (expr AS ?var) in a projection or GROUP BY - .expr, .var
 GROUP_BY = SQE.groupBy  # rdf:List of variables / expressions / sqe:Alias
 HAVING = SQE.having  # rdf:List of expressions
@@ -184,18 +171,11 @@ UNION_ALTERNATIVES = SQE.alternatives
 
 EXPR = SQE.expr  # the salg:-boundary property shared by Filter/Bind
 
-# Prologue predicates - a real sqe:-native duplicate of SALG's own
-# identically-shaped base/prologuePrefix/PrefixBinding/prefixLabel/
-# namespace terms (2026-10-14), not a reuse - see this module's own
-# docstring for why duplicating was free (to_rdf.py's _encode_raw_prologue/
-# to_text.py's _prefix_map never called salg:'s own _encode_prologue to
-# begin with). prefixLabel's own bare-string datatype tag is PY_STR_DATATYPE
-# (spexpr:PlainString, imported above) - no separate sqe:PyStr/PlainString
-# of its own; that duplicate datatype was removed 2026-10-15 once the
-# datatype's canonical home moved off of salg: (see vocab.py).
+# Prologue terms: the query's own PREFIX / BASE declarations, kept so the text can be written with the author's prefixes.
+# prefixLabel's bare-string value is tagged PY_STR_DATATYPE (spexpr:PlainString, imported above).
 PROLOGUE_BASE = SQE.base
-PROLOGUE_PREFIX = SQE.prologuePrefix
-PREFIX_BINDING = SQE.PrefixBinding
+PROLOGUE_PREFIX = SQE.prefixDecl
+PREFIX_DECL = SQE.PrefixDecl
 PREFIX_LABEL = SQE.prefixLabel
 PREFIX_NAMESPACE = SQE.namespace
 

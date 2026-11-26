@@ -293,7 +293,7 @@ srl:AggregateInExpressionShape a sh:NodeShape ;
             SELECT DISTINCT $this ?value
             WHERE {
                 $this srl:expr/(!rdf:type)* ?value . ?value a ?type .
-                FILTER ( ?type IN ( spexpr:Builtin_EXISTS, spexpr:Builtin_NOTEXISTS ) || STRSTARTS(STR(?type), "https://github.com/hidden-graph/starlayer/ns/sparql/expr#Aggregate_") )
+                FILTER ( ?type IN ( sqe:Exists, sqe:NotExists, spexpr:COUNT, spexpr:SUM, spexpr:MIN, spexpr:MAX, spexpr:AVG, spexpr:SAMPLE, spexpr:GROUP_CONCAT ) )
             }
         """
     ] ;

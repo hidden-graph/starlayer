@@ -3,7 +3,7 @@
 The text is parsed by StarLayer's own SPARQL 1.2 parser (``sparql/parse_sparql.py``, a hand-written recursive-descent parser
 whose syntax tree is made of pyoxigraph terms) and the syntax tree is written out as the ``sqe:`` tree, a ``StarLayerGraph``
 of pyoxigraph terms (``parse_sparql._Encoder``). Nothing here needs rdflib. The query's own ``PREFIX`` / ``BASE`` /
-``VERSION`` declarations are kept on the root (``sqe:prologuePrefix`` / ``sqe:base`` / ``sqe:version``) so
+``VERSION`` declarations are kept on the root (``sqe:prefixDecl`` / ``sqe:base`` / ``sqe:version``) so
 ``sqe_tree_to_text`` can write the text with the prefixes the author used.
 """
 

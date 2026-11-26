@@ -503,7 +503,7 @@ def _with_now(node, now_text: str):
     """``node`` with each ``NOW()`` replaced by the literal of the evaluation instant (a SPARQL engine would read the clock
     once per query, so each solution would see its own instant)."""
     if isinstance(node, Node):
-        if node.kind == "Builtin_NOW":
+        if node.kind == "NOW":
             return ox.Literal(now_text, datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#dateTime"))
         out = type(node)(node.kind, **{k: _with_now(v, now_text) for k, v in node.f.items()})
         out.pos = node.pos

@@ -27,8 +27,8 @@ written in one ``INSERT DATA`` cannot be reused in another operation; WHERE patt
 
 The AST is one generic class, :class:`Node` (``kind`` plus an ordered ``f``
 dict), because the ``sqe:``/``spexpr:`` vocabulary is itself generic: an
-expression node of kind ``Builtin_STR`` with field ``arg`` is encoded as
-``[] a spexpr:Builtin_STR ; spexpr:arg ...``. :func:`sparql_to_tree` encodes
+expression node of kind ``STR`` with field ``arg`` is encoded as
+``[] a spexpr:STR ; spexpr:arg ...``. :func:`sparql_to_tree` encodes
 the AST as ``sqe:`` RDF (the same shapes ``sqe.sqe_parse_to_tree`` produces),
 so ``sqe_tree_to_text`` works on its output.
 
@@ -308,7 +308,8 @@ _ONE = (
 ).split()
 _TWO = "LANGMATCHES CONTAINS STRSTARTS STRENDS STRBEFORE STRAFTER STRLANG STRDT sameTerm".split()
 _BUILTIN_BY_UPPER = {n.upper(): n for n in (*_ZERO, *_ONE, *_TWO, "BOUND", "BNODE", "IF", "CONCAT", "COALESCE")}
-_AGGS = {"COUNT", "SUM", "MIN", "MAX", "AVG", "SAMPLE", "GROUP_CONCAT"}
+_AGGS = {"COUNT", "SUM", "MIN", "MAX", "AVG", "SAMPLE", "GROUP_CONCAT"}  # node kinds of the aggregates as well
+_EXISTS_KINDS = ("Exists", "NotExists")
 
 _CASE_SENSITIVE_WORDS = {"a", "true", "false", "isIRI", "isURI", "isBLANK", "isLITERAL", "isNUMERIC", "isTRIPLE", "hasLANG",
                          "hasLANGDIR", "sameTerm"}  # fmt: skip
@@ -1255,24 +1256,24 @@ class _Parser:
         parts = [self.path_sequence()]
         while self.accept_p("|"):
             parts.append(self.path_sequence())
-        return _flatten("AlternativePath", parts)
+        return _flatten("PathAlternative", parts)
 
     def path_sequence(self):
         parts = [self.path_elt_or_inverse()]
         while self.accept_p("/"):
             parts.append(self.path_elt_or_inverse())
-        return _flatten("SequencePath", parts)
+        return _flatten("PathSequence", parts)
 
     def path_elt_or_inverse(self):
         if self.accept_p("^"):
-            return Node("InvPath", arg=self.path_elt())
+            return Node("PathInverse", arg=self.path_elt())
         return self.path_elt()
 
     def path_elt(self):
         prim = self.path_primary()
         # a '+' touching a number is the signed number (INTEGER_POSITIVE is one token), not a path modifier: `:q +5`
         if self.at_p("?", "*", "+") and not (self.at_p("+") and self.signed_number_ahead()):
-            return Node("MulPath", path=prim, mod=self.next().text)
+            return Node("PathElt", path=prim, mod=self.next().text)
         return prim
 
     def path_primary(self):
@@ -1289,8 +1290,8 @@ class _Parser:
                     while self.accept_p("|"):
                         parts.append(self.path_one_in_set())
                 self.expect_p(")")
-                return Node("NegatedPath", args=parts)
-            return Node("NegatedPath", args=[self.path_one_in_set()])
+                return Node("PathNegatedPropertySet", args=parts)
+            return Node("PathNegatedPropertySet", args=[self.path_one_in_set()])
         if self.accept_p("("):
             p = self.path_alternative()
             self.expect_p(")")
@@ -1299,7 +1300,7 @@ class _Parser:
 
     def path_one_in_set(self):
         if self.accept_p("^"):
-            return Node("InvPath", arg=RDF.type if self.accept_a() else self.iri())
+            return Node("PathInverse", arg=RDF.type if self.accept_a() else self.iri())
         if self.accept_a():
             return RDF.type
         return self.iri()
@@ -1448,7 +1449,10 @@ class _Parser:
             while self.accept_p(","):
                 args.append(self.expression())
         self.expect_p(")")
-        return Node("Function", iri=iri, distinct="DISTINCT" if distinct else [], expr=args)
+        f = {"iri": iri}
+        if distinct:
+            f["distinct"] = True
+        return Node("FunctionCall", **f, args=args)
 
     def builtin(self) -> Node:
         t = self.peek()
@@ -1460,10 +1464,10 @@ class _Parser:
         if up == "NOT":
             self.i += 1
             self.expect_kw("EXISTS")
-            return Node("Builtin_NOTEXISTS", graph=self.group_graph_pattern())
+            return Node("NotExists", where=self.group_graph_pattern())
         if up == "EXISTS":
             self.i += 1
-            return Node("Builtin_EXISTS", graph=self.group_graph_pattern())
+            return Node("Exists", where=self.group_graph_pattern())
         self.i += 1
         if up == "REGEX":
             self.expect_p("(")
@@ -1473,7 +1477,7 @@ class _Parser:
             if self.accept_p(","):
                 f["flags"] = self.expression()
             self.expect_p(")")
-            return Node("Builtin_REGEX", **f)
+            return Node("REGEX", **f)
         if up == "SUBSTR":
             self.expect_p("(")
             f = {"arg": self.expression()}
@@ -1482,7 +1486,7 @@ class _Parser:
             if self.accept_p(","):
                 f["length"] = self.expression()
             self.expect_p(")")
-            return Node("Builtin_SUBSTR", **f)
+            return Node("SUBSTR", **f)
         if up == "REPLACE":
             self.expect_p("(")
             f = {"arg": self.expression()}
@@ -1493,7 +1497,7 @@ class _Parser:
             if self.accept_p(","):
                 f["flags"] = self.expression()
             self.expect_p(")")
-            return Node("Builtin_REPLACE", **f)
+            return Node("REPLACE", **f)
         if up == "STRLANGDIR":
             self.expect_p("(")
             f = {"lex": self.expression()}
@@ -1502,7 +1506,7 @@ class _Parser:
             self.expect_p(",")
             f["direction"] = self.expression()
             self.expect_p(")")
-            return Node("Builtin_STRLANGDIR", **f)
+            return Node("STRLANGDIR", **f)
         if up == "TRIPLE":
             self.expect_p("(")
             f = {"subject": self.expression()}
@@ -1518,21 +1522,21 @@ class _Parser:
         if name in _ZERO:
             self.expect_p("(")
             self.expect_p(")")
-            return Node(f"Builtin_{name}")
+            return Node(name)
         if name == "BNODE":
             self.expect_p("(")
             if self.accept_p(")"):
-                return Node("Builtin_BNODE")
+                return Node("BNODE")
             e = self.expression()
             self.expect_p(")")
-            return Node("Builtin_BNODE", arg=e)
+            return Node("BNODE", arg=e)
         if name == "BOUND":
             self.expect_p("(")
             v = self.var()
             self.expect_p(")")
-            return Node("Builtin_BOUND", arg=v)
+            return Node("BOUND", arg=v)
         if name in ("CONCAT", "COALESCE"):
-            return Node(f"Builtin_{name}", arg=self.expression_list())
+            return Node(name, args=self.expression_list())
         if name == "IF":
             self.expect_p("(")
             a = self.expression()
@@ -1541,28 +1545,26 @@ class _Parser:
             self.expect_p(",")
             c = self.expression()
             self.expect_p(")")
-            return Node("Builtin_IF", arg1=a, arg2=b, arg3=c)
+            return Node("IF", arg1=a, arg2=b, arg3=c)
         self.expect_p("(")
         a = self.expression()
         if name in _TWO:
             self.expect_p(",")
             b = self.expression()
             self.expect_p(")")
-            return Node(f"Builtin_{name}", arg1=a, arg2=b)
+            return Node(name, arg1=a, arg2=b)
         self.expect_p(")")
-        return Node(f"Builtin_{name}", arg=a)
+        return Node(name, arg=a)
 
     def aggregate(self) -> Node:
         at = self.peek().pos
         name = self.next().text.upper()
-        kind = "Aggregate_" + {"GROUP_CONCAT": "GroupConcat"}.get(name, name.capitalize())
+        kind = name
         self.expect_p("(")
-        distinct = "DISTINCT" if self.accept_kw("DISTINCT") else []
-        if name == "COUNT" and self.accept_p("*"):
-            vars_ = "*"
-        else:
-            vars_ = self.expression()
-        f = {"distinct": distinct, "vars": vars_}
+        f = {}
+        if self.accept_kw("DISTINCT"):
+            f["distinct"] = True
+        f["expr"] = "*" if name == "COUNT" and self.accept_p("*") else self.expression()
         if name == "GROUP_CONCAT" and self.accept_p(";"):
             self.expect_kw("SEPARATOR")
             self.expect_p("=")
@@ -1656,9 +1658,9 @@ def _projected(q: Node) -> set:
 
 def _has_aggregate(e) -> bool:
     if isinstance(e, Node):
-        if e.kind.startswith("Aggregate_"):
+        if e.kind in _AGGS:
             return True
-        if e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+        if e.kind in _EXISTS_KINDS:
             return False
         return any(_has_aggregate(v) for v in e.f.values())
     if isinstance(e, list):
@@ -1671,7 +1673,7 @@ def _expr_vars(e, out: set) -> None:
     if isinstance(e, ox.Variable):
         out.add(e)
     elif isinstance(e, Node):
-        if e.kind.startswith("Aggregate_") or e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+        if e.kind in _AGGS or e.kind in _EXISTS_KINDS:
             return
         for v in e.f.values():
             _expr_vars(v, out)
@@ -1692,14 +1694,14 @@ class _Checker:
     # expressions: aggregate placement and nesting, plus the groups inside EXISTS ----------------
     def expr(self, e, aggregates_ok: bool, inside_aggregate: bool = False):
         if isinstance(e, Node):
-            if e.kind.startswith("Aggregate_"):
+            if e.kind in _AGGS:
                 if not aggregates_ok:
                     self.fail("aggregate functions may only be used in SELECT, HAVING and ORDER BY", e)
                 if inside_aggregate:
                     self.fail("aggregate functions cannot be nested", e)
                 inside_aggregate = True
-            elif e.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
-                self.group(e.f["graph"])
+            elif e.kind in _EXISTS_KINDS:
+                self.group(e.f["where"])
                 return
             for v in e.f.values():
                 self.expr(v, aggregates_ok, inside_aggregate)
@@ -1877,18 +1879,18 @@ class _Encoder:
             return self.node(t)
         if type(t) is str:
             return ox.Literal(t, datatype=self.PY)
+        if t is True:  # a flag such as DISTINCT: written only when true
+            return T.boolean()
         return t
 
     def node(self, n: Node):
         v, g = self.v, self.g
-        if n.kind in ("Builtin_EXISTS", "Builtin_NOTEXISTS"):
+        if n.kind in _EXISTS_KINDS:
             b = ox.BlankNode()
-            g.add((b, RDF.type, v.EXISTS))
-            if n.kind == "Builtin_NOTEXISTS":
-                g.add((b, v.NEGATED, T.boolean()))
-            g.add((b, v.WHERE, self.where(n.f["graph"])))
+            g.add((b, RDF.type, v.EXISTS if n.kind == "Exists" else v.NOT_EXISTS))
+            g.add((b, v.WHERE, self.where(n.f["where"])))
             return b
-        if n.kind in ("InvPath", "SequencePath", "AlternativePath", "MulPath", "NegatedPath"):
+        if n.kind in ("PathInverse", "PathSequence", "PathAlternative", "PathElt", "PathNegatedPropertySet"):
             return self.path(n)
         ns = v.SQE if n.kind == "TripleTerm" else self.SPEXPR
         b = ox.BlankNode()
@@ -1904,9 +1906,9 @@ class _Encoder:
         g, S = self.g, self.SPEXPR
         b = ox.BlankNode()
         g.add((b, RDF.type, S[n.kind]))
-        if n.kind == "InvPath":
+        if n.kind == "PathInverse":
             g.add((b, S.arg, self.term(n.f["arg"])))
-        elif n.kind == "MulPath":
+        elif n.kind == "PathElt":
             g.add((b, S.path, self.term(n.f["path"])))
             g.add((b, S.mod, T.plain_literal(n.f["mod"])))
         else:
@@ -2081,7 +2083,7 @@ class _Encoder:
                 continue
             elif decl[0] == "prefix":
                 b = ox.BlankNode()
-                g.add((b, RDF.type, v.PREFIX_BINDING))
+                g.add((b, RDF.type, v.PREFIX_DECL))
                 g.add((b, v.PREFIX_LABEL, ox.Literal(decl[1], datatype=self.PY)))
                 g.add((b, v.PREFIX_NAMESPACE, T.iri(decl[2])))
                 g.add((root, v.PROLOGUE_PREFIX, b))

@@ -27,16 +27,16 @@ __all__ = ["parse_srl"]
 # SPARQL built-ins that SRL's BuiltInCall (spec [126]) does not list. RAND is non-deterministic, which a fixpoint
 # evaluation cannot allow, and EXISTS has no defined meaning in a rule; the rest are outside the draft's function set.
 _NOT_IN_SRL = {
-    "Builtin_BOUND": "BOUND",
-    "Builtin_COALESCE": "COALESCE",
-    "Builtin_RAND": "RAND",
-    "Builtin_MD5": "MD5",
-    "Builtin_SHA1": "SHA1",
-    "Builtin_SHA256": "SHA256",
-    "Builtin_SHA384": "SHA384",
-    "Builtin_SHA512": "SHA512",
-    "Builtin_EXISTS": "EXISTS",
-    "Builtin_NOTEXISTS": "NOT EXISTS",
+    "BOUND": "BOUND",
+    "COALESCE": "COALESCE",
+    "RAND": "RAND",
+    "MD5": "MD5",
+    "SHA1": "SHA1",
+    "SHA256": "SHA256",
+    "SHA384": "SHA384",
+    "SHA512": "SHA512",
+    "Exists": "EXISTS",
+    "NotExists": "NOT EXISTS",
 }
 
 # The functions SPARQL calls by IRI: its XSD casts (SPARQL's own, and the one the SRL draft's examples call). The draft's
@@ -58,7 +58,7 @@ def _convert(value):
     if isinstance(value, Node):
         if value.kind in _NOT_IN_SRL:
             raise _srl_error(f"SRL: {_NOT_IN_SRL[value.kind]} is not part of SRL's built-in function set (spec BuiltInCall)")
-        if value.kind == "Function" and getattr(value.f["iri"], "value", None) not in _CASTS:
+        if value.kind == "FunctionCall" and getattr(value.f["iri"], "value", None) not in _CASTS:
             raise _srl_error(
                 f"SRL: the function {value.f['iri']} is not one SRL supports; a rule can call only the built-in functions "
                 "and the XSD casts, and the specification has no way to supply any other function"
@@ -89,11 +89,11 @@ def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
         FormatError: (kind "srl") For any other path operator (``|``, ``*``, ``+``, ``?``, ``!``).
     """
     if isinstance(predicate, Node):
-        if predicate.kind == "SequencePath":
+        if predicate.kind == "PathSequence":
             args = predicate.f["args"]
             nodes = [subject, *(ox.BlankNode() for _ in args[:-1]), obj]
             return [t for i, arg in enumerate(args) for t in _expand_path(nodes[i], arg, nodes[i + 1])]
-        if predicate.kind == "InvPath":
+        if predicate.kind == "PathInverse":
             return _expand_path(obj, predicate.f["arg"], subject)
         raise _srl_error(
             f"SRL: property path {_path_text(predicate)} is not allowed: SRL property paths use only the / and ^ operators "
@@ -104,14 +104,14 @@ def _expand_path(subject, predicate, obj) -> list[srl_ast.TriplePattern]:
 
 def _path_text(path) -> str:
     if isinstance(path, Node):
-        if path.kind == "MulPath":
+        if path.kind == "PathElt":
             return f"{_path_text(path.f['path'])}{path.f['mod']}"
-        if path.kind == "InvPath":
+        if path.kind == "PathInverse":
             return f"^{_path_text(path.f['arg'])}"
-        sep = {"SequencePath": "/", "AlternativePath": "|"}.get(path.kind)
+        sep = {"PathSequence": "/", "PathAlternative": "|"}.get(path.kind)
         if sep:
             return "(" + sep.join(_path_text(a) for a in path.f["args"]) + ")"
-        if path.kind == "NegatedPath":
+        if path.kind == "PathNegatedPropertySet":
             return "!(" + "|".join(_path_text(a) for a in path.f["args"]) + ")"
     return str(path)
 

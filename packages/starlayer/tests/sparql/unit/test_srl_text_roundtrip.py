@@ -74,7 +74,7 @@ def test_render_expression_refuses_what_it_cannot_render():
     from rdflib.plugins.sparql.parserutils import CompValue
 
     with pytest.raises(NotImplementedError):
-        render_expression(CompValue("Builtin_EXISTS"))
+        render_expression(CompValue("Exists"))
 
 
 def test_replace_flags_are_kept_in_the_text():
