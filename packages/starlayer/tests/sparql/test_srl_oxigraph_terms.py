@@ -66,13 +66,20 @@ def test_query_with_a_pyoxigraph_triple_term_goal():
     [
         {"subject": "x", "predicate": _ex("exposedTo"), "object": _ex("v1")},
         {"subject": ox.Variable("x"), "predicate": None, "object": _ex("v1")},
-        {"subject": ox.Variable("x"), "predicate": ox.Literal("p"), "object": _ex("v1")},
         {"subject": ox.Variable("x"), "predicate": _ex("exposedTo"), "object": 3},
     ],
 )
 def test_wrong_typed_goal_terms_raise(ruleset, pattern):
     with pytest.raises(TypeError):
         ruleset.query(_graph(), srl.TriplePattern(**pattern))
+
+
+def test_a_goal_predicate_that_is_a_term_but_not_an_iri_or_variable_is_a_format_error(ruleset):
+    from starlayer.errors import FormatError
+
+    with pytest.raises(FormatError) as caught:
+        ruleset.query(_graph(), srl.TriplePattern(subject=ox.Variable("x"), predicate=ox.Literal("p"), object=_ex("v1")))
+    assert caught.value.kind == "srl" and caught.value.context == "goal"
 
 
 def test_goal_that_is_not_a_triple_pattern_raises(ruleset):

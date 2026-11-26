@@ -91,7 +91,9 @@ def check_goal_pattern(goal_pattern: Any) -> TriplePattern:
 
     Raises:
         TypeError: If ``goal_pattern`` is not a ``TriplePattern``, or a position holds something that is not an RDF term or
-            variable (a plain ``str``, ``None``, a number), or the predicate is not an IRI or variable.
+            variable (a plain ``str``, ``None``, a number).
+        FormatError: (kind ``"srl"``) If the predicate is an RDF term of the right Python type that SRL does not allow there (a
+            literal, a blank node or a triple term).
     """
     if not isinstance(goal_pattern, TriplePattern):
         raise TypeError(f"the goal pattern must be a TriplePattern, not {type(goal_pattern).__name__}")
@@ -102,7 +104,10 @@ def check_goal_pattern(goal_pattern: Any) -> TriplePattern:
             raise TypeError(f"goal pattern {name} must be an RDF term or variable, not {value!r} ({type(value).__name__})")
         parts.append(value)
     if not isinstance(parts[1], (ox.Variable, ox.NamedNode)):
-        raise TypeError(f"goal pattern predicate must be an IRI or a variable, not {parts[1]!r}")
+        from starlayer.errors import FormatError
+
+        message = f"a goal pattern's predicate must be an IRI or a variable, not {parts[1]!r}"
+        raise FormatError(message, kind="srl", why=message, context="goal")
     return TriplePattern(*parts)
 
 
