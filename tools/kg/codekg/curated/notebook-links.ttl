@@ -241,9 +241,9 @@ nl:06.06-2957fd17 a slkg:NotebookExample ;
 nl:02.08-92f83318 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02.08-manchester-syntax.ipynb" ;
     slkg:cellId "92f83318" ;
-    slkg:cellHash "67d5c5ac3cee0508" ;
+    slkg:cellHash "c8ba040fdd2660ea" ;
     slkg:reviewedOn "2026-11-25"^^xsd:date ;
-    rdfs:comment "Writes a graph back as Manchester Syntax with serialize(format='manchester'), before and after adding a restriction with plain triples." ;
+    rdfs:comment "Writes a graph back as Manchester Syntax with serialize(format='manchester'), before and after adding a restriction parsed from Turtle." ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.manchester.__init__" .
 
