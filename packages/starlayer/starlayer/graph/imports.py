@@ -1,7 +1,17 @@
-"""``owl_imports``, ``has_import_locally``, ``resolve_imports`` and ``can_resolve_import``: the ``owl:imports`` closure of a graph.
+"""``owl_imports``, ``has_import_locally``, ``unresolved_imports``, ``resolve_or_raise``, ``resolve_imports`` and ``can_resolve_import``: the
+``owl:imports`` closure of a graph, and the one rule every path that resolves imports follows.
 
-Ported from ``StarLayerGraph``. The loader maps an import IRI (a ``NamedNode``) to a graph, or ``None``; it may return an
-``StarLayerGraph`` / ``StarLayerDataset`` or any object with ``triples(pattern)`` (an old ``StarLayerGraph``'s terms are converted).
+**The rule.** A graph (an ontology, a shapes graph, an ontology graph) that declares ``owl:imports`` must resolve them or raise. An import
+is *satisfied* when, after resolution, its IRI is a subject of at least one triple in the resulting graph: already present, a built-in
+ontology of the ``starontology`` registry (``builtin_import_keys``), loaded by the caller's loader, or named by an ``owl:versionIRI`` of an
+ontology that is present. An import that is not satisfied raises ``ExecutionError`` kind ``"import"`` naming it, with the IRIs on
+``error.unresolved``: there was no loader, it returned ``None``, or it returned a graph in which the IRI is not a subject. A loader that
+raises is wrapped (kind ``"import"``, the loader's exception as ``__cause__``). ``ignore_imports=True`` loads nothing and checks nothing.
+The library never retries: an application reads ``unresolved_imports(graph)`` and may call again with a loader that knows more. A graph
+is fetched at most once in one resolution and cycles end.
+
+The loader maps an import IRI (a ``NamedNode``) to a graph, or ``None``; it may return an ``StarLayerGraph`` / ``StarLayerDataset`` or any
+object with ``triples(pattern)`` (an old ``StarLayerGraph``'s terms are converted).
 """
 
 from __future__ import annotations
@@ -11,12 +21,49 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import terms
 
 OWL = "http://www.w3.org/2002/07/owl#"
 OWL_IMPORTS = ox.NamedNode(OWL + "imports")
 OWL_VERSION_IRI = ox.NamedNode(OWL + "versionIRI")
 VALID_MODES = frozenset({"full", "delta", "in-place"})
+
+#: The SHACL vocabulary graph. SHACL 1.2 Core recommends ``owl:imports sh:`` for a graph that uses ``sh:ShapeClass``; StarLayer has that
+#: vocabulary built in, so the import is satisfied without a loader.
+SHACL_VOCABULARY = ox.NamedNode("http://www.w3.org/ns/shacl#")
+_OWL_ONTOLOGY = OWL + "Ontology"
+_RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type"
+_BUILTIN_KEYS: frozenset[str] | None = None
+
+
+def _import_key(iri: str) -> str:
+    """An ontology IRI without one trailing ``#`` or ``/``: ``http://www.w3.org/ns/shacl#``, ``.../shacl``, ``.../shacl-ui/`` and ``.../shacl-ui`` name
+    the same ontology, and an author writes whichever form the namespace was given in."""
+    return iri[:-1] if iri.endswith(("#", "/")) else iri
+
+
+def builtin_import_keys() -> frozenset[str]:
+    """The ontology IRIs StarLayer has built in, each without a trailing ``#`` or ``/``: every ``owl:Ontology`` a registered ``starontology`` graph
+    declares, read from the registry (no list is kept here, so a new registered ontology is covered by registering it) plus the SHACL vocabulary.
+    Computed on first use and cached; ``starontology`` is imported then, not when this module is."""
+    global _BUILTIN_KEYS
+    if _BUILTIN_KEYS is None:
+        from starlayer.starontology import get_ontology_graph, get_ontology_list
+
+        keys = {_import_key(SHACL_VOCABULARY.value)}
+        for info in get_ontology_list():
+            for s, p, o in get_ontology_graph(info.name).triples((None, None, None)):
+                if isinstance(s, ox.NamedNode) and p.value == _RDF_TYPE and isinstance(o, ox.NamedNode) and o.value == _OWL_ONTOLOGY:
+                    keys.add(_import_key(s.value))
+        _BUILTIN_KEYS = frozenset(keys)
+    return _BUILTIN_KEYS
+
+
+def is_builtin_import(iri: Any) -> bool:
+    """Whether ``owl:imports iri`` names an ontology StarLayer already has (a registered ``starontology`` graph or the SHACL vocabulary): it is
+    then satisfied, never passed to a loader and adds no triples."""
+    return isinstance(iri, ox.NamedNode) and _import_key(iri.value) in builtin_import_keys()
 
 
 def can_resolve_import(iri: Any, *, loader: Callable[[Any], Any | None]) -> bool:
@@ -38,39 +85,123 @@ def _triples(x: Any, pattern: tuple = (None, None, None)) -> list[tuple[Any, Any
     return [(terms.term(s), terms.term(p), terms.term(o)) for s, p, o in x.triples(pattern)]
 
 
-def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None, mode: str = "full", target_graph: Any = None) -> Any:
+def _declared(g: Any, malformed: Callable[[Any], Exception] | None = None) -> tuple[Any, ...]:
+    """The ``owl:imports`` objects of ``g`` (deduplicated, first seen first). One that is not an IRI is malformed: ``malformed(term)``
+    gives the error to raise (a ``FormatError`` kind ``"owl"`` by default)."""
+    out = owl_imports(g)
+    for o in out:
+        if not isinstance(o, ox.NamedNode):
+            raise (malformed or _malformed_import)(o)
+    return out
+
+
+def _malformed_import(term: Any) -> Exception:
+    return FormatError(f"owl:imports needs an IRI, not {term}", kind="owl", context=f"owl:imports {term}")
+
+
+def unresolved_imports(g: Any) -> tuple[ox.NamedNode, ...]:
+    """The imports ``g`` declares that are not satisfied as it is: an ``owl:imports`` IRI that is not a subject of any triple in ``g``, not a
+    built-in ontology (``is_builtin_import``) and not the ``owl:versionIRI`` of a present ontology. Deduplicated, sorted by IRI (the same order as ``ExecutionError.unresolved``), ``()``
+    when every import is satisfied. Loads nothing; an application reads it after ``resolve_imports()`` raised (or before) to decide what to
+    load, and may call again. ``FormatError`` kind ``"owl"`` for an ``owl:imports`` object that is not an IRI."""
+    return tuple(sorted((iri for iri in _declared(g) if not _satisfied(g, iri, frozenset(), frozenset())), key=lambda i: i.value))
+
+
+def _satisfied(g: Any, iri: Any, subjects: Any, versions: Any) -> bool:
+    """``iri`` is a subject of ``g`` or of the imported triples (``subjects``), the ``owl:versionIRI`` of a present ontology, or built in."""
+    if iri in subjects or iri in versions or has_import_locally(g, iri):
+        return True
+    if next(iter(g.triples((None, OWL_VERSION_IRI, terms.term(iri)))), None) is not None:
+        return True
+    return is_builtin_import(iri)
+
+
+def _unresolved_error(iris: tuple[Any, ...], why: str, loader_name: str) -> ExecutionError:
+    names = ", ".join(f"<{i.value}>" for i in iris)
+    return ExecutionError(
+        f"owl:imports {names} {'is' if len(iris) == 1 else 'are'} not resolved: {why}. Pass {loader_name}= with a loader that returns a graph "
+        "that has each of them as a subject, or ignore_imports=True to skip them.",
+        kind="import", context=f"owl:imports {names}", unresolved=iris,
+    )
+
+
+def resolve_or_raise(g: Any, loader: Callable[[Any], Any | None] | None = None, ignore_imports: bool = False, *,
+                     view: Callable[[Any], Any] | None = None, malformed: Callable[[Any], Exception] | None = None,
+                     loader_name: str = "loader") -> set[tuple[Any, Any, Any]]:
+    """The one resolution every path calls: follow ``g``'s ``owl:imports`` transitively with ``loader`` and return the triples that were
+    loaded (the caller merges them as it needs), or raise ``ExecutionError`` kind ``"import"`` (see the module docstring). ``g`` is not changed.
+
+    An import that is already satisfied (a subject of ``g`` or of what was loaded so far, a built-in ontology, a ``owl:versionIRI`` of a
+    present ontology) never reaches the loader; one fetched once is not fetched again, and a versioned and an unversioned name of one
+    module are fetched once. Further imports are read from every ``owl:imports`` triple of a loaded graph. ``ignore_imports=True`` returns
+    ``set()`` and checks nothing. ``view`` turns a loader's result into a graph with ``triples(pattern)`` (default: as it is), ``malformed``
+    builds the error for an ``owl:imports`` object that is not an IRI and ``loader_name`` is the name of the loader parameter in messages."""
+    if ignore_imports:
+        return set()
+    fetched: set = set()
+    canonical_seen: set = set()
+    imported: set = set()
+    subjects: set = set()
+    versions: set = set()
+    declared: list = list(_declared(g, malformed))
+    pending = list(declared)
+    while pending:
+        iri = pending.pop(0)
+        if iri in fetched:
+            continue
+        fetched.add(iri)
+        if loader is None or _satisfied(g, iri, subjects, versions):
+            continue
+        try:
+            result = loader(iri)
+        except Exception as exc:
+            raise ExecutionError(
+                f"owl:imports <{iri.value}> cannot be loaded: {type(exc).__name__}: {exc}",
+                kind="import", context=f"owl:imports <{iri.value}>", unresolved=(iri,),
+            ) from exc
+        if result is None:
+            continue
+        triples = _triples(view(result) if view is not None else result)
+        canonical = next((s for s, p, o in triples if p == OWL_VERSION_IRI and o == iri), iri)
+        if canonical in canonical_seen:
+            continue
+        canonical_seen.add(canonical)
+        fetched.add(canonical)
+        imported.update(triples)
+        for s, p, o in triples:
+            subjects.add(s)
+            if p == OWL_VERSION_IRI:
+                versions.add(o)
+            elif p == OWL_IMPORTS:
+                if not isinstance(o, ox.NamedNode):
+                    raise (malformed or _malformed_import)(o)
+                if o not in declared:
+                    declared.append(o)
+                if o not in fetched:
+                    pending.append(o)
+    missing = tuple(sorted((iri for iri in declared if not _satisfied(g, iri, subjects, versions)), key=lambda i: i.value))
+    if missing:
+        why = (f"no {loader_name} was given" if loader is None
+               else f"{loader_name} returned no graph that has {'it' if len(missing) == 1 else 'them'} as a subject")
+        raise _unresolved_error(missing, why, loader_name)
+    return imported
+
+
+def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None, mode: str = "full", target_graph: Any = None,
+                    ignore_imports: bool = False) -> Any:
     """Follow the graph's ``owl:imports`` transitively and merge the result. ``mode`` is "full" (a new graph: self plus the
     imports), "delta" (a new graph with only the triples self lacks) or "in-place" (add the delta to self). Cycles and a
-    versioned/unversioned pair of the same module are fetched once. An import that is already local, or that ``loader``
-    cannot resolve (or ``loader=None``), is skipped."""
+    versioned/unversioned pair of the same module are fetched once.
+
+    Every declared import must be resolved or the call raises (``resolve_or_raise``): ``ExecutionError`` kind ``"import"`` for an import
+    that is not a subject of the graph after loading (no ``loader``, one that returns ``None`` or a graph without it, with the IRIs on
+    ``error.unresolved``), the same kind wrapping a loader's own exception; ``ignore_imports=True`` returns the graph's own triples as they are."""
     if mode not in VALID_MODES:
         raise ValueError(f"mode must be one of {sorted(VALID_MODES)}, got {mode!r}")
     if mode == "in-place" and target_graph is not None:
         raise ValueError("target_graph is meaningless with mode='in-place' - it mutates self directly.")
 
-    fetched: set = set()
-    imported_canonical: set = set()
-    all_imported: set = set()
-    pending = list(owl_imports(g))
-    while pending:
-        target_iri = pending.pop(0)
-        if target_iri in fetched:
-            continue
-        fetched.add(target_iri)
-        if has_import_locally(g, target_iri) or loader is None:
-            continue
-        imported = loader(target_iri)
-        if imported is None:
-            continue
-        canonical_id = next((s for s, _, o in _triples(imported, (None, OWL_VERSION_IRI, None)) if o == target_iri), target_iri)
-        if canonical_id in imported_canonical:
-            continue
-        imported_canonical.add(canonical_id)
-        fetched.add(canonical_id)
-        all_imported.update(_triples(imported))
-        for _, _, next_iri in _triples(imported, (None, OWL_IMPORTS, None)):
-            if next_iri not in fetched:
-                pending.append(next_iri)
+    all_imported = resolve_or_raise(g, loader, ignore_imports)
 
     delta = all_imported - set(g.triples())
     if mode == "in-place":

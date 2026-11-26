@@ -818,10 +818,10 @@ def local_loader(iri: Any) -> Any:
     (via ``_real_shapes_graph_iri_to_name()`` above - not
     ``get_resource_iri()``'s own, separate GitHub-blob-URL identity).
     Returns ``None`` for anything not registered here, rather than
-    raising - exactly what ``resolve_imports()`` already expects for "this
-    loader doesn't know that one," so an attempt to import something
-    genuinely external through this loader is safely skipped, not an
-    error.
+    raising. ``resolve_imports()`` treats ``None`` as "this loader does not
+    know that one": an import of something genuinely external is then an
+    unresolved import, ``ExecutionError`` kind ``"import"`` (nothing is
+    skipped silently; ``ignore_imports=True`` opts out).
 
     This is what makes resolving ``starontology``'s own imports safe to
     do without any of the caution a general, caller-supplied

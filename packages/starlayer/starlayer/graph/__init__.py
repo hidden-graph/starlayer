@@ -18,7 +18,7 @@ from starlayer.graph.delta import GraphDelta, diff
 from starlayer.graph.endpoint import Endpoint, EndpointError
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.execution.result import Result, Row
-from starlayer.graph.imports import can_resolve_import
+from starlayer.graph.imports import can_resolve_import, unresolved_imports
 from starlayer.graph.namespaces import (
     DCAT,
     DCTERMS,
@@ -77,4 +77,5 @@ __all__ = [
     "reification",
     "set_default_prefixes",
     "to_python",
+    "unresolved_imports",
 ]

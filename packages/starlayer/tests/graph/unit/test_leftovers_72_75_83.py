@@ -123,11 +123,13 @@ def test_resolve_imports_follows_imports_declared_on_a_different_ontology_iri():
     def loader(iri):
         h = StarLayerGraph()
         if iri == E("B"):
+            h.add((E("B"), RDF.type, OWL.Ontology))  # the imported IRI must be a subject (the import rule)
             h.add((E("B-ont"), RDF.type, OWL.Ontology))
             h.add((E("B-ont"), OWL.imports, E("C")))
             h.add((E("x"), E("p"), E("y")))
             return h
         if iri == E("C"):
+            h.add((E("C"), RDF.type, OWL.Ontology))
             h.add((E("z"), E("p"), E("w")))
             return h
         return None

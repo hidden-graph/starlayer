@@ -123,6 +123,18 @@ def test_an_execution_error_survives_pickle_and_copy(kind):
         assert (str(again), again.kind, again.context) == (str(error), kind, "sh:rule ex:R1")
         assert again.args == error.args and again.report_url == error.report_url
     assert _roundtrips(ExecutionError("no place", kind=kind))[0].context is None
+    assert _roundtrips(ExecutionError("no place", kind=kind))[0].unresolved == ()
+
+
+def test_an_import_error_keeps_its_unresolved_iris_through_pickle_and_copy():
+    import pyoxigraph as ox
+
+    iris = (ox.NamedNode("http://example.org/a"), ox.NamedNode("http://example.org/b"))
+    error = ExecutionError("not resolved", kind="import", context="owl:imports <a>, <b>", unresolved=iris)
+    assert error.unresolved == iris and ExecutionError("x", kind="import", unresolved=list(iris)).unresolved == iris  # always a tuple
+    for again in _roundtrips(error):
+        assert type(again) is ExecutionError and again.unresolved == iris
+        assert (again.kind, again.context, str(again)) == ("import", "owl:imports <a>, <b>", "not resolved")
 
 
 @pytest.mark.parametrize("cls", [ShapeError, ShapeCompileError])

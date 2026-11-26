@@ -16,6 +16,7 @@ result once a loader hands one back.
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph, can_resolve_import
 
 
@@ -84,6 +85,7 @@ class TestCanResolveImport:
 class TestResolveImportsFullMode:
     def _setup(self):
         imported = StarLayerGraph()
+        imported.add((EX.other, RDF.type, OWL.Ontology))
         imported.add((EX.Dog, RDFS.subClassOf, EX.Animal))
 
         g = StarLayerGraph()
@@ -116,19 +118,22 @@ class TestResolveImportsFullMode:
         explicit_result = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="full")
         assert set(default_result) == set(explicit_result)
 
-    def test_unresolvable_import_is_skipped_not_an_error(self) -> None:
+    def test_unresolvable_import_is_an_error(self) -> None:
         g = StarLayerGraph()
         g.add((EX.this, OWL.imports, EX.unreachable))
         g.add((EX.fido, RDF.type, EX.Dog))
 
-        result = g.resolve_imports(loader=lambda iri: None, mode="full")
+        with pytest.raises(ExecutionError) as caught:
+            g.resolve_imports(loader=lambda iri: None, mode="full")
 
-        assert set(result) == set(g)
+        assert caught.value.kind == "import"
+        assert caught.value.unresolved == (EX.unreachable,)
 
 
 class TestResolveImportsDeltaMode:
     def test_delta_contains_only_the_newly_imported_triples(self) -> None:
         imported = StarLayerGraph()
+        imported.add((EX.other, RDF.type, OWL.Ontology))
         imported.add((EX.Dog, RDFS.subClassOf, EX.Animal))
 
         g = StarLayerGraph()
@@ -137,13 +142,14 @@ class TestResolveImportsDeltaMode:
 
         delta = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="delta")
 
-        assert set(delta) == {(EX.Dog, RDFS.subClassOf, EX.Animal)}
+        assert set(delta) == {(EX.other, RDF.type, OWL.Ontology), (EX.Dog, RDFS.subClassOf, EX.Animal)}
 
     def test_delta_excludes_anything_self_already_had(self) -> None:
         """A true set difference against self, matching infer()'s own
         delta semantics - if the imported graph happens to also assert
         something self already has, that's not "new"."""
         imported = StarLayerGraph()
+        imported.add((EX.other, RDF.type, OWL.Ontology))
         imported.add((EX.fido, RDF.type, EX.Dog))  # already in g too
         imported.add((EX.Dog, RDFS.subClassOf, EX.Animal))  # genuinely new
 
@@ -153,12 +159,13 @@ class TestResolveImportsDeltaMode:
 
         delta = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="delta")
 
-        assert set(delta) == {(EX.Dog, RDFS.subClassOf, EX.Animal)}
+        assert set(delta) == {(EX.other, RDF.type, OWL.Ontology), (EX.Dog, RDFS.subClassOf, EX.Animal)}
 
 
 class TestResolveImportsInPlaceMode:
     def test_in_place_mutates_and_returns_self(self) -> None:
         imported = StarLayerGraph()
+        imported.add((EX.other, RDF.type, OWL.Ontology))
         imported.add((EX.Dog, RDFS.subClassOf, EX.Animal))
 
         g = StarLayerGraph()
@@ -187,6 +194,7 @@ class TestResolveImportsTransitiveClosure:
         """A -> B -> C: resolving A's own imports must also pick up
         whatever B itself imports, not just B's own direct content."""
         c = StarLayerGraph()
+        c.add((EX.c, RDF.type, OWL.Ontology))
         c.add((EX.cFact, RDF.type, EX.CThing))
 
         b = StarLayerGraph()
@@ -231,6 +239,7 @@ class TestResolveImportsTransitiveClosure:
         versioned_content.add((EX.versionedFact, RDF.type, EX.Thing))
 
         further = StarLayerGraph()
+        further.add((EX.furtherThing, RDF.type, OWL.Ontology))
         further.add((EX.furtherFact, RDF.type, EX.FurtherThing))
 
         registry = {EX.versionedOntology: versioned_content, EX.furtherThing: further}
@@ -327,6 +336,7 @@ class TestResolveImportsSameGraphCoLocation:
         g.add((EX.ModuleB, RDF.type, EX.ShapesGraph))
 
         external = StarLayerGraph()
+        external.add((EX.ExternalModule, RDF.type, OWL.Ontology))
         external.add((EX.ExternalFact, RDF.type, EX.ExternalThing))
 
         calls = []

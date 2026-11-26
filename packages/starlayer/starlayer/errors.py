@@ -32,8 +32,14 @@ The tree::
 * ``"query"``: the SPARQL engine (Oxigraph) failed while evaluating a query or update (its ``RuntimeError``), for text that parsed.
 * ``"inference"``: the reasoner could not run or died: a Java runtime that is missing or broken, an owlready2 Java error, or a
   reasoning subprocess that exited without a result (a crash, not a timeout).
-* ``"import"``: an SRL ``IMPORTS`` document cannot be loaded (the loader failed) or an imported rule set was never resolved, so the
-  rule set cannot be run (§4.5). An imported text that is not a valid rule set is a ``FormatError`` of kind ``"srl"`` instead.
+* ``"import"``: a declared import is not resolved, on every path that resolves imports (an RDF or OWL graph's ``owl:imports``, a shapes
+  graph's, an ontology graph's, an SRL rule set's ``IMPORTS``). An import is satisfied when its IRI is a subject in the graph after
+  resolution (or is a built-in ontology of the ``starontology`` registry; for SRL, when the loader produced a rule set for it); one that
+  is not, because there was no loader or it returned nothing or a graph without that IRI, is this error, with the IRIs in ``unresolved``
+  and ``context`` ``"owl:imports <iri>"``. A loader that raises is wrapped (this kind, the loader's exception as ``__cause__``).
+  ``ignore_imports=True`` skips the whole step. An imported SRL text that is not a valid rule set is a ``FormatError`` of kind ``"srl"``
+  instead, and a malformed declaration (an ``owl:imports`` object that is not an IRI) is a ``FormatError`` of kind ``"owl"`` for a graph
+  and a ``ShapeCompileError`` for a shapes graph.
 * ``"unsupported"``: valid input the library or the target notation cannot handle, nobody's mistake, as against malformed input (a
   ``FormatError``) and a bad argument (a ``ValueError``): the Manchester serializer meeting a term, literal or axiom that Manchester
   syntax has no form for, a query-time entailment rewrite that has no exact form for the query, a name that is not a registered
@@ -89,7 +95,7 @@ class ShapeError(StarLayerError):
 
 class ShapeCompileError(ShapeError):
     """The engine itself cannot read or compile the shapes graph, its rules or its setup: a malformed shape, path, constraint
-    parameter, query or rule, an unsupported construct, or an ``owl:imports`` it cannot resolve. Not a ``MetaShaclError``, which the
+    parameter, query or rule, an unsupported construct, or an ``owl:imports`` declaration that is malformed (an object that is not an IRI; an import that is merely not resolved is ``ExecutionError`` kind ``"import"``). Not a ``MetaShaclError``, which the
     meta check (shacl_shacl) raises."""
 
 
@@ -120,11 +126,14 @@ class ExecutionError(StarLayerError):
     rule, shape, focus node or call) is ``context`` (a short string, default ``None``) and is also in the message, so ``str(error)``
     stays the whole text and a program reads ``context`` alone.
 
+    ``unresolved`` (default ``()``, keyword-only) is the tuple of import IRIs (``NamedNode``) that were not resolved: set for kind ``"import"``
+    only, so an application can load them and call again (``starlayer.graph.unresolved_imports`` asks the same of a graph).
+
     Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
 
     KINDS = ("rule", "expression", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
 
-    def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
+    def __init__(self, message: str, *, kind: str, context: str | None = None, unresolved: tuple[Any, ...] = ()) -> None:
         if kind not in self.KINDS:
             raise ValueError(f"unknown ExecutionError kind {kind!r}; one of {', '.join(self.KINDS)}")
         if kind == "internal" and _INTERNAL_MARK not in message:  # once: a re-raised or rebuilt error already has it somewhere in its text
@@ -132,6 +141,7 @@ class ExecutionError(StarLayerError):
         super().__init__(message)
         self.kind = kind
         self.context = context
+        self.unresolved = tuple(unresolved)
 
     @property
     def report_url(self) -> str | None:
@@ -139,11 +149,11 @@ class ExecutionError(StarLayerError):
         return ISSUES_URL if self.kind == "internal" else None
 
     def __reduce__(self) -> Any:  # the keyword-only ``kind`` and ``context`` must survive pickle and copy
-        return (_rebuild_execution_error, (self.args[0] if self.args else "", self.kind, self.context))
+        return (_rebuild_execution_error, (self.args[0] if self.args else "", self.kind, self.context, self.unresolved))
 
 
-def _rebuild_execution_error(message: str, kind: str, context: str | None = None) -> ExecutionError:
-    return ExecutionError(message, kind=kind, context=context)
+def _rebuild_execution_error(message: str, kind: str, context: str | None = None, unresolved: tuple[Any, ...] = ()) -> ExecutionError:
+    return ExecutionError(message, kind=kind, context=context, unresolved=unresolved)
 
 
 class FormatError(StarLayerError):
