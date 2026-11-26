@@ -11,6 +11,7 @@ import warnings
 from pathlib import Path
 
 import pytest
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
 
 GUIDES = Path(__file__).resolve().parents[4] / "docs" / "guides"
 
@@ -48,7 +49,7 @@ def test_guide_01_names_the_class_and_does_not_call_it_a_working_name():
 
 def test_guide_05a_names_an_existing_validation_function():
     import starlayer.sparql as sp
-    from starlayer.sparql.sqe.shapes import sqe_validate  # noqa: F401
+    from starlayer.sparql import validate_sparql_tree  # noqa: F401
 
     t = _text("02.08-manchester-syntax.ipynb")
     assert not hasattr(sp, "validate_query")
@@ -126,6 +127,6 @@ def test_guide_05b_scope_matches_what_the_encoder_accepts():
     from starlayer.sparql import sqe
 
     for q in ("DESCRIBE <urn:a>", "INSERT DATA { <urn:a> <urn:p> <urn:b> }", "CLEAR ALL"):
-        tree, root = sqe.sqe_parse_to_tree(q, StarLayerGraph())
-        assert sqe.sqe_tree_to_text(tree, root).startswith(q.split()[0])
+        tree, root = sparql_to_tree(q, StarLayerGraph())
+        assert tree_to_sparql(tree, root).startswith(q.split()[0])
     assert "does not cover `DESCRIBE`" not in _text("06.03-sparql-query-as-rdf.ipynb")

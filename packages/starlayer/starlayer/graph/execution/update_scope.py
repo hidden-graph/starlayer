@@ -2,7 +2,7 @@
 
 ``scope_update(text, scope)`` is the text a ``StarLayerGraph`` may run: what the update leaves unqualified is aimed at ``scope``, and
 what it names must be ``scope``. The update is parsed (``sparql.parse_sparql.parse_sparql_update``), checked, edited on the tree and
-written back as text (``sqe_tree_to_text``); an update that needs no edit is returned as written.
+written back as text (``render_sqe_tree``); an update that needs no edit is returned as written.
 
 For a named graph ``G``:
 
@@ -149,12 +149,12 @@ def scope_update(text: str, scope: Any, *, base: str | None = None, prefixes: An
         FormatError: (kind "sparql") The update is not valid SPARQL Update, with ``line`` / ``col`` of the text as scoped.
         ExecutionError: (kind "nesting") The update is nested too deeply to parse.
     """
-    from starlayer.sparql import sqe
     from starlayer.sparql.parse_sparql import (
         Node,
         ast_to_tree,
         parse_sparql_update,
     )
+    from starlayer.sparql.sqe.to_text import render_sqe_tree
 
     if isinstance(scope, ox.BlankNode):
         raise ValueError(f"an update cannot be scoped to the blank-node graph {scope}: SPARQL cannot name it")
@@ -166,4 +166,4 @@ def scope_update(text: str, scope: Any, *, base: str | None = None, prefixes: An
         return text
     ast.f["operations"] = operations
     tree, root = ast_to_tree(ast)
-    return sqe.sqe_tree_to_text(tree, root)
+    return render_sqe_tree(tree, root)

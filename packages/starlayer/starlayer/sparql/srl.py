@@ -22,20 +22,13 @@ directly below, not reimplemented - moving this module out of
 An expression (``srl:expr``, the ``SET`` and ``FILTER`` operand) is written by the ``spexpr:`` encoder it shares with ``sqe:``
 (``parse_sparql._Encoder``), so the argument and operand lists of an expression (``spexpr:args``, ``other``, ``op``) are ordinals too.
 
-Six entry points, forming two independent round trips (text<->tree-RDF,
-text<->RuleSet) plus a third already covered by the first two composed
-(tree-RDF<->RuleSet):
+Four entry points on the ``RuleSet`` object, which with ``parse_ruleset`` make the round trips text<->RuleSet and
+RuleSet<->tree-RDF (text<->tree-RDF is ``starlayer.sparql.sparql_to_tree`` / ``tree_to_sparql``, which compose them):
 
-- ``srl_parse_to_tree(text, base=None, tree_graph=None) -> (tree_graph, root)`` - SRL text straight
-  to its ``srl:``-encoded tree-RDF. Composes ``parse_ruleset`` +
-  ``ruleset_to_tree``.
-- ``srl_tree_to_text(tree_graph, root) -> str`` - the inverse. Composes
-  ``tree_to_ruleset`` + ``ruleset_to_text``.
 - ``parse_ruleset(text, base=None, *, imports_loader=None) -> RuleSet`` - SRL text
   straight to a real ``RuleSet`` object, skipping RDF entirely in the result
-  (any text the grammar accepts gives a rule set; ``srl_validate`` reports its problems). Kept as its own
-  entry point (not just an implementation detail of ``srl_parse_to_tree``)
-  because ``RuleSet`` is independently useful - ``RuleSet.infer()``/
+  (any text the grammar accepts gives a rule set; ``validate_sparql_tree`` reports its problems). Kept as its own
+  entry point (``sparql_to_tree`` reads SRL text as a tree) because ``RuleSet`` is independently useful - ``RuleSet.infer()``/
   ``.query()`` run it directly, with no RDF involved at all. This is
   the one real asymmetry with Manchester: ``manch:``'s ``Document`` object
   never existed before its own syntax-tree-as-RDF module invented it purely
@@ -45,19 +38,20 @@ text<->RuleSet) plus a third already covered by the first two composed
 - ``tree_to_ruleset(graph, root) -> RuleSet`` - decode ``srl:``-encoded
   tree-RDF into a real ``RuleSet``, e.g. after programmatically editing the
   RDF via plain graph surgery.
-- ``ruleset_to_tree(ruleset, graph=None) -> (graph, root)`` - the inverse:
+- ``ruleset_to_tree(ruleset, graph=None, *, root=None) -> (graph, root)`` - the inverse:
   encode a ``RuleSet`` (e.g. one built or edited programmatically - rules
   combined, a filter rewritten) back to ``srl:`` tree-RDF.
 
-Plus ``srl_validate(tree_graph)``, which returns a ``ValidationReport``, -
-structural SHACL validation of an ``srl:`` tree-RDF graph. Deliberately
+The functions that read SRL text as a tree, write a tree as text and validate it are the ones that cover SPARQL and Update too
+(``starlayer.sparql``: ``sparql_to_tree``, ``tree_to_sparql``, ``validate_sparql_tree``); this module holds the SRL halves
+(``validate_srl_tree`` is the structural SHACL validation of an ``srl:`` tree-RDF graph). Deliberately
 **no** public ``ontology_graph()``/``shapes_graph()`` here (same decision
 ``starontology.manchester`` makes for ``manch:``) - callers who want the
 raw ``srl:`` ontology/shapes graphs themselves can already get them from
 ``starontology`` directly instead: ``get_ontology_graph("srl_owl")`` /
 ``get_ontology_graph("srl_shacl")``. Exposing a second path to the exact
 same two graphs here would just be another way to do what that one already
-does. ``srl_validate()`` still needs its own private, combined copy
+does. ``validate_srl_tree()`` still needs its own private, combined copy
 internally (an ``srl:expr``/``srl:assign`` expression tree is validated by the shared ``spexpr:`` expression shapes, so the ``srl:``, ``spexpr:`` and ``sqe:`` ontology/shapes graphs are
 needed together for the RDFS closure to resolve that dispatch) - see
 ``_ontology_graph()``/``_shapes_graph()`` below.
@@ -74,7 +68,7 @@ sibling files:
   this module provides - but it's no longer directly importable from
   outside the package. Only ``RuleSet``/``TriplePattern`` are re-exported
   from here (``srl.RuleSet``, etc.) - one real path to those two, not two -
-  same "no two paths to the same graphs" reasoning ``srl_validate()``'s
+  same "no two paths to the same graphs" reasoning ``validate_sparql_tree()``'s
   own docstring note above already applies to ``ontology_graph()``/
   ``shapes_graph()``. The rest (``_Rule``/``_Data``/``_FilterElement``/
   ``_AssignmentElement``/``_NegationElement``) are private: no public
@@ -94,7 +88,7 @@ sibling files:
   validation concerns.
 - ``srl_semantic_checks.py`` - the §4.2 well-formedness checks (an unbound head/filter/assignment variable, a ``SET(...)``
   reusing an already-bound variable) as a plain-Python function over the decoded rule set. Running a rule set calls it. The same
-  conditions are SHACL shapes in ``srl_shapes.ttl``, and ``srl_validate()`` reports those (a result per offending element); the
+  conditions are SHACL shapes in ``srl_shapes.ttl``, and ``validate_sparql_tree()`` reports those (a result per offending element); the
   two are kept equal by a test, because a SPARQL constraint per element is too slow to run on every ``infer()``.
 """
 
@@ -183,7 +177,7 @@ def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | N
 
     Any text the grammar accepts gives a rule set, so a rule set with a problem can still be loaded and fixed. Nothing else
     is checked here: not the §4.2 well-formedness conditions (an unbound head, filter or assignment variable, a ``SET(...)``
-    reusing a bound variable), not the ``srl:`` shapes, not that the rules can be ordered. :func:`srl_validate` reports all three
+    reusing a bound variable), not the ``srl:`` shapes, not that the rules can be ordered. :func:`validate_sparql_tree` reports all three
     for the rule set's tree (``ruleset_to_tree``); running (``infer()``, ``query()``, ``materialize()``) a rule set that breaks a §4.2 condition raises a ``FormatError`` (kind
     ``"srl"``), and one that cannot be ordered an ``ExecutionError`` (kind ``"rule"``), so it never evaluates to a wrong answer.
 
@@ -225,22 +219,23 @@ def _check_stratification(ruleset: srl_ast.RuleSet) -> None:
 # ---------------------------------------------------------------------------
 
 
-def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None) -> tuple[Any, Any]:
+def ruleset_to_tree(ruleset: srl_ast.RuleSet, graph: Any = None, *, root: Any = None) -> tuple[Any, Any]:
     """Encode ``ruleset`` as ``srl:`` tree-RDF.
 
-    Useful on its own (not just inside ``srl_parse_to_tree``) for a ``RuleSet`` built or edited programmatically - rules
+    Useful on its own (not just inside ``sparql_to_tree``) for a ``RuleSet`` built or edited programmatically - rules
     combined, a filter rewritten - that now needs to go back into RDF, e.g. for storage or SHACL validation, without
     round-tripping through text.
 
     Args:
         ruleset: The RuleSet to encode.
         graph: The ``StarLayerGraph`` to add the encoding to; a fresh one if not given.
+        root: The node to use as the rule set's root (an IRI or blank node), a fresh blank node when not given.
 
     Returns:
         A ``(graph, root)`` tuple, ``root`` the ``srl:RuleSet``-typed node .
     """
     sink = _Sink()
-    root = _Writer(sink).ruleset(ruleset)
+    root = _Writer(sink).ruleset(ruleset, root)
     if graph is None:
         from starlayer.graph.core import StarLayerGraph
 
@@ -262,9 +257,9 @@ class _Writer:
             return _T.boolean(value)
         return self.enc.term(value)
 
-    def ruleset(self, ruleset: srl_ast.RuleSet):
+    def ruleset(self, ruleset: srl_ast.RuleSet, root=None):
         g = self.g
-        root = ox.BlankNode()
+        root = ox.BlankNode() if root is None else root
         g.add((root, RDF.type, _RULE_SET))
         self.sequence(root, _RULES, [self.rule(r) for r in ruleset.rules])
         self.sequence(root, _DATA, [self.data(d) for d in ruleset.data])
@@ -466,7 +461,7 @@ def _decode_data(node, graph) -> srl_ast._Data:
 
 def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
     """Decode the ``srl:RuleSet`` node ``root`` in ``graph`` (as returned by
-    ``srl_parse_to_tree``/``ruleset_to_tree``, or an LLM-authored ``srl:`` graph
+    ``sparql_to_tree``/``ruleset_to_tree``, or an LLM-authored ``srl:`` graph
     not yet decoded) back into a real ``srl_ast.RuleSet``.
 
     Raises:
@@ -597,23 +592,6 @@ def _rule_text(rule: srl_ast._Rule, prefixes: dict) -> str:
     body = " ".join(_body_element_text(e, prefixes) for e in rule.body)
     ground = "" if rule.evalground else "GROUND "
     return f"RULE {rule_id}{{ {head} }} WHERE {ground}{{ {body} }}"
-
-
-# ---------------------------------------------------------------------------
-# Composed text <-> tree-RDF convenience, matching starontology.manchester's
-# srl_parse_to_tree()/srl_tree_to_text() naming.
-# ---------------------------------------------------------------------------
-
-def srl_parse_to_tree(text: str, base: str | None = None, tree_graph: Any = None) -> tuple[Any, Any]:
-    """SRL text straight to its ``srl:``-encoded tree-RDF. Composes
-    ``parse_ruleset`` + ``ruleset_to_tree``. Returns ``(tree_graph, root)``; ``tree_graph`` (a ``StarLayerGraph``) is where the tree is written, a fresh ``StarLayerGraph`` when omitted."""
-    return ruleset_to_tree(parse_ruleset(text, base), tree_graph)
-
-
-def srl_tree_to_text(tree_graph: Any, root) -> str:
-    """The inverse of ``srl_parse_to_tree``. Composes ``tree_to_ruleset`` +
-    ``ruleset_to_text``."""
-    return ruleset_to_text(tree_to_ruleset(tree_graph, root))
 
 
 # ---------------------------------------------------------------------------
@@ -764,7 +742,7 @@ _validation_plans: dict = {}  # the parsed Plan of the cached shapes graph, kept
 
 
 def _validation_graphs() -> tuple[Any, Any, Any]:
-    """The ``(shapes, ontology, closed schema maps)`` ``srl_validate`` uses, built once and
+    """The ``(shapes, ontology, closed schema maps)`` ``validate_sparql_tree`` uses, built once and
     reused: validation does not modify them, and building them costs about 20 ms
     per call."""
     global _validation_graphs_cache
@@ -802,7 +780,7 @@ _WELL_FORMEDNESS_SHAPES = frozenset(
 
 def _validate_against_shapes(tree_graph: Any) -> ValidationReport:
     """The report of checking ``tree_graph`` against the ``srl:`` shapes (with ``spexpr:`` and ``sqe:``), the one place both
-    ``srl_validate`` and a run (``_require_well_formed``) get the §4.2 results from. A ``sh:Warning`` result does not make it
+    ``validate_sparql_tree`` and a run (``_require_well_formed``) get the §4.2 results from. A ``sh:Warning`` result does not make it
     non-conforming."""
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
         shared_plans,
@@ -837,8 +815,8 @@ def _results_of(report: ValidationReport) -> list[tuple[str | None, Any, str]]:
     return out
 
 
-def srl_validate(tree_graph: Any) -> ValidationReport:
-    """Validate ``tree_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
+def validate_srl_tree(tree_graph: Any) -> ValidationReport:
+    """Validate ``tree_graph`` (e.g. straight out of ``sparql_to_tree()``,
     or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
     shapes.
 

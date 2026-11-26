@@ -1,7 +1,7 @@
 """``TreeIndex``: the read side of a graph (``value``, ``objects``, ``predicate_objects``, ``in``) over a list of
 triples held in memory.
 
-``sqe_tree_to_text`` reads a tree through those graph methods (``ordered_items`` of ``graph/ordinals.py`` reads the ordered children through ``objects`` and ``in``). The query rewrites (``rewrite.py``, ``entailment.py``) render a
+``render_sqe_tree`` reads a tree through those graph methods (``ordered_items`` of ``graph/ordinals.py`` reads the ordered children through ``objects`` and ``in``). The query rewrites (``rewrite.py``, ``entailment.py``) render a
 tree they have just built from a parsed query; going through a ``StarLayerGraph`` would cost a store write per triple and an
 Oxigraph store rewrites some literal lexical forms, which a query that is about to be run must not suffer. A ``TreeIndex``
 answers the same calls from a dict and changes nothing.
@@ -15,7 +15,7 @@ from typing import Any
 
 
 class TreeIndex:
-    """In-memory triple index answering the graph read calls that ``sqe_tree_to_text`` makes."""
+    """In-memory triple index answering the graph read calls that ``render_sqe_tree`` makes."""
 
     def __init__(self, triples: Iterable[tuple[Any, Any, Any]]) -> None:
         """Index ``triples`` by subject, consuming the iterable once."""

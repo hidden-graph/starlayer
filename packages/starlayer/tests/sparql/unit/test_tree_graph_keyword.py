@@ -5,8 +5,7 @@ The old names (``graph``, ``data_graph``) were renamed with no alias, so they ar
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text, sqe_validate
-from starlayer.sparql.srl import srl_parse_to_tree, srl_tree_to_text, srl_validate
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.starontology.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_owl,
@@ -21,14 +20,14 @@ MANCH = "Prefix: : <http://e/>\nClass: :A\n"
 
 def test_sqe_tree_graph_keyword():
     target = StarLayerGraph()
-    tree, root = sqe_parse_to_tree(SQE, tree_graph=target)
+    tree, root = sparql_to_tree(SQE, tree_graph=target)
     assert tree is target
-    assert "SELECT" in sqe_tree_to_text(tree_graph=tree, root=root)
-    assert sqe_validate(tree_graph=tree).conforms
+    assert "SELECT" in tree_to_sparql(tree_graph=tree, root=root)
+    assert validate_sparql_tree(tree_graph=tree).conforms
     for call in (
-        lambda: sqe_parse_to_tree(SQE, graph=StarLayerGraph()),
-        lambda: sqe_tree_to_text(graph=tree, root=root),
-        lambda: sqe_validate(data_graph=tree),
+        lambda: sparql_to_tree(SQE, graph=StarLayerGraph()),
+        lambda: tree_to_sparql(graph=tree, root=root),
+        lambda: validate_sparql_tree(data_graph=tree),
     ):
         with pytest.raises(TypeError):
             call()
@@ -36,14 +35,14 @@ def test_sqe_tree_graph_keyword():
 
 def test_srl_tree_graph_keyword():
     target = StarLayerGraph()
-    tree, root = srl_parse_to_tree(SRL, tree_graph=target)
+    tree, root = sparql_to_tree(SRL, tree_graph=target)
     assert tree is target
-    assert "RULE" in srl_tree_to_text(tree_graph=tree, root=root)
-    assert srl_validate(tree_graph=tree).conforms
+    assert "RULE" in tree_to_sparql(tree_graph=tree, root=root)
+    assert validate_sparql_tree(tree_graph=tree).conforms
     for call in (
-        lambda: srl_parse_to_tree(SRL, graph=StarLayerGraph()),
-        lambda: srl_tree_to_text(graph=tree, root=root),
-        lambda: srl_validate(data_graph=tree),
+        lambda: sparql_to_tree(SRL, graph=StarLayerGraph()),
+        lambda: tree_to_sparql(graph=tree, root=root),
+        lambda: validate_sparql_tree(data_graph=tree),
     ):
         with pytest.raises(TypeError):
             call()

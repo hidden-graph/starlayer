@@ -6,7 +6,7 @@ property tests. The sqe tests treat that path as the oracle; these tests hold th
   reference. Both are run on the same data; the rows (or the kind of run-time error) must agree.
 
 (The ``prepare_query_12`` + rdflib-algebra serializer round trip that used to be tested here is dropped: rdflib's
-``translateAlgebra`` moves a FILTER into an aggregate for some generated queries, and ``sqe_tree_to_text``, which
+``translateAlgebra`` moves a FILTER into an aggregate for some generated queries, and ``tree_to_sparql``, which
 ``test_sqe_property_based`` checks, replaces that path. See ``docs/working/archive/d2-gaps.md`` G10.)
 
 Opt-in (``pytest --sqe-coverage``); example count from ``STARLAYER_SQE_FUZZ_EXAMPLES``.

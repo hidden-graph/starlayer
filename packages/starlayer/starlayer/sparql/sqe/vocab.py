@@ -94,8 +94,8 @@ order), ``sqe:Modify`` (``sqe:with``, ``sqe:delete``, ``sqe:insert``, ``sqe:usin
 (``sqe:from``, ``sqe:to``), ``sqe:silent``; graph references ``sqe:GraphRef`` (``sqe:graphIri``), ``sqe:DefaultGraph``,
 ``sqe:NamedGraphs``, ``sqe:AllGraphs``). Each operation carries the prologue written in front of it.
 
-**Running a tree:** run the text from ``sqe_tree_to_text`` with ``StarLayerGraph.query()`` / ``update()``. Anything the tree
-cannot represent raises ``ExecutionError`` of kind ``"unsupported"`` instead of being silently dropped. ``sqe_parse_to_tree`` reads queries and
+**Running a tree:** run the text from ``render_sqe_tree`` with ``StarLayerGraph.query()`` / ``update()``. Anything the tree
+cannot represent raises ``ExecutionError`` of kind ``"unsupported"`` instead of being silently dropped. ``sparql_to_tree`` reads queries and
 updates with the StarLayer-owned parser.
 """
 

@@ -1,24 +1,25 @@
 """Tests for SRL §4.2 Well-formedness Conditions.
 
-`parse_ruleset()` does not run the check (a rule set with a problem still loads). `srl_validate` reports each problem from the
+`parse_ruleset()` does not run the check (a rule set with a problem still loads). `validate_sparql_tree` reports each problem from the
 shapes in `srl_shapes.ttl`, a result per offending element (the focus node is that element; the message names the variable), and
 running the rule set raises a `FormatError` (kind "srl") from the Python check (`srl_semantic_checks`). These tests go through
-`srl_validate` and `infer()`, the way a real caller would hit them; `test_srl_wellformedness_agreement.py` shows the two agree.
+`validate_sparql_tree` and `infer()`, the way a real caller would hit them; `test_srl_wellformedness_agreement.py` shows the two agree.
 """
 
 import pytest
 from starlayer.errors import FormatError
 from starlayer.graph import RDF, StarLayerGraph
-from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree, srl_validate
+from starlayer.sparql import validate_sparql_tree
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree
 from tests.support.srl_wellformedness import findings
 
 PREFIX = "PREFIX : <http://example.org/>\n"
 
 
 def _assert_well_formed(text):
-    """The ruleset loads, and srl_validate and infer() find nothing wrong with it."""
+    """The ruleset loads, and validate_sparql_tree and infer() find nothing wrong with it."""
     ruleset = parse_ruleset(PREFIX + text)
-    report = srl_validate(ruleset_to_tree(ruleset)[0])
+    report = validate_sparql_tree(ruleset_to_tree(ruleset)[0])
     assert report.conforms, report.report_text
     ruleset.infer(StarLayerGraph())
 
@@ -28,7 +29,7 @@ def _classes(tree, node):
 
 
 def _assert_violation(text, kind, variable, element="TriplePattern"):
-    """The rule set loads; srl_validate has exactly one result of the shape for ``kind`` whose focus node is an ``element`` of the tree
+    """The rule set loads; validate_sparql_tree has exactly one result of the shape for ``kind`` whose focus node is an ``element`` of the tree
     and whose message names ``variable``; and infer() refuses it."""
     ruleset = parse_ruleset(PREFIX + text)  # it loads
     tree, _root = ruleset_to_tree(ruleset)
@@ -276,7 +277,8 @@ def test_a_variable_in_a_data_block_is_rejected():
 @pytest.mark.parametrize("position", ["subject", "predicate"])
 def test_a_triple_term_as_the_subject_or_predicate_of_a_triple_is_rejected(position):
     """The grammar only lets a triple term be an object, so the tree is edited: the term is moved into the position."""
-    from starlayer.sparql._oxterms import NS, RDF as RDF_NS
+    from starlayer.sparql._oxterms import NS
+    from starlayer.sparql._oxterms import RDF as RDF_NS
 
     ruleset = parse_ruleset(PREFIX + "RULE { ?x :p ?y } WHERE { ?x :q ?y . ?x :r ?z . FILTER(?z > 1) }")
     tree, _root = ruleset_to_tree(ruleset)
@@ -330,7 +332,7 @@ def test_unresolved_imports_are_a_warning_that_does_not_make_the_report_non_conf
 
     ruleset = parse_ruleset(PREFIX + "IMPORTS <http://example.org/lib>\nIMPORTS <http://example.org/other>\nRULE { ?x :p ?y } WHERE { ?x :q ?y }")
     tree, root = ruleset_to_tree(ruleset)
-    report = srl_validate(tree)
+    report = validate_sparql_tree(tree)
     assert report.conforms, report.report_text
     graph = report.report_graph
     warnings_ = list(graph.subjects(SH.resultSeverity, SH.Warning))
@@ -349,5 +351,5 @@ def test_a_rule_set_without_imports_has_no_warning_and_one_with_its_imports_reso
     lib = PREFIX + "RULE { ?x :q ?y } WHERE { ?x :r ?y }"
     resolved = parse_ruleset(text, imports_loader=lambda iri: lib)
     for rules in (resolved, parse_ruleset(PREFIX + "RULE { ?x :p ?y } WHERE { ?x :q ?y }")):
-        report = srl_validate(ruleset_to_tree(rules)[0])
+        report = validate_sparql_tree(ruleset_to_tree(rules)[0])
         assert report.conforms and not list(report.report_graph.subjects(SH.resultSeverity, SH.Warning))

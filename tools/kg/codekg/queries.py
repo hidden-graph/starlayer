@@ -272,9 +272,9 @@ def get_query(name: str) -> NamedQuery:
 
 def query_text(name: str) -> str:
     """The SPARQL text of a named query, rendered from its stored sqe tree."""
-    from starlayer.sparql.sqe import sqe_tree_to_text
+    from starlayer.sparql import tree_to_sparql
 
-    return sqe_tree_to_text(_library(), _root(name))
+    return tree_to_sparql(_library(), _root(name))
 
 
 def competency_questions(status: str | None = None, unanswered: bool = False) -> list[CompetencyQuestion]:
@@ -325,7 +325,7 @@ def validate_library() -> list[str]:
     """
     import starlayer.shacl
     from starlayer.graph import StarLayerGraph as Graph
-    from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
+    from starlayer.sparql import tree_to_sparql, validate_sparql_tree
 
     library = _library()
     problems: list[str] = []
@@ -344,12 +344,12 @@ def validate_library() -> list[str]:
         if not len(tree):
             problems.append(f"{name}: the query root {root} has no tree")
             continue
-        report = sqe_validate(tree)
+        report = validate_sparql_tree(tree)
         if not report.conforms:
             problems.append(f"{name}: the sqe tree is invalid:\n{report.report_text}")
             continue
         try:
-            sqe_tree_to_text(library, root)
+            tree_to_sparql(library, root)
         except Exception as error:  # noqa: BLE001 - any failure to decode is a problem to report
             problems.append(f"{name}: the tree does not decode to SPARQL: {error}")
     return problems

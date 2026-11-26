@@ -5,8 +5,8 @@ Three gates:
 1. the W3C SPARQL 1.2 syntax fixtures vendored under ``tests/sparql/w3c_sparql12/data`` and the SPARQL 1.1 syntax and
    query fixtures under ``tests/sparql/w3c_sparql11/data``: every positive query must parse, every negative query
    must be rejected (update fixtures are out of scope here: SPARQL Update is the next piece of work);
-2. the sqe fixpoint: text -> new tree -> ``sqe_tree_to_text`` -> new tree is the same tree;
-3. agreement with the current rdflib-based path (``sqe_parse_to_tree``) on the sqe feature queries, the sqe
+2. the sqe fixpoint: text -> new tree -> ``tree_to_sparql`` -> new tree is the same tree;
+3. agreement with the current rdflib-based path (``sparql_to_tree``) on the sqe feature queries, the sqe
    modifier queries and the W3C queries. The current path costs about a second per query (it validates every
    tree with SHACL), so this gate is opt-in with the other sqe suites: ``pytest --sqe-coverage``.
 """
@@ -15,16 +15,10 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.sparql._oxterms import RDF, XSD
 from starlayer.errors import FormatError
-from starlayer.sparql.parse_sparql import (
-    Node,
-    ast_to_triples,
-    parse_sparql,
-    sparql_to_tree,
-    tokenize,
-)
-from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
+from starlayer.sparql._oxterms import RDF, XSD
+from starlayer.sparql.parse_sparql import Node, ast_to_triples, parse_sparql, tokenize
 from starlayer.sparql.sqe._memtree import TreeIndex
 from tests.sparql.parse_sparql_support import (
     entry_key,
@@ -87,7 +81,7 @@ def test_tree_text_fixpoint(entry):
     from starlayer.graph import isomorphic
 
     tree = sparql_to_tree(entry.read(entry.query_file))
-    again = sparql_to_tree(sqe_tree_to_text(*tree))
+    again = sparql_to_tree(tree_to_sparql(*tree))
     assert isomorphic(tree[0], again[0])
 
 
@@ -97,7 +91,7 @@ def test_w3c11_tree_text_fixpoint(entry):
     from starlayer.graph import isomorphic
 
     tree = sparql_to_tree(entry.read())
-    again = sparql_to_tree(sqe_tree_to_text(*tree))
+    again = sparql_to_tree(tree_to_sparql(*tree))
     assert isomorphic(tree[0], again[0])
 
 
@@ -117,7 +111,7 @@ def test_every_positive_tree_validates_against_the_sqe_shapes(key, text):
     warning ("never bound"). Apart from that lint, every tree - DESCRIBE, FROM, SERVICE included - conforms."""
     import re
 
-    outcome = sqe_validate(sparql_to_tree(text)[0])
+    outcome = validate_sparql_tree(sparql_to_tree(text)[0])
     ok = outcome.conforms
     report = outcome.report_text
     if not ok:
@@ -238,15 +232,15 @@ def test_new_tree_validates_against_the_sqe_shapes():
         "BIND(CONCAT(STR(?s), 'x') AS ?k) VALUES ?v { 1 UNDEF } FILTER NOT EXISTS { ?s :n ?m } } "
         "GROUP BY ?s HAVING (COUNT(*) > 1) ORDER BY DESC(?s) LIMIT 5 OFFSET 1"
     )
-    assert sqe_validate(graph).conforms
+    assert validate_sparql_tree(graph).conforms
 
 
 def _round_trip(text: str) -> str:
     from starlayer.sparql.sqe.shapes import _validate_shapes
 
     tree = sparql_to_tree(text)
-    assert _validate_shapes(tree[0]).conforms  # the shapes only: Oxigraph refuses some of these texts (a relative IRI, `!()`), which sqe_validate reports
-    rendered = sqe_tree_to_text(*tree)
+    assert _validate_shapes(tree[0]).conforms  # the shapes only: Oxigraph refuses some of these texts (a relative IRI, `!()`), which validate_sparql_tree reports
+    rendered = tree_to_sparql(*tree)
     from starlayer.graph import isomorphic
 
     again = sparql_to_tree(rendered)
@@ -297,7 +291,7 @@ def test_describe_star_without_where_is_a_shape_violation():
     from starlayer.sparql.sqe import SQE
 
     g.remove((root, SQE.where, None))
-    assert not sqe_validate(g).conforms
+    assert not validate_sparql_tree(g).conforms
 
 
 def test_existing_trees_are_unchanged_by_the_vocabulary_additions():
@@ -330,7 +324,7 @@ def test_numeric_literals_keep_their_lexical_form(literal, lexical, datatype):
     assert o.value == lexical and o.datatype == datatype
     # the text keeps the lexical form when the tree never goes through a store (Oxigraph rewrites "007"^^xsd:integer to "7")
     triples, root = ast_to_triples(parse_sparql(f"SELECT * {{ ?s ?p {literal} }}"))
-    assert lexical in sqe_tree_to_text(TreeIndex(triples), root)
+    assert lexical in tree_to_sparql(TreeIndex(triples), root)
 
 
 def test_typed_and_boolean_literals_keep_their_lexical_form():

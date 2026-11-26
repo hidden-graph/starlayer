@@ -9,7 +9,7 @@ new in the SRL grammar (``RULE``, ``DATA``, ``WHERE [GROUND]``, ``NOT [GROUND]``
 the form the SRL evaluator and the ``srl:`` tree encoder consume.
 
 Static checks that belong to the rule set (a variable bound, ``SET`` not reusing a variable) stay in
-``srl_semantic_checks``, which running a rule set calls; ``srl_validate`` reports the same conditions from the shapes in ``srl_shapes.ttl``.
+``srl_semantic_checks``, which running a rule set calls; ``validate_sparql_tree`` reports the same conditions from the shapes in ``srl_shapes.ttl``.
 """
 
 from __future__ import annotations

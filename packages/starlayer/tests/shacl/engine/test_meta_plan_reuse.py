@@ -7,7 +7,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import MetaShaclError, validate
 from starlayer.shacl.engine import builder, meta
-from starlayer.sparql import srl, sqe
+from starlayer.sparql import sparql_to_tree, sqe, srl
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . "
 QUERY = "PREFIX ex: <http://example.org/> SELECT * WHERE { ?s ex:p ?v }"
@@ -98,9 +98,9 @@ def test_a_stubbed_engine_is_called_without_the_plan_cache():
 
 
 def test_the_sqe_and_srl_checks_reuse_their_plans(built):
-    sqe.sqe_parse_to_tree(QUERY)
+    sparql_to_tree(QUERY)
     srl.parse_ruleset(RULES)
     built.clear()
-    sqe.sqe_parse_to_tree(QUERY)
+    sparql_to_tree(QUERY)
     srl.parse_ruleset(RULES)
     assert len(built) < 10, f"{len(built)} shapes built on the second round"

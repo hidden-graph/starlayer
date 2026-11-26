@@ -21,11 +21,7 @@ import pyoxigraph as ox
 import pytest
 from rdflib.plugins.sparql.evaluate import evalQuery
 from rdflib.plugins.sparql.processor import prepareQuery
-from starlayer.sparql.sqe import (
-    sqe_parse_to_tree,
-    sqe_tree_to_text,
-    sqe_validate,
-)
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.sparql.sqe.vocab import (
     PREFIX_DECL,
     PREFIX_LABEL,
@@ -91,8 +87,8 @@ class TestRoundtripResultEquivalence:
         prepared = prepareQuery(query_text)
         original = evalQuery(fixture_graph, prepared)
 
-        graph, root = sqe_parse_to_tree(query_text)
-        rendered = sqe_tree_to_text(graph, root)
+        graph, root = sparql_to_tree(query_text)
+        rendered = tree_to_sparql(graph, root)
         reparsed = prepareQuery(rendered)
         roundtripped = evalQuery(fixture_graph, reparsed)
 
@@ -104,8 +100,8 @@ class TestRoundtripResultEquivalence:
         the regenerated text, and the WHERE clause must use it - not just
         a resolvable full IRI."""
         query_text = PREFIXES + "SELECT ?name WHERE { ?p foaf:name ?name }"
-        graph, root = sqe_parse_to_tree(query_text)
-        rendered = sqe_tree_to_text(graph, root)
+        graph, root = sparql_to_tree(query_text)
+        rendered = tree_to_sparql(graph, root)
         where_clause = rendered.split("WHERE", 1)[1]
         assert "PREFIX foaf: <http://xmlns.com/foaf/0.1/>" in rendered
         assert "foaf:name" in where_clause
@@ -119,7 +115,7 @@ def _set(graph, subject, predicate, value):
 
 
 class TestRootParameter:
-    """sqe_parse_to_tree()'s optional root= - gives a caller a stable,
+    """sparql_to_tree()'s optional root= - gives a caller a stable,
     named identity for the encoded query instead of always minting a
     fresh BNode(), useful once a graph accumulates more than one encoded
     query (via repeated calls sharing one graph=) and a bare
@@ -130,21 +126,21 @@ class TestRootParameter:
     def test_defaults_to_a_fresh_bnode(self):
         from starlayer.graph import StarLayerGraph
 
-        graph, root = sqe_parse_to_tree(self.QUERY_TEXT)
+        graph, root = sparql_to_tree(self.QUERY_TEXT)
         assert isinstance(graph, StarLayerGraph)  # with no graph= given the tree is written to a fresh StarLayerGraph: pyoxigraph terms
         assert isinstance(root, ox.BlankNode)
 
     def test_accepts_a_real_uriref(self):
         my_iri = ox.NamedNode("urn:test:query1")
-        graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
+        graph, root = sparql_to_tree(self.QUERY_TEXT, root=my_iri)
         assert root == ox.NamedNode("urn:test:query1")
         assert (my_iri, RDF.type, QUERY) in graph
 
     def test_named_root_round_trips_through_query_and_text(self):
         my_iri = ox.NamedNode("urn:test:query1")
-        graph, root = sqe_parse_to_tree(self.QUERY_TEXT, root=my_iri)
+        graph, root = sparql_to_tree(self.QUERY_TEXT, root=my_iri)
 
-        rendered = sqe_tree_to_text(graph, root)
+        rendered = tree_to_sparql(graph, root)
         assert "SELECT ?s" in rendered
 
     def test_two_named_queries_in_one_shared_graph_stay_distinguishable(self):
@@ -152,8 +148,8 @@ class TestRootParameter:
         tell two accumulated queries apart, but each one's own given IRI
         can."""
         iri1, iri2 = ox.NamedNode("urn:test:q1"), ox.NamedNode("urn:test:q2")
-        graph, root1 = sqe_parse_to_tree(self.QUERY_TEXT, root=iri1)
-        graph, root2 = sqe_parse_to_tree(
+        graph, root1 = sparql_to_tree(self.QUERY_TEXT, root=iri1)
+        graph, root2 = sparql_to_tree(
             "SELECT ?s WHERE { ?s a <http://example.org/Other> }", tree_graph=graph, root=iri2
         )
 
@@ -162,8 +158,8 @@ class TestRootParameter:
         assert query_subjects == {ox.NamedNode("urn:test:q1"), ox.NamedNode("urn:test:q2")}
 
         # each one decodes back to its own, distinct query
-        q1_text = sqe_tree_to_text(graph, iri1)
-        q2_text = sqe_tree_to_text(graph, iri2)
+        q1_text = tree_to_sparql(graph, iri1)
+        q2_text = tree_to_sparql(graph, iri2)
         assert "Thing" in q1_text
         assert "Other" in q2_text
 
@@ -177,19 +173,19 @@ class TestShaclConformance:
               FILTER(?age > 18)
             }
         """
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
 
     def test_triple_pattern_missing_predicate_fails(self):
         query_text = PREFIXES + "SELECT ?name WHERE { ?p foaf:name ?name }"
-        graph, root = sqe_parse_to_tree(query_text)
+        graph, root = sparql_to_tree(query_text)
         tp = next(graph.subjects(TRIPLE_PATTERN_PREDICATE, None))
         graph.remove((tp, TRIPLE_PATTERN_PREDICATE, None))
 
-        outcome = sqe_validate(graph)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert not conforms
@@ -207,20 +203,20 @@ class TestUnboundProjectedVariable:
     custom Python ConstraintComponent - sqe:'s tree needs no algebra
     resolution to answer this, unlike salg:'s resolved Project node.
 
-    sqe_parse_to_tree() does not validate: a query that breaks the shapes
-    still loads, and sqe_validate() on the tree reports it."""
+    sparql_to_tree() does not validate: a query that breaks the shapes
+    still loads, and validate_sparql_tree() on the tree reports it."""
 
     def test_unbound_projected_variable_fails(self):
         query_text = "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o }"
-        graph, _ = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, _ = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         assert not outcome.conforms
         assert "z" in outcome.report_text
 
     def test_all_projected_variables_bound_conforms(self):
         query_text = "SELECT ?s ?o WHERE { ?s <http://example.org/knows> ?o }"
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -230,8 +226,8 @@ class TestUnboundProjectedVariable:
             "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . "
             "OPTIONAL { ?s <http://example.org/age> ?z } }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -241,8 +237,8 @@ class TestUnboundProjectedVariable:
             "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . "
             "{ ?s <http://example.org/a> ?z } UNION { ?s <http://example.org/b> ?z } }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -251,8 +247,8 @@ class TestUnboundProjectedVariable:
         query_text = (
             "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . BIND(?o AS ?z) }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -265,8 +261,8 @@ class TestUnboundProjectedVariable:
         query_text = (
             "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o . FILTER(?o = ?z) }"
         )
-        graph, _ = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, _ = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         assert not outcome.conforms
         assert "z" in outcome.report_text
 
@@ -285,8 +281,8 @@ class TestTemplateListShape:
             "CONSTRUCT { ?s <http://example.org/q> ?o } "
             "WHERE { ?s <http://example.org/p> ?o }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -296,10 +292,10 @@ class TestTemplateListShape:
             "CONSTRUCT { ?s <http://example.org/q> ?o } "
             "WHERE { ?s <http://example.org/p> ?o }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
+        graph, root = sparql_to_tree(query_text)
         _set(graph, root, TEMPLATE, lit("not a list of triple patterns at all"))
 
-        outcome = sqe_validate(graph)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert not conforms
@@ -321,8 +317,8 @@ class TestAlternativesListShape:
             "ASK { { ?s <http://example.org/a> ?o } "
             "UNION { ?s <http://example.org/b> ?o } }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -332,11 +328,11 @@ class TestAlternativesListShape:
             "ASK { { ?s <http://example.org/a> ?o } "
             "UNION { ?s <http://example.org/b> ?o } }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
+        graph, root = sparql_to_tree(query_text)
         union_node = next(graph.subjects(RDF.type, UNION))
         _set(graph, union_node, UNION_ALTERNATIVES, lit("garbage, not a list of pattern-lists"))
 
-        outcome = sqe_validate(graph)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert not conforms
@@ -350,8 +346,8 @@ class TestPrefixDeclShape:
 
     def test_valid_prefix_conforms(self):
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -361,30 +357,30 @@ class TestPrefixDeclShape:
         - a real, legal case (see to_rdf.py's own docstring) that must
         not be rejected by the new minCount/datatype constraints."""
         query_text = "PREFIX : <http://example.org/>\nSELECT ?s WHERE { ?s :p ?o }"
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
 
     def test_missing_namespace_fails(self):
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
-        graph, root = sqe_parse_to_tree(query_text)
+        graph, root = sparql_to_tree(query_text)
         prefix_node = next(graph.subjects(RDF.type, PREFIX_DECL))
         graph.remove((prefix_node, PREFIX_NAMESPACE, None))
 
-        outcome = sqe_validate(graph)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert not conforms
 
     def test_non_string_prefix_label_fails(self):
         query_text = "PREFIX ex: <http://example.org/>\nSELECT ?s WHERE { ?s ex:p ?o }"
-        graph, root = sqe_parse_to_tree(query_text)
+        graph, root = sparql_to_tree(query_text)
         prefix_node = next(graph.subjects(RDF.type, PREFIX_DECL))
         _set(graph, prefix_node, PREFIX_LABEL, lit(12345))
 
-        outcome = sqe_validate(graph)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert not conforms
@@ -404,8 +400,8 @@ class TestUnboundExpressionVariable:
         query_text = (
             "SELECT ?s WHERE { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
         )
-        graph, _ = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, _ = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         assert not outcome.conforms
         assert "x" in outcome.report_text
 
@@ -413,21 +409,21 @@ class TestUnboundExpressionVariable:
         query_text = (
             "SELECT ?s WHERE { ?s <http://example.org/p> ?o . FILTER(?o > 5) }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
 
     def test_ask_filter_unbound_variable_fails(self):
         query_text = "ASK { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
-        graph, _ = sqe_parse_to_tree(query_text)
-        assert not sqe_validate(graph).conforms
+        graph, _ = sparql_to_tree(query_text)
+        assert not validate_sparql_tree(graph).conforms
 
     def test_ask_filter_all_bound_conforms(self):
         query_text = "ASK { ?s <http://example.org/p> ?o . FILTER(?o > 5) }"
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -437,8 +433,8 @@ class TestUnboundExpressionVariable:
             "CONSTRUCT { ?s <http://example.org/q> ?o } "
             "WHERE { ?s <http://example.org/p> ?o . FILTER(?x > 5) }"
         )
-        graph, _ = sqe_parse_to_tree(query_text)
-        assert not sqe_validate(graph).conforms
+        graph, _ = sparql_to_tree(query_text)
+        assert not validate_sparql_tree(graph).conforms
 
     def test_bind_then_filter_on_bound_variable_conforms(self):
         """Regression guard: a variable bound via BIND and then used in a
@@ -449,8 +445,8 @@ class TestUnboundExpressionVariable:
             "SELECT ?s WHERE { ?s <http://example.org/p> ?o . "
             "BIND(?o AS ?z) . FILTER(?z > 5) }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -469,8 +465,8 @@ class TestUnboundTemplateVariable:
             "CONSTRUCT { ?s <http://example.org/q> ?z } "
             "WHERE { ?s <http://example.org/p> ?o }"
         )
-        graph, _ = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, _ = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         assert not outcome.conforms
         assert "z" in outcome.report_text
 
@@ -479,8 +475,8 @@ class TestUnboundTemplateVariable:
             "CONSTRUCT { ?s <http://example.org/q> ?o } "
             "WHERE { ?s <http://example.org/p> ?o }"
         )
-        graph, root = sqe_parse_to_tree(query_text)
-        outcome = sqe_validate(graph)
+        graph, root = sparql_to_tree(query_text)
+        outcome = validate_sparql_tree(graph)
         conforms = outcome.conforms
         report_text = outcome.report_text
         assert conforms, report_text
@@ -498,15 +494,15 @@ class TestShapesForTheWiderVocabulary:
     )
 
     def _corrupted(self, predicate_local, find_node):
-        from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+        from starlayer.sparql import sparql_to_tree, validate_sparql_tree
         from starlayer.sparql.sqe.vocab import SQE
 
-        tree, _root = sqe_parse_to_tree(self.QUERY)
+        tree, _root = sparql_to_tree(self.QUERY)
         node = find_node(tree)
         predicate = SQE[predicate_local]
         tree.remove((node, predicate, None))
         tree.add((node, predicate, lit("JUNK")))
-        return sqe_validate(tree).conforms
+        return validate_sparql_tree(tree).conforms
 
     def test_group_by_must_be_a_list(self):
         assert not self._corrupted("groupBy", lambda t: next(t.subjects(V.GROUP_BY)))
@@ -565,9 +561,9 @@ class TestSqeDoesNotDependOnSalg:
         import sys
 
         code = (
-            "import sys; from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate, sqe_tree_to_text\\n"
-            "t, r = sqe_parse_to_tree('SELECT ?s WHERE { ?s ?p ?o FILTER(STRLEN(STR(?o)) > 1) }')\\n"
-            "assert sqe_validate(t).conforms; sqe_tree_to_text(t, r)\\n"
+            "import sys; from starlayer.sparql import sparql_to_tree, validate_sparql_tree, tree_to_sparql\\n"
+            "t, r = sparql_to_tree('SELECT ?s WHERE { ?s ?p ?o FILTER(STRLEN(STR(?o)) > 1) }')\\n"
+            "assert validate_sparql_tree(t).conforms; tree_to_sparql(t, r)\\n"
             "loaded = sorted(m for m in sys.modules if m.startswith('starlayer.sparql.salg'))\\n"
             "print('LOADED', loaded)\\n"
         )

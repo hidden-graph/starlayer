@@ -3,9 +3,9 @@
 import warnings
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.errors import FormatError
 from starlayer.sparql.srl import parse_ruleset
 from tests.support.terms import Namespace
 

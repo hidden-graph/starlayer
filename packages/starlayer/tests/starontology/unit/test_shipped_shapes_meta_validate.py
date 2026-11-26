@@ -2,7 +2,7 @@
 shapes graph, checked with the project's own meta-SHACL preflight.
 
 ``meta_shacl`` is off by default in ``validate()`` (a development-time check),
-and internal validators such as ``srl_validate`` rely on the shipped shapes
+and internal validators such as ``validate_sparql_tree`` rely on the shipped shapes
 being sound without re-checking them on every call. This test is that check,
 run once in the fast tier instead.
 

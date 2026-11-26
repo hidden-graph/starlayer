@@ -6,14 +6,14 @@ import pyoxigraph as ox
 import pytest
 from rdflib import Graph, Literal, URIRef
 from starlayer.graph import StarLayerGraph
-from starlayer.sparql import sqe
+from starlayer.sparql import sparql_to_tree, sqe, tree_to_sparql
 
 warnings.simplefilter("ignore")
 
 
 def _text(query):
-    graph, root = sqe.sqe_parse_to_tree(query)
-    return sqe.sqe_tree_to_text(graph, root)
+    graph, root = sparql_to_tree(query)
+    return tree_to_sparql(graph, root)
 
 
 @pytest.mark.parametrize(

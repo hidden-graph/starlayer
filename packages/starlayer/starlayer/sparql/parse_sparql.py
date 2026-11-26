@@ -28,16 +28,15 @@ written in one ``INSERT DATA`` cannot be reused in another operation; WHERE patt
 The AST is one generic class, :class:`Node` (``kind`` plus an ordered ``f``
 dict), because the ``sqe:``/``spexpr:`` vocabulary is itself generic: an
 expression node of kind ``STR`` with field ``arg`` is encoded as
-``[] a spexpr:STR ; spexpr:arg ...``. :func:`sparql_to_tree` encodes
-the AST as ``sqe:`` RDF (the same shapes ``sqe.sqe_parse_to_tree`` produces),
-so ``sqe_tree_to_text`` works on its output.
+``[] a spexpr:STR ; spexpr:arg ...``. :func:`ast_to_tree` encodes
+the AST as ``sqe:`` RDF (the same shapes ``starlayer.sparql.sparql_to_tree`` produces),
+so ``tree_to_sparql`` works on its output.
 
 Entry points::
 
     parse_sparql(text, base=None) -> Node
-    sparql_to_tree(text, base=None, graph=None, root=None) -> (Graph, root)
     parse_sparql_update(text, base=None) -> Node                # an UpdateRequest
-    sparql_update_to_tree(text, base=None, graph=None, root=None) -> (Graph, root)
+    ast_to_tree(ast, graph=None, root=None) -> (Graph, root)    # a parsed query or update, as ``sqe:`` RDF
 
 Syntax errors are :class:`~starlayer.errors.FormatError` (kind ``"sparql"``) with ``line``/``col``/``pos``; a query nested too deeply
 is an :class:`~starlayer.errors.ExecutionError` (kind ``"nesting"``).
@@ -2244,17 +2243,3 @@ def ast_to_tree(q: Node, graph: StarLayerGraph | None = None, root=None, *, trip
         graph = StarLayerGraph(prefixes={})
     graph.extend(triples)
     return graph, root
-
-
-def sparql_to_tree(text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None) -> tuple[StarLayerGraph, object]:
-    """SPARQL 1.2 query text straight to ``sqe:`` tree-RDF, with the new parser. The tree is not checked against the ``sqe:``
-    shapes: ``sqe_validate`` reports those problems."""
-    return ast_to_tree(parse_sparql(text, base), graph, root)
-
-
-def sparql_update_to_tree(
-    text: str, base: str | None = None, graph: StarLayerGraph | None = None, root=None
-) -> tuple[StarLayerGraph, object]:
-    """SPARQL 1.2 Update text to ``sqe:`` tree-RDF (root typed ``sqe:UpdateRequest``). The tree is not checked against the
-    ``sqe:`` shapes: ``sqe_validate`` reports those problems."""
-    return ast_to_tree(parse_sparql_update(text, base), graph, root)

@@ -6,9 +6,9 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import StarLayerGraph
-from starlayer.sparql import srl
 from starlayer.errors import FormatError
+from starlayer.graph import StarLayerGraph
+from starlayer.sparql import srl, validate_sparql_tree
 from starlayer.sparql.srl import parse_ruleset
 from tests.support.terms import NamedNode, lit
 
@@ -198,7 +198,7 @@ def test_a_rule_set_with_triple_terms_round_trips_through_text():
 def test_a_rule_set_with_triple_terms_round_trips_through_rdf_and_conforms_to_the_shapes():
     rules = parse_ruleset(_TEXT)
     graph, root = srl.ruleset_to_tree(rules)
-    assert srl.srl_validate(graph).conforms is True
+    assert validate_sparql_tree(graph).conforms is True
     assert srl.ruleset_to_text(srl.tree_to_ruleset(graph, root)) == srl.ruleset_to_text(
         rules
     )

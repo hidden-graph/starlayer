@@ -20,7 +20,7 @@ import pytest
 from starlayer.graph import StarLayerGraph, isomorphic
 from starlayer.graph.execution.sparql_text import strip_version_directive
 from starlayer.graph.rdflib_bridge import engine_to_foreign as from_engine
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
 from tests.sparql.w3c_sparql12.harness import (
     bindings_match,
     load_index,
@@ -65,10 +65,10 @@ def _known_gaps() -> set[str]:
 
 def run_entry(entry) -> None:
     text, _ = strip_version_directive(entry.read(entry.query_file))
-    graph, root = sqe_parse_to_tree(text)
+    graph, root = sparql_to_tree(text)
     assert_no_salg_terms(graph)
-    regenerated = sqe_tree_to_text(graph, root)
-    graph2, root2 = sqe_parse_to_tree(regenerated)
+    regenerated = tree_to_sparql(graph, root)
+    graph2, root2 = sparql_to_tree(regenerated)
     if entry.test_type != "QueryEvaluationTest":
         return
 
@@ -110,7 +110,7 @@ def test_no_salg_terms_in_any_tree(entry):
     """Checked separately from the round-trip so a leak can never hide inside a known gap."""
     text, _ = strip_version_directive(entry.read(entry.query_file))
     try:
-        graph, _root = sqe_parse_to_tree(text)
+        graph, _root = sparql_to_tree(text)
     except Exception:  # noqa: BLE001 - unparseable/unsupported fixtures have no tree to check
         pytest.skip("no sqe tree for this fixture")
     assert_no_salg_terms(graph)

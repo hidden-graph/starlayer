@@ -6,7 +6,7 @@ with the verdict (who is right and why), and a registry entry that stops being a
 list can only shrink as Oxigraph improves.
 
 1. Every positive W3C query (1.1 syntax + evaluation queries, 1.2 syntax + evaluation queries): the text rendered by
-   ``sqe_tree_to_text`` from our tree must be accepted by Oxigraph.
+   ``tree_to_sparql`` from our tree must be accepted by Oxigraph.
 2. Every negative W3C query: our parser rejects the original text; Oxigraph's verdict is compared.
 3. The semantic-rule table (``parse_sparql_rules.py``) and the production corpus: verdicts compared.
 """
@@ -15,11 +15,8 @@ from __future__ import annotations
 
 import pytest
 from starlayer.errors import FormatError
-from starlayer.sparql.parse_sparql import (
-    parse_sparql,
-    sparql_to_tree,
-)
-from starlayer.sparql.sqe import sqe_tree_to_text
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
+from starlayer.sparql.parse_sparql import parse_sparql
 
 from .parse_sparql_conformance.corpus import CASES
 from .parse_sparql_rules import RULES
@@ -131,7 +128,7 @@ _ALL = {**{_strip_prefix(r.text): r.ok for r in RULES}, **{_strip_prefix(c.text)
 @pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])
 def test_rendered_text_of_positive_query_is_accepted_by_oxigraph(key, text):
     tree = sparql_to_tree(text)
-    rendered = sqe_tree_to_text(*tree)
+    rendered = tree_to_sparql(*tree)
     if key in OX_REJECTS_VALID:
         assert not ox_accepts(text), f"Oxigraph now accepts {key}: remove it from OX_REJECTS_VALID"
         return

@@ -37,7 +37,10 @@ def test_another_import_that_nothing_supplies_still_raises():
 
 # --- every ontology StarLayer has built in (the starontology registry), not only sh: ---
 
-from starlayer.shacl.engine.imports import builtin_import_keys, is_builtin_import  # noqa: E402
+from starlayer.shacl.engine.imports import (  # noqa: E402
+    builtin_import_keys,
+    is_builtin_import,
+)
 from starlayer.starontology import get_ontology_graph, get_ontology_list  # noqa: E402
 
 OWL_ONTOLOGY = "http://www.w3.org/2002/07/owl#Ontology"

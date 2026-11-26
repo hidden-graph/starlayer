@@ -1,4 +1,4 @@
-"""Negative corpus: ill-formed SRL must be rejected (at parse, or by srl_validate and when run), never silently accepted.
+"""Negative corpus: ill-formed SRL must be rejected (at parse, or by validate_sparql_tree and when run), never silently accepted.
 
 Four groups: grammar errors; constructs that are SPARQL but not SRL (the parser reuses rdflib's grammar, so
 these are the likeliest to leak through); the section 4.2 well-formedness conditions, which the grammar cannot

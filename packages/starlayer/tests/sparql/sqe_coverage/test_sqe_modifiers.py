@@ -7,11 +7,7 @@ data (a plain ``rdflib.Graph``, the independent reference). Unsupported construc
 
 import pytest
 from rdflib import Graph, Literal, Namespace
-from starlayer.sparql.sqe import (
-    sqe_parse_to_tree,
-    sqe_tree_to_text,
-    sqe_validate,
-)
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from tests.sparql.sqe_coverage.test_w3c_through_sqe import assert_no_salg_terms
 
 pytestmark = pytest.mark.sqe_coverage
@@ -57,36 +53,36 @@ QUERIES = {
 @pytest.mark.parametrize("name", QUERIES)
 def test_modifier_query_matches_rdflib(name, data):
     text = QUERIES[name]
-    graph, root = sqe_parse_to_tree(text)
-    assert sqe_validate(graph).conforms
+    graph, root = sparql_to_tree(text)
+    assert validate_sparql_tree(graph).conforms
     assert_no_salg_terms(graph)
     expected = _rows(data, text)
 
-    regenerated = sqe_tree_to_text(graph, root)
-    graph2, root2 = sqe_parse_to_tree(regenerated)
-    assert _rows(data, sqe_tree_to_text(graph2, root2)) == expected
+    regenerated = tree_to_sparql(graph, root)
+    graph2, root2 = sparql_to_tree(regenerated)
+    assert _rows(data, tree_to_sparql(graph2, root2)) == expected
 
 
 def test_select_star_and_projection_are_exclusive():
-    graph, root = sqe_parse_to_tree(P + "SELECT * WHERE { ?s ex:p ?n }")
+    graph, root = sparql_to_tree(P + "SELECT * WHERE { ?s ex:p ?n }")
     from starlayer.sparql.sqe.vocab import PROJECTION
 
     graph.add((root, PROJECTION, Literal("x")))
-    assert not sqe_validate(graph).conforms
+    assert not validate_sparql_tree(graph).conforms
 
 
 def test_distinct_and_reduced_are_exclusive():
-    graph, root = sqe_parse_to_tree(P + "SELECT DISTINCT ?s WHERE { ?s ex:p ?n }")
+    graph, root = sparql_to_tree(P + "SELECT DISTINCT ?s WHERE { ?s ex:p ?n }")
     from starlayer.sparql.sqe.vocab import REDUCED
 
     graph.add((root, REDUCED, Literal(True)))
-    assert not sqe_validate(graph).conforms
+    assert not validate_sparql_tree(graph).conforms
 
 
 def test_negative_limit_is_rejected():
-    graph, root = sqe_parse_to_tree(P + "SELECT ?s WHERE { ?s ex:p ?n } LIMIT 3")
+    graph, root = sparql_to_tree(P + "SELECT ?s WHERE { ?s ex:p ?n } LIMIT 3")
     from starlayer.sparql.sqe.vocab import LIMIT
 
     graph.remove((root, LIMIT, None))
     graph.add((root, LIMIT, Literal(-1)))
-    assert not sqe_validate(graph).conforms
+    assert not validate_sparql_tree(graph).conforms

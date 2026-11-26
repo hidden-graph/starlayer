@@ -8,23 +8,17 @@ import re
 
 import pyoxigraph as ox
 from starlayer.graph.compare import isomorphic
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.sparql._srl_ast import (
     _AssignmentElement,
     _FilterElement,
     _NegationElement,
 )
-from starlayer.sparql.srl import (
-    parse_ruleset,
-    ruleset_to_text,
-    ruleset_to_tree,
-    srl_parse_to_tree,
-    srl_tree_to_text,
-    srl_validate,
-)
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_text, ruleset_to_tree
 from starlayer.sparql.srl_eval import _eval_expr
 
 __all__ = ["canonical_blank_nodes", "expression_results", "isomorphic", "parse_ruleset", "assert_rejected", "parsed", "ruleset_to_text", "ruleset_to_tree",
-           "srl_parse_to_tree", "srl_tree_to_text", "srl_validate", "tree_of", "as_stored"]
+           "sparql_to_tree", "tree_to_sparql", "validate_sparql_tree", "tree_of", "as_stored"]
 
 
 @functools.cache
@@ -137,17 +131,16 @@ def as_stored(ruleset):
 
 def assert_rejected(text: str) -> None:
     """The text is refused: a FormatError at parse, or (for text the rule set can still hold) a report that does not conform from
-    ``srl_validate`` and an error when the rules run."""
+    ``validate_sparql_tree`` and an error when the rules run."""
     import pytest
-    from starlayer.errors import FormatError
+    from starlayer.errors import ExecutionError, FormatError
     from starlayer.graph import StarLayerGraph
-    from starlayer.errors import ExecutionError
 
     try:
         ruleset = parse_ruleset(text)
     except FormatError as caught:
         assert caught.kind == "srl"
         return
-    assert not srl_validate(ruleset_to_tree(ruleset)[0]).conforms, "srl_validate accepted it"
+    assert not validate_sparql_tree(ruleset_to_tree(ruleset)[0]).conforms, "validate_sparql_tree accepted it"
     with pytest.raises((FormatError, ExecutionError)):
         ruleset.infer(StarLayerGraph())

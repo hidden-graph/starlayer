@@ -13,11 +13,11 @@ import sys
 
 import pytest
 from starlayer.errors import FormatError
+from starlayer.sparql import tree_to_sparql
 from starlayer.sparql.parse_sparql import (
     parse_sparql,
     parse_sparql_update,
 )
-from starlayer.sparql.sqe import sqe_tree_to_text
 
 from .corpus import BUILTINS, CASES, P
 from .grammar import ALL_ROWS, PRODUCTIONS, UPDATE_ONLY
@@ -146,11 +146,11 @@ def test_claims_are_backed_by_the_parser_running_the_production():
 
 @pytest.mark.parametrize("name", sorted(BUILTINS))
 def test_every_builtin_call_alternative_parses_and_round_trips(name):
-    from starlayer.sparql.parse_sparql import sparql_to_tree
+    from starlayer.sparql import sparql_to_tree
 
     text = P + f"SELECT * {{ ?x :p ?y FILTER({BUILTINS[name]}) }}"
     tree = sparql_to_tree(text)
-    again = sparql_to_tree(sqe_tree_to_text(*tree))
+    again = sparql_to_tree(tree_to_sparql(*tree))
     from starlayer.graph import isomorphic
     assert isomorphic(tree[0], again[0])
 

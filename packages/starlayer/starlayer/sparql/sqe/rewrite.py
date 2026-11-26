@@ -61,10 +61,10 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
         tree = parse_sparql(head + text, base)
         if tree.kind not in ("SelectQuery", "AskQuery", "ConstructQuery") or not _rewrite_node(tree, True):
             return text
-        from .to_text import sqe_tree_to_text
+        from .to_text import render_sqe_tree
 
         triples, root = ast_to_triples(tree)
-        out = sqe_tree_to_text(TreeIndex(triples), root)
+        out = render_sqe_tree(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
         return out
     except (FormatError, ValueError, RecursionError):

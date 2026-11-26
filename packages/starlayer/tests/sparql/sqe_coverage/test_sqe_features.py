@@ -9,11 +9,7 @@ Opt-in (``pytest --sqe-coverage``).
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerDataset, StarLayerGraph
-from starlayer.sparql.sqe import (
-    sqe_parse_to_tree,
-    sqe_tree_to_text,
-    sqe_validate,
-)
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from tests.sparql.sqe_coverage.test_w3c_through_sqe import assert_no_salg_terms
 
 pytestmark = pytest.mark.sqe_coverage
@@ -213,16 +209,16 @@ MAY_BE_EMPTY = {"ask false", "sameterm"}
 
 
 def _check(data, text, name):
-    tree, root = sqe_parse_to_tree(text)
-    assert sqe_validate(tree).conforms
+    tree, root = sparql_to_tree(text)
+    assert validate_sparql_tree(tree).conforms
     assert_no_salg_terms(tree)
     expected = _rows(data, text)
     if name not in MAY_BE_EMPTY:
         assert expected not in ([], False), f"feature query {name!r} returns nothing on the test data"
-    regenerated = sqe_tree_to_text(tree, root)
+    regenerated = tree_to_sparql(tree, root)
     assert _rows(data, regenerated) == expected, f"regenerated text differs:\n{regenerated}"
-    tree2, root2 = sqe_parse_to_tree(regenerated)
-    assert _rows(data, sqe_tree_to_text(tree2, root2)) == expected, "re-parsed text differs"
+    tree2, root2 = sparql_to_tree(regenerated)
+    assert _rows(data, tree_to_sparql(tree2, root2)) == expected, "re-parsed text differs"
 
 
 @pytest.mark.parametrize("name", list(FEATURES))
@@ -232,13 +228,13 @@ def test_feature_round_trips(name, data):
 
 def test_prefixes_and_base_are_preserved(data):
     text = "BASE <http://x/> PREFIX e: <http://x/> SELECT ?s WHERE { ?s e:num 3 }"
-    tree, root = sqe_parse_to_tree(text)
-    rendered = sqe_tree_to_text(tree, root)
+    tree, root = sparql_to_tree(text)
+    rendered = tree_to_sparql(tree, root)
     assert "PREFIX e: <http://x/>" in rendered and "BASE <http://x/>" in rendered
     assert _rows(data, rendered) == _rows(data, text)
 
 
 def test_custom_function_call(data):
     text = P + "SELECT ?s WHERE { ?s ex:num ?n FILTER(<http://x/f>(?n) ) }"
-    tree, root = sqe_parse_to_tree(text)
-    assert "ex:f(" in sqe_tree_to_text(tree, root)
+    tree, root = sparql_to_tree(text)
+    assert "ex:f(" in tree_to_sparql(tree, root)

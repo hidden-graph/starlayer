@@ -8,7 +8,7 @@ would evaluate with zero error, just silently rebinding the variable to the wron
 rule set with a problem still loads, so it can be fixed).
 
 The same conditions are also SHACL shapes in ``starontology/srl/srl_shapes.ttl`` (``srl:UnboundHeadVariableShape`` and the
-rest, one per ``kind`` below), and ``srl_validate`` reports those: each result's focus node is the offending element, which
+rest, one per ``kind`` below), and ``validate_sparql_tree`` reports those: each result's focus node is the offending element, which
 this function cannot give (it names a rule). Both are kept on purpose. A SPARQL constraint costs about 0.5 to 5 ms per element
 (a 40-rule set took about 0.5 s to check; this function takes under a millisecond), which is too much to pay on every
 ``infer()``. ``tests/sparql/unit/test_srl_wellformedness_agreement.py`` proves the two agree (every §4.2 negative case of the

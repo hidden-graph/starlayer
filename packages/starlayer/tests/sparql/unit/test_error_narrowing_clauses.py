@@ -5,8 +5,8 @@ a bug (KeyError, TypeError, AttributeError) or a SHACL error is not turned into 
 from __future__ import annotations
 
 import pytest
-from starlayer.graph import StarLayerGraph
 from starlayer.errors import FormatError
+from starlayer.graph import StarLayerGraph
 from starlayer.shacl.errors import ExecutionError, ShapeError
 from starlayer.sparql import check
 from starlayer.sparql.sqe import entailment, rewrite
@@ -51,7 +51,7 @@ def _break_writing_out(monkeypatch, exc):
         raise exc
 
     entailment._rewrite_cached.cache_clear()
-    monkeypatch.setattr(to_text, "sqe_tree_to_text", fail)
+    monkeypatch.setattr(to_text, "render_sqe_tree", fail)
 
 
 def test_the_entailment_rewrite_reports_a_tree_it_cannot_write_out(monkeypatch):

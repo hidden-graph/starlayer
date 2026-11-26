@@ -4,7 +4,7 @@ Gates, mirroring the query ones in ``test_parse_sparql.py``:
 
 1. the W3C update fixtures (SPARQL 1.1 ``syntax-update-*`` and every update-evaluation request, SPARQL 1.2 update syntax
    and evaluation requests): every positive request parses, every negative one is rejected;
-2. the sqe fixpoint: text -> tree -> ``sqe_tree_to_text`` -> tree is the same tree, and every positive tree conforms
+2. the sqe fixpoint: text -> tree -> ``tree_to_sparql`` -> tree is the same tree, and every positive tree conforms
    to the sqe shapes;
 3. the static rules of the Update grammar, as a table of valid and invalid requests;
 4. the shapes themselves: trees the grammar forbids (variables in data, blank nodes in DELETE) are rejected by SHACL.
@@ -17,13 +17,9 @@ import pytest
 from starlayer.errors import FormatError
 from starlayer.graph import isomorphic
 from starlayer.graph.ordinals import ORD, ordered_items
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.sparql._oxterms import RDF
-from starlayer.sparql.parse_sparql import (
-    Node,
-    parse_sparql_update,
-    sparql_update_to_tree,
-)
-from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
+from starlayer.sparql.parse_sparql import Node, parse_sparql_update
 from starlayer.sparql.sqe.vocab import SQE
 from tests.sparql.parse_sparql_support import (
     w3c11_entries,
@@ -71,11 +67,11 @@ def test_w3c_negative_update_is_rejected(key, text):
 
 @pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])
 def test_update_tree_text_fixpoint(key, text):
-    tree = sparql_update_to_tree(text)
-    rendered = sqe_tree_to_text(*tree)
-    again = sparql_update_to_tree(rendered)
+    tree = sparql_to_tree(text)
+    rendered = tree_to_sparql(*tree)
+    again = sparql_to_tree(rendered)
     assert len(tree[0]) == len(again[0])
-    assert sqe_tree_to_text(*again) == rendered  # the text is a fixpoint
+    assert tree_to_sparql(*again) == rendered  # the text is a fixpoint
     if len(tree[0]) < 500:  # rdflib's isomorphism check is quadratic on the 5,000-triple W3C stress request
         assert isomorphic(tree[0], again[0]), rendered
 
@@ -85,7 +81,7 @@ def test_update_tree_text_fixpoint(key, text):
 @pytest.mark.sqe_coverage
 @pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])
 def test_update_tree_conforms_to_the_shapes(key, text):
-    outcome = sqe_validate(sparql_update_to_tree(text)[0])
+    outcome = validate_sparql_tree(sparql_to_tree(text)[0])
     ok = outcome.conforms
     report = outcome.report_text
     assert ok, report
@@ -202,8 +198,8 @@ INVALID = [
 
 @pytest.mark.parametrize("text", VALID, ids=[t[:70] for t in VALID])
 def test_valid_requests_parse_and_round_trip(text):
-    tree = sparql_update_to_tree(text)
-    again = sparql_update_to_tree(sqe_tree_to_text(*tree))
+    tree = sparql_to_tree(text)
+    again = sparql_to_tree(tree_to_sparql(*tree))
     assert isomorphic(tree[0], again[0])
 
 
@@ -248,7 +244,7 @@ def test_ast_of_a_request():
 
 
 def test_tree_of_a_request_is_typed_and_ordered():
-    g, root = sparql_update_to_tree(P + "INSERT DATA { :s :p :o GRAPH :g { :a :b :c } } ; DROP ALL")
+    g, root = sparql_to_tree(P + "INSERT DATA { :s :p :o GRAPH :g { :a :b :c } } ; DROP ALL")
     assert (root, RDF.type, SQE.UpdateRequest) in g
 
     ops = ordered_items(g, root, SQE.operations)
@@ -259,7 +255,7 @@ def test_tree_of_a_request_is_typed_and_ordered():
 
 
 def test_query_trees_are_unchanged_by_the_update_vocabulary():
-    from starlayer.sparql.parse_sparql import sparql_to_tree
+    from starlayer.sparql import sparql_to_tree
 
     g, _ = sparql_to_tree("SELECT * { ?s ?p ?o }")
     assert not any(str(p).endswith(("#operations", "#quads", "#target")) for _, p, _ in g)
@@ -267,7 +263,7 @@ def test_query_trees_are_unchanged_by_the_update_vocabulary():
 
 def test_text_of_a_request_is_valid_update_text():
     t = P + "INSERT DATA { :s :p :o } ;\nPREFIX x: <http://x/>\nLOAD SILENT x:a INTO GRAPH x:b ;\nDELETE WHERE { ?s ?p ?o }"
-    text = sqe_tree_to_text(*sparql_update_to_tree(t))
+    text = tree_to_sparql(*sparql_to_tree(t))
     assert text.count(";") == 2 and "LOAD SILENT <http://x/a> INTO GRAPH <http://x/b>" not in text  # x: abbreviates
     assert "LOAD SILENT x:a INTO GRAPH x:b" in text
 
@@ -283,9 +279,9 @@ def _set(g, subject, predicate, value):
 
 
 def _mutate(text: str, edit):
-    g, root = sparql_update_to_tree(text)
+    g, root = sparql_to_tree(text)
     edit(g, root)
-    return sqe_validate(g).conforms
+    return validate_sparql_tree(g).conforms
 
 
 def _first_op(g, root):

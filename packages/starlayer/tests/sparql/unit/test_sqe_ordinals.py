@@ -14,8 +14,7 @@ from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import ordinals as ord_
 from starlayer.graph.rdfc import rdfc10_hash
-from starlayer.sparql.parse_sparql import sparql_update_to_tree
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text, sqe_validate
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.sparql.sqe.shapes import _validate_shapes
 from starlayer.sparql.sqe.vocab import ORDERED_PROPERTIES
 from starlayer.sparql.vocab import SPEXPR, SQE
@@ -52,7 +51,7 @@ UPDATES = {
 def _tree(text: str, update: bool = False):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return sparql_update_to_tree(text) if update else sqe_parse_to_tree(text)
+        return sparql_to_tree(text) if update else sparql_to_tree(text)
 
 
 def _all_trees():
@@ -100,15 +99,15 @@ def test_the_ordinals_are_dense_and_every_child_is_a_blank_node_or_an_item(name,
 @pytest.mark.parametrize("name,graph,root", list(_all_trees()), ids=lambda v: v if isinstance(v, str) else "")
 def test_the_trees_conform_and_render_to_text_that_parses_again(name, graph, root):
     assert _validate_shapes(graph).conforms
-    text = sqe_tree_to_text(graph, root)
+    text = tree_to_sparql(graph, root)
     again, again_root = _tree(text, update=name in UPDATES)
-    assert sqe_tree_to_text(again, again_root) == text
+    assert tree_to_sparql(again, again_root) == text
 
 
 @pytest.mark.parametrize("name,graph,root", list(_all_trees()), ids=lambda v: v if isinstance(v, str) else "")
 def test_an_unordered_sequence_is_noticed_everywhere(name, graph, root):
     """For each sequence: a tie, a missing ordinal and a non-integer ordinal fail the shapes and make the renderer raise."""
-    text = sqe_tree_to_text(graph, root)
+    text = tree_to_sparql(graph, root)
     for parent, prop in _sequences(graph):
         rows = ord_.ordered_children(graph, parent, prop)
         faults = []
@@ -126,9 +125,9 @@ def test_an_unordered_sequence_is_noticed_everywhere(name, graph, root):
                 damaged.add((node, ord_.ORD, bad))
             assert not _validate_shapes(damaged).conforms, (kind, prop)
             with pytest.raises(FormatError) as raised:
-                sqe_tree_to_text(damaged, root)
+                tree_to_sparql(damaged, root)
             assert raised.value.kind == "rdf", (kind, prop)
-    assert sqe_tree_to_text(graph, root) == text
+    assert tree_to_sparql(graph, root) == text
 
 
 def test_sqe_validate_reports_a_tie_and_does_not_raise():
@@ -136,7 +135,7 @@ def test_sqe_validate_reports_a_tie_and_does_not_raise():
     first, second = (child for child, _m in ord_.ordered_children(graph, root, SQE.where))
     graph.remove((second, ord_.ORD, None))
     graph.add((second, ord_.ORD, next(graph.objects(first, ord_.ORD))))
-    report = sqe_validate(graph)
+    report = validate_sparql_tree(graph)
     assert not report.conforms and "same tree:ord" in report.report_text
 
 
@@ -144,28 +143,28 @@ def test_the_order_is_the_ordinal_not_the_blank_node_label():
     graph, root = _tree(P + "SELECT * WHERE { ?s ex:a ?o . ?s ex:b ?o . ?s ex:c ?o }")
     patterns = ord_.ordered_items(graph, root, SQE.where)
     ord_.append(graph, root, SQE.where, ord_.remove_at(graph, root, SQE.where, 0))  # the first moves to the end
-    text = sqe_tree_to_text(graph, root)
+    text = tree_to_sparql(graph, root)
     assert text.index("ex:b") < text.index("ex:c") < text.index("ex:a")
     assert len(patterns) == 3
     # a gap left by a removal is allowed and does not change the order
     ord_.remove_at(graph, root, SQE.where, 0)
-    assert "ex:b" not in sqe_tree_to_text(graph, root)
+    assert "ex:b" not in tree_to_sparql(graph, root)
     assert _validate_shapes(graph).conforms
 
 
 def test_an_empty_sequence_is_no_triple_and_an_empty_group_still_renders():
     graph, root = _tree("SELECT * WHERE { }")
     assert not list(graph.objects(root, SQE.where))
-    text = sqe_tree_to_text(graph, root)
+    text = tree_to_sparql(graph, root)
     assert text.startswith("SELECT *\nWHERE {") and text.endswith("}") and "?s" not in text
     assert _validate_shapes(graph).conforms
     graph, root = _tree(P + "DESCRIBE ex:a")
-    assert "WHERE" not in sqe_tree_to_text(graph, root)
+    assert "WHERE" not in tree_to_sparql(graph, root)
 
 
 def test_a_modify_with_both_templates_empty_is_written_with_an_empty_delete():
     graph, root = _tree(P + "DELETE { } INSERT { } WHERE { ?s ?p ?o }", update=True)
-    text = sqe_tree_to_text(graph, root)
+    text = tree_to_sparql(graph, root)
     assert "DELETE { }" in text
     assert _validate_shapes(graph).conforms
 
@@ -194,7 +193,7 @@ def test_a_node_without_a_tree_item_wrapper_is_not_accepted_for_a_named_node():
     graph.add((root, SQE.where, ox.NamedNode("http://example.org/queries#named")))
     assert not _validate_shapes(graph).conforms
     with pytest.raises(FormatError) as raised:
-        sqe_tree_to_text(graph, root)
+        tree_to_sparql(graph, root)
     assert raised.value.kind == "rdf"
 
 
@@ -254,12 +253,12 @@ def _b1():
 
 def test_b1_two_queries_share_one_named_filter_through_a_tree_item():
     graph = _b1()
-    assert sqe_validate(graph).conforms
+    assert validate_sparql_tree(graph).conforms
     shipments = StarLayerGraph()
     shipments.parse(data=SHIPMENTS, format="turtle")
     names = {}
     for key in ("shippedSinceCutoff", "receivedSinceCutoff"):
-        text = sqe_tree_to_text(graph, ox.NamedNode(f"http://example.org/queries#{key}"))
+        text = tree_to_sparql(graph, ox.NamedNode(f"http://example.org/queries#{key}"))
         assert 'FILTER(?d >= "2026-02-01"^^<http://www.w3.org/2001/XMLSchema#date>)' in text
         names[key] = sorted(str(r.s.value).rsplit("/", 1)[-1] for r in shipments.query(text))
     assert names == {"shippedSinceCutoff": ["ship2", "ship3"], "receivedSinceCutoff": ["ship2", "ship3"]}
@@ -275,8 +274,8 @@ def test_b1_the_shared_filter_is_edited_once_and_both_queries_follow():
 q:sinceCutoffFilter a sqe:Filter ;
     sqe:expr [ a spexpr:RelationalExpression ; spexpr:expr "d"^^spexpr:Variable ; spexpr:op ">="^^spexpr:PlainString ; spexpr:other "2026-03-01"^^xsd:date ] .
 """, format="turtle")
-    assert sqe_validate(graph).conforms
-    text = sqe_tree_to_text(graph, ox.NamedNode("http://example.org/queries#receivedSinceCutoff"))
+    assert validate_sparql_tree(graph).conforms
+    text = tree_to_sparql(graph, ox.NamedNode("http://example.org/queries#receivedSinceCutoff"))
     assert "2026-03-01" in text
 
 
@@ -286,7 +285,7 @@ def test_b1_a_node_that_two_queries_share_must_be_named():
     second = ox.NamedNode("http://example.org/queries#receivedSinceCutoff")
     pattern = ord_.ordered_items(graph, first, SQE.where)[0]
     graph.add((second, SQE.where, pattern))  # the blank pattern now has two parents, and an ordinal that cannot tell them apart
-    assert not sqe_validate(graph).conforms
+    assert not validate_sparql_tree(graph).conforms
 
 
 # ---- editing, renumbering and hashing -------------------------------------------------------------------------------------------
@@ -300,7 +299,7 @@ def test_a_tree_that_lost_a_child_hashes_as_the_same_tree_after_renumber_dense()
     assert rdfc10_hash(full) != rdfc10_hash(fresh)  # a gap is data
     ord_.renumber_dense(full)
     assert rdfc10_hash(full) == rdfc10_hash(fresh)
-    assert "ex:b" not in sqe_tree_to_text(full, full_root)
+    assert "ex:b" not in tree_to_sparql(full, full_root)
 
 
 def test_inserting_a_pattern_between_two_others_renders_in_that_place():
@@ -311,7 +310,7 @@ def test_inserting_a_pattern_between_two_others_renders_in_that_place():
     ord_.remove_at(donor, donor_root, SQE.where, 0)
     graph.extend(list(donor.triples((new, None, None))))
     ord_.insert_at(graph, root, SQE.where, 1, new)
-    text = sqe_tree_to_text(graph, root)
+    text = tree_to_sparql(graph, root)
     assert text.index("ex:a") < text.index("ex:b") < text.index("ex:c")
     assert _validate_shapes(graph).conforms
 
@@ -346,7 +345,7 @@ def test_in_and_not_in_keep_their_values_in_spexpr_args_and_have_no_other(operat
 
 def _text_of(graph) -> str:
     root = next(graph.subjects(RDF_TYPE, SQE.SelectQuery))
-    return sqe_tree_to_text(graph, root)
+    return tree_to_sparql(graph, root)
 
 
 def test_a_comparison_has_exactly_one_other_and_no_args():
@@ -376,9 +375,9 @@ def test_a_comparison_without_its_other_is_rejected():
 def test_describe_with_an_empty_where_and_without_one_are_the_same_tree_and_an_empty_delete_is_no_delete():
     a, root_a = _tree(P + "DESCRIBE ex:x WHERE { }")
     b, root_b = _tree(P + "DESCRIBE ex:x")
-    assert sqe_tree_to_text(a, root_a) == sqe_tree_to_text(b, root_b)
+    assert tree_to_sparql(a, root_a) == tree_to_sparql(b, root_b)
     assert rdfc10_hash(a) == rdfc10_hash(b)
     c, root_c = _tree(P + "DELETE { } INSERT { ex:s ex:p ex:o } WHERE { ?s ex:q ?o }", update=True)
     d, root_d = _tree(P + "INSERT { ex:s ex:p ex:o } WHERE { ?s ex:q ?o }", update=True)
     assert rdfc10_hash(c) == rdfc10_hash(d)
-    assert sqe_tree_to_text(c, root_c) == sqe_tree_to_text(d, root_d)
+    assert tree_to_sparql(c, root_c) == tree_to_sparql(d, root_d)

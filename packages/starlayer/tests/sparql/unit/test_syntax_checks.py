@@ -2,8 +2,8 @@
 StarLayer's own parser (``parse_sparql``)."""
 
 import pytest
-from starlayer.graph import StarLayerGraph
 from starlayer.errors import FormatError
+from starlayer.graph import StarLayerGraph
 from starlayer.sparql.parse_sparql import parse_sparql as prepare_query_12
 from starlayer.sparql.parse_sparql import parse_sparql_update as prepare_update_12
 

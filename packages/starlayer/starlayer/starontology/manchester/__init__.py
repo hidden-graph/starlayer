@@ -73,7 +73,7 @@ the raw ``manch:`` ontology/shapes graphs themselves can already get them
 from ``starontology`` directly instead: ``get_ontology_graph(
 "manchester_owl")`` / ``get_ontology_graph("manchester_shacl")``.
 ``manchester_validate()`` calls ``get_ontology_graph()`` directly inline - unlike
-``srl.srl_validate()``, there's no combining-with-another-vocabulary's-shapes
+``validate_sparql_tree()``, there's no combining-with-another-vocabulary's-shapes
 logic for ``manch:`` to even privately wrap.
 
 **Why this module imports other parts of ``starlayer`` at all, despite
@@ -1283,7 +1283,7 @@ def manchester_validate(tree_graph: Any) -> ValidationReport:
     two graphs directly from ``starontology`` instead:
     ``get_ontology_graph("manchester_owl")`` /
     ``get_ontology_graph("manchester_shacl")``. This function needs no
-    combining logic the way ``starlayer.sparql.srl.srl_validate()`` does for
+    combining logic the way ``starlayer.sparql.validate_sparql_tree()`` does for
     ``srl:``+``salg:``, so there was nothing worth wrapping here even
     privately.
 

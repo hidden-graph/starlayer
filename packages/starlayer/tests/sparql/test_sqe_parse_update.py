@@ -1,10 +1,10 @@
-"""``sqe_parse_to_tree`` reads SPARQL Update with the owned parser (the switch branch and the Update branch, joined)."""
+"""``sparql_to_tree`` reads SPARQL Update with the owned parser (the switch branch and the Update branch, joined)."""
 
 from __future__ import annotations
 
 import pytest
 from starlayer.errors import FormatError
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
 
 SQE = "https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#"
 
@@ -21,30 +21,30 @@ UPDATES = [
 
 @pytest.mark.parametrize("text", UPDATES)
 def test_update_text_round_trips_through_the_tree(text: str) -> None:
-    graph, root = sqe_parse_to_tree(text)
-    rendered = sqe_tree_to_text(graph, root)
-    graph2, root2 = sqe_parse_to_tree(rendered)
-    assert sqe_tree_to_text(graph2, root2) == rendered  # text fixpoint
+    graph, root = sparql_to_tree(text)
+    rendered = tree_to_sparql(graph, root)
+    graph2, root2 = sparql_to_tree(rendered)
+    assert tree_to_sparql(graph2, root2) == rendered  # text fixpoint
 
 
 def test_the_root_of_an_update_tree_is_an_update_request() -> None:
     from tests.support.terms import RDF, NamedNode
 
-    graph, root = sqe_parse_to_tree("CLEAR ALL")
+    graph, root = sparql_to_tree("CLEAR ALL")
     assert (root, RDF.type, NamedNode(SQE + "UpdateRequest")) in graph
 
 
 def test_a_query_still_gives_a_query_tree() -> None:
     from tests.support.terms import RDF, NamedNode
 
-    graph, root = sqe_parse_to_tree("SELECT * { ?s ?p ?o }")
+    graph, root = sparql_to_tree("SELECT * { ?s ?p ?o }")
     assert (root, RDF.type, NamedNode(SQE + "UpdateRequest")) not in graph
-    assert "SELECT" in sqe_tree_to_text(graph, root)
+    assert "SELECT" in tree_to_sparql(graph, root)
 
 
 def test_static_update_rules_still_apply() -> None:
     with pytest.raises(FormatError, match="variables are not allowed"):
-        sqe_parse_to_tree("INSERT DATA { ?x <http://e/p> 1 }")
+        sparql_to_tree("INSERT DATA { ?x <http://e/p> 1 }")
 
 
 @pytest.mark.parametrize(
@@ -58,18 +58,18 @@ def test_static_update_rules_still_apply() -> None:
     ],
 )
 def test_a_prologue_only_text_is_an_empty_update_request(text: str, written: str) -> None:
-    from starlayer.sparql.sqe import sqe_validate
+    from starlayer.sparql import validate_sparql_tree
     from tests.support.terms import RDF, NamedNode
 
-    graph, root = sqe_parse_to_tree(text)
+    graph, root = sparql_to_tree(text)
     assert (root, RDF.type, NamedNode(SQE + "UpdateRequest")) in graph
-    assert sqe_validate(graph).conforms
-    assert sqe_tree_to_text(graph, root) == written
-    assert sqe_tree_to_text(*sqe_parse_to_tree(written)) == written  # and it loads again as the same empty request
+    assert validate_sparql_tree(graph).conforms
+    assert tree_to_sparql(graph, root) == written
+    assert tree_to_sparql(*sparql_to_tree(written)) == written  # and it loads again as the same empty request
 
 
 @pytest.mark.parametrize("text", ["foo bar", "PREFIX : <http://e/> foo", "PREFIX : <http://e/> ;"])
 def test_text_that_is_not_a_prologue_still_raises_a_sparql_format_error(text: str) -> None:
     with pytest.raises(FormatError) as error:
-        sqe_parse_to_tree(text)
+        sparql_to_tree(text)
     assert error.value.kind == "sparql"

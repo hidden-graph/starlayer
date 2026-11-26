@@ -7,7 +7,13 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclProcessor, apply_rules, evaluate, validate
+from starlayer.shacl import (
+    ShapeError,
+    StarShaclProcessor,
+    apply_rules,
+    evaluate,
+    validate,
+)
 from tests.support.terms import RDF, Namespace
 
 pytestmark = pytest.mark.shacl

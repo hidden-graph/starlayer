@@ -10,6 +10,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import ENTAILMENT, StarLayerDataset, StarLayerGraph
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
 from tests.support.datasets import dataset_of, name_of
 
 EX = "http://example.org/"
@@ -222,10 +223,10 @@ def test_sqe_round_trip_in_an_oxigraph_graph(cls):
     from starlayer.sparql import sqe
 
     tree = cls()
-    graph, root = sqe.sqe_parse_to_tree(QUERY, tree)
+    graph, root = sparql_to_tree(QUERY, tree)
     assert graph is tree and len(tree) > 0
     assert isinstance(root, (ox.BlankNode, ox.NamedNode))
-    assert sqe.sqe_tree_to_text(tree, root) == sqe.sqe_tree_to_text(*sqe.sqe_parse_to_tree(QUERY))
+    assert tree_to_sparql(tree, root) == tree_to_sparql(*sparql_to_tree(QUERY))
 
 
 def test_sqe_given_root_and_shared_graph():
@@ -234,18 +235,17 @@ def test_sqe_given_root_and_shared_graph():
     tree = StarLayerGraph()
     r1 = ox.NamedNode(EX + "q1")
     r2 = ox.NamedNode(EX + "q2")
-    _, got1 = sqe.sqe_parse_to_tree(QUERY, tree, r1)
-    _, got2 = sqe.sqe_parse_to_tree(QUERY.replace("> 1", "> 2"), tree, r2)
+    _, got1 = sparql_to_tree(QUERY, tree, r1)
+    _, got2 = sparql_to_tree(QUERY.replace("> 1", "> 2"), tree, r2)
     assert (got1, got2) == (r1, r2)
-    assert "> 2" in sqe.sqe_tree_to_text(tree, r2) and "> 1" in sqe.sqe_tree_to_text(tree, r1)
+    assert "> 2" in tree_to_sparql(tree, r2) and "> 1" in tree_to_sparql(tree, r1)
 
 
 def test_sqe_validate_takes_an_oxigraph_tree():
-    from starlayer.sparql import sqe
-    from starlayer.sparql.sqe.shapes import sqe_validate
+    from starlayer.sparql import sqe, validate_sparql_tree
 
-    tree, _root = sqe.sqe_parse_to_tree(QUERY, StarLayerGraph())
-    outcome = sqe_validate(tree)
+    tree, _root = sparql_to_tree(QUERY, StarLayerGraph())
+    outcome = validate_sparql_tree(tree)
     conforms = outcome.conforms
     assert conforms is True
 
@@ -255,9 +255,9 @@ def test_sqe_root_may_be_given_as_an_rdflib_term():
     from tests.support.terms import NamedNode
 
     tree = StarLayerGraph()
-    _, root = sqe.sqe_parse_to_tree(QUERY, tree, NamedNode(EX + "q"))
+    _, root = sparql_to_tree(QUERY, tree, NamedNode(EX + "q"))
     assert root == ox.NamedNode(EX + "q")
-    assert "SELECT" in sqe.sqe_tree_to_text(tree, NamedNode(EX + "q"))
+    assert "SELECT" in tree_to_sparql(tree, NamedNode(EX + "q"))
 
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -293,7 +293,7 @@ def test_srl_tree_round_trip_in_an_oxigraph_graph():
     tree, root = srl.ruleset_to_tree(ruleset, StarLayerGraph())
     assert isinstance(tree, StarLayerGraph) and len(tree) > 0
     assert srl.ruleset_to_text(srl.tree_to_ruleset(tree, root)) == srl.ruleset_to_text(ruleset)
-    assert srl.srl_tree_to_text(tree, root) == srl.srl_tree_to_text(*srl.srl_parse_to_tree(RULES))
+    assert tree_to_sparql(tree, root) == tree_to_sparql(*sparql_to_tree(RULES))
 
 
 def test_srl_infer_with_a_schema_on_oxigraph():

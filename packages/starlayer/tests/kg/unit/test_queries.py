@@ -62,10 +62,10 @@ def test_the_stored_library_is_the_only_source():
 @pytest.mark.codekg_queries
 @pytest.mark.parametrize("name", QUERY_NAMES)
 def test_query_text_round_trips_and_follows_the_parameter_rules(name):
-    from starlayer.sparql.sqe import sqe_parse_to_tree
+    from starlayer.sparql import sparql_to_tree
 
     text = queries.query_text(name)
-    sqe_parse_to_tree(text)  # the rendered text parses and validates again
+    sparql_to_tree(text)  # the rendered text parses and validates again
 
     described = queries.get_query(name)
     select = re.search(r"SELECT(.*?)WHERE", text, re.S).group(1)

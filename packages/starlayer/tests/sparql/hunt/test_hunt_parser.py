@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import pytest
 from starlayer.errors import ExecutionError, FormatError
+from starlayer.sparql import tree_to_sparql
 from starlayer.sparql.parse_sparql import ast_to_tree, parse_sparql
-from starlayer.sparql.sqe.to_text import sqe_tree_to_text
 
 
 def _roundtrip(text: str) -> None:
@@ -20,7 +20,7 @@ def _roundtrip(text: str) -> None:
     except (FormatError, ExecutionError):  # a syntax error, or a depth limit
         return
     graph, root = ast_to_tree(ast)
-    regenerated = sqe_tree_to_text(graph, root)
+    regenerated = tree_to_sparql(graph, root)
     parse_sparql(regenerated)
 
 
@@ -35,7 +35,7 @@ def _roundtrip(text: str) -> None:
 )
 def test_triple_function_with_invalid_triple_term_components_regenerates_valid_text(text):
     graph, root = ast_to_tree(parse_sparql(text))
-    parse_sparql(sqe_tree_to_text(graph, root))
+    parse_sparql(tree_to_sparql(graph, root))
 
 
 @pytest.mark.parametrize("text", ["SELECT * { ?s ?p ?o } LIMIT1", "SELECT * { ?s ?p ?o } LIMIT 1 OFFSET1"])
@@ -44,7 +44,7 @@ def test_keyword_glued_to_integer_is_lexed_like_other_glued_keywords(text):
 
 
 def test_regenerated_text_of_accepted_deep_unary_chain_reparses():
-    # 'FILTER(!!...!true)' with 110-300 '!' parses, but sqe_tree_to_text emits '!(!(...))' (twice the depth).
+    # 'FILTER(!!...!true)' with 110-300 '!' parses, but tree_to_sparql emits '!(!(...))' (twice the depth).
     for n in (120, 200, 300):
         _roundtrip("SELECT * { FILTER(" + "!" * n + "true) }")
 

@@ -10,15 +10,9 @@ from __future__ import annotations
 import pytest
 from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.sparql.parse_srl import parse_srl
-from starlayer.sparql.srl import (
-    parse_ruleset,
-    ruleset_to_text,
-    srl_parse_to_tree,
-    srl_tree_to_text,
-    srl_validate,
-    tree_to_ruleset,
-)
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_text, tree_to_ruleset
 
 P = "PREFIX : <http://e/> PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>\n"
 
@@ -244,9 +238,9 @@ TREE_RULES = [
 
 @pytest.mark.parametrize("rules", TREE_RULES)
 def test_a_group_survives_text_to_tree_and_back(rules):
-    graph, root = srl_parse_to_tree(P + rules)
-    assert srl_validate(graph).conforms
-    text = srl_tree_to_text(graph, root)
+    graph, root = sparql_to_tree(P + rules)
+    assert validate_sparql_tree(graph).conforms
+    text = tree_to_sparql(graph, root)
     assert ruleset_to_text(parse_ruleset(text)) == text
     assert tree_to_ruleset(graph, root).rules == parse_ruleset(P + rules).rules
 
@@ -254,11 +248,11 @@ def test_a_group_survives_text_to_tree_and_back(rules):
 def test_a_group_with_a_malformed_aggregation_does_not_validate():
     from starlayer.sparql.srl import SRL
 
-    graph, _root = srl_parse_to_tree(P + TREE_RULES[1])
+    graph, _root = sparql_to_tree(P + TREE_RULES[1])
     agg = next(graph.subjects(SRL["function"], None))
     graph.remove((agg, SRL["function"], None))
     graph.add((agg, SRL["function"], __import__("pyoxigraph").Literal("AVG")))
-    assert not srl_validate(graph).conforms
+    assert not validate_sparql_tree(graph).conforms
 
 
 def test_a_malformed_rule_set_text_is_an_srl_error():

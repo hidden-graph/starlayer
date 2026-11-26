@@ -305,7 +305,7 @@ _UNBOUND_VARIABLE_MESSAGE = re.compile(r"^(?:Projected variable|Template variabl
 
 
 def _is_prebound_variable_only_report(report_graph: Any, extra: frozenset[str] = frozenset(), base: frozenset[str] = _SHACL_PREBOUND_VARIABLE_NAMES) -> bool:
-    """True iff every violation in an ``sqe_validate()`` report is an unbound-variable hit naming only a SHACL pre-bound
+    """True iff every violation in an ``validate_sqe_tree()`` report is an unbound-variable hit naming only a SHACL pre-bound
     pseudo-variable (``$this``/``$value``/``$PATH``/``$currentShape``/``$shapesGraph``, or a declared parameter in ``extra``) - a false positive this check should suppress, not a real defect. The
     variable is read from the result message the ``sqe:`` shapes write ("Projected variable this is never bound ...").
     ``extra`` adds names that are bound some other way (for ``shui:searchQuery``: ``$searchTerm`` and ``$language``, which the renderer

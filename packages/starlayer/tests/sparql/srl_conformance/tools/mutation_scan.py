@@ -1,7 +1,7 @@
 """Mutation scan of the srl: shapes: how well do they tell a broken tree from a good one?
 
 Takes the srl: tree of every corpus case and applies each mutation operator once per distinct
-(node class, property, operator). For every mutant it records whether ``srl_validate`` REJECTS it, whether it
+(node class, property, operator). For every mutant it records whether ``validate_sparql_tree`` REJECTS it, whether it
 validates and still decodes (usually a legitimate optional thing removed), or - the finding that matters -
 whether it passes validation yet CRASHES the decoder: a hole in the shapes.
 
@@ -27,12 +27,8 @@ sys.path.insert(0, str(SUITE.parent))
 from rdflib import BNode, Graph, Literal, URIRef  # noqa: E402
 from rdflib.namespace import RDF  # noqa: E402
 from srl_conformance.corpus import CASES  # noqa: E402
-from starlayer.sparql.srl import (  # noqa: E402
-    srl_parse_to_tree,
-    srl_tree_to_text,
-    srl_validate,
-    tree_to_ruleset,
-)
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
+from starlayer.sparql.srl import tree_to_ruleset
 
 NS = "https://github.com/hidden-graph/starlayer/ns/sparql/"
 TREE_NS = "https://github.com/hidden-graph/starlayer/ns/tree#"  # tree:ord and tree:value: the ordered children of the srl: tree
@@ -48,14 +44,14 @@ def types_of(g, node) -> str:
 
 def verdict(g, root):
     try:
-        outcome = srl_validate(g)
+        outcome = validate_sparql_tree(g)
         ok = outcome.conforms
     except Exception as error:  # noqa: BLE001
         return "validator-crash", f"{type(error).__name__}: {str(error)[:80]}"
     if not ok:
         return "rejected", None
     try:
-        srl_tree_to_text(g, root)
+        tree_to_sparql(g, root)
         tree_to_ruleset(g, root)
     except Exception as error:  # noqa: BLE001
         return "HOLE-decoder-crash", f"{type(error).__name__}: {str(error)[:80]}"
@@ -73,7 +69,7 @@ def main() -> int:
     started = time.time()
     for case in CASES:
         try:
-            tree, root = srl_parse_to_tree(case.text)
+            tree, root = sparql_to_tree(case.text)
         except Exception:  # noqa: BLE001
             continue
         base = Graph()

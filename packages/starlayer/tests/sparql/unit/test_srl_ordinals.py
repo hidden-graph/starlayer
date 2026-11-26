@@ -1,5 +1,5 @@
 """The ``srl:`` tree writes its ordered children as ordinals (``tree:ord``, ``graph/ordinals.py``), not as ``rdf:List``: what that
-changes for the encoder, the decoder, ``srl_validate`` and hashing."""
+changes for the encoder, the decoder, ``validate_sparql_tree`` and hashing."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import pytest
 from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph, ordinals
 from starlayer.graph.rdfc import rdfc10_hash
-from starlayer.sparql import srl
+from starlayer.sparql import sparql_to_tree, srl, tree_to_sparql, validate_sparql_tree
 
 SRLNS = "https://github.com/hidden-graph/starlayer/ns/sparql/srl#"
 RULES, BODY, HEAD, IMPORTS = (ox.NamedNode(SRLNS + n) for n in ("rules", "body", "head", "imports"))
@@ -45,7 +45,7 @@ def _below(graph, node):
 
 
 def _tree(text: str = TEXT):
-    return srl.srl_parse_to_tree(text)
+    return sparql_to_tree(text)
 
 
 def test_no_rdf_list_is_written_for_the_srl_children():
@@ -63,12 +63,12 @@ def test_an_empty_sequence_is_no_triples_and_round_trips():
     g, root = _tree(text)
     assert not list(g.objects(root, srl.SRL["imports"])) and not list(g.objects(root, srl.SRL["data"]))
     assert srl.tree_to_ruleset(g, root).rules[0].body == []
-    assert srl.srl_tree_to_text(g, root) == srl.ruleset_to_text(srl.parse_ruleset(text))
+    assert tree_to_sparql(g, root) == srl.ruleset_to_text(srl.parse_ruleset(text))
 
 
 def test_the_round_trip_text_is_unchanged():
     g, root = _tree()
-    assert srl.srl_tree_to_text(g, root) == srl.ruleset_to_text(srl.parse_ruleset(TEXT))
+    assert tree_to_sparql(g, root) == srl.ruleset_to_text(srl.parse_ruleset(TEXT))
 
 
 def test_edit_a_rule_body_with_the_ordinal_helpers_and_decode():
@@ -79,7 +79,7 @@ def test_edit_a_rule_body_with_the_ordinal_helpers_and_decode():
     new_body = ordinals.remove_at(extra, new, BODY, 0)  # a blank node child has one parent: detach it before it moves
     g.extend(_below(extra, new_body))
     ordinals.append(g, rule, BODY, new_body)
-    assert srl.srl_validate(g).conforms
+    assert validate_sparql_tree(g).conforms
     assert [t.predicate for t in srl.tree_to_ruleset(g, root).rules[1].body] == [ox.NamedNode("http://example.org/p"), ox.NamedNode("http://example.org/q")]
 
 
@@ -91,7 +91,7 @@ def test_a_tie_in_a_rule_head_is_a_format_error_on_decode_and_a_violation_in_val
     g.add((second, ordinals.ORD, g.value(first, ordinals.ORD)))
     with pytest.raises(FormatError, match="same tree:ord"):
         srl.tree_to_ruleset(g, root)
-    report = srl.srl_validate(g)
+    report = validate_sparql_tree(g)
     assert not report.conforms and "same tree:ord" in report.report_text
 
 
@@ -112,7 +112,7 @@ def test_a_bad_ordinal_is_a_format_error_on_decode_and_a_violation_in_validate(d
         g.add((child, ordinals.ORD, value))
     with pytest.raises(FormatError):
         srl.tree_to_ruleset(g, root)
-    assert not srl.srl_validate(g).conforms
+    assert not validate_sparql_tree(g).conforms
 
 
 def test_a_blank_child_shared_by_two_parents_is_rejected_by_the_shapes():
@@ -120,7 +120,7 @@ def test_a_blank_child_shared_by_two_parents_is_rejected_by_the_shapes():
     first, second = ordinals.ordered_items(g, root, RULES)
     shared = ordinals.ordered_items(g, first, HEAD)[0]
     g.add((second, HEAD, shared))  # the same head triple under a second rule: its ordinal cannot serve both
-    report = srl.srl_validate(g)
+    report = validate_sparql_tree(g)
     assert not report.conforms and "more than one parent" in report.report_text
 
 
@@ -145,7 +145,7 @@ def test_a_loop_through_the_ordered_children_cannot_be_decoded_or_conform():
     g.add((negation, ordinals.ORD, ordinals._integer(9)))
     with pytest.raises(FormatError):
         srl.tree_to_ruleset(g, root)
-    assert not srl.srl_validate(g).conforms
+    assert not validate_sparql_tree(g).conforms
 
 
 def test_a_40_rule_tree_hashes_and_a_renumbered_copy_hashes_equal():

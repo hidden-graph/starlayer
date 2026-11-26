@@ -8,10 +8,11 @@ a function the spec includes that we cannot represent, and a SPARQL-only functio
 from __future__ import annotations
 
 import pytest
+from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 
 from .builtins_table import IN_SPEC, NOT_IN_SPEC
 from .corpus import PRELUDE
-from .helpers import assert_rejected, parse_ruleset, srl_parse_to_tree, srl_validate
+from .helpers import assert_rejected, parse_ruleset
 from .known_failures import BUILTIN_FAILURES, BUILTIN_LEAKS
 
 
@@ -26,8 +27,8 @@ def test_spec_function_parses_and_encodes(name, request):
         request.applymarker(pytest.mark.xfail(reason=BUILTIN_FAILURES[name], strict=True))
     text = _rule(IN_SPEC[name])
     parse_ruleset(text)
-    graph, _ = srl_parse_to_tree(text)
-    assert srl_validate(graph).conforms
+    graph, _ = sparql_to_tree(text)
+    assert validate_sparql_tree(graph).conforms
 
 
 @pytest.mark.srl_conformance

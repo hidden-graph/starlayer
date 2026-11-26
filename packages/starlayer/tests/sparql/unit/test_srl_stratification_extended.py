@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 from rdflib import Graph
-from starlayer.sparql.srl import parse_ruleset
 from starlayer.errors import ExecutionError
+from starlayer.sparql.srl import parse_ruleset
 
 pytestmark = pytest.mark.srl_stratification
 

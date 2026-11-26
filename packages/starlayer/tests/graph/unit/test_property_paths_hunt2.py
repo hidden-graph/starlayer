@@ -4,6 +4,7 @@ import warnings
 
 import pytest
 from starlayer.graph import StarLayerGraph
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
 
 warnings.simplefilter("ignore")
 P = "PREFIX : <http://e/> "
@@ -69,7 +70,7 @@ def test_sqe_renders_a_negated_set_with_an_inverse_member(path):
     from rdflib import Graph
     from starlayer.sparql import sqe
 
-    tree, root = sqe.sqe_parse_to_tree(f"SELECT * WHERE {{ ?s {path} ?o }}")
-    text = sqe.sqe_tree_to_text(tree, root)
+    tree, root = sparql_to_tree(f"SELECT * WHERE {{ ?s {path} ?o }}")
+    text = tree_to_sparql(tree, root)
     assert path in text
     Graph().query(text)  # and the text parses again

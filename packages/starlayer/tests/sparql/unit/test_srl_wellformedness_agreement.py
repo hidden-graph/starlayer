@@ -1,4 +1,4 @@
-"""The §4.2 well-formedness conditions are stated twice: as SHACL shapes (``srl_shapes.ttl``, what ``srl_validate`` reports) and as
+"""The §4.2 well-formedness conditions are stated twice: as SHACL shapes (``srl_shapes.ttl``, what ``validate_sparql_tree`` reports) and as
 Python (``srl_semantic_checks``, what refuses to run a rule set; a SPARQL constraint costs too much to run on every ``infer()``).
 These tests keep them the same: over the §4.2 negative cases of the conformance suite, over the rule sets the other SRL tests use
 to break one condition, and over seeded random rule sets (negations, groups, ``SET``, filters in any order), the two give the same

@@ -10,8 +10,8 @@ from pathlib import Path
 import pyoxigraph as ox
 import pytest
 from starlayer import starontology
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.sparql.expr_families import _EXPR_NODE_FAMILY
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text, sqe_validate
 from starlayer.sparql.sqe.shapes import _validate_shapes
 from starlayer.sparql.vocab import SPEXPR, SQE
 
@@ -48,7 +48,7 @@ def _types(tree) -> set[str]:
 def _tree(text: str):
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
-        return sqe_parse_to_tree(text)
+        return sparql_to_tree(text)
 
 
 BUILTINS = sorted(name for name, family in _EXPR_NODE_FAMILY.items() if family not in _SKIP_FAMILIES)
@@ -60,7 +60,7 @@ def test_a_built_in_is_typed_as_it_is_written_and_renders_back(name):
     tree, root = _tree(text)
     assert SPEXPR[name].value in _types(tree)
     assert f"spexpr#Builtin_{name}" not in "".join(_types(tree))
-    again = sqe_tree_to_text(tree, root)
+    again = tree_to_sparql(tree, root)
     assert _call(name, _EXPR_NODE_FAMILY[name]) in again
     assert _validate_shapes(tree).conforms
 
@@ -75,7 +75,7 @@ def test_an_aggregate_is_typed_as_written_with_expr_and_a_boolean_distinct(name,
     assert list(tree.objects(aggregate, SPEXPR.vars)) == []
     flag = list(tree.objects(aggregate, SPEXPR.distinct))
     assert flag == ([ox.Literal("true", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))] if distinct else [])
-    assert f"{name}({inner})" in sqe_tree_to_text(tree, root)
+    assert f"{name}({inner})" in tree_to_sparql(tree, root)
     assert _validate_shapes(tree).conforms
 
 
@@ -83,14 +83,14 @@ def test_count_star_keeps_the_marker_in_expr():
     tree, root = _tree("SELECT (COUNT(*) AS ?c) WHERE { ?s ?p ?o }")
     aggregate = next(s for s, _p, _o in tree.triples((None, RDF_TYPE, SPEXPR.COUNT)))
     assert tree.value(aggregate, SPEXPR.expr).value == "*"
-    assert "COUNT(*)" in sqe_tree_to_text(tree, root)
+    assert "COUNT(*)" in tree_to_sparql(tree, root)
 
 
 def test_exists_and_not_exists_are_two_classes_and_there_is_no_negated_flag():
     tree, root = _tree("SELECT * WHERE { ?s ?p ?o FILTER EXISTS { ?o ?q ?r } FILTER NOT EXISTS { ?o ?q ?s } }")
     assert {SQE.Exists.value, SQE.NotExists.value} <= _types(tree)
     assert not list(tree.triples((None, SQE.negated, None)))
-    text = sqe_tree_to_text(tree, root)
+    text = tree_to_sparql(tree, root)
     assert "FILTER(EXISTS {" in text and "FILTER(NOT EXISTS {" in text
     assert _validate_shapes(tree).conforms
 
@@ -100,7 +100,7 @@ def test_the_prologue_uses_prefix_decl():
     assert SQE.PrefixDecl.value in _types(tree)
     assert list(tree.objects(root, SQE.prefixDecl))
     assert SQE.PrefixBinding.value not in _types(tree)
-    assert "PREFIX ex: <http://example.org/>" in sqe_tree_to_text(tree, root)
+    assert "PREFIX ex: <http://example.org/>" in tree_to_sparql(tree, root)
     assert _validate_shapes(tree).conforms
 
 
@@ -111,7 +111,7 @@ def test_the_prologue_uses_prefix_decl():
 def test_the_five_path_classes(path, cls):
     tree, root = _tree(f"PREFIX ex: <http://example.org/> SELECT * WHERE {{ ?s {path} ?o }}")
     assert SPEXPR[cls].value in _types(tree)
-    assert path in sqe_tree_to_text(tree, root).replace("<http://example.org/", "ex:").replace(">", "")
+    assert path in tree_to_sparql(tree, root).replace("<http://example.org/", "ex:").replace(">", "")
     assert _validate_shapes(tree).conforms
 
 
@@ -122,7 +122,7 @@ def test_a_function_call_has_args_and_a_boolean_distinct():
     assert all(list(tree.objects(c, SPEXPR.args)) for c in calls)
     assert sorted(len(list(tree.objects(c, SPEXPR.distinct))) for c in calls) == [0, 1]
     assert all((c, SPEXPR.expr, None) not in tree for c in calls)
-    again = sqe_tree_to_text(tree, root)
+    again = tree_to_sparql(tree, root)
     assert "ex:f(DISTINCT ?o, 1)" in again and "ex:g(?o)" in again
 
 
@@ -131,7 +131,7 @@ def test_the_variadic_built_ins_use_args(function):
     tree, root = _tree(f'SELECT * WHERE {{ ?s ?p ?o FILTER({function}(?o, "a") = "a") }}')
     call = next(s for s, _p, _o in tree.triples((None, RDF_TYPE, SPEXPR[function])))
     assert list(tree.objects(call, SPEXPR.args)) and not list(tree.objects(call, SPEXPR.arg))
-    assert f'{function}(?o, "a")' in sqe_tree_to_text(tree, root)
+    assert f'{function}(?o, "a")' in tree_to_sparql(tree, root)
 
 
 def test_undef_is_declared_in_the_ontology():
@@ -180,5 +180,5 @@ def test_the_vocabulary_files_declare_no_dead_term():
 
 def test_a_hand_built_tree_with_the_new_names_validates_and_renders():
     tree, root = _tree("PREFIX ex: <http://example.org/> SELECT ?s WHERE { ?s ex:p ?o FILTER(isIRI(?o)) }")
-    report = sqe_validate(tree)
+    report = validate_sparql_tree(tree)
     assert report.conforms

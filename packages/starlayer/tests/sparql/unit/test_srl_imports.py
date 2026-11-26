@@ -5,9 +5,9 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql import srl
-from starlayer.errors import ExecutionError, FormatError
 from starlayer.sparql.srl import parse_ruleset, resolve_imports
 
 EX = "http://example.org/"
@@ -178,18 +178,19 @@ def test_the_importing_rule_set_comes_first_then_its_imports_in_order():
 
 class TestParseDoesNotCheckTheOrder:
     """``parse_ruleset()`` loads any text the grammar accepts, so it does not check that the rules have an evaluation order and
-    gives no warning about ``IMPORTS``. ``srl_validate`` reports an unorderable rule set, ``infer()`` raises for it, and
+    gives no warning about ``IMPORTS``. ``validate_sparql_tree`` reports an unorderable rule set, ``infer()`` raises for it, and
     ``resolve_imports()`` checks the combined rule set."""
 
     P = "PREFIX ex: <http://example.org/>\n"
     SELF_NOT = "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y . NOT { ?x ex:a ?y } }"
 
     def test_a_rule_set_that_cannot_be_ordered_loads_and_validate_reports_it(self):
-        from starlayer.sparql.srl import ruleset_to_tree, srl_validate
+        from starlayer.sparql import validate_sparql_tree
+        from starlayer.sparql.srl import ruleset_to_tree
 
         ruleset = parse_ruleset(self.P + self.SELF_NOT)
         assert ruleset.rules
-        report = srl_validate(ruleset_to_tree(ruleset)[0])
+        report = validate_sparql_tree(ruleset_to_tree(ruleset)[0])
         assert not report.conforms and "no well-defined evaluation" in report.report_text or "closed edge" in report.report_text
 
     def test_running_it_raises(self):
@@ -209,8 +210,8 @@ class TestParseDoesNotCheckTheOrder:
         assert not [w for w in recwarn if "IMPORTS" in str(w.message)]
 
     def test_an_import_that_adds_the_cycle_is_caught_when_the_imports_are_resolved(self):
-        from starlayer.sparql.srl import resolve_imports
         from starlayer.errors import ExecutionError
+        from starlayer.sparql.srl import resolve_imports
 
         library = self.P + "RULE { ?x ex:b ?y } WHERE { ?x ex:c ?y . NOT { ?x ex:a ?y } }"
         ruleset = parse_ruleset("IMPORTS <http://example.org/lib>\n" + self.P + "RULE { ?x ex:a ?y } WHERE { ?x ex:b ?y }")

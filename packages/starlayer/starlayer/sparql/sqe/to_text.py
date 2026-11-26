@@ -126,8 +126,8 @@ _KEYWORD_BY_ROOT_TYPE = {
 }
 
 
-def sqe_tree_to_text(tree_graph: Any, root) -> str:
-    """Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
+def render_sqe_tree(tree_graph: Any, root) -> str:
+    """Render ``root`` (as produced by ``sparql_to_tree``) back
     into SPARQL query text, re-abbreviating terms using the ``PREFIX``
     declarations preserved on ``root`` wherever one matches.
 

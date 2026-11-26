@@ -1458,7 +1458,7 @@ class TestSparqlQueryStructureValidation:
 
     def test_repeated_call_hits_cache_not_the_sqe_validation_again(self) -> None:
         # The only guard against the new cache silently never engaging:
-        # spy on sqe_validate itself and confirm a second call
+        # spy on validate_sqe_tree itself and confirm a second call
         # against the identical (predicate, text, prefixes) doesn't
         # invoke it again.
         from starlayer.sparql.sqe import shapes as sqe_shapes
@@ -1467,18 +1467,18 @@ class TestSparqlQueryStructureValidation:
         list(sparql_query_problems(shapes))  # warms the cache
 
         calls = {"n": 0}
-        original = sqe_shapes.sqe_validate
+        original = sqe_shapes.validate_sqe_tree
 
         def _spy(*args, **kwargs):
             calls["n"] += 1
             return original(*args, **kwargs)
 
-        sqe_shapes.sqe_validate = _spy
+        sqe_shapes.validate_sqe_tree = _spy
         try:
             assert list(sparql_query_problems(shapes)) == []
             assert list(sparql_query_problems(shapes)) == []
         finally:
-            sqe_shapes.sqe_validate = original
+            sqe_shapes.validate_sparql_tree = original
         assert calls["n"] == 0
 
     def _shapes_with_sparql_constraint(self, query_text: str) -> Graph:

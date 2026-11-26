@@ -11,9 +11,8 @@ import pyoxigraph as ox
 import pytest
 from starlayer.errors import ExecutionError, FormatError, StarLayerError
 from starlayer.graph import StarLayerGraph
-from starlayer.sparql import check
+from starlayer.sparql import check, sparql_to_tree, tree_to_sparql, validate_sparql_tree
 from starlayer.sparql.parse_sparql import parse_sparql, parse_sparql_update
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text, sqe_validate
 
 DEEP = "SELECT * WHERE " + "{ " * 20000 + "?s ?p ?o" + " }" * 20000
 DEEP_UPDATE = "DELETE { ?s ?p ?o } WHERE " + "{ " * 20000 + "?s ?p ?o" + " }" * 20000
@@ -59,21 +58,21 @@ def test_deep_nesting_is_an_execution_error_of_kind_nesting(parse, text):
 
 def test_sqe_parse_to_tree_reports_both_causes_by_class():
     with pytest.raises(FormatError) as syntax:
-        sqe_parse_to_tree("SELECT WHERE {")
+        sparql_to_tree("SELECT WHERE {")
     assert syntax.value.kind == "sparql"
     with pytest.raises(ExecutionError) as deep:
-        sqe_parse_to_tree(DEEP)
+        sparql_to_tree(DEEP)
     assert deep.value.kind == "nesting"
 
 
 def test_a_query_that_breaks_the_sqe_shapes_loads_and_sqe_validate_reports_it():
     text = "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o }"  # ?z is projected and never bound
-    tree, root = sqe_parse_to_tree(text)  # no error: any text the parser understands gives a tree
-    outcome = sqe_validate(tree)
+    tree, root = sparql_to_tree(text)  # no error: any text the parser understands gives a tree
+    outcome = validate_sparql_tree(tree)
     assert not outcome.conforms and "variable z " in outcome.report_text
-    rendered = sqe_tree_to_text(tree, root)  # the tree still renders back
+    rendered = tree_to_sparql(tree, root)  # the tree still renders back
     assert "?z" in rendered and "knows" in rendered
-    assert sqe_parse_to_tree(rendered)[0] is not None
+    assert sparql_to_tree(rendered)[0] is not None
 
 
 # --- the Oxigraph boundary ---------------------------------------------------------------------------------------------

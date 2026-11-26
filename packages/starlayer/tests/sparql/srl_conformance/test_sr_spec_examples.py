@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 
 from .corpus import PRELUDE
 from .grammar import SPEC_EXAMPLES
@@ -12,9 +13,6 @@ from .helpers import (
     expression_results,
     parse_ruleset,
     ruleset_to_text,
-    srl_parse_to_tree,
-    srl_tree_to_text,
-    srl_validate,
 )
 from .known_failures import SPEC_EXAMPLE_FAILURES
 
@@ -44,6 +42,6 @@ def test_example_round_trips_and_keeps_its_meaning(block, request):
     again = parse_ruleset(text)
     assert ruleset_to_text(again) == text
     assert expression_results(original) == expression_results(again)
-    graph, root = srl_parse_to_tree(TEXT[block])
-    assert srl_validate(graph).conforms
-    assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(original)))
+    graph, root = sparql_to_tree(TEXT[block])
+    assert validate_sparql_tree(graph).conforms
+    assert canonical_blank_nodes(tree_to_sparql(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(original)))

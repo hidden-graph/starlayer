@@ -1,4 +1,4 @@
-"""Tests for starlayer.sparql.srl.srl_validate - structural SHACL shapes over
+"""Tests for starlayer.sparql.validate_sparql_tree - structural SHACL shapes over
 the srl: vocabulary. Valid srl: graphs (built via the real
 parse_ruleset/ruleset_to_tree pipeline, not hand-typed) conform; deliberately
 malformed graphs fail with a specific, expected violation - see
@@ -13,11 +13,8 @@ from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.ordinals import ORD as TREE_ORD
 from starlayer.graph.ordinals import _integer as ordinal
 from starlayer.graph.ordinals import write_ordered
-from starlayer.sparql.srl import (  # noqa: E402
-    parse_ruleset,
-    ruleset_to_tree,
-    srl_validate,
-)
+from starlayer.sparql import validate_sparql_tree
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree
 from tests.support.terms import RDF, NamedNode, Namespace, lit
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
@@ -40,7 +37,7 @@ DATA { :db :hasVulnerability :vuln1 . }
 def test_worked_example_conforms():
     rs = parse_ruleset(WORKED_EXAMPLE_RULES)
     g, _root = ruleset_to_tree(rs)
-    outcome = srl_validate(g)
+    outcome = validate_sparql_tree(g)
     conforms = outcome.conforms
     report_text = outcome.report_text
     assert conforms, report_text
@@ -53,7 +50,7 @@ def test_assignment_and_filter_roundtrip_conforms():
     """
     rs = parse_ruleset(text)
     g, _root = ruleset_to_tree(rs)
-    outcome = srl_validate(g)
+    outcome = validate_sparql_tree(g)
     conforms = outcome.conforms
     report_text = outcome.report_text
     assert conforms, report_text
@@ -93,7 +90,7 @@ def test_a_hand_built_rule_set_with_ordinals_conforms():
     """The baseline of the three negatives below: the same graph, made right, conforms."""
     g, root = _minimal_ruleset_graph()
     _rule(g, root, body=[_blank_triple(g)], head=[_blank_triple(g)])
-    assert srl_validate(g).conforms, srl_validate(g).report_text
+    assert validate_sparql_tree(g).conforms, validate_sparql_tree(g).report_text
 
 
 def test_rule_missing_body_is_rejected():
@@ -101,7 +98,7 @@ def test_rule_missing_body_is_rejected():
     sequences (an empty one is no triples at all) are not what makes a rule incomplete."""
     g, root = _minimal_ruleset_graph()
     _rule(g, root, flag=None)
-    outcome = srl_validate(g)
+    outcome = validate_sparql_tree(g)
     assert outcome.conforms is False and "ruleEvalground" in outcome.report_text
 
 
@@ -110,7 +107,7 @@ def test_triple_pattern_with_literal_predicate_is_rejected():
     RDF-1.2-shape correctness check, not just cardinality."""
     g, root = _minimal_ruleset_graph()
     _rule(g, root, body=[_blank_triple(g, lit("not-a-predicate"))])
-    outcome = srl_validate(g)
+    outcome = validate_sparql_tree(g)
     assert outcome.conforms is False and "srl:predicate" in outcome.report_text
 
 
@@ -120,20 +117,20 @@ def test_body_rejects_a_child_that_is_not_a_body_element():
     bogus = ox.BlankNode()
     g.add((bogus, RDF.type, NamedNode("urn:Bogus")))
     _rule(g, root, body=[bogus])
-    outcome = srl_validate(g)
+    outcome = validate_sparql_tree(g)
     assert outcome.conforms is False and "srl:body holds" in outcome.report_text
 
 
-# --- srl_validate() on a parsed rule set: the shapes, then the §4.2 conditions ------------------------
+# --- validate_sparql_tree() on a parsed rule set: the shapes, then the §4.2 conditions ------------------------
 
 _AGGREGATE_IN_SET = "PREFIX : <http://example.org/>\nRULE { ?x :n ?n } WHERE { ?x :p ?y . SET(?n := COUNT(?y)) }"
 
 
 def test_the_shapes_reject_an_aggregate_in_set():
-    """The shapes alone state it (``srl:AggregateInExpressionShape``); the run-time check in Python does not take part in ``srl_validate``."""
+    """The shapes alone state it (``srl:AggregateInExpressionShape``); the run-time check in Python does not take part in ``validate_sparql_tree``."""
     from starlayer.sparql import srl
 
-    report = srl.srl_validate(srl.ruleset_to_tree(srl.parse_ruleset(_AGGREGATE_IN_SET))[0])
+    report = validate_sparql_tree(srl.ruleset_to_tree(srl.parse_ruleset(_AGGREGATE_IN_SET))[0])
     assert not report.conforms and "AggregateInExpressionShape" in report.report_text
 
 
@@ -142,7 +139,7 @@ def test_a_rule_set_that_breaks_the_conditions_loads_and_validate_reports_it():
 
     ruleset = srl.parse_ruleset(_AGGREGATE_IN_SET)
     assert len(ruleset.rules) == 1
-    report = srl.srl_validate(srl.ruleset_to_tree(ruleset)[0])
+    report = validate_sparql_tree(srl.ruleset_to_tree(ruleset)[0])
     assert not report.conforms and "cannot contain an aggregate" in report.report_text
 
 
@@ -171,10 +168,10 @@ def test_validating_does_not_change_the_cached_shapes_graphs():
 
 def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_meta_shapes(monkeypatch):
     """The shipped shapes are checked once, by their own tests; every parse must not re-check them
-    (the engine's ``meta_shacl`` preflight and starlayer's own meta-shape layer are both off for ``srl_validate``)."""
+    (the engine's ``meta_shacl`` preflight and starlayer's own meta-shape layer are both off for ``validate_sparql_tree``)."""
     from starlayer.shacl import meta_shapes
     from starlayer.shacl.engine import meta as engine_meta
-    from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
+    from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 
     called = []
     monkeypatch.setattr(engine_meta, "meta_validate", lambda *a, **k: called.append("meta_validate"))
@@ -184,8 +181,8 @@ def test_validating_a_rule_set_does_not_validate_the_shapes_file_against_the_met
 
     text = "PREFIX : <http://e/>\nRULE { ?x :p ?y } WHERE { ?x :q ?y }"
     parse_ruleset(text)
-    graph, _root = srl_parse_to_tree(text)
-    assert srl_validate(graph).conforms
+    graph, _root = sparql_to_tree(text)
+    assert validate_sparql_tree(graph).conforms
     assert called == []
 
 
@@ -211,7 +208,7 @@ class TestALiteralIsNotASubject:
     )
     def test_a_constant_literal_subject_loads_and_validate_rejects_it(self, rule):
         ruleset = srl.parse_ruleset(self.H + rule)
-        report = srl.srl_validate(srl.ruleset_to_tree(ruleset)[0])
+        report = validate_sparql_tree(srl.ruleset_to_tree(ruleset)[0])
         assert not report.conforms and "literal cannot be the subject" in report.report_text
 
     @pytest.mark.parametrize(

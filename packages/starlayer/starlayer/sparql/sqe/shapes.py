@@ -11,7 +11,7 @@ No public ``ontology_graph()``/``shapes_graph()`` of its own - same choice
 that module's own comment) and the same reason Manchester doesn't have
 them either (`starontology.get_ontology_graph("sqe_owl")`/`"sqe_shacl"`
 is the one real path to those graphs). The shapes for the ordered children (``tree:ord``) are the shared ``tree:`` ones, merged in by
-``..expr_validation``. ``sqe_validate()`` combines them
+``..expr_validation``. ``validate_sqe_tree()`` combines them
 privately below, then adds the engine check: each query in a conforming tree must also be accepted by Oxigraph.
 """
 
@@ -74,7 +74,7 @@ def _ontology_graph() -> Any:
 
 
 def _validate_shapes(tree_graph: Any) -> ValidationReport:
-    """Only the ``sqe:`` shapes: the report ``sqe_validate`` starts from. ``check_query`` uses it and runs the engine itself."""
+    """Only the ``sqe:`` shapes: the report ``validate_sqe_tree`` starts from. ``check_query`` uses it and runs the engine itself."""
 
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
         shared_plans,
@@ -100,14 +100,14 @@ def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
     )
 
     from ._memtree import as_engine_graph
-    from .to_text import sqe_tree_to_text
+    from .to_text import render_sqe_tree
     from .vocab import QUERY
 
     graph, _ = as_engine_graph(tree_graph)
     found = []
     for root in sorted(set(graph.subjects(RDF_TYPE, QUERY)), key=str):
         try:
-            text = sqe_tree_to_text(graph, root)
+            text = render_sqe_tree(graph, root)
         except (ValueError, FormatError) as error:
             found.append((root, f"The query cannot be written out as SPARQL text: {' '.join(str(error).split())}"))
             continue
@@ -125,8 +125,8 @@ def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
     return found
 
 
-def sqe_validate(tree_graph: Any) -> ValidationReport:
-    """Validate ``tree_graph`` (e.g. from ``to_rdf.sqe_parse_to_tree``, or
+def validate_sqe_tree(tree_graph: Any) -> ValidationReport:
+    """Validate ``tree_graph`` (e.g. from ``sparql_to_tree``, or
     an LLM-/UI-authored ``sqe:`` graph not yet decoded) against the shapes
     above, and check that Oxigraph accepts each query in it.
 
@@ -134,7 +134,7 @@ def sqe_validate(tree_graph: Any) -> ValidationReport:
     genuine RDF 1.2 content (a triple term).
 
     Only when the shapes conform, each query root (every ``sqe:Query`` in the graph, which may hold several) is rendered with
-    ``sqe_tree_to_text`` and checked as ``check_query`` does: the text must be in the grammar, agree with its ``VERSION``
+    ``render_sqe_tree`` and checked as ``check_query`` does: the text must be in the grammar, agree with its ``VERSION``
     and run on an empty graph in Oxigraph, which has the last word on what it accepts. A query with a ``SERVICE`` pattern
     (which would send the request) and an update are not run. A structurally broken tree may not render, so it is left to the shapes.
     A rejection is an ``sh:ValidationResult`` (severity ``sh:Violation``, focus node the query's root, readable ``sh:resultMessage``)

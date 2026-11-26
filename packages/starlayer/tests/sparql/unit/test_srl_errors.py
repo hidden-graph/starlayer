@@ -5,7 +5,7 @@ cannot be loaded is an ``ExecutionError`` (kinds ``"rule"`` and ``"import"``), a
 import pytest
 from starlayer.errors import ExecutionError, FormatError, StarLayerError
 from starlayer.graph import StarLayerGraph, ordinals
-from starlayer.sparql import srl
+from starlayer.sparql import srl, validate_sparql_tree
 from starlayer.sparql.srl import parse_ruleset, resolve_imports
 
 P = "PREFIX : <http://e/>\n"
@@ -80,7 +80,7 @@ def test_a_rule_set_that_cannot_be_ordered_is_an_execution_error_of_kind_rule():
 
 def test_srl_validate_reports_the_unorderable_rule_set_instead_of_raising():
     tree, _root = srl.ruleset_to_tree(parse_ruleset(CYCLE))
-    assert not srl.srl_validate(tree).conforms
+    assert not validate_sparql_tree(tree).conforms
 
 
 def test_a_rule_that_breaks_the_well_formedness_conditions_is_a_format_error_of_kind_srl_when_run():

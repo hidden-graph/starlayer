@@ -8,7 +8,7 @@ Syntax errors and run-time errors are told apart: ``Store.update`` raises ``Synt
 and other errors (``OSError`` for a LOAD of a remote IRI, ``RuntimeError`` for MOVE/COPY/DROP of a graph the empty store
 does not have) mean the request parsed and failed to run. Only the first kind counts as a rejection.
 
-1. Every positive W3C update request: the original and the text rendered by ``sqe_tree_to_text`` from our tree both parse.
+1. Every positive W3C update request: the original and the text rendered by ``tree_to_sparql`` from our tree both parse.
 2. Every negative W3C update request: we reject it; Oxigraph's verdict is compared.
 3. The rule table (``test_parse_sparql_update.py``) and the production corpus: verdicts compared.
 """
@@ -17,11 +17,8 @@ from __future__ import annotations
 
 import pytest
 from starlayer.errors import FormatError
-from starlayer.sparql.parse_sparql import (
-    parse_sparql_update,
-    sparql_update_to_tree,
-)
-from starlayer.sparql.sqe import sqe_tree_to_text
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
+from starlayer.sparql.parse_sparql import parse_sparql_update
 
 from .parse_sparql_conformance.corpus import CASES
 from .test_parse_sparql_update import INVALID, NEGATIVE, POSITIVE, VALID
@@ -69,7 +66,7 @@ _ALL.update({c.text: c.ok for c in CASES if c.update})
 
 @pytest.mark.parametrize("key,text", POSITIVE, ids=[k for k, _ in POSITIVE])
 def test_rendered_text_of_positive_update_parses_in_oxigraph(key, text):
-    rendered = sqe_tree_to_text(*sparql_update_to_tree(text))
+    rendered = tree_to_sparql(*sparql_to_tree(text))
     if key in OX_REJECTS_VALID:
         assert not ox_parses(text), f"Oxigraph now parses {key}: remove it from OX_REJECTS_VALID"
         return
@@ -107,7 +104,7 @@ def test_the_rendering_of_a_request_does_the_same_in_oxigraph():
         "DELETE { ?s :p ?o } INSERT { ?s :p2 ?o } WHERE { ?s :p ?o } ; DROP SILENT GRAPH :zz ; COPY :g TO :h ;\n"
         "DELETE DATA { :b :q :c ~ :n }"
     )
-    rendered = sqe_tree_to_text(*sparql_update_to_tree(text))
+    rendered = tree_to_sparql(*sparql_to_tree(text))
 
     def final(t):
         s = ox.Store()

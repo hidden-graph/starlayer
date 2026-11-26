@@ -30,7 +30,7 @@ ends up consuming a given file. This top-level module
 nothing more, never wraps `pyshacl`/`starlayer.shacl`. *How* to validate
 (which reasoning settings, which severity flags) stays each vocabulary's
 own concern, genuinely different per vocabulary -
-`starlayer.sparql.srl.srl_validate()` for `srl:` lives
+`starlayer.sparql.validate_sparql_tree()` for `srl:` lives
 outside this subpackage entirely.
 
 `starontology.manchester` is the exception: real logic for the `manch:` vocabulary (parse, serialize, validate and edit), since

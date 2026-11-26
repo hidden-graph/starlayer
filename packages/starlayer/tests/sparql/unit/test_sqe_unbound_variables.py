@@ -1,23 +1,23 @@
 """The "a projected variable is never bound anywhere in its own pattern" check, on ``sqe:`` trees.
 
 It was the one semantic check the retired ``salg:`` export had (``find_unbound_projected_variables``); the ``sqe:`` shapes
-(``sqe_shapes.ttl``) now carry it, and ``sqe_validate`` reports a query that fails it (``sqe_parse_to_tree`` still loads it). The cases below were moved from
+(``sqe_shapes.ttl``) now carry it, and ``validate_sparql_tree`` reports a query that fails it (``sparql_to_tree`` still loads it). The cases below were moved from
 the salg tests; the SHACL pre-bound names (``$this`` / ``$value`` / ``$PATH``) are exempt in an embedded ``sh:select`` /
 ``sh:ask`` / ``sh:construct`` query (``starlayer.shacl.meta_shapes.sparql_query_problems``).
 """
 
 import pytest
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 
 EX = "http://example.org/"
 
 
 def _issues(query_text: str) -> list[str]:
-    """The messages of the violations ``sqe_validate`` reports for the query (empty when it conforms)."""
+    """The messages of the violations ``validate_sparql_tree`` reports for the query (empty when it conforms)."""
     from starlayer.shacl.engine.terms import SH
 
-    tree, _root = sqe_parse_to_tree(query_text)
-    outcome = sqe_validate(tree)
+    tree, _root = sparql_to_tree(query_text)
+    outcome = validate_sparql_tree(tree)
     if outcome.conforms:
         return []
     return sorted(m.value for m in outcome.report_graph.objects(None, SH.resultMessage))
@@ -133,26 +133,26 @@ class TestDistinctInAnExtensionFunctionCall:
 
     def test_the_tree_is_built_and_the_shapes_report_a_warning(self):
         from starlayer.shacl.engine.terms import SH
-        from starlayer.sparql.sqe import (
-            sqe_parse_to_tree,
-            sqe_tree_to_text,
-            sqe_validate,
+        from starlayer.sparql import (
+            sparql_to_tree,
+            tree_to_sparql,
+            validate_sparql_tree,
         )
 
-        tree, root = sqe_parse_to_tree(self.TEXT)
-        outcome = sqe_validate(tree)
+        tree, root = sparql_to_tree(self.TEXT)
+        outcome = validate_sparql_tree(tree)
         conforms = outcome.conforms
         report = outcome.report_graph
         assert not conforms
         assert [str(severity) for severity in report.objects(None, SH.resultSeverity)] == [str(SH.Warning)]
         (message,) = [m.value for m in report.objects(None, SH.resultMessage)]
         assert "DISTINCT in a call to http://x/f" in message and "#206" in message
-        assert "DISTINCT 1" in sqe_tree_to_text(tree, root)  # the text is kept as written
+        assert "DISTINCT 1" in tree_to_sparql(tree, root)  # the text is kept as written
 
     def test_an_aggregate_and_a_plain_call_are_not_flagged(self):
-        from starlayer.sparql.sqe import sqe_parse_to_tree
+        from starlayer.sparql import sparql_to_tree
         from starlayer.sparql.sqe.shapes import _validate_shapes
 
         for text in ("SELECT (COUNT(DISTINCT ?s) AS ?n) { ?s ?p ?o }", "SELECT (<http://x/f>(1) AS ?x) {}"):
-            tree, _ = sqe_parse_to_tree(text)
+            tree, _ = sparql_to_tree(text)
             assert _validate_shapes(tree).conforms  # the shapes only: Oxigraph has no function <http://x/f>

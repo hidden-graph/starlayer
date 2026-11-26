@@ -13,7 +13,7 @@ Opt-in (``pytest --sqe-coverage``); about 5 minutes.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 from starlayer.sparql.sqe.vocab import ORDERED_PROPERTIES
 
 pytestmark = pytest.mark.sqe_coverage
@@ -50,7 +50,7 @@ def _local(uri) -> str:
     return getattr(uri, "value", str(uri)).split("#")[-1]
 
 
-_PARSED = [sqe_parse_to_tree(text) for text in TREES]  # parsed once: blank-node labels differ between parses
+_PARSED = [sparql_to_tree(text) for text in TREES]  # parsed once: blank-node labels differ between parses
 
 
 def _mutations():
@@ -85,7 +85,7 @@ def test_corruption_is_noticed_unless_it_is_legitimately_valid(index, subject, p
         or (mutation == "duplicate" and name in REPEATABLE)
     )
     try:
-        valid = sqe_validate(corrupted).conforms
+        valid = validate_sparql_tree(corrupted).conforms
     except Exception:  # noqa: BLE001 - a graph the validator cannot even process is also "noticed"
         valid = False
     if allowed:

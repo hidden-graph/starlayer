@@ -187,38 +187,37 @@ def test_ontology_graph_validates_as_data():
 
 
 def test_sqe_tree_and_validate():
-    from starlayer.sparql.parse_sparql import sparql_to_tree
-    from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+    from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 
-    graph, root = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }", StarLayerGraph())
+    graph, root = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }", StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
-    outcome = sqe_validate(graph)
+    outcome = validate_sparql_tree(graph)
     ok = outcome.conforms
     report = outcome.report_graph
     assert ok is True
     assert_ox(report)
-    graph, root = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }", graph=StarLayerGraph())
+    graph, root = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }", tree_graph=StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
-    default_graph, _ = sqe_parse_to_tree("SELECT * WHERE { ?s ?p ?o }")
+    default_graph, _ = sparql_to_tree("SELECT * WHERE { ?s ?p ?o }")
     assert isinstance(default_graph, StarLayerGraph)  # the tree builders default to an StarLayerGraph
 
 
 def test_srl_tree_and_validate():
-    from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
+    from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 
     text = "RULE { ?x <http://e/q> ?y } WHERE { ?x <http://e/p> ?y }"
-    graph, root = srl_parse_to_tree(text, tree_graph=StarLayerGraph())
+    graph, root = sparql_to_tree(text, tree_graph=StarLayerGraph())
     assert_ox(graph)
     assert isinstance(root, ox.BlankNode)
-    outcome = srl_validate(graph)
+    outcome = validate_sparql_tree(graph)
     ok = outcome.conforms
     report = outcome.report_graph
     assert_ox(report)
-    default_graph, _ = srl_parse_to_tree(text)
+    default_graph, _ = sparql_to_tree(text)
     assert isinstance(default_graph, StarLayerGraph)  # the default is a StarLayerGraph (pyoxigraph terms)
-    assert_ox(srl_validate(default_graph).report_graph, max_prefixes=40)
+    assert_ox(validate_sparql_tree(default_graph).report_graph, max_prefixes=40)
 
 
 def test_srl_infer_with_schema_returns_ox_parts():

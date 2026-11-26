@@ -22,7 +22,7 @@ from hypothesis import strategies as st
 
 pyoxigraph = pytest.importorskip("pyoxigraph")
 
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text  # noqa: E402
+from starlayer.sparql import sparql_to_tree, tree_to_sparql  # noqa: E402
 from tests.sparql.sqe_coverage.test_sqe_features import (  # noqa: E402
     RDF12_TURTLE,
     P,
@@ -159,8 +159,8 @@ def test_generated_queries_agree_with_oxigraph(query):
 @_SETTINGS
 @given(query=_QUERIES)
 def test_sqe_text_agrees_with_oxigraph(query):
-    tree, root = sqe_parse_to_tree(query)
-    assert _starlayer_outcome(sqe_tree_to_text(tree, root)) == _oxigraph_outcome(query)
+    tree, root = sparql_to_tree(query)
+    assert _starlayer_outcome(tree_to_sparql(tree, root)) == _oxigraph_outcome(query)
 
 
 # --- SPARQL 1.2 ------------------------------------------------------------
@@ -235,5 +235,5 @@ def test_sparql12_queries_agree_with_oxigraph(query):
 @_SETTINGS
 @given(query=_sparql12_query())
 def test_sqe_text_of_sparql12_agrees_with_oxigraph(query):
-    tree, root = sqe_parse_to_tree(query)
-    assert _starlayer_outcome(sqe_tree_to_text(tree, root)) == _oxigraph_outcome(query)
+    tree, root = sparql_to_tree(query)
+    assert _starlayer_outcome(tree_to_sparql(tree, root)) == _oxigraph_outcome(query)

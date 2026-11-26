@@ -143,10 +143,10 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
     except RecursionError as e:
         raise ExecutionError("the query is nested too deeply for the entailment rewrite", kind="nesting", context="entailment rewrite") from e
     try:
-        from .to_text import sqe_tree_to_text
+        from .to_text import render_sqe_tree
 
         triples, root = ast_to_triples(tree)
-        out = sqe_tree_to_text(TreeIndex(triples), root)
+        out = render_sqe_tree(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
     except (FormatError, ValueError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
         raise _unsupported(f"the rewritten query could not be written out as SPARQL: {e}") from e

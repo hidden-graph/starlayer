@@ -15,7 +15,10 @@ Five independent properties per case, each its own test so a failure names the b
 
 from __future__ import annotations
 
+import re
+
 import pytest
+from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
 
 from .corpus import CASES
 from .helpers import (
@@ -26,12 +29,18 @@ from .helpers import (
     parse_ruleset,
     parsed,
     ruleset_to_text,
-    srl_parse_to_tree,
-    srl_tree_to_text,
-    srl_validate,
+    ruleset_to_tree,
     tree_of,
 )
 from .known_failures import CORPUS_FAILURES
+
+
+def _srl_tree(text):
+    """The ``srl:`` tree of ``text`` through ``sparql_to_tree``, which reads text with no rule, ``DATA`` or ``IMPORTS`` (nothing, or
+    a prologue only) as an empty update request; those go through the rule-set API."""
+    if not re.match(r"(?is)\A(?:\s+|#[^\n]*|PREFIX\s+\S*\s*<[^>]*>|BASE\s*<[^>]*>|VERSION\s+\S+)*(RULE|DATA|IMPORTS)\b", text):
+        return ruleset_to_tree(parse_ruleset(text))
+    return sparql_to_tree(text)
 
 
 def _expect(case, check, request):
@@ -71,17 +80,17 @@ def test_text_round_trip_preserves_meaning(case, request):
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.id)
 def test_tree_round_trip(case, request):
     _expect(case, "tree", request)
-    graph, root = srl_parse_to_tree(case.text)
-    outcome = srl_validate(graph)
+    graph, root = _srl_tree(case.text)
+    outcome = validate_sparql_tree(graph)
     conforms = outcome.conforms
     report_text = outcome.report_text
     assert conforms, report_text[:500]
-    assert canonical_blank_nodes(srl_tree_to_text(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(parsed(case.text))))
+    assert canonical_blank_nodes(tree_to_sparql(graph, root)) == canonical_blank_nodes(ruleset_to_text(as_stored(parsed(case.text))))
 
 
 @pytest.mark.srl_conformance
 @pytest.mark.parametrize("case", CASES, ids=lambda c: c.id)
 def test_text_and_ruleset_encode_to_the_same_tree(case, request):
     _expect(case, "encoding", request)
-    graph, _ = srl_parse_to_tree(case.text)
+    graph, _ = _srl_tree(case.text)
     assert isomorphic(graph, tree_of(parsed(case.text)))

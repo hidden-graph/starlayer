@@ -5,6 +5,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.errors import FormatError
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
 from starlayer.sparql.parse_sparql import parse_sparql
 
 
@@ -84,8 +85,8 @@ def test_function_distinct_needs_an_argument():
 def test_zero_argument_iri_function_round_trips_through_sqe(text):
     from starlayer.sparql import sqe
 
-    g, r = sqe.sqe_parse_to_tree(text)
-    out = sqe.sqe_tree_to_text(g, r)
+    g, r = sparql_to_tree(text)
+    out = tree_to_sparql(g, r)
     assert "<http://e/f>()" in out
     parse_sparql(out)
 
@@ -101,8 +102,8 @@ def test_zero_argument_iri_function_round_trips_through_sqe(text):
 def test_two_base_declarations_in_one_prologue_encode(text):
     from starlayer.sparql import sqe
 
-    g, r = sqe.sqe_parse_to_tree(text)
-    out = sqe.sqe_tree_to_text(g, r)
+    g, r = sparql_to_tree(text)
+    out = tree_to_sparql(g, r)
     assert parse_sparql(out).f["where"][0].f["s"].value == parse_sparql(text).f["where"][0].f["s"].value
 
 
@@ -116,9 +117,9 @@ def test_star_query_run_rejects_an_unknown_override():
 
 
 def test_entailment_rewrite_of_very_deep_nesting_is_a_nesting_error():
+    from starlayer.errors import ExecutionError
     from starlayer.graph import StarLayerGraph
     from starlayer.graph.entailment import ENTAILMENT
-    from starlayer.errors import ExecutionError
 
     depth = 400
     text = "SELECT * WHERE { " + "{ " * depth + "?s a ?c" + " }" * depth + " }"

@@ -24,8 +24,9 @@ import pytest
 from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
+from starlayer.sparql import validate_sparql_tree
 from starlayer.sparql.parse_srl import parse_srl
-from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree, srl_validate
+from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree
 
 ROOT = Path(__file__).resolve().parents[1] / "vendor" / "shacl12-test-suite" / "tests" / "sparql-rl"
 
@@ -104,13 +105,13 @@ def test_sparql_rl(entry) -> None:
             parse_srl(text)
         elif kind == "RulesNegativeSyntaxTest":
             # text outside the grammar is a FormatError; text the rule set can still hold (a variable in DATA, an aggregate in a
-            # FILTER) loads, and srl_validate reports it
+            # FILTER) loads, and validate_sparql_tree reports it
             try:
                 ruleset = parse_ruleset(text)
             except FormatError:
                 pass
             else:
-                assert not srl_validate(ruleset_to_tree(ruleset)[0]).conforms
+                assert not validate_sparql_tree(ruleset_to_tree(ruleset)[0]).conforms
         elif kind == "RulesPositiveWellFormednessTest":
             parse_ruleset(text)
         elif kind == "RulesNegativeWellFormednessTest":

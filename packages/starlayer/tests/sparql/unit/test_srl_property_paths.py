@@ -5,10 +5,10 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.rdflib_bridge import engine_to_foreign as from_engine
-from starlayer.sparql import srl
-from starlayer.errors import FormatError
+from starlayer.sparql import srl, validate_sparql_tree
 from starlayer.sparql.srl import parse_ruleset
 
 EX = "http://example.org/"
@@ -141,5 +141,5 @@ def test_a_path_rule_set_round_trips_through_text_and_rdf_in_its_expanded_form()
     text = srl.ruleset_to_text(rules)
     assert srl.ruleset_to_text(parse_ruleset(text)) == text
     graph, root = srl.ruleset_to_tree(rules)
-    assert srl.srl_validate(graph).conforms is True
+    assert validate_sparql_tree(graph).conforms is True
     assert srl.ruleset_to_text(srl.tree_to_ruleset(graph, root)) == text

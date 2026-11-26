@@ -8,12 +8,12 @@ Five checks, each a passing guard:
 
 - the ``.ttl`` files SRL is published with contain no ``salg:`` IRI and import no ``salg:`` shapes graph;
 - the ``srl:`` trees SRL produces contain no ``salg:`` term (triple terms are ``sqe:TripleTerm``);
-- the graphs ``srl_validate`` loads contain no ``salg:`` term;
+- the graphs ``validate_sparql_tree`` loads contain no ``salg:`` term;
 - ``srl.py`` loads no ``salg`` module or graph;
 - **the published shapes validate real SRL trees in a clean process that imports only rdflib and pyshacl** (no
   starlayer), which is what a downstream publisher or user would run.
 
-History: before 2026-10-19 the trees used four ``salg:`` terms, ``srl_validate`` loaded all of ``salg:``'s
+History: before 2026-10-19 the trees used four ``salg:`` terms, ``validate_sparql_tree`` loaded all of ``salg:``'s
 ontology (290 terms) and shapes (617), and expressions were encoded and rendered by ``salg:``'s machinery.
 """
 
@@ -27,9 +27,9 @@ from pathlib import Path
 
 import pytest
 from rdflib import Graph, Literal, URIRef
+from starlayer.sparql import sparql_to_tree
 
 from .corpus import CASES
-from .helpers import srl_parse_to_tree
 
 SALG = "https://github.com/hidden-graph/starlayer/ns/sparql/algebra#"
 STARLAYER = Path(__file__).resolve().parents[3] / "starlayer"
@@ -80,7 +80,7 @@ def test_published_files_contain_no_salg_terms_and_import_no_salg_graph():
 def test_trees_contain_no_salg_terms():
     found: set[str] = set()
     for case in TREE_CASES:
-        graph, _ = srl_parse_to_tree(case.text)
+        graph, _ = sparql_to_tree(case.text)
         found |= _salg_terms(graph)
     assert not found, f"salg: terms in srl: trees: {sorted(found)}"
 
@@ -110,7 +110,7 @@ def test_published_shapes_validate_srl_trees_without_starlayer(tmp_path):
     pytest.importorskip("pyshacl", reason="interoperability check against pySHACL, which starlayer does not depend on")
     tree_files = []
     for case in TREE_CASES:
-        graph, _ = srl_parse_to_tree(case.text)
+        graph, _ = sparql_to_tree(case.text)
         path = tmp_path / f"{case.id}.ttl"
         try:
             graph.serialize(path, format="turtle")

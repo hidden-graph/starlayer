@@ -280,7 +280,7 @@ def test_nothing_in_the_core_imports_rdflib():
 
 
 SQE_CODE = """
-    from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text, sqe_validate
+    from starlayer.sparql import sparql_to_tree, tree_to_sparql, validate_sparql_tree
     from starlayer.sparql.sqe.rewrite import rewrite_exists_text
     from starlayer.graph import ENTAILMENT, StarLayerGraph
 
@@ -298,12 +298,12 @@ SQE_CODE = """
 def test_sqe_parse_render_and_validate_work_without_rdflib():
     out = ok(SQE_CODE + """
     for q in QUERIES:
-        graph, root = sqe_parse_to_tree(q)
+        graph, root = sparql_to_tree(q)
         assert type(graph).__name__ == "StarLayerGraph"
-        assert sqe_validate(graph).conforms == (q != 'SELECT * WHERE { <s> <p> ?o }')  # Oxigraph refuses a relative IRI
-        text = sqe_tree_to_text(graph, root)
-        graph2, root2 = sqe_parse_to_tree(text)
-        assert sqe_tree_to_text(graph2, root2) == text, (q, text)
+        assert validate_sparql_tree(graph).conforms == (q != 'SELECT * WHERE { <s> <p> ?o }')  # Oxigraph refuses a relative IRI
+        text = tree_to_sparql(graph, root)
+        graph2, root2 = sparql_to_tree(text)
+        assert tree_to_sparql(graph2, root2) == text, (q, text)
     print("done")
     """)
     assert "done" in out
@@ -343,7 +343,7 @@ def test_the_syntax_checks_of_a_star_query_work_without_rdflib():
 
 SRL_CODE = """
     from starlayer.graph import StarLayerGraph
-    from starlayer.sparql import srl
+    from starlayer.sparql import srl, sparql_to_tree, tree_to_sparql, validate_sparql_tree
 
     RULES = '''PREFIX : <http://e/>
     RULE { ?x :anc ?y } WHERE { ?x :parent ?y }
@@ -373,11 +373,11 @@ def test_srl_parse_evaluate_encode_and_validate_work_without_rdflib():
     assert len(found) == 2
     assert rules.plan().strata
     tree, root = srl.ruleset_to_tree(rules)
-    assert srl.srl_validate(tree).conforms
+    assert validate_sparql_tree(tree).conforms
     again = srl.tree_to_ruleset(tree, root)
     assert srl.ruleset_to_text(again) == srl.ruleset_to_text(rules)
-    graph2, root2 = srl.srl_parse_to_tree(RULES)
-    assert "RULE" in srl.srl_tree_to_text(graph2, root2)
+    graph2, root2 = sparql_to_tree(RULES)
+    assert "RULE" in tree_to_sparql(graph2, root2)
     print("done")
     """)
     assert "done" in out
@@ -403,7 +403,7 @@ def test_srl_and_the_embedded_query_check_load_no_rdflib_module():
     g = StarLayerGraph()
     g.update('PREFIX : <http://e/> INSERT DATA { :a :parent :b . :a :age 20 }')
     rules.infer(g); rules.query(g, rules.rules[0].head[0])
-    tree, root = srl.ruleset_to_tree(rules); srl.srl_validate(tree); srl.tree_to_ruleset(tree, root)
+    tree, root = srl.ruleset_to_tree(rules); validate_sparql_tree(tree); srl.tree_to_ruleset(tree, root)
     from starlayer.shacl.meta_shapes import sparql_query_problems
     shapes = StarLayerGraph()
     shapes.parse(data='@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://e/> . ex:S a sh:NodeShape ; sh:sparql [ sh:prefixes ex: ; sh:select "SELECT $this WHERE { $this ex:p ?o }" ] . ex: sh:declare [ sh:prefix "ex" ; sh:namespace "http://e/"^^<http://www.w3.org/2001/XMLSchema#anyURI> ] .', format="turtle")
@@ -435,8 +435,8 @@ def test_srl_on_a_graph_that_is_not_a_starlayer_graph_is_a_type_error():
 def test_the_sqe_text_path_loads_no_rdflib_module():
     code = SQE_CODE + """
     import sys
-    graph, root = sqe_parse_to_tree(QUERIES[0])
-    sqe_validate(graph); sqe_tree_to_text(graph, root); rewrite_exists_text(QUERIES[2])
+    graph, root = sparql_to_tree(QUERIES[0])
+    validate_sparql_tree(graph); tree_to_sparql(graph, root); rewrite_exists_text(QUERIES[2])
     print([m for m in sys.modules if m == 'rdflib' or m.startswith('rdflib.')][:3])
     """
     result = subprocess.run(

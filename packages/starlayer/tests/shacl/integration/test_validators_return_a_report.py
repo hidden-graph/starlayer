@@ -1,18 +1,19 @@
-"""The four shape validators (``sqe_validate``, ``srl_validate``, ``manchester_validate``, ``meta_validate``) return the
+"""The four shape validators (``validate_sparql_tree``, ``validate_sparql_tree``, ``manchester_validate``, ``meta_validate``) return the
 ``ValidationReport`` that ``validate()`` returns, not a tuple (decision 2026-11-25): the report is not iterable, so no caller can
 unpack the old ``(conforms, report_graph, report_text)`` triple.
 """
 
+import pyoxigraph as ox
 import pytest
 from starlayer.errors import MetaShaclError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ValidationReport, meta_validate
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 from starlayer.sparql.sqe.vocab import LIMIT, PROJECTION
-from starlayer.sparql.srl import srl_parse_to_tree, srl_validate
-from starlayer.starontology.manchester import manchester_parse_to_tree, manchester_validate
-
-import pyoxigraph as ox
+from starlayer.starontology.manchester import (
+    manchester_parse_to_tree,
+    manchester_validate,
+)
 
 SQE = "SELECT * WHERE { ?s ?p ?o }"
 SRL = "RULE { ?x <http://e/q> ?y } WHERE { ?x <http://e/p> ?y }"
@@ -21,14 +22,14 @@ SHAPES = "@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://e/> . 
 
 
 def _sqe(broken=False):
-    tree, root = sqe_parse_to_tree(SQE)
+    tree, root = sparql_to_tree(SQE)
     if broken:
         tree.add((root, PROJECTION, ox.Literal("x")))  # SELECT * and a projection are exclusive
     return tree
 
 
 def _srl(broken=False):
-    tree, root = srl_parse_to_tree(SRL)
+    tree, root = sparql_to_tree(SRL)
     if broken:
         from starlayer.sparql.srl import SRL as SRL_NS
 
@@ -48,7 +49,7 @@ def _manchester(broken=False):
     return tree
 
 
-TREES = [(sqe_validate, _sqe), (srl_validate, _srl), (manchester_validate, _manchester)]
+TREES = [(validate_sparql_tree, _sqe), (validate_sparql_tree, _srl), (manchester_validate, _manchester)]
 IDS = ["sqe", "srl", "manchester"]
 
 

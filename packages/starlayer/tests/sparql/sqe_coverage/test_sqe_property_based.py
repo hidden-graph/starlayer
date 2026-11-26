@@ -23,7 +23,7 @@ import os
 import pytest
 from hypothesis import HealthCheck, event, given, settings
 from hypothesis import strategies as st
-from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_tree_to_text
+from starlayer.sparql import sparql_to_tree, tree_to_sparql
 from tests.sparql.sqe_coverage.test_sqe_features import P, _rows, build_dataset
 from tests.sparql.sqe_coverage.test_w3c_through_sqe import assert_no_salg_terms
 
@@ -303,11 +303,11 @@ def _canonical_rows(query):
 @_SETTINGS
 @given(query=_QUERIES)
 def test_tree_is_valid_text_is_stable_and_rows_match(query):
-    tree, root = sqe_parse_to_tree(query)  # validates against the sqe shapes
+    tree, root = sparql_to_tree(query)  # validates against the sqe shapes
     assert_no_salg_terms(tree)
 
-    text = sqe_tree_to_text(tree, root)
-    tree2, root2 = sqe_parse_to_tree(text)
-    assert sqe_tree_to_text(tree2, root2) == text, "rendered text is not stable"
+    text = tree_to_sparql(tree, root)
+    tree2, root2 = sparql_to_tree(text)
+    assert tree_to_sparql(tree2, root2) == text, "rendered text is not stable"
 
     assert _canonical_rows(text) == _canonical_rows(query), f"rows differ for the regenerated text:\n{text}"

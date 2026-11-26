@@ -1,4 +1,4 @@
-"""What ``srl_validate`` reports for the SRL §4.2 well-formedness shapes, as ``(kind, variable, focus node)`` rows.
+"""What ``validate_sparql_tree`` reports for the SRL §4.2 well-formedness shapes, as ``(kind, variable, focus node)`` rows.
 
 ``kind`` is the name the Python check (``srl_semantic_checks``) gives the same condition, so a test can compare the two.
 """
@@ -10,7 +10,7 @@ from functools import lru_cache
 
 from starlayer import starontology
 from starlayer.shacl import SH
-from starlayer.sparql.srl import srl_validate
+from starlayer.sparql import validate_sparql_tree
 
 SRL = "https://github.com/hidden-graph/starlayer/ns/sparql/srl#"
 
@@ -51,8 +51,8 @@ def _message_patterns() -> dict[str, re.Pattern]:
 
 
 def findings(tree_graph):
-    """``(report, rows)``: ``rows`` has ``(kind, variable name or None, focus node)`` for each §4.2 shape result of ``srl_validate``."""
-    report = srl_validate(tree_graph)
+    """``(report, rows)``: ``rows`` has ``(kind, variable name or None, focus node)`` for each §4.2 shape result of ``validate_sparql_tree``."""
+    report = validate_sparql_tree(tree_graph)
     graph = report.report_graph
     rows = []
     for result in graph.subjects(SH.resultSeverity, SH.Violation):
