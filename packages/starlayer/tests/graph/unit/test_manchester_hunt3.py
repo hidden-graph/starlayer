@@ -106,9 +106,9 @@ def test_single_member_misc_axiom_is_a_syntax_error(line):
 # --- empty tree, deep nesting --------------------------------------------------------------------
 
 def test_empty_graph_is_not_a_bare_stopiteration():
-    with pytest.raises(ValueError, match='manch:Document'):
+    with pytest.raises(ValueError, match='manch:OntologyDocument'):
         manchester_tree_to_text(StarLayerGraph())
-    with pytest.raises(ValueError, match='manch:Document'):
+    with pytest.raises(ValueError, match='manch:OntologyDocument'):
         manchester_tree_to_owl(StarLayerGraph())
 
 

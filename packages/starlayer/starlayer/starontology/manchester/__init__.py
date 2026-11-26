@@ -20,7 +20,7 @@ Four entry points:
   module's own comments on ``_Cursor.record_frame``/``record_clause``/etc).
   Returns just the graph, not a ``(graph, root)`` tuple (changed
   2026-10-03) - every graph this produces holds exactly one
-  ``manch:Document`` node (there's no ``graph=`` parameter to merge
+  ``manch:OntologyDocument`` node (there's no ``graph=`` parameter to merge
   several into one shared graph, unlike ``srl.ruleset_to_tree()``'s real
   ``salg:QueryCollection``-style use case), so ``_find_root()`` locates it
   internally wherever it's needed instead of making every caller carry it
@@ -52,7 +52,7 @@ edit a sequence and ``renumber_dense`` closes gaps (run it before hashing). The 
 tie or a missing or non-integer ordinal; ``manchester_validate`` reports the same as shape violations. The errors of the Manchester
 parser are ``FormatError`` (kind ``"manchester"``) too, with ``why``, ``line`` and a position; a class expression nested too deeply to parse or
 render is an ``ExecutionError`` (kind ``"nesting"``), and a node of the tree that no ``manch:`` type describes is a ``FormatError`` (kind
-``"manchester"``, context ``manch: tree``). ``ValueError`` stays for a graph argument that holds no ``manch:Document``, or already holds
+``"manchester"``, context ``manch: tree``). ``ValueError`` stays for a graph argument that holds no ``manch:OntologyDocument``, or already holds
 one.
 
 **Editing is meant to happen on the tree-RDF itself (plain graph surgery -
@@ -172,30 +172,30 @@ _CLAUSE_CLASS = {
     ('Class', 'HasKey:'): MANCH.ClassHasKeyClause,
     ('Class', 'Annotations:'): MANCH.ClassAnnotationsClause,
 
-    ('ObjectProperty', 'Domain:'): MANCH.ObjPropDomainClause,
-    ('ObjectProperty', 'Range:'): MANCH.ObjPropRangeClause,
-    ('ObjectProperty', 'SubPropertyOf:'): MANCH.ObjPropSubPropertyOfClause,
-    ('ObjectProperty', 'SuperPropertyOf:'): MANCH.ObjPropSubPropertyOfClause,
-    ('ObjectProperty', 'EquivalentTo:'): MANCH.ObjPropEquivalentToClause,
-    ('ObjectProperty', 'DisjointWith:'): MANCH.ObjPropDisjointWithClause,
-    ('ObjectProperty', 'InverseOf:'): MANCH.ObjPropInverseOfClause,
-    ('ObjectProperty', 'Characteristics:'): MANCH.ObjPropCharacteristicsClause,
-    ('ObjectProperty', 'SubPropertyChain:'): MANCH.ObjPropSubPropertyChainClause,
-    ('ObjectProperty', 'Annotations:'): MANCH.ObjPropAnnotationsClause,
+    ('ObjectProperty', 'Domain:'): MANCH.ObjectPropertyDomainClause,
+    ('ObjectProperty', 'Range:'): MANCH.ObjectPropertyRangeClause,
+    ('ObjectProperty', 'SubPropertyOf:'): MANCH.ObjectPropertySubPropertyOfClause,
+    ('ObjectProperty', 'SuperPropertyOf:'): MANCH.ObjectPropertySubPropertyOfClause,
+    ('ObjectProperty', 'EquivalentTo:'): MANCH.ObjectPropertyEquivalentToClause,
+    ('ObjectProperty', 'DisjointWith:'): MANCH.ObjectPropertyDisjointWithClause,
+    ('ObjectProperty', 'InverseOf:'): MANCH.ObjectPropertyInverseOfClause,
+    ('ObjectProperty', 'Characteristics:'): MANCH.ObjectPropertyCharacteristicsClause,
+    ('ObjectProperty', 'SubPropertyChain:'): MANCH.ObjectPropertySubPropertyChainClause,
+    ('ObjectProperty', 'Annotations:'): MANCH.ObjectPropertyAnnotationsClause,
 
-    ('DataProperty', 'Domain:'): MANCH.DataPropDomainClause,
-    ('DataProperty', 'Range:'): MANCH.DataPropRangeClause,
-    ('DataProperty', 'SubPropertyOf:'): MANCH.DataPropSubPropertyOfClause,
-    ('DataProperty', 'SuperPropertyOf:'): MANCH.DataPropSubPropertyOfClause,
-    ('DataProperty', 'EquivalentTo:'): MANCH.DataPropEquivalentToClause,
-    ('DataProperty', 'DisjointWith:'): MANCH.DataPropDisjointWithClause,
-    ('DataProperty', 'Characteristics:'): MANCH.DataPropCharacteristicsClause,
-    ('DataProperty', 'Annotations:'): MANCH.DataPropAnnotationsClause,
+    ('DataProperty', 'Domain:'): MANCH.DataPropertyDomainClause,
+    ('DataProperty', 'Range:'): MANCH.DataPropertyRangeClause,
+    ('DataProperty', 'SubPropertyOf:'): MANCH.DataPropertySubPropertyOfClause,
+    ('DataProperty', 'SuperPropertyOf:'): MANCH.DataPropertySubPropertyOfClause,
+    ('DataProperty', 'EquivalentTo:'): MANCH.DataPropertyEquivalentToClause,
+    ('DataProperty', 'DisjointWith:'): MANCH.DataPropertyDisjointWithClause,
+    ('DataProperty', 'Characteristics:'): MANCH.DataPropertyCharacteristicsClause,
+    ('DataProperty', 'Annotations:'): MANCH.DataPropertyAnnotationsClause,
 
-    ('AnnotationProperty', 'Domain:'): MANCH.AnnPropDomainClause,
-    ('AnnotationProperty', 'Range:'): MANCH.AnnPropRangeClause,
-    ('AnnotationProperty', 'SubPropertyOf:'): MANCH.AnnPropSubPropertyOfClause,
-    ('AnnotationProperty', 'Annotations:'): MANCH.AnnPropAnnotationsClause,
+    ('AnnotationProperty', 'Domain:'): MANCH.AnnotationPropertyDomainClause,
+    ('AnnotationProperty', 'Range:'): MANCH.AnnotationPropertyRangeClause,
+    ('AnnotationProperty', 'SubPropertyOf:'): MANCH.AnnotationPropertySubPropertyOfClause,
+    ('AnnotationProperty', 'Annotations:'): MANCH.AnnotationPropertyAnnotationsClause,
 
     ('Individual', 'Types:'): MANCH.IndividualTypesClause,
     ('Individual', 'Facts:'): MANCH.IndividualFactsClause,
@@ -301,6 +301,17 @@ def _read_seq(g, parent, prop):
 # be read back so the text round-trips.
 _NODEID_PREFIX = 'urn:starlayer:manchester:nodeid:'
 
+# The parser's own AST tags (graph/manchester/parser.py) are shorter than the manch: class names for the keywords it
+# abbreviates: the tag 'Exact' is the class manch:Exactly, 'SelfR' is manch:Self, and a data variant's 'D' is 'Data'.
+_CLASS_OF_TAG = {'Exact': 'Exactly', 'SelfR': 'Self', 'DSome': 'DataSome', 'DOnly': 'DataOnly', 'DMin': 'DataMin',
+                 'DMax': 'DataMax', 'DExact': 'DataExactly', 'DAnd': 'DataAnd', 'DOr': 'DataOr', 'DNot': 'DataNot',
+                 'DOneOf': 'DataOneOf', 'DRestriction': 'DatatypeRestriction'}
+
+
+def _class_name(tag):
+    return _CLASS_OF_TAG.get(tag, tag)
+
+
 
 def _enc_term(term):
     return URIRef(_NODEID_PREFIX + term.value) if isinstance(term, BNode) else term
@@ -327,7 +338,7 @@ def _encode_class_expr(g, expr):
     tag = expr[0]
     if tag in ('And', 'Or'):
         node = BNode()
-        g.add((node, RDF.type, MANCH[tag]))
+        g.add((node, RDF.type, MANCH[_class_name(tag)]))
         _write_seq(g, node, MANCH.operands, [_encode_class_expr(g, e) for e in expr[1]])
         return node
     if tag == 'Not':
@@ -343,7 +354,7 @@ def _encode_class_expr(g, expr):
     if tag in ('Some', 'Only', 'DSome', 'DOnly'):
         _, prop_expr, filler = expr
         node = BNode()
-        g.add((node, RDF.type, MANCH[tag]))
+        g.add((node, RDF.type, MANCH[_class_name(tag)]))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
         # D-tags are restrictions on a data property: their filler is a data range, not a class.
         encode_filler = _encode_data_range if tag.startswith('D') else _encode_class_expr
@@ -359,13 +370,13 @@ def _encode_class_expr(g, expr):
     if tag == 'SelfR':
         _, prop_expr = expr
         node = BNode()
-        g.add((node, RDF.type, MANCH.SelfR))
+        g.add((node, RDF.type, MANCH.Self))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
         return node
     if tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
         _, n, prop_expr, filler = expr
         node = BNode()
-        g.add((node, RDF.type, MANCH[tag]))
+        g.add((node, RDF.type, MANCH[_class_name(tag)]))
         g.add((node, MANCH.onProperty, _encode_prop_expr(g, prop_expr)))
         g.add((node, MANCH.cardinality, lexical(n, XSD.nonNegativeInteger)))
         if filler is not None:
@@ -381,30 +392,30 @@ def _encode_data_range(g, dr):
     tag = dr[0]
     if tag in ('DAnd', 'DOr'):
         node = BNode()
-        g.add((node, RDF.type, MANCH[tag]))
+        g.add((node, RDF.type, MANCH[_class_name(tag)]))
         _write_seq(g, node, MANCH.operands, [_encode_data_range(g, e) for e in dr[1]])
         return node
     if tag == 'DNot':
         node = BNode()
-        g.add((node, RDF.type, MANCH.DNot))
+        g.add((node, RDF.type, MANCH.DataNot))
         g.add((node, MANCH.operand, _encode_data_range(g, dr[1])))
         return node
     if tag == 'DOneOf':
         node = BNode()
-        g.add((node, RDF.type, MANCH.DOneOf))
+        g.add((node, RDF.type, MANCH.DataOneOf))
         _write_seq(g, node, MANCH.literals, dr[1])
         return node
     if tag == 'DRestriction':
         _, datatype, facets = dr
         node = BNode()
-        g.add((node, RDF.type, MANCH.DRestriction))
-        g.add((node, MANCH.onDatatype, datatype))
+        g.add((node, RDF.type, MANCH.DatatypeRestriction))
+        g.add((node, MANCH.datatype, datatype))
         facet_nodes = []
         for facet_uri, lit in facets:
             fn = BNode()
             g.add((fn, RDF.type, MANCH.FacetRestriction))
-            g.add((fn, MANCH.facetPredicate, facet_uri))
-            g.add((fn, MANCH.facetValue, lit))
+            g.add((fn, MANCH.facet, facet_uri))
+            g.add((fn, MANCH.restrictionValue, lit))
             facet_nodes.append(fn)
         _write_seq(g, node, MANCH.facets, facet_nodes)
         return node
@@ -422,23 +433,23 @@ _CLAUSE_VALUE_KIND = {
     MANCH.ClassDisjointWithClause: 'class',
     MANCH.ClassDisjointUnionOfClause: 'class_list',
     MANCH.ClassHasKeyClause: 'prop_list',
-    MANCH.ObjPropDomainClause: 'class',
-    MANCH.ObjPropRangeClause: 'class',
-    MANCH.ObjPropSubPropertyOfClause: 'prop',
-    MANCH.ObjPropEquivalentToClause: 'prop',
-    MANCH.ObjPropDisjointWithClause: 'prop',
-    MANCH.ObjPropInverseOfClause: 'prop',
-    MANCH.ObjPropCharacteristicsClause: 'characteristic',
-    MANCH.ObjPropSubPropertyChainClause: 'prop_list',
-    MANCH.DataPropDomainClause: 'class',
-    MANCH.DataPropRangeClause: 'data',
-    MANCH.DataPropSubPropertyOfClause: 'prop',
-    MANCH.DataPropEquivalentToClause: 'prop',
-    MANCH.DataPropDisjointWithClause: 'prop',
-    MANCH.DataPropCharacteristicsClause: 'characteristic',
-    MANCH.AnnPropDomainClause: 'name',
-    MANCH.AnnPropRangeClause: 'name',
-    MANCH.AnnPropSubPropertyOfClause: 'name',
+    MANCH.ObjectPropertyDomainClause: 'class',
+    MANCH.ObjectPropertyRangeClause: 'class',
+    MANCH.ObjectPropertySubPropertyOfClause: 'prop',
+    MANCH.ObjectPropertyEquivalentToClause: 'prop',
+    MANCH.ObjectPropertyDisjointWithClause: 'prop',
+    MANCH.ObjectPropertyInverseOfClause: 'prop',
+    MANCH.ObjectPropertyCharacteristicsClause: 'characteristic',
+    MANCH.ObjectPropertySubPropertyChainClause: 'prop_list',
+    MANCH.DataPropertyDomainClause: 'class',
+    MANCH.DataPropertyRangeClause: 'data',
+    MANCH.DataPropertySubPropertyOfClause: 'prop',
+    MANCH.DataPropertyEquivalentToClause: 'prop',
+    MANCH.DataPropertyDisjointWithClause: 'prop',
+    MANCH.DataPropertyCharacteristicsClause: 'characteristic',
+    MANCH.AnnotationPropertyDomainClause: 'name',
+    MANCH.AnnotationPropertyRangeClause: 'name',
+    MANCH.AnnotationPropertySubPropertyOfClause: 'name',
     MANCH.IndividualTypesClause: 'class',
     MANCH.IndividualSameAsClause: 'name',
     MANCH.IndividualDifferentFromClause: 'name',
@@ -468,12 +479,12 @@ def _encode_value(g, kind, value):
 
 
 def _encode_annotation(g, ann):
-    """One AnnotationAssertion node; an annotation that is itself annotated carries manch:annotations."""
+    """One manch:Annotation node; an annotation that is itself annotated carries manch:annotations."""
     prop, value = ann
     node = BNode()
-    g.add((node, RDF.type, MANCH.AnnotationAssertion))
+    g.add((node, RDF.type, MANCH.Annotation))
     g.add((node, MANCH.annotationProperty, prop))
-    g.add((node, MANCH.annotationValue, _enc_term(value)))
+    g.add((node, MANCH.annotationTarget, _enc_term(value)))
     _encode_annotations(g, node, getattr(ann, 'nested', None))
     return node
 
@@ -500,7 +511,7 @@ def _encode_clause_item(g, kind, anns, value):
 def _encode_fact_item(g, anns, fact):
     negative, prop, value = fact
     node = BNode()
-    g.add((node, RDF.type, MANCH.FactItem))
+    g.add((node, RDF.type, MANCH.Fact))
     g.add((node, MANCH.negative, lexical(negative)))
     g.add((node, MANCH.property, prop))
     g.add((node, MANCH.value, _enc_term(value)))
@@ -510,7 +521,7 @@ def _encode_fact_item(g, anns, fact):
 
 def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
     if clause_kind == 'Annotations:':
-        # Frame-level Annotations: - bare AnnotationAssertion items, no
+        # Frame-level Annotations: - bare manch:Annotation items, no
         # ClauseItem wrapper, no per-item annotations slot.
         return [_encode_annotation(g, a) for a in items]
     if clause_kind == 'Facts:':
@@ -532,13 +543,13 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
 # ---------------------------------------------------------------------------
 
 def _find_root(graph: Graph) -> BNode:
-    """The ``manch:Document`` node in ``graph`` - every graph this module
+    """The ``manch:OntologyDocument`` node in ``graph`` - every graph this module
     produces (``manchester_parse_to_tree()`` always builds a fresh ``Graph()``, never
     merges into a caller-supplied one) holds exactly one, so callers never
     need to track it separately themselves."""
-    root = next(graph.subjects(RDF.type, MANCH.Document), None)
+    root = next(graph.subjects(RDF.type, MANCH.OntologyDocument), None)
     if root is None:
-        raise ValueError('the graph holds no manch:Document node, so there is no Manchester syntax tree in it')
+        raise ValueError('the graph holds no manch:OntologyDocument node, so there is no Manchester syntax tree in it')
     return root
 
 
@@ -559,7 +570,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None, tree_graph: Any
             gets pyoxigraph terms and the ``manch:`` prefix. ``None`` (the default) builds a fresh ``StarLayerGraph``.
 
     Returns:
-        ``tree_graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:Document`` tree.
+        ``tree_graph`` if given, otherwise a fresh ``StarLayerGraph``, holding exactly one ``manch:OntologyDocument`` tree.
     """
     if tree_graph is None:
         from starlayer.graph.core import StarLayerGraph
@@ -567,7 +578,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None, tree_graph: Any
         tree_graph = StarLayerGraph()
     tree = _manchester_parse_to_tree_graph(text, base)
     if _holds_document(tree_graph):
-        raise ValueError("the graph already holds a manch:Document: a graph holds one Manchester syntax tree, parse into a fresh graph")
+        raise ValueError("the graph already holds a manch:OntologyDocument: a graph holds one Manchester syntax tree, parse into a fresh graph")
     tree_graph.bind("manch", str(MANCH))
     tree_graph.bind("tree", "https://github.com/hidden-graph/starlayer/ns/tree#")
     tree_graph.extend(list(tree))  # triples only: no prefixes are copied
@@ -575,15 +586,15 @@ def manchester_parse_to_tree(text: str, base: str | None = None, tree_graph: Any
 
 
 def _holds_document(graph: Any) -> bool:
-    """True if ``graph`` (a ``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``) has a ``manch:Document``."""
+    """True if ``graph`` (a ``StarLayerGraph``, ``StarLayerDataset`` or ``pyoxigraph.Store``) has a ``manch:OntologyDocument``."""
     from starlayer.graph.core import as_store
     from starlayer.graph.inputs import is_oxigraph_dataset, is_oxigraph_input
 
     if is_oxigraph_dataset(graph):
         return any(True for _ in as_store(graph).quads_for_pattern(
-            None, RDF.type, MANCH.Document, None))
+            None, RDF.type, MANCH.OntologyDocument, None))
     if is_oxigraph_input(graph):
-        return next(iter(graph.subjects(RDF.type, MANCH.Document)), None) is not None
+        return next(iter(graph.subjects(RDF.type, MANCH.OntologyDocument)), None) is not None
     raise TypeError(f"expected a StarLayerGraph, StarLayerDataset or pyoxigraph Store, not {type(graph).__name__}")
 
 
@@ -611,9 +622,9 @@ def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
         def record_prefix(self, prefix, iri):
             g = self.syntax_tree_graph
             node = BNode()
-            g.add((node, RDF.type, MANCH.PrefixDecl))
-            g.add((node, MANCH.prefixLabel, Literal(prefix, datatype=MANCH.PlainString)))
-            g.add((node, MANCH.prefixIri, Literal(iri)))
+            g.add((node, RDF.type, MANCH.PrefixDeclaration))
+            g.add((node, MANCH.prefixName, Literal(prefix, datatype=MANCH.PlainString)))
+            g.add((node, MANCH.namespace, Literal(iri)))
             self._prefix_nodes.append(node)
 
         def record_ontology_header(self, iri, imports):
@@ -621,14 +632,14 @@ def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
             node = BNode()
             g.add((node, RDF.type, MANCH.OntologyHeader))
             if iri is not None:
-                g.add((node, MANCH.ontologyIri, iri))
+                g.add((node, MANCH.ontologyIRI, iri))
             _write_seq(g, node, MANCH.imports, list(imports))
             self._header_node = node
 
         def record_ontology_extras(self, version_iri, annotations):
             g = self.syntax_tree_graph
             if version_iri is not None:
-                g.add((self._header_node, MANCH.versionIri, version_iri))
+                g.add((self._header_node, MANCH.versionIRI, version_iri))
             _encode_annotations(g, self._header_node, annotations)
 
         def record_frame(self, kind, subject):
@@ -678,7 +689,7 @@ def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
 
     g = cur.syntax_tree_graph
     root = BNode()
-    g.add((root, RDF.type, MANCH.Document))
+    g.add((root, RDF.type, MANCH.OntologyDocument))
     _write_seq(g, root, MANCH.prefixes, cur._prefix_nodes)
     if cur._header_node is not None:
         g.add((root, MANCH.header, cur._header_node))
@@ -731,7 +742,7 @@ def _decode_class_expr(g, node):
         return node
     types = _node_types(g, node)
     for tag in ('And', 'Or'):
-        if MANCH[tag] in types:
+        if MANCH[_class_name(tag)] in types:
             items = [_decode_class_expr(g, i) for i in _read_seq(g, node, MANCH.operands)]
             return (tag, items)
     if MANCH.Not in types:
@@ -739,7 +750,7 @@ def _decode_class_expr(g, node):
     if MANCH.OneOf in types:
         return ('OneOf', [_dec_term(i) for i in _read_seq(g, node, MANCH.individuals)])
     for tag in ('Some', 'Only', 'DSome', 'DOnly'):
-        if MANCH[tag] in types:
+        if MANCH[_class_name(tag)] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
             decode_filler = _decode_data_range if tag.startswith('D') else _decode_class_expr
             return (tag, prop, decode_filler(g, g.value(node, MANCH.filler)))
@@ -747,10 +758,10 @@ def _decode_class_expr(g, node):
         prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
         value = _dec_term(g.value(node, MANCH.filler))
         return ('Value', prop, value)
-    if MANCH.SelfR in types:
+    if MANCH.Self in types:
         return ('SelfR', _decode_prop_expr(g, g.value(node, MANCH.onProperty)))
     for tag in ('Min', 'Max', 'Exact', 'DMin', 'DMax', 'DExact'):
-        if MANCH[tag] in types:
+        if MANCH[_class_name(tag)] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
             n = int(g.value(node, MANCH.cardinality).value)
             filler_node = g.value(node, MANCH.filler)
@@ -764,18 +775,18 @@ def _decode_data_range(g, node):
         return node
     types = _node_types(g, node)
     for tag in ('DAnd', 'DOr'):
-        if MANCH[tag] in types:
+        if MANCH[_class_name(tag)] in types:
             items = [_decode_data_range(g, i) for i in _read_seq(g, node, MANCH.operands)]
             return (tag, items)
-    if MANCH.DNot in types:
+    if MANCH.DataNot in types:
         return ('DNot', _decode_data_range(g, g.value(node, MANCH.operand)))
-    if MANCH.DOneOf in types:
+    if MANCH.DataOneOf in types:
         return ('DOneOf', _read_seq(g, node, MANCH.literals))
-    if MANCH.DRestriction in types:
-        datatype = g.value(node, MANCH.onDatatype)
+    if MANCH.DatatypeRestriction in types:
+        datatype = g.value(node, MANCH.datatype)
         facets = []
         for fn in _read_seq(g, node, MANCH.facets):
-            facets.append((g.value(fn, MANCH.facetPredicate), g.value(fn, MANCH.facetValue)))
+            facets.append((g.value(fn, MANCH.facet), g.value(fn, MANCH.restrictionValue)))
         return ('DRestriction', datatype, facets)
     raise FormatError(f'unrecognized data-range node {node!r} (types: {types})', kind='manchester', context='manch: tree')
 
@@ -804,7 +815,7 @@ class _Ann(tuple):
 def _decode_annotation(g, node):
     return _Ann(
         g.value(node, MANCH.annotationProperty),
-        _dec_term(g.value(node, MANCH.annotationValue)),
+        _dec_term(g.value(node, MANCH.annotationTarget)),
         _decode_annotations(g, node),
     )
 
@@ -877,15 +888,15 @@ def _decode_misc(g, node):
 
 def _tree_to_document(graph: Graph, root) -> Document:
     """Decode a ``manch:``-shaped RDF graph back into a real ``Document``
-    object. ``root`` must be the ``manch:Document`` node, as returned by
+    object. ``root`` must be the ``manch:OntologyDocument`` node, as returned by
     ``manchester_parse_to_tree``."""
-    prefixes = [PrefixDecl(graph.value(n, MANCH.prefixLabel).value, graph.value(n, MANCH.prefixIri).value)
+    prefixes = [PrefixDecl(graph.value(n, MANCH.prefixName).value, graph.value(n, MANCH.namespace).value)
                 for n in _read_seq(graph, root, MANCH.prefixes)]
     header_node = graph.value(root, MANCH.header)
     header = None
     if header_node is not None:
-        iri = graph.value(header_node, MANCH.ontologyIri)
-        version = graph.value(header_node, MANCH.versionIri)
+        iri = graph.value(header_node, MANCH.ontologyIRI)
+        version = graph.value(header_node, MANCH.versionIRI)
         imports = _read_seq(graph, header_node, MANCH.imports)
         annotations = _decode_annotations(graph, header_node)
         header = OntologyHeader(iri, version, imports, annotations)
@@ -1018,8 +1029,8 @@ def _render_one(clause_class, value) -> str:
     bare clause_kind string) - several clause keywords (Domain:/Range:/
     EquivalentTo:/DisjointWith:/Annotations:/SubPropertyOf:) are shared
     across multiple frame kinds mapping to genuinely different classes
-    (e.g. ObjPropRangeClause's items are a ClassExpression, but
-    DataPropRangeClause's are a DataRange) - resolving from the keyword
+    (e.g. ObjectPropertyRangeClause's items are a ClassExpression, but
+    DataPropertyRangeClause's are a DataRange) - resolving from the keyword
     string alone, ignoring which frame it's in, would silently render the
     wrong grammar for whichever one isn't first in _CLAUSE_CLASS."""
     value_kind = _CLAUSE_VALUE_KIND.get(clause_class) or _MISC_VALUE_KIND.get(clause_class)
@@ -1189,7 +1200,7 @@ def _preflight(data_graph: Graph) -> list[tuple]:
     properties and looks fine to every shape, while the decoder, which reads the asserted types, cannot
     handle it. This check looks before inference does:
 
-    - exactly one ``manch:Document``;
+    - exactly one ``manch:OntologyDocument``;
     - every node that has a ``manch:`` property is asserted with a concrete ``manch:`` type;
     - every asserted ``manch:`` type is a class of the vocabulary;
     - every node with a ``tree:value`` is asserted as a ``tree:Item`` (the same domain inference would hide it).
@@ -1202,10 +1213,10 @@ def _preflight(data_graph: Graph) -> list[tuple]:
     known = _known_classes()
     problems: list[tuple] = []
 
-    documents = list(data_graph.subjects(RDF.type, MANCH.Document))
+    documents = list(data_graph.subjects(RDF.type, MANCH.OntologyDocument))
     if len(documents) != 1:
         problems.append((documents[0] if documents else None,
-                         f"expected exactly one manch:Document, found {len(documents)}"))
+                         f"expected exactly one manch:OntologyDocument, found {len(documents)}"))
 
     # A tree:Item that lost its rdf:type would get it back from the domain of tree:value, and the decoder (which reads asserted types)
     # would then take the wrapper for the member itself.

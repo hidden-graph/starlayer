@@ -23,7 +23,7 @@ def _conforms_or_decodes(tree):
 def test_unknown_facet_iri_is_rejected():
     tree = manchester_parse_to_tree(P + 'DataProperty: :d Range: integer[>= 5]\n')
     for s, p, o in list(tree):
-        if str(p).endswith('#facetPredicate>'):
+        if str(p).endswith('#facet>'):
             tree.remove((s, p, o))
             tree.add((s, p, URIRef('http://z/notAFacet')))
     assert not _conforms_or_decodes(tree)

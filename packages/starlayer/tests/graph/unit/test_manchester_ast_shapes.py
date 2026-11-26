@@ -50,11 +50,11 @@ def _encode_data_prop_range():
 
 
 def test_wrong_item_type_under_data_prop_range_clause_fails():
-    """A DataPropRangeClause's item must hold a manch:DataRange, not a
+    """A DataPropertyRangeClause's item must hold a manch:DataRange, not a
     manch:ClassExpression - the exact bug the missing sh:targetClass
     declarations let through undetected before being fixed."""
     graph = _encode_data_prop_range()
-    clause = next(graph.subjects(RDF.type, MANCH.DataPropRangeClause))
+    clause = next(graph.subjects(RDF.type, MANCH.DataPropertyRangeClause))
     (item,) = ordinals.ordered_items(graph, clause, MANCH.items)
     graph.remove((item, MANCH.value, None))
 
@@ -96,7 +96,7 @@ def test_misc_axiom_item_of_wrong_family_fails():
 def test_a_clause_item_with_no_ordinal_fails():
     """An ordered child without tree:ord has no position: the shared tree shapes reject it (a list cell without rdf:first, before the ordinals)."""
     graph = _encode_data_prop_range()
-    clause = next(graph.subjects(RDF.type, MANCH.DataPropDomainClause))
+    clause = next(graph.subjects(RDF.type, MANCH.DataPropertyDomainClause))
     (item,) = ordinals.ordered_items(graph, clause, MANCH.items)
     graph.remove((item, ordinals.ORD, None))
 

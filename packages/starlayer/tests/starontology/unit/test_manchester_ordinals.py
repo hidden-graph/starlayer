@@ -77,7 +77,7 @@ def _first_child(g, parent_type, prop):
 
 def test_a_tie_is_a_format_error_and_a_shape_violation():
     g = _graph(GUIDE)
-    doc = _types(g, MANCH.Document)[0]
+    doc = _types(g, MANCH.OntologyDocument)[0]
     frames = list(g.objects(doc, MANCH.frames))
     number = next(g.objects(frames[0], ordinals.ORD))
     g.remove((frames[1], ordinals.ORD, None))
@@ -90,7 +90,7 @@ def test_a_tie_is_a_format_error_and_a_shape_violation():
 
 def test_a_missing_ordinal_is_a_format_error_and_a_shape_violation():
     g = _graph(GUIDE)
-    frame = next(g.objects(_types(g, MANCH.Document)[0], MANCH.frames))
+    frame = next(g.objects(_types(g, MANCH.OntologyDocument)[0], MANCH.frames))
     g.remove((frame, ordinals.ORD, None))
     with pytest.raises(FormatError) as raised:
         manchester_tree_to_text(g)
@@ -100,7 +100,7 @@ def test_a_missing_ordinal_is_a_format_error_and_a_shape_violation():
 
 def test_a_non_integer_ordinal_is_a_format_error_and_a_shape_violation():
     g = _graph(GUIDE)
-    frame = next(g.objects(_types(g, MANCH.Document)[0], MANCH.frames))
+    frame = next(g.objects(_types(g, MANCH.OntologyDocument)[0], MANCH.frames))
     g.remove((frame, ordinals.ORD, None))
     g.add((frame, ordinals.ORD, ox.Literal("zero")))
     with pytest.raises(FormatError) as raised:
@@ -214,7 +214,7 @@ def test_sixty_identical_axioms_hash():
 
 def test_removing_a_frame_leaves_a_gap_that_renumber_dense_closes():
     g = manchester_parse_to_tree(_frames(5))
-    doc = _types(g, MANCH.Document)[0]
+    doc = _types(g, MANCH.OntologyDocument)[0]
 
     def numbers():
         return sorted(int(next(g.objects(f, ordinals.ORD)).value) for f in g.objects(doc, MANCH.frames))

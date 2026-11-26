@@ -61,7 +61,7 @@ def test_a_second_document_is_a_value_error():
 
 
 def test_graph_without_a_document_is_a_value_error():
-    with pytest.raises(ValueError, match='manch:Document'):
+    with pytest.raises(ValueError, match='manch:OntologyDocument'):
         M.manchester_tree_to_text(StarLayerGraph())
 
 

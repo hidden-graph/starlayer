@@ -55,7 +55,7 @@ DOCUMENTS = [
         HasKey: hasOwner, hasName
     """,
     # Every class-expression construct: And/Or/Not/OneOf/Some/Only/Value/
-    # SelfR/Min/Max/Exact, nested.
+    # Self/Min/Max/Exactly, nested.
     HEADER + """
     Class: Weird
         EquivalentTo: (Cat and Pet) or (not Dog), hasOwner some Person,

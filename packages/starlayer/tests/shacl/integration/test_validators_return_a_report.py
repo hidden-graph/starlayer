@@ -43,8 +43,8 @@ def _manchester(broken=False):
 
     tree = manchester_parse_to_tree(MANCH)
     if broken:
-        (doc,) = list(tree.subjects(ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), M.Document))
-        tree.remove((doc, ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), M.Document))
+        (doc,) = list(tree.subjects(ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), M.OntologyDocument))
+        tree.remove((doc, ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), M.OntologyDocument))
     return tree
 
 

@@ -94,14 +94,14 @@ def test_dropping_the_type_of_any_node_class_is_caught():
 
 def test_a_tree_with_no_document_is_rejected():
     g = _tree()
-    (doc,) = list(g.subjects(RDF.type, MANCH.Document))
-    g.remove((doc, RDF.type, MANCH.Document))
+    (doc,) = list(g.subjects(RDF.type, MANCH.OntologyDocument))
+    g.remove((doc, RDF.type, MANCH.OntologyDocument))
     assert not manchester_validate(g).conforms
 
 
 def test_two_documents_are_rejected():
     g = _tree()
-    g.add((BNode(), RDF.type, MANCH.Document))
+    g.add((BNode(), RDF.type, MANCH.OntologyDocument))
     assert not manchester_validate(g).conforms
 
 
@@ -214,7 +214,7 @@ def test_a_child_of_the_wrong_class_is_rejected(predicate):
     _parent, kids = _children(g, predicate)
     (old,) = [o for o in g.objects(kids[0], RDF.type) if o in MANCH]
     g.remove((kids[0], RDF.type, old))
-    g.add((kids[0], RDF.type, MANCH.Document if old != MANCH.Document else MANCH.Frame))
+    g.add((kids[0], RDF.type, MANCH.OntologyDocument if old != MANCH.OntologyDocument else MANCH.Frame))
     assert not manchester_validate(g).conforms
 
 
