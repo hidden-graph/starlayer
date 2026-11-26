@@ -1,13 +1,15 @@
 """manchester_validate must reject a tree manchester_tree_to_text cannot decode."""
 
 import pytest
-from starlayer.graph.manchester._ox_terms import RDF, URIRef
+from starlayer.graph.manchester._ox_terms import URIRef
 from starlayer.starontology.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_text,
     manchester_validate,
 )
 
+TREE_ORD = URIRef('https://github.com/hidden-graph/starlayer/ns/tree#ord')
+TREE_VALUE = URIRef('https://github.com/hidden-graph/starlayer/ns/tree#value')
 P = 'Prefix: : <http://e/>\n'
 
 
@@ -50,11 +52,12 @@ def test_unknown_data_property_characteristic_is_rejected():
     ('Class: :A HasKey: :p, :q\n', '<http://e/p>'),
     ('ObjectProperty: :r SubPropertyChain: :p o :q\n', '<http://e/p>'),
 ])
-def test_single_axiom_list_cell_without_rdf_first_is_rejected(text, member):
+def test_single_axiom_member_without_an_ordinal_is_rejected(text, member):
+    """A member of ``manch:values`` is a tree:Item and needs its tree:ord (a list cell without rdf:first, before the ordinals)."""
     tree = manchester_parse_to_tree(P + text)
-    cells = [(s, p, o) for s, p, o in tree if p == RDF.first and str(o) == member]
-    assert len(cells) == 1, cells
-    tree.remove(cells[0])
+    items = [s for s, p, o in tree if p == TREE_VALUE and str(o) == member]
+    assert len(items) == 1, items
+    tree.remove((items[0], TREE_ORD, None))
     assert not _conforms_or_decodes(tree)
 
 

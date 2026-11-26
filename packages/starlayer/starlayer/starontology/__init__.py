@@ -94,7 +94,7 @@ suffix of its ``get_resource_iri()`` IRI):
 - ``tree:`` (``tree-ontology.ttl`` / ``tree_shapes.ttl``) - the structure vocabulary the syntax trees share for ordered
   children (``tree:ord`` on each child, ``tree:Item`` for a child that is a literal, a named node or a nested sequence) and the
   shapes that check it once (one non-negative integer ordinal, no two children of one parent and property with the same ordinal,
-  a blank node child with one parent only). ``srl:`` imports it via ``owl:imports``; ``sqe:`` and ``manch:`` still use ``rdf:List``.
+  a blank node child with one parent only). ``srl:``, ``sqe:`` and ``manch:`` all use it (their shapes import it via ``owl:imports``; the validators merge the tree ontology and shapes into the vocabulary's own).
   Type ``"syntax-tree-graph"``.
 
 Every shapes file (all seven) is type ``"shacl"``, regardless of which of

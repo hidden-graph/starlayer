@@ -42,6 +42,16 @@ Four entry points:
   in ``manchester_shapes.ttl``. Only needs the tree being checked - which
   shapes to check it against is this module's own, fixed concern.
 
+**Ordered children are ordinals, not an ``rdf:List``.** Prefixes, frames, clauses, a clause's entries, class and data-range operands,
+enumerations, facets, imports, annotations and misc axioms are written with the shared ``tree:`` vocabulary (``graph/ordinals.py``):
+a blank node child (a frame, clause, entry, expression) carries ``tree:ord`` itself and so has one parent; an IRI or literal member
+sits in a ``tree:Item`` (``tree:value``) and may be shared. An empty sequence is an absent property. The three single-axiom clauses
+(``DisjointUnionOf:``, ``HasKey:``, ``SubPropertyChain:``) have one ``manch:ClauseItem`` that holds its members as ordered
+``manch:values`` (where ``manch:value`` was a nested list). ``graph.ordinals.append`` / ``insert_at`` / ``remove_at`` / ``replace_at``
+edit a sequence and ``renumber_dense`` closes gaps (run it before hashing). The decoders raise ``FormatError`` (kind ``"rdf"``) for a
+tie or a missing or non-integer ordinal; ``manchester_validate`` reports the same as shape violations. The errors of the Manchester
+parser (``ManchesterSyntaxError``) are unchanged.
+
 **Editing is meant to happen on the tree-RDF itself (plain graph surgery -
 ``graph.add()``/``.remove()``), not on a Python object.** ``_tree_to_document()``/
 ``_document_to_text()`` (private - were public until 2026-10-03) decode/render
@@ -254,23 +264,23 @@ def _inverse_characteristic_maps():
 
 
 # ---------------------------------------------------------------------------
-# rdf:List helpers
+# Ordered children (tree: ordinals, graph/ordinals.py)
 # ---------------------------------------------------------------------------
 
-def _build_rdf_list(g, items):
-    return g.add_list(items)
+def _write_seq(g, parent, prop, members):
+    """The ordered children of ``parent`` for ``prop``: a blank node member carries ``tree:ord`` itself, an IRI or literal sits in a
+    ``tree:Item``. Nothing is written for no members (an absent property is the empty sequence)."""
+    from starlayer.graph import ordinals
+
+    ordinals.write_ordered(g, parent, prop, members)
 
 
-def _read_rdf_list(g, node):
-    if node is None or node == RDF.nil:
-        return []
-    items = []
-    seen = set()
-    while node is not None and node != RDF.nil and node not in seen:
-        seen.add(node)
-        items.append(g.value(node, RDF.first))
-        node = g.value(node, RDF.rest)
-    return items
+def _read_seq(g, parent, prop):
+    """The members ``parent`` holds for ``prop``, in ordinal order; ``FormatError`` (kind ``"rdf"``) on a tie or a missing or
+    non-integer ordinal."""
+    from starlayer.graph import ordinals
+
+    return ordinals.ordered_items(g, parent, prop)
 
 
 # ---------------------------------------------------------------------------
@@ -313,8 +323,7 @@ def _encode_class_expr(g, expr):
     if tag in ('And', 'Or'):
         node = BNode()
         g.add((node, RDF.type, MANCH[tag]))
-        items = [_encode_class_expr(g, e) for e in expr[1]]
-        g.add((node, MANCH.operands, _build_rdf_list(g, items)))
+        _write_seq(g, node, MANCH.operands, [_encode_class_expr(g, e) for e in expr[1]])
         return node
     if tag == 'Not':
         node = BNode()
@@ -324,7 +333,7 @@ def _encode_class_expr(g, expr):
     if tag == 'OneOf':
         node = BNode()
         g.add((node, RDF.type, MANCH.OneOf))
-        g.add((node, MANCH.individuals, _build_rdf_list(g, [_enc_term(i) for i in expr[1]])))
+        _write_seq(g, node, MANCH.individuals, [_enc_term(i) for i in expr[1]])
         return node
     if tag in ('Some', 'Only', 'DSome', 'DOnly'):
         _, prop_expr, filler = expr
@@ -368,8 +377,7 @@ def _encode_data_range(g, dr):
     if tag in ('DAnd', 'DOr'):
         node = BNode()
         g.add((node, RDF.type, MANCH[tag]))
-        items = [_encode_data_range(g, e) for e in dr[1]]
-        g.add((node, MANCH.operands, _build_rdf_list(g, items)))
+        _write_seq(g, node, MANCH.operands, [_encode_data_range(g, e) for e in dr[1]])
         return node
     if tag == 'DNot':
         node = BNode()
@@ -379,7 +387,7 @@ def _encode_data_range(g, dr):
     if tag == 'DOneOf':
         node = BNode()
         g.add((node, RDF.type, MANCH.DOneOf))
-        g.add((node, MANCH.literals, _build_rdf_list(g, dr[1])))
+        _write_seq(g, node, MANCH.literals, dr[1])
         return node
     if tag == 'DRestriction':
         _, datatype, facets = dr
@@ -393,7 +401,7 @@ def _encode_data_range(g, dr):
             g.add((fn, MANCH.facetPredicate, facet_uri))
             g.add((fn, MANCH.facetValue, lit))
             facet_nodes.append(fn)
-        g.add((node, MANCH.facets, _build_rdf_list(g, facet_nodes)))
+        _write_seq(g, node, MANCH.facets, facet_nodes)
         return node
     raise AssertionError(f'unhandled data-range tag {dr[0]!r}')
 
@@ -449,9 +457,6 @@ def _encode_value(g, kind, value):
         return _encode_prop_expr(g, value)
     if kind == 'data':
         return _encode_data_range(g, value)
-    if kind == 'encoded':
-        # Already a node in this graph (the rdf:List of a single-axiom clause): never a nodeID.
-        return value
     if kind in ('name', 'characteristic'):
         return _enc_term(value)
     raise AssertionError(f'unhandled value kind {kind!r}')
@@ -464,25 +469,26 @@ def _encode_annotation(g, ann):
     g.add((node, RDF.type, MANCH.AnnotationAssertion))
     g.add((node, MANCH.annotationProperty, prop))
     g.add((node, MANCH.annotationValue, _enc_term(value)))
-    nested = _encode_annotations(g, getattr(ann, 'nested', None))
-    if nested is not None:
-        g.add((node, MANCH.annotations, nested))
+    _encode_annotations(g, node, getattr(ann, 'nested', None))
     return node
 
 
-def _encode_annotations(g, anns):
-    if not anns:
-        return None
-    return _build_rdf_list(g, [_encode_annotation(g, a) for a in anns])
+def _encode_annotations(g, owner, anns):
+    """The ordered ``manch:annotations`` of ``owner``; nothing is written for none."""
+    if anns:
+        _write_seq(g, owner, MANCH.annotations, [_encode_annotation(g, a) for a in anns])
 
 
 def _encode_clause_item(g, kind, anns, value):
     node = BNode()
     g.add((node, RDF.type, MANCH.ClauseItem))
-    g.add((node, MANCH.value, _encode_value(g, kind, value)))
-    ann_list = _encode_annotations(g, anns)
-    if ann_list is not None:
-        g.add((node, MANCH.annotations, ann_list))
+    if kind in ('class_list', 'prop_list'):
+        # A single-axiom clause (DisjointUnionOf:, HasKey:, SubPropertyChain:): the one entry holds its members as ordered manch:values.
+        inner_kind = 'class' if kind == 'class_list' else 'prop'
+        _write_seq(g, node, MANCH.values, [_encode_value(g, inner_kind, v) for v in value])
+    else:
+        g.add((node, MANCH.value, _encode_value(g, kind, value)))
+    _encode_annotations(g, node, anns)
     return node
 
 
@@ -493,9 +499,7 @@ def _encode_fact_item(g, anns, fact):
     g.add((node, MANCH.negative, lexical(negative)))
     g.add((node, MANCH.property, prop))
     g.add((node, MANCH.value, _enc_term(value)))
-    ann_list = _encode_annotations(g, anns)
-    if ann_list is not None:
-        g.add((node, MANCH.annotations, ann_list))
+    _encode_annotations(g, node, anns)
     return node
 
 
@@ -510,9 +514,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
     if value_kind in ('class_list', 'prop_list'):
         # Single-axiom clause: items is [(anns, [values...])].
         (anns, values), = items
-        inner_kind = 'class' if value_kind == 'class_list' else 'prop'
-        encoded = _build_rdf_list(g, [_encode_value(g, inner_kind, v) for v in values])
-        return [_encode_clause_item(g, 'encoded', anns, encoded)]
+        return [_encode_clause_item(g, value_kind, anns, values)]
     return [_encode_clause_item(g, value_kind, anns, value) for anns, value in items]
 
 
@@ -562,6 +564,7 @@ def manchester_parse_to_tree(text: str, base: str | None = None, tree_graph: Any
     if _holds_document(tree_graph):
         raise ValueError("the graph already holds a manch:Document: a graph holds one Manchester syntax tree, parse into a fresh graph")
     tree_graph.bind("manch", str(MANCH))
+    tree_graph.bind("tree", "https://github.com/hidden-graph/starlayer/ns/tree#")
     tree_graph.extend(list(tree))  # triples only: no prefixes are copied
     return tree_graph
 
@@ -614,16 +617,14 @@ def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
             g.add((node, RDF.type, MANCH.OntologyHeader))
             if iri is not None:
                 g.add((node, MANCH.ontologyIri, iri))
-            g.add((node, MANCH.imports, _build_rdf_list(g, list(imports))))
+            _write_seq(g, node, MANCH.imports, list(imports))
             self._header_node = node
 
         def record_ontology_extras(self, version_iri, annotations):
             g = self.syntax_tree_graph
             if version_iri is not None:
                 g.add((self._header_node, MANCH.versionIri, version_iri))
-            ann_list = _encode_annotations(g, annotations)
-            if ann_list is not None:
-                g.add((self._header_node, MANCH.annotations, ann_list))
+            _encode_annotations(g, self._header_node, annotations)
 
         def record_frame(self, kind, subject):
             g = self.syntax_tree_graph
@@ -642,15 +643,14 @@ def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
             node = BNode()
             g.add((node, RDF.type, clause_class))
             item_nodes = _encode_clause_items(g, clause_class, frame_kind, clause_kind, items)
-            g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
+            _write_seq(g, node, MANCH.items, item_nodes)
             if clause_kind in _REVERSED_CLAUSE_KEYWORDS:
                 g.add((node, MANCH.reversed, lexical(True)))
             self._current_frame_clause_nodes.append(node)
 
         def record_frame_end(self):
             g = self.syntax_tree_graph
-            g.add((self._current_frame_node, MANCH.clauses,
-                    _build_rdf_list(g, self._current_frame_clause_nodes)))
+            _write_seq(g, self._current_frame_node, MANCH.clauses, self._current_frame_clause_nodes)
             self._current_frame_node = None
             self._current_frame_clause_nodes = None
 
@@ -661,14 +661,12 @@ def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
             g.add((node, RDF.type, misc_class))
             value_kind = _MISC_VALUE_KIND[misc_class]
             item_nodes = [_encode_value(g, value_kind, v) for v in items]
-            g.add((node, MANCH.items, _build_rdf_list(g, item_nodes)))
+            _write_seq(g, node, MANCH.items, item_nodes)
             self._misc_nodes.append(node)
 
         def record_misc_annotations(self, annotations):
             g = self.syntax_tree_graph
-            ann_list = _encode_annotations(g, annotations)
-            if ann_list is not None:
-                g.add((self._misc_nodes[-1], MANCH.annotations, ann_list))
+            _encode_annotations(g, self._misc_nodes[-1], annotations)
 
     cur = _SyntaxTreeCursor(_tokenize(text), base)
     run_guarded(_run_top_level, cur)
@@ -676,11 +674,11 @@ def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
     g = cur.syntax_tree_graph
     root = BNode()
     g.add((root, RDF.type, MANCH.Document))
-    g.add((root, MANCH.prefixes, _build_rdf_list(g, cur._prefix_nodes)))
+    _write_seq(g, root, MANCH.prefixes, cur._prefix_nodes)
     if cur._header_node is not None:
         g.add((root, MANCH.header, cur._header_node))
-    g.add((root, MANCH.frames, _build_rdf_list(g, cur._frame_nodes)))
-    g.add((root, MANCH.misc, _build_rdf_list(g, cur._misc_nodes)))
+    _write_seq(g, root, MANCH.frames, cur._frame_nodes)
+    _write_seq(g, root, MANCH.misc, cur._misc_nodes)
     return g
 
 
@@ -729,12 +727,12 @@ def _decode_class_expr(g, node):
     types = _node_types(g, node)
     for tag in ('And', 'Or'):
         if MANCH[tag] in types:
-            items = [_decode_class_expr(g, i) for i in _read_rdf_list(g, g.value(node, MANCH.operands))]
+            items = [_decode_class_expr(g, i) for i in _read_seq(g, node, MANCH.operands)]
             return (tag, items)
     if MANCH.Not in types:
         return ('Not', _decode_class_expr(g, g.value(node, MANCH.operand)))
     if MANCH.OneOf in types:
-        return ('OneOf', [_dec_term(i) for i in _read_rdf_list(g, g.value(node, MANCH.individuals))])
+        return ('OneOf', [_dec_term(i) for i in _read_seq(g, node, MANCH.individuals)])
     for tag in ('Some', 'Only', 'DSome', 'DOnly'):
         if MANCH[tag] in types:
             prop = _decode_prop_expr(g, g.value(node, MANCH.onProperty))
@@ -762,16 +760,16 @@ def _decode_data_range(g, node):
     types = _node_types(g, node)
     for tag in ('DAnd', 'DOr'):
         if MANCH[tag] in types:
-            items = [_decode_data_range(g, i) for i in _read_rdf_list(g, g.value(node, MANCH.operands))]
+            items = [_decode_data_range(g, i) for i in _read_seq(g, node, MANCH.operands)]
             return (tag, items)
     if MANCH.DNot in types:
         return ('DNot', _decode_data_range(g, g.value(node, MANCH.operand)))
     if MANCH.DOneOf in types:
-        return ('DOneOf', _read_rdf_list(g, g.value(node, MANCH.literals)))
+        return ('DOneOf', _read_seq(g, node, MANCH.literals))
     if MANCH.DRestriction in types:
         datatype = g.value(node, MANCH.onDatatype)
         facets = []
-        for fn in _read_rdf_list(g, g.value(node, MANCH.facets)):
+        for fn in _read_seq(g, node, MANCH.facets):
             facets.append((g.value(fn, MANCH.facetPredicate), g.value(fn, MANCH.facetValue)))
         return ('DRestriction', datatype, facets)
     raise ValueError(f'unrecognized data-range node {node!r} (types: {types})')
@@ -802,14 +800,14 @@ def _decode_annotation(g, node):
     return _Ann(
         g.value(node, MANCH.annotationProperty),
         _dec_term(g.value(node, MANCH.annotationValue)),
-        _decode_annotations(g, g.value(node, MANCH.annotations)),
+        _decode_annotations(g, node),
     )
 
 
-def _decode_annotations(g, ann_list_node):
-    if ann_list_node is None:
-        return None
-    return [_decode_annotation(g, node) for node in _read_rdf_list(g, ann_list_node)]
+def _decode_annotations(g, owner):
+    """The annotations ``owner`` holds, in order, or None when it has none."""
+    nodes = _read_seq(g, owner, MANCH.annotations)
+    return [_decode_annotation(g, node) for node in nodes] if nodes else None
 
 
 def _is_true(term):
@@ -823,7 +821,7 @@ def _decode_clause(g, node):
     _frame_kind, clause_kind = _CLAUSE_CLASS_TO_KIND[clause_class]
     if _is_true(g.value(node, MANCH.reversed)):
         clause_kind = {'SubClassOf:': 'SuperClassOf:', 'SubPropertyOf:': 'SuperPropertyOf:'}[clause_kind]
-    item_nodes = _read_rdf_list(g, g.value(node, MANCH.items))
+    item_nodes = _read_seq(g, node, MANCH.items)
 
     if clause_kind == 'Annotations:':
         return Clause(clause_kind, [_decode_annotation(g, n) for n in item_nodes])
@@ -834,7 +832,7 @@ def _decode_clause(g, node):
             negative = _is_true(g.value(n, MANCH.negative))
             prop = g.value(n, MANCH.property)
             value = _dec_term(g.value(n, MANCH.value))
-            anns = _decode_annotations(g, g.value(n, MANCH.annotations))
+            anns = _decode_annotations(g, n)
             items.append(FactItem(negative, prop, value, anns))
         return Clause(clause_kind, items)
 
@@ -842,15 +840,14 @@ def _decode_clause(g, node):
     if value_kind in ('class_list', 'prop_list'):
         (item_node,) = item_nodes
         inner_kind = 'class' if value_kind == 'class_list' else 'prop'
-        encoded_list = g.value(item_node, MANCH.value)
-        values = [_decode_value(g, inner_kind, v) for v in _read_rdf_list(g, encoded_list)]
-        anns = _decode_annotations(g, g.value(item_node, MANCH.annotations))
+        values = [_decode_value(g, inner_kind, v) for v in _read_seq(g, item_node, MANCH.values)]
+        anns = _decode_annotations(g, item_node)
         return Clause(clause_kind, [ClauseItem(values, anns)])
 
     items = []
     for n in item_nodes:
         value = _decode_value(g, value_kind, g.value(n, MANCH.value))
-        anns = _decode_annotations(g, g.value(n, MANCH.annotations))
+        anns = _decode_annotations(g, n)
         items.append(ClauseItem(value, anns))
     return Clause(clause_kind, items)
 
@@ -860,7 +857,7 @@ def _decode_frame(g, node):
     frame_class = next(t for t in types if t in _FRAME_CLASS_TO_KIND)
     kind = _FRAME_CLASS_TO_KIND[frame_class]
     subject = _dec_term(g.value(node, MANCH.subject))
-    clauses = [_decode_clause(g, n) for n in _read_rdf_list(g, g.value(node, MANCH.clauses))]
+    clauses = [_decode_clause(g, n) for n in _read_seq(g, node, MANCH.clauses)]
     return Frame(kind, subject, clauses)
 
 
@@ -869,8 +866,8 @@ def _decode_misc(g, node):
     misc_class = next(t for t in types if t in _MISC_CLASS_TO_KEYWORD)
     keyword = _MISC_CLASS_TO_KEYWORD[misc_class]
     value_kind = _MISC_VALUE_KIND[misc_class]
-    items = [_decode_value(g, value_kind, n) for n in _read_rdf_list(g, g.value(node, MANCH.items))]
-    return Clause(keyword, items, _decode_annotations(g, g.value(node, MANCH.annotations)))
+    items = [_decode_value(g, value_kind, n) for n in _read_seq(g, node, MANCH.items)]
+    return Clause(keyword, items, _decode_annotations(g, node))
 
 
 def _tree_to_document(graph: Graph, root) -> Document:
@@ -878,17 +875,17 @@ def _tree_to_document(graph: Graph, root) -> Document:
     object. ``root`` must be the ``manch:Document`` node, as returned by
     ``manchester_parse_to_tree``."""
     prefixes = [PrefixDecl(graph.value(n, MANCH.prefixLabel).value, graph.value(n, MANCH.prefixIri).value)
-                for n in _read_rdf_list(graph, graph.value(root, MANCH.prefixes))]
+                for n in _read_seq(graph, root, MANCH.prefixes)]
     header_node = graph.value(root, MANCH.header)
     header = None
     if header_node is not None:
         iri = graph.value(header_node, MANCH.ontologyIri)
         version = graph.value(header_node, MANCH.versionIri)
-        imports = _read_rdf_list(graph, graph.value(header_node, MANCH.imports))
-        annotations = _decode_annotations(graph, graph.value(header_node, MANCH.annotations))
+        imports = _read_seq(graph, header_node, MANCH.imports)
+        annotations = _decode_annotations(graph, header_node)
         header = OntologyHeader(iri, version, imports, annotations)
-    frames = [_decode_frame(graph, n) for n in _read_rdf_list(graph, graph.value(root, MANCH.frames))]
-    misc = [_decode_misc(graph, n) for n in _read_rdf_list(graph, graph.value(root, MANCH.misc))]
+    frames = [_decode_frame(graph, n) for n in _read_seq(graph, root, MANCH.frames)]
+    misc = [_decode_misc(graph, n) for n in _read_seq(graph, root, MANCH.misc)]
     return Document(prefixes, header, frames, misc)
 
 
@@ -1191,8 +1188,11 @@ def _preflight(data_graph: Graph) -> list[tuple]:
     - exactly one ``manch:Document``;
     - every node that has a ``manch:`` property is asserted with a concrete ``manch:`` type;
     - every asserted ``manch:`` type is a class of the vocabulary;
-    - no ``rdf:List`` loops back on itself (pySHACL itself raises on a cyclic list while cloning the data
-      graph, before any shape runs, so this one has to be caught here).
+    - every node with a ``tree:value`` is asserted as a ``tree:Item`` (the same domain inference would hide it).
+
+    (There was a third check, that no ``rdf:List`` loops back on itself, because the engine raised on a cyclic list before any shape
+    ran. Ordered children are ``tree:ord`` ordinals now, so a loop in a sequence cannot be written; ties, missing or non-integer
+    ordinals and a blank child under two parents are findings of the shared ``tree:`` shapes.)
     """
     concrete = _concrete_classes()
     known = _known_classes()
@@ -1203,17 +1203,13 @@ def _preflight(data_graph: Graph) -> list[tuple]:
         problems.append((documents[0] if documents else None,
                          f"expected exactly one manch:Document, found {len(documents)}"))
 
-    done: set = set()
-    for start in {s_ for s_ in data_graph.subjects(RDF.rest, None)}:
-        walk: list = []
-        node = start
-        while node is not None and node != RDF.nil and node not in done:
-            if node in walk:
-                problems.append((start, "rdf:List contains a cycle (rdf:rest leads back to a cell already visited)"))
-                break
-            walk.append(node)
-            node = data_graph.value(node, RDF.rest)
-        done.update(walk)
+    # A tree:Item that lost its rdf:type would get it back from the domain of tree:value, and the decoder (which reads asserted types)
+    # would then take the wrapper for the member itself.
+    from starlayer.graph import ordinals
+
+    for wrapper in {s_ for s_ in data_graph.subjects(ordinals.VALUE, None)}:
+        if (wrapper, RDF.type, ordinals.ITEM) not in data_graph:
+            problems.append((wrapper, "node has tree:value but is not asserted as a tree:Item"))
 
     has_manch_property: dict = {}
     for s_, p_, o_ in data_graph:
@@ -1235,6 +1231,24 @@ def _known_classes() -> frozenset:
         | set(onto.subjects(RDFS.subClassOf)) | set(onto.objects(None, RDFS.subClassOf))
         if isinstance(c, URIRef) and c in MANCH
     )
+
+
+def _combined(manchester_name: str, tree_name: str) -> Any:
+    """A fresh graph of a ``manch:`` file with the shared ``tree:`` one added (the shapes ``owl:imports`` the tree shapes; the ordinals'
+    classes are in the tree ontology)."""
+    from starlayer.sparql.expr_validation import _merge_into
+
+    graph = get_ontology_graph(manchester_name)
+    _merge_into(graph, get_ontology_graph(tree_name))
+    return graph
+
+
+def _shapes_graph() -> Any:
+    return _combined("manchester_shacl", "tree_shacl")
+
+
+def _ontology_graph() -> Any:
+    return _combined("manchester_owl", "tree_owl")
 
 
 def manchester_validate(tree_graph: Any) -> ValidationReport:
@@ -1282,14 +1296,11 @@ def manchester_validate(tree_graph: Any) -> ValidationReport:
     from starlayer.shacl.results import ValidationReport
 
     problems = _preflight(_as_graph(tree_graph))
-    if any("cycle" in message for _, message in problems):
-        # pySHACL cannot even load a graph with a cyclic list, so report without running it.
-        return ValidationReport(False, _preflight_report(problems, None), _preflight_text(problems, ""))
 
     result = validate_bounded(
         tree_graph,
-        get_ontology_graph("manchester_shacl"),
-        ont_graph=get_ontology_graph("manchester_owl"),
+        _shapes_graph(),
+        ont_graph=_ontology_graph(),
         inference=ENTAILMENT.RDFS,
         max_validation_depth=100,
     )

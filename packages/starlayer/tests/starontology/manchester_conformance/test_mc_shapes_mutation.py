@@ -6,8 +6,9 @@ require ``manchester_validate`` to reject them.
 
 The first run of a full mutation scan (``tools/mutation_scan.py``: 430 mutants, one per distinct
 (node class, property, operator) in the corpus) found 10 trees that PASSED validation yet crash the
-decoder, and a list shape that accepted unterminated and cyclic lists. Both are fixed; these tests keep
-them fixed. The cause of the first: validation runs with RDFS inference, several ``manch:`` properties
+decoder, and a list shape that accepted unterminated and cyclic lists. Both were fixed; since the ordered children became
+``tree:ord`` ordinals (no ``rdf:List``) the list tests are the ordinal ones below: a missing, tied or non-integer ordinal,
+an item of the wrong kind, a blank child under two parents. These tests keep it fixed. The cause of the first: validation runs with RDFS inference, several ``manch:`` properties
 declare an ``rdfs:domain``, so a deleted ``rdf:type`` was inferred straight back and every shape was
 satisfied - the decoder, reading asserted types, was not. ``manchester_validate`` now has a pre-flight
 check on the asserted graph.
@@ -17,6 +18,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
+from starlayer.graph import ordinals
 from starlayer.graph.manchester._ox_terms import RDF, BNode, URIRef, Vocab
 from starlayer.graph.manchester._ox_terms import lexical as Literal
 from starlayer.starontology.manchester import (
@@ -30,7 +32,7 @@ from starlayer.starontology.manchester import (
 
 from .corpus import CASES
 
-# A document that contains the list-bearing constructs: prefixes, imports, an enumeration, a datatype
+# A document that contains the ordered-children constructs: prefixes, imports, an enumeration, a datatype
 # restriction with facets, a data enumeration, clauses and a Misc axiom.
 RICH = """\
 Prefix: : <http://example.org/o#>
@@ -50,18 +52,6 @@ def _tree(text: str = RICH) -> Graph:
     g = Graph()
     g.extend(list(manchester_parse_to_tree(text)))
     return g
-
-
-def _head_of(g: Graph, predicate: URIRef):
-    return next(o for _, p, o in g if p == predicate)
-
-
-def _cells(g: Graph, head):
-    cells = []
-    while head != RDF.nil:
-        cells.append(head)
-        head = g.value(head, RDF.rest)
-    return cells
 
 
 def test_the_unmutated_tree_conforms():
@@ -138,46 +128,112 @@ def test_the_report_graph_carries_the_preflight_findings():
     assert (None, sh.conforms, Literal(False)) in report
 
 
-# --- lists: well-formed means terminated and acyclic, and the items have the right kind -----------------
+# --- ordered children: every child has exactly one ordinal, no two share one, the items have the right kind -----------
 
-LIST_PREDICATES = [MANCH.frames, MANCH.prefixes, MANCH.imports, MANCH.individuals, MANCH.facets,
-                   MANCH.literals, MANCH.operands, MANCH.items, MANCH.clauses]
+ORDERED = """\
+Prefix: : <http://example.org/o#>
+Prefix: xsd: <http://www.w3.org/2001/XMLSchema#>
+Ontology: <http://example.org/o>
+Import: <http://example.org/imported>
+Import: <http://example.org/imported2>
+Class: A
+  SubClassOf: p some {i, j}
+  SubClassOf: d some xsd:integer[>= 1, < 9]
+  SubClassOf: d some {1, 2}
+  SubClassOf: B and C, D
+Class: E
+EquivalentClasses: A, B
+"""
+
+ORDERED_PREDICATES = [MANCH.frames, MANCH.prefixes, MANCH.imports, MANCH.individuals, MANCH.facets,
+                      MANCH.literals, MANCH.operands, MANCH.items, MANCH.clauses]
 
 
-@pytest.mark.parametrize("predicate", LIST_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
-def test_an_unterminated_list_is_rejected(predicate):
-    g = _tree()
-    last = _cells(g, _head_of(g, predicate))[-1]
-    g.remove((last, RDF.rest, RDF.nil))
+def _children(g: Graph, predicate: URIRef):
+    """``(parent, [child nodes])`` of the first parent that holds at least two children for ``predicate``."""
+    from collections import defaultdict
+
+    by_parent = defaultdict(list)
+    for s_, _, o in g.triples((None, predicate, None)):
+        by_parent[s_].append(o)
+    return next((parent, kids) for parent, kids in by_parent.items() if len(kids) >= 2)
+
+
+def test_the_ordered_tree_conforms():
+    assert manchester_validate(_tree(ORDERED)).conforms
+
+
+@pytest.mark.parametrize("predicate", ORDERED_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
+def test_a_child_without_an_ordinal_is_rejected(predicate):
+    g = _tree(ORDERED)
+    _parent, kids = _children(g, predicate)
+    g.remove((kids[0], ordinals.ORD, None))
     assert not manchester_validate(g).conforms
 
 
-@pytest.mark.parametrize("predicate", LIST_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
-def test_a_cyclic_list_is_rejected(predicate):
-    g = _tree()
-    head = _head_of(g, predicate)
-    last = _cells(g, head)[-1]
-    g.remove((last, RDF.rest, RDF.nil))
-    g.add((last, RDF.rest, head))
+@pytest.mark.parametrize("predicate", ORDERED_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
+def test_two_children_with_the_same_ordinal_are_rejected(predicate):
+    g = _tree(ORDERED)
+    _parent, kids = _children(g, predicate)
+    number = next(g.objects(kids[0], ordinals.ORD))
+    g.remove((kids[1], ordinals.ORD, None))
+    g.add((kids[1], ordinals.ORD, number))
+    assert not manchester_validate(g).conforms
+
+
+@pytest.mark.parametrize("predicate", ORDERED_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
+def test_an_ordinal_that_is_not_an_integer_is_rejected(predicate):
+    g = _tree(ORDERED)
+    _parent, kids = _children(g, predicate)
+    g.remove((kids[0], ordinals.ORD, None))
+    g.add((kids[0], ordinals.ORD, Literal("first")))
     assert not manchester_validate(g).conforms
 
 
 @pytest.mark.parametrize(
     ("predicate", "bad_item"),
     [
-        (MANCH.prefixes, Literal("not a PrefixDecl")),
         (MANCH.imports, Literal("not an IRI")),
         (MANCH.individuals, Literal("not an IRI")),
         (MANCH.literals, URIRef("urn:not-a-literal")),
-        (MANCH.facets, Literal("not a FacetRestriction")),
     ],
-    ids=["prefixes", "imports", "individuals", "literals", "facets"],
+    ids=["imports", "individuals", "literals"],
 )
-def test_a_list_item_of_the_wrong_kind_is_rejected(predicate, bad_item):
-    g = _tree()
-    first = _cells(g, _head_of(g, predicate))[0]
-    g.remove((first, RDF.first, None))
-    g.add((first, RDF.first, bad_item))
+def test_an_item_value_of_the_wrong_kind_is_rejected(predicate, bad_item):
+    g = _tree(ORDERED)
+    _parent, kids = _children(g, predicate)
+    g.remove((kids[0], ordinals.VALUE, None))
+    g.add((kids[0], ordinals.VALUE, bad_item))
+    assert not manchester_validate(g).conforms
+
+
+@pytest.mark.parametrize("predicate", [MANCH.prefixes, MANCH.facets, MANCH.frames, MANCH.clauses],
+                         ids=lambda p: p.value.rsplit("#", 1)[-1])
+def test_a_child_of_the_wrong_class_is_rejected(predicate):
+    g = _tree(ORDERED)
+    _parent, kids = _children(g, predicate)
+    (old,) = [o for o in g.objects(kids[0], RDF.type) if o in MANCH]
+    g.remove((kids[0], RDF.type, old))
+    g.add((kids[0], RDF.type, MANCH.Document if old != MANCH.Document else MANCH.Frame))
+    assert not manchester_validate(g).conforms
+
+
+def test_a_blank_child_under_two_parents_is_rejected():
+    """A clause carries its ordinal itself, so it can have one frame only; a second frame holding it makes its position ambiguous."""
+    g = _tree(ORDERED)
+    (clause_owner,) = {s_ for s_, _, _ in g.triples((None, MANCH.clauses, None))}
+    clause = next(o for _, _, o in g.triples((clause_owner, MANCH.clauses, None)))
+    other = next(f for f in g.subjects(RDF.type, MANCH.ClassFrame) if f != clause_owner)
+    g.add((other, MANCH.clauses, clause))
+    assert not manchester_validate(g).conforms
+
+
+def test_a_node_with_a_value_but_no_item_type_is_caught_before_inference():
+    """tree:value has the domain tree:Item, so RDFS inference would give the type back and hide the fault from every shape."""
+    g = _tree(ORDERED)
+    item = next(g.subjects(ordinals.VALUE, None))
+    g.remove((item, RDF.type, ordinals.ITEM))
+    assert any("tree:Item" in message for _node, message in _preflight(g))
     assert not manchester_validate(g).conforms
 
 
@@ -190,7 +246,7 @@ def test_every_single_triple_removal_that_validates_still_decodes():
     base = _tree()
     holes = []
     for t in sorted(base, key=str):
-        if not (t[1] == RDF.type or t[1] in MANCH or t[1] in (RDF.first, RDF.rest)):
+        if not (t[1] == RDF.type or t[1] in MANCH or t[1] in (ordinals.ORD, ordinals.VALUE)):
             continue
         mutant = Graph()
         mutant.extend(list(base))

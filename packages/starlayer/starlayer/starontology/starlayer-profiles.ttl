@@ -54,6 +54,12 @@ slp:Manchester a prof:Profile ;
         rdfs:label "manchester_shacl" ;
         prof:hasArtifact starontology:manchester\/manchester_shapes.ttl ;
         prof:hasRole role:validation
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SHACL shapes for ordered children (tree:ord ordinals), written once and imported by manchester_shacl via owl:imports." ;
+        rdfs:label "tree_shacl" ;
+        prof:hasArtifact starontology:tree\/tree_shapes.ttl ;
+        prof:hasRole role:validation
     ] ;
     prof:isProfileOf tr:owl2-manchester-syntax .
 

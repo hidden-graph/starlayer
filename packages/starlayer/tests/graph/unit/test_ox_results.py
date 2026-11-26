@@ -250,7 +250,7 @@ def test_manchester_tree_functions():
     ok = outcome.conforms
     report = outcome.report_graph
     assert ok is True
-    assert_ox(report)
+    assert_ox(report, max_prefixes=10)  # the report names the shared tree: shapes too, which adds the prefix tree
     default_tree = manchester.manchester_parse_to_tree(MANCHESTER)
     assert isinstance(default_tree, StarLayerGraph)  # the default is an StarLayerGraph
     assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(default_tree)

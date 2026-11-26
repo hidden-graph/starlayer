@@ -13,7 +13,7 @@ Two directions get tested:
 
 import pytest
 from starlayer import starontology
-from starlayer.graph import StarLayerGraph
+from starlayer.graph import StarLayerGraph, ordinals
 from starlayer.graph.manchester._ox_terms import RDF, BNode
 from starlayer.starontology import manchester as ms
 from starlayer.starontology.manchester import MANCH, manchester_parse_to_tree
@@ -55,23 +55,19 @@ def test_wrong_item_type_under_data_prop_range_clause_fails():
     declarations let through undetected before being fixed."""
     graph = _encode_data_prop_range()
     clause = next(graph.subjects(RDF.type, MANCH.DataPropRangeClause))
-    items_list = next(graph.objects(clause, MANCH.items))
-    item = graph.value(items_list, RDF.first)
-    old_value = next(graph.objects(item, MANCH.value))
-    graph.remove((item, MANCH.value, old_value))
+    (item,) = ordinals.ordered_items(graph, clause, MANCH.items)
+    graph.remove((item, MANCH.value, None))
 
     bad_and = BNode()
     graph.add((bad_and, RDF.type, MANCH.And))
-    ops = ms._build_rdf_list(graph, [MANCH.ClassExpression])
-    graph.add((bad_and, MANCH.operands, ops))
-    graph.remove((item, MANCH.value, None))
+    ordinals.write_ordered(graph, bad_and, MANCH.operands, [BNode(), BNode()])
     graph.add((item, MANCH.value, bad_and))
 
     outcome = ms.manchester_validate(graph)
     conforms = outcome.conforms
     results_text = outcome.report_text
     assert not conforms
-    assert 'manch:DataRangeItemListShape' in results_text or 'data range' in results_text
+    assert 'manch:DataRangeItemShape' in results_text or 'data range' in results_text
 
 
 def test_misc_axiom_item_of_wrong_family_fails():
@@ -86,13 +82,10 @@ def test_misc_axiom_item_of_wrong_family_fails():
     )
     graph = manchester_parse_to_tree(text, tree_graph=StarLayerGraph())  # edited below
     misc = next(graph.subjects(RDF.type, MANCH.MiscEquivalentClassesAxiom))
-    items_list = next(graph.objects(misc, MANCH.items))
-
-    bad = BNode()
+    bad = BNode()  # the wrong family, in the first position (the Item that held the first class name goes)
     graph.add((bad, RDF.type, MANCH.Inverse))
     graph.add((bad, MANCH.operand, MANCH.someProp))
-    graph.remove((items_list, RDF.first, None))  # the first cell of the list now holds `bad`
-    graph.add((items_list, RDF.first, bad))
+    ordinals.replace_at(graph, misc, MANCH.items, 0, bad)
 
     outcome = ms.manchester_validate(graph)
     conforms = outcome.conforms
@@ -100,21 +93,12 @@ def test_misc_axiom_item_of_wrong_family_fails():
     assert not conforms
 
 
-def test_broken_mid_chain_rdf_list_fails():
-    """A rdf:List missing rdf:first partway through must fail the generic
-    WellFormedListShape check - not just at the head."""
+def test_a_clause_item_with_no_ordinal_fails():
+    """An ordered child without tree:ord has no position: the shared tree shapes reject it (a list cell without rdf:first, before the ordinals)."""
     graph = _encode_data_prop_range()
     clause = next(graph.subjects(RDF.type, MANCH.DataPropDomainClause))
-    items_list = next(graph.objects(clause, MANCH.items))
-    rest = next(graph.objects(items_list, RDF.rest), None)
-
-    extra = BNode()
-    graph.add((items_list, RDF.rest, extra))
-    if rest is not None:
-        graph.add((extra, RDF.rest, rest))
-    # extra deliberately has no rdf:first - a broken mid-chain cell.
+    (item,) = ordinals.ordered_items(graph, clause, MANCH.items)
+    graph.remove((item, ordinals.ORD, None))
 
     outcome = ms.manchester_validate(graph)
-    conforms = outcome.conforms
-    results_text = outcome.report_text
-    assert not conforms
+    assert not outcome.conforms

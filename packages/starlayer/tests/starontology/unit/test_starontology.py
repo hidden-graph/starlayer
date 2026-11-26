@@ -122,7 +122,7 @@ class TestGetOntologyGraph:
 _SLP = "https://github.com/hidden-graph/starlayer/ns/profile#"
 # StarLayer profile -> (public things it is a profile of, shapes entry, ontology entries)
 _EXPECTED_PROFILES = {
-    "Manchester": ({"https://www.w3.org/TR/owl2-manchester-syntax"}, ["manchester_shacl"], ["manchester_owl"]),
+    "Manchester": ({"https://www.w3.org/TR/owl2-manchester-syntax"}, ["manchester_shacl", "tree_shacl"], ["manchester_owl"]),
     "Skos": ({"https://www.w3.org/TR/skos-reference"}, ["skos_shacl"], ["skos_owl"]),
     "SparqlQuery": ({"https://www.w3.org/TR/sparql12-query"}, ["sqe_shacl", "spexpr_shacl", "tree_shacl"], ["sqe_owl", "spexpr_owl", "tree_owl"]),
     "SparqlRL": ({"https://www.w3.org/TR/sparql12-rl"}, ["srl_shacl"], ["srl_owl"]),
