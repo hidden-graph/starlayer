@@ -343,8 +343,8 @@ nl:02.04-33753b85 a slkg:NotebookExample ;
 nl:03.03-e79f89e7 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03.03-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "e79f89e7" ;
-    slkg:cellHash "ac65df47b7b5ab1f" ;
-    slkg:reviewedOn "2026-11-17"^^xsd:date ;
+    slkg:cellHash "9a287a3fc216185d" ;
+    slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Passes a Python function and a Python aggregate to query() as custom_functions and custom_aggregate_functions." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.query" .
@@ -558,8 +558,8 @@ nl:05.10-55975daa a slkg:NotebookExample ;
 nl:03.03-32f5f2c6 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03.03-preparing-extending-checking-queries.ipynb" ;
     slkg:cellId "32f5f2c6" ;
-    slkg:cellHash "a87bc7dd45e0cca9" ;
-    slkg:reviewedOn "2026-11-17"^^xsd:date ;
+    slkg:cellHash "5a962af5706699ab" ;
+    slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Prepares queries once with StarQuery, bound with initNs and initBindings, and runs one against two graphs with and without an entailment override." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.star_query.StarQuery" .
@@ -567,8 +567,8 @@ nl:03.03-32f5f2c6 a slkg:NotebookExample ;
 nl:03.02-f6a58c6a a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/03.02-sparql-12-queries.ipynb" ;
     slkg:cellId "f6a58c6a" ;
-    slkg:cellHash "8c333368f9d473e9" ;
-    slkg:reviewedOn "2026-11-17"^^xsd:date ;
+    slkg:cellHash "c002002cb4dc0026" ;
+    slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Shows a VERSION directive that matches the query text, and the error for one that does not." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.run.query" .
