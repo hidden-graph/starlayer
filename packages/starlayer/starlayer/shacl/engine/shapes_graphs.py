@@ -6,7 +6,7 @@ members of locally present ``owl:imports`` modules). The result holds the concis
 module node and every member; references to named shapes are left dangling unless ``include_referenced`` copies them
 (the project's choice, see the old ``StarShaclProcessor.extract_shapes_graph``; Profiling 2.7 "calculating dependencies" is a
 TODO in the draft). Unlike ``modules.extract_module`` (used by ``validate(shapes_graph_resource=)``) it does not strip
-``sh:property`` links to non-member named shapes, and an unresolvable ``owl:imports`` raises ``ValueError``.
+``sh:property`` links to non-member named shapes, and an unresolvable ``owl:imports`` raises ``ShapeCompileError``.
 
 ``close_shape(shapes, shape)``: a *copy* of the shapes graph in which ``shape`` and every shape it reaches in a way that
 describes a value node's complete property set (``sh:node``, ``sh:qualifiedValueShape``, members of ``sh:and`` /
@@ -194,7 +194,7 @@ def rule_dependencies(graph: Any, starting_points: Any) -> set:
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
     """The ``sh:ShapesGraph`` module ``shapes_graph_iri`` of ``shapes_graph`` as a new standalone graph; ``None`` when the
     IRI is not typed ``sh:ShapesGraph`` there. ``include_referenced=True`` also copies the named shapes the members refer
-    to, transitively, so the result validates on its own. ``ValueError`` for an unresolvable ``owl:imports`` or when
+    to, transitively, so the result validates on its own. ``ShapeCompileError`` for an unresolvable ``owl:imports``; ``ValueError`` when
     ``shapes_graph`` is ``None``. The input is never changed."""
     if shapes_graph is None:
         raise ValueError("extract_shapes_graph() needs a shapes graph")
