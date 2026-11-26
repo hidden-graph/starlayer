@@ -173,14 +173,14 @@ class Result:
     def _read_rows(self) -> list[Row]:
         if self._rows is None:
             if self.type != "SELECT":
-                raise TypeError(f"a {self.type} result has no rows")
+                raise ValueError(f"a {self.type} result has no rows")
             names = tuple(v.value for v in self.vars)
             self._rows = [Row((sol[v] for v in self.vars), names) for sol in self.raw]
         return self._rows
 
     @property
     def rows(self) -> list[Row]:
-        """The SELECT solutions, read from the one-shot stream once; other query forms raise ``TypeError``."""
+        """The SELECT solutions, read from the one-shot stream once; other query forms raise ``ValueError`` (the result is not in a state the read can use)."""
         return self._read_rows()
 
     @property
@@ -191,10 +191,10 @@ class Result:
     # ---- CONSTRUCT / DESCRIBE -----------------------------------------------------------------------------------
     @property
     def triples(self) -> list[tuple[Any, Any, Any]]:
-        """The CONSTRUCT or DESCRIBE triples, read from the one-shot stream once; other forms raise ``TypeError``."""
+        """The CONSTRUCT or DESCRIBE triples, read from the one-shot stream once; other forms raise ``ValueError`` (the result is not in a state the read can use)."""
         if self._triples is None:
             if self.type not in ("CONSTRUCT", "DESCRIBE"):
-                raise TypeError(f"a {self.type} result has no triples")
+                raise ValueError(f"a {self.type} result has no triples")
             self._triples = [(t.subject, t.predicate, t.object) for t in self.raw]
         return self._triples
 

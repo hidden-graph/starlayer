@@ -93,3 +93,13 @@ def test_an_unknown_format_and_stray_options_are_errors(g):
         g.query("ASK {}").serialize(format="docx")
     with pytest.raises(TypeError):
         g.query("ASK {}").serialize(prefixes={})
+
+
+def test_reading_rows_or_triples_of_the_wrong_query_form_is_a_value_error(g):
+    """A result in a state the read cannot use (an ASK has no rows, a SELECT has no triples) is a ``ValueError``, not a ``TypeError``."""
+    with pytest.raises(ValueError, match="ASK result has no rows"):
+        g.query("ASK {}").rows
+    with pytest.raises(ValueError, match="ASK result has no rows"):
+        g.query("ASK {}").bindings
+    with pytest.raises(ValueError, match="SELECT result has no triples"):
+        g.query("SELECT * WHERE {}").triples
