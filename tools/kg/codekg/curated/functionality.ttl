@@ -313,7 +313,7 @@ cur:cap-manchester-3 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "validate" ;
     rdfs:comment "SHACL shapes for manch graphs." ;
-    slkg:implementedByIdentifier "starlayer.starontology.manchester.__init__.manchester_validate" .
+    slkg:implementedByIdentifier "starlayer.starontology.manchester.__init__.validate_manchester_tree" .
 
 
 ### Reasoning

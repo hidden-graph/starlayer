@@ -46,23 +46,23 @@ def test_deep_nesting_is_an_execution_error():
 
 
 def test_unrecognized_tree_node_is_a_manchester_format_error():
-    g = M.manchester_parse_to_tree(H + 'Class: :A\n SubClassOf: :p some :B\n')
+    g = M.manchester_to_tree(H + 'Class: :A\n SubClassOf: :p some :B\n')
     for restriction in list(g.subjects(RDF.type, M.MANCH.Some)):
         g.remove((restriction, RDF.type, M.MANCH.Some))
     with pytest.raises(FormatError) as caught:
-        M.manchester_tree_to_text(g)
+        M.tree_to_manchester(g)
     assert caught.value.kind == 'manchester' and caught.value.context == 'manch: tree'
 
 
 def test_a_second_document_is_a_value_error():
-    g = M.manchester_parse_to_tree(H + 'Class: :A\n')
+    g = M.manchester_to_tree(H + 'Class: :A\n')
     with pytest.raises(ValueError, match='already holds'):
-        M.manchester_parse_to_tree(H + 'Class: :B\n', tree_graph=g)
+        M.manchester_to_tree(H + 'Class: :B\n', tree_graph=g)
 
 
 def test_graph_without_a_document_is_a_value_error():
     with pytest.raises(ValueError, match='manch:OntologyDocument'):
-        M.manchester_tree_to_text(StarLayerGraph())
+        M.tree_to_manchester(StarLayerGraph())
 
 
 def test_unrecognized_class_expression_is_an_owl_format_error():

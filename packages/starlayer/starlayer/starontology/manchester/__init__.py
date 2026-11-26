@@ -12,7 +12,7 @@ own validation live here.
 
 Four entry points:
 
-- ``manchester_parse_to_tree(text, base=None) -> StarLayerGraph`` - parse Manchester text
+- ``manchester_to_tree(text, base=None) -> StarLayerGraph`` - parse Manchester text
   straight to its ``manch:``-encoded syntax tree, reusing
   ``starlayer.graph.manchester.parser``'s own tokenizer/frame/
   clause/expression-parsing functions completely unchanged (via a
@@ -25,20 +25,20 @@ Four entry points:
   ``salg:QueryCollection``-style use case), so ``_find_root()`` locates it
   internally wherever it's needed instead of making every caller carry it
   around separately.
-- ``manchester_tree_to_text(tree_graph) -> str`` - the inverse: render ``manch:`` tree-RDF
+- ``tree_to_manchester(tree_graph) -> str`` - the inverse: render ``manch:`` tree-RDF
   back to real Manchester Syntax text.
-- ``manchester_tree_to_owl(tree_graph) -> StarLayerGraph`` - the tree's compiled OWL
+- ``tree_to_owl(tree_graph) -> StarLayerGraph`` - the tree's compiled OWL
   content, as a real graph (not a bare ``list[tuple]``, changed
-  2026-10-03) - by composing ``manchester_tree_to_text()`` with
+  2026-10-03) - by composing ``tree_to_manchester()`` with
   ``manchester_parser.parse_manchester()`` (the real, trusted OWL compiler)
   and adding the result into a fresh ``StarLayerGraph``, the same way
   ``StarLayerGraph.parse(format='manchester')`` already populates one.
   Going through text here is safe, not a shortcut-that-loses-fidelity:
-  ``manchester_tree_to_text()`` is a fully faithful renderer of everything this module
+  ``tree_to_manchester()`` is a fully faithful renderer of everything this module
   captures, so nothing is lost before the OWL compiler sees it.
-- ``manchester_validate(tree_graph)``, which returns a ``ValidationReport``, -
+- ``validate_manchester_tree(tree_graph)``, which returns a ``ValidationReport``, -
   structural SHACL validation of a ``manch:`` graph (e.g. straight out of
-  ``manchester_parse_to_tree()``, or LLM-authored, not yet decoded) against the shapes
+  ``manchester_to_tree()``, or LLM-authored, not yet decoded) against the shapes
   in ``manchester_shapes.ttl``. Only needs the tree being checked - which
   shapes to check it against is this module's own, fixed concern.
 
@@ -49,7 +49,7 @@ sits in a ``tree:Item`` (``tree:value``) and may be shared. An empty sequence is
 (``DisjointUnionOf:``, ``HasKey:``, ``SubPropertyChain:``) have one ``manch:ClauseItem`` that holds its members as ordered
 ``manch:values`` (where ``manch:value`` was a nested list). ``graph.ordinals.append`` / ``insert_at`` / ``remove_at`` / ``replace_at``
 edit a sequence and ``renumber_dense`` closes gaps (run it before hashing). The decoders raise ``FormatError`` (kind ``"rdf"``) for a
-tie or a missing or non-integer ordinal; ``manchester_validate`` reports the same as shape violations. The errors of the Manchester
+tie or a missing or non-integer ordinal; ``validate_manchester_tree`` reports the same as shape violations. The errors of the Manchester
 parser are ``FormatError`` (kind ``"manchester"``) too, with ``why``, ``line`` and a position; a class expression nested too deeply to parse or
 render is an ``ExecutionError`` (kind ``"nesting"``), and a node of the tree that no ``manch:`` type describes is a ``FormatError`` (kind
 ``"manchester"``, context ``manch: tree``). ``ValueError`` stays for a graph argument that holds no ``manch:OntologyDocument``, or already holds
@@ -58,9 +58,9 @@ one.
 **Editing is meant to happen on the tree-RDF itself (plain graph surgery -
 ``graph.add()``/``.remove()``), not on a Python object.** ``_tree_to_document()``/
 ``_document_to_text()`` (private - were public until 2026-10-03) decode/render
-through an intermediate ``Document`` namedtuple-of-namedtuples; ``manchester_tree_to_text()``
+through an intermediate ``Document`` namedtuple-of-namedtuples; ``tree_to_manchester()``
 still composes them internally; since there's exactly one way into this
-module (``manchester_parse_to_tree``) and one way out (``manchester_tree_to_text``/``manchester_tree_to_owl``),
+module (``manchester_to_tree``) and one way out (``tree_to_manchester``/``tree_to_owl``),
 there's no legitimate public use for a bare ``Document`` object in between -
 unlike SRL's ``RuleSet`` (see ``starlayer.sparql.srl``'s own docstring),
 which is a real, independently-useful object other code consumes directly,
@@ -72,7 +72,7 @@ text renderer.
 the raw ``manch:`` ontology/shapes graphs themselves can already get them
 from ``starontology`` directly instead: ``get_ontology_graph(
 "manchester_owl")`` / ``get_ontology_graph("manchester_shacl")``.
-``manchester_validate()`` calls ``get_ontology_graph()`` directly inline - unlike
+``validate_manchester_tree()`` calls ``get_ontology_graph()`` directly inline - unlike
 ``validate_sparql_tree()``, there's no combining-with-another-vocabulary's-shapes
 logic for ``manch:`` to even privately wrap.
 
@@ -103,7 +103,7 @@ Staying deferred here costs nothing and keeps this module consistent with
 ``starontology/__init__.py``'s own ``_load()``, so
 it's kept anyway - just no longer load-bearing. This is also why
 ``_SyntaxTreeCursor`` (which needs ``_Cursor`` as a base class at
-class-definition time) is defined *inside* ``manchester_parse_to_tree()`` rather than
+class-definition time) is defined *inside* ``manchester_to_tree()`` rather than
 at module scope, and why the characteristic/data-facet reverse-lookup maps
 are built lazily on first use rather than at import time.
 
@@ -120,7 +120,6 @@ from collections import namedtuple
 from typing import TYPE_CHECKING, Any
 
 from starlayer.errors import ExecutionError, FormatError
-
 from starlayer.graph.manchester._ox_terms import (
     OWL,
     RDF,
@@ -535,8 +534,8 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
 
 
 # ---------------------------------------------------------------------------
-# Encode - manchester_parse_to_tree() + a _Cursor subclass overriding the
-# syntax-tree-capture hooks. The subclass is defined inside manchester_parse_to_tree() itself,
+# Encode - manchester_to_tree() + a _Cursor subclass overriding the
+# syntax-tree-capture hooks. The subclass is defined inside manchester_to_tree() itself,
 # not at module scope, since its base class (_Cursor) is only available
 # once starlayer.graph.manchester.parser is imported - deferred
 # here for the circular-import reason this module's own docstring explains.
@@ -544,7 +543,7 @@ def _encode_clause_items(g, clause_class, frame_kind, clause_kind, items):
 
 def _find_root(graph: Graph) -> BNode:
     """The ``manch:OntologyDocument`` node in ``graph`` - every graph this module
-    produces (``manchester_parse_to_tree()`` always builds a fresh ``Graph()``, never
+    produces (``manchester_to_tree()`` always builds a fresh ``Graph()``, never
     merges into a caller-supplied one) holds exactly one, so callers never
     need to track it separately themselves."""
     root = next(graph.subjects(RDF.type, MANCH.OntologyDocument), None)
@@ -553,7 +552,7 @@ def _find_root(graph: Graph) -> BNode:
     return root
 
 
-def manchester_parse_to_tree(text: str, base: str | None = None, tree_graph: Any = None) -> Any:
+def manchester_to_tree(text: str, base: str | None = None, tree_graph: Any = None) -> Any:
     """Parse Manchester Syntax text straight to its ``manch:``-encoded
     syntax tree.
 
@@ -889,7 +888,7 @@ def _decode_misc(g, node):
 def _tree_to_document(graph: Graph, root) -> Document:
     """Decode a ``manch:``-shaped RDF graph back into a real ``Document``
     object. ``root`` must be the ``manch:OntologyDocument`` node, as returned by
-    ``manchester_parse_to_tree``."""
+    ``manchester_to_tree``."""
     prefixes = [PrefixDecl(graph.value(n, MANCH.prefixName).value, graph.value(n, MANCH.namespace).value)
                 for n in _read_seq(graph, root, MANCH.prefixes)]
     header_node = graph.value(root, MANCH.header)
@@ -1126,7 +1125,7 @@ def _document_to_text(document: Document) -> str:
     return '\n'.join(lines).rstrip() + '\n'
 
 
-def manchester_tree_to_text(tree_graph: Graph) -> str:
+def tree_to_manchester(tree_graph: Graph) -> str:
     """Thin wrapper composing ``_tree_to_document`` + ``_document_to_text``
     for a caller who just wants text back. ``tree_graph`` may be an ``StarLayerGraph`` (read as a snapshot)."""
     graph = _as_graph(tree_graph)
@@ -1137,9 +1136,9 @@ def manchester_tree_to_text(tree_graph: Graph) -> str:
         raise ExecutionError('class expression nested too deeply to render', kind='nesting', context='Manchester syntax render') from None
 
 
-def manchester_tree_to_owl(tree_graph: Any) -> Any:
+def tree_to_owl(tree_graph: Any) -> Any:
     """The tree's compiled OWL triples, as an ``StarLayerGraph`` -
-    renders the tree to Manchester text via ``manchester_tree_to_text()``,
+    renders the tree to Manchester text via ``tree_to_manchester()``,
     then compiles that text the same way any other caller would:
     ``StarLayerGraph.parse(format='manchester')`` (which is itself backed
     by ``manchester_parser.parse_manchester()``, the real, trusted OWL
@@ -1147,12 +1146,12 @@ def manchester_tree_to_owl(tree_graph: Any) -> Any:
     the lower-level parser function directly.
 
     Going through text here is not a fidelity-losing shortcut:
-    ``manchester_tree_to_text()`` is a fully faithful renderer of everything this
+    ``tree_to_manchester()`` is a fully faithful renderer of everything this
     module's ``manch:`` encoding captures, so nothing this tree holds is
     lost before the OWL compiler sees it - see this module's own docstring.
 
     Args:
-        tree_graph: A ``manch:`` syntax tree, e.g. from ``manchester_parse_to_tree()``.
+        tree_graph: A ``manch:`` syntax tree, e.g. from ``manchester_to_tree()``.
 
     Returns:
         The compiled OWL content as a fresh ``StarLayerGraph``.
@@ -1160,7 +1159,7 @@ def manchester_tree_to_owl(tree_graph: Any) -> Any:
     from starlayer.graph.core import StarLayerGraph
 
     owl_graph = StarLayerGraph()
-    owl_graph.parse(data=manchester_tree_to_text(tree_graph), format='manchester')
+    owl_graph.parse(data=tree_to_manchester(tree_graph), format='manchester')
     return owl_graph
 
 
@@ -1195,7 +1194,7 @@ def _concrete_classes() -> frozenset:
 def _preflight(data_graph: Graph) -> list[tuple]:
     """Structural problems visible only in the *asserted* graph, as ``(focus_node, message)`` pairs.
 
-    ``manchester_validate`` runs SHACL with RDFS inference, and several ``manch:`` properties declare an
+    ``validate_manchester_tree`` runs SHACL with RDFS inference, and several ``manch:`` properties declare an
     ``rdfs:domain`` - so a node whose ``rdf:type`` was deleted gets a type inferred back from its
     properties and looks fine to every shape, while the decoder, which reads the asserted types, cannot
     handle it. This check looks before inference does:
@@ -1266,7 +1265,7 @@ def _ontology_graph() -> Any:
     return _combined("manchester_owl", "tree_owl")
 
 
-def manchester_validate(tree_graph: Any) -> ValidationReport:
+def validate_manchester_tree(tree_graph: Any) -> ValidationReport:
     """Validate ``tree_graph`` against the shapes in
     ``manchester_shapes.ttl``. Which shapes to check against is this
     module's own, fixed concern, not a parameter.
@@ -1297,7 +1296,7 @@ def manchester_validate(tree_graph: Any) -> ValidationReport:
 
     Args:
         tree_graph: The ``manch:`` syntax tree to validate - e.g. straight
-            out of ``manchester_parse_to_tree()``, or an LLM-authored
+            out of ``manchester_to_tree()``, or an LLM-authored
             ``manch:`` graph not yet decoded.
 
     Returns:

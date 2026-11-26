@@ -1,4 +1,4 @@
-"""The four shape validators (``validate_sparql_tree``, ``validate_sparql_tree``, ``manchester_validate``, ``meta_validate``) return the
+"""The four shape validators (``validate_sparql_tree``, ``validate_sparql_tree``, ``validate_manchester_tree``, ``meta_validate``) return the
 ``ValidationReport`` that ``validate()`` returns, not a tuple (decision 2026-11-25): the report is not iterable, so no caller can
 unpack the old ``(conforms, report_graph, report_text)`` triple.
 """
@@ -11,8 +11,8 @@ from starlayer.shacl import ValidationReport, meta_validate
 from starlayer.sparql import sparql_to_tree, validate_sparql_tree
 from starlayer.sparql.sqe.vocab import LIMIT, PROJECTION
 from starlayer.starontology.manchester import (
-    manchester_parse_to_tree,
-    manchester_validate,
+    manchester_to_tree,
+    validate_manchester_tree,
 )
 
 SQE = "SELECT * WHERE { ?s ?p ?o }"
@@ -42,14 +42,14 @@ def _srl(broken=False):
 def _manchester(broken=False):
     from starlayer.starontology.manchester import MANCH as M
 
-    tree = manchester_parse_to_tree(MANCH)
+    tree = manchester_to_tree(MANCH)
     if broken:
         (doc,) = list(tree.subjects(ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), M.OntologyDocument))
         tree.remove((doc, ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), M.OntologyDocument))
     return tree
 
 
-TREES = [(validate_sparql_tree, _sqe), (validate_sparql_tree, _srl), (manchester_validate, _manchester)]
+TREES = [(validate_sparql_tree, _sqe), (validate_sparql_tree, _srl), (validate_manchester_tree, _manchester)]
 IDS = ["sqe", "srl", "manchester"]
 
 

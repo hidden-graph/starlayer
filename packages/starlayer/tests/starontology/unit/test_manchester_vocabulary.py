@@ -8,7 +8,12 @@ from pathlib import Path
 
 import pytest
 from starlayer.graph.manchester._ox_terms import RDF
-from starlayer.starontology.manchester import MANCH, manchester_parse_to_tree, manchester_tree_to_text, manchester_validate
+from starlayer.starontology.manchester import (
+    MANCH,
+    manchester_to_tree,
+    tree_to_manchester,
+    validate_manchester_tree,
+)
 
 PACKAGE = Path(__file__).resolve().parents[3] / "starlayer"
 FOLDER = PACKAGE / "starontology" / "manchester"
@@ -87,7 +92,7 @@ STAYS = {"Value", "Min", "Max", "Some", "Only", "And", "Or", "Not", "OneOf", "Cl
 
 @pytest.fixture(scope="module")
 def tree():
-    return manchester_parse_to_tree(TEXT)
+    return manchester_to_tree(TEXT)
 
 
 def _types(tree):
@@ -112,9 +117,9 @@ def test_the_unrenamed_terms_are_still_written(tree):
 
 
 def test_the_tree_validates_and_renders_back_to_text_that_parses_to_the_same_tree(tree):
-    assert manchester_validate(tree).conforms
-    again = manchester_parse_to_tree(manchester_tree_to_text(tree))
-    assert manchester_validate(again).conforms
+    assert validate_manchester_tree(tree).conforms
+    again = manchester_to_tree(tree_to_manchester(tree))
+    assert validate_manchester_tree(again).conforms
     assert _types(again) == _types(tree) and _predicates(again) == _predicates(tree)
 
 
@@ -124,9 +129,9 @@ def test_the_tree_validates_and_renders_back_to_text_that_parses_to_the_same_tre
 )
 def test_the_restriction_keyword_is_the_class(keyword, cls):
     body = ":p Self" if keyword == "Self" else ":p exactly 2 :B"
-    g = manchester_parse_to_tree(f"Prefix: : <{EX}>\nClass: A\n    SubClassOf: {body}\nClass: B\nObjectProperty: :p\n")
+    g = manchester_to_tree(f"Prefix: : <{EX}>\nClass: A\n    SubClassOf: {body}\nClass: B\nObjectProperty: :p\n")
     assert cls in _types(g)
-    assert keyword in manchester_tree_to_text(g)
+    assert keyword in tree_to_manchester(g)
 
 
 @pytest.mark.parametrize("n,old", [(1, "DSome"), (2, "DExact")])

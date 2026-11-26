@@ -7,16 +7,16 @@ one ontology per document, ``languageTag`` non-empty, ``description2List`` with 
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.manchester._ox_terms import XSD, URIRef
 from starlayer.graph.manchester._ox_terms import lexical as Literal
-from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.starontology.manchester import (
-    manchester_parse_to_tree,
-    manchester_tree_to_owl,
-    manchester_tree_to_text,
+    manchester_to_tree,
+    tree_to_manchester,
+    tree_to_owl,
 )
 
 H = 'Prefix: : <http://ex.org/>\nOntology: <http://ex.org/o>\n'
@@ -33,7 +33,7 @@ def test_second_ontology_header_is_a_syntax_error(text):
     with pytest.raises(FormatError):
         parse_manchester(text)
     with pytest.raises(FormatError):
-        manchester_parse_to_tree(text)
+        manchester_to_tree(text)
 
 
 # --- language tags -------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ def test_bad_language_tag_is_a_syntax_error(tag):
     with pytest.raises(FormatError):
         parse_manchester(text)
     with pytest.raises(FormatError):
-        manchester_parse_to_tree(text)
+        manchester_to_tree(text)
 
 
 def test_good_language_tag_still_parses():
@@ -100,16 +100,16 @@ def test_single_member_misc_axiom_is_a_syntax_error(line):
     with pytest.raises(FormatError):
         parse_manchester(H + line + '\n')
     with pytest.raises(FormatError):
-        manchester_parse_to_tree(H + line + '\n')
+        manchester_to_tree(H + line + '\n')
 
 
 # --- empty tree, deep nesting --------------------------------------------------------------------
 
 def test_empty_graph_is_not_a_bare_stopiteration():
     with pytest.raises(ValueError, match='manch:OntologyDocument'):
-        manchester_tree_to_text(StarLayerGraph())
+        tree_to_manchester(StarLayerGraph())
     with pytest.raises(ValueError, match='manch:OntologyDocument'):
-        manchester_tree_to_owl(StarLayerGraph())
+        tree_to_owl(StarLayerGraph())
 
 
 def test_deeply_nested_expression_is_a_nesting_execution_error():
@@ -119,7 +119,7 @@ def test_deeply_nested_expression_is_a_nesting_execution_error():
         parse_manchester(text)
     assert caught.value.kind == 'nesting'
     with pytest.raises(ExecutionError):
-        manchester_parse_to_tree(text)
+        manchester_to_tree(text)
     nots = 'not ' * depth
     with pytest.raises(ExecutionError):
         parse_manchester(H + 'Class: A\n  SubClassOf: ' + nots + 'B\n')

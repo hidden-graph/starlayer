@@ -1,5 +1,5 @@
 """The ``manch:`` tree writes its ordered children as ordinals (``tree:ord``, ``graph/ordinals.py``), not as ``rdf:List``: what that
-changes for the decoder, ``manchester_validate``, editing through the helpers, and hashing."""
+changes for the decoder, ``validate_manchester_tree``, editing through the helpers, and hashing."""
 
 from __future__ import annotations
 
@@ -13,10 +13,10 @@ from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.graph.rdfc import rdfc10_hash
 from starlayer.starontology.manchester import (
     MANCH,
-    manchester_parse_to_tree,
-    manchester_tree_to_owl,
-    manchester_tree_to_text,
-    manchester_validate,
+    manchester_to_tree,
+    tree_to_manchester,
+    tree_to_owl,
+    validate_manchester_tree,
 )
 
 EX = "http://example.org/vehicles#"
@@ -48,7 +48,7 @@ EquivalentClasses: A, B
 
 def _graph(text: str = TEXT) -> StarLayerGraph:
     g = StarLayerGraph()
-    g.extend(list(manchester_parse_to_tree(text)))
+    g.extend(list(manchester_to_tree(text)))
     return g
 
 
@@ -59,13 +59,13 @@ def _types(g: StarLayerGraph, cls: URIRef):
 def test_no_rdf_list_is_written():
     g = _graph()
     assert not any(p in (RDF.first, RDF.rest) for _s, p, _o in g)
-    assert manchester_validate(g).conforms
+    assert validate_manchester_tree(g).conforms
 
 
 def test_the_baseline_conforms_and_renders():
     g = _graph(GUIDE)
-    assert manchester_validate(g).conforms
-    assert manchester_tree_to_text(g).count("Class:") == 2
+    assert validate_manchester_tree(g).conforms
+    assert tree_to_manchester(g).count("Class:") == 2
 
 
 # --- the decoder refuses a tree whose order is not defined ----------------------------------------------------------
@@ -83,9 +83,9 @@ def test_a_tie_is_a_format_error_and_a_shape_violation():
     g.remove((frames[1], ordinals.ORD, None))
     g.add((frames[1], ordinals.ORD, number))
     with pytest.raises(FormatError) as raised:
-        manchester_tree_to_text(g)
+        tree_to_manchester(g)
     assert raised.value.kind == "rdf"
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_a_missing_ordinal_is_a_format_error_and_a_shape_violation():
@@ -93,9 +93,9 @@ def test_a_missing_ordinal_is_a_format_error_and_a_shape_violation():
     frame = next(g.objects(_types(g, MANCH.OntologyDocument)[0], MANCH.frames))
     g.remove((frame, ordinals.ORD, None))
     with pytest.raises(FormatError) as raised:
-        manchester_tree_to_text(g)
+        tree_to_manchester(g)
     assert raised.value.kind == "rdf"
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_a_non_integer_ordinal_is_a_format_error_and_a_shape_violation():
@@ -104,9 +104,9 @@ def test_a_non_integer_ordinal_is_a_format_error_and_a_shape_violation():
     g.remove((frame, ordinals.ORD, None))
     g.add((frame, ordinals.ORD, ox.Literal("zero")))
     with pytest.raises(FormatError) as raised:
-        manchester_tree_to_text(g)
+        tree_to_manchester(g)
     assert raised.value.kind == "rdf"
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_a_blank_child_under_two_parents_is_rejected():
@@ -115,7 +115,7 @@ def test_a_blank_child_under_two_parents_is_rejected():
     clause = next(g.objects(car, MANCH.clauses))
     other = next(f for f in g.subjects(RDF.type, MANCH.ObjectPropertyFrame))
     g.add((other, MANCH.clauses, clause))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_a_named_node_shared_through_a_tree_item_is_accepted():
@@ -123,8 +123,8 @@ def test_a_named_node_shared_through_a_tree_item_is_accepted():
     g = _graph(HEADER + "EquivalentClasses: :A, :B\nDisjointClasses: :B, :A\n")
     items = list(g.subjects(ordinals.VALUE, URIRef(EX + "A")))
     assert len(items) == 2 and all((i, RDF.type, ordinals.ITEM) in g for i in items)
-    assert manchester_validate(g).conforms
-    assert manchester_tree_to_text(g).count(f"<{EX}A>") == 2
+    assert validate_manchester_tree(g).conforms
+    assert tree_to_manchester(g).count(f"<{EX}A>") == 2
 
 
 # --- editing through the helpers -------------------------------------------------------------------------------------
@@ -145,39 +145,39 @@ def _some(g, prop="hasWheelCount", filler="http://www.w3.org/2001/XMLSchema#inte
 
 
 def _roundtrips(g) -> str:
-    text = manchester_tree_to_text(g)
-    again = manchester_tree_to_text(manchester_parse_to_tree(text))
+    text = tree_to_manchester(g)
+    again = tree_to_manchester(manchester_to_tree(text))
     assert text == again
-    assert isomorphic(manchester_tree_to_owl(g), manchester_tree_to_owl(manchester_parse_to_tree(text)))
+    assert isomorphic(tree_to_owl(g), tree_to_owl(manchester_to_tree(text)))
     return text
 
 
 def test_append_to_the_subclassof_clause_is_the_guide_edit():
     """Guide 06.05.3: ``hasWheelCount some xsd:integer`` becomes the second superclass of ``Car``."""
-    g = manchester_parse_to_tree(GUIDE, tree_graph=StarLayerGraph())
+    g = manchester_to_tree(GUIDE, tree_graph=StarLayerGraph())
     ordinals.append(g, _car_clause(g), MANCH.items, _some(g))
     text = _roundtrips(g)
     assert f"SubClassOf: <{EX}Vehicle>, <{EX}hasWheelCount> some <http://www.w3.org/2001/XMLSchema#integer>" in text
-    assert manchester_validate(g).conforms
-    assert len(manchester_tree_to_owl(g)) > len(parse_manchester(GUIDE))
+    assert validate_manchester_tree(g).conforms
+    assert len(tree_to_owl(g)) > len(parse_manchester(GUIDE))
 
 
 def test_insert_remove_and_replace_render_and_reparse():
-    g = manchester_parse_to_tree(GUIDE, tree_graph=StarLayerGraph())
+    g = manchester_to_tree(GUIDE, tree_graph=StarLayerGraph())
     clause = _car_clause(g)
     ordinals.insert_at(g, clause, MANCH.items, 0, _some(g, "first"))
-    text = manchester_tree_to_text(g)
+    text = tree_to_manchester(g)
     assert text.index("first") < text.index("Vehicle>", text.index("Car"))
     assert _roundtrips(g)
 
     ordinals.replace_at(g, clause, MANCH.items, 0, _some(g, "second"))
-    text = manchester_tree_to_text(g)
+    text = tree_to_manchester(g)
     assert "second" in text and "first" not in text
-    assert manchester_validate(g).conforms
+    assert validate_manchester_tree(g).conforms
 
     ordinals.remove_at(g, clause, MANCH.items, 0)
-    assert manchester_tree_to_text(g).count("some") == 0
-    assert manchester_validate(g).conforms
+    assert tree_to_manchester(g).count("some") == 0
+    assert validate_manchester_tree(g).conforms
     _roundtrips(g)
 
 
@@ -199,21 +199,21 @@ def _frames(n: int) -> str:
 
 
 def test_a_60_frame_document_validates_hashes_and_a_renumbered_copy_hashes_equal():
-    g = manchester_parse_to_tree(_frames(60))
-    assert manchester_validate(g).conforms
+    g = manchester_to_tree(_frames(60))
+    assert validate_manchester_tree(g).conforms
     digest = rdfc10_hash(ordinals.renumber_dense(g))
-    assert digest == rdfc10_hash(ordinals.renumber_dense(manchester_parse_to_tree(_frames(60))))  # two parses, other blank node labels
-    assert manchester_tree_to_text(g) == manchester_tree_to_text(manchester_parse_to_tree(_frames(60)))
+    assert digest == rdfc10_hash(ordinals.renumber_dense(manchester_to_tree(_frames(60))))  # two parses, other blank node labels
+    assert tree_to_manchester(g) == tree_to_manchester(manchester_to_tree(_frames(60)))
 
 
 def test_sixty_identical_axioms_hash():
     """With ``rdf:List`` cells RDFC-1.0 refused 60 identical ``EquivalentClasses:`` axioms (531 blank nodes it could not tell apart)."""
-    g = manchester_parse_to_tree(HEADER + "EquivalentClasses: :A, :B and :C, :D some :E\n" * 60)
+    g = manchester_to_tree(HEADER + "EquivalentClasses: :A, :B and :C, :D some :E\n" * 60)
     assert len(rdfc10_hash(ordinals.renumber_dense(g))) == 64
 
 
 def test_removing_a_frame_leaves_a_gap_that_renumber_dense_closes():
-    g = manchester_parse_to_tree(_frames(5))
+    g = manchester_to_tree(_frames(5))
     doc = _types(g, MANCH.OntologyDocument)[0]
 
     def numbers():

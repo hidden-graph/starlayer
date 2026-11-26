@@ -239,20 +239,20 @@ MANCHESTER = "Class: <http://e/A> SubClassOf: <http://e/B>"
 def test_manchester_tree_functions():
     from starlayer.starontology import manchester
 
-    tree = manchester.manchester_parse_to_tree(MANCHESTER, tree_graph=StarLayerGraph())
+    tree = manchester.manchester_to_tree(MANCHESTER, tree_graph=StarLayerGraph())
     assert_ox(tree)
     assert "manch" in tree.prefixes
-    owl = manchester.manchester_tree_to_owl(tree)
+    owl = manchester.tree_to_owl(tree)
     assert_ox(owl)
     assert ox.NamedNode("http://e/A") in set(owl.subjects())
-    outcome = manchester.manchester_validate(tree)
+    outcome = manchester.validate_manchester_tree(tree)
     ok = outcome.conforms
     report = outcome.report_graph
     assert ok is True
     assert_ox(report, max_prefixes=10)  # the report names the shared tree: shapes too, which adds the prefix tree
-    default_tree = manchester.manchester_parse_to_tree(MANCHESTER)
+    default_tree = manchester.manchester_to_tree(MANCHESTER)
     assert isinstance(default_tree, StarLayerGraph)  # the default is an StarLayerGraph
-    assert manchester.manchester_tree_to_text(tree) == manchester.manchester_tree_to_text(default_tree)
+    assert manchester.tree_to_manchester(tree) == manchester.tree_to_manchester(default_tree)
 
 
 def test_skos_validate():

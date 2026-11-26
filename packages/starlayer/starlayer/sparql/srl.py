@@ -80,7 +80,7 @@ sibling files:
   delegates to this module's private ``_srl_infer``/``_srl_query``) -
   *running* a ``RuleSet`` against a base graph is a separate concern from
   the tree pipeline above, not a missing or oddly-shaped seventh step:
-  unlike Manchester's `manchester_tree_to_owl()` (a pure function of the
+  unlike Manchester's `tree_to_owl()` (a pure function of the
   tree alone, translating between two independently-meaningful RDF forms),
   SRL has only one RDF form (`srl:`) - decoding already produces the
   runnable `RuleSet`, and running it inherently needs a second input (the

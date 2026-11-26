@@ -2,7 +2,7 @@
 
 Passing every valid tree (test_mc_tree.py) only shows the shapes are not too strict. This file checks they
 are not too lax: take valid trees, damage them in ways a hand- or LLM-authored tree could be damaged, and
-require ``manchester_validate`` to reject them.
+require ``validate_manchester_tree`` to reject them.
 
 The first run of a full mutation scan (``tools/mutation_scan.py``: 430 mutants, one per distinct
 (node class, property, operator) in the corpus) found 10 trees that PASSED validation yet crash the
@@ -10,7 +10,7 @@ decoder, and a list shape that accepted unterminated and cyclic lists. Both were
 ``tree:ord`` ordinals (no ``rdf:List``) the list tests are the ordinal ones below: a missing, tied or non-integer ordinal,
 an item of the wrong kind, a blank child under two parents. These tests keep it fixed. The cause of the first: validation runs with RDFS inference, several ``manch:`` properties
 declare an ``rdfs:domain``, so a deleted ``rdf:type`` was inferred straight back and every shape was
-satisfied - the decoder, reading asserted types, was not. ``manchester_validate`` now has a pre-flight
+satisfied - the decoder, reading asserted types, was not. ``validate_manchester_tree`` now has a pre-flight
 check on the asserted graph.
 """
 
@@ -25,9 +25,9 @@ from starlayer.starontology.manchester import (
     MANCH,
     _concrete_classes,
     _preflight,
-    manchester_parse_to_tree,
-    manchester_tree_to_text,
-    manchester_validate,
+    manchester_to_tree,
+    tree_to_manchester,
+    validate_manchester_tree,
 )
 
 from .corpus import CASES
@@ -50,12 +50,12 @@ EquivalentClasses: A, B
 
 def _tree(text: str = RICH) -> Graph:
     g = Graph()
-    g.extend(list(manchester_parse_to_tree(text)))
+    g.extend(list(manchester_to_tree(text)))
     return g
 
 
 def test_the_unmutated_tree_conforms():
-    assert manchester_validate(_tree()).conforms
+    assert validate_manchester_tree(_tree()).conforms
 
 
 # --- types: a node must be ASSERTED with a concrete class (pre-flight, no SHACL needed) -----------------
@@ -96,20 +96,20 @@ def test_a_tree_with_no_document_is_rejected():
     g = _tree()
     (doc,) = list(g.subjects(RDF.type, MANCH.OntologyDocument))
     g.remove((doc, RDF.type, MANCH.OntologyDocument))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_two_documents_are_rejected():
     g = _tree()
     g.add((BNode(), RDF.type, MANCH.OntologyDocument))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_an_unknown_manch_type_is_rejected():
     g = _tree()
     frame = next(g.subjects(RDF.type, MANCH.ClassFrame))
     g.add((frame, RDF.type, MANCH.NotAClass))
-    outcome = manchester_validate(g)
+    outcome = validate_manchester_tree(g)
     ok = outcome.conforms
     text = outcome.report_text
     assert not ok and "not a class" in text
@@ -120,7 +120,7 @@ def test_the_report_graph_carries_the_preflight_findings():
     g = _tree()
     frame = next(g.subjects(RDF.type, MANCH.ClassFrame))
     g.remove((frame, RDF.type, MANCH.ClassFrame))
-    outcome = manchester_validate(g)
+    outcome = validate_manchester_tree(g)
     ok = outcome.conforms
     report = outcome.report_graph
     assert not ok
@@ -160,7 +160,7 @@ def _children(g: Graph, predicate: URIRef):
 
 
 def test_the_ordered_tree_conforms():
-    assert manchester_validate(_tree(ORDERED)).conforms
+    assert validate_manchester_tree(_tree(ORDERED)).conforms
 
 
 @pytest.mark.parametrize("predicate", ORDERED_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
@@ -168,7 +168,7 @@ def test_a_child_without_an_ordinal_is_rejected(predicate):
     g = _tree(ORDERED)
     _parent, kids = _children(g, predicate)
     g.remove((kids[0], ordinals.ORD, None))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 @pytest.mark.parametrize("predicate", ORDERED_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
@@ -178,7 +178,7 @@ def test_two_children_with_the_same_ordinal_are_rejected(predicate):
     number = next(g.objects(kids[0], ordinals.ORD))
     g.remove((kids[1], ordinals.ORD, None))
     g.add((kids[1], ordinals.ORD, number))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 @pytest.mark.parametrize("predicate", ORDERED_PREDICATES, ids=lambda p: p.value.rsplit("#", 1)[-1])
@@ -187,7 +187,7 @@ def test_an_ordinal_that_is_not_an_integer_is_rejected(predicate):
     _parent, kids = _children(g, predicate)
     g.remove((kids[0], ordinals.ORD, None))
     g.add((kids[0], ordinals.ORD, Literal("first")))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 @pytest.mark.parametrize(
@@ -204,7 +204,7 @@ def test_an_item_value_of_the_wrong_kind_is_rejected(predicate, bad_item):
     _parent, kids = _children(g, predicate)
     g.remove((kids[0], ordinals.VALUE, None))
     g.add((kids[0], ordinals.VALUE, bad_item))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 @pytest.mark.parametrize("predicate", [MANCH.prefixes, MANCH.facets, MANCH.frames, MANCH.clauses],
@@ -215,7 +215,7 @@ def test_a_child_of_the_wrong_class_is_rejected(predicate):
     (old,) = [o for o in g.objects(kids[0], RDF.type) if o in MANCH]
     g.remove((kids[0], RDF.type, old))
     g.add((kids[0], RDF.type, MANCH.OntologyDocument if old != MANCH.OntologyDocument else MANCH.Frame))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_a_blank_child_under_two_parents_is_rejected():
@@ -225,7 +225,7 @@ def test_a_blank_child_under_two_parents_is_rejected():
     clause = next(o for _, _, o in g.triples((clause_owner, MANCH.clauses, None)))
     other = next(f for f in g.subjects(RDF.type, MANCH.ClassFrame) if f != clause_owner)
     g.add((other, MANCH.clauses, clause))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 def test_a_node_with_a_value_but_no_item_type_is_caught_before_inference():
@@ -234,7 +234,7 @@ def test_a_node_with_a_value_but_no_item_type_is_caught_before_inference():
     item = next(g.subjects(ordinals.VALUE, None))
     g.remove((item, RDF.type, ordinals.ITEM))
     assert any("tree:Item" in message for _node, message in _preflight(g))
-    assert not manchester_validate(g).conforms
+    assert not validate_manchester_tree(g).conforms
 
 
 # --- the property that matters: whatever validates must decode ------------------------------------------
@@ -251,10 +251,10 @@ def test_every_single_triple_removal_that_validates_still_decodes():
         mutant = Graph()
         mutant.extend(list(base))
         mutant.remove(t)
-        if not manchester_validate(mutant).conforms:
+        if not validate_manchester_tree(mutant).conforms:
             continue
         try:
-            manchester_tree_to_text(mutant)
+            tree_to_manchester(mutant)
         except Exception as error:  # noqa: BLE001
             holes.append((t, type(error).__name__))
     assert not holes, f"{len(holes)} mutants validate but cannot be decoded, e.g. {holes[:3]}"

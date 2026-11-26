@@ -88,7 +88,7 @@ def test_orphan_registry_has_no_stale_entries():
 @pytest.mark.manchester_conformance
 def test_every_concrete_class_has_a_shape_or_inherits_one():
     """Every non-abstract manch: class must be covered by some SHACL shape (directly, or via a
-    superclass the shapes target with RDFS reasoning on, as ``manchester_validate`` does)."""
+    superclass the shapes target with RDFS reasoning on, as ``validate_manchester_tree`` does)."""
     onto = _load(LIVE / "manchester" / "manchester-ast-ontology.ttl")
     shapes = _load(LIVE / "manchester" / "manchester_shapes.ttl")
     targeted = {o.value for o in shapes.objects(None, URIRef("http://www.w3.org/ns/shacl#targetClass"))}

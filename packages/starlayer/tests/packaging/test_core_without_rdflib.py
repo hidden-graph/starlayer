@@ -221,16 +221,16 @@ def test_manchester_syntax_tree_round_trip():
     out = ok("""
         from starlayer.graph import StarLayerGraph, isomorphic
         from starlayer.starontology.manchester import (
-            manchester_parse_to_tree, manchester_tree_to_owl, manchester_tree_to_text,
+            manchester_to_tree, tree_to_owl, tree_to_manchester,
         )
         text = __TEXT__
-        tree = manchester_parse_to_tree(text)
+        tree = manchester_to_tree(text)
         assert isinstance(tree, StarLayerGraph)
-        owl = manchester_tree_to_owl(tree)
+        owl = tree_to_owl(tree)
         direct = StarLayerGraph(); direct.parse(data=text, format="manchester")
         assert isomorphic(owl, direct)
-        again = manchester_parse_to_tree(manchester_tree_to_text(tree))
-        assert isomorphic(manchester_tree_to_owl(again), direct)
+        again = manchester_to_tree(tree_to_manchester(tree))
+        assert isomorphic(tree_to_owl(again), direct)
         print("done")
     """.replace("__TEXT__", repr(MANCHESTER)))
     assert "done" in out
@@ -253,7 +253,7 @@ def test_rdfs_inference_and_infer_types_run_without_rdflib():
         got = {(s.value, o.value) for s, _p, o in types.triples()}
         assert ("http://e/G", "http://www.w3.org/ns/shacl#PropertyGroup") in got, got
         import starlayer.starontology.manchester as m
-        m.manchester_validate(m.manchester_parse_to_tree("Class: <http://e/A>"))  # validates with RDFS inference
+        m.validate_manchester_tree(m.manchester_to_tree("Class: <http://e/A>"))  # validates with RDFS inference
         print("done", "rdflib" in sys.modules and sys.modules["rdflib"] is not None)
     """)
     assert out.strip() == "done False"
@@ -266,7 +266,7 @@ def test_nothing_in_the_core_imports_rdflib():
         from starlayer.graph import StarLayerGraph, StarLayerDataset
         from starlayer.shacl import validate
         g = StarLayerGraph(); g.parse(data='Prefix: : <http://e/>\\nClass: A\\n', format='manchester'); g.serialize(format='manchester')
-        import starlayer.starontology.manchester as m; m.manchester_tree_to_owl(m.manchester_parse_to_tree('Class: <http://e/A>\\n'))
+        import starlayer.starontology.manchester as m; m.tree_to_owl(m.manchester_to_tree('Class: <http://e/A>\\n'))
         g = StarLayerGraph(); g.update('INSERT DATA { <http://e/s> <http://e/p> 1 }')
         list(g.query('SELECT * WHERE { ?s ?p ?o }'))
         print([m for m in sys.modules if m == 'rdflib' or m.startswith('rdflib.')][:3])

@@ -16,14 +16,14 @@ from starlayer import starontology
 from starlayer.graph import StarLayerGraph, ordinals
 from starlayer.graph.manchester._ox_terms import RDF, BNode
 from starlayer.starontology import manchester as ms
-from starlayer.starontology.manchester import MANCH, manchester_parse_to_tree
+from starlayer.starontology.manchester import MANCH, manchester_to_tree
 from tests.graph.unit.test_manchester_ast import DOCUMENTS
 
 
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_valid_documents_conform(text):
-    graph = manchester_parse_to_tree(text)
-    outcome = ms.manchester_validate(graph)
+    graph = manchester_to_tree(text)
+    outcome = ms.validate_manchester_tree(graph)
     conforms = outcome.conforms
     results_text = outcome.report_text
     assert conforms, results_text
@@ -46,7 +46,7 @@ def _encode_data_prop_range():
         '    Domain: Person\n'
         '    Range: xsd:integer\n'
     )
-    return manchester_parse_to_tree(text, tree_graph=StarLayerGraph())  # edited below
+    return manchester_to_tree(text, tree_graph=StarLayerGraph())  # edited below
 
 
 def test_wrong_item_type_under_data_prop_range_clause_fails():
@@ -63,7 +63,7 @@ def test_wrong_item_type_under_data_prop_range_clause_fails():
     ordinals.write_ordered(graph, bad_and, MANCH.operands, [BNode(), BNode()])
     graph.add((item, MANCH.value, bad_and))
 
-    outcome = ms.manchester_validate(graph)
+    outcome = ms.validate_manchester_tree(graph)
     conforms = outcome.conforms
     results_text = outcome.report_text
     assert not conforms
@@ -80,14 +80,14 @@ def test_misc_axiom_item_of_wrong_family_fails():
         'Prefix: : <http://example.org/>\n'
         'EquivalentClasses: Cat, Feline\n'
     )
-    graph = manchester_parse_to_tree(text, tree_graph=StarLayerGraph())  # edited below
+    graph = manchester_to_tree(text, tree_graph=StarLayerGraph())  # edited below
     misc = next(graph.subjects(RDF.type, MANCH.MiscEquivalentClassesAxiom))
     bad = BNode()  # the wrong family, in the first position (the Item that held the first class name goes)
     graph.add((bad, RDF.type, MANCH.Inverse))
     graph.add((bad, MANCH.operand, MANCH.someProp))
     ordinals.replace_at(graph, misc, MANCH.items, 0, bad)
 
-    outcome = ms.manchester_validate(graph)
+    outcome = ms.validate_manchester_tree(graph)
     conforms = outcome.conforms
     results_text = outcome.report_text
     assert not conforms
@@ -100,5 +100,5 @@ def test_a_clause_item_with_no_ordinal_fails():
     (item,) = ordinals.ordered_items(graph, clause, MANCH.items)
     graph.remove((item, ordinals.ORD, None))
 
-    outcome = ms.manchester_validate(graph)
+    outcome = ms.validate_manchester_tree(graph)
     assert not outcome.conforms

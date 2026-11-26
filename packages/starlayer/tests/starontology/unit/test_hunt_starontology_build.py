@@ -76,10 +76,10 @@ def test_manchester_second_document_into_one_graph_is_rejected():
     from starlayer.starontology import manchester as M
 
     pre = "Prefix: : <http://ex/>\n"
-    g = M.manchester_parse_to_tree(pre + "Class: :A\n")
+    g = M.manchester_to_tree(pre + "Class: :A\n")
     with pytest.raises(ValueError, match="manch:OntologyDocument"):
-        M.manchester_parse_to_tree(pre + "Class: :B\n", tree_graph=g)
-    text = M.manchester_tree_to_text(g)
+        M.manchester_to_tree(pre + "Class: :B\n", tree_graph=g)
+    text = M.tree_to_manchester(g)
     assert "ex/A" in text and "ex/B" not in text
 
 

@@ -596,7 +596,7 @@ nl:06.05-f58f1639 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Validates a Manchester syntax tree against the manch: shapes." ;
     slkg:demonstratesIdentifier
-        "starlayer.starontology.manchester.__init__.manchester_validate" .
+        "starlayer.starontology.manchester.__init__.validate_manchester_tree" .
 
 nl:06.03-df2738a8 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;

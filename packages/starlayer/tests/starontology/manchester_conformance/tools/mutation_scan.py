@@ -32,9 +32,9 @@ from starlayer.graph.manchester._ox_terms import RDF, BNode, URIRef  # noqa: E40
 from starlayer.graph.manchester._ox_terms import lexical as Literal  # noqa: E402
 from starlayer.starontology.manchester import (  # noqa: E402
     MANCH,
-    manchester_parse_to_tree,
-    manchester_tree_to_text,
-    manchester_validate,
+    manchester_to_tree,
+    tree_to_manchester,
+    validate_manchester_tree,
 )
 
 from manchester_conformance.corpus import CASES  # noqa: E402
@@ -50,14 +50,14 @@ def types_of(g, node) -> str:
 
 def verdict(g):
     try:
-        outcome = manchester_validate(g)
+        outcome = validate_manchester_tree(g)
         ok = outcome.conforms
     except Exception as error:  # noqa: BLE001
         return "validator-crash", f"{type(error).__name__}: {str(error)[:80]}"
     if not ok:
         return "rejected", None
     try:
-        manchester_tree_to_text(g)
+        tree_to_manchester(g)
     except Exception as error:  # noqa: BLE001
         return "HOLE-decoder-crash", f"{type(error).__name__}: {str(error)[:80]}"
     return "survives-decodes", None
@@ -73,7 +73,7 @@ def main() -> int:
     started = time.time()
     for case in CASES:
         try:
-            tree = manchester_parse_to_tree(case.text)
+            tree = manchester_to_tree(case.text)
         except Exception:  # noqa: BLE001
             continue
         base = Graph()

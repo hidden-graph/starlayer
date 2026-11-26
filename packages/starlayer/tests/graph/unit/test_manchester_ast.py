@@ -2,7 +2,7 @@
 syntax tree in RDF, mirroring the sibling starlayer.sparql package's
 test_ast_ontology.py).
 
-Verifies text -> manchester_parse_to_tree -> manchester_tree_to_text -> re-parse, by
+Verifies text -> manchester_to_tree -> tree_to_manchester -> re-parse, by
 compiling *both* the original text and the re-serialized text through the
 real, unmodified manchester_parser.parse_manchester() and comparing the
 resulting OWL-semantic triple sets via starlayer.graph.compare.isomorphic()
@@ -24,9 +24,9 @@ from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.starontology.manchester import (
     _find_root,
     _tree_to_document,
-    manchester_parse_to_tree,
-    manchester_tree_to_owl,
-    manchester_tree_to_text,
+    manchester_to_tree,
+    tree_to_manchester,
+    tree_to_owl,
 )
 
 HEADER = (
@@ -134,8 +134,8 @@ def _graph(triples):
 
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_ast_roundtrip_preserves_owl_semantics(text):
-    graph = manchester_parse_to_tree(text)
-    rendered = manchester_tree_to_text(graph)
+    graph = manchester_to_tree(text)
+    rendered = tree_to_manchester(graph)
 
     original_triples = parse_manchester(text)
     roundtripped_triples = parse_manchester(rendered)
@@ -150,11 +150,11 @@ def test_ast_roundtrip_is_stable_under_a_second_pass():
     """Encoding the re-rendered text again should reach a semantic fixed
     point (no further drift on a second decode/re-render cycle)."""
     text = DOCUMENTS[4]  # the ObjectProperty/SubPropertyChain document
-    graph = manchester_parse_to_tree(text)
-    rendered_once = manchester_tree_to_text(graph)
+    graph = manchester_to_tree(text)
+    rendered_once = tree_to_manchester(graph)
 
-    graph2 = manchester_parse_to_tree(rendered_once)
-    rendered_twice = manchester_tree_to_text(graph2)
+    graph2 = manchester_to_tree(rendered_once)
+    rendered_twice = tree_to_manchester(graph2)
 
     assert isomorphic(_graph(parse_manchester(rendered_once)), _graph(parse_manchester(rendered_twice)))
 
@@ -164,7 +164,7 @@ def test_decoded_document_is_a_plain_namedtuple_tree():
     tree-RDF, not this intermediate object - see the module's own
     docstring), but this still verifies its internal shape directly."""
     text = HEADER + 'Class: Cat\n    SubClassOf: Animal\n'
-    graph = manchester_parse_to_tree(text, tree_graph=StarLayerGraph())
+    graph = manchester_to_tree(text, tree_graph=StarLayerGraph())
     document = _tree_to_document(graph, _find_root(graph))
 
     assert document.frames[0].kind == 'Class'
@@ -173,8 +173,8 @@ def test_decoded_document_is_a_plain_namedtuple_tree():
 
 @pytest.mark.parametrize('text', DOCUMENTS)
 def test_tree_to_owl_matches_compiling_the_text_directly(text):
-    graph = manchester_parse_to_tree(text)
+    graph = manchester_to_tree(text)
     # both sides as OxGraphs: Oxigraph stores a literal in canonical form, so an rdflib-term list would differ lexically
     expected = StarLayerGraph()
     expected.extend(list(parse_manchester(text)))
-    assert isomorphic(manchester_tree_to_owl(graph), expected)
+    assert isomorphic(tree_to_owl(graph), expected)

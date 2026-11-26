@@ -18,10 +18,10 @@ from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
 from starlayer.graph.compare import isomorphic
 from starlayer.starontology.manchester import (
-    manchester_parse_to_tree,
-    manchester_tree_to_owl,
-    manchester_tree_to_text,
-    manchester_validate,
+    manchester_to_tree,
+    tree_to_manchester,
+    tree_to_owl,
+    validate_manchester_tree,
 )
 
 from .corpus import PRELUDE
@@ -160,16 +160,16 @@ SETTINGS = settings(
 @SETTINGS
 def test_generated_documents_hold_the_tree_invariants(text):
     direct = parse_to_graph(text)
-    tree = manchester_parse_to_tree(text)
+    tree = manchester_to_tree(text)
 
-    outcome = manchester_validate(tree)
+    outcome = validate_manchester_tree(tree)
     conforms = outcome.conforms
     report_text = outcome.report_text
     assert conforms, report_text[:400]
 
-    assert isomorphic(direct, to_graph(manchester_tree_to_owl(tree))), "tree OWL differs from direct parse"
+    assert isomorphic(direct, to_graph(tree_to_owl(tree))), "tree OWL differs from direct parse"
 
-    rendered = manchester_tree_to_text(tree)
+    rendered = tree_to_manchester(tree)
     assert isomorphic(direct, parse_to_graph(rendered)), f"render does not re-parse to the same OWL:\n{rendered}"
 
-    assert manchester_tree_to_text(manchester_parse_to_tree(rendered)) == rendered, "second pass unstable"
+    assert tree_to_manchester(manchester_to_tree(rendered)) == rendered, "second pass unstable"
