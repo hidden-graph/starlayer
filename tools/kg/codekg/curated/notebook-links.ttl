@@ -69,8 +69,8 @@ nl:02.06-2c6151e0 a slkg:NotebookExample ;
 nl:02.07-b87b0ce5 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02.07-owl-dl-reasoning.ipynb" ;
     slkg:cellId "b87b0ce5" ;
-    slkg:cellHash "7a0cfd78f15b8f0b" ;
-    slkg:reviewedOn "2026-11-14"^^xsd:date ;
+    slkg:cellHash "b7c037b698e732e3" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
     rdfs:comment "Shows the OWL-Direct (OWL-DL) regime raising ExecutionError of kind inconsistent for a contradiction that the rule-based OWL-RDF-Based regime does not report." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.entailment.infer.infer" .
@@ -186,8 +186,8 @@ nl:05.09-80d50838 a slkg:NotebookExample ;
 nl:06.03-e00d4c27 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;
     slkg:cellId "e00d4c27" ;
-    slkg:cellHash "b223eef33dd2ebc2" ;
-    slkg:reviewedOn "2026-11-25"^^xsd:date ;
+    slkg:cellHash "95b515a4ce8e2c1d" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
     rdfs:comment "Parses a SPARQL query into an sqe RDF tree with sparql_to_tree(), the first use of the sqe package." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.sqe.__init__" .
@@ -214,8 +214,8 @@ nl:07.03-9e831b35 a slkg:NotebookExample ;
 nl:appendix-34b06f8c a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/appendix-b1-sqe-shared-parts.ipynb" ;
     slkg:cellId "34b06f8c" ;
-    slkg:cellHash "9e0ce6c2cc514595" ;
-    slkg:reviewedOn "2026-11-25"^^xsd:date ;
+    slkg:cellHash "5ed05a0bed747894" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
     rdfs:comment "Uses cbd() to delete a shared filter and everything hanging from it in a query graph." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.cbd" .
@@ -259,11 +259,11 @@ nl:04.01-c0a10008 a slkg:NotebookExample ;
 nl:04.02-c0a10006 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04.02-srl-running-rule-sets.ipynb" ;
     slkg:cellId "c0a10006" ;
-    slkg:cellHash "d4369e795a570ef7" ;
-    slkg:reviewedOn "2026-11-18"^^xsd:date ;
-    rdfs:comment "Shows the ExecutionError (kind rule, context stratification) from srl_eval that plan() raises for rule sets with no valid evaluation order." ;
+    slkg:cellHash "dbd04cdd12b50d25" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
+    rdfs:comment "Shows the ExecutionError (kind rule, context stratification) that plan() raises for rule sets with no valid evaluation order." ;
     slkg:demonstratesIdentifier
-        "starlayer.sparql.srl_eval" .
+        "starlayer.sparql._srl_ast.RuleSet.plan" .
 
 nl:05.11-88a5feb0 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.11-shacl-evaluate.ipynb" ;
@@ -592,8 +592,8 @@ nl:03.02-f6a58c6a a slkg:NotebookExample ;
 nl:06.05-f58f1639 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06.05-manchester-syntax-as-rdf.ipynb" ;
     slkg:cellId "f58f1639" ;
-    slkg:cellHash "2e6c535696e0deac" ;
-    slkg:reviewedOn "2026-11-25"^^xsd:date ;
+    slkg:cellHash "6b382d8eec6027b7" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
     rdfs:comment "Validates a Manchester syntax tree against the manch: shapes." ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.manchester.__init__.validate_manchester_tree" .
@@ -601,8 +601,8 @@ nl:06.05-f58f1639 a slkg:NotebookExample ;
 nl:06.03-df2738a8 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;
     slkg:cellId "df2738a8" ;
-    slkg:cellHash "74a9ad6fa0755729" ;
-    slkg:reviewedOn "2026-11-25"^^xsd:date ;
+    slkg:cellHash "368606a6e2a4540e" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
     rdfs:comment "Validates an sqe: query tree against the sqe: shapes." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.syntax_tree.validate_sparql_tree" .
