@@ -20,6 +20,10 @@ _UPDATE_START = re.compile(
     r"(?is)\A(?:\s+|#[^\n]*|(?:PREFIX\s+[^\s:]*:\s*<[^>]*>)|(?:BASE\s*<[^>]*>)|(?:VERSION\s+(?:'[^']*'|\"[^\"]*\")))*"
     r"(INSERT|DELETE|LOAD|CLEAR|DROP|CREATE|ADD|MOVE|COPY|WITH)\b"
 )
+# text with a prologue and nothing else (PREFIX / BASE / VERSION lines, comments, blanks, or no text at all): an update request with no operation
+_PROLOGUE_ONLY = re.compile(
+    r"(?is)\A(?:\s+|#[^\n]*|(?:PREFIX\s+[^\s:]*:\s*<[^>]*>)|(?:BASE\s*<[^>]*>)|(?:VERSION\s+(?:'[^']*'|\"[^\"]*\")))*\Z"
+)
 
 
 def sqe_parse_to_tree(
@@ -59,7 +63,9 @@ def sqe_parse_to_tree(
         A ``(tree_graph, root)`` tuple, not checked against the shapes; with no ``tree_graph`` given, a ``StarLayerGraph`` and a pyoxigraph ``root``.
 
     Raises:
-        FormatError: (kind "sparql") For text outside the SPARQL 1.2 query grammar, with ``line`` / ``col``.
+        FormatError: (kind "sparql") For text outside the SPARQL 1.2 query and update grammars, with ``line`` / ``col``. Text that holds
+            only a prologue (``PREFIX``, ``BASE``, ``VERSION``, comments) is an update request with no operation: it loads as an
+            empty ``sqe:UpdateRequest`` and ``sqe_tree_to_text`` writes back its prologue (or an empty string for comments only or no text, which loads again as the same empty request).
         ExecutionError: (kind "nesting") The query is nested too deeply for Python's stack.
     """
     from ..parse_sparql import ast_to_triples, parse_sparql
@@ -67,7 +73,7 @@ def sqe_parse_to_tree(
     try:
         ast = parse_sparql(text)
     except FormatError:
-        if not _UPDATE_START.match(text):
+        if not (_UPDATE_START.match(text) or _PROLOGUE_ONLY.match(text)):
             raise
         from ..parse_sparql import parse_sparql_update
 
