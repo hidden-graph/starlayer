@@ -8,6 +8,10 @@ srl:AssignmentElement a rdfs:Class ;
 srl:BodyElement a rdfs:Class ;
     rdfs:comment "The union of every rule-body element kind: TriplePattern, FilterElement, AssignmentElement, NegationElement, GroupElement." .
 
+# Every ordered sequence of this vocabulary (srl:rules, srl:data, srl:imports, srl:head, srl:body, srl:inner, srl:keys, srl:pattern, srl:aggregations,
+# srl:triples) is written as the shared tree: vocabulary does it: a blank node child carries tree:ord, a variable or IRI sits in a tree:Item;
+# an empty sequence has no triples. Expression arguments (spexpr:) are still rdf:List.
+
 srl:Data a rdfs:Class ;
     rdfs:comment "One top-level DATA {} block - srl:triples, ground only, §4.1." .
 
@@ -19,7 +23,7 @@ srl:GroupBodyElement a rdfs:Class ;
     rdfs:comment "The union a group element's pattern is restricted to: TriplePattern, FilterElement or AssignmentElement (production [23]): no negation and no nested group." .
 
 srl:GroupElement a rdfs:Class ;
-    rdfs:comment "GROUP [BY ?k ...] { pattern } [ aggregations ] - srl:keys (a list of variables, possibly empty), srl:pattern (a list of srl:GroupBodyElement), srl:aggregations (a list of srl:Aggregation, possibly empty), §4.1. A rule with a group element is a run-once rule. Never legal inside another group or a negation element." ;
+    rdfs:comment "GROUP [BY ?k ...] { pattern } [ aggregations ] - srl:keys (an ordered sequence of variables, possibly empty), srl:pattern (an ordered sequence of srl:GroupBodyElement), srl:aggregations (an ordered sequence of srl:Aggregation, possibly empty), §4.1. A rule with a group element is a run-once rule. Never legal inside another group or a negation element." ;
     rdfs:subClassOf srl:BodyElement .
 
 srl:Aggregation a rdfs:Class ;
@@ -29,14 +33,14 @@ srl:NegationBodyElement a rdfs:Class ;
     rdfs:comment "The narrower union a negation element's own inner body is restricted to: TriplePattern or FilterElement only." .
 
 srl:NegationElement a rdfs:Class ;
-    rdfs:comment "NOT GROUND? {...} - srl:inner (a list of srl:NegationBodyElement), srl:negationEvaldata (bool: true = match the evaluation graph, false = NOT GROUND), §4.1. Never legal inside another negation element's own body." ;
+    rdfs:comment "NOT GROUND? {...} - srl:inner (an ordered sequence of srl:NegationBodyElement), srl:negationEvaldata (bool: true = match the evaluation graph, false = NOT GROUND), §4.1. Never legal inside another negation element's own body." ;
     rdfs:subClassOf srl:BodyElement .
 
 srl:Rule a rdfs:Class ;
-    rdfs:comment "One RULE - srl:head/srl:body (lists), srl:ruleEvaldata (bool: true = match the evaluation graph, false = WHERE GROUND), srl:id (optional IRI), §4.1." .
+    rdfs:comment "One RULE - srl:head/srl:body (ordered sequences), srl:ruleEvaldata (bool: true = match the evaluation graph, false = WHERE GROUND), srl:id (optional IRI), §4.1." .
 
 srl:RuleSet a rdfs:Class ;
-    rdfs:comment "A whole SRL rule set - srl:rules/srl:data/srl:imports, §4.1." .
+    rdfs:comment "A whole SRL rule set - srl:rules/srl:data/srl:imports (ordered sequences), §4.1." .
 
 srl:TriplePattern a rdfs:Class ;
     rdfs:comment "A triple template (rule head) or triple pattern (rule body/DATA) - srl:subject/srl:predicate/srl:object, same shape either way per §4.1." ;

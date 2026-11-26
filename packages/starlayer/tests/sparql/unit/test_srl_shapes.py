@@ -6,15 +6,19 @@ packages/shacl/CLAUDE.md's testing-discipline note on verifying coverage
 adversarially, not just by existence.
 """
 
+import pyoxigraph as ox
 import pytest
 from starlayer.errors import FormatError
 from starlayer.graph import StarLayerGraph as Graph
+from starlayer.graph.ordinals import ORD as TREE_ORD
+from starlayer.graph.ordinals import _integer as ordinal
+from starlayer.graph.ordinals import write_ordered
 from starlayer.sparql.srl import (  # noqa: E402
     parse_ruleset,
     ruleset_to_tree,
     srl_validate,
 )
-from tests.support.terms import RDF, NamedNode, Namespace, lit, rdf_list, set_triple
+from tests.support.terms import RDF, NamedNode, Namespace, lit
 
 SRL = Namespace("https://github.com/hidden-graph/starlayer/ns/sparql/srl#")
 
@@ -59,80 +63,65 @@ def _minimal_ruleset_graph():
     g = Graph()
     root = NamedNode("urn:x")
     g.add((root, RDF.type, SRL.RuleSet))
-    g.add((root, SRL.rules, RDF.nil))
-    g.add((root, SRL.data, RDF.nil))
-    g.add((root, SRL.imports, RDF.nil))
     return g, root
 
 
-def test_rule_missing_body_is_rejected():
-    """A hand-broken srl:Rule missing its required srl:body - confirms
-    the shape actually enforces required properties, not just that a
-    complete graph happens to pass (packages/shacl/CLAUDE.md's own
-    adversarial-verification discipline)."""
-    g, root = _minimal_ruleset_graph()
-    rule = NamedNode("urn:rule1")
+def _rule(g, root, *, body=(), head=(), flag=True, at=0):
+    """A hand-built srl:Rule, ``at`` its position in the rule set; ``body`` and ``head`` are nodes put into the ordered sequences."""
+    rule = ox.BlankNode()
     g.add((rule, RDF.type, SRL.Rule))
-    g.add((rule, SRL.head, RDF.nil))
-    g.add((rule, SRL.ruleEvaldata, lit(True)))
-    # srl:body deliberately omitted.
-    rules_list = NamedNode("urn:list")
-    rdf_list(g, [rule], rules_list)
-    set_triple(g, (root, SRL.rules, rules_list))
+    if flag is not None:
+        g.add((rule, SRL.ruleEvaldata, lit(flag)))
+    write_ordered(g, rule, SRL.body, body)
+    write_ordered(g, rule, SRL.head, head)
+    g.add((root, SRL.rules, rule))
+    g.add((rule, TREE_ORD, ordinal(at)))
+    return rule
 
+
+def _blank_triple(g, predicate=None):
+    predicate = NamedNode("http://example.org/p") if predicate is None else predicate
+    tp = ox.BlankNode()
+    g.add((tp, RDF.type, SRL.TriplePattern))
+    g.add((tp, SRL.subject, NamedNode("http://example.org/a")))
+    g.add((tp, SRL.predicate, predicate))
+    g.add((tp, SRL.object, lit("x")))
+    return tp
+
+
+def test_a_hand_built_rule_set_with_ordinals_conforms():
+    """The baseline of the three negatives below: the same graph, made right, conforms."""
+    g, root = _minimal_ruleset_graph()
+    _rule(g, root, body=[_blank_triple(g)], head=[_blank_triple(g)])
+    assert srl_validate(g).conforms, srl_validate(g).report_text
+
+
+def test_rule_missing_body_is_rejected():
+    """A hand-broken srl:Rule missing its required srl:ruleEvaldata flag is rejected: the shape enforces required properties, and the
+    sequences (an empty one is no triples at all) are not what makes a rule incomplete."""
+    g, root = _minimal_ruleset_graph()
+    _rule(g, root, flag=None)
     outcome = srl_validate(g)
-    conforms = outcome.conforms
-    assert conforms is False
+    assert outcome.conforms is False and "ruleEvaldata" in outcome.report_text
 
 
 def test_triple_pattern_with_literal_predicate_is_rejected():
     """srl:predicate must be an IRI or Variable, never a Literal - a real
     RDF-1.2-shape correctness check, not just cardinality."""
     g, root = _minimal_ruleset_graph()
-    rule = NamedNode("urn:rule1")
-    g.add((rule, RDF.type, SRL.Rule))
-    g.add((rule, SRL.ruleEvaldata, lit(True)))
-    g.add((rule, SRL.head, RDF.nil))
-
-    tp = NamedNode("urn:tp1")
-    g.add((tp, RDF.type, SRL.TriplePattern))
-    g.add((tp, SRL.subject, NamedNode("http://example.org/a")))
-    g.add((tp, SRL.predicate, lit("not-a-predicate")))  # invalid
-    g.add((tp, SRL.object, lit("x")))
-    body_list = NamedNode("urn:body")
-    rdf_list(g, [tp], body_list)
-    set_triple(g, (rule, SRL.body, body_list))
-
-    rules_list = NamedNode("urn:list")
-    rdf_list(g, [rule], rules_list)
-    set_triple(g, (root, SRL.rules, rules_list))
-
+    _rule(g, root, body=[_blank_triple(g, lit("not-a-predicate"))])
     outcome = srl_validate(g)
-    conforms = outcome.conforms
-    assert conforms is False
+    assert outcome.conforms is False and "srl:predicate" in outcome.report_text
 
 
-def test_body_list_rejects_a_non_body_element_member():
-    """srl:BodyListShape's sh:sparql check should reject a list member
-    that isn't typed as any recognized srl:BodyElement subclass."""
+def test_body_rejects_a_child_that_is_not_a_body_element():
+    """srl:body holds srl:BodyElement: a typed child of another class is rejected."""
     g, root = _minimal_ruleset_graph()
-    rule = NamedNode("urn:rule1")
-    g.add((rule, RDF.type, SRL.Rule))
-    g.add((rule, SRL.ruleEvaldata, lit(True)))
-    g.add((rule, SRL.head, RDF.nil))
-
-    not_a_body_element = NamedNode("urn:bogus")
-    body_list = NamedNode("urn:body")
-    rdf_list(g, [not_a_body_element], body_list)
-    set_triple(g, (rule, SRL.body, body_list))
-
-    rules_list = NamedNode("urn:list")
-    rdf_list(g, [rule], rules_list)
-    set_triple(g, (root, SRL.rules, rules_list))
-
+    bogus = ox.BlankNode()
+    g.add((bogus, RDF.type, NamedNode("urn:Bogus")))
+    _rule(g, root, body=[bogus])
     outcome = srl_validate(g)
-    conforms = outcome.conforms
-    assert conforms is False
+    assert outcome.conforms is False and "srl:body holds" in outcome.report_text
 
 
 # --- srl_validate() on a parsed rule set: the shapes, then the §4.2 conditions ------------------------

@@ -233,7 +233,8 @@ def test_a_variable_name_above_the_bmp_is_refused_when_the_rules_run():
 # ---- decoding a damaged tree -----------------------------------------------------
 
 
-def test_every_single_triple_deletion_decodes_or_raises_srl_decode_error():
+def test_every_single_triple_deletion_decodes_or_raises_a_decode_or_format_error():
+    """A dropped ordinal is a FormatError (kind "rdf", from graph/ordinals.py); any other damage an SRLDecodeError."""
     rs = srl.parse_ruleset(PRE + "RULE { :a :p <<( :a :b ?y )>> } WHERE { :a :q ?y FILTER(?y > 1) NOT { :a :z ?y } }")
     g, root = srl.ruleset_to_tree(rs)
     triples = list(g)
@@ -242,5 +243,5 @@ def test_every_single_triple_deletion_decodes_or_raises_srl_decode_error():
         g2.extend([t for t in triples if t != dropped])
         try:
             srl.tree_to_ruleset(g2, root)
-        except srl.SRLError:
+        except (srl.SRLError, FormatError):
             pass

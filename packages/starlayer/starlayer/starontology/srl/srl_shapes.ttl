@@ -3,6 +3,7 @@
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
 @prefix srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#> .
+@prefix tree: <https://github.com/hidden-graph/starlayer/ns/tree#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 srl:AssignmentElementShape a sh:NodeShape ;
@@ -21,52 +22,11 @@ srl:AssignmentElementShape a sh:NodeShape ;
     ] ;
     sh:targetClass srl:AssignmentElement .
 
-srl:BodyListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of srl:BodyElement" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a srl:BodyElement }
-                }
-            }
-        """
-    ] .
-
-srl:DataListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of srl:Data" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a srl:Data }
-                }
-            }
-        """
-    ] .
-
 srl:DataShape a sh:NodeShape ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "srl:Data must have exactly one srl:triples list" ;
-        sh:minCount 1 ;
-        sh:node srl:TripleListShape ;
+        sh:class srl:TriplePattern ;
+        sh:message "srl:triples holds srl:TriplePattern" ;
+        sh:node tree:OrdShape ;
         sh:path srl:triples
     ] ;
     sh:targetClass srl:Data .
@@ -81,25 +41,6 @@ srl:FilterElementShape a sh:NodeShape ;
     ] ;
     sh:targetClass srl:FilterElement .
 
-srl:ImportsListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of IRIs" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER ( !isIRI(?item) )
-                }
-            }
-        """
-    ] .
-
 srl:NegationElementShape a sh:NodeShape ;
     sh:property [
         sh:datatype xsd:boolean ;
@@ -108,33 +49,12 @@ srl:NegationElementShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:path srl:negationEvaldata
     ], [
-        sh:maxCount 1 ;
-        sh:message "srl:NegationElement must have exactly one srl:inner list" ;
-        sh:minCount 1 ;
-        sh:node srl:NegationInnerListShape ;
+        sh:class srl:NegationBodyElement ;
+        sh:message "srl:inner holds triple patterns and filters only" ;
+        sh:node tree:OrdShape ;
         sh:path srl:inner
     ] ;
     sh:targetClass srl:NegationElement .
-
-srl:NegationInnerListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of srl:NegationBodyElement (triple patterns/filters only)" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a srl:NegationBodyElement }
-                }
-            }
-        """
-    ] .
 
 srl:PredicateOrVariableShape a sh:NodeShape ;
     sh:or ( [
@@ -143,60 +63,38 @@ srl:PredicateOrVariableShape a sh:NodeShape ;
         sh:datatype spexpr:Variable
     ] ) .
 
-srl:RuleListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of srl:Rule" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a srl:Rule }
-                }
-            }
-        """
-    ] .
-
 srl:RuleSetShape a sh:NodeShape ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "srl:RuleSet must have exactly one srl:imports list" ;
-        sh:minCount 1 ;
-        sh:node srl:ImportsListShape ;
-        sh:path srl:imports
-    ], [
-        sh:maxCount 1 ;
-        sh:message "srl:RuleSet must have exactly one srl:data list" ;
-        sh:minCount 1 ;
-        sh:node srl:DataListShape ;
+        sh:message "srl:imports holds IRIs" ;
+        sh:node tree:ItemShape ;
+        sh:path srl:imports ;
+        sh:property [ sh:nodeKind sh:IRI ; sh:path tree:value ]
+    ],
+        [
+        sh:class srl:Data ;
+        sh:message "srl:data holds srl:Data" ;
+        sh:node tree:OrdShape ;
         sh:path srl:data
-    ], [
-        sh:maxCount 1 ;
-        sh:message "srl:RuleSet must have exactly one srl:rules list" ;
-        sh:minCount 1 ;
-        sh:node srl:RuleListShape ;
+    ],
+        [
+        sh:class srl:Rule ;
+        sh:message "srl:rules holds srl:Rule" ;
+        sh:node tree:OrdShape ;
         sh:path srl:rules
     ] ;
     sh:targetClass srl:RuleSet .
 
 srl:RuleShape a sh:NodeShape ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "srl:Rule must have exactly one srl:head list" ;
-        sh:minCount 1 ;
-        sh:node srl:TripleListShape ;
+        sh:class srl:TriplePattern ;
+        sh:message "srl:head holds srl:TriplePattern" ;
+        sh:node tree:OrdShape ;
         sh:path srl:head
-    ], [
-        sh:maxCount 1 ;
-        sh:message "srl:Rule must have exactly one srl:body list" ;
-        sh:minCount 1 ;
-        sh:node srl:BodyListShape ;
+    ],
+        [
+        sh:class srl:BodyElement ;
+        sh:message "srl:body holds srl:BodyElement" ;
+        sh:node tree:OrdShape ;
         sh:path srl:body
     ], [
         sh:maxCount 1 ;
@@ -214,88 +112,24 @@ srl:RuleShape a sh:NodeShape ;
 
 srl:GroupElementShape a sh:NodeShape ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "srl:GroupElement must have exactly one srl:keys list" ;
-        sh:minCount 1 ;
-        sh:node srl:GroupKeysListShape ;
-        sh:path srl:keys
-    ], [
-        sh:maxCount 1 ;
-        sh:message "srl:GroupElement must have exactly one srl:pattern list" ;
-        sh:minCount 1 ;
-        sh:node srl:GroupPatternListShape ;
+        sh:message "srl:keys holds variables" ;
+        sh:node tree:ItemShape ;
+        sh:path srl:keys ;
+        sh:property [ sh:datatype spexpr:Variable ; sh:path tree:value ]
+    ],
+        [
+        sh:class srl:GroupBodyElement ;
+        sh:message "srl:pattern holds triple patterns, filters and assignments only" ;
+        sh:node tree:OrdShape ;
         sh:path srl:pattern
-    ], [
-        sh:maxCount 1 ;
-        sh:message "srl:GroupElement must have exactly one srl:aggregations list" ;
-        sh:minCount 1 ;
-        sh:node srl:AggregationListShape ;
+    ],
+        [
+        sh:class srl:Aggregation ;
+        sh:message "srl:aggregations holds srl:Aggregation" ;
+        sh:node tree:OrdShape ;
         sh:path srl:aggregations
     ] ;
     sh:targetClass srl:GroupElement .
-
-srl:GroupKeysListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of variables" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER ( !isLiteral(?item) || datatype(?item) != spexpr:Variable )
-                }
-            }
-        """
-    ] .
-
-srl:GroupPatternListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of srl:GroupBodyElement (triple patterns, filters and assignments only)" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a srl:GroupBodyElement }
-                }
-            }
-        """
-    ] .
-
-srl:AggregationListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of srl:Aggregation" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a srl:Aggregation }
-                }
-            }
-        """
-    ] .
 
 srl:AggregationShape a sh:NodeShape ;
     sh:property [
@@ -339,8 +173,8 @@ srl:AggregationShape a sh:NodeShape ;
     sh:targetClass srl:Aggregation .
 
 srl:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member srl:GroupElementShape, srl:GroupKeysListShape, srl:GroupPatternListShape, srl:AggregationListShape, srl:AggregationShape, srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:SubjectOrVariableShape, srl:NegationElementShape, srl:RuleShape, srl:TripleTermSubjectShape, srl:TripleTermPredicateShape, srl:VariableInDataShape, srl:AggregateInExpressionShape, srl:UnboundHeadVariableShape, srl:UnboundFilterVariableShape, srl:UnboundAssignmentExpressionVariableShape, srl:ReusedAssignmentVariableShape, srl:VariableInUseShape, srl:GroupKeyUnboundShape, srl:AggregationVariableInScopeShape, srl:DuplicateAggregationVariableShape, srl:UnboundAggregationArgumentShape, srl:UnsupportedVariableNameShape, srl:UnresolvedImportsShape ;
-    owl:imports spexpr:ShapesGraph .
+    rdfs:member srl:GroupElementShape, srl:AggregationShape, srl:TriplePatternShape, srl:DataShape, srl:AssignmentElementShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:TermOrVariableShape, srl:SubjectOrVariableShape, srl:NegationElementShape, srl:RuleShape, srl:TripleTermSubjectShape, srl:TripleTermPredicateShape, srl:VariableInDataShape, srl:AggregateInExpressionShape, srl:UnboundHeadVariableShape, srl:UnboundFilterVariableShape, srl:UnboundAssignmentExpressionVariableShape, srl:ReusedAssignmentVariableShape, srl:VariableInUseShape, srl:GroupKeyUnboundShape, srl:AggregationVariableInScopeShape, srl:DuplicateAggregationVariableShape, srl:UnboundAggregationArgumentShape, srl:UnsupportedVariableNameShape, srl:UnresolvedImportsShape ;
+    owl:imports spexpr:ShapesGraph, tree:ShapesGraph .
 
 srl:TermOrVariableShape a sh:NodeShape ;
     sh:or ( [
@@ -362,26 +196,6 @@ srl:SubjectOrVariableShape a sh:NodeShape ;
     ] [
         sh:datatype spexpr:Variable
     ] ) .
-
-srl:TripleListShape a sh:NodeShape ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of srl:TriplePattern" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER NOT EXISTS { ?item a srl:TriplePattern }
-                }
-            }
-        """
-    ] .
 
 srl:TriplePatternShape a sh:NodeShape ;
     sh:property [
@@ -407,7 +221,7 @@ srl:TriplePatternShape a sh:NodeShape ;
 
 # SRL §4.2 well-formedness conditions, one SPARQL constraint per condition. A result's focus node is the offending element
 # (a triple pattern, FILTER, SET, group or aggregation); the unresolved-imports warning's is the srl:RuleSet. "In scope" and "in use"
-# follow the spec: an element sees what the elements before it in its own list bind (a negation sees what is bound before it, a
+# follow the spec: an element sees what the elements before it in its own sequence bind (a negation sees what is bound before it, a
 # group pattern the group keys that are bound before it); a variable is in use when an earlier negation or group pattern used it and it
 # is not bound outside.
 
@@ -457,9 +271,10 @@ srl:VariableInDataShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
-                ?data srl:triples/rdf:rest*/rdf:first $this . $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+                ?data srl:triples $this . $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
             }
         """
     ] ;
@@ -494,10 +309,11 @@ srl:UnboundHeadVariableShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
-                ?rule srl:head/rdf:rest*/rdf:first $this . ?rule srl:body ?body . $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
-                FILTER NOT EXISTS { ?body rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
+                ?rule srl:head $this . $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+                FILTER NOT EXISTS { ?rule srl:body ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . }
             }
         """
     ] ;
@@ -513,10 +329,11 @@ srl:UnboundFilterVariableShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
                 $this srl:expr/(!rdf:type)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
-                FILTER NOT EXISTS { { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?nf . ?nf ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?gf . ?gf srl:keys/rdf:rest*/rdf:first ?v . ?gf ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } }
+                FILTER NOT EXISTS { { ?o7 ?p8 $this . ?o7 ?p8 ?a0 . $this tree:ord ?i5 . ?a0 tree:ord ?j6 . FILTER ( ?j6 < ?i5 ) ?a0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } UNION { $this ^srl:inner ?fn1 . ?o11 ?p12 ?fn1 . ?o11 ?p12 ?b3 . ?fn1 tree:ord ?i9 . ?b3 tree:ord ?j10 . FILTER ( ?j10 < ?i9 ) ?b3 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } UNION { $this ^srl:pattern ?fg2 . ?fg2 srl:keys/tree:value ?v . ?o15 ?p16 ?fg2 . ?o15 ?p16 ?c4 . ?fg2 tree:ord ?i13 . ?c4 tree:ord ?j14 . FILTER ( ?j14 < ?i13 ) ?c4 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } }
             }
         """
     ] ;
@@ -532,10 +349,11 @@ srl:UnboundAssignmentExpressionVariableShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
                 $this srl:expr/(!rdf:type)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
-                FILTER NOT EXISTS { { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?na . ?na ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ga . ?ga srl:keys/rdf:rest*/rdf:first ?v . ?ga ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } }
+                FILTER NOT EXISTS { { ?o24 ?p25 $this . ?o24 ?p25 ?a17 . $this tree:ord ?i22 . ?a17 tree:ord ?j23 . FILTER ( ?j23 < ?i22 ) ?a17 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } UNION { $this ^srl:inner ?an18 . ?o28 ?p29 ?an18 . ?o28 ?p29 ?b20 . ?an18 tree:ord ?i26 . ?b20 tree:ord ?j27 . FILTER ( ?j27 < ?i26 ) ?b20 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } UNION { $this ^srl:pattern ?ag19 . ?ag19 srl:keys/tree:value ?v . ?o32 ?p33 ?ag19 . ?o32 ?p33 ?c21 . ?ag19 tree:ord ?i30 . ?c21 tree:ord ?j31 . FILTER ( ?j31 < ?i30 ) ?c21 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } }
             }
         """
     ] ;
@@ -551,10 +369,11 @@ srl:ReusedAssignmentVariableShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
                 $this srl:var ?v .
-                { { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?nr . ?nr ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?gr . ?gr srl:keys/rdf:rest*/rdf:first ?v . ?gr ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { { $this ^rdf:first/^rdf:rest+/rdf:first ?uera . ?uera srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uera ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest+/rdf:first ?uera . ?uera srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uera ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uera (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unr . ?unr ^rdf:first/^rdf:rest+/rdf:first ?uerb . ?uerb srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uerb ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unr . ?unr ^rdf:first/^rdf:rest+/rdf:first ?uerb . ?uerb srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uerb ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uerb (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugr . ?ugr ^rdf:first/^rdf:rest+/rdf:first ?uerc . ?uerc srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uerc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugr . ?ugr ^rdf:first/^rdf:rest+/rdf:first ?uerc . ?uerc srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uerc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uerc (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugr . ?ugr ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . FILTER NOT EXISTS { ?ugr srl:keys/rdf:rest*/rdf:first ?v . } } }
+                { { ?o41 ?p42 $this . ?o41 ?p42 ?a34 . $this tree:ord ?i39 . ?a34 tree:ord ?j40 . FILTER ( ?j40 < ?i39 ) ?a34 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } UNION { $this ^srl:inner ?rn35 . ?o45 ?p46 ?rn35 . ?o45 ?p46 ?b37 . ?rn35 tree:ord ?i43 . ?b37 tree:ord ?j44 . FILTER ( ?j44 < ?i43 ) ?b37 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } UNION { $this ^srl:pattern ?rg36 . ?rg36 srl:keys/tree:value ?v . ?o49 ?p50 ?rg36 . ?o49 ?p50 ?c38 . ?rg36 tree:ord ?i47 . ?c38 tree:ord ?j48 . FILTER ( ?j48 < ?i47 ) ?c38 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { ?o57 ?p58 $this . ?o57 ?p58 ?ue53 . $this tree:ord ?i55 . ?ue53 tree:ord ?j56 . FILTER ( ?j56 < ?i55 ) ?ue53 srl:inner/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?o62 ?p63 ?ue53 . ?o62 ?p63 ?z59 . ?ue53 tree:ord ?i60 . ?z59 tree:ord ?j61 . FILTER ( ?j61 < ?i60 ) ?z59 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { ?o66 ?p67 $this . ?o66 ?p67 ?ue54 . $this tree:ord ?i64 . ?ue54 tree:ord ?j65 . FILTER ( ?j65 < ?i64 ) ?ue54 srl:pattern/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?o71 ?p72 ?ue54 . ?o71 ?p72 ?z68 . ?ue54 tree:ord ?i69 . ?z68 tree:ord ?j70 . FILTER ( ?j70 < ?i69 ) ?z68 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } FILTER NOT EXISTS { ?ue54 (srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:inner ?un51 . ?o77 ?p78 ?un51 . ?o77 ?p78 ?ue73 . ?un51 tree:ord ?i75 . ?ue73 tree:ord ?j76 . FILTER ( ?j76 < ?i75 ) ?ue73 srl:inner/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?o82 ?p83 ?ue73 . ?o82 ?p83 ?z79 . ?ue73 tree:ord ?i80 . ?z79 tree:ord ?j81 . FILTER ( ?j81 < ?i80 ) ?z79 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:inner ?un51 . ?o86 ?p87 ?un51 . ?o86 ?p87 ?ue74 . ?un51 tree:ord ?i84 . ?ue74 tree:ord ?j85 . FILTER ( ?j85 < ?i84 ) ?ue74 srl:pattern/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?o91 ?p92 ?ue74 . ?o91 ?p92 ?z88 . ?ue74 tree:ord ?i89 . ?z88 tree:ord ?j90 . FILTER ( ?j90 < ?i89 ) ?z88 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } FILTER NOT EXISTS { ?ue74 (srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:pattern ?ug52 . ?o97 ?p98 ?ug52 . ?o97 ?p98 ?ue93 . ?ug52 tree:ord ?i95 . ?ue93 tree:ord ?j96 . FILTER ( ?j96 < ?i95 ) ?ue93 srl:inner/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?o102 ?p103 ?ue93 . ?o102 ?p103 ?z99 . ?ue93 tree:ord ?i100 . ?z99 tree:ord ?j101 . FILTER ( ?j101 < ?i100 ) ?z99 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:pattern ?ug52 . ?o106 ?p107 ?ug52 . ?o106 ?p107 ?ue94 . ?ug52 tree:ord ?i104 . ?ue94 tree:ord ?j105 . FILTER ( ?j105 < ?i104 ) ?ue94 srl:pattern/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?o111 ?p112 ?ue94 . ?o111 ?p112 ?z108 . ?ue94 tree:ord ?i109 . ?z108 tree:ord ?j110 . FILTER ( ?j110 < ?i109 ) ?z108 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } FILTER NOT EXISTS { ?ue94 (srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:pattern ?ug52 . ?o116 ?p117 ?ug52 . ?o116 ?p117 ?eg113 . ?ug52 tree:ord ?i114 . ?eg113 tree:ord ?j115 . FILTER ( ?j115 < ?i114 ) ?eg113 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . FILTER NOT EXISTS { ?ug52 srl:keys/tree:value ?v . } }
             }
         """
     ] ;
@@ -570,10 +389,11 @@ srl:VariableInUseShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
                 $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
-                { $this ^rdf:first/^rdf:rest+/rdf:first ?ueua . ?ueua srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?ueua ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest+/rdf:first ?ueua . ?ueua srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?ueua ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?ueua (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unu . ?unu ^rdf:first/^rdf:rest+/rdf:first ?ueub . ?ueub srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?ueub ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unu . ?unu ^rdf:first/^rdf:rest+/rdf:first ?ueub . ?ueub srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?ueub ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?ueub (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugu . ?ugu ^rdf:first/^rdf:rest+/rdf:first ?ueuc . ?ueuc srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?ueuc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugu . ?ugu ^rdf:first/^rdf:rest+/rdf:first ?ueuc . ?ueuc srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?ueuc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?ueuc (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugu . ?ugu ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . FILTER NOT EXISTS { ?ugu srl:keys/rdf:rest*/rdf:first ?v . } }
+                { ?o124 ?p125 $this . ?o124 ?p125 ?ue120 . $this tree:ord ?i122 . ?ue120 tree:ord ?j123 . FILTER ( ?j123 < ?i122 ) ?ue120 srl:inner/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?o129 ?p130 ?ue120 . ?o129 ?p130 ?z126 . ?ue120 tree:ord ?i127 . ?z126 tree:ord ?j128 . FILTER ( ?j128 < ?i127 ) ?z126 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { ?o133 ?p134 $this . ?o133 ?p134 ?ue121 . $this tree:ord ?i131 . ?ue121 tree:ord ?j132 . FILTER ( ?j132 < ?i131 ) ?ue121 srl:pattern/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?o138 ?p139 ?ue121 . ?o138 ?p139 ?z135 . ?ue121 tree:ord ?i136 . ?z135 tree:ord ?j137 . FILTER ( ?j137 < ?i136 ) ?z135 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } FILTER NOT EXISTS { ?ue121 (srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:inner ?un118 . ?o144 ?p145 ?un118 . ?o144 ?p145 ?ue140 . ?un118 tree:ord ?i142 . ?ue140 tree:ord ?j143 . FILTER ( ?j143 < ?i142 ) ?ue140 srl:inner/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?o149 ?p150 ?ue140 . ?o149 ?p150 ?z146 . ?ue140 tree:ord ?i147 . ?z146 tree:ord ?j148 . FILTER ( ?j148 < ?i147 ) ?z146 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:inner ?un118 . ?o153 ?p154 ?un118 . ?o153 ?p154 ?ue141 . ?un118 tree:ord ?i151 . ?ue141 tree:ord ?j152 . FILTER ( ?j152 < ?i151 ) ?ue141 srl:pattern/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?o158 ?p159 ?ue141 . ?o158 ?p159 ?z155 . ?ue141 tree:ord ?i156 . ?z155 tree:ord ?j157 . FILTER ( ?j157 < ?i156 ) ?z155 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } FILTER NOT EXISTS { ?ue141 (srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:pattern ?ug119 . ?o164 ?p165 ?ug119 . ?o164 ?p165 ?ue160 . ?ug119 tree:ord ?i162 . ?ue160 tree:ord ?j163 . FILTER ( ?j163 < ?i162 ) ?ue160 srl:inner/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?o169 ?p170 ?ue160 . ?o169 ?p170 ?z166 . ?ue160 tree:ord ?i167 . ?z166 tree:ord ?j168 . FILTER ( ?j168 < ?i167 ) ?z166 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:pattern ?ug119 . ?o173 ?p174 ?ug119 . ?o173 ?p174 ?ue161 . ?ug119 tree:ord ?i171 . ?ue161 tree:ord ?j172 . FILTER ( ?j172 < ?i171 ) ?ue161 srl:pattern/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?o178 ?p179 ?ue161 . ?o178 ?p179 ?z175 . ?ue161 tree:ord ?i176 . ?z175 tree:ord ?j177 . FILTER ( ?j177 < ?i176 ) ?z175 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } FILTER NOT EXISTS { ?ue161 (srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { $this ^srl:pattern ?ug119 . ?o183 ?p184 ?ug119 . ?o183 ?p184 ?eg180 . ?ug119 tree:ord ?i181 . ?eg180 tree:ord ?j182 . FILTER ( ?j182 < ?i181 ) ?eg180 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . FILTER NOT EXISTS { ?ug119 srl:keys/tree:value ?v . } }
             }
         """
     ] ;
@@ -589,11 +409,12 @@ srl:GroupKeyUnboundShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?k
             WHERE {
-                $this srl:keys/rdf:rest*/rdf:first ?k .
-                FILTER NOT EXISTS { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?k . }
-                FILTER NOT EXISTS { $this srl:pattern/rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?k . }
+                $this srl:keys/tree:value ?k .
+                FILTER NOT EXISTS { ?o187 ?p188 $this . ?o187 ?p188 ?z0 . $this tree:ord ?i185 . ?z0 tree:ord ?j186 . FILTER ( ?j186 < ?i185 ) ?z0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?k . }
+                FILTER NOT EXISTS { $this srl:pattern ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?k . }
             }
         """
     ] ;
@@ -609,10 +430,11 @@ srl:AggregationVariableInScopeShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
-                ?group srl:aggregations/rdf:rest*/rdf:first $this . $this srl:var ?v .
-                { ?group ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { { ?group ^rdf:first/^rdf:rest+/rdf:first ?uei . ?uei srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uei ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { ?group ^rdf:first/^rdf:rest+/rdf:first ?uei . ?uei srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uei ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uei (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } } UNION { ?group srl:pattern/rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
+                ?group srl:aggregations $this . $this srl:var ?v .
+                { ?o213 ?p214 ?group . ?o213 ?p214 ?a210 . ?group tree:ord ?i211 . ?a210 tree:ord ?j212 . FILTER ( ?j212 < ?i211 ) ?a210 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } UNION { { ?o194 ?p195 ?group . ?o194 ?p195 ?ue190 . ?group tree:ord ?i192 . ?ue190 tree:ord ?j193 . FILTER ( ?j193 < ?i192 ) ?ue190 srl:inner/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?o199 ?p200 ?ue190 . ?o199 ?p200 ?z196 . ?ue190 tree:ord ?i197 . ?z196 tree:ord ?j198 . FILTER ( ?j198 < ?i197 ) ?z196 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } UNION { ?o203 ?p204 ?group . ?o203 ?p204 ?ue191 . ?group tree:ord ?i201 . ?ue191 tree:ord ?j202 . FILTER ( ?j202 < ?i201 ) ?ue191 srl:pattern/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?o208 ?p209 ?ue191 . ?o208 ?p209 ?z205 . ?ue191 tree:ord ?i206 . ?z205 tree:ord ?j207 . FILTER ( ?j207 < ?i206 ) ?z205 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . } FILTER NOT EXISTS { ?ue191 (srl:keys/tree:value|srl:aggregations/srl:var) ?v . } } } UNION { ?group srl:pattern ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . }
             }
         """
     ] ;
@@ -628,10 +450,11 @@ srl:DuplicateAggregationVariableShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
-                ?group srl:aggregations/rdf:rest*/rdf:first ?first . ?group srl:aggregations/rdf:rest*/rdf:first $this .
-                ?cell1 rdf:first ?first . ?cell1 rdf:rest+ ?cell2 . ?cell2 rdf:first $this . ?first srl:var ?v . $this srl:var ?v
+                ?group srl:aggregations ?first . ?group srl:aggregations $this .
+                ?first tree:ord ?i . $this tree:ord ?j . FILTER ( ?i < ?j ) . ?first srl:var ?v . $this srl:var ?v
             }
         """
     ] ;
@@ -647,11 +470,12 @@ srl:UnboundAggregationArgumentShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
-                ?group srl:aggregations/rdf:rest*/rdf:first $this . $this srl:argument ?v .
-                FILTER NOT EXISTS { ?group srl:keys/rdf:rest*/rdf:first ?v . ?group ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
-                FILTER NOT EXISTS { ?group srl:pattern/rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
+                ?group srl:aggregations $this . $this srl:argument ?v .
+                FILTER NOT EXISTS { ?group srl:keys/tree:value ?v . ?o217 ?p218 ?group . ?o217 ?p218 ?z0 . ?group tree:ord ?i215 . ?z0 tree:ord ?j216 . FILTER ( ?j216 < ?i215 ) ?z0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . }
+                FILTER NOT EXISTS { ?group srl:pattern ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/tree:value|srl:aggregations/srl:var) ?v . }
             }
         """
     ] ;
@@ -667,9 +491,10 @@ srl:UnsupportedVariableNameShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?v
             WHERE {
-                { $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable ) } UNION { $this srl:expr/(!rdf:type)* ?v } UNION { $this srl:var ?v } UNION { $this srl:argument ?v } UNION { $this srl:keys/rdf:rest*/rdf:first ?v }
+                { $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable ) } UNION { $this srl:expr/(!rdf:type)* ?v } UNION { $this srl:var ?v } UNION { $this srl:argument ?v } UNION { $this srl:keys/tree:value ?v }
                 FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable && REGEX(STR(?v), "[\\\\x{10000}-\\\\x{10FFFF}]") )
             }
         """
@@ -687,10 +512,12 @@ srl:UnresolvedImportsShape a sh:NodeShape ;
             PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
             PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
             PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
             SELECT DISTINCT $this ?import
             WHERE {
-                $this srl:imports/rdf:rest*/rdf:first ?import
+                $this srl:imports/tree:value ?import
             }
         """
     ] ;
     sh:targetClass srl:RuleSet .
+

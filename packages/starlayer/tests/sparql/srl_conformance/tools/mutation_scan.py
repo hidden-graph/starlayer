@@ -8,7 +8,8 @@ whether it passes validation yet CRASHES the decoder: a hole in the shapes.
     python tests/sparql/srl_conformance/tools/mutation_scan.py [--out mutants.json]
 
 Same method as tests/starontology/manchester_conformance/tools/mutation_scan.py. Operators: remove a triple;
-replace a value by a literal; add a second value; drop an rdf:type; break an rdf:List's termination.
+replace a value by a literal; add a second value (a second tree:ord is a tie or a repeated ordinal); drop an rdf:type; break the
+termination of an expression's rdf:List (the ordered children of the srl: tree itself are tree:ord, not lists).
 """
 
 from __future__ import annotations
@@ -34,6 +35,7 @@ from starlayer.sparql.srl import (  # noqa: E402
 )
 
 NS = "https://github.com/hidden-graph/starlayer/ns/sparql/"
+TREE_NS = "https://github.com/hidden-graph/starlayer/ns/tree#"  # tree:ord and tree:value: the ordered children of the srl: tree
 
 
 def local(term) -> str:
@@ -78,7 +80,7 @@ def main() -> int:
         for t in tree:
             base.add(t)
         for s, p, o in sorted(base, key=str):
-            in_ns = str(p).startswith(NS)
+            in_ns = str(p).startswith((NS, TREE_NS))
             is_type = p == RDF.type and str(o).startswith(NS)
             if not (in_ns or is_type or p in (RDF.first, RDF.rest)):
                 continue

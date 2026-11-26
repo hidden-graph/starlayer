@@ -151,7 +151,7 @@ def insert_at(graph: Any, parent: Any, prop: Any, index: int, member: Any) -> An
     if index >= len(rows):
         return append(graph, parent, prop, member)
     target = rows[index][0]
-    for number, child, _member_ in rows[index:]:
+    for number, child, _unused in rows[index:]:
         graph.remove((child, ORD, None))
         graph.add((child, ORD, _integer(number + 1)))
     return _put(graph, parent, prop, member, target)
@@ -195,7 +195,7 @@ def renumber_dense(graph: Any, parent: Any = None, prop: Any = None) -> Any:
                 )
         groups = {pair for pairs in incoming.values() for pair in pairs}
     for group_parent, group_prop in groups:
-        for new, (number, child, _member_) in enumerate(_ordered(graph, group_parent, group_prop)):
+        for new, (number, child, _unused) in enumerate(_ordered(graph, group_parent, group_prop)):
             if number != new:
                 graph.remove((child, ORD, None))
                 graph.add((child, ORD, _integer(new)))

@@ -2,7 +2,9 @@
 
 SRL (SPARQL Rules; spec `WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12-rl/>`_)
 - a Datalog-style rules language built on SPARQL triple patterns and filter
-expressions. This module provides SRL text, its tree-RDF encoding (``srl:``),
+expressions. This module provides SRL text, its tree-RDF encoding (``srl:``; the ordered children of a node, such as a rule's body
+or a rule set's rules, are written with the shared ``tree:`` vocabulary: ``tree:ord`` on each child, ``tree:Item`` for a variable or
+an IRI, no ``rdf:List`` - an expression's argument list is the one place a list remains, see ``Interim`` below),
 and SHACL validation of that encoding: parsing SRL text to a ``RuleSet``
 syntax tree and back, encoding/decoding that syntax tree to/from RDF, and
 validating an ``srl:``-encoded ruleset against SHACL shapes.
@@ -16,6 +18,10 @@ SPARQL-adjacent artifact, and it can't cleanly separate from
 module could: the term and expression encoder of ``parse_sparql`` is reused
 directly below, not reimplemented - moving this module out of
 ``starlayer.sparql`` would mean forking that machinery.
+
+**Interim:** an expression (``srl:expr``, the ``SET`` and ``FILTER`` operand) is written by the ``spexpr:`` encoder it shares with ``sqe:``
+(``parse_sparql._Encoder``, whose one list function is ``parse_sparql._list``), so its argument lists are still ``rdf:List`` until ``sqe:``
+moves to ordinals too. Only the ordered children of the ``srl:`` nodes themselves are ordinals.
 
 Six entry points, forming two independent round trips (text<->tree-RDF,
 text<->RuleSet) plus a third already covered by the first two composed
@@ -100,6 +106,7 @@ from typing import TYPE_CHECKING, Any
 import pyoxigraph as ox
 
 from starlayer.errors import FormatError
+from starlayer.graph import ordinals
 
 from . import _oxterms as _T
 from . import _srl_ast as srl_ast
@@ -112,7 +119,7 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     RuleSet,
     TriplePattern,
 )
-from .parse_sparql import _Encoder, _list, _Sink
+from .parse_sparql import _Encoder, _Sink
 from .triple_term import TripleTermNode
 from .vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
 
@@ -276,10 +283,15 @@ class _Writer:
         g = self.g
         root = ox.BlankNode()
         g.add((root, RDF.type, _RULE_SET))
-        g.add((root, _RULES, _list(g, [self.rule(r) for r in ruleset.rules])))
-        g.add((root, _DATA, _list(g, [self.data(d) for d in ruleset.data])))
-        g.add((root, _IMPORTS, _list(g, list(ruleset.imports))))
+        self.sequence(root, _RULES, [self.rule(r) for r in ruleset.rules])
+        self.sequence(root, _DATA, [self.data(d) for d in ruleset.data])
+        self.sequence(root, _IMPORTS, list(ruleset.imports))
         return root
+
+    def sequence(self, parent, prop, members) -> None:
+        """The ordered children of ``parent`` for ``prop``: each fresh blank node carries ``tree:ord`` itself, an IRI or a variable sits in a
+        ``tree:Item``. (Only the expression leaves, written by the shared ``_Encoder``, still hold their argument lists as ``rdf:List``.)"""
+        ordinals.write_ordered(self.g, parent, prop, members)
 
     def triple(self, triple: srl_ast.TriplePattern):
         g, node = self.g, ox.BlankNode()
@@ -303,13 +315,13 @@ class _Writer:
             g.add((node, _EXPR, self.node(element.expr)))
         elif isinstance(element, srl_ast._NegationElement):
             g.add((node, RDF.type, _NEGATION_ELEMENT))
-            g.add((node, _INNER, _list(g, [self.body_element(e) for e in element.inner])))
+            self.sequence(node, _INNER, [self.body_element(e) for e in element.inner])
             g.add((node, _NEGATION_EVALDATA_FLAG, self.node(element.evaldata)))
         elif isinstance(element, srl_ast._GroupElement):
             g.add((node, RDF.type, _GROUP_ELEMENT))
-            g.add((node, _GROUP_KEYS, _list(g, [self.node(k) for k in element.keys])))
-            g.add((node, _GROUP_PATTERN, _list(g, [self.body_element(e) for e in element.pattern])))
-            g.add((node, _GROUP_AGGREGATIONS, _list(g, [self.aggregation(a) for a in element.aggregations])))
+            self.sequence(node, _GROUP_KEYS, [self.node(k) for k in element.keys])
+            self.sequence(node, _GROUP_PATTERN, [self.body_element(e) for e in element.pattern])
+            self.sequence(node, _GROUP_AGGREGATIONS, [self.aggregation(a) for a in element.aggregations])
         else:  # pragma: no cover
             raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")
         return node
@@ -327,8 +339,8 @@ class _Writer:
     def rule(self, rule: srl_ast._Rule):
         g, node = self.g, ox.BlankNode()
         g.add((node, RDF.type, _RULE))
-        g.add((node, _HEAD, _list(g, [self.triple(t) for t in rule.head])))
-        g.add((node, _BODY, _list(g, [self.body_element(e) for e in rule.body])))
+        self.sequence(node, _HEAD, [self.triple(t) for t in rule.head])
+        self.sequence(node, _BODY, [self.body_element(e) for e in rule.body])
         g.add((node, _RULE_EVALDATA_FLAG, self.node(rule.evaldata)))
         if rule.id is not None:
             g.add((node, _RULE_ID, rule.id))
@@ -337,7 +349,7 @@ class _Writer:
     def data(self, data: srl_ast._Data):
         g, node = self.g, ox.BlankNode()
         g.add((node, RDF.type, _DATA_BLOCK))
-        g.add((node, _TRIPLES, _list(g, [self.triple(t) for t in data.triples])))
+        self.sequence(node, _TRIPLES, [self.triple(t) for t in data.triples])
         return node
 
 
@@ -349,10 +361,10 @@ class SRLDecodeError(SRLError):
     """Raised for an ``srl:`` graph shape ``tree_to_ruleset`` doesn't recognize."""
 
 
-def _read_list(node, graph) -> list:
-    if node is None or node == RDF.nil:
-        return []
-    return list(graph.items(node))
+def _children(graph, node, prop) -> list:
+    """The ordered children of ``node`` for ``prop`` (``graph/ordinals.py``); none is an empty list. A tie, a missing or non-integer
+    ordinal is a ``FormatError`` (kind ``"rdf"``) and is not turned into an ``SRLDecodeError``: the tree has no order to decode."""
+    return ordinals.ordered_items(graph, node, prop)
 
 
 def _decode_expr(node, graph):
@@ -417,7 +429,11 @@ def _is_true(node) -> bool:
     return isinstance(node, ox.Literal) and node.value in ("true", "1")
 
 
-def _decode_body_element(node, graph) -> srl_ast.BodyElement:
+def _decode_body_element(node, graph, path: tuple = ()) -> srl_ast.BodyElement:
+    """``path`` is the elements being decoded above ``node``: an element that holds itself (a loop through the ordered children) cannot be decoded."""
+    if node in path:
+        raise SRLDecodeError(f"srl: the rule body element {node!r} contains itself")
+    path = (*path, node)
     t = graph.value(node, RDF.type)
     if t == _TRIPLE_PATTERN:
         return _decode_triple(node, graph)
@@ -429,13 +445,13 @@ def _decode_body_element(node, graph) -> srl_ast.BodyElement:
             expr=_decode_expr(graph.value(node, _EXPR), graph),
         )
     if t == _NEGATION_ELEMENT:
-        inner = [_decode_body_element(n, graph) for n in _read_list(graph.value(node, _INNER), graph)]
+        inner = [_decode_body_element(n, graph, path) for n in _children(graph, node, _INNER)]
         return srl_ast._NegationElement(inner=inner, evaldata=_is_true(graph.value(node, _NEGATION_EVALDATA_FLAG)))
     if t == _GROUP_ELEMENT:
         return srl_ast._GroupElement(
-            keys=[_decode_term(n, graph) for n in _read_list(graph.value(node, _GROUP_KEYS), graph)],
-            pattern=[_decode_body_element(n, graph) for n in _read_list(graph.value(node, _GROUP_PATTERN), graph)],
-            aggregations=[_decode_aggregation(n, graph) for n in _read_list(graph.value(node, _GROUP_AGGREGATIONS), graph)],
+            keys=[_decode_term(n, graph) for n in _children(graph, node, _GROUP_KEYS)],
+            pattern=[_decode_body_element(n, graph, path) for n in _children(graph, node, _GROUP_PATTERN)],
+            aggregations=[_decode_aggregation(n, graph) for n in _children(graph, node, _GROUP_AGGREGATIONS)],
         )
     raise SRLDecodeError(f"unrecognized rule body element node {node!r} (rdf:type {t!r})")
 
@@ -454,31 +470,37 @@ def _decode_aggregation(node, graph) -> srl_ast._Aggregation:
 
 
 def _decode_rule(node, graph) -> srl_ast._Rule:
-    head = [_decode_triple(n, graph) for n in _read_list(graph.value(node, _HEAD), graph)]
-    body = [_decode_body_element(n, graph) for n in _read_list(graph.value(node, _BODY), graph)]
+    head = [_decode_triple(n, graph) for n in _children(graph, node, _HEAD)]
+    body = [_decode_body_element(n, graph) for n in _children(graph, node, _BODY)]
     evaldata = _is_true(graph.value(node, _RULE_EVALDATA_FLAG))
     return srl_ast._Rule(head=head, body=body, evaldata=evaldata, id=graph.value(node, _RULE_ID))
 
 
 def _decode_data(node, graph) -> srl_ast._Data:
-    return srl_ast._Data(triples=[_decode_triple(n, graph) for n in _read_list(graph.value(node, _TRIPLES), graph)])
+    return srl_ast._Data(triples=[_decode_triple(n, graph) for n in _children(graph, node, _TRIPLES)])
 
 
 def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
     """Decode the ``srl:RuleSet`` node ``root`` in ``graph`` (as returned by
     ``srl_parse_to_tree``/``ruleset_to_tree``, or an LLM-authored ``srl:`` graph
-    not yet decoded) back into a real ``srl_ast.RuleSet``."""
+    not yet decoded) back into a real ``srl_ast.RuleSet``.
+
+    Raises:
+        SRLDecodeError: A part of the tree is missing or is not what the rule set needs (a damaged or hand-edited tree).
+        FormatError: (kind ``"rdf"``) The order of some children is not defined: two children of one parent and property with the same
+            ``tree:ord``, or a child with a missing, repeated, negative or non-integer ordinal.
+    """
     from .sqe._memtree import as_engine_graph
 
     graph, root = as_engine_graph(graph, root)
     try:
-        rules = [_decode_rule(n, graph) for n in _read_list(graph.value(root, _RULES), graph)]
-        data = [_decode_data(n, graph) for n in _read_list(graph.value(root, _DATA), graph)]
-        imports = _read_list(graph.value(root, _IMPORTS), graph)
+        rules = [_decode_rule(n, graph) for n in _children(graph, root, _RULES)]
+        data = [_decode_data(n, graph) for n in _children(graph, root, _DATA)]
+        imports = _children(graph, root, _IMPORTS)
     except SRLError:
         raise
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
-        # a damaged tree (a list cell without rdf:rest, a missing part, a triple term that is not one) is the one error
+        # a damaged tree (a missing part, a triple term that is not one) is the one error
         # a caller reading hand-edited trees catches
         raise SRLDecodeError(f"srl: the tree cannot be read as a rule set: {exc}") from exc
     return srl_ast.RuleSet(rules=rules, data=data, imports=imports)
@@ -728,6 +750,7 @@ def _ontology_graph() -> Any:
     from .expr_validation import ontology_graph as spexpr_ontology_graph
 
     g = spexpr_ontology_graph()
+    _merge_into(g, starontology.get_ontology_graph("tree_owl"))
     _merge_into(g, starontology.get_ontology_graph("srl_owl"))
     _merge_into(g, starontology.get_ontology_graph("sqe_owl"))
     return g
@@ -742,6 +765,7 @@ def _shapes_graph() -> Any:
     from .expr_validation import shapes_graph as spexpr_shapes_graph
 
     g = spexpr_shapes_graph()
+    _merge_into(g, starontology.get_ontology_graph("tree_shacl"))
     _merge_into(g, starontology.get_ontology_graph("srl_shacl"))
     _merge_into(g, starontology.get_ontology_graph("sqe_shacl"))
     return g
