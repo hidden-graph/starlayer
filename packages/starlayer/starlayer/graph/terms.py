@@ -198,7 +198,7 @@ def parse_term(text: str, prefixes: Mapping[str, str] | None = None) -> Any:
     try:
         quads = list(ox.parse(document, format=ox.RdfFormat.TURTLE, rename_blank_nodes=False))
     except (SyntaxError, ValueError) as error:
-        raise FormatError(f"not a term: {text.strip()!r}", kind="rdf", why=str(error), context="term text") from error
+        raise FormatError(f"not a term: {text.strip()!r}", kind="rdf", why="not exactly one RDF term in Turtle syntax", context="term text") from error
     if len(quads) != 1:
         raise FormatError(f"not exactly one term: {text.strip()!r}", kind="rdf", context="term text")
     return quads[0].object
