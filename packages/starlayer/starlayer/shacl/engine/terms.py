@@ -173,5 +173,6 @@ def _union_view(graph: Any) -> Any:
     from starlayer.graph import StarLayerDataset
 
     if isinstance(graph, StarLayerDataset) and not graph.default_union:
-        return StarLayerDataset(store=graph.store, default_union=True, prefixes=dict(graph.prefixes))
+        return StarLayerDataset(store=graph.store, default_union=True, prefixes=dict(graph.prefixes),
+                                imports_loader=graph.imports_loader, ignore_imports=graph.ignore_imports)
     return graph

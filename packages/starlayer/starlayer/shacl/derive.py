@@ -361,7 +361,7 @@ def _check_view(shapes: Any, data: Any, shape_node: Any, target: _Target) -> Any
 
 
 def _self_check(data: Any, shapes: Any, shape_node: Any, target: _Target) -> None:
-    result = validate(data, shacl_graph=_check_view(shapes, data, shape_node, target))
+    result = validate(data, shacl_graph=_check_view(shapes, data, shape_node, target), ignore_imports=True)
     if result.conforms:
         return
     raise ExecutionError(
@@ -575,7 +575,7 @@ def _violated_values(
     for keep in values:
         probe = view.empty_like() if hasattr(view, "empty_like") else type(view)()
         probe.extend(t for t in view.triples((None, None, None)) if not (t[0] == source and t[1] == pred and t[2] != keep))
-        report = validate(data, shacl_graph=probe).report_graph
+        report = validate(data, shacl_graph=probe, ignore_imports=True).report_graph
         if any(v["component"] == component and v["source_shape"] == source for v in _iter_violations(report)):
             broken.append(keep)
     return broken or values
@@ -707,7 +707,7 @@ def _derive_with_template(
 
     specs = Plan(working).components()
     changes = _Changes()
-    detect = validate(data, shacl_graph=_check_view(working, data, shape_node, target))
+    detect = validate(data, shacl_graph=_check_view(working, data, shape_node, target), ignore_imports=True)
     seen: set[tuple[Any, Any]] = set()
     violations = sorted(
         (v for v in _iter_violations(detect.report_graph) if v["source_shape"] is not None and v["component"] is not None),
@@ -800,6 +800,8 @@ def derive_shape(
     ignored_properties: Any = None,
     use_default_ignored_properties: bool = True,
     include_subclasses: bool = True,
+    shapes_graph_loader: Any = None,
+    ignore_imports: bool | None = None,
 ) -> Any:
     """Derive one closed ``sh:NodeShape`` from the data: a StarLayer feature, not part of SHACL. It exists so that a shape can be
     started from the data that is already there and then edited, instead of written from nothing. Returns a new
@@ -850,13 +852,21 @@ def derive_shape(
     ``include_subclasses=False`` the shape still targets subclass instances under SHACL's rules, so validating it by hand reports
     those that have other properties.
 
+    The ``owl:imports`` of ``template_graph`` (the shapes graph here) are resolved, so a template shape may reference shapes it imports, and
+    those of ``graph`` are checked, as for ``validate()`` (each graph's own ``imports_loader`` / ``ignore_imports``; ``shapes_graph_loader`` and
+    ``ignore_imports`` override them for this call). The data graph's imported triples are not part of the data the shape is derived from.
+
     Raises:
+        ExecutionError: (kind ``"import"``) An ``owl:imports`` of ``graph`` or ``template_graph`` is not resolved.
         ValueError: without a template, neither or both of ``cls`` and ``node`` are given; with one, ``shape`` is missing,
             ``cls`` or ``node`` is also given, ``shape`` is not a shape of the template, or it does not have exactly one
             ``sh:targetClass`` / ``sh:targetNode``; the class has no instances, or the node no triples as subject.
         TypeError: a term is an rdflib term or of a kind the argument does not take, or a graph is not a StarLayer graph.
     """
     data = engine_view(normalize_to_starlayer_graph(graph, name="graph"), "graph")
+    from starlayer.shacl.engine.imports import resolve_imports, with_data_imports
+
+    with_data_imports(None, data, shapes_graph_loader, ignore_imports)  # raises when the data graph's imports are not resolved
     shape_term = None if shape is None else _as_term(shape, "shape", allowed=(ox.NamedNode,))
     template = None
     if template_graph is not None:
@@ -867,7 +877,9 @@ def derive_shape(
             )
         if shape_term is None:
             raise ValueError("derive_shape() with template_graph= needs shape=, the IRI of the shape in template_graph to update")
-        template = engine_view(normalize_to_starlayer_graph(template_graph, name="template_graph"), "template_graph")
+        template = resolve_imports(
+            engine_view(normalize_to_starlayer_graph(template_graph, name="template_graph"), "template_graph"), shapes_graph_loader, ignore_imports
+        )
         target = _template_target(template, shape_term, include_subclasses)
     else:
         if (cls is None) == (node is None):

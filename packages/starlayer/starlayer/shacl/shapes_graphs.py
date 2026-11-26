@@ -85,15 +85,19 @@ def rule_dependencies(graph: Any, starting_points: Any) -> set[Any]:
     return _engine.rule_dependencies(engine_view(graph, "graph"), [to_engine(n) for n in starting_points])
 
 
-def close_shape(shapes_graph: Any, shape: Any) -> Any:
+def close_shape(shapes_graph: Any, shape: Any, *, shapes_graph_loader: Any | None = None, ignore_imports: bool | None = None) -> Any:
     """A copy of the whole ``shapes_graph`` in which ``shape`` and the shapes it reaches as a value node's complete description
     (``sh:node``, ``sh:qualifiedValueShape``, the members of ``sh:and`` / ``sh:or`` / ``sh:xone``) are ``sh:closed true``: the strict form
     an ``extract_subgraph`` fragment is checked against. Shapes that are not reached stay as they are; nothing is removed. The method of the
-    same name of ``StarShaclProcessor`` does this on its bound shapes graph."""
+    same name of ``StarShaclProcessor`` does this on its bound shapes graph. The shapes graph's ``owl:imports`` are resolved first (its own
+    ``imports_loader`` / ``ignore_imports``, overridden for the call by ``shapes_graph_loader`` / ``ignore_imports``), so the copy holds the
+    imported shapes too; an import that is not resolved raises ``ExecutionError`` kind ``"import"``."""
     from starlayer.shacl import _adapter
     from starlayer.shacl.normalization import normalize_to_starlayer_graph
 
-    return _adapter.close_shape(normalize_to_starlayer_graph(shapes_graph, name="shapes_graph"), shape)
+    return _adapter.close_shape(
+        normalize_to_starlayer_graph(shapes_graph, name="shapes_graph"), shape, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports
+    )
 
 
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:

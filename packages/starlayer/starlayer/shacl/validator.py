@@ -31,7 +31,7 @@ def validate(
     *,
     mode: str | ValidationMode | None = None,
     shapes_graph_loader: Callable[[Any], Any | None] | None = None,
-    ignore_imports: bool = False,
+    ignore_imports: bool | None = None,
     meta_shapes_extra: Iterable[Any] = (),
     data_graph_iri: Any | None = None,
     shapes_graph_resource: Any | None = None,
@@ -50,12 +50,16 @@ def validate(
             its triples are never copied into ``data_graph``.
         mode: A named preset of options (``"validation"``, ``"rules"`` or ``"debug"``); any of its options can be overridden per
             call through ``**kwargs``.
-        shapes_graph_loader: Resolves the ``owl:imports`` of the shapes graph and of ``ont_graph``. Every import must end up a subject of the
+        shapes_graph_loader: Resolves the ``owl:imports`` of the data graph, the shapes graph and ``ont_graph`` for this call, overriding the
+            ``imports_loader`` each graph carries (``StarLayerGraph(imports_loader=...)``; with neither, no loader). Every import must end up a subject of the
             graph, or the call raises ``ExecutionError`` kind ``"import"`` (``error.unresolved`` lists the IRIs): no loader, a loader that
             returns ``None`` or a graph without the IRI, and a loader that raises (wrapped, the exception as ``__cause__``) are all
             that error. An import of an ontology StarLayer has built in (a registered ``starontology`` ontology, ``sh:`` among them) needs
-            no loader and is never passed to one. An ``owl:imports`` object that is not an IRI is a ``ShapeCompileError``.
-        ignore_imports: Load nothing and check nothing: the shapes graph and ontology graph are used as they are.
+            no loader and is never passed to one. An ``owl:imports`` object that is not an IRI is a ``ShapeCompileError``. The shapes graph
+            and ontology graph are extended with what they import; the data graph's imports are visible to entailment only (like
+            ``ont_graph``) and are never added to the data.
+        ignore_imports: ``True``: load nothing and check nothing, the graphs are used as they are; ``False``: resolve, even for a graph that
+            has ``ignore_imports`` set; ``None`` (default): each graph's own setting.
         meta_shapes_extra: Extra graphs for the shapes-about-shapes check when ``meta_shacl=True``.
         data_graph_iri, shapes_graph_iri: Recorded as ``sh:usedDataGraph`` / ``sh:usedShapesGraph`` on the ``sh:ValidationActivity`` that generated the report; each defaults
             to the graph's own identifier when that is an IRI.
@@ -152,6 +156,8 @@ def evaluate(
     properties: Any | None = None,
     rules_entailment: bool = False,
     validate: bool = False,
+    shapes_graph_loader: Callable[[Any], Any | None] | None = None,
+    ignore_imports: bool | None = None,
 ) -> Any:
     """Computes the ``sh:values`` / ``sh:defaultValue`` virtual properties of ``shacl_graph`` and returns a shape-driven subgraph.
 
@@ -176,6 +182,8 @@ def evaluate(
             target contributes the values of the shapes it conforms to, a value computed twice once. Off by default: evaluation
             is then a lens that needs no conformance and costs no validation. To see why a node was left out, run ``validate()``;
             its report is the explanation.
+        shapes_graph_loader, ignore_imports: As for :func:`validate`: the ``owl:imports`` of the data, shapes and ontology graphs are
+            resolved (or ``ExecutionError`` kind ``"import"``), by each graph's own settings unless the call overrides them.
     """
     return _adapter.evaluate(
         data_graph,
@@ -189,6 +197,8 @@ def evaluate(
         properties=properties,
         rules_entailment=rules_entailment,
         validate=validate,
+        shapes_graph_loader=shapes_graph_loader,
+        ignore_imports=ignore_imports,
     )
 
 
@@ -252,6 +262,8 @@ def target_nodes(
     timeout: Any | None = None,
     recompute: str = "onChange",
     subclass_of_in_shapes_graph: bool = False,
+    shapes_graph_loader: Callable[[Any], Any | None] | None = None,
+    ignore_imports: bool | None = None,
 ) -> tuple[Any, ...]:
     """The nodes ``shape_node`` targets in ``data_graph``, in declaration order and without duplicates: the nodes ``validate()``
     reports on for that shape (``sh:targetNode``, including a node expression, ``sh:targetClass`` with subclasses,
@@ -260,7 +272,8 @@ def target_nodes(
     ``shacl_graph=None`` reads the shapes from ``data_graph``. The shapes graph's own ``sh:entailment`` and ``inference`` (an
     entailment regime IRI or an iterable of them) are applied first, over the data graph and ``ont_graph``, without changing
     either. ``engine``, ``timeout`` and ``recompute`` are as for :func:`validate`. ``subclass_of_in_shapes_graph=True`` reads the ``rdfs:subClassOf`` triples of ``sh:targetClass`` and implicit class
-    targets from the shapes graph too, as the option of that name does in :func:`validate`."""
+    targets from the shapes graph too, as the option of that name does in :func:`validate`. ``shapes_graph_loader`` and ``ignore_imports`` are
+    as for :func:`validate` (each graph's own import settings, overridden for the call)."""
     return _adapter.target_nodes(
         data_graph=data_graph,
         shacl_graph=shacl_graph,
@@ -271,6 +284,8 @@ def target_nodes(
         timeout=timeout,
         recompute=recompute,
         subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+        shapes_graph_loader=shapes_graph_loader,
+        ignore_imports=ignore_imports,
     )
 
 
@@ -285,6 +300,8 @@ def target_shapes(
     timeout: Any | None = None,
     recompute: str = "onChange",
     subclass_of_in_shapes_graph: bool = False,
+    shapes_graph_loader: Callable[[Any], Any | None] | None = None,
+    ignore_imports: bool | None = None,
 ) -> tuple[Any, ...]:
     """The shapes that target ``node`` in ``data_graph``: the shapes ``validate()`` checks it against, so the reverse of
     :func:`target_nodes` (``node in target_nodes(shape_node=s)`` exactly when ``s in target_shapes(node=node)``). A deactivated shape is not
@@ -300,6 +317,8 @@ def target_shapes(
         timeout=timeout,
         recompute=recompute,
         subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+        shapes_graph_loader=shapes_graph_loader,
+        ignore_imports=ignore_imports,
     )
 
 
@@ -629,19 +648,20 @@ class StarShaclProcessor:
         """Read and compile the bound shapes graph (``ShapeError``), and run the meta-SHACL check when ``meta_shacl`` is bound
         (``MetaShaclError``, before the compile), so a bad shapes graph is refused when it is bound; ``validate()`` reuses both results.
 
-        The constructor's ``shapes_graph_loader`` / ``ignore_imports`` decide the imports. Unsatisfied ``owl:imports`` with
-        neither skip the check (a call may still bring a loader): the shapes are read at the first ``validate()``."""
+        The constructor's ``shapes_graph_loader`` / ``ignore_imports``, else the shapes graph's own ``imports_loader`` / ``ignore_imports``,
+        decide the imports. Unsatisfied ``owl:imports`` with no loader from either skip the check (a call may still bring a loader): the
+        shapes are read at the first ``validate()``."""
         shapes = self.shacl_graph
         self._checked = _adapter.CheckedShapes()
         if shapes is None:
             return
         from starlayer.shacl.engine.imports import resolve_imports
 
-        loader, ignore = self.shapes_graph_loader, bool(self.ignore_imports)
+        loader, ignore = self.shapes_graph_loader, self.ignore_imports
         try:
             resolved = resolve_imports(shapes, loader, ignore)
         except ExecutionError as error:  # unresolved owl:imports and no loader to resolve them with: a call may bring one
-            if loader is not None:
+            if loader is not None or getattr(shapes, "imports_loader", None) is not None:
                 raise
             only_kind(error, "import")
             return
@@ -755,6 +775,8 @@ class StarShaclProcessor:
         engine: str | None = None,
         timeout: float | None = None,
         recompute: str | None = None,
+        shapes_graph_loader: Callable[[Any], Any | None] | None = _UNSET,
+        ignore_imports: bool | None = _UNSET,
     ) -> tuple[Any, ...]:
         """The nodes ``shape_node`` targets in ``data_graph`` (default: the bound one), as ``validate()`` resolves them.
         ``subclass_of_in_shapes_graph`` defaults to the constructor's value (``None``: that value, else ``False``).
@@ -774,6 +796,7 @@ class StarShaclProcessor:
             inference=inference,
             subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
             **entailment,
+            **self._imports_options(shapes_graph_loader, ignore_imports),
         )
 
     def target_shapes(
@@ -787,6 +810,8 @@ class StarShaclProcessor:
         engine: str | None = None,
         timeout: float | None = None,
         recompute: str | None = None,
+        shapes_graph_loader: Callable[[Any], Any | None] | None = _UNSET,
+        ignore_imports: bool | None = _UNSET,
     ) -> tuple[Any, ...]:
         """The shapes of the bound shapes graph that target ``node`` in ``data_graph`` (default: the bound one); see :func:`target_shapes`. The
         options default to the constructor's values, as for :meth:`target_nodes`."""
@@ -803,6 +828,7 @@ class StarShaclProcessor:
             inference=inference,
             subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
             **entailment,
+            **self._imports_options(shapes_graph_loader, ignore_imports),
         )
 
     def candidate_values(
@@ -909,6 +935,16 @@ class StarShaclProcessor:
             ont_graph=self.ont_graph,
         )
 
+    def _imports_options(self, shapes_graph_loader: Any, ignore_imports: Any) -> dict[str, Any]:
+        """``shapes_graph_loader`` and ``ignore_imports`` of a call: the call's value (``None`` included), else the constructor's, else not
+        given (each graph's own ``imports_loader`` / ``ignore_imports``)."""
+        bound = self._option_defaults(_SHAPES_GRAPH_DEFAULTS)
+        if shapes_graph_loader is _UNSET:
+            shapes_graph_loader = bound.get("shapes_graph_loader")
+        if ignore_imports is _UNSET:
+            ignore_imports = bound.get("ignore_imports")
+        return {"shapes_graph_loader": shapes_graph_loader, "ignore_imports": ignore_imports}
+
     def _entailment_options(self, engine: Any, timeout: Any, recompute: Any) -> dict[str, Any]:
         """``engine``, ``timeout`` and ``recompute`` of a call that has no ``**kwargs``: the call's value, else the constructor's, else
         the built-in (left out)."""
@@ -922,7 +958,7 @@ class StarShaclProcessor:
         *,
         mode: str | ValidationMode | None = None,
         shapes_graph_loader: Callable[[Any], Any | None] | None = _UNSET,
-        ignore_imports: bool = _UNSET,
+        ignore_imports: bool | None = _UNSET,
         meta_shapes_extra: Iterable[Any] = _UNSET,
         data_graph_iri: Any | None = None,
         shapes_graph_resource: Any | None = None,
@@ -938,8 +974,9 @@ class StarShaclProcessor:
         iterable means no regime of the call's own, ``<not set>`` means the constructor's. The shapes graph's ``sh:entailment``
         applies in every case, in addition. ``shapes_graph_resource`` validates against a
         named ``sh:ShapesGraph`` module of the bound shapes graph. ``shapes_graph_loader``, ``ignore_imports`` and
-        ``meta_shapes_extra`` default to the constructor's values (``<not set>``: the loader ``None``, ``False``, ``()`` when
-        none was bound); any value given here, ``None`` and ``False`` included, replaces them."""
+        ``meta_shapes_extra`` default to the constructor's values (``<not set>``: the loader ``None``, ``None``, ``()`` when
+        none was bound; ``None`` for the loader and the flag means each graph's own ``imports_loader`` / ``ignore_imports``); any value given
+        here, ``None`` and ``False`` included, replaces them."""
         if inference is _UNSET:
             inference = self.inference
         data_graph = self._resolve_data_graph(data_graph)
@@ -947,7 +984,7 @@ class StarShaclProcessor:
         if shapes_graph_loader is _UNSET:
             shapes_graph_loader = bound.get("shapes_graph_loader")
         if ignore_imports is _UNSET:
-            ignore_imports = bound.get("ignore_imports", False)
+            ignore_imports = bound.get("ignore_imports")
         if meta_shapes_extra is _UNSET:
             meta_shapes_extra = bound.get("meta_shapes_extra", ())
         return _adapter.validate(
@@ -1019,6 +1056,8 @@ class StarShaclProcessor:
         engine: str | None = None,
         timeout: float | None = None,
         recompute: str | None = None,
+        shapes_graph_loader: Callable[[Any], Any | None] | None = _UNSET,
+        ignore_imports: bool | None = _UNSET,
     ) -> Any:
         """Computes the ``sh:values`` / ``sh:defaultValue`` virtual properties of the bound shapes graph over ``data_graph``
         (default: the bound one); see :func:`evaluate`. ``inference`` replaces the constructor's regime(s) for this call
@@ -1039,6 +1078,7 @@ class StarShaclProcessor:
             rules_entailment=rules_entailment,
             validate=validate,
             **entailment,
+            **self._imports_options(shapes_graph_loader, ignore_imports),
         )
 
     def select_widgets(
@@ -1051,6 +1091,8 @@ class StarShaclProcessor:
         scoring_graph: Any | None = None,
         shapes_graph_resource: Any | None = None,
         per: str = "node",
+        shapes_graph_loader: Callable[[Any], Any | None] | None = _UNSET,
+        ignore_imports: bool | None = _UNSET,
     ) -> dict[Any, Any]:
         """Chooses a SHACL 1.2 UI widget for each property of the node shape ``shape_node``, using the bound shapes graph.
 
@@ -1067,6 +1109,7 @@ class StarShaclProcessor:
             shapes_graph_resource: A named ``sh:ShapesGraph`` module of the bound shapes graph.
             per: ``"node"`` (the default) or ``"shape"``: with ``"shape"`` the answer is once per property shape, a
                 ``WidgetChoice`` each, to finish per node with ``choice.resolve(focus_node, data_graph)``.
+            shapes_graph_loader, ignore_imports: As for :meth:`validate` (the constructor's values by default).
 
         Returns:
             ``{property_shape: widget}``, with ``None`` for a property that has no widget (or ``{property_shape: WidgetChoice}``).
@@ -1091,6 +1134,7 @@ class StarShaclProcessor:
             scoring_graph=scoring_graph,
             role=role,  # type: ignore[arg-type]
             per=per,  # type: ignore[arg-type]
+            **self._imports_options(shapes_graph_loader, ignore_imports),
         )
 
     def extract_subgraph(
@@ -1102,6 +1146,8 @@ class StarShaclProcessor:
         shapes_graph_resource: Any | None = None,
         inference: Any | None = _UNSET,
         include_targets: bool = True,
+        shapes_graph_loader: Callable[[Any], Any | None] | None = _UNSET,
+        ignore_imports: bool | None = _UNSET,
     ) -> Any:
         """The subgraph of ``data_graph`` (default: the bound one) that ``shape`` and ``focus_node`` cover, using the bound shapes graph and
         ontology graph; see :func:`starlayer.shacl.extract_subgraph`. ``inference`` replaces the constructor's regime(s) for this call
@@ -1118,6 +1164,7 @@ class StarShaclProcessor:
             focus_node=focus_node,
             inference=inference,
             include_targets=include_targets,
+            **self._imports_options(shapes_graph_loader, ignore_imports),
         )
 
     def select_widget(
@@ -1196,17 +1243,25 @@ class StarShaclProcessor:
             sample=sample,
         )
 
-    def close_shape(self, shape: Any, *, shapes_graph_resource: Any | None = None) -> Any:
+    def close_shape(
+        self,
+        shape: Any,
+        *,
+        shapes_graph_resource: Any | None = None,
+        shapes_graph_loader: Callable[[Any], Any | None] | None = _UNSET,
+        ignore_imports: bool | None = _UNSET,
+    ) -> Any:
         """A copy of the whole bound shapes graph in which ``shape`` and the shapes it reaches as a value node's complete
         description (``sh:node``, ``sh:qualifiedValueShape``, the members of ``sh:and`` / ``sh:or`` / ``sh:xone``) are
         ``sh:closed true``: the strict form an ``extract_subgraph`` fragment is checked against. Shapes that are not reached stay as
-        they are; nothing is removed. See ``shacl.engine.shapes_graphs.close_shape`` for the exact rules."""
+        they are; nothing is removed. See ``shacl.engine.shapes_graphs.close_shape`` for the exact rules. The shapes graph's ``owl:imports`` are
+        resolved first (the constructor's ``shapes_graph_loader`` / ``ignore_imports`` unless the call gives its own, else the graph's)."""
         shacl_graph_input = self._resolve_shacl_graph(shapes_graph_resource)
         if shacl_graph_input is None:
             raise ValueError(
                 "close_shape() needs a bound shapes graph - construct with StarShaclProcessor(shacl_graph=...)."
             )
-        return _adapter.close_shape(shacl_graph_input, shape)
+        return _adapter.close_shape(shacl_graph_input, shape, **self._imports_options(shapes_graph_loader, ignore_imports))
 
     def extract_shapes_graph(self, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
         """Extracts the ``sh:ShapesGraph`` named ``shapes_graph_iri`` as a standalone graph (its members, with their blank-node

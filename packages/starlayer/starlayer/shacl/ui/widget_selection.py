@@ -147,7 +147,7 @@ def _conforming_nodes(nodes: Any, shape: Any, *, base_graph: Any, shapes_graph: 
     """The members of ``nodes`` (resources in ``base_graph``) that conform to ``shape`` (defined in ``shapes_graph``).
 
     Only ``shape`` and what it reaches are looked at: no other shape of ``shapes_graph`` is built or validated, no report
-    is made, and ``owl:imports`` plays no part. Asked of the engine's own conformance check, not of ``validate()``: a
+    is made, and no ``owl:imports`` are read here (the caller resolved them). Asked of the engine's own conformance check, not of ``validate()``: a
     full validation copied the shapes graph, rebuilt its plan and built a report for what is one yes/no answer.
     """
     context = context or _conformance_context(base_graph, shapes_graph)
@@ -593,6 +593,8 @@ def select_widgets(
     per: Literal["node", "shape"] = "node",
     implemented: Any | None = None,
     on_report: Any | None = None,
+    shapes_graph_loader: Any = None,
+    ignore_imports: bool | None = None,
 ) -> dict[Any, Any]:
     """Batch sibling of :func:`select_widget` - walks ``shape_node``'s own
     ``sh:property`` list and runs :func:`select_widget` once per property,
@@ -621,13 +623,23 @@ def select_widgets(
     chosen, and the application is told (a :class:`WidgetReport`) when such a widget matched and when no widget matches. With
     ``per="shape"`` a widget whose matching depends on the node is reported by ``choice.resolve(focus_node, data_graph)``, the others
     when the choice is made.
+
+    **Imports.** The ``owl:imports`` of the shapes graph and of the scoring graph are resolved (the imported triples count as part of
+    each graph) and those of ``data_graph`` are checked, as for ``validate()``: each graph's own ``imports_loader`` / ``ignore_imports``,
+    which ``shapes_graph_loader`` and ``ignore_imports`` override for this call; an import that is not resolved raises ``ExecutionError``
+    kind ``"import"``.
     """
     if per not in ("node", "shape"):
         raise ValueError("per must be 'node' or 'shape'")
     if role not in ("editor", "viewer"):
         raise ValueError(f"role must be 'editor' or 'viewer', got {role!r}")
     b = _Boundary(shape_node, focus_node, shapes_graph, scoring_graph)
-    shapes, scoring = b.shapes_graph, b.scoring_graph
+    from starlayer.shacl.engine.imports import resolve_imports, with_data_imports
+
+    shapes = resolve_imports(b.shapes_graph, shapes_graph_loader, ignore_imports)
+    scoring = shapes if b.scoring_graph is b.shapes_graph else resolve_imports(b.scoring_graph, shapes_graph_loader, ignore_imports)
+    if data_graph is not None:
+        with_data_imports(None, _as_ox_graph(data_graph), shapes_graph_loader, ignore_imports)  # raises when the data graph's imports are not resolved
     if (b.shape_node, None, None) not in shapes:
         raise ValueError(f"shape_node {shape_node!r} is not a subject in the shapes graph")
     if per == "shape" and (focus_node is not None or data_graph is not None):

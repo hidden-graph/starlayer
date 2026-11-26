@@ -27,7 +27,8 @@ def normalize_to_starlayer_graph(value: Any, *, name: str, force_default_union: 
         raise TypeError(f"{name} must be a graph (StarLayerGraph, StarLayerDataset or rdflib.Graph). Got None.")
     if isinstance(value, StarLayerDataset):
         if force_default_union and not value.default_union:
-            return StarLayerDataset(store=value.store, prefixes=value.prefixes)
+            return StarLayerDataset(store=value.store, prefixes=value.prefixes,
+                                    imports_loader=value.imports_loader, ignore_imports=value.ignore_imports)
         return value
     if isinstance(value, StarLayerGraph):
         return value

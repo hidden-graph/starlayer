@@ -459,6 +459,8 @@ def extract_subgraph(
     focus_node: Any | None = None,
     inference: Any | None = None,
     include_targets: bool = True,
+    shapes_graph_loader: Any = None,
+    ignore_imports: bool | None = None,
 ) -> Any:
     """The subgraph covered by one ``(shape, focus_node)`` pair, or by every entry point the shapes graph declares.
 
@@ -469,7 +471,8 @@ def extract_subgraph(
     focus node a target (class membership, subjects-of / objects-of triples). Raises ``TypeError`` for a ``str``
     ``shape`` / ``focus_node`` and ``ValueError`` for a shape that is not in the shapes graph, ``ShapeError`` for SHACL Advanced Features
     constructs SHACL 1.2 no longer defines (``sh:target``, ``sh:SPARQLTarget``, ``sh:SPARQLFunction``) and ``TypeError`` for a
-    ``StarLayerDataset`` as the data graph.
+    ``StarLayerDataset`` as the data graph. The ``owl:imports`` of the data, shapes and ontology graphs are resolved as for ``validate()`` (each graph's own settings;
+    ``shapes_graph_loader`` and ``ignore_imports`` override them for this call).
     """
     for argument, value in (("shape", shape), ("focus_node", focus_node)):
         if value is not None and type(value) is str:  # a bare str is not a term (an rdflib ``URIRef`` is a str subclass)
@@ -482,7 +485,10 @@ def extract_subgraph(
             "extract_subgraph takes one data graph, not a dataset: a fragment does not say which graph a triple came from. "
             "Use dataset.default_graph, dataset.graph(name) or dataset.to_graph() (every graph merged)."
         )
-    shapes = engine_view(shacl_graph, "shapes graph") if shacl_graph is not None else data_graph
+    from starlayer.shacl.engine.imports import resolve_inputs
+
+    shapes, ont_graph = resolve_inputs(data_graph, shacl_graph, ont_graph, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports)
+    shapes = shapes if shapes is not None else data_graph
     shape, focus_node = to_engine(shape), to_engine(focus_node)
     plan = Plan(shapes_graph=shapes)
     view = resolve_data_view(data_graph, shapes, inference=inference, ont_graph=ont_graph)

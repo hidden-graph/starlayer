@@ -142,13 +142,13 @@ def reject_unknown_options(kwargs: dict[str, Any]) -> None:
         )
 
 
-def _check_imports(shapes: Any, loader: Any, ignore_imports: bool) -> None:
-    """With no loader and without ``ignore_imports``: ``owl:imports`` that are neither locally satisfied nor an ontology StarLayer has built in raise
-    ``ExecutionError`` kind ``"import"`` before the meta preflight runs (with a loader, ``engine.api.validate`` resolves them)."""
-    if shapes is not None and loader is None and not ignore_imports:
+def _check_imports(shapes: Any, loader: Any, ignore_imports: bool | None) -> None:
+    """The shapes graph's ``owl:imports`` (the graph's own loader and flag, overridden by the call's) are resolved or the call raises
+    ``ExecutionError`` kind ``"import"`` before the meta preflight runs; ``engine.api.validate`` asks again and finds the kept result."""
+    if shapes is not None:
         from starlayer.shacl.engine.imports import resolve_imports
 
-        resolve_imports(shapes, None, False)
+        resolve_imports(shapes, loader, ignore_imports)
 
 
 def _normalise(data: Any, shapes: Any, ont: Any) -> tuple[Any, Any, Any]:
@@ -249,7 +249,7 @@ def validate(
     options: dict[str, Any],
     option_defaults: dict[str, Any] | None = None,
     shapes_graph_loader: Any = None,
-    ignore_imports: bool = False,
+    ignore_imports: bool | None = None,
     meta_shapes_extra: Any = (),
     data_graph_iri: Any = None,
     shapes_graph_iri: Any = None,
@@ -440,13 +440,12 @@ def apply_rules(
     )
     if options.get("meta_shacl"):  # the same preflight as validate(), on the shapes graph as given
         _meta_preflight(shapes, options.get("meta_shapes_extra") or ())
-    loader = options.get("shapes_graph_loader")
-    ignore_imports = bool(options.get("ignore_imports"))
-    from starlayer.shacl.engine.imports import resolve_imports
+    from starlayer.shacl.engine.imports import resolve_inputs
 
-    shapes = resolve_imports(shapes, loader, ignore_imports)  # the rules of an imported module run too: imports first, as validate() does
-    if ont is not None:
-        ont = resolve_imports(ont, loader, ignore_imports)
+    # the rules of an imported module run too: imports first, as validate() does (the graphs' own settings, the call's override them)
+    shapes, ont = resolve_inputs(
+        data, shapes, ont, shapes_graph_loader=options.get("shapes_graph_loader"), ignore_imports=options.get("ignore_imports")
+    )
     # the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
     base = resolve_data_view(
         data,
@@ -493,6 +492,8 @@ def evaluate(
     engine: str = "hermit",
     timeout: Any = None,
     recompute: str = "onChange",
+    shapes_graph_loader: Any = None,
+    ignore_imports: bool | None = None,
 ) -> Any:
     """``evaluate()`` on the engine (a plain graph)."""
     from starlayer.shacl.engine.evaluate import evaluate as engine_evaluate
@@ -510,6 +511,8 @@ def evaluate(
         properties=properties,
         rules_entailment=rules_entailment,
         validate=validate,
+        shapes_graph_loader=shapes_graph_loader,
+        ignore_imports=ignore_imports,
     )
 
 
@@ -522,6 +525,8 @@ def extract_subgraph(
     focus_node: Any,
     inference: Any,
     include_targets: bool,
+    shapes_graph_loader: Any = None,
+    ignore_imports: bool | None = None,
 ) -> Any:
     """``extract_subgraph()`` on the engine (an ``StarLayerGraph``)."""
     from starlayer.shacl.engine.subgraph import extract_subgraph as engine_extract
@@ -534,6 +539,8 @@ def extract_subgraph(
         focus_node=focus_node,
         inference=inference,
         include_targets=include_targets,
+        shapes_graph_loader=shapes_graph_loader,
+        ignore_imports=ignore_imports,
     )
 
 
@@ -548,6 +555,8 @@ def target_nodes(
     engine: str = "hermit",
     timeout: Any = None,
     recompute: str = "onChange",
+    shapes_graph_loader: Any = None,
+    ignore_imports: bool | None = None,
 ) -> tuple[Any, ...]:
     """The nodes ``shape_node`` targets in ``data_graph``, as ``validate()`` resolves them."""
     from starlayer.shacl.engine import api
@@ -564,6 +573,8 @@ def target_nodes(
             timeout=timeout,
             recompute=recompute,
             subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+            shapes_graph_loader=shapes_graph_loader,
+            ignore_imports=ignore_imports,
         )
     )
 
@@ -579,6 +590,8 @@ def target_shapes(
     engine: str = "hermit",
     timeout: Any = None,
     recompute: str = "onChange",
+    shapes_graph_loader: Any = None,
+    ignore_imports: bool | None = None,
 ) -> tuple[Any, ...]:
     """The shapes that target ``node`` in ``data_graph``, as ``validate()`` resolves them."""
     from starlayer.shacl.engine import api
@@ -595,6 +608,8 @@ def target_shapes(
             timeout=timeout,
             recompute=recompute,
             subclass_of_in_shapes_graph=subclass_of_in_shapes_graph,
+            shapes_graph_loader=shapes_graph_loader,
+            ignore_imports=ignore_imports,
         )
     )
 
@@ -678,8 +693,8 @@ def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_re
     return engine_extract(shapes_graph, shapes_graph_iri, include_referenced=include_referenced)
 
 
-def close_shape(shapes_graph: Any, shape: Any) -> Any:
+def close_shape(shapes_graph: Any, shape: Any, *, shapes_graph_loader: Any = None, ignore_imports: bool | None = None) -> Any:
     """``StarShaclProcessor.close_shape`` on the engine."""
     from starlayer.shacl.engine.shapes_graphs import close_shape as engine_close
 
-    return engine_close(shapes_graph, shape)
+    return engine_close(shapes_graph, shape, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports)
