@@ -126,6 +126,6 @@ def test_entailment_rewrite_of_very_deep_nesting_is_a_nesting_error():
     try:
         StarLayerGraph().query(text, entailment=ENTAILMENT["RDFS"])
     except ExecutionError as e:
-        assert e.kind == "nesting"
+        assert e.kind == "limit"
     except Exception as e:  # a parse-depth limit is an acceptable clean error too
         assert not isinstance(e, RecursionError)

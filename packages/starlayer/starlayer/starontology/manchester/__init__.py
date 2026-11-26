@@ -51,7 +51,7 @@ sits in a ``tree:Item`` (``tree:value``) and may be shared. An empty sequence is
 edit a sequence and ``renumber_dense`` closes gaps (run it before hashing). The decoders raise ``FormatError`` (kind ``"rdf"``) for a
 tie or a missing or non-integer ordinal; ``validate_manchester_tree`` reports the same as shape violations. The errors of the Manchester
 parser are ``FormatError`` (kind ``"manchester"``) too, with ``why``, ``line`` and a position; a class expression nested too deeply to parse or
-render is an ``ExecutionError`` (kind ``"nesting"``), and a node of the tree that no ``manch:`` type describes is a ``FormatError`` (kind
+render is an ``ExecutionError`` (kind ``"limit"``), and a node of the tree that no ``manch:`` type describes is a ``FormatError`` (kind
 ``"manchester"``, context ``manch: tree``). ``ValueError`` stays for a graph argument that holds no ``manch:OntologyDocument``, or already holds
 one.
 
@@ -1133,7 +1133,7 @@ def tree_to_manchester(tree_graph: Graph) -> str:
     try:
         return _document_to_text(_tree_to_document(graph, root))
     except RecursionError:
-        raise ExecutionError('class expression nested too deeply to render', kind='nesting', context='Manchester syntax render') from None
+        raise ExecutionError('class expression nested too deeply to render', kind='limit', context='Manchester syntax render nesting depth') from None
 
 
 def tree_to_owl(tree_graph: Any) -> Any:

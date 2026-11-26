@@ -18,7 +18,6 @@ shapes graph does not catch it. One class; its ``kind`` attribute says what fail
 
 * ``"rule"``: a rule failed while running, or the rule set failed as a whole.
 * ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
-* ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
 * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.  The message starts "internal error (a bug in StarLayer, please report it at ...)" and ``report_url`` is the issues URL.

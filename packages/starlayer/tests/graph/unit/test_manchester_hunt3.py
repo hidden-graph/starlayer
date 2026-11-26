@@ -117,7 +117,7 @@ def test_deeply_nested_expression_is_a_nesting_execution_error():
     text = H + 'Class: A\n  SubClassOf: ' + '(' * depth + 'B' + ')' * depth + '\n'
     with pytest.raises(ExecutionError) as caught:
         parse_manchester(text)
-    assert caught.value.kind == 'nesting'
+    assert caught.value.kind == 'limit'
     with pytest.raises(ExecutionError):
         manchester_to_tree(text)
     nots = 'not ' * depth

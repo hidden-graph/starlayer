@@ -97,9 +97,9 @@ def test_the_default_depth_limit_is_500_through_public_validate() -> None:
     assert DEFAULT_MAX_VALIDATION_DEPTH == 500
     data = g(DATA)
     assert validate(data, chain(300)).conforms
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         validate(data, chain(520))  # 520 nested sh:node shapes: past the default 500
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         StarShaclProcessor(chain(520)).validate(data)
 
 

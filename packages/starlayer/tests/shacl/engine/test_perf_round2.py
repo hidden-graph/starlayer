@@ -109,7 +109,7 @@ def test_depth_limit_is_enforced_on_a_memoised_replay():
     chain += "ex:L6 a sh:NodeShape ."
     data = "ex:a a ex:T ; ex:next ex:b . ex:b ex:next ex:c . ex:c ex:next ex:d . ex:d ex:next ex:e ."
     assert validate(g(data), g(chain)).conforms  # plenty of depth
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         validate(g(data), g(chain), max_validation_depth=3)
 
 

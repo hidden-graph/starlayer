@@ -174,7 +174,7 @@ DEEP = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:node [ sh:node [ sh:node [
 
 
 def test_max_validation_depth_is_a_failure() -> None:
-    with raises_kind("nesting", match="too deep"):
+    with raises_kind("limit", match="too deep"):
         new_validate(g("ex:a ex:p 1 ."), g(DEEP), max_validation_depth=2)
     assert new_validate(g("ex:a ex:p 1 ."), g(DEEP), max_validation_depth=10).conforms
     assert old_validate(g("ex:a ex:p 1 ."), g(DEEP), meta_shacl=False, ignore_imports=True).conforms

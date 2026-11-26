@@ -111,7 +111,7 @@ ex: a sh:ShapesGraph ; sh:declare [ sh:prefix "ex" ; sh:namespace "http://exampl
 def test_cyclic_expression_is_nesting_too_deep_not_recursion_error(shapes):
     from tests.support.errors import raises_kind
 
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         validate(G("ex:n ex:p 1 ."), G(NX + shapes), meta_shacl=False)
 
 

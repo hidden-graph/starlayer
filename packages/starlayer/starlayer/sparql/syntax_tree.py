@@ -68,7 +68,7 @@ def sparql_to_tree(text: str, tree_graph: Any = None, root: Any = None, *, base:
     Raises:
         FormatError: (kind ``"sparql"``) For text outside every grammar tried, with ``line`` and ``col``; (kind ``"srl"``) when the
             text starts as a rule set and the SRL grammar read furthest into it.
-        ExecutionError: (kind ``"nesting"``) The text is nested too deeply for Python's stack.
+        ExecutionError: (kind ``"limit"``) The text is nested too deeply for Python's stack.
         TypeError: ``root`` is not an IRI or a blank node.
     """
     from .parse_sparql import ast_to_triples, parse_sparql, parse_sparql_update
@@ -137,7 +137,7 @@ def tree_to_sparql(tree_graph: Any, root: Any = None) -> str:
 
     Raises:
         ValueError: ``root`` is left out and the graph holds no root or more than one.
-        ExecutionError: (kind ``"nesting"``) the tree nests too deeply to write within the Python stack; (kind ``"unsupported"``) it
+        ExecutionError: (kind ``"limit"``) the tree nests too deeply to write within the Python stack; (kind ``"unsupported"``) it
             holds a node, term or operation with no text form.
         FormatError: (kind ``"rdf"``) an ordered child has no ``tree:ord`` or one that is not a non-negative integer, two children of
             one parent and property share an ordinal, or a named node, literal or variable is a child without its ``tree:Item``

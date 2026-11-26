@@ -39,7 +39,7 @@ Entry points::
     ast_to_tree(ast, graph=None, root=None) -> (Graph, root)    # a parsed query or update, as ``sqe:`` RDF
 
 Syntax errors are :class:`~starlayer.errors.FormatError` (kind ``"sparql"``) with ``line``/``col``/``pos``; a query nested too deeply
-is an :class:`~starlayer.errors.ExecutionError` (kind ``"nesting"``).
+is an :class:`~starlayer.errors.ExecutionError` (kind ``"limit"``).
 """
 
 from __future__ import annotations
@@ -134,8 +134,8 @@ def _syntax_error(why: str, text: str = "", pos: int = 0) -> FormatError:
 
 
 def _too_deep(action: str) -> ExecutionError:
-    """The ``ExecutionError`` of kind ``"nesting"`` for a query nested deeper than Python's stack can parse or encode."""
-    return ExecutionError(f"SPARQL expression or pattern nested too deeply to {action}", kind="nesting", context=f"SPARQL {action}")
+    """The ``ExecutionError`` of kind ``"limit"`` for a query nested deeper than Python's stack can parse or encode."""
+    return ExecutionError(f"SPARQL expression or pattern nested too deeply to {action}", kind="limit", context=f"SPARQL {action} nesting depth")
 
 
 # ---------------------------------------------------------------------------
@@ -1799,7 +1799,7 @@ def parse_sparql(text: str, base: str | None = None, prefixes: dict[str, str] | 
 
     Raises:
         FormatError: (kind "sparql") For anything outside the grammar (with line and column).
-        ExecutionError: (kind "nesting") The query is nested too deeply for Python's stack.
+        ExecutionError: (kind "limit") The query is nested too deeply for Python's stack.
     """
     try:
         parser = _Parser(text, base)
@@ -2207,7 +2207,7 @@ def ast_to_triples(q: Node, root=None, *, triple_order=None) -> tuple[list, obje
     (a fresh blank node unless ``root`` is given). Literals keep the lexical form written (no store has touched them).
 
     Raises:
-        ExecutionError: (kind "nesting") The query is nested too deeply to encode within the Python stack.
+        ExecutionError: (kind "limit") The query is nested too deeply to encode within the Python stack.
     """
     root = root if root is not None else ox.BlankNode()
     try:
@@ -2234,7 +2234,7 @@ def ast_to_tree(q: Node, graph: StarLayerGraph | None = None, root=None, *, trip
     ``ast_to_triples`` keeps them.
 
     Raises:
-        ExecutionError: (kind "nesting") The query is nested too deeply to encode within the Python stack.
+        ExecutionError: (kind "limit") The query is nested too deeply to encode within the Python stack.
     """
     from starlayer.graph.core import StarLayerGraph
 

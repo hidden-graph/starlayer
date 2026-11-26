@@ -31,7 +31,7 @@ def g(ttl: str) -> StarLayerGraph:
     return graph
 
 
-KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
+KINDS = ("rule", "expression", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
 
 
 def test_execution_error_is_one_class_with_a_kind_and_the_message_as_its_text():
@@ -54,9 +54,9 @@ def test_an_execution_error_survives_pickle_and_copy():
     import copy
     import pickle
 
-    error = ExecutionError("the message", kind="nesting")
+    error = ExecutionError("the message", kind="limit")
     for clone in (pickle.loads(pickle.dumps(error)), copy.copy(error), copy.deepcopy(error)):
-        assert type(clone) is ExecutionError and clone.kind == "nesting" and str(clone) == "the message"
+        assert type(clone) is ExecutionError and clone.kind == "limit" and str(clone) == "the message"
 
 
 def test_the_old_per_kind_classes_are_gone():
@@ -95,7 +95,7 @@ def test_a_constraint_query_reporting_failure_is_of_kind_constraint_query():
 
 def test_a_cyclic_node_expression_is_of_kind_nesting():
     shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:expression _:e . _:e shnex:exists _:e ."
-    with raises_kind("nesting", match="nest deeper"):
+    with raises_kind("limit", match="nest deeper"):
         validate(g("ex:a ex:p 1 ."), g(shapes), meta_shacl=False)
 
 
@@ -103,7 +103,7 @@ def test_shapes_nested_past_the_limit_are_of_kind_nesting():
     from starlayer.shacl.engine.api import validate as engine_validate
 
     shapes = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:node [ sh:node [ sh:node [ sh:closed false ] ] ] ."
-    with raises_kind("nesting", match="too deep"):
+    with raises_kind("limit", match="too deep"):
         engine_validate(g("ex:a ex:p 1 ."), g(shapes), max_validation_depth=2)
 
 
@@ -143,7 +143,7 @@ def test_the_same_expression_failure_has_the_same_kind_direct_and_inside_a_rule(
 
 def test_a_nesting_failure_inside_a_rule_keeps_kind_nesting():
     shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:subject _:e ; sh:predicate ex:q ; sh:object 1 ] . _:e shnex:exists _:e .")
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         apply_rules(g("ex:a ex:p 1 ."), shapes)
 
 
@@ -151,11 +151,11 @@ def test_an_execution_error_raised_inside_a_sparql_rule_is_not_relabelled(monkey
     from starlayer.shacl.engine import rules
 
     def boom(*_a, **_k):
-        raise ExecutionError("a nesting failure", kind="nesting")
+        raise ExecutionError("a nesting failure", kind="limit")
 
     monkeypatch.setattr(rules, "check_query", boom)
     shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:SPARQLRule ; sh:construct 'CONSTRUCT { $this <http://example.org/q> 1 } WHERE { }' ] .")
-    with raises_kind("nesting") as exc:
+    with raises_kind("limit") as exc:
         apply_rules(g("ex:a ex:p 1 ."), shapes)
     assert exc.value.context and "SPARQL rule failed" in str(exc.value)
 
@@ -432,7 +432,7 @@ _FAILING_BODY = "[ shnex:sum [ shnex:arg 0 ] ]"  # 'x' is not a number: an expre
 def test_a_recursive_function_is_a_nesting_error_called_directly_and_from_a_sparql_expression(constraint):
     """Before the wrapper was narrowed the SPARQL call swallowed it: the shape conformed."""
     shapes = g(_FUNCTION_SHAPES.format(body=_RECURSIVE_BODY, constraint=constraint))
-    with raises_kind("nesting", match="nest deeper"):
+    with raises_kind("limit", match="nest deeper"):
         validate(g("ex:a ex:p 1 ."), shapes, meta_shacl=False)
 
 
@@ -446,7 +446,7 @@ def test_a_function_body_that_cannot_be_evaluated_is_a_sparql_error_so_unbound_i
 
 def test_a_function_failure_is_raised_by_the_query_that_called_it_even_among_other_rows():
     shapes = g(_FUNCTION_SHAPES.format(body=_RECURSIVE_BODY, constraint=_VIA_SPARQL))
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         validate(g("ex:a ex:p 1 ."), shapes, meta_shacl=False)
     # the pending failure does not leak into the next run on the same plan
     ok = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .")

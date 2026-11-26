@@ -22,7 +22,6 @@ The tree::
 * ``"rule"``: a rule failed while running, or the rule set failed as a whole (an SRL
   rule set whose rules cannot be ordered, §4.4.1).
 * ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
-* ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
 * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported. The message of this kind
@@ -40,8 +39,9 @@ The tree::
   syntax has no form for, a query-time entailment rewrite that has no exact form for the query, a name that is not a registered
   entailment regime, ``relevant_subgraph`` given a ``DESCRIBE`` or ``SERVICE`` query, a blank node that came from an endpoint being
   written back, and a base-direction literal under the ``"error"`` policy of the RDF 1.1 export.
-* ``"limit"``: a size or complexity cap of the library was reached, as against a bug (``"internal"``) or a depth limit
-  (``"nesting"``): RDFC-1.0's defence against a highly symmetric blank-node structure (§7.1), and the SHACL rule caps ``max_iterations``
+* ``"limit"``: a size or complexity cap of the library was reached, as against a bug (``"internal"``): a depth limit (a query, tree or
+  class expression nested past the stack, the validation path or node expressions nested past ``max_validation_depth`` or the expression
+  depth; ``context`` says what was too deep), RDFC-1.0's defence against a highly symmetric blank-node structure (§7.1), and the SHACL rule caps ``max_iterations``
   and ``max_triples``.
 
 ``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
@@ -122,7 +122,7 @@ class ExecutionError(StarLayerError):
 
     Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
 
-    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
+    KINDS = ("rule", "expression", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
 
     def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
         if kind not in self.KINDS:
@@ -182,6 +182,6 @@ def _rebuild_format_error(message: str, kind: str, context: str | None, why: str
 
 def only_kind(error: ExecutionError, *kinds: str) -> None:
     """For an ``except ExecutionError as error`` clause that handles only some kinds: returns when ``error.kind`` is one of ``kinds``
-    and raises ``error`` again otherwise, so a clause that means "no value" cannot swallow a rule, nesting or recursion failure."""
+    and raises ``error`` again otherwise, so a clause that means "no value" cannot swallow a rule, limit or recursion failure."""
     if error.kind not in kinds:
         raise error

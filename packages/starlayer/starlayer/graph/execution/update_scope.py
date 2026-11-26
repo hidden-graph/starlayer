@@ -147,7 +147,7 @@ def scope_update(text: str, scope: Any, *, base: str | None = None, prefixes: An
     Raises:
         ValueError: The update names another graph, or ``scope`` is a blank node.
         FormatError: (kind "sparql") The update is not valid SPARQL Update, with ``line`` / ``col`` of the text as scoped.
-        ExecutionError: (kind "nesting") The update is nested too deeply to parse.
+        ExecutionError: (kind "limit") The update is nested too deeply to parse.
     """
     from starlayer.sparql.parse_sparql import (
         Node,

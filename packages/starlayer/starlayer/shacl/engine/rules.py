@@ -620,7 +620,7 @@ class _Run:
                 changed = True
         if self.max_triples is not None and len(self.view.inferred) > self.max_triples:
             raise ExecutionError(
-                f"more than {self.max_triples} triples inferred: raise max_triples= or pass None to remove the cap", kind="limit"
+                f"more than {self.max_triples} triples inferred: raise max_triples= or pass None to remove the cap", kind="limit", context="max_triples"
             )
         return changed
 
@@ -686,7 +686,7 @@ def apply_rules(
     """Run the rules of ``shapes_graph`` (default: ``data_graph`` itself) over ``data_graph``.
 
     ``rule_sets``: IRIs of ``sh:RuleSet`` instances to run (with the sets they include); ``None`` runs the default rule set,
-    every rule of the shapes graph. A failing rule fails the whole rule set: the error (``ShapeError`` for a wrong rules graph, an ``ExecutionError`` (kind ``"rule"`` for a failure of the rule itself; ``"limit"`` for ``max_iterations`` or ``max_triples``; an expression that fails inside a rule keeps its own kind ``"expression"`` or ``"nesting"``, with the rule as ``context``) when running failed) is raised, or with
+    every rule of the shapes graph. A failing rule fails the whole rule set: the error (``ShapeError`` for a wrong rules graph, an ``ExecutionError`` (kind ``"rule"`` for a failure of the rule itself; ``"limit"`` for ``max_iterations`` or ``max_triples``; an expression that fails inside a rule keeps its own kind ``"expression"`` or ``"limit"`` (depth), with the rule as ``context``) when running failed) is raised, or with
     ``raise_on_failure=False`` returned in ``RuleResult.failures`` (``inferred`` is then what was derived so far)."""
     data_graph = engine_view(data_graph, "data graph")  # the term-model boundary: rdflib / StarLayer graphs in, an StarLayerGraph copy inside
     shapes = engine_view(shapes_graph, "shapes graph") if shapes_graph is not None else data_graph
@@ -714,7 +714,7 @@ def apply_rules(
             while changed:
                 run.iterations += 1
                 if run.iterations > max_iterations:
-                    raise ExecutionError(f"rules did not reach a fixpoint within {max_iterations} iterations", kind="limit")
+                    raise ExecutionError(f"rules did not reach a fixpoint within {max_iterations} iterations", kind="limit", context="max_iterations")
                 changed = False
                 for group in _groups(iterating):
                     ctx = Context(data=view, plan=plan, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph)

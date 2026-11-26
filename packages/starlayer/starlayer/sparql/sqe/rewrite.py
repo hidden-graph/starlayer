@@ -72,7 +72,7 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
         # in the rewrite and is not turned into a slower query
         return text
     except ExecutionError as error:  # nested too deeply to parse or encode, or a node with no text form: the text goes as it is; any other kind is a real failure
-        only_kind(error, "nesting", "unsupported")
+        only_kind(error, "limit", "unsupported")
         return text
 
 

@@ -74,7 +74,7 @@ def _parse_once(text: str, prefixes: Mapping[str, str]) -> tuple[Any, QueryProbl
     try:
         return parse_sparql(text, prefixes=dict(prefixes) or None), None
     except ExecutionError as error:  # nested too deeply to parse: a problem of the text, at its start
-        only_kind(error, "nesting")
+        only_kind(error, "limit")
         return None, QueryProblem("syntax", "error", str(error), 1, 1)
     except FormatError as query_error:
         # the update parser takes no prefixes, so they go in front as PREFIX lines
@@ -82,7 +82,7 @@ def _parse_once(text: str, prefixes: Mapping[str, str]) -> tuple[Any, QueryProbl
         try:
             return parse_sparql_update(head + text), None
         except ExecutionError as error:
-            only_kind(error, "nesting")
+            only_kind(error, "limit")
             return None, QueryProblem("syntax", "error", str(error), 1, 1)
         except FormatError as update_error:
             # the text is meant as whichever grammar read further before failing: a query typo is far in, a non-query fails at the start

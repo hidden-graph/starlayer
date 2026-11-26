@@ -1,6 +1,6 @@
 """SPARQL errors are classified by cause (step A, stage 2): text that is not SPARQL is a ``FormatError`` of kind ``"sparql"`` from the
 parser, from the sqe: encoder, from a ``VERSION`` check and from Oxigraph; a query nested deeper than Python's stack is an
-``ExecutionError`` of kind ``"nesting"``; the engine failing to evaluate is an ``ExecutionError`` of kind ``"query"``."""
+``ExecutionError`` of kind ``"limit"``; the engine failing to evaluate is an ``ExecutionError`` of kind ``"query"``."""
 
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def test_an_update_parse_error_is_a_sparql_format_error():
 def test_deep_nesting_is_an_execution_error_of_kind_nesting(parse, text):
     with pytest.raises(ExecutionError) as caught:
         parse(text)
-    assert caught.value.kind == "nesting" and caught.value.context and "nested too deeply" in str(caught.value)
+    assert caught.value.kind == "limit" and caught.value.context and "nested too deeply" in str(caught.value)
     assert not isinstance(caught.value, FormatError)
 
 
@@ -62,7 +62,7 @@ def test_sparql_to_tree_reports_both_causes_by_class():
     assert syntax.value.kind == "sparql"
     with pytest.raises(ExecutionError) as deep:
         sparql_to_tree(DEEP)
-    assert deep.value.kind == "nesting"
+    assert deep.value.kind == "limit"
 
 
 def test_a_query_that_breaks_the_sqe_shapes_loads_and_validate_sparql_tree_reports_it():

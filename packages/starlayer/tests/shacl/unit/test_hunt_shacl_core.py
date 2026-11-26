@@ -188,13 +188,13 @@ def test_recursive_sh_node_chain_below_the_depth_limit_does_not_hit_the_python_s
 
 def test_recursive_chain_past_the_depth_limit_is_nesting_too_deep_not_a_recursion_error():
     d, s = _chain(60)
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         validate(d, s, max_validation_depth=20)
 
 
 def test_chain_deeper_than_the_default_depth_limit_is_nesting_too_deep():
     d, s = _chain(300)
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         validate(d, s)
 
 

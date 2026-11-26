@@ -113,10 +113,10 @@ _MAX_EXPRESSION_DEPTH = 100  # nested evaluations; a cyclic expression or a func
 
 def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     """Evaluate ``expr``; nesting deeper than ``_MAX_EXPRESSION_DEPTH`` (a blank-node expression that refers to itself, a
-    function that never stops calling itself) is an ``ExecutionError`` of kind ``"nesting"``, not a Python RecursionError."""
+    function that never stops calling itself) is an ``ExecutionError`` of kind ``"limit"``, not a Python RecursionError."""
     state = ctx.cache.setdefault(("expression-depth",), [0])
     if state[0] >= _MAX_EXPRESSION_DEPTH:
-        raise ExecutionError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (a cyclic expression or a recursive function)", kind="nesting")
+        raise ExecutionError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (depth {state[0]}, limit {_MAX_EXPRESSION_DEPTH}; a cyclic expression or a recursive function)", kind="limit", context="node expression depth")
     state[0] += 1
     try:
         return _eval_once(ctx, expr, focus, scope)

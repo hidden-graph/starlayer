@@ -139,7 +139,7 @@ def render_sqe_tree(tree_graph: Any, root) -> str:
         The rendered SPARQL query text.
 
     Raises:
-        ExecutionError: kind ``"nesting"``, the tree nests too deeply to render within the Python stack; kind ``"unsupported"``, it holds a node, term or operation with no text form.
+        ExecutionError: kind ``"limit"``, the tree nests too deeply to render within the Python stack; kind ``"unsupported"``, it holds a node, term or operation with no text form.
         FormatError: (kind ``"rdf"``) an ordered child has no ``tree:ord`` or one that is not a non-negative integer, two children of one
             parent and property share an ordinal, or a named node, literal or variable is a child without its ``tree:Item``
             (``graph/ordinals.py``): the tree has no order to write.
@@ -151,7 +151,7 @@ def render_sqe_tree(tree_graph: Any, root) -> str:
     try:
         return run_with_deeper_stack(_tree_to_text, graph, root)
     except RecursionError:
-        raise ExecutionError("the sqe tree is nested too deeply to render as SPARQL text", kind="nesting", context="sqe: tree to text") from None
+        raise ExecutionError("the sqe tree is nested too deeply to render as SPARQL text", kind="limit", context="sqe: tree to text nesting depth") from None
 
 
 def _tree_to_text(graph: Any, root) -> str:

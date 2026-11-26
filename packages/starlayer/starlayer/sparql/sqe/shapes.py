@@ -112,7 +112,7 @@ def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
             found.append((root, f"The query cannot be written out as SPARQL text: {' '.join(str(error).split())}"))
             continue
         except ExecutionError as error:  # nested too deeply, or a node with no text form; any other kind is a real failure
-            only_kind(error, "nesting", "unsupported")
+            only_kind(error, "limit", "unsupported")
             found.append((root, f"The query cannot be written out as SPARQL text: {' '.join(str(error).split())}"))
             continue
         ast, _, error = _parse(text, None)

@@ -1,4 +1,4 @@
-"""Test helper for the one ``ExecutionError`` class: ``raises_kind("nesting")`` is ``pytest.raises(ExecutionError)`` that also
+"""Test helper for the one ``ExecutionError`` class: ``raises_kind("limit")`` is ``pytest.raises(ExecutionError)`` that also
 asserts which ``kind`` the error carries, so a test cannot pass on a failure of another kind."""
 
 from __future__ import annotations

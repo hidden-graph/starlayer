@@ -214,7 +214,7 @@ def test_deep_shape_chain_is_bounded_by_the_default_depth_not_the_interpreter():
 
     data = g("ex:a ex:p 1 .")
     assert validate(data, _chain(300)).conforms is True  # under the default bound of 500
-    with raises_kind("nesting"):
+    with raises_kind("limit"):
         validate(data, _chain(600))
 
 

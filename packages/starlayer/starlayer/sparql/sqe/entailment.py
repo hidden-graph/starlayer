@@ -116,7 +116,7 @@ def rewrite_for_entailment(text: str, regime: Any, *, prefixes: Any = None, base
 
     Raises:
         ValueError: ``regime`` is a registered regime but neither RDF nor RDFS (OWL regimes need ``infer()``).
-        ExecutionError: (kind ``"unsupported"``) ``regime`` is not a registered regime at all, or the query cannot be rewritten exactly; (kind ``"nesting"``) it nests too deeply.
+        ExecutionError: (kind ``"unsupported"``) ``regime`` is not a registered regime at all, or the query cannot be rewritten exactly; (kind ``"limit"``) it nests too deeply.
         FormatError: (kind "sparql") ``text`` is not a query.
     """
     iri = regime_iri(regime)
@@ -146,7 +146,7 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
             return text
         rw.query(tree)
     except RecursionError as e:
-        raise ExecutionError("the query is nested too deeply for the entailment rewrite", kind="nesting", context="entailment rewrite") from e
+        raise ExecutionError("the query is nested too deeply for the entailment rewrite", kind="limit", context="entailment rewrite nesting depth") from e
     try:
         from .to_text import render_sqe_tree
 
@@ -156,7 +156,7 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
     except (FormatError, ValueError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
         raise _unsupported(f"the rewritten query could not be written out as SPARQL: {e}") from e
     except ExecutionError as e:  # nested too deeply to parse or encode, or a tree node with no text form; any other kind is a real failure
-        only_kind(e, "nesting", "unsupported")
+        only_kind(e, "limit", "unsupported")
         raise _unsupported(f"the rewritten query could not be written out as SPARQL: {e}") from e
     return out
 

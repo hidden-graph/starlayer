@@ -411,7 +411,7 @@ def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str
     except (FormatError, ValueError) as exc:
         return f"{name} value is not valid SPARQL: {exc}"
     except ExecutionError as exc:  # nested too deeply to parse
-        only_kind(exc, "nesting")
+        only_kind(exc, "limit")
         return f"{name} value is not valid SPARQL: {exc}"
     algebra_name, form = _QUERY_FORMS[predicate]
     if query.kind != algebra_name:

@@ -1,6 +1,6 @@
 """Manchester syntax and OWL-in-RDF errors are classified by cause (step A, stage 5): malformed text is a ``FormatError`` of kind
 ``"manchester"``, RDF that is not valid OWL a ``FormatError`` of kind ``"owl"``, nesting past the stack an ``ExecutionError`` of kind
-``"nesting"``, a graph Manchester syntax cannot write an ``ExecutionError`` of kind ``"unsupported"``."""
+``"limit"``, a graph Manchester syntax cannot write an ``ExecutionError`` of kind ``"unsupported"``."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def test_deep_nesting_is_an_execution_error():
     text = H + 'Class: A\n  SubClassOf: ' + '(' * 5000 + 'B' + ')' * 5000 + '\n'
     with pytest.raises(ExecutionError) as caught:
         parse_manchester(text)
-    assert caught.value.kind == 'nesting' and 'nested too deeply' in str(caught.value) and not isinstance(caught.value, FormatError)
+    assert caught.value.kind == 'limit' and 'nested too deeply' in str(caught.value) and not isinstance(caught.value, FormatError)
 
 
 def test_unrecognized_tree_node_is_a_manchester_format_error():

@@ -1702,12 +1702,12 @@ def _run_top_level(cur):
 
 
 def run_guarded(fn, *args):
-    """Run ``fn``, turning the RecursionError of a pathologically deep class expression into an ``ExecutionError`` of kind ``"nesting"``
+    """Run ``fn``, turning the RecursionError of a pathologically deep class expression into an ``ExecutionError`` of kind ``"limit"``
     (the grammar nests without limit; Python's stack does not)."""
     try:
         return fn(*args)
     except RecursionError:
-        raise ExecutionError('class expression nested too deeply to parse', kind='nesting', context='Manchester syntax parse') from None
+        raise ExecutionError('class expression nested too deeply to parse', kind='limit', context='Manchester syntax parse nesting depth') from None
 
 
 def parse_manchester(text: str, base: str = None) -> list:
@@ -1727,7 +1727,7 @@ def parse_manchester(text: str, base: str = None) -> list:
     Raises:
         FormatError: (kind "manchester") For text outside the supported grammar, with ``why`` and ``line`` (``col`` and ``pos`` where the
             tokenizer knows them); a SWRL ``Rule:`` is one too, with ``context`` saying so.
-        ExecutionError: (kind "nesting") A class expression nested too deeply for Python's stack.
+        ExecutionError: (kind "limit") A class expression nested too deeply for Python's stack.
     """
     cur = _Cursor(_tokenize(text), base)
     run_guarded(_run_top_level, cur)

@@ -23,7 +23,7 @@ def test_the_exists_rewrite_changes_the_text_when_it_can():
     assert rewrite.rewrite_exists_text(EXISTS_QUERY) != EXISTS_QUERY
 
 
-@pytest.mark.parametrize("exc", [ExecutionError("no text for this node", kind="unsupported"), ExecutionError("deep", kind="nesting"), ValueError("bad tree"), RecursionError()])
+@pytest.mark.parametrize("exc", [ExecutionError("no text for this node", kind="unsupported"), ExecutionError("deep", kind="limit"), ValueError("bad tree"), RecursionError()])
 def test_the_exists_rewrite_keeps_the_text_when_the_tree_cannot_be_rewritten(monkeypatch, exc):
     def fail(*_a, **_k):
         raise exc
