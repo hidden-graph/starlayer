@@ -31,6 +31,8 @@ The tree::
   reasoning subprocess that exited without a result (a crash, not a timeout).
 * ``"import"``: an SRL ``IMPORTS`` document cannot be loaded (the loader failed) or an imported rule set was never resolved, so the
   rule set cannot be run (§4.5). An imported text that is not a valid rule set is a ``FormatError`` of kind ``"srl"`` instead.
+* ``"unsupported"``: well-formed input the library cannot represent or handle, as against malformed input (a ``FormatError``): the Manchester
+  serializer meeting a term, literal or axiom that Manchester syntax has no form for.
 
 ``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
 update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"``, ``"term"``, ``"manchester"``, ``"owl"``. A position
@@ -103,7 +105,7 @@ class ExecutionError(StarLayerError):
 
     Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
 
-    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import")
+    KINDS = ("rule", "expression", "nesting", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import", "unsupported")
 
     def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
         if kind not in self.KINDS:
