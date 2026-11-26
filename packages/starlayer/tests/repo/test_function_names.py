@@ -196,7 +196,7 @@ def test_the_tree_graph_and_root_keywords_and_the_old_graph_keyword():
 
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Manchester (the example of guide 06.05)
+# Manchester (the example of guide 06.03)
 
 MANCHESTER = """Prefix: : <http://example.org/vehicles#>
 

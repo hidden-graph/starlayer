@@ -183,8 +183,8 @@ nl:05.09-80d50838 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.validator.StarShaclProcessor.close_shape" .
 
-nl:06.03-e00d4c27 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;
+nl:06.02-e00d4c27 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.02-sparql-and-srl-as-rdf.ipynb" ;
     slkg:cellId "e00d4c27" ;
     slkg:cellHash "95b515a4ce8e2c1d" ;
     slkg:reviewedOn "2026-11-26"^^xsd:date ;
@@ -229,8 +229,8 @@ nl:06.01-da3100e0 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.__init__.get_ontology_graph" .
 
-nl:06.06-2957fd17 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06.06-shacl-library-registry.ipynb" ;
+nl:06.04-2957fd17 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.04-shacl-library-registry.ipynb" ;
     slkg:cellId "2957fd17" ;
     slkg:cellHash "e768675e75541c26" ;
     slkg:reviewedOn "2026-11-03"^^xsd:date ;
@@ -589,8 +589,8 @@ nl:03.02-f6a58c6a a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.run.query" .
 
-nl:06.05-f58f1639 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06.05-manchester-syntax-as-rdf.ipynb" ;
+nl:06.03-f58f1639 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.03-manchester-syntax-as-rdf.ipynb" ;
     slkg:cellId "f58f1639" ;
     slkg:cellHash "6b382d8eec6027b7" ;
     slkg:reviewedOn "2026-11-26"^^xsd:date ;
@@ -598,8 +598,8 @@ nl:06.05-f58f1639 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.manchester.__init__.validate_manchester_tree" .
 
-nl:06.03-df2738a8 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06.03-sparql-query-as-rdf.ipynb" ;
+nl:06.02-df2738a8 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.02-sparql-and-srl-as-rdf.ipynb" ;
     slkg:cellId "df2738a8" ;
     slkg:cellHash "368606a6e2a4540e" ;
     slkg:reviewedOn "2026-11-26"^^xsd:date ;

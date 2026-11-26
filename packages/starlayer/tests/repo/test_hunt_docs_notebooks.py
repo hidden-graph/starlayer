@@ -129,4 +129,4 @@ def test_guide_05b_scope_matches_what_the_encoder_accepts():
     for q in ("DESCRIBE <urn:a>", "INSERT DATA { <urn:a> <urn:p> <urn:b> }", "CLEAR ALL"):
         tree, root = sparql_to_tree(q, StarLayerGraph())
         assert tree_to_sparql(tree, root).startswith(q.split()[0])
-    assert "does not cover `DESCRIBE`" not in _text("06.03-sparql-query-as-rdf.ipynb")
+    assert "does not cover `DESCRIBE`" not in _text("06.02-sparql-and-srl-as-rdf.ipynb")

@@ -153,7 +153,7 @@ def _roundtrips(g) -> str:
 
 
 def test_append_to_the_subclassof_clause_is_the_guide_edit():
-    """Guide 06.05.3: ``hasWheelCount some xsd:integer`` becomes the second superclass of ``Car``."""
+    """Guide 06.03.3: ``hasWheelCount some xsd:integer`` becomes the second superclass of ``Car``."""
     g = manchester_to_tree(GUIDE, tree_graph=StarLayerGraph())
     ordinals.append(g, _car_clause(g), MANCH.items, _some(g))
     text = _roundtrips(g)
