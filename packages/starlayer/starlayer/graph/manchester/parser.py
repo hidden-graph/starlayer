@@ -1680,6 +1680,9 @@ def _run_top_level(cur):
                       'DisjointProperties:', 'SameIndividual:', 'DifferentIndividuals:'):
             cur.advance()
             _parse_misc(cur, word)
+        elif word == 'Rule:':
+            cur.error("SWRL rules ('Rule:') are not supported by StarLayer: the W3C Manchester Syntax has no rules, they are an extension of some tools "
+                      "(Protege, the OWL API). Remove the rule, or use SRL (SPARQL Rules) for rules")
         else:
             cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
 

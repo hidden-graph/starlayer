@@ -523,7 +523,7 @@ class TestInlineAxiomAnnotations:
 
 class TestUnsupported:
     def test_swrl_rule_not_supported(self):
-        with pytest.raises(ManchesterSyntaxError):
+        with pytest.raises(ManchesterSyntaxError, match="SWRL rules .* are not supported by StarLayer"):
             parse('Rule: DifferentFrom(?x, ?y)\n')
 
     def test_valuepartition_not_supported(self):
