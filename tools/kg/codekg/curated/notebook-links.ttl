@@ -294,12 +294,28 @@ nl:03.01-b337c254 a slkg:NotebookExample ;
 nl:02.04-0e389edf a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
     slkg:cellId "0e389edf" ;
-    slkg:cellHash "1888abe5aa7fc46f" ;
-    slkg:reviewedOn "2026-11-15"^^xsd:date ;
-    rdfs:comment "Makes literals from Python values, reads them back with to_python and reads Turtle terms with parse_term." ;
+    slkg:cellHash "d040cc99d2d88a38" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
+    rdfs:comment "Makes literals from Python values with literal(), and gives a lexical form a datatype, a language and a direction." ;
     slkg:demonstratesIdentifier
-        "starlayer.graph.terms.literal",
-        "starlayer.graph.terms.to_python",
+        "starlayer.graph.terms.literal" .
+
+nl:02.04-6b0401b2 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
+    slkg:cellId "6b0401b2" ;
+    slkg:cellHash "8a901d5158276b8f" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
+    rdfs:comment "Turns Literals back into Python values with to_python, and shows that the language is dropped." ;
+    slkg:demonstratesIdentifier
+        "starlayer.graph.terms.to_python" .
+
+nl:02.04-6b0401b3 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/02.04-graph-content.ipynb" ;
+    slkg:cellId "6b0401b3" ;
+    slkg:cellHash "840d012c25541bbf" ;
+    slkg:reviewedOn "2026-11-26"^^xsd:date ;
+    rdfs:comment "Reads Turtle text into RDF terms with parse_term: literals typed by how they are written, an IRI and a triple term." ;
+    slkg:demonstratesIdentifier
         "starlayer.graph.terms.parse_term" .
 
 nl:02.04-b720f67c a slkg:NotebookExample ;
