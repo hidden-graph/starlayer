@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "starlayer"
-version = "0.1.0"
+version = "0.2.0"
 description = "Full StarLayer RDF 1.2 stack: graph, SPARQL, and SHACL support"
 readme = "README.md"
 license = { file = "LICENSE" }

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "starlayer-kg"
 # Kept equal to starlayer's version by scripts/publish_kg.py, which refuses to build when they differ.
-version = "0.1.0"
+version = "0.2.0"
 description = "The StarLayer code knowledge graph as installable data: code graph, vocabulary, curated layer and named queries in one TriG file"
 readme = "README.md"
 license = { file = "LICENSE" }

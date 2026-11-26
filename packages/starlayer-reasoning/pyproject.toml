@@ -4,16 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "starlayer-reasoning"
-version = "0.1.0"
+version = "0.2.0"
 description = "OWL reasoning for StarLayer: OWL 2 RL (owlrl) and OWL 2 DL (HermiT, rustdl) behind StarLayerGraph.infer()"
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [{ name = "John Clements", email = "clements.john.j@gmail.com" }]
 requires-python = ">=3.10"
 dependencies = [
-    # Needs the core release that has starlayer.errors (ExecutionError kinds "timeout", "inconsistent", "inference"), which is
-    # after v0.1.0. The core is still 0.1.0, so no ">=" can be written yet: set it to the next core version when that is bumped.
-    "starlayer[rdflib]",
+    # Needs the core release that has starlayer.errors (ExecutionError kinds "timeout", "inconsistent", "inference"): 0.2.0.
+    "starlayer[rdflib]>=0.2.0",
     "owlrl>=6",
 ]
 keywords = ["rdf", "owl", "owl2-rl", "reasoning", "entailment", "rdflib", "starlayer"]
