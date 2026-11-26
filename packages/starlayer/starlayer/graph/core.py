@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import os
 import re
-from collections.abc import Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -710,7 +710,8 @@ class _Base:
     def query(self, text: str, initNs: Mapping[str, str] | None = None, initBindings: Mapping[Any, Any] | None = None,  # noqa: N803
               base: str | None = None, *, entailment: Any = None, recompute: str = "onChange", engine: str = "hermit",
               timeout: Any = None, custom_functions: Mapping[Any, Any] | None = None,
-              custom_aggregate_functions: Mapping[Any, Any] | None = None) -> Result:
+              custom_aggregate_functions: Mapping[Any, Any] | None = None, imports_loader: Callable[[Any], Any] | None = None,
+              ignore_imports: bool = False) -> Result:
         """Run SPARQL ``text`` on Oxigraph as it is. ``initNs`` overrides the graph's prefixes for this call; ``initBindings``
         pre-binds variables (``substitutions``, with the ``VALUES`` fallback). A ``StarLayerGraph`` queries its own graph as the default
         graph; a dataset the default graph, or the union of all graphs when ``default_union``.
@@ -729,6 +730,11 @@ class _Base:
         ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
         A name that is not one of these four regimes (D-Entailment included) raises ``ExecutionError`` of kind ``"unsupported"``,
         and a value that is neither text nor an IRI a ``TypeError``.
+
+        With an OWL regime the graph's ``owl:imports`` count, as for ``infer()``: each must be a subject of the graph, a built-in ontology
+        or loaded by ``imports_loader(iri) -> graph | None``, or the call raises ``ExecutionError`` kind ``"import"`` (``error.unresolved``
+        lists the IRIs); the imported triples are read by the reasoner and are not in the query's data. ``ignore_imports=True`` loads and
+        checks nothing. RDF and RDFS, which are the rewrite, ignore both.
 
         ``custom_functions`` maps a function IRI (a ``NamedNode`` or its text) to a Python callable that takes pyoxigraph terms and
         returns a term or ``None``; the query can then call ``<iri>(?x)``. ``custom_aggregate_functions`` maps an IRI to a factory of
@@ -750,7 +756,11 @@ class _Base:
                 raise ValueError(f"recompute must be one of ['always', 'never', 'onChange'], got {recompute!r}")
             from starlayer.graph.entailment import cache
 
-            copy = cache.entailed_store_view(self, [regime], engine=engine, timeout=timeout, recompute=recompute)
+            from starlayer.graph.imports import resolve_or_raise
+
+            imported = resolve_or_raise(self, imports_loader, ignore_imports, loader_name="imports_loader")
+            copy = cache.entailed_store_view(self, [regime], engine=engine, timeout=timeout, recompute=recompute,
+                                             ont_graph=list(imported) if imported else None)
             return copy.query(text, initNs=initNs, initBindings=initBindings, base=base,
                               custom_functions=custom_functions, custom_aggregate_functions=custom_aggregate_functions)
         return run.query(self._query_store(), text, prefixes=self.prefixes, init_ns=initNs, init_bindings=initBindings, base=base,

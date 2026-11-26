@@ -166,13 +166,37 @@ def _rules_delta(g: Any, regimes: frozenset[str]) -> set[tuple[Any, Any, Any]]:
     return delta
 
 
+def _with_imports(g: Any, regimes: frozenset[str], imports_loader: Any, ignore_imports: bool) -> Any:
+    """``g`` as the reasoner reads it: for the OWL regimes (``OWL-RDF-Based``, ``OWL-Direct``), ``g`` plus the triples of its ``owl:imports``
+    closure, resolved or raising (``graph.imports.resolve_or_raise``: ``ExecutionError`` kind ``"import"``); ``g`` itself for RDF and RDFS,
+    which give ``owl:imports`` no meaning, and when nothing is imported."""
+    if ignore_imports or not regimes & {OWL_RL_REGIME, OWL_DIRECT_REGIME}:
+        return g
+    from starlayer.graph.imports import resolve_or_raise
+
+    imported = resolve_or_raise(g, imports_loader, loader_name="imports_loader")
+    if not imported:
+        return g
+    from starlayer.graph import core
+
+    combined = core.StarLayerGraph()
+    combined.extend(list(g.triples()) + list(imported))
+    return combined
+
+
 def infer(g: Any, entailment: Any = ENTAILMENT.RDFS, *, mode: str = "full", target_graph: Any = None, engine: str = "hermit",
-          timeout: Any = DEFAULT_TIMEOUT) -> Any:
+          timeout: Any = DEFAULT_TIMEOUT, imports_loader: Any = None, ignore_imports: bool = False) -> Any:
     """Materialize an RDFS / RDF / OWL-RL / OWL-DL entailment closure. See ``StarLayerGraph.infer`` for the contract.
 
     ``mode`` "full" returns a new graph with the originals plus the entailed triples, "delta" one with only the new triples,
     "in-place" adds the new triples to ``g`` and returns it. ``entailment`` is a regime IRI (``NamedNode`` or ``str``) or an
     iterable of them. ``target_graph`` must be an ``StarLayerGraph`` / ``StarLayerDataset``.
+
+    For the OWL regimes (``OWL-RDF-Based``, ``OWL-Direct``) the ontology's ``owl:imports`` count: each must be resolved or the call raises
+    ``ExecutionError`` kind ``"import"`` (``error.unresolved`` lists the IRIs), as for ``resolve_imports()``. An import is satisfied when its
+    IRI is a subject of ``g``, a built-in ontology of the ``starontology`` registry, or loaded by ``imports_loader(iri) -> graph | None``
+    (nothing is fetched without one). The imported triples are read by the reasoner and are not part of the result. ``ignore_imports=True``
+    loads and checks nothing. RDF and RDFS entailment give ``owl:imports`` no meaning and ignore both parameters.
     """
     if mode not in VALID_INFER_RETURN_MODES:
         raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
@@ -190,15 +214,16 @@ def infer(g: Any, entailment: Any = ENTAILMENT.RDFS, *, mode: str = "full", targ
     if not direct and timeout != DEFAULT_TIMEOUT:
         raise ValueError(f"timeout={timeout!r} is only meaningful for entailment=ENTAILMENT['OWL-Direct'] (got entailment={sorted(regimes)!r}) - omit timeout= for owlrl-backed regimes.")
 
+    reasoned = _with_imports(g, regimes, imports_loader, ignore_imports)
     if mode == "in-place":
         if target_graph is not None:
             raise ValueError("target_graph is meaningless with mode='in-place' - it mutates self directly.")
-        g.extend(_delta_for(g, regimes, engine, timeout))
+        g.extend(_delta_for(reasoned, regimes, engine, timeout))
         return g
     if target_graph is None:
         target_graph = g.empty_like()
     elif not hasattr(target_graph, "extend") or not hasattr(target_graph, "store"):
         raise TypeError(f"infer() target_graph must be an StarLayerGraph or StarLayerDataset, not {type(target_graph).__name__}.")
-    delta = _delta_for(g, regimes, engine, timeout)
+    delta = _delta_for(reasoned, regimes, engine, timeout)
     target_graph.extend(list(g.triples()) + list(delta) if mode == "full" else delta)
     return target_graph
