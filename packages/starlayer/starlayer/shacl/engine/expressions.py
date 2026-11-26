@@ -116,7 +116,7 @@ def _eval(ctx: Any, expr: Term, focus: Term | None, scope: Scope) -> list[Term]:
     function that never stops calling itself) is an ``ExecutionError`` of kind ``"limit"``, not a Python RecursionError."""
     state = ctx.cache.setdefault(("expression-depth",), [0])
     if state[0] >= _MAX_EXPRESSION_DEPTH:
-        raise ExecutionError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (depth {state[0]}, limit {_MAX_EXPRESSION_DEPTH}; a cyclic expression or a recursive function)", kind="limit", context="node expression depth")
+        raise ExecutionError(f"{expr!r}: node expressions nest deeper than {_MAX_EXPRESSION_DEPTH} levels (depth {int(state[0])}, limit {_MAX_EXPRESSION_DEPTH}; a cyclic expression or a recursive function)", kind="limit", context="node expression depth")
     state[0] += 1
     try:
         return _eval_once(ctx, expr, focus, scope)

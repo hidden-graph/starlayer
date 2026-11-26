@@ -204,7 +204,7 @@ def validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
         return []
     limit = ctx.max_validation_depth
     if limit is not None and ctx._depth >= limit:
-        raise ExecutionError(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r} (depth {ctx._depth}, limit {limit})", kind="limit", context="validation path depth")
+        raise ExecutionError(f"Validation path too deep: more than {limit} nested shapes at {shape.node!r} (depth {int(ctx._depth)}, limit {limit})", kind="limit", context="validation path depth")
     if ctx._depth > ctx._peak:
         ctx._peak = ctx._depth
     ctx._depth += 1
