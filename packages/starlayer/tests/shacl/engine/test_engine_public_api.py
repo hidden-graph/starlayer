@@ -5,11 +5,11 @@ from __future__ import annotations
 import pytest
 from pyoxigraph import NamedNode as URIRef
 from rdflib import Graph
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.shacl import (
     RulesResult,
-    ShapeError,
     StarShaclProcessor,
     ValidationReport,
     apply_rules,
@@ -211,8 +211,9 @@ class TestTranslation:
 
     def test_unresolved_owl_imports_raise_like_the_old_default(self):
         shapes = g(SHAPES + " <http://example.org/onto> <http://www.w3.org/2002/07/owl#imports> <http://example.org/missing> .")
-        with pytest.raises(ShapeError, match="owl:imports"):
+        with pytest.raises(ExecutionError, match="owl:imports") as caught:
             validate(g(GOOD), shapes)
+        assert caught.value.kind == "import"
         assert validate(g(GOOD), shapes, ignore_imports=True).conforms is True
 
     def test_shapes_graph_loader_is_used(self):
@@ -221,7 +222,7 @@ class TestTranslation:
 
         def loader(iri):
             calls.append(iri)
-            return g("ex:Extra a sh:NodeShape ; sh:targetClass ex:T ; sh:property [ sh:path ex:q ; sh:minCount 1 ] .")
+            return g("<http://example.org/mod> a <http://www.w3.org/2002/07/owl#Ontology> . ex:Extra a sh:NodeShape ; sh:targetClass ex:T ; sh:property [ sh:path ex:q ; sh:minCount 1 ] .")
 
         result = validate(g(GOOD), shapes, shapes_graph_loader=loader)
         assert calls and result.conforms is False  # the imported shape demands ex:q

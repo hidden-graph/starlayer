@@ -143,8 +143,8 @@ def reject_unknown_options(kwargs: dict[str, Any]) -> None:
 
 
 def _check_imports(shapes: Any, loader: Any, ignore_imports: bool) -> None:
-    """``owl:imports`` that are neither locally satisfied nor an ontology StarLayer has built in, with no loader and without ``ignore_imports``, is an error (the engine
-    resolves imports only when a loader is given)."""
+    """With no loader and without ``ignore_imports``: ``owl:imports`` that are neither locally satisfied nor an ontology StarLayer has built in raise
+    ``ExecutionError`` kind ``"import"`` before the meta preflight runs (with a loader, ``engine.api.validate`` resolves them)."""
     if shapes is not None and loader is None and not ignore_imports:
         from starlayer.shacl.engine.imports import resolve_imports
 
@@ -442,11 +442,11 @@ def apply_rules(
         _meta_preflight(shapes, options.get("meta_shapes_extra") or ())
     loader = options.get("shapes_graph_loader")
     ignore_imports = bool(options.get("ignore_imports"))
-    if loader is not None:  # the rules of an imported module run too: imports first, as validate() does
-        from starlayer.shacl.engine.imports import resolve_imports
+    from starlayer.shacl.engine.imports import resolve_imports
 
-        shapes = resolve_imports(shapes, loader, ignore_imports)
-    _check_imports(shapes, loader, ignore_imports)
+    shapes = resolve_imports(shapes, loader, ignore_imports)  # the rules of an imported module run too: imports first, as validate() does
+    if ont is not None:
+        ont = resolve_imports(ont, loader, ignore_imports)
     # the rules see the entailed graph (kept as an overlay; entailed triples are not inferred)
     base = resolve_data_view(
         data,

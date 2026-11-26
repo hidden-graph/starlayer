@@ -1,7 +1,8 @@
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import ShapeCompileError, ShapeError, StarShaclProcessor
+from starlayer.shacl import StarShaclProcessor
 from tests.support.terms import NamedNode, Namespace, lit
 
 EX = Namespace("http://example.org/")
@@ -71,9 +72,11 @@ def _base_graph() -> Graph:
     graph = Graph()
     graph.parse(
         data="""
+            @prefix owl: <http://www.w3.org/2002/07/owl#> .
             @prefix sh: <http://www.w3.org/ns/shacl#> .
             @prefix ex: <http://example.org/> .
 
+            <http://example.com/shapes/base> a owl:Ontology .
             ex:BaseShape a sh:NodeShape ;
               sh:targetClass ex:Thing ;
               sh:property [
@@ -135,8 +138,10 @@ def test_without_loader_or_ignore_imports_raises() -> None:
 
     validator = StarShaclProcessor(shacl_graph=_myapp_shapes())
 
-    with pytest.raises(ShapeError, match="owl:imports"):
+    with pytest.raises(ExecutionError, match="owl:imports") as caught:
         validator.validate(data_graph=data, meta_shacl=False)
+    assert caught.value.kind == "import"
+    assert caught.value.unresolved == (COMPANY_V2,)
 
 
 def test_ignore_imports_true_restores_the_old_silent_pass_through() -> None:
@@ -170,22 +175,16 @@ def test_bare_validate_function_raises_too() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
-    with pytest.raises(ShapeCompileError, match="owl:imports"):
+    with pytest.raises(ExecutionError, match="owl:imports") as caught:
         validate(data, _myapp_shapes(), meta_shacl=False)
+    assert caught.value.kind == "import"
 
 
-def test_pre_resolved_imports_need_ignore_imports_too() -> None:
-    """The exact scenario this flag exists for: the caller resolves
-    imports into shacl_graph themselves first (the two-call pattern),
-    producing a single, already-complete graph. The owl:imports triple
-    is still physically present in it (resolve_imports() doesn't strip
-    it - it's still a true fact about the document), so validate() still
-    has no way to tell "already handled" from "genuinely missing" just by
-    looking at the graph, and still raises unless told explicitly."""
+def test_pre_resolved_imports_are_satisfied_without_a_loader() -> None:
+    """The two-call pattern: the caller resolves the imports into the shapes graph first. The ``owl:imports`` triples stay in the
+    graph (a true fact about the document), but each imported IRI is now a subject (or the ``owl:versionIRI`` of a present ontology), so
+    ``validate()`` has nothing left to resolve and needs neither a loader nor ``ignore_imports``."""
     pre_resolved = _myapp_shapes().resolve_imports(loader=_loader, mode="full")
-    # Still present, as expected - resolve_imports() never strips the
-    # owl:imports triples it follows (nor the ones it merges in along the
-    # way, e.g. company's own owl:imports base).
     assert COMPANY_V2 in {i for i in pre_resolved.owl_imports()}
 
     data = StarLayerGraph()
@@ -199,18 +198,11 @@ def test_pre_resolved_imports_need_ignore_imports_too() -> None:
     )
 
     validator = StarShaclProcessor(shacl_graph=pre_resolved)
-
-    with pytest.raises(ShapeError, match="owl:imports"):
-        validator.validate(data_graph=data, meta_shacl=False)
-
-    # With the explicit acknowledgment, the already-merged content (from
-    # the earlier resolve_imports() call) is what actually catches the
-    # violation - not a second resolution attempt.
-    result = validator.validate(data_graph=data, meta_shacl=False, ignore_imports=True)
-    assert result.conforms is False
+    assert validator.validate(data_graph=data, meta_shacl=False).conforms is False  # the merged CompanyShape catches Acme
+    assert validator.validate(data_graph=data, meta_shacl=False, ignore_imports=True).conforms is False
 
 
-def test_unresolvable_import_is_skipped_not_raised() -> None:
+def test_unresolvable_import_raises_even_with_a_loader() -> None:
     shapes = StarLayerGraph()
     shapes.parse(
         data="""
@@ -230,12 +222,13 @@ def test_unresolvable_import_is_skipped_not_raised() -> None:
     data = StarLayerGraph()
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
+    with pytest.raises(ExecutionError) as caught:  # a loader that returns None: not satisfied (the processor says so when it is built)
+        StarShaclProcessor(shacl_graph=shapes, shapes_graph_loader=lambda iri: None)
+    assert caught.value.kind == "import"
+    assert [i.value for i in caught.value.unresolved] == ["http://example.com/shapes/does-not-exist"]
+    # ignore_imports=True: nothing is loaded or checked, Bob is still missing ex:name per the local shape
     validator = StarShaclProcessor(shacl_graph=shapes)
-    result = validator.validate(
-        data_graph=data, meta_shacl=False, shapes_graph_loader=lambda iri: None
-    )
-
-    assert result.conforms is False  # Bob is still missing ex:name per the local shape
+    assert validator.validate(data_graph=data, meta_shacl=False, ignore_imports=True).conforms is False
 
 
 def test_self_importing_graph_does_not_infinite_loop() -> None:
@@ -394,3 +387,58 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     # CompanyShape - proof the shape actually applied, not just that
     # validate() happened not to crash.
     assert result.conforms is False
+
+
+# --- the one import rule (decision 2026-11-26) on the other SHACL paths ---
+
+_PERSON_DATA = "@prefix ex: <http://example.org/> .\nex:Bob a ex:Person ."
+
+
+def _data() -> StarLayerGraph:
+    return StarLayerGraph().parse(data=_PERSON_DATA, format="turtle")
+
+
+def test_a_loader_that_raises_is_wrapped_with_the_original_as_cause() -> None:
+    def broken(iri):
+        raise OSError("no such file")
+
+    with pytest.raises(ExecutionError, match="no such file") as caught:
+        StarShaclProcessor(shacl_graph=_myapp_shapes()).validate(data_graph=_data(), meta_shacl=False, shapes_graph_loader=broken)
+    assert caught.value.kind == "import" and isinstance(caught.value.__cause__, OSError)
+    assert caught.value.unresolved == (COMPANY_V2,)
+
+
+def test_the_application_reads_unresolved_imports_and_validates_again_with_a_loader_that_knows_more() -> None:
+    from starlayer.graph import unresolved_imports
+
+    shapes = _myapp_shapes()
+    with pytest.raises(ExecutionError) as caught:
+        StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False)
+    assert caught.value.unresolved == unresolved_imports(shapes) == (COMPANY_V2,)
+    assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False, shapes_graph_loader=_loader).conforms
+
+
+def test_the_imports_of_the_ontology_graph_are_resolved_or_raise() -> None:
+    from starlayer.shacl import validate
+
+    shapes = StarLayerGraph().parse(data="@prefix sh: <http://www.w3.org/ns/shacl#> . @prefix ex: <http://example.org/> . ex:S a sh:NodeShape ; sh:targetClass ex:Person .", format="turtle")
+    ont = StarLayerGraph()
+    ont.add((NamedNode("http://example.org/ont"), NamedNode("http://www.w3.org/2002/07/owl#imports"), NamedNode("http://example.org/ont-lib")))
+    with pytest.raises(ExecutionError) as caught:
+        validate(_data(), shapes, ont_graph=ont, meta_shacl=False)
+    assert caught.value.kind == "import" and [i.value for i in caught.value.unresolved] == ["http://example.org/ont-lib"]
+    assert validate(_data(), shapes, ont_graph=ont, meta_shacl=False, ignore_imports=True).conforms
+
+
+def test_apply_rules_and_validate_each_resolve_or_raise_too() -> None:
+    from starlayer.graph import StarLayerDataset
+    from starlayer.shacl import apply_rules
+
+    with pytest.raises(ExecutionError) as caught:
+        apply_rules(_data(), _myapp_shapes())
+    assert caught.value.kind == "import"
+    dataset = StarLayerDataset()
+    dataset.add_graph(NamedNode("http://example.org/g1")).extend(list(_data().triples()))
+    with pytest.raises(ExecutionError):
+        StarShaclProcessor(shacl_graph=_myapp_shapes()).validate_each(dataset)
+

@@ -239,12 +239,12 @@ def test_extraction_raises_like_validate_for_a_failing_sh_expression():
     assert type(a.value) is type(b.value) and a.value.kind == b.value.kind
 
 
-def test_an_unresolvable_import_is_a_shape_error_at_the_first_validate():
+def test_an_unresolvable_import_is_an_execution_error_of_kind_import_at_the_first_validate():
     shapes = g("<http://example.org/shapes> owl:imports <http://example.org/other> . ex:S a sh:NodeShape ; sh:targetNode ex:a .")
     processor = StarShaclProcessor(shacl_graph=shapes)  # nothing raised yet: a call may bring a loader
-    with pytest.raises(ShapeError, match="owl:imports") as exc:
+    with pytest.raises(ExecutionError, match="owl:imports") as exc:
         processor.validate(data_graph=g("ex:a ex:p 1 ."), meta_shacl=False)
-    assert not isinstance(exc.value, ExecutionError)
+    assert exc.value.kind == "import" and not isinstance(exc.value, ShapeError)  # the shapes graph is fine; its imports were not resolved
 
 
 BAD_COUNT = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex:p ; sh:minCount \"many\" ] ."
@@ -280,10 +280,13 @@ def test_except_shape_error_catches_both_kinds():
             raise AssertionError("no error raised")
 
 
-def test_an_unresolvable_import_is_a_shape_compile_error():
+def test_an_unresolvable_import_is_an_execution_error_and_a_non_iri_import_a_shape_compile_error():
     shapes = g("ex:SG a sh:Graph ; owl:imports <http://example.org/missing> . ex:S a sh:NodeShape ; sh:targetNode ex:a .")
-    with pytest.raises(ShapeCompileError):
+    with raises_kind("import", match="http://example.org/missing"):
         validate(g("ex:a ex:p 1 ."), shapes, meta_shacl=False)
+    bad = g('ex:SG a sh:Graph ; owl:imports "not an iri" . ex:S a sh:NodeShape ; sh:targetNode ex:a .')
+    with pytest.raises(ShapeCompileError, match="needs an IRI"):
+        validate(g("ex:a ex:p 1 ."), bad, meta_shacl=False)
 
 
 def test_a_malformed_rule_is_a_shape_compile_error():

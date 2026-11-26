@@ -5,6 +5,7 @@ that point too, and ``meta_shacl=True`` at construction runs the SHACL-for-SHACL
 """
 
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import (
     MetaShaclError,
@@ -232,7 +233,7 @@ IMPORTED_SHAPES = "<http://example.org/imported> a owl:Ontology . ex:T a sh:Node
 
 def test_unresolved_imports_do_not_raise_at_construction_but_at_validate() -> None:
     processor = StarShaclProcessor(shacl_graph=g(IMPORTING))
-    with pytest.raises(ShapeError, match="owl:imports"):
+    with pytest.raises(ExecutionError, match="owl:imports"):
         processor.validate(g(DATA))
     loaded = []
 

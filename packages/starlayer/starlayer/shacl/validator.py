@@ -13,7 +13,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import ShapeError
+from starlayer.errors import ExecutionError, only_kind
 from starlayer.shacl import _adapter
 from starlayer.shacl.candidates import Candidates
 from starlayer.shacl.engine.terms import RDF, SH, BlankNode, n3
@@ -50,10 +50,12 @@ def validate(
             its triples are never copied into ``data_graph``.
         mode: A named preset of options (``"validation"``, ``"rules"`` or ``"debug"``); any of its options can be overridden per
             call through ``**kwargs``.
-        shapes_graph_loader: Resolves the shapes graph's ``owl:imports``. With no loader, an import that is not already in the
-            graph raises ``ShapeError`` unless ``ignore_imports=True``. An import of an ontology StarLayer has built in (a registered
-            ``starontology`` ontology, ``sh:`` among them) needs neither and is never passed to the loader.
-        ignore_imports: Do not complain about imports that cannot be resolved.
+        shapes_graph_loader: Resolves the ``owl:imports`` of the shapes graph and of ``ont_graph``. Every import must end up a subject of the
+            graph, or the call raises ``ExecutionError`` kind ``"import"`` (``error.unresolved`` lists the IRIs): no loader, a loader that
+            returns ``None`` or a graph without the IRI, and a loader that raises (wrapped, the exception as ``__cause__``) are all
+            that error. An import of an ontology StarLayer has built in (a registered ``starontology`` ontology, ``sh:`` among them) needs
+            no loader and is never passed to one. An ``owl:imports`` object that is not an IRI is a ``ShapeCompileError``.
+        ignore_imports: Load nothing and check nothing: the shapes graph and ontology graph are used as they are.
         meta_shapes_extra: Extra graphs for the shapes-about-shapes check when ``meta_shacl=True``.
         data_graph_iri, shapes_graph_iri: Recorded as ``sh:usedDataGraph`` / ``sh:usedShapesGraph`` on the ``sh:ValidationActivity`` that generated the report; each defaults
             to the graph's own identifier when that is an IRI.
@@ -638,7 +640,10 @@ class StarShaclProcessor:
         loader, ignore = self.shapes_graph_loader, bool(self.ignore_imports)
         try:
             resolved = resolve_imports(shapes, loader, ignore)
-        except ShapeError:  # unresolved owl:imports and no loader to resolve them with
+        except ExecutionError as error:  # unresolved owl:imports and no loader to resolve them with: a call may bring one
+            if loader is not None:
+                raise
+            only_kind(error, "import")
             return
         checked = _adapter.CheckedShapes()
         if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ShapeCompileError

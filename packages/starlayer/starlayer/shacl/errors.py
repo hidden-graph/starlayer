@@ -5,7 +5,7 @@ Each derives from ``StarLayerError`` and from nothing else, so none is a ``Value
 only a bad argument at the entry of a public call, and ``except ValueError`` never catches one of these.
 
 ``ShapeError``: the base of the shapes-graph errors. The shapes graph (a shape, a rule, a rules graph) or its setup (an ``owl:imports``
-that cannot be resolved) is wrong or asks for something unsupported, found by anyone. Never raised bare, so ``except ShapeError`` catches either kind
+declaration that is not an IRI; an import that is merely not resolved is ``ExecutionError`` kind ``"import"``) is wrong or asks for something unsupported, found by anyone. Never raised bare, so ``except ShapeError`` catches either kind
 below:
 
 * ``ShapeCompileError``: the engine itself cannot read or compile the shapes graph, its rules or its setup, whenever it finds out (when a

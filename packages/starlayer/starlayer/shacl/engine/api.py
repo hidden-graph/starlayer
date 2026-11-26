@@ -203,20 +203,20 @@ def validate(
     data_graph = engine_view(data_graph, "data graph")
     shapes = engine_view(shapes_graph, "shapes graph")
     ont_graph = engine_view(ont_graph, "ontology graph")
-    # TODO(wiring): the seam for ``imports.resolve_imports`` and ``meta.meta_validate`` (separate modules). Lazy and
-    # guarded by ImportError. Imports are resolved only when a loader is given: calling it with none would make the
-    # default raise on any unresolved owl:imports, which the lead decides when wiring the old validator's default
-    # (``ignore_imports=False`` raises there). ``meta_shacl`` truthy runs the SHACL-SHACL preflight on the shapes graph.
+    # ``owl:imports`` of the shapes graph (the data graph when there is no shapes graph) and of the ontology graph are resolved or
+    # the call raises (``imports.resolve_imports``, the rule of ``starlayer.graph.imports``); ``ignore_imports=True`` skips both.
+    # ``meta_shacl`` truthy runs the SHACL-SHACL preflight on the shapes graph.
     shapes_identity = _identity_of(shapes) if shapes is not None else None  # before imports make it a new anonymous graph
-    if shapes_graph_loader is not None:
+    if not ignore_imports:
+        from starlayer.shacl.engine.imports import resolve_imports
+
         if shapes is None:  # no shapes graph: the data graph is the shapes graph, its imports resolve like any other's
-            shapes = data_graph
-        try:
-            from starlayer.shacl.engine.imports import resolve_imports
-        except ImportError:
-            pass
+            resolved = resolve_imports(data_graph, shapes_graph_loader=shapes_graph_loader)
+            shapes = resolved if resolved is not data_graph else None
         else:
-            shapes = resolve_imports(shapes, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports)
+            shapes = resolve_imports(shapes, shapes_graph_loader=shapes_graph_loader)
+        if ont_graph is not None:
+            ont_graph = resolve_imports(ont_graph, shapes_graph_loader=shapes_graph_loader)
     if meta_shacl:
         try:
             from starlayer.shacl.engine.meta import meta_validate
@@ -334,10 +334,12 @@ def validate_each(
     loader, ignore_imports = kwargs.pop("shapes_graph_loader", None), kwargs.pop("ignore_imports", False)
     meta_shacl, extra = kwargs.pop("meta_shacl", None), kwargs.pop("meta_shapes_extra", ())
     resource = kwargs.pop("shapes_graph_resource", None)
-    if loader is not None:
-        from starlayer.shacl.engine.imports import resolve_imports
+    from starlayer.shacl.engine.imports import resolve_imports
 
-        shapes = resolve_imports(shapes, shapes_graph_loader=loader, ignore_imports=ignore_imports)
+    shapes = resolve_imports(shapes, shapes_graph_loader=loader, ignore_imports=ignore_imports)  # resolves or raises, once for the batch
+    if ont_graph is not None:
+        ont_graph = resolve_imports(ont_graph, shapes_graph_loader=loader, ignore_imports=ignore_imports)
+    kwargs["ignore_imports"] = True  # the batch's graphs are resolved here, not again per item
     if meta_shacl:
         from starlayer.shacl.engine.meta import meta_validate
 

@@ -58,12 +58,12 @@ def test_engine_sparql(entry: ManifestEntry) -> None:
     expected = next(entry.graph.objects(entry.iri, MF.result))
     if expected == SHT.Failure:
         with pytest.raises(Exception):  # noqa: B017
-            validate(data, shapes)
+            validate(data, shapes, ignore_imports=True)  # a fixture imports a vocabulary (dash) the harness does not load
         return
     expected_graph = node_closure(entry.graph, expected)
     expected_node = find_report_node(expected_graph)
     disallows = next(expected_graph.objects(expected_node, SH.conformanceDisallows), None)
-    outcome = validate(data, shapes, conformance_disallows=disallows)
+    outcome = validate(data, shapes, conformance_disallows=disallows, ignore_imports=True)
     actual_node = find_report_node(outcome.report_graph)
     assert outcome.conforms == conforms_of(expected_graph, expected_node)
     assert result_multiset(outcome.report_graph, actual_node) == result_multiset(expected_graph, expected_node)

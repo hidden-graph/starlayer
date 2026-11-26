@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeError, StarShaclProcessor
+from starlayer.shacl import StarShaclProcessor
 
 PFX = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> .\n"
 
@@ -31,8 +32,10 @@ def test_the_loader_is_not_asked_for_the_shacl_vocabulary():
 
 def test_another_import_that_nothing_supplies_still_raises():
     shapes = _graph("ex:Shapes a owl:Ontology ; owl:imports sh:, <http://example.org/other> . ex:S a sh:NodeShape .")
-    with pytest.raises(ShapeError, match="http://example.org/other"):
+    with pytest.raises(ExecutionError, match="http://example.org/other") as e:
         StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_graph(DATA))
+    assert e.value.kind == "import"
+    assert [i.value for i in e.value.unresolved] == ["http://example.org/other"]  # the built-in sh: is not named
 
 
 # --- every ontology StarLayer has built in (the starontology registry), not only sh: ---
@@ -89,9 +92,9 @@ def test_a_loader_is_not_asked_for_a_built_in_import(iri):
     assert len(shapes) == len(_importing(iri))  # nothing merged into the caller's graph
 
 
-def test_an_unregistered_import_raises_with_the_same_message_at_the_first_validate():
+def test_an_unregistered_import_raises_at_the_first_validate():
     iri = "http://example.org/not-registered"
-    with pytest.raises(ShapeError, match=r"owl:imports \['http://example.org/not-registered'\] that aren't already locally satisfied") as e:
+    with pytest.raises(ExecutionError, match=r"owl:imports <http://example.org/not-registered> is not resolved") as e:
         StarShaclProcessor(shacl_graph=_importing(iri)).validate(data_graph=_graph(DATA))
     assert "ignore_imports=True" in str(e.value)
 

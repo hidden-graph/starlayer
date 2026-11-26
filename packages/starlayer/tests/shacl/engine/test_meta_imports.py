@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
-from starlayer.errors import MetaShaclError, ShapeError
+from starlayer.errors import ExecutionError, MetaShaclError, ShapeCompileError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.imports import declared_imports, resolve_imports
 from starlayer.shacl.engine.meta import META_ERROR_PREFIX, meta_validate
@@ -95,13 +95,22 @@ def _graphs():
     return {
         V2: _g("<http://example.com/shapes/company> owl:versionIRI <http://example.com/shapes/company/v2> ; "
                "owl:imports <http://example.com/shapes/base> . ex:CompanyShape a sh:NodeShape ."),
-        BASE: _g("ex:BaseShape a sh:NodeShape ."),
+        BASE: _g("<http://example.com/shapes/base> a owl:Ontology . ex:BaseShape a sh:NodeShape ."),
     }
 
 
 def test_no_loader_unresolved_import_raises_unless_ignored():
     g = _app()
-    with pytest.raises(ShapeError, match="owl:imports"):
+    with pytest.raises(ExecutionError, match="owl:imports") as exc:
+        resolve_imports(g)
+    assert exc.value.kind == "import"
+    assert exc.value.unresolved == (V2,)
+    assert resolve_imports(g, ignore_imports=True) is g
+
+
+def test_a_non_iri_import_is_a_malformed_shapes_graph():
+    g = _g('ex:A owl:imports "not an iri" .')
+    with pytest.raises(ShapeCompileError, match="needs an IRI"):
         resolve_imports(g)
     assert resolve_imports(g, ignore_imports=True) is g
 
@@ -119,12 +128,14 @@ def test_transitive_closure_with_version_iri_and_no_mutation():
     assert result is not g
     assert (URIRef("http://example.org/CompanyShape"), RDF.type, URIRef("http://www.w3.org/ns/shacl#NodeShape")) in result
     assert (URIRef("http://example.org/BaseShape"), RDF.type, URIRef("http://www.w3.org/ns/shacl#NodeShape")) in result
-    assert len(result) == len(before) + 4
+    assert len(result) == len(before) + 5  # company's two, the base's two (an ontology header and a shape), and base's own import triple
 
 
-def test_unresolvable_import_with_loader_is_skipped():
+def test_unresolvable_import_with_loader_raises():
     g = _app()
-    assert resolve_imports(g, lambda iri: None) is g
+    with pytest.raises(ExecutionError) as exc:
+        resolve_imports(g, lambda iri: None)
+    assert exc.value.kind == "import" and exc.value.unresolved == (V2,)
 
 
 def test_self_import_cycle_terminates_and_loader_called_once():
@@ -140,8 +151,7 @@ def test_self_import_cycle_terminates_and_loader_called_once():
 
     def loader(iri):
         calls.append(iri)
-        return _g("<http://example.com/shapes/y> owl:imports <http://example.com/shapes/y> .") if False else _g(
-            "<http://example.com/shapes/z> owl:imports <http://example.com/shapes/y> .")
+        return _g("<http://example.com/shapes/y> owl:imports <http://example.com/shapes/y> .")
 
     result = resolve_imports(h, loader)
     assert calls == [URIRef("http://example.com/shapes/y")]
@@ -153,7 +163,7 @@ def test_multi_hop_without_version_iri():
     g = _g("<http://example.com/shapes/myapp> owl:imports <http://example.com/shapes/mid> .")
     graphs = {
         mid: _g("<http://example.com/shapes/mid> owl:imports <http://example.com/shapes/base> . ex:M a sh:NodeShape ."),
-        BASE: _g("ex:BaseShape a sh:NodeShape ."),
+        BASE: _g("<http://example.com/shapes/base> a owl:Ontology . ex:BaseShape a sh:NodeShape ."),
     }
     result = resolve_imports(g, graphs.get)
     assert (URIRef("http://example.org/BaseShape"), RDF.type, URIRef("http://www.w3.org/ns/shacl#NodeShape")) in result
