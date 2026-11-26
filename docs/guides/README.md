@@ -54,6 +54,7 @@ Standalone reference notebooks that don't fit the numbered guide sequence above 
   - **B1. [Named, shared parts in `sqe:` query trees](appendix-b1-sqe-shared-parts.ipynb)** - giving a query part a real, named identity instead of a private `BNode`, so more than one query can share and jointly edit it.
   - **B2. [A complex DL reasoning example](appendix-b2-dl-reasoning-examples.ipynb)** - a 20-person employee/job constraint-satisfaction problem encoded as an OWL 2 DL ontology and solved via consistency-checking alone.
 - **[Appendix C: OWL 2 Manchester Syntax reference](appendix-c-manchester-syntax-reference.ipynb)** - every Manchester Syntax construct, what it means, and the RDF it produces.
+- **[Appendix D: How StarLayer classifies errors](appendix-d-error-classification.ipynb)** - the error classes and kinds in plain terms, how to catch them, what changed from the earlier release, and the open questions about the scheme.
 
 ## Related project documentation
 
