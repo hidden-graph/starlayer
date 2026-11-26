@@ -16,6 +16,7 @@ import pyoxigraph as ox
 import pytest
 from pyoxigraph import NamedNode
 from rdflib import Graph
+from starlayer.errors import ExecutionError
 from starlayer.graph import OWL, RDF, RDFS, Namespace, StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 
@@ -102,8 +103,9 @@ class TestInferRdfs:
             _rdfs_graph().infer(target_graph=Graph())
 
     def test_unsupported_entailment_raises(self) -> None:
-        with pytest.raises(ValueError, match="bogus"):
+        with pytest.raises(ExecutionError, match="bogus") as info:
             _rdfs_graph().infer(entailment="bogus")
+        assert info.value.kind == "unsupported"
 
 
 class TestInferRdf:
@@ -527,5 +529,5 @@ class TestInferInPlace:
         assert set(g_in_place) == original | set(delta)
 
     def test_unsupported_entailment_still_raises(self) -> None:
-        with pytest.raises(ValueError, match="bogus"):
+        with pytest.raises(ExecutionError, match="bogus"):
             _rdfs_graph().infer(entailment="bogus", mode="in-place")

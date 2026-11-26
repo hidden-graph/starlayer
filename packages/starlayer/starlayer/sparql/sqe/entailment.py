@@ -115,12 +115,17 @@ def rewrite_for_entailment(text: str, regime: Any, *, prefixes: Any = None, base
         The rewritten query text; ``text`` itself when no pattern is widened.
 
     Raises:
-        ValueError: ``regime`` is neither RDF nor RDFS (OWL regimes need ``infer()``).
-        ExecutionError: (kind ``"unsupported"``) The query cannot be rewritten exactly; (kind ``"nesting"``) it nests too deeply.
+        ValueError: ``regime`` is a registered regime but neither RDF nor RDFS (OWL regimes need ``infer()``).
+        ExecutionError: (kind ``"unsupported"``) ``regime`` is not a registered regime at all, or the query cannot be rewritten exactly; (kind ``"nesting"``) it nests too deeply.
         FormatError: (kind "sparql") ``text`` is not a query.
     """
     iri = regime_iri(regime)
     if iri not in (RDF_REGIME, RDFS_REGIME):
+        from starlayer.graph.entailment import unsupported_regimes
+
+        error = unsupported_regimes([iri])
+        if error is not None:  # not a registered regime at all
+            raise error
         raise ValueError(
             f"query-time entailment supports ENTAILMENT.RDF and ENTAILMENT.RDFS, not {iri!r} "
             "(use infer() for a materialized closure of the OWL regimes)"

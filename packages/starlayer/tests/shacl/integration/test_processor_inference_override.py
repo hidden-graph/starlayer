@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import ENTAILMENT, StarLayerGraph
 from starlayer.graph.entailment import infer as infer_module
 from starlayer.shacl import StarShaclProcessor
@@ -131,8 +132,11 @@ def test_an_unknown_keyword_is_still_a_type_error():
 
 
 def test_an_unsupported_regime_on_a_call_is_refused():
-    with pytest.raises(ValueError, match="Unsupported entailment regime"):
+    with pytest.raises(ExecutionError, match="Unsupported entailment regime") as info:
         StarShaclProcessor(g(SHAPES)).validate(g(DATA), inference="rdfs")
+    assert info.value.kind == "unsupported" and info.value.context == "entailment regime"
+    with pytest.raises(TypeError):
+        StarShaclProcessor(g(SHAPES)).validate(g(DATA), inference=5)
 
 
 def test_alternating_regimes_compute_each_closure_once(monkeypatch):

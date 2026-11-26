@@ -38,6 +38,7 @@ every test.
 """
 
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from tests.support.terms import RDF, RDFS, Namespace
@@ -63,8 +64,17 @@ def _graph() -> StarLayerGraph:
 
 class TestEntailmentIsPerQueryNotPerGraph:
     def test_unsupported_entailment_raises(self):
-        with pytest.raises(ValueError, match="entailment must be one of"):
+        with pytest.raises(ExecutionError, match="Unsupported entailment regime") as info:
             _graph().query(_QUERY, entailment="owl")
+        assert info.value.kind == "unsupported" and info.value.context == "entailment regime"
+
+    def test_a_value_that_is_not_text_or_an_iri_is_a_type_error(self):
+        with pytest.raises(TypeError, match="entailment regime"):
+            _graph().query(_QUERY, entailment=5)
+
+    def test_a_near_miss_names_the_closest_regime(self):
+        with pytest.raises(ExecutionError, match="did you mean 'http://www.w3.org/ns/entailment/RDFS'"):
+            _graph().query(_QUERY, entailment="http://www.w3.org/ns/entailment/RDFs")
 
 
 

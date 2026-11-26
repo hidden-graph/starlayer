@@ -36,6 +36,7 @@ from starlayer.graph.entailment.infer import (
     OWL_DIRECT_REGIME,
     SUPPORTED_REGIMES,
 )
+from starlayer.graph.entailment import regime_name, unsupported_regimes
 from starlayer.shacl.engine.terms import (
     RDF,
     SH,
@@ -51,22 +52,17 @@ _DIRECT = ox.NamedNode(OWL_DIRECT_REGIME)
 def normalise_regimes(regime: Any) -> frozenset:
     """The entailment regime IRIs of ``regime``: ``None`` (no entailment), a regime IRI (the W3C entailment regime
     IRIs ``sh:entailment`` uses, e.g. ``ENTAILMENT.RDFS``), or an iterable of them. A plain string must itself be such an IRI;
-    names such as ``'rdfs'`` or ``'owlrl'`` are not accepted. An unsupported regime raises ``ValueError``. The IRIs come
-    back as pyoxigraph ``NamedNode``s (an IRI string is accepted)."""
+    names such as ``'rdfs'`` or ``'owlrl'`` are not registered regimes. Any text or IRI is accepted as a name, and one that is not
+    a registered regime raises ``ExecutionError`` of kind ``"unsupported"`` (the message lists the regimes and the closest name);
+    a value that is neither text nor an IRI is a ``TypeError``. The IRIs come back as pyoxigraph ``NamedNode``s."""
     if regime is None:
         return frozenset()
     items: Iterable = [regime] if isinstance(regime, str) or not hasattr(regime, "__iter__") else regime
-    supported = sorted(text(r) for r in _SUPPORTED)
-    out = set()
-    for item in items:
-        try:
-            out.add(ox.NamedNode(item) if isinstance(item, str) and type(item) is str else to_engine(item))
-        except ValueError:
-            raise ValueError(f"Unsupported entailment regime {item!r}, which is not an IRI; use one of {supported!r}") from None
-    unsupported = {r for r in out if r not in _SUPPORTED}
-    if unsupported:
-        raise ValueError(f"Unsupported entailment regime(s) {sorted(text(r) for r in unsupported)!r}; use one of {supported!r}")
-    return frozenset(out)
+    out = {regime_name(item) for item in items}  # text or an IRI; any other type is a TypeError
+    error = unsupported_regimes(out)
+    if error is not None:
+        raise error
+    return frozenset(ox.NamedNode(name) for name in out)
 
 
 def _check_run_options(regimes: frozenset, engine: str, timeout: Any, recompute: str) -> None:

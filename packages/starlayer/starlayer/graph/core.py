@@ -714,18 +714,19 @@ class _Base:
         may then be out of date, data included). A write to another store does not count.
         ``clear_entailment_cache()`` drops the copies. ``engine`` /
         ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
-        Any other regime raises ``ValueError``.
+        A name that is not one of these four regimes (D-Entailment included) raises ``ExecutionError`` of kind ``"unsupported"``,
+        and a value that is neither text nor an IRI a ``TypeError``.
 
         ``custom_functions`` maps a function IRI (a ``NamedNode`` or its text) to a Python callable that takes pyoxigraph terms and
         returns a term or ``None``; the query can then call ``<iri>(?x)``. ``custom_aggregate_functions`` maps an IRI to a factory of
         objects with ``accumulate(term)`` and ``finish()``. Both are Oxigraph's, passed through for this call only."""
-        regime = None if entailment is None else str(getattr(entailment, "value", entailment))
         from starlayer.graph.entailment import infer as ent
 
-        if regime is not None and regime not in (ent.RDF_REGIME, ent.RDFS_REGIME, ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
-            raise ValueError(
-                f"entailment must be one of ENTAILMENT.RDF, RDFS, ['OWL-RDF-Based'], ['OWL-Direct'], got {entailment!r}."
-            )
+        regime = None if entailment is None else ent.regime_name(entailment)
+        if regime is not None:
+            error = ent.unsupported_regimes([regime])
+            if error is not None:
+                raise error
         if regime != ent.OWL_DIRECT_REGIME:
             if engine != "hermit":
                 raise ValueError(f"engine={engine!r} is only meaningful for entailment=ENTAILMENT['OWL-Direct'] (got entailment={entailment!r}) - omit engine= otherwise.")

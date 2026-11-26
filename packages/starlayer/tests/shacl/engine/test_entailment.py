@@ -3,6 +3,7 @@
 import time
 
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.graph.entailment import ENTAILMENT
@@ -126,13 +127,22 @@ def test_regime_iris_and_no_regime() -> None:
 @pytest.mark.parametrize("name", ["rdfs", "owlrl", "both", "none"])
 def test_pyshacl_style_names_are_not_regimes(name) -> None:
     """``inference=`` takes the W3C entailment regime IRIs (the vocabulary of ``sh:entailment``), not pySHACL's own names."""
-    with pytest.raises(ValueError):  # pyoxigraph rejects the non-IRI string itself
+    with pytest.raises(ExecutionError) as info:  # any text is a name; a name that is not registered is unsupported
         entailed_view(_g(DOMAIN), name)
+    assert info.value.kind == "unsupported"
+
+
+def test_a_regime_that_is_neither_text_nor_an_iri_is_a_type_error() -> None:
+    with pytest.raises(TypeError):
+        entailed_view(_g(DOMAIN), 5)
+    with pytest.raises(ExecutionError, match="did you mean 'http://www.w3.org/ns/entailment/RDFS'"):
+        entailed_view(_g(DOMAIN), "rdfs")
 
 
 def test_unsupported_regime_raises() -> None:
-    with pytest.raises(ValueError, match="Unsupported entailment"):  # a bad argument
+    with pytest.raises(ExecutionError, match="Unsupported entailment") as info:  # D-Entailment is known and not implemented
         resolve_data_view(_g(DOMAIN), _g(SHAPES), inference=ENTAILMENT.D)
+    assert info.value.kind == "unsupported"
     shapes = _g(SHAPES + " ex:Shapes sh:entailment ex:NotARuleSet .")
     with pytest.raises(ShapeCompileError, match="Unsupported entailment"):
         resolve_data_view(_g(DOMAIN), shapes)

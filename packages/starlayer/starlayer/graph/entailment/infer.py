@@ -23,6 +23,8 @@ from starlayer.graph.entailment import (
     RDF_REGIME,
     RDFS_REGIME,
     SUPPORTED_REGIMES,
+    regime_name,
+    unsupported_regimes,
 )
 from starlayer.graph.entailment.rdfs_closure import rdfs_delta
 
@@ -37,7 +39,15 @@ _RDF_AXIOMATIC = tuple(ox.NamedNode(_RDF + n) for n in ("type", "subject", "pred
 
 
 def _regime_iri(x: Any) -> str:
-    return x.value if isinstance(x, ox.NamedNode) else str(x)
+    return regime_name(x)
+
+
+def _regime_items(entailment: Any) -> Iterable[Any]:
+    """The items of an iterable ``entailment``; anything that is not iterable is a ``TypeError``."""
+    try:
+        return list(entailment)
+    except TypeError:
+        raise TypeError(f"entailment is a regime IRI (text or NamedNode) or an iterable of them, not {type(entailment).__name__}: {entailment!r}") from None
 
 
 def _reasoning() -> Any:
@@ -166,15 +176,12 @@ def infer(g: Any, entailment: Any = ENTAILMENT.RDFS, *, mode: str = "full", targ
     """
     if mode not in VALID_INFER_RETURN_MODES:
         raise ValueError(f"mode must be one of {sorted(VALID_INFER_RETURN_MODES)}, got {mode!r}")
-    regimes = frozenset({_regime_iri(entailment)}) if isinstance(entailment, (str, ox.NamedNode)) else frozenset(_regime_iri(e) for e in entailment)
+    regimes = frozenset({_regime_iri(entailment)}) if isinstance(entailment, (str, ox.NamedNode)) else frozenset(_regime_iri(e) for e in _regime_items(entailment))
     if not regimes:
         raise ValueError("entailment must name at least one entailment regime IRI.")
-    unsupported = regimes - SUPPORTED_REGIMES
-    if unsupported:
-        message = f"Unsupported entailment regime(s) {sorted(unsupported)!r} - expected a combination of {sorted(SUPPORTED_REGIMES)!r}."
-        if D_REGIME in unsupported:
-            message += " ENTAILMENT.D (D-Entailment) is a recognized regime IRI but not implemented."
-        raise ValueError(message)
+    error = unsupported_regimes(regimes)
+    if error is not None:
+        raise error
     if OWL_DIRECT_REGIME in regimes and len(regimes) > 1:
         raise ValueError(f"Unsupported entailment regime combination {sorted(regimes)!r}: OWL-Direct cannot be combined with another regime in infer() (the SHACL engine combines them).")
     direct = regimes == frozenset({OWL_DIRECT_REGIME})

@@ -74,12 +74,14 @@ def _alice() -> list[str]:
 # ---- per-query, not per-graph -----------------------------------------------------------------------------------------
 class TestEntailmentIsPerQueryNotPerGraph:
     def test_unsupported_entailment_raises(self):
-        with pytest.raises(ValueError, match="entailment must be one of"):
+        with pytest.raises(ExecutionError, match="Unsupported entailment regime") as info:
             _graph().query(_QUERY, entailment="owl")
+        assert info.value.kind == "unsupported"
 
     def test_d_entailment_raises(self):
-        with pytest.raises(ValueError):
+        with pytest.raises(ExecutionError, match="not implemented") as info:
             _graph().query(_QUERY, entailment=ENTAILMENT.D)
+        assert info.value.kind == "unsupported"
 
     def test_one_graph_answers_different_entailment_per_call(self):
         g = _graph()

@@ -27,15 +27,23 @@ implementation here and are not planned - see
 the ``starlayer-reasoning`` package provides -
 a single name and IRI for a single regime, used uniformly by both methods.
 
-``None`` (simple entailment / no entailment) deliberately has no IRI and is not a regime. ``query()`` accepts no other
-value than ``None`` and the four regime IRIs; anything else raises ``ValueError``.
+``None`` (simple entailment / no entailment) deliberately has no IRI and is not a regime. A regime is named by text or an IRI
+(``regime_name``: any other type is a ``TypeError``); a name that is not one of the four registered regimes raises
+``ExecutionError`` of kind ``"unsupported"`` (``unsupported_regimes``: context ``"entailment regime"``, the message lists the
+available regimes and the closest name). That includes D-Entailment, a known regime the library does not implement.
 
 ``KNOWN_REGIMES`` and ``SUPPORTED_REGIMES`` are sets of IRI text (``str``).
 """
 
 from __future__ import annotations
 
+import difflib
+from collections.abc import Iterable
+from typing import Any
+
 import pyoxigraph as ox
+
+from starlayer.errors import ExecutionError
 
 __all__ = [
     "D_REGIME",
@@ -46,6 +54,8 @@ __all__ = [
     "RDFS_REGIME",
     "RDF_REGIME",
     "SUPPORTED_REGIMES",
+    "regime_name",
+    "unsupported_regimes",
 ]
 
 _ENTAILMENT_BASE = "http://www.w3.org/ns/entailment/"
@@ -71,3 +81,32 @@ OWL_RL_REGIME = ENTAILMENT["OWL-RDF-Based"].value
 OWL_DIRECT_REGIME = ENTAILMENT["OWL-Direct"].value
 KNOWN_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, D_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
 SUPPORTED_REGIMES = frozenset({RDF_REGIME, RDFS_REGIME, OWL_RL_REGIME, OWL_DIRECT_REGIME})
+
+
+def regime_name(value: Any) -> str:
+    """The text of an entailment regime named by ``value``: text or an IRI (``NamedNode``). Any other type is a ``TypeError``;
+    whether the name is a registered regime is ``unsupported_regimes``' question."""
+    if isinstance(value, ox.NamedNode):
+        return value.value
+    if isinstance(value, str):
+        return str(value)  # a str subclass (rdflib's URIRef) hashes differently, so it becomes plain text
+    raise TypeError(f"an entailment regime is named by text or an IRI, not {type(value).__name__}: {value!r}")
+
+
+def unsupported_regimes(names: Iterable[str]) -> ExecutionError | None:
+    """``None`` when every name is a registered regime (``SUPPORTED_REGIMES``); otherwise the ``ExecutionError`` of kind
+    ``"unsupported"`` (context ``"entailment regime"``) the caller raises: it lists the available regimes and, for each name
+    that is close to one, ``did you mean``. D-Entailment is known but not implemented, so it is unsupported too."""
+    bad = sorted({n for n in names if n not in SUPPORTED_REGIMES})
+    if not bad:
+        return None
+    available = sorted(SUPPORTED_REGIMES)
+    by_local_name = {iri.rsplit("/", 1)[-1].lower(): iri for iri in available}  # "rdfs" finds .../RDFS, "owl-direct" finds .../OWL-Direct
+    parts = []
+    for name in bad:
+        close = difflib.get_close_matches(name.rsplit("/", 1)[-1].lower(), list(by_local_name), n=1, cutoff=0.6) if name != D_REGIME else []
+        parts.append(f"{name!r} (did you mean {by_local_name[close[0]]!r}?)" if close else repr(name))
+    message = f"Unsupported entailment regime(s) {', '.join(parts)}; the available regimes are {available!r}."
+    if D_REGIME in bad:
+        message += " ENTAILMENT.D (D-Entailment) is a recognized regime IRI but not implemented."
+    return ExecutionError(message, kind="unsupported", context="entailment regime")

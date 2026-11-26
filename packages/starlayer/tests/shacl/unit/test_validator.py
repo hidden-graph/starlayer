@@ -1,6 +1,7 @@
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError
 from starlayer.shacl.validator import (
@@ -579,8 +580,9 @@ class TestInputsAndHelpers:
         schema = StarShaclProcessor(shacl_graph=self._graph(self.SHAPES))
         empty = self._graph("@prefix ex: <http://example.org/> .")
         assert schema.validate(data_graph=empty, inference=None).conforms  # the per-call regime: see test_processor_inference_override.py
-        with pytest.raises(ValueError, match="Unsupported entailment regime"):
+        with pytest.raises(ExecutionError, match="Unsupported entailment regime") as info:
             schema.validate(data_graph=empty, inference="x")
+        assert info.value.kind == "unsupported"
         with pytest.raises(TypeError):
             schema.validate(data_graph=empty, inferrence=None)
 
