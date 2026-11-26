@@ -5,6 +5,7 @@ from __future__ import annotations
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import ENTAILMENT, StarLayerDataset, StarLayerGraph
+from tests.support.errors import raises_kind
 
 UP = "urn:fn:upper"
 JOIN = "urn:fn:join"
@@ -55,7 +56,7 @@ def test_a_function_that_returns_none_leaves_the_variable_unbound():
 def test_the_functions_apply_to_that_call_only():
     g = _graph()
     g.query(f'SELECT (<{UP}>("a") AS ?u) WHERE {{}}', custom_functions={UP: _upper})
-    with pytest.raises(RuntimeError, match="not supported"):
+    with raises_kind("query", match="not supported"):
         g.query(f'SELECT (<{UP}>("a") AS ?u) WHERE {{}}')
 
 
