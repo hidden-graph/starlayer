@@ -186,7 +186,7 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
     if "RelationalExpression" in names:
         op = props["op"].value
         if op in ("IN", "NOT IN"):
-            right = "(" + ", ".join(expr_text(o, graph, prefixes) for o in _children(node, graph, "other")) + ")"
+            right = "(" + ", ".join(expr_text(o, graph, prefixes) for o in _children(node, graph, "args")) + ")"
         else:
             right = sub("other")
         return f"{sub('expr')} {op} {right}"

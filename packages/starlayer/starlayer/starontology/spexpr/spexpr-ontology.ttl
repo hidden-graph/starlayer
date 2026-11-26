@@ -151,7 +151,7 @@ spexpr:PlainString a rdfs:Datatype ;
 spexpr:RegexExpression rdfs:comment "REGEX(text, pattern[, flags]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN - spexpr:expr, spexpr:op, spexpr:other (one operand, or for IN / NOT IN the value list, ordered)." ;
+spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN - spexpr:expr, spexpr:op and, for a comparison, spexpr:other (always one operand); IN / NOT IN have no spexpr:other but spexpr:args, the value list in order (none for an empty list)." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ReplaceExpression rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." ;

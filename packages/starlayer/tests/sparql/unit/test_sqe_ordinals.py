@@ -61,13 +61,10 @@ def _all_trees():
 
 
 def _is_sequence(graph, parent, prop) -> bool:
-    """A comparison holds one operator and one operand, not sequences; only IN / NOT IN hold a list of values."""
+    """A relational expression holds one operator and one ``other``, not sequences; only IN / NOT IN hold a list (``spexpr:args``)."""
     if (parent, RDF_TYPE, SPEXPR.RelationalExpression) not in graph:
         return True
-    if prop == SPEXPR.op:
-        return False
-    operator = next(graph.objects(parent, SPEXPR.op)).value
-    return prop != SPEXPR.other or operator in ("IN", "NOT IN")
+    return prop == SPEXPR.args
 
 
 def _sequences(graph):
@@ -329,3 +326,48 @@ def test_expression_operands_are_ordered_too():
     concat = next(graph.subjects(RDF_TYPE, SPEXPR.CONCAT))
     assert [getattr(m, "value", None) for m in ord_.ordered_items(graph, concat, SPEXPR.args)][1:] == ["a", "b"]
     assert not list(graph.triples((concat, SPEXPR.arg, None)))
+
+
+def _relational(tree_text: str):
+    graph, root = _tree(P + "SELECT * WHERE { ?s ex:p ?o FILTER(" + tree_text + ") }")
+    return graph, next(graph.subjects(RDF_TYPE, SPEXPR.RelationalExpression))
+
+
+@pytest.mark.parametrize("operator", ["IN", "NOT IN"])
+@pytest.mark.parametrize("values,count", [("1", 1), ("1, 2, 3", 3), ("", 0)])
+def test_in_and_not_in_keep_their_values_in_spexpr_args_and_have_no_other(operator, values, count):
+    graph, rel = _relational(f"?o {operator} ({values})")
+    assert not list(graph.objects(rel, SPEXPR.other))
+    assert len(ord_.ordered_items(graph, rel, SPEXPR.args)) == count
+    assert [m.value for m in ord_.ordered_items(graph, rel, SPEXPR.args)] == values.replace(" ", "").split(",")[:count]
+    assert f"?o {operator} (" + ", ".join(v for v in values.split(", ") if v) + ")" in _text_of(graph)
+    assert _validate_shapes(graph).conforms
+
+
+def _text_of(graph) -> str:
+    root = next(graph.subjects(RDF_TYPE, SQE.SelectQuery))
+    return sqe_tree_to_text(graph, root)
+
+
+def test_a_comparison_has_exactly_one_other_and_no_args():
+    graph, rel = _relational("?o > 1")
+    assert len(list(graph.objects(rel, SPEXPR.other))) == 1 and not list(graph.objects(rel, SPEXPR.args))
+    assert _validate_shapes(graph).conforms
+
+
+def test_an_operator_other_than_in_with_args_is_rejected_and_in_with_other_is_rejected():
+    graph, rel = _relational("?o > 1")
+    item = ox.BlankNode()
+    graph.extend([(rel, SPEXPR.args, item), (item, RDF_TYPE, ord_.ITEM), (item, ord_.ORD, ox.Literal("0", datatype=INTEGER)),
+                  (item, ord_.VALUE, ox.Literal("2", datatype=INTEGER))])
+    assert not _validate_shapes(graph).conforms
+    graph, rel = _relational("?o IN (1, 2)")
+    graph.add((rel, SPEXPR.other, ox.Literal("3", datatype=INTEGER)))
+    assert not _validate_shapes(graph).conforms
+
+
+def test_a_comparison_without_its_other_is_rejected():
+    graph, rel = _relational("?o > 1")
+    graph.remove((rel, SPEXPR.other, None))
+    assert not _validate_shapes(graph).conforms
+

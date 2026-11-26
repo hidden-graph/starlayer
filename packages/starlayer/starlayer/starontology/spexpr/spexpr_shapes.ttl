@@ -246,14 +246,17 @@ spexpr:_RelationalExprBodyShape a sh:NodeShape ;
         sh:nodeKind sh:Literal ;
         sh:path spexpr:op
     ] ;
-    sh:message "spexpr:other is one expression for a comparison, and for IN / NOT IN the value list in order (tree:ord)" ;
+    sh:message "spexpr:other is always one expression (a comparison has it and no spexpr:args); IN / NOT IN have the value list in spexpr:args, in order (tree:ord), and no spexpr:other" ;
     sh:or ( [
         sh:property [
             sh:in ( "IN"^^spexpr:PlainString "NOT IN"^^spexpr:PlainString ) ;
             sh:path spexpr:op
         ], [
-            sh:node spexpr:OrderedExpressionShape ;
+            sh:maxCount 0 ;
             sh:path spexpr:other
+        ], [
+            sh:node spexpr:OrderedExpressionShape ;
+            sh:path spexpr:args
         ]
     ] [
         sh:property [
@@ -264,6 +267,9 @@ spexpr:_RelationalExprBodyShape a sh:NodeShape ;
             sh:minCount 1 ;
             sh:node spexpr:ExpressionShape ;
             sh:path spexpr:other
+        ], [
+            sh:maxCount 0 ;
+            sh:path spexpr:args
         ]
     ] ) .
 

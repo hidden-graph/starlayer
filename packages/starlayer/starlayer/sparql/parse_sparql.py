@@ -1355,7 +1355,7 @@ class _Parser:
         if self.at_kw("IN") or (self.at_kw("NOT") and self.at_kw("IN", k=1)):
             op = "NOT IN" if self.accept_kw("NOT") else "IN"
             self.expect_kw("IN")
-            return Node("RelationalExpression", expr=left, op=op, other=self.expression_list())
+            return Node("RelationalExpression", expr=left, op=op, args=self.expression_list())
         return left
 
     def expression_list(self) -> list:

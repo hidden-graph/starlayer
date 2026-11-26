@@ -230,6 +230,6 @@ ORDERED_PROPERTIES = frozenset(
     {
         WHERE, UNION_ALTERNATIVES, PROJECTION, TEMPLATE, DESCRIBE, DATASET, GROUP_BY, HAVING, ORDER_BY, VALUES_VARS, VALUES_ROWS, ROW_CELLS,
         OPERATIONS, QUADS, QUAD_TRIPLES, MODIFY_DELETE, MODIFY_INSERT, MODIFY_USING,
-        SPEXPR.args, SPEXPR.other, SPEXPR.op,
+        SPEXPR.args, SPEXPR.other, SPEXPR.op,  # other: a chain's operands (a comparison's is one value)
     }
 )  # fmt: skip
