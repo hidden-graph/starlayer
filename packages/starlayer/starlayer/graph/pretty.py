@@ -51,6 +51,8 @@ from urllib.parse import urljoin
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError
+
 __all__ = ["pretty_trig", "pretty_turtle", "serialize_pretty"]
 
 _RDF = "http://www.w3.org/1999/02/22-rdf-syntax-ns#"
@@ -697,7 +699,7 @@ class _Writer:
                     body.append("")
             if not self.unreached():
                 return "\n".join(body), True
-        raise AssertionError("pretty writer did not converge")  # pragma: no cover
+        raise ExecutionError("the pretty writer did not converge", kind="internal", context="pretty writer")  # pragma: no cover
 
 
 def _header(w: _Writer, only_used: bool) -> list[str]:

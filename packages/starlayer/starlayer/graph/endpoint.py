@@ -38,13 +38,15 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError, StarLayerError
+
 _RESULTS = "application/sparql-results+json"
 _ACCEPT = f"{_RESULTS}, application/n-triples;q=0.9, text/turtle;q=0.8"
 _RDF_FORMATS = {"application/n-triples": ox.RdfFormat.N_TRIPLES, "text/turtle": ox.RdfFormat.TURTLE}
 _CHUNK = 2000  # triples per INSERT DATA / DELETE DATA request
 
 
-class EndpointError(OSError):
+class EndpointError(StarLayerError, OSError):
     """The endpoint could not be reached or answered with an error status (``status`` is the HTTP status, ``None`` if there was
     no answer)."""
 
@@ -155,7 +157,7 @@ def _is_default(graph: Any) -> bool:
 def _term(term: Any) -> str:
     """A term as it is written in a SPARQL update (the N-Triples form, which SPARQL 1.2 reads too)."""
     if isinstance(term, ox.BlankNode):
-        raise ValueError(f"a blank node ({term}) has no form in a SPARQL update that an endpoint would keep; it is skolemized first")
+        raise ExecutionError(f"a blank node ({term}) reached the SPARQL update writer without being skolemized first", kind="internal", context="endpoint update")
     if isinstance(term, ox.Triple):
         return f"<<( {_term(term.subject)} {_term(term.predicate)} {_term(term.object)} )>>"
     return str(term)

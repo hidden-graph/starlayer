@@ -13,7 +13,9 @@ The tree::
      |   |- ShapeCompileError       the engine cannot read or compile it
      |   `- MetaShaclError          the meta check (shapes-about-shapes) found it: ``problems``, ``report_text``, ``report_graph``, ``scope``
      |- ExecutionError              running failed (SHACL with a fine shapes graph, a query the engine could not evaluate, OWL-DL reasoning); has ``kind`` and ``context``
-     `- FormatError                 text or data that is malformed; has ``kind``, ``context`` and the optional ``why``, ``line``, ``col``, ``pos``
+     |- FormatError                 text or data that is malformed; has ``kind``, ``context`` and the optional ``why``, ``line``, ``col``, ``pos``
+     `- EndpointError(StarLayerError, OSError)   a SPARQL endpoint could not be reached or answered with an error status; has ``status``
+                                    (``starlayer.graph.endpoint``; it stays an ``OSError`` because a network failure is an I/O error)
 
 ``ExecutionError`` is one class; its ``kind`` (one of ``ExecutionError.KINDS``) says what failed:
 
@@ -45,8 +47,10 @@ The class and the ``kind`` name the cause and never change with the path an erro
 string such as ``"sh:rule ex:R1"``, ``None`` when nothing narrows it), repeated in the message; a handler that knows the place sets it
 and re-raises the same class and kind.
 
-The SHACL errors are importable from ``starlayer.shacl`` and ``starlayer.shacl.errors`` too (the same class objects). The other error
-classes of the library are not yet derived from ``StarLayerError``.
+The SHACL errors are importable from ``starlayer.shacl`` and ``starlayer.shacl.errors`` too (the same class objects). Every error the
+library raises on purpose derives from ``StarLayerError``, ``EndpointError`` included; a plain ``ValueError`` or ``TypeError`` is a bad
+argument at the entry of a public call, ``ImportError`` a missing optional package, and ``NotImplementedError`` a wrapper method the
+object does not have.
 """
 
 from __future__ import annotations

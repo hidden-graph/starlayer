@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import re
 
+from starlayer.errors import ExecutionError
+
 # Whitespace and ``#`` comments (a comment runs to the end of the line; SPARQL
 # treats both as whitespace between tokens, so a header comment may precede
 # or sit between prologue declarations).
@@ -168,4 +170,4 @@ def inject_init_bindings(sparql: str, init_bindings: dict[str, str]) -> str:
             if depth == 0:
                 template_pending = False
         i += 1
-    raise ValueError("initBindings: could not find the query's WHERE group")
+    raise ExecutionError("initBindings: could not find the query's WHERE group", kind="unsupported", context="initBindings")
