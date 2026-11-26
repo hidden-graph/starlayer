@@ -33,15 +33,18 @@ The tree::
   reasoning subprocess that exited without a result (a crash, not a timeout).
 * ``"import"``: an SRL ``IMPORTS`` document cannot be loaded (the loader failed) or an imported rule set was never resolved, so the
   rule set cannot be run (§4.5). An imported text that is not a valid rule set is a ``FormatError`` of kind ``"srl"`` instead.
-* ``"unsupported"``: well-formed input the library cannot represent or handle, as against malformed input (a ``FormatError``): the Manchester
-  serializer meeting a term, literal or axiom that Manchester syntax has no form for, or a query-time entailment rewrite that has
-  no exact form for the query.
+* ``"unsupported"``: valid input the library or the target notation cannot handle, nobody's mistake, as against malformed input (a
+  ``FormatError``) and a bad argument (a ``ValueError``): the Manchester serializer meeting a term, literal or axiom that Manchester
+  syntax has no form for, a query-time entailment rewrite that has no exact form for the query, a name that is not a registered
+  entailment regime, ``relevant_subgraph`` given a ``DESCRIBE`` or ``SERVICE`` query, a blank node that came from an endpoint being
+  written back, and a base-direction literal under the ``"error"`` policy of the RDF 1.1 export.
 * ``"limit"``: a size or complexity cap of the library was reached, as against a bug (``"internal"``) or a depth limit
   (``"nesting"``): RDFC-1.0's defence against a highly symmetric blank-node structure (§7.1), and the SHACL rule caps ``max_iterations``
   and ``max_triples``.
 
 ``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
-update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"``, ``"term"``, ``"manchester"``, ``"owl"``. A position
+update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"``, ``"term"``, ``"manchester"``, ``"owl"``. ``"srl"`` covers SRL text, an ``srl:`` tree, a rule set built or edited by hand that holds something
+that is not a rule body element, and a goal pattern whose predicate SRL does not allow. A position
 (``line`` and ``col`` 1-based, ``pos`` a 0-based offset) is set only by code that knows it, never parsed out of an engine message.
 
 The class and the ``kind`` name the cause and never change with the path an error travels. Where it happened is ``context`` (a short
