@@ -241,7 +241,7 @@ def test_sqe_given_root_and_shared_graph():
     assert "> 2" in tree_to_sparql(tree, r2) and "> 1" in tree_to_sparql(tree, r1)
 
 
-def test_sqe_validate_takes_an_oxigraph_tree():
+def test_validate_sparql_tree_takes_an_oxigraph_tree():
     from starlayer.sparql import sqe, validate_sparql_tree
 
     tree, _root = sparql_to_tree(QUERY, StarLayerGraph())

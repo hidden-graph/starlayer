@@ -169,7 +169,7 @@ cur:cap-sparql-3 a slkg:Capability ;
     slkg:hasStatus "implemented" ;
     slkg:appRole "query", "validate" ;
     rdfs:comment "SHACL shapes for sqe graphs." ;
-    slkg:implementedByIdentifier "starlayer.sparql.sqe.shapes.sqe_validate" .
+    slkg:implementedByIdentifier "starlayer.sparql.syntax_tree.validate_sparql_tree" .
 
 cur:cap-sparql-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-sparql ;

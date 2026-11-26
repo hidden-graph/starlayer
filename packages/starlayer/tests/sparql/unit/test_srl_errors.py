@@ -78,7 +78,7 @@ def test_a_rule_set_that_cannot_be_ordered_is_an_execution_error_of_kind_rule():
     assert plan.value.kind == "rule"
 
 
-def test_srl_validate_reports_the_unorderable_rule_set_instead_of_raising():
+def test_validate_sparql_tree_reports_the_unorderable_rule_set_instead_of_raising():
     tree, _root = srl.ruleset_to_tree(parse_ruleset(CYCLE))
     assert not validate_sparql_tree(tree).conforms
 

@@ -162,11 +162,11 @@ accepted fidelity bar for SPARQL (see that module's docstring for the
 full scope decision).
 
 This is a genuinely different capability from the parser/serializer pair
-above, not a replacement for either: `manchester_parse_to_tree()` gives you
+above, not a replacement for either: `manchester_to_tree()` gives you
 `manch:` RDF you can inspect, edit via plain graph surgery, and validate
-(`manchester_validate()`) against SHACL shapes before decoding it back into
-runnable Manchester text (`manchester_tree_to_text()`) or straight to a
-compiled OWL graph (`manchester_tree_to_owl()`) - see the
+(`validate_manchester_tree()`) against SHACL shapes before decoding it back into
+runnable Manchester text (`tree_to_manchester()`) or straight to a
+compiled OWL graph (`tree_to_owl()`) - see the
 [Manchester Syntax guide](../../guides/02.08-manchester-syntax.ipynb)
 for a full worked example. Tests:
 `packages/starlayer/tests/graph/unit/test_manchester_ast.py` (round-trip

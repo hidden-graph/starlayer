@@ -174,11 +174,11 @@ SOURCE_ROOTS = [PACKAGE, REPO / "packages" / "starlayer-reasoning" / "starlayer_
 #: every error class removed across stages 1 to 6 of the scheme (no alias is left for any); a name here must not come back.
 REMOVED_CLASSES = (
     "ReasoningTimeoutError", "InconsistentOntologyError",  # stage 1: OWL-DL reasoning
-    "SparqlSyntaxError", "SQEError", "SQEValidationError", "SPARQL12ConformanceError",  # stage 2: SPARQL (SQEValidationError left with sqe_validate)
+    "SparqlSyntaxError", "SQEError", "SQEValidationError", "SPARQL12ConformanceError",  # stage 2: SPARQL (SQEValidationError left with validate_sparql_tree)
     "SRLError", "SRLParseError", "SRLDecodeError", "SRLImportError", "SRLEvalError", "StratificationError", "SRLImportsNotSupportedError",  # stage 3
     "BasicEncodingError", "InvalidTripleTermError",  # stage 4: RDF documents and terms
     "ManchesterSyntaxError",  # stage 5
-    "SRLUnresolvedImportsWarning",  # removed with the parse that validates (a sh:Warning of srl_validate says it now)
+    "SRLUnresolvedImportsWarning",  # removed with the parse that validates (a sh:Warning of validate_sparql_tree says it now)
     "CanonicalizationComplexityError", "EntailmentRewriteError", "SqeTextTooDeepError",  # stage 6
 )
 

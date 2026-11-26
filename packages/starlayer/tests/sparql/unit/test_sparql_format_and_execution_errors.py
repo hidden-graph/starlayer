@@ -56,7 +56,7 @@ def test_deep_nesting_is_an_execution_error_of_kind_nesting(parse, text):
     assert not isinstance(caught.value, FormatError)
 
 
-def test_sqe_parse_to_tree_reports_both_causes_by_class():
+def test_sparql_to_tree_reports_both_causes_by_class():
     with pytest.raises(FormatError) as syntax:
         sparql_to_tree("SELECT WHERE {")
     assert syntax.value.kind == "sparql"
@@ -65,7 +65,7 @@ def test_sqe_parse_to_tree_reports_both_causes_by_class():
     assert deep.value.kind == "nesting"
 
 
-def test_a_query_that_breaks_the_sqe_shapes_loads_and_sqe_validate_reports_it():
+def test_a_query_that_breaks_the_sqe_shapes_loads_and_validate_sparql_tree_reports_it():
     text = "SELECT ?s ?z WHERE { ?s <http://example.org/knows> ?o }"  # ?z is projected and never bound
     tree, root = sparql_to_tree(text)  # no error: any text the parser understands gives a tree
     outcome = validate_sparql_tree(tree)

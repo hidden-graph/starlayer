@@ -130,7 +130,7 @@ def test_an_unordered_sequence_is_noticed_everywhere(name, graph, root):
     assert tree_to_sparql(graph, root) == text
 
 
-def test_sqe_validate_reports_a_tie_and_does_not_raise():
+def test_validate_sparql_tree_reports_a_tie_and_does_not_raise():
     graph, root = _tree(P + "SELECT * WHERE { ?s ex:a ?o . ?s ex:b ?o }")
     first, second = (child for child, _m in ord_.ordered_children(graph, root, SQE.where))
     graph.remove((second, ord_.ORD, None))

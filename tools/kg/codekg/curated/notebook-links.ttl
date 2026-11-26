@@ -188,7 +188,7 @@ nl:06.03-e00d4c27 a slkg:NotebookExample ;
     slkg:cellId "e00d4c27" ;
     slkg:cellHash "b223eef33dd2ebc2" ;
     slkg:reviewedOn "2026-11-25"^^xsd:date ;
-    rdfs:comment "Parses a SPARQL query into an sqe RDF tree with sqe_parse_to_tree(), the first use of the sqe package." ;
+    rdfs:comment "Parses a SPARQL query into an sqe RDF tree with sparql_to_tree(), the first use of the sqe package." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.sqe.__init__" .
 
@@ -605,7 +605,7 @@ nl:06.03-df2738a8 a slkg:NotebookExample ;
     slkg:reviewedOn "2026-11-25"^^xsd:date ;
     rdfs:comment "Validates an sqe: query tree against the sqe: shapes." ;
     slkg:demonstratesIdentifier
-        "starlayer.sparql.sqe.shapes.sqe_validate" .
+        "starlayer.sparql.syntax_tree.validate_sparql_tree" .
 
 nl:01.01-2102b1a6 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/01.01-getting-started.ipynb" ;

@@ -76,7 +76,7 @@ operator): 161 mutants, about 3 minutes.
 
 | Verdict | Mutants |
 |---|---|
-| rejected by `srl_validate` | **63 (41%)** |
+| rejected by `validate_sparql_tree` | **63 (41%)** |
 | validates and still decodes | 63 |
 | **validates yet crashes the decoder** | **27** |
 
@@ -123,7 +123,7 @@ The rule is that SRL may rely on `sqe:` but not on `salg:`. Measured (2026-10-19
 | Where | Finding | Test |
 |---|---|---|
 | the `srl:` trees SRL produces | only four `salg:` terms: `TripleTerm`, `subject`, `predicate`, `object` (triple terms). Everything else is `srl:` or `spexpr:` | strict xfail |
-| the graphs SRL validates against | `srl_validate` loads the **whole** `salg:` ontology (290 triples) and shapes (617), because the expression shapes it reuses live there; SRL's own `srl:` terms are 30 and 111 | strict xfail |
+| the graphs SRL validates against | `validate_sparql_tree` loads the **whole** `salg:` ontology (290 triples) and shapes (617), because the expression shapes it reuses live there; SRL's own `srl:` terms are 30 and 111 | strict xfail |
 | source | `srl.py` loads `sparql_owl`/`sparql_shacl` by name; `ast_vocab.py`, `srl_shapes.ttl`, `srl-ontology.ttl` name `salg:` | strict xfail |
 | the expression vocabulary `spexpr:` | **already free of `salg:` IRIs** (text mentions are comments and prefixes only). An earlier count of 39 was a text search and over-stated it. | passing guard |
 

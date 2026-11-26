@@ -6,7 +6,7 @@
 
 # Shapes for the query library (curated/query-library.ttl): the slkg:NamedQuery, slkg:QueryParameter,
 # slkg:Topic and slkg:CompetencyQuestion nodes. The sqe: trees the queries point at are checked by sqe's own
-# shapes (starlayer.sparql.sqe.sqe_validate); the tests run both.
+# shapes (starlayer.sparql.validate_sparql_tree); the tests run both.
 
 slkg:TopicShape a sh:NodeShape ;
     sh:targetClass slkg:Topic ;

@@ -575,7 +575,7 @@ def manchester_to_tree(text: str, base: str | None = None, tree_graph: Any = Non
         from starlayer.graph.core import StarLayerGraph
 
         tree_graph = StarLayerGraph()
-    tree = _manchester_parse_to_tree_graph(text, base)
+    tree = _manchester_to_tree_graph(text, base)
     if _holds_document(tree_graph):
         raise ValueError("the graph already holds a manch:OntologyDocument: a graph holds one Manchester syntax tree, parse into a fresh graph")
     tree_graph.bind("manch", str(MANCH))
@@ -597,7 +597,7 @@ def _holds_document(graph: Any) -> bool:
     raise TypeError(f"expected a StarLayerGraph, StarLayerDataset or pyoxigraph Store, not {type(graph).__name__}")
 
 
-def _manchester_parse_to_tree_graph(text: str, base: str | None) -> Graph:
+def _manchester_to_tree_graph(text: str, base: str | None) -> Graph:
     from starlayer.graph.core import StarLayerGraph
     from starlayer.graph.manchester.parser import (
         _Cursor,
