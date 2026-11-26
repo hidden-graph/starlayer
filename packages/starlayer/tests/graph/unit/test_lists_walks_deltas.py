@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import (
     RDF,
     RDFS,
@@ -52,9 +53,9 @@ def test_a_list_with_a_cycle_or_a_broken_cell_is_a_value_error():
     (rest,) = list(g.objects(EX.c1, RDF.rest))
     g.remove((rest, RDF.rest, None))
     g.add((rest, RDF.rest, EX.c1))
-    with pytest.raises(ValueError, match="cycle"):
+    with pytest.raises(FormatError, match="cycle"):
         g.remove_list(EX.c1)
-    with pytest.raises(ValueError, match="not a list cell"):
+    with pytest.raises(FormatError, match="not a list cell"):
         g.remove_list(EX.nothing)
 
 

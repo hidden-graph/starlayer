@@ -214,7 +214,7 @@ class TestFromRdflib:
 
         r = rdflib.Graph()
         r.add((URIRef("not an iri"), URIRef(EX + "p"), URIRef(EX + "b")))
-        with pytest.raises(ValueError):
+        with pytest.raises(FormatError):
             StarLayerGraph.from_rdflib(r)
 
 
@@ -401,7 +401,7 @@ def test_from_basic_is_the_way_to_decode_it():
 
 
 def test_syntax_errors_are_format_errors():
-    with pytest.raises(SyntaxError):  # an RDF document: still Oxigraph's own class (stage 4)
+    with pytest.raises(FormatError):  # an RDF document (kind rdf)
         StarLayerGraph().parse(data="<a", format="turtle")
     with pytest.raises(FormatError):
         StarLayerGraph().update("INSERT DATA {")

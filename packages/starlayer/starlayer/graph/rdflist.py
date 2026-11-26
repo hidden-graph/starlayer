@@ -13,6 +13,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import FormatError
+
 from starlayer.graph import terms
 from starlayer.graph.terms import RDF_FIRST, RDF_NIL, RDF_REST
 
@@ -34,18 +36,18 @@ def add_list(graph: Any, items: Iterable[Any], head: Any = None) -> Any:
 
 
 def list_cells(graph: Any, head: Any) -> list[Any]:
-    """The list nodes of the list that starts at ``head``, in order (empty for ``rdf:nil``). Raises ``ValueError`` for a cycle or a list node
+    """The list nodes of the list that starts at ``head``, in order (empty for ``rdf:nil``). Raises a ``FormatError`` (kind ``"rdf"``) for a cycle or a list node
     without exactly one ``rdf:rest``."""
     cells: list[Any] = []
     seen: set[Any] = set()
     node = terms.term(head)
     while node != RDF_NIL:
         if node in seen:
-            raise ValueError("the list has a cycle")
+            raise FormatError("the list has a cycle", kind="rdf", context=f"rdf:List at {head}")
         seen.add(node)
         rest = list(graph.objects(node, RDF_REST))
         if len(rest) != 1:
-            raise ValueError(f"{node} is not a list cell: it has {len(rest)} rdf:rest")
+            raise FormatError(f"{node} is not a list cell: it has {len(rest)} rdf:rest", kind="rdf", context=f"rdf:List at {head}")
         cells.append(node)
         node = rest[0]
     return cells
@@ -68,7 +70,7 @@ def set_list(graph: Any, subject: Any, predicate: Any, items: Iterable[Any]) -> 
         if isinstance(old, ox.BlankNode) or old == RDF_NIL:
             try:
                 remove_list(graph, old)
-            except ValueError:  # the value is a blank node but not a list: only the link goes
+            except FormatError:  # the value is a blank node but not a list: only the link goes
                 pass
     graph.remove((subject, predicate, None))
     head = add_list(graph, items)

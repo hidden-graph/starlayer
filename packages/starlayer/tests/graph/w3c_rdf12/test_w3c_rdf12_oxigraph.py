@@ -19,6 +19,7 @@ from pathlib import Path
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import ntversion, rdfc_native
 from starlayer.graph.core import StarLayerDataset
 
@@ -113,7 +114,7 @@ def test_positive_syntax(t: dict) -> None:
 
 @pytest.mark.parametrize("t", _all("NegativeSyntax", exclude_known=True))
 def test_negative_syntax(t: dict) -> None:
-    with pytest.raises(SyntaxError):
+    with pytest.raises((SyntaxError, FormatError)):
         _parse(t)
 
 
@@ -142,7 +143,7 @@ def test_known_gap_still_fails(t: dict) -> None:
     try:
         parsed = _parse(t)
         ok = rdfc_native.isomorphic(parsed, _expected(t)) if t["kind"].endswith("Eval") else True
-    except SyntaxError:
+    except (SyntaxError, FormatError):
         ok = False
     assert not ok, f"{t['id']} now passes; remove it from KNOWN_GAPS ({KNOWN_GAPS[t['id']]})"
 
@@ -152,7 +153,7 @@ def test_ntriples_version_negatives_are_rejected_for_the_right_reason() -> None:
     base = DATA / "rdf-n-triples" / "syntax"
     for n, message in ((1, None), (2, "VERSION directive"), (3, "VERSION directive"), (4, None)):
         text = (base / f"ntriples-version-bad-{n}.nt").read_bytes()
-        with pytest.raises(SyntaxError) as e:
+        with pytest.raises((SyntaxError, FormatError)) as e:
             list(ox.parse(format=ox.RdfFormat.N_TRIPLES, **ntversion.accept_version_directive({"input": text}, ox.RdfFormat.N_TRIPLES)))
         assert (message is None) or (message in str(e.value)), (n, str(e.value))
     # wrong case and the Turtle-style directive are not VERSION directives: Oxigraph rejects them as statements

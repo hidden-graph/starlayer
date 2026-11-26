@@ -365,7 +365,7 @@ class TestU6:
         Uses reifier shorthand (no parens), not a raw triple term, as the
         template's subject - a raw `<<( s p o )>>` triple term is never
         legal RDF 1.2 in subject position (see
-        starlayer.sparql.triple_term.InvalidTripleTermError's rule 2,
+        RDF 1.2 Concepts' triple formation (a triple term is legal only as the object),
         2026-08-15). The shorthand still constructs and registers the same
         underlying (alice, knows, bob) triple term - it just does so as the
         object of an auto-generated `rdf:reifies` triple rather than

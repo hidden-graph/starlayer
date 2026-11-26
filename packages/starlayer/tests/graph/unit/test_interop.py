@@ -8,10 +8,10 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from starlayer.errors import FormatError
 from starlayer.graph.interop import (
     DIRLANG_NS,
     RDF_PROPOSITION_FORM,
-    BasicEncodingError,
     decode_directions,
     encode_directions,
     export_rdf11,
@@ -98,7 +98,7 @@ class TestToBasic:
 
     def test_input_using_the_vocabulary_is_refused(self):
         clash = q(iri("a"), TYPE, RDF_PROPOSITION_FORM)
-        with pytest.raises(BasicEncodingError):
+        with pytest.raises(FormatError):
             to_basic([clash, q(iri("a"), iri("p"), tt(iri("s"), iri("p"), iri("o")))])
         assert to_basic([clash]) == [clash]  # no triple term: nothing to encode, so no clash
 
@@ -137,52 +137,52 @@ class TestFromBasic:
     @pytest.mark.parametrize("drop", [SUBJ, PRED, OBJ])
     def test_missing_component_is_refused(self, drop):
         data = [x for x in self._form() if x.predicate != drop] + [q(iri("a"), iri("p"), B("f"))]
-        with pytest.raises(BasicEncodingError, match="need 1"):
+        with pytest.raises(FormatError, match="need 1"):
             from_basic(data)
 
     def test_two_objects_is_ambiguous(self):
         data = self._form() + [q(B("f"), OBJ, iri("o2")), q(iri("a"), iri("p"), B("f"))]
-        with pytest.raises(BasicEncodingError, match="2 values"):
+        with pytest.raises(FormatError, match="2 values"):
             from_basic(data)
 
     def test_description_without_type_is_refused(self):
-        with pytest.raises(BasicEncodingError, match="no rdf:type"):
+        with pytest.raises(FormatError, match="no rdf:type"):
             from_basic([q(B("f"), SUBJ, iri("s"))])
 
     def test_cycle_is_refused(self):
         data = ([q(B("f"), TYPE, RDF_PROPOSITION_FORM), q(B("f"), SUBJ, iri("s")), q(B("f"), PRED, iri("p")), q(B("f"), OBJ, B("g")),
                  q(B("g"), TYPE, RDF_PROPOSITION_FORM), q(B("g"), SUBJ, iri("s")), q(B("g"), PRED, iri("p")), q(B("g"), OBJ, B("f")),
                  q(iri("a"), iri("p"), B("f"))])
-        with pytest.raises(BasicEncodingError, match="cyclic"):
+        with pytest.raises(FormatError, match="cyclic"):
             from_basic(data)
 
     def test_unreferenced_form_is_refused(self):
-        with pytest.raises(BasicEncodingError, match="not referenced"):
+        with pytest.raises(FormatError, match="not referenced"):
             from_basic(self._form())
 
     def test_form_with_other_statements_is_refused(self):
-        with pytest.raises(BasicEncodingError, match="other statements"):
+        with pytest.raises(FormatError, match="other statements"):
             from_basic(self._form() + [q(iri("a"), iri("p"), B("f")), q(B("f"), iri("label"), ox.Literal("x"))])
 
     def test_form_as_a_triple_term_subject_is_refused(self):
         data = self._form("f") + self._form("g", s=B("f")) + [q(iri("a"), iri("p"), B("g"))]
-        with pytest.raises(BasicEncodingError, match="subject"):
+        with pytest.raises(FormatError, match="subject"):
             from_basic(data)
 
     def test_literal_subject_and_non_iri_predicate_are_refused(self):
-        with pytest.raises(BasicEncodingError):
+        with pytest.raises(FormatError):
             from_basic(self._form(s=ox.Literal("x")) + [q(iri("a"), iri("p"), B("f"))])
-        with pytest.raises(BasicEncodingError):
+        with pytest.raises(FormatError):
             from_basic(self._form(p=B("p")) + [q(iri("a"), iri("p"), B("f"))])
 
     def test_form_as_graph_name_is_refused(self):
-        with pytest.raises(BasicEncodingError, match="graph name"):
+        with pytest.raises(FormatError, match="graph name"):
             from_basic(self._form() + [q(iri("a"), iri("p"), B("f")), q(iri("a"), iri("p"), iri("o"), B("f"))])
 
     def test_iri_named_forms_need_the_option(self):
         f = ox.NamedNode("http://e/tt#1")
         data = [q(f, TYPE, RDF_PROPOSITION_FORM), q(f, SUBJ, iri("s")), q(f, PRED, iri("p")), q(f, OBJ, iri("o")), q(iri("a"), iri("p"), f)]
-        with pytest.raises(BasicEncodingError):
+        with pytest.raises(FormatError):
             from_basic(data)
         assert from_basic(data, accept_iri_nodes=True) == [q(iri("a"), iri("p"), tt(iri("s"), iri("p"), iri("o")))]
 

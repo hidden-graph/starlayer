@@ -6,6 +6,7 @@ import io
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import (
     StarLayerDataset,
     StarLayerGraph,
@@ -151,11 +152,11 @@ def test_items_rejects_cycles_and_broken_lists():
     for h, t in ((b1, b2), (b2, b1)):
         g.add((h, N(RDF + "first"), A))
         g.add((h, N(RDF + "rest"), t))
-    with pytest.raises(ValueError, match="cycle"):
+    with pytest.raises(FormatError, match="cycle"):
         list(g.items(b1))
     g2 = StarLayerGraph()
     g2.add((b1, N(RDF + "first"), A))
-    with pytest.raises(ValueError, match="well-formed"):
+    with pytest.raises(FormatError, match="well-formed"):
         list(g2.items(b1))
 
 
@@ -278,7 +279,7 @@ def test_parse_base_and_unknown_format():
 
 def test_parse_syntax_error_leaves_graph_unchanged():
     g = StarLayerGraph().parse(data=TTL)
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         g.parse(data="<a> <b> <c> . broken")
     assert len(g) == 3
 

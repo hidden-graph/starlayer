@@ -5,6 +5,7 @@ from __future__ import annotations
 import io
 
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
 T = '<http://e/a> <http://e/b> "x" .\n'
@@ -41,23 +42,23 @@ def test_nquads_and_dataset() -> None:
     'VERSION "1.2', "VERSION", 'VERSION "a\\qb"', 'VERSIONS "1.2"',
 ])
 def test_malformed_directive_is_rejected_by_the_directive_check(directive: str) -> None:
-    with pytest.raises(SyntaxError, match="VERSION directive"):
+    with pytest.raises(FormatError, match="VERSION directive"):
         StarLayerGraph().parse(data=f"{directive}\n{T}", format="nt")
 
 
 @pytest.mark.parametrize("text", ['version "1.2"\n', 'Version "1.2"\n', '@version "1.2" .\n', 'VERSION"1.2"x\n'])
 def test_not_a_directive_is_still_a_syntax_error(text: str) -> None:
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         StarLayerGraph().parse(data=text + T, format="nt")
 
 
 def test_error_positions_keep_the_original_line_numbers() -> None:
-    with pytest.raises(SyntaxError) as e:
+    with pytest.raises(FormatError) as e:
         StarLayerGraph().parse(data=f'VERSION "1.2"\n{T}VERSION "1.2"\n{BAD_T}', format="nt")
-    assert (e.value.args[1][1], "line 4 column 27") == (4, "line 4 column 27") and "line 4 column" in str(e.value)  # the bad statement is on line 4 of the original text
-    with pytest.raises(SyntaxError) as e:
+    assert e.value.kind == "rdf" and e.value.line == 4 and "line 4 column" in str(e.value)  # the bad statement is on line 4 of the original text
+    with pytest.raises(FormatError) as e:
         StarLayerGraph().parse(data=f'{T}\nVERSION 1.2\n', format="nt")
-    assert "line 3 column 1" in str(e.value) and e.value.args[1][1:3] == (3, 1)
+    assert "line 3 column 1" in str(e.value) and (e.value.line, e.value.col) == (3, 1)
 
 
 def test_path_and_stream_sources(tmp_path) -> None:
@@ -68,7 +69,7 @@ def test_path_and_stream_sources(tmp_path) -> None:
     assert len(StarLayerGraph().parse(file=io.StringIO(f.read_text()), format="nt")) == 1
     bad = tmp_path / "b.nt"
     bad.write_text(f'VERSION "1.2"\n{T}{T.replace("a>", "c>")}VERSION 7\n', encoding="utf-8")
-    with pytest.raises(SyntaxError, match="line 4 column 1"):
+    with pytest.raises(FormatError, match="line 4 column 1"):
         StarLayerGraph().parse(str(bad))
 
 
@@ -76,7 +77,7 @@ def test_large_stream_crossing_chunk_boundaries() -> None:
     lines = [f'<http://e/s{i}> <http://e/p> "{i}" .\n' for i in range(60000)]
     lines.insert(30000, 'VERSION "1.2"\n')
     lines.insert(45000, "VERSION 1.2\n")
-    with pytest.raises(SyntaxError, match="line 45001 column 1"):
+    with pytest.raises(FormatError, match="line 45001 column 1"):
         StarLayerGraph().parse(file=io.BytesIO("".join(lines).encode()), format="nt")
     del lines[45000]
     assert len(StarLayerGraph().parse(file=io.BytesIO("".join(lines).encode()), format="nt")) == 60000

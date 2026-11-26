@@ -7,6 +7,7 @@ via StarLayerGraph.parse() and StarLayerGraph.serialize().
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 
 _XSD = "http://www.w3.org/2001/XMLSchema#"
@@ -714,7 +715,7 @@ class TestN3AliasGraph:
             '{ ?x ex:parent ?y . ?y ex:parent ?z } => { ?x ex:grandparent ?z } .'
         )
         g = StarLayerGraph()
-        with pytest.raises(SyntaxError):
+        with pytest.raises(FormatError):
             g.parse(data=n3_rule, format='n3')
 
     def test_serialize_default(self):

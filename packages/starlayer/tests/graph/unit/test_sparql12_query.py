@@ -860,8 +860,8 @@ class TestQ22:
         # grammar: https://www.w3.org/TR/rdf12-turtle/#grammar-production-tripleTerm) -
         # previously this used <<( <<(...)>> :p :o )>> (nested in *subject*
         # position), a shape that's syntactically parseable SPARQL but not
-        # a legal RDF 1.2 term (see starlayer.sparql/triple_term.py's
-        # InvalidTripleTermError docstring for the full investigation,
+        # a legal RDF 1.2 term (see TripleTermNode.validate() in
+        # starlayer/sparql/triple_term.py for the rule,
         # confirmed via a live Oxigraph rejecting exactly this shape).
         empty = StarLayerGraph()
         r = empty.query("""

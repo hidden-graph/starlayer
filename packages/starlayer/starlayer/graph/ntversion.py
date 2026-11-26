@@ -1,8 +1,8 @@
 """The N-Triples / N-Quads ``VERSION`` directive (RDF 1.2 N-Triples sec. 2.2, grammar rules 1-5).
 
 Oxigraph's N-Triples and N-Quads parsers reject ``VERSION "1.2"`` (its Turtle and TriG parsers accept it), so the wrapper
-validates the directive itself and hands Oxigraph the text with each directive line emptied. Line numbers are kept, so a
-``SyntaxError`` from Oxigraph still names the line of the original document.
+validates the directive itself and hands Oxigraph the text with each directive line emptied. Line numbers are kept, so an
+error from Oxigraph or here still names the line of the original document.
 
 The grammar: ``statement ::= directive | triple``, one statement per line, ``versionDirective ::= 'VERSION' versionSpecifier``
 with ``'VERSION'`` case-sensitive and ``versionSpecifier ::= STRING_LITERAL_QUOTE`` (a double-quoted string; a number, an IRI,
@@ -21,6 +21,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import FormatError
+
 _LINE_END = re.compile(rb"\r\n|\r|\n")
 _CANDIDATE = re.compile(rb"[ \t]*VERSION")
 _DIRECTIVE = re.compile(
@@ -30,7 +32,7 @@ _CHUNK = 1 << 20
 
 
 def _filter_lines(block: bytes, first_line: int) -> bytes:
-    """``block`` (whole lines) with every valid directive line emptied; an invalid one raises ``SyntaxError``."""
+    """``block`` (whole lines) with every valid directive line emptied; an invalid one raises a ``FormatError`` (kind ``"rdf"``) with its line and column."""
     out, line_no = [], first_line
     pos = 0
     for m in _LINE_END.finditer(block):
@@ -48,12 +50,9 @@ def _filter_line(line: bytes, line_no: int) -> bytes:
     if _DIRECTIVE.fullmatch(line):
         return b""
     col = len(line) - len(line.lstrip(b" \t")) + 1
-    # the message and the (filename, line, column, text, end line, end column) position follow pyoxigraph's own SyntaxError
-    raise SyntaxError(
-        f"Parser error at line {line_no} column {col}: a VERSION directive is 'VERSION' followed by a double-quoted "
-        f"string, like VERSION \"1.2\" (got {line.decode('utf-8', 'replace').strip()!r})",
-        (None, line_no, col, None, line_no, len(line) + 1),
-    )
+    why = (f"a VERSION directive is 'VERSION' followed by a double-quoted string, like VERSION \"1.2\" "
+           f"(got {line.decode('utf-8', 'replace').strip()!r})")
+    raise FormatError(f"Parser error at line {line_no} column {col}: {why}", kind="rdf", why=why, context="N-Triples VERSION", line=line_no, col=col)
 
 
 class _DirectiveFilter(io.RawIOBase):

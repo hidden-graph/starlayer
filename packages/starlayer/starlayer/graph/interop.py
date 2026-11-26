@@ -46,10 +46,11 @@ from typing import Literal as _Lit
 
 import pyoxigraph as ox
 
+from starlayer.errors import FormatError
+
 __all__ = [
     "RDF_PROPOSITION_FORM",
     "DIRLANG_NS",
-    "BasicEncodingError",
     "to_basic",
     "from_basic",
     "encode_directions",
@@ -72,9 +73,10 @@ _PF_PREDS = (PF_SUBJECT, PF_PREDICATE, PF_OBJECT)
 DIRLANG_NS = "https://github.com/hidden-graph/starlayergraph/ns/dirlang#"
 
 
-class BasicEncodingError(ValueError):
-    """The input cannot be (de)coded: ambiguous, incomplete or cyclic PropositionForm structure, or
-    input that already uses the encoding vocabulary."""
+def _encoding_error(message: str) -> FormatError:
+    """The error for input that cannot be (de)coded: an ambiguous, incomplete or cyclic PropositionForm structure, or input that
+    already uses the encoding vocabulary. A ``FormatError`` of kind ``"rdf"``."""
+    return FormatError(message, kind="rdf", why=message, context="rdf:PropositionForm encoding")
 
 
 def _as_quads(data) -> list[ox.Quad]:
@@ -100,7 +102,7 @@ def to_basic(quads: Iterable, *, bnode_prefix: str | None = None) -> list[ox.Qua
     no triple term; a dataset without triple terms is returned unchanged (as a list).
 
     ``quads`` may be a ``Store``, ``Dataset`` or any iterable of ``Quad``/``Triple``.
-    Raises :class:`BasicEncodingError` if the input has triple terms and already uses ``rdf:PropositionForm`` or the
+    Raises a ``FormatError`` (kind ``"rdf"``) if the input has triple terms and already uses ``rdf:PropositionForm`` or the
     ``rdf:propositionForm*`` predicates (``from_basic`` could not tell it from an encoding)."""
     quads = _as_quads(quads)
     if not any(isinstance(q.object, ox.Triple) for q in quads):
@@ -115,7 +117,7 @@ def to_basic(quads: Iterable, *, bnode_prefix: str | None = None) -> list[ox.Qua
             used.add(q.graph_name.value)
         _collect_bnodes(q.object, used)
         if q.predicate in _PF_PREDS or (q.predicate == RDF_TYPE and q.object == RDF_PROPOSITION_FORM):
-            raise BasicEncodingError(f"input already uses the PropositionForm vocabulary: {q}")
+            raise _encoding_error(f"input already uses the PropositionForm vocabulary: {q}")
     counter = [0]
 
     def fresh() -> ox.BlankNode:
@@ -191,7 +193,7 @@ def from_basic(quads: Iterable, *, accept_iri_nodes: bool = False) -> list[ox.Qu
     ``from_basic(to_basic(x))`` equals ``x`` and keeps its blank nodes.
 
     A node is a proposition form if it has an ``rdf:type rdf:PropositionForm`` triple. Refused with
-    :class:`BasicEncodingError` (never guessed):
+    a ``FormatError`` (kind ``"rdf"``) (never guessed):
 
     * a form without exactly one subject, one predicate and one object, or with more than one type triple
       for the vocabulary, or description predicates on a node that is not typed (dangling);
@@ -223,24 +225,24 @@ def _decode_graph(g, qs, graph_names, accept_iri) -> list[ox.Quad]:
     for q in qs:
         if q.predicate == RDF_TYPE and q.object == RDF_PROPOSITION_FORM:
             if not eligible(q.subject):
-                raise BasicEncodingError(f"{q.subject} is typed rdf:PropositionForm but is not a blank node")
+                raise _encoding_error(f"{q.subject} is typed rdf:PropositionForm but is not a blank node")
             typed[q.subject] = typed.get(q.subject, 0) + 1
         elif q.predicate in _PF_PREDS:
             desc.setdefault(q.subject, {}).setdefault(q.predicate, []).append(q.object)
     for n, c in typed.items():
         if c > 1:
-            raise BasicEncodingError(f"{n} has more than one rdf:type rdf:PropositionForm triple")
+            raise _encoding_error(f"{n} has more than one rdf:type rdf:PropositionForm triple")
     for n in desc:
         if n not in typed:
-            raise BasicEncodingError(f"{n} has propositionForm* triples but no rdf:type rdf:PropositionForm")
+            raise _encoding_error(f"{n} has propositionForm* triples but no rdf:type rdf:PropositionForm")
     for n in typed:
         d = desc.get(n, {})
         for p in _PF_PREDS:
             k = len(d.get(p, []))
             if k != 1:
-                raise BasicEncodingError(f"proposition form {n} has {k} values for {p.value.rsplit('#', 1)[1]} (need 1)")
+                raise _encoding_error(f"proposition form {n} has {k} values for {p.value.rsplit('#', 1)[1]} (need 1)")
         if n in graph_names:
-            raise BasicEncodingError(f"proposition form {n} is also used as a graph name")
+            raise _encoding_error(f"proposition form {n} is also used as a graph name")
 
     memo: dict = {}
 
@@ -248,11 +250,11 @@ def _decode_graph(g, qs, graph_names, accept_iri) -> list[ox.Quad]:
         d = desc[n]
         s, p = d[PF_SUBJECT][0], d[PF_PREDICATE][0]
         if s in typed:
-            raise BasicEncodingError(f"proposition form {n} has a triple term as subject ({s})")
+            raise _encoding_error(f"proposition form {n} has a triple term as subject ({s})")
         if not isinstance(s, (ox.NamedNode, ox.BlankNode)):
-            raise BasicEncodingError(f"proposition form {n}: subject {s} cannot be a triple subject")
+            raise _encoding_error(f"proposition form {n}: subject {s} cannot be a triple subject")
         if not isinstance(p, ox.NamedNode):
-            raise BasicEncodingError(f"proposition form {n}: predicate {p} is not an IRI")
+            raise _encoding_error(f"proposition form {n}: predicate {p} is not an IRI")
 
     def resolve(n) -> ox.Triple:
         # Iterative (a chain of nested forms can be thousands deep): follow the object links to the first resolved or
@@ -266,7 +268,7 @@ def _decode_graph(g, qs, graph_names, accept_iri) -> list[ox.Quad]:
             if o not in typed or o in memo:
                 break
             if o in on_path:
-                raise BasicEncodingError(f"cyclic proposition form at {o}")
+                raise _encoding_error(f"cyclic proposition form at {o}")
             path.append(o)
             on_path.add(o)
         for m in reversed(path):
@@ -285,9 +287,9 @@ def _decode_graph(g, qs, graph_names, accept_iri) -> list[ox.Quad]:
         if q.subject in typed and (q.predicate in _PF_PREDS or (q.predicate == RDF_TYPE and q.object == RDF_PROPOSITION_FORM)):
             continue  # description triple
         if q.subject in typed:
-            raise BasicEncodingError(f"proposition form {q.subject} also has other statements ({q.predicate})")
+            raise _encoding_error(f"proposition form {q.subject} also has other statements ({q.predicate})")
         if q.predicate in typed:
-            raise BasicEncodingError(f"proposition form {q.predicate} used as a predicate")
+            raise _encoding_error(f"proposition form {q.predicate} used as a predicate")
         o = q.object
         if o in typed:
             referenced.add(o)
@@ -300,7 +302,7 @@ def _decode_graph(g, qs, graph_names, accept_iri) -> list[ox.Quad]:
             referenced.add(o)
     for n in typed:
         if n not in referenced:
-            raise BasicEncodingError(f"proposition form {n} is not referenced by any statement")
+            raise _encoding_error(f"proposition form {n} is not referenced by any statement")
     return out
 
 

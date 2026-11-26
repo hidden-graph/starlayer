@@ -12,6 +12,8 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import FormatError
+from starlayer.graph import terms
 from starlayer.graph.pretty import _PN_LOCAL
 
 # Turtle 1.2 PN_LOCAL (the grammar's own character classes, no backslash escapes: an IRI that needs one has no qname) or empty
@@ -58,17 +60,18 @@ def qname(prefixes: dict[str, str], uri: Any) -> str:
 
 
 def expand_curie(prefixes: dict[str, str], curie: str) -> ox.NamedNode:
-    """The IRI of ``prefix:local``; an absolute IRI in angle brackets or with a scheme the dict does not bind is taken as is."""
+    """The IRI of ``prefix:local``; an absolute IRI in angle brackets or with a scheme the dict does not bind is taken as is.
+    Text that is not a CURIE, or that expands to an invalid IRI, is a ``FormatError`` (kind ``"term"``)."""
     if not isinstance(curie, str):
         raise TypeError("expand_curie() needs a str")
     if curie.startswith("<") and curie.endswith(">"):
-        return ox.NamedNode(curie[1:-1])
+        return terms.to_iri(curie[1:-1], "CURIE")
     prefix, sep, local = curie.partition(":")
     if sep and prefix in prefixes:
-        return ox.NamedNode(str(prefixes[prefix]) + local)
+        return terms.to_iri(str(prefixes[prefix]) + local, "CURIE")
     if sep:
-        return ox.NamedNode(curie)
-    raise ValueError(f"{curie!r} is not a CURIE")
+        return terms.to_iri(curie, "CURIE")
+    raise FormatError(f"{curie!r} is not a CURIE", kind="term", context="CURIE")
 
 
 _XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"

@@ -75,7 +75,7 @@ This makes the seven fixtures above look like the one place this suite's own sub
 
 ### Actual behavior (fixture's expectation)
 
-`mf:PositiveSyntaxTest` asserts the query text should parse without error. A conformant implementation enforcing RDF 1.2 Concepts' own triple-formation rules at the semantic level (not just SPARQL's surface grammar, which - as `starsparql`'s own investigation confirmed - can parse this text without difficulty, since the *grammar* alone can't distinguish "syntactically well-formed" from "semantically valid RDF 1.2") will reject all seven, the same way a live Oxigraph instance was independently confirmed (in the course of this same investigation - see `starsparql/triple_term.py`'s own `InvalidTripleTermError` docstring) to reject the narrower nested-triple-term-in-subject-position case with `HTTP 500`.
+`mf:PositiveSyntaxTest` asserts the query text should parse without error. A conformant implementation enforcing RDF 1.2 Concepts' own triple-formation rules at the semantic level (not just SPARQL's surface grammar, which - as `starsparql`'s own investigation confirmed - can parse this text without difficulty, since the *grammar* alone can't distinguish "syntactically well-formed" from "semantically valid RDF 1.2") will reject all seven, the same way a live Oxigraph instance was independently confirmed (in the course of this same investigation - see the former `InvalidTripleTermError` docstring of `starsparql/triple_term.py`, now `TripleTermNode.validate()`) to reject the narrower nested-triple-term-in-subject-position case with `HTTP 500`.
 
 ### Suspected root cause
 
@@ -83,7 +83,7 @@ Likely an oversight carried from the original SPARQL 1.2 syntax test authoring: 
 
 ### Impact
 
-Any conformant SPARQL 1.2 implementation that validates RDF 1.2 semantics (not just SPARQL surface grammar) fails all seven fixtures - not because the implementation is wrong, but because the fixtures' own expected classification (`PositiveSyntaxTest`) doesn't follow from RDF 1.2 Concepts' own rules. Confirmed via independent evidence: a live Oxigraph instance already rejects the narrower nested-subject variant of this same underlying issue with `HTTP 500` (see `starsparql/triple_term.py`'s `InvalidTripleTermError` docstring for the investigation), and `starsparql` itself previously (mistakenly) treated these very fixtures as evidence the shape should be accepted before this issue was found - a real, demonstrated risk of the current labeling propagating the same mistake to other implementations that consult this suite.
+Any conformant SPARQL 1.2 implementation that validates RDF 1.2 semantics (not just SPARQL surface grammar) fails all seven fixtures - not because the implementation is wrong, but because the fixtures' own expected classification (`PositiveSyntaxTest`) doesn't follow from RDF 1.2 Concepts' own rules. Confirmed via independent evidence: a live Oxigraph instance already rejects the narrower nested-subject variant of this same underlying issue with `HTTP 500` (see the former `InvalidTripleTermError` docstring of `starsparql/triple_term.py`, now `TripleTermNode.validate()`), and `starsparql` itself previously (mistakenly) treated these very fixtures as evidence the shape should be accepted before this issue was found - a real, demonstrated risk of the current labeling propagating the same mistake to other implementations that consult this suite.
 
 ### Suggested fix
 

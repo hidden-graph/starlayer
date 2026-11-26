@@ -6,6 +6,7 @@ a case where rdflib is lenient is marked, and the grammar (Turtle 1.2 / N-Triple
 
 import pytest
 import rdflib
+from starlayer.errors import FormatError
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from tests.support.terms import NamedNode
 
@@ -86,7 +87,7 @@ BAD_TURTLE = [
 
 @pytest.mark.parametrize('text,rdflib_rejects', BAD_TURTLE)
 def test_invalid_turtle_is_a_syntax_error(text, rdflib_rejects):
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         _turtle(text)
     if rdflib_rejects:
         with pytest.raises(Exception):  # noqa: B017 - rdflib raises various types
@@ -95,12 +96,12 @@ def test_invalid_turtle_is_a_syntax_error(text, rdflib_rejects):
 
 @pytest.mark.parametrize('text', [t for t, _ in BAD_TURTLE if t not in ('<urn:a> <urn:p> <urn:o>',) and 'e:' not in t])
 def test_invalid_turtle_is_a_syntax_error_through_a_dataset_too(text):
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         _turtle_ds(text)
 
 
 def test_a_missing_final_dot_is_an_error_in_a_dataset_turtle_document_but_not_in_a_trig_block():
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         _turtle_ds('<urn:a> <urn:p> <urn:o>')
     d = StarLayerDataset()
     d.parse(data='<urn:g> { <urn:a> <urn:p> <urn:o> }', format='trig12')  # TriG: the last triple of a block may omit '.'
@@ -159,21 +160,21 @@ def test_a_multi_line_statement_whose_line_starts_with_a_directive_word_is_not_s
 # ---------------------------------------------------------------------------
 
 def test_two_direction_suffixes_are_rejected_in_turtle_and_ntriples():
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         _turtle('<urn:a> <urn:p> "x"@en--ltr--rtl .')
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         StarLayerGraph().parse(data='<urn:a> <urn:p> "x"@en--ltr--rtl .\n', format='nt12')
 
 
 def test_a_direction_must_be_lower_case_in_ntriples_as_in_turtle():
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         StarLayerGraph().parse(data='<urn:a> <urn:p> "x"@en--LTR .\n', format='nt12')
 
 
 def test_a_bad_escape_is_a_syntax_error():
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         _turtle('<urn:a> <urn:p> "\\u00ZZ" .')
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         _turtle('<urn:a> <urn:p> "x"@en--LTR .')
 
 
@@ -200,7 +201,7 @@ BAD_NT = [
 
 @pytest.mark.parametrize('text,rdflib_rejects', BAD_NT)
 def test_invalid_ntriples_is_an_error(text, rdflib_rejects):
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         StarLayerGraph().parse(data=text + '\n', format='nt12')
     if rdflib_rejects:
         with pytest.raises(Exception):  # noqa: B017 - rdflib raises various types
@@ -214,9 +215,9 @@ def test_invalid_ntriples_is_an_error(text, rdflib_rejects):
     '<urn:a> <urn:p> <urn:o> <urn:g>',
 ])
 def test_invalid_nquads_is_an_error(text):
-    with pytest.raises((SyntaxError, ValueError)):  # ValueError: a graph label into a single graph (checked first)
+    with pytest.raises((FormatError, ValueError)):  # ValueError: a graph label into a single graph (checked first)
         StarLayerGraph().parse(data=text + '\n', format='nq12')
-    with pytest.raises(SyntaxError):
+    with pytest.raises(FormatError):
         StarLayerDataset().parse(data=text + '\n', format='nq12')
 
 

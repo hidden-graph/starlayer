@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import FormatError
 from starlayer.graph import XSD, literal, parse_term, to_python
 
 CASES = [
@@ -58,9 +59,9 @@ def test_other_datatypes_and_language_strings_read_back_as_their_text():
 
 
 def test_an_ill_formed_literal_and_a_non_literal_are_errors():
-    with pytest.raises(ValueError, match="not a valid integer"):
+    with pytest.raises(FormatError, match="not a valid integer"):
         to_python(ox.Literal("abc", datatype=XSD.integer))
-    with pytest.raises(ValueError, match="not a valid boolean"):
+    with pytest.raises(FormatError, match="not a valid boolean"):
         to_python(ox.Literal("yes", datatype=XSD.boolean))
     with pytest.raises(TypeError):
         to_python(ox.NamedNode("urn:x"))
@@ -89,11 +90,16 @@ def test_parse_term_resolves_prefixed_names_only_with_prefixes():
     prefixes = {"ex": "http://e/", "xsd": "http://www.w3.org/2001/XMLSchema#"}
     assert parse_term("ex:alice", prefixes) == ox.NamedNode("http://e/alice")
     assert parse_term('"1"^^xsd:integer', prefixes) == ox.Literal("1", datatype=XSD.integer)
-    with pytest.raises(ValueError, match="not a term"):
+    with pytest.raises(FormatError, match="not a term"):
         parse_term("ex:alice")
 
 
-@pytest.mark.parametrize("text", ["", "   ", "a b", "<urn:a> <urn:b>", '"x"@en, "y"', "<not an iri>", "{|", None])
+@pytest.mark.parametrize("text", ["", "   ", "a b", "<urn:a> <urn:b>", '"x"@en, "y"', "<not an iri>", "{|"])
 def test_parse_term_refuses_what_is_not_exactly_one_term(text):
-    with pytest.raises(ValueError):
+    with pytest.raises(FormatError):
         parse_term(text)
+
+
+def test_parse_term_needs_text():
+    with pytest.raises(TypeError):
+        parse_term(None)

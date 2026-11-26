@@ -14,6 +14,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import FormatError
 from starlayer.graph import config, formats, lexical, ntversion, terms
 from starlayer.graph._detached import detached
 from starlayer.graph._versions import require_supported_pyoxigraph
@@ -373,17 +374,17 @@ class _Base:
 
     def items(self, head: Any) -> Iterator[Any]:
         """The members of the RDF list starting at ``head`` (read-only). ``rdf:nil`` is the empty list. A cycle, a node with no
-        ``rdf:first`` or with several ``rdf:first`` / ``rdf:rest`` raises ``ValueError``."""
+        ``rdf:first`` or with several ``rdf:first`` / ``rdf:rest`` raises a ``FormatError`` (kind ``"rdf"``)."""
         head = terms.term(head)
         seen: set = set()
         while head != terms.RDF_NIL:
             if head in seen:
-                raise ValueError(f"cycle in the RDF list at {head}")
+                raise FormatError(f"cycle in the RDF list at {head}", kind="rdf", context=f"rdf:List at {head}")
             seen.add(head)
             firsts = list(self.objects(head, terms.RDF_FIRST, unique=True))
             rests = list(self.objects(head, terms.RDF_REST, unique=True))
             if len(firsts) != 1 or len(rests) != 1:
-                raise ValueError(f"{head} is not a well-formed list node ({len(firsts)} rdf:first, {len(rests)} rdf:rest)")
+                raise FormatError(f"{head} is not a well-formed list node ({len(firsts)} rdf:first, {len(rests)} rdf:rest)", kind="rdf", context=f"rdf:List at {head}")
             yield firsts[0]
             head = rests[0]
 
@@ -503,7 +504,9 @@ class _Base:
         ``file=``. ``format`` is a name (``formats.py``) or an ``RdfFormat``; omitted it is guessed from the file name, else
         Turtle. Blank nodes are scoped to the document (renamed per parse unless ``rename_blank_nodes=False``). The prefixes the
         document declares are copied into ``self.prefixes``. A triple format loads into the default graph of a dataset or into
-        this graph; a quad format loads each quad into its graph, and into a single ``StarLayerGraph`` only if it has no named graphs."""
+        this graph; a quad format loads each quad into its graph, and into a single ``StarLayerGraph`` only if it has no named graphs
+        (otherwise ``ValueError``: parse into a ``StarLayerDataset``). A malformed document is a ``FormatError`` (kind ``"rdf"``) with
+        ``line`` and ``col`` when the parser reports them; a file that cannot be read stays an ``OSError``; an unknown ``format`` name is a ``ValueError``."""
         kw, hint = _read_input(data, source, file)
         if formats.is_manchester(format) or (format is None and hint and str(hint).lower().endswith((".omn", ".manchester"))):
             return self._parse_manchester(kw, hint, base or publicID)
@@ -530,9 +533,11 @@ class _Base:
                 union.touch(self.store)
                 rewrites.emit(self.store)
         except SyntaxError as e:
-            if "named graph" in str(e).lower():
+            if type(e) is not SyntaxError:
+                raise
+            if "named graph" in str(e).lower():  # the wrong target for this document (an argument), not a malformed document
                 raise ValueError("the document has named graphs; parse it into an StarLayerDataset") from e
-            raise
+            raise FormatError(str(e), kind="rdf", context=str(hint) if hint else f"{fmt} document", line=e.lineno, col=e.offset) from e
         self.prefixes.update(parser.prefixes or {})
         return self
 

@@ -8,23 +8,11 @@ and matched against each other. Its three slots hold pyoxigraph terms (and varia
 
 from __future__ import annotations
 
+from starlayer.errors import FormatError
+
 from .parse_sparql import Node
 
 _SLOTS = ("subject", "predicate", "object")
-
-
-class InvalidTripleTermError(ValueError):
-    """A triple term is being used somewhere RDF 1.2 never permits one.
-
-    **1. A triple term's own subject or predicate is itself a triple term.** RDF 1.2's grammar
-    (https://www.w3.org/TR/rdf12-turtle/#grammar-production-tripleTerm) has ``ttSubject ::= iri | BlankNode`` and
-    ``ttObject ::= iri | BlankNode | literal | tripleTerm``: nesting is legal only in object position. Checked by
-    ``TripleTermNode.validate()``.
-
-    **2. A whole triple term is the subject of an ordinary triple.** RDF 1.2 Concepts only forms a triple ``(s, p, o)`` with
-    ``s`` an IRI or blank node and ``p`` an IRI; a triple term is legal only as ``o``. For SRL rule sets this is the
-    ``triple_term_in_subject`` / ``triple_term_in_predicate`` well-formedness issue (``srl_semantic_checks``).
-    """
 
 
 def _value_key(value):
@@ -70,15 +58,17 @@ class TripleTermNode(ExprNode):
         return self.f.get(name, default)
 
     def validate(self) -> TripleTermNode:
-        """Raise ``InvalidTripleTermError`` if this node's own subject or predicate is itself a triple term.
+        """Raise a ``FormatError`` (kind ``"term"``) if this node's own subject or predicate is itself a triple term. RDF 1.2's grammar
+        (https://www.w3.org/TR/rdf12-turtle/#grammar-production-tripleTerm) has ``ttSubject ::= iri | BlankNode``: a triple term nests
+        only in object position. (A whole triple term as the subject of an ordinary triple is never legal either, RDF 1.2 Concepts; for
+        rule sets that is the ``triple_term_in_subject`` / ``triple_term_in_predicate`` well-formedness issue of ``srl_semantic_checks``.)
 
         Returns:
             self, so it can be chained onto a construction call.
         """
         for slot in ("subject", "predicate"):
             if isinstance(self.f.get(slot), TripleTermNode):
-                raise InvalidTripleTermError(
-                    f"RDF 1.2: a triple term's {slot} may never itself be a triple term "
-                    f"(nesting a triple term is legal only in object position), got {self.f.get(slot)!r} as the {slot} of {self!r}"
-                )
+                message = (f"RDF 1.2: a triple term's {slot} may never itself be a triple term "
+                           f"(nesting a triple term is legal only in object position), got {self.f.get(slot)!r} as the {slot} of {self!r}")
+                raise FormatError(message, kind="term", why=message, context="triple term")
         return self
