@@ -181,8 +181,14 @@ class _Base:
     store: ox.Store
     prefixes: dict[str, str]
     _path: str | None = None
+    _imports_loader: Callable[[Any], Any] | None = None
+    _ignore_imports: bool = False
 
     # ---- construction ------------------------------------------------------------------------------------------
+    def _set_imports(self, loader: Callable[[Any], Any] | None, ignore_imports: bool) -> None:
+        self.imports_loader = loader
+        self.ignore_imports = ignore_imports
+
     def _init_store(self, store: Any, path: Any, prefixes: dict[str, str] | None) -> None:
         if store is not None and path is not None:
             raise ValueError("give a store or a path, not both")
@@ -222,6 +228,51 @@ class _Base:
     def resolve_imports(self, **kw: Any) -> Any:
         from starlayer.graph import imports
         return imports.resolve_imports(self, **kw)
+
+    # ---- the graph's own import settings (``graph/imports.py``) -------------------------------------------------
+    @property
+    def imports_loader(self) -> Callable[[Any], Any] | None:
+        """How this graph's ``owl:imports`` are loaded: ``loader(iri) -> graph | None`` (``None``: nothing is loaded; an import that is not
+        a subject of the graph nor built in then raises when an operation needs it). Every consumer of the graph's imports (SHACL
+        validation, ``infer()``, ``query(entailment=)``, ``resolve_imports()``) uses it unless the call passes its own loader. Set at
+        construction (``imports_loader=``) or here; a copy, a ``+`` result and a view of a dataset carry it; pickling does not (a loader is
+        code). Changing it applies at the next consumption."""
+        return self._imports_loader
+
+    @imports_loader.setter
+    def imports_loader(self, loader: Callable[[Any], Any] | None) -> None:
+        if loader is not None and not callable(loader):
+            raise TypeError(f"imports_loader must be callable or None, not {type(loader).__name__}")
+        self._imports_loader = loader
+
+    @property
+    def ignore_imports(self) -> bool:
+        """Whether this graph's ``owl:imports`` are skipped: nothing is loaded and nothing is checked (a call can pass ``ignore_imports=``
+        to override it for that call). Carried like ``imports_loader``, and kept by pickling."""
+        return self._ignore_imports
+
+    @ignore_imports.setter
+    def ignore_imports(self, value: bool) -> None:
+        self._ignore_imports = bool(value)
+
+    def resolved_imports(self, *, loader: Callable[[Any], Any] | None = None, ignore_imports: bool | None = None) -> frozenset:
+        """The triples this graph's ``owl:imports`` closure loads, as the one rule of ``starlayer.graph.imports`` resolves them: every
+        import must be a subject of the graph, built in or loaded, or ``ExecutionError`` kind ``"import"`` is raised (``error.unresolved``
+        lists the IRIs; a loader that raises is wrapped). The imported triples are not added to the graph; ``frozenset()`` when there are
+        none or ``ignore_imports`` is set. ``loader=`` / ``ignore_imports=`` override the graph's own settings for this call. The result is
+        kept until the store is written to (``parse``, ``add``, ``remove``, ``clear`` ...) or the loader or flag changes; see
+        ``graph_imports``. ``unresolved_imports(graph)`` says what is missing without raising."""
+        from starlayer.graph import imports
+
+        return imports.graph_imports(self, loader, ignore_imports)
+
+    def clear_imports_cache(self) -> Any:
+        """Forget the resolved imports kept for this graph's store, so the next consumer loads them again (a loader whose answers changed).
+        Returns this object."""
+        from starlayer.graph import imports
+
+        imports.clear_cached_imports(self)
+        return self
 
     def skolemize(self, *a: Any, **kw: Any) -> Any:
         from starlayer.graph import rewrite
@@ -711,7 +762,7 @@ class _Base:
               base: str | None = None, *, entailment: Any = None, recompute: str = "onChange", engine: str = "hermit",
               timeout: Any = None, custom_functions: Mapping[Any, Any] | None = None,
               custom_aggregate_functions: Mapping[Any, Any] | None = None, imports_loader: Callable[[Any], Any] | None = None,
-              ignore_imports: bool = False) -> Result:
+              ignore_imports: bool | None = None) -> Result:
         """Run SPARQL ``text`` on Oxigraph as it is. ``initNs`` overrides the graph's prefixes for this call; ``initBindings``
         pre-binds variables (``substitutions``, with the ``VALUES`` fallback). A ``StarLayerGraph`` queries its own graph as the default
         graph; a dataset the default graph, or the union of all graphs when ``default_union``.
@@ -731,10 +782,11 @@ class _Base:
         A name that is not one of these four regimes (D-Entailment included) raises ``ExecutionError`` of kind ``"unsupported"``,
         and a value that is neither text nor an IRI a ``TypeError``.
 
-        With an OWL regime the graph's ``owl:imports`` count, as for ``infer()``: each must be a subject of the graph, a built-in ontology
-        or loaded by ``imports_loader(iri) -> graph | None``, or the call raises ``ExecutionError`` kind ``"import"`` (``error.unresolved``
-        lists the IRIs); the imported triples are read by the reasoner and are not in the query's data. ``ignore_imports=True`` loads and
-        checks nothing. RDF and RDFS, which are the rewrite, ignore both.
+        With an OWL regime the graph's ``owl:imports`` count, as for ``infer()``: ``resolved_imports()`` of this graph (each import must be a
+        subject of the graph, a built-in ontology or loaded by the graph's ``imports_loader``, or the call raises ``ExecutionError`` kind
+        ``"import"``, ``error.unresolved`` lists the IRIs); the imported triples are read by the reasoner and are not in the query's data.
+        ``imports_loader=`` / ``ignore_imports=`` override the graph's own settings for this call; ``ignore_imports=True`` loads and
+        checks nothing. RDF and RDFS, which are the rewrite, ignore all of it.
 
         ``custom_functions`` maps a function IRI (a ``NamedNode`` or its text) to a Python callable that takes pyoxigraph terms and
         returns a term or ``None``; the query can then call ``<iri>(?x)``. ``custom_aggregate_functions`` maps an IRI to a factory of
@@ -756,9 +808,7 @@ class _Base:
                 raise ValueError(f"recompute must be one of ['always', 'never', 'onChange'], got {recompute!r}")
             from starlayer.graph.entailment import cache
 
-            from starlayer.graph.imports import resolve_or_raise
-
-            imported = resolve_or_raise(self, imports_loader, ignore_imports, loader_name="imports_loader")
+            imported = self.resolved_imports(loader=imports_loader, ignore_imports=ignore_imports)
             copy = cache.entailed_store_view(self, [regime], engine=engine, timeout=timeout, recompute=recompute,
                                              ont_graph=list(imported) if imported else None)
             return copy.query(text, initNs=initNs, initBindings=initBindings, base=base,
@@ -974,10 +1024,11 @@ class _Base:
         return OxStore(self)
 
 
-def _sharing(graph: Any, prefixes: dict[str, str]) -> Any:
-    """``graph`` with the prefix dict of the dataset it is a view of: a view and its dataset keep one set of prefixes. (A graph made with
-    ``prefixes=`` copies the dict it is given.)"""
-    graph.prefixes = prefixes
+def _sharing(graph: Any, owner: Any) -> Any:
+    """``graph`` with the prefix dict of the dataset it is a view of (a view and its dataset keep one set of prefixes; a graph made with
+    ``prefixes=`` copies the dict it is given) and, as made, its import settings."""
+    graph.prefixes = owner.prefixes
+    graph._set_imports(owner._imports_loader, owner._ignore_imports)
     return graph
 
 
@@ -994,12 +1045,15 @@ class StarLayerGraph(_Base):
     ``BlankNode``, or an IRI string)."""
 
     def __init__(self, store: Any = None, path: Any = None, identifier: Any = None, *, prefixes: dict[str, str] | None = None,
-                 backend: str | None = None, endpoint: Any = None, max_age: float | None = None, pull: bool = True) -> None:
-        """``endpoint`` (an ``Endpoint``) holds this graph (the default graph, or the named graph ``identifier``) in a SPARQL endpoint;
+                 backend: str | None = None, endpoint: Any = None, max_age: float | None = None, pull: bool = True,
+                 imports_loader: Callable[[Any], Any] | None = None, ignore_imports: bool = False) -> None:
+        """``imports_loader`` / ``ignore_imports`` are the graph's own ``owl:imports`` settings (see the properties of the same names).
+        ``endpoint`` (an ``Endpoint``) holds this graph (the default graph, or the named graph ``identifier``) in a SPARQL endpoint;
         the graph keeps a full local copy, in memory or, with ``path``, on disk, in sync with the writes made through this object
         (``max_age`` seconds old at most, when given; ``pull=False`` opens an existing on-disk copy without asking the endpoint). See
         ``endpoint.py``."""
         _no_backend(backend)
+        self._set_imports(imports_loader, ignore_imports)
         self._g = terms.graph_name(identifier)
         if endpoint is not None:
             if store is not None:
@@ -1098,12 +1152,12 @@ class StarLayerGraph(_Base):
         a, b = ox.Store(), ox.Store()
         a.extend(ox.Quad(*t, ox.DefaultGraph()) for t in self.triples())
         b.extend(ox.Quad(*t, ox.DefaultGraph()) for t in other.triples())
-        return StarLayerGraph(store=fn(a, b))
+        return StarLayerGraph(store=fn(a, b), imports_loader=self._imports_loader, ignore_imports=self._ignore_imports)
 
     def copy(self) -> StarLayerGraph:
         """An independent in-memory copy of this graph (same identifier, own copy of the prefixes). ``copy.copy`` and
         ``copy.deepcopy`` do the same, also for a graph opened with ``path=``."""
-        g = StarLayerGraph(identifier=self._g)
+        g = StarLayerGraph(identifier=self._g, imports_loader=self._imports_loader, ignore_imports=self._ignore_imports)
         g.store.extend(self._quads(None, None, None))
         g.prefixes.clear()
         g.prefixes.update(self.prefixes)
@@ -1113,7 +1167,7 @@ class StarLayerGraph(_Base):
         """Pickle: the quads of this graph, its identifier and prefixes (``pyoxigraph.Store`` is not picklable). A graph opened
         with ``path=`` is refused (``TypeError``), see ``_refuse_path_pickle``."""
         self._refuse_path_pickle()
-        return (_rebuild_graph, (self._g, dict(self.prefixes), list(self._quads(None, None, None))))
+        return (_rebuild_graph, (self._g, dict(self.prefixes), list(self._quads(None, None, None)), self._ignore_imports))
 
     def __repr__(self) -> str:
         """A short form with the graph name and the triple count."""
@@ -1127,10 +1181,14 @@ class StarLayerDataset(_Base):
     _default_format = "trig"  # a dataset writes its graphs unless asked for a triple format
 
     def __init__(self, store: Any = None, path: Any = None, default_union: bool = True, *, prefixes: dict[str, str] | None = None,
-                 backend: str | None = None, endpoint: Any = None, max_age: float | None = None, pull: bool = True) -> None:
+                 backend: str | None = None, endpoint: Any = None, max_age: float | None = None, pull: bool = True,
+                 imports_loader: Callable[[Any], Any] | None = None, ignore_imports: bool = False) -> None:
         """``endpoint`` (an ``Endpoint``) holds the whole dataset in a SPARQL endpoint; ``path``, ``max_age`` and ``pull`` are as for
-        ``StarLayerGraph`` (see ``endpoint.py``)."""
+        ``StarLayerGraph`` (see ``endpoint.py``). ``imports_loader`` / ``ignore_imports`` are the dataset's own ``owl:imports`` settings: the
+        dataset's imports are those of the triples it reads (the union of its graphs with ``default_union``, else its default graph), and
+        ``graph()`` / ``default_graph`` / ``graphs()`` views carry the settings they had when made (a view's later change is its own)."""
         _no_backend(backend)
+        self._set_imports(imports_loader, ignore_imports)
         if endpoint is not None:
             if store is not None:
                 raise ValueError("give an endpoint, or a store")
@@ -1242,12 +1300,12 @@ class StarLayerDataset(_Base):
     @property
     def default_graph(self) -> StarLayerGraph:
         """The dataset's default graph as a ``StarLayerGraph`` (re-made on each access; it shares this dataset's ``prefixes``)."""
-        return _sharing(StarLayerGraph(self.store), self.prefixes)
+        return _sharing(StarLayerGraph(self.store), self)
 
     def to_graph(self) -> StarLayerGraph:
         """Every triple of every graph merged into one new in-memory ``StarLayerGraph`` (provenance by graph is lost; equal triples
         collapse). It is a copy: it can be queried or compared on its own."""
-        g = StarLayerGraph(prefixes=dict(self.prefixes))
+        g = StarLayerGraph(prefixes=dict(self.prefixes), imports_loader=self._imports_loader, ignore_imports=self._ignore_imports)
         g.extend(ox.Triple(q.subject, q.predicate, q.object) for q in self.store)
         return g
 
@@ -1285,11 +1343,11 @@ class StarLayerDataset(_Base):
         name = terms.graph_name(identifier)
         if not isinstance(name, ox.DefaultGraph):
             self.store.add_graph(name)
-        return _sharing(StarLayerGraph(self.store, identifier=name), self.prefixes)
+        return _sharing(StarLayerGraph(self.store, identifier=name), self)
 
     def graphs(self) -> list[StarLayerGraph]:
         """The default graph, then every named graph (empty ones included)."""
-        return [self.graph(None), *(_sharing(StarLayerGraph(self.store, identifier=n), self.prefixes) for n in self.store.named_graphs())]
+        return [self.graph(None), *(_sharing(StarLayerGraph(self.store, identifier=n), self) for n in self.store.named_graphs())]
 
     def graph_names(self) -> list[Any]:
         """The names of the named graphs, empty ones included (the default graph is not listed)."""
@@ -1320,11 +1378,12 @@ class StarLayerDataset(_Base):
         return None
 
     def _combine(self, fn: Any, other: StarLayerDataset) -> StarLayerDataset:
-        return StarLayerDataset(store=fn(self.store, other.store), default_union=self._union)
+        return StarLayerDataset(store=fn(self.store, other.store), default_union=self._union,
+                                imports_loader=self._imports_loader, ignore_imports=self._ignore_imports)
 
     def copy(self) -> StarLayerDataset:
         """An independent in-memory copy of this dataset, including empty named graphs, prefixes and ``default_union``."""
-        d = StarLayerDataset(default_union=self._union)
+        d = StarLayerDataset(default_union=self._union, imports_loader=self._imports_loader, ignore_imports=self._ignore_imports)
         d.store.extend(self.store)
         for name in self.store.named_graphs():  # empty named graphs have no quad to carry them
             d.store.add_graph(name)
@@ -1336,21 +1395,21 @@ class StarLayerDataset(_Base):
         """Pickle: every quad, the named graphs (also empty ones), ``default_union`` and the prefixes. A dataset opened with
         ``path=`` is refused (``TypeError``), see ``_refuse_path_pickle``."""
         self._refuse_path_pickle()
-        return (_rebuild_dataset, (self._union, dict(self.prefixes), list(self.store), list(self.store.named_graphs())))
+        return (_rebuild_dataset, (self._union, dict(self.prefixes), list(self.store), list(self.store.named_graphs()), self._ignore_imports))
 
     def __repr__(self) -> str:
         """A short form with the quad count."""
         return f"<StarLayerDataset ({len(self.store)} quads)>"
 
 
-def _rebuild_graph(identifier: Any, prefixes: dict[str, str], quads: list[ox.Quad]) -> StarLayerGraph:
-    g = StarLayerGraph(identifier=identifier, prefixes=prefixes)
+def _rebuild_graph(identifier: Any, prefixes: dict[str, str], quads: list[ox.Quad], ignore_imports: bool = False) -> StarLayerGraph:
+    g = StarLayerGraph(identifier=identifier, prefixes=prefixes, ignore_imports=ignore_imports)
     g.store.extend(quads)
     return g
 
 
-def _rebuild_dataset(default_union: bool, prefixes: dict[str, str], quads: list[ox.Quad], names: list[Any]) -> StarLayerDataset:
-    d = StarLayerDataset(default_union=default_union, prefixes=prefixes)
+def _rebuild_dataset(default_union: bool, prefixes: dict[str, str], quads: list[ox.Quad], names: list[Any], ignore_imports: bool = False) -> StarLayerDataset:
+    d = StarLayerDataset(default_union=default_union, prefixes=prefixes, ignore_imports=ignore_imports)
     d.store.extend(quads)
     for name in names:
         d.store.add_graph(name)

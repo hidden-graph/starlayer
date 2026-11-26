@@ -186,7 +186,7 @@ def build_entailed_copy(graph: Any, regimes: frozenset[str], *, engine: str, tim
     if isinstance(graph, core.StarLayerDataset):
         copy: Any = core.StarLayerDataset(store=store, default_union=graph.default_union, prefixes=dict(graph.prefixes))
         for name in graph.store.named_graphs():
-            view = core._sharing(core.StarLayerGraph(graph.store, identifier=name), graph.prefixes)
+            view = core._sharing(core.StarLayerGraph(graph.store, identifier=name), graph)
             if len(view):
                 store.extend(copy._quad(t, name) for t in entailed(view))
     else:

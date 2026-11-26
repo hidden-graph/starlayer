@@ -10,12 +10,22 @@ raises is wrapped (kind ``"import"``, the loader's exception as ``__cause__``). 
 The library never retries: an application reads ``unresolved_imports(graph)`` and may call again with a loader that knows more. A graph
 is fetched at most once in one resolution and cycles end.
 
+**On the graph.** A graph carries its own import settings (``StarLayerGraph(imports_loader=..., ignore_imports=...)``, the ``imports_loader`` and
+``ignore_imports`` properties), and every consumer asks the graph, once, through ``graph.resolved_imports()`` (``graph_imports`` for any graph
+object): the triples its ``owl:imports`` closure loads, cached per store and kept until the store is written to or the loader or flag
+changes. A per-call ``loader=`` / ``shapes_graph_loader=`` / ``imports_loader=`` / ``ignore_imports=`` overrides the graph's setting for that
+call. Resolution is lazy: nothing is loaded until an operation that reads imports asks, and a loader is called at most once per cached
+result. A cached result is not kept when resolution raises. The imports of a graph are not copied into it (a graph holds only what was
+added to it).
+
 The loader maps an import IRI (a ``NamedNode``) to a graph, or ``None``; it may return an ``StarLayerGraph`` / ``StarLayerDataset`` or any
 object with ``triples(pattern)`` (an old ``StarLayerGraph``'s terms are converted).
 """
 
 from __future__ import annotations
 
+import threading
+from collections import OrderedDict
 from collections.abc import Callable
 from typing import Any
 
@@ -119,8 +129,9 @@ def _satisfied(g: Any, iri: Any, subjects: Any, versions: Any) -> bool:
 def _unresolved_error(iris: tuple[Any, ...], why: str, loader_name: str) -> ExecutionError:
     names = ", ".join(f"<{i.value}>" for i in iris)
     return ExecutionError(
-        f"owl:imports {names} {'is' if len(iris) == 1 else 'are'} not resolved: {why}. Pass {loader_name}= with a loader that returns a graph "
-        "that has each of them as a subject, or ignore_imports=True to skip them.",
+        f"owl:imports {names} {'is' if len(iris) == 1 else 'are'} not resolved: {why}. Give the graph an imports_loader (imports_loader= when "
+        f"it is made, or graph.imports_loader = ...) or pass {loader_name}= to this call, a loader that returns a graph "
+        "that has each of them as a subject, or set ignore_imports=True (on the graph or on the call) to skip them.",
         kind="import", context=f"owl:imports {names}", unresolved=iris,
     )
 
@@ -181,29 +192,124 @@ def resolve_or_raise(g: Any, loader: Callable[[Any], Any | None] | None = None, 
                     pending.append(o)
     missing = tuple(sorted((iri for iri in declared if not _satisfied(g, iri, subjects, versions)), key=lambda i: i.value))
     if missing:
-        why = (f"no {loader_name} was given" if loader is None
+        why = (f"no loader was given (neither {loader_name}= nor the graph's imports_loader)" if loader is None
                else f"{loader_name} returned no graph that has {'it' if len(missing) == 1 else 'them'} as a subject")
         raise _unresolved_error(missing, why, loader_name)
     return imported
 
 
+#: resolved imports kept per store (the most recently used first dropped last)
+MAX_CACHED = 4
+
+
+class ImportsCache:
+    """The resolved imports of the graphs of one store (``StoreVersion.imports``): one lock, so a loader runs at most once for a graph
+    that two threads ask for at the same time (it is called with the lock held, so it must not wait on another thread that asks this
+    store for its imports)."""
+
+    __slots__ = ("entries", "lock")
+
+    def __init__(self) -> None:
+        self.entries: OrderedDict[tuple, tuple[Any, Any, frozenset]] = OrderedDict()
+        self.lock = threading.RLock()
+
+    def clear(self) -> None:
+        with self.lock:
+            self.entries.clear()
+
+
+def _read_key(g: Any) -> tuple | None:
+    """What a graph object reads of its store (the cache key part), or ``None`` for an object that is not cached."""
+    from starlayer.graph.core import StarLayerDataset, StarLayerGraph
+
+    if isinstance(g, StarLayerDataset):
+        return ("dataset", g.default_union)
+    if isinstance(g, StarLayerGraph):
+        return ("graph", g.identifier)
+    name = getattr(g, "graph_name", None)
+    if name is not None and hasattr(g, "store"):
+        try:
+            hash(name)
+        except TypeError:
+            return None
+        return ("view", name)
+    return None
+
+
+def _cache_of(version: Any) -> ImportsCache:
+    from starlayer.graph.execution import union
+
+    with union._lock:
+        if version.imports is None:
+            version.imports = ImportsCache()
+        return version.imports
+
+
+def clear_cached_imports(g: Any) -> None:
+    """Drop the resolved imports kept for the store of ``g`` (the next consumer resolves again)."""
+    version = getattr(g, "_version", None)
+    if version is not None and version.imports is not None:
+        version.imports.clear()
+
+
+def graph_imports(g: Any, loader: Callable[[Any], Any | None] | None = None, ignore_imports: bool | None = None, *,
+                  view: Callable[[Any], Any] | None = None, malformed: Callable[[Any], Exception] | None = None,
+                  loader_name: str = "imports_loader") -> frozenset[tuple[Any, Any, Any]]:
+    """The one accessor every consumer of ``g``'s ``owl:imports`` calls: the triples its import closure loads (``frozenset``, empty
+    when nothing is imported; ``g`` itself is not changed and does not hold them), or ``ExecutionError`` kind ``"import"`` (see the
+    module docstring). ``loader`` and ``ignore_imports`` override ``g.imports_loader`` / ``g.ignore_imports`` for this call (``None``:
+    the graph's own setting; a graph object that has none, for instance an engine view, has no loader and does not ignore).
+
+    A graph of a store (``StarLayerGraph``, ``StarLayerDataset``, an engine view) keeps the result per store, keyed by what it reads
+    (its graph, or the dataset and ``default_union``), the loader object and the flag, and valid while the store's write count
+    (``execution/union.py``) is unchanged: a write made through this package, a ``parse``, ``clear`` or ``remove`` drops it; a write on a
+    raw store reference does not (``union.touch()`` after it). A loader that returns different graphs later is not seen until then or
+    ``clear_cached_imports``. ``view`` and ``malformed`` are the consumer's way of reading a loader's graph and of naming a malformed
+    ``owl:imports`` object; they are not part of the key."""
+    if loader is None:
+        loader = getattr(g, "imports_loader", None)
+    if ignore_imports is None:
+        ignore_imports = bool(getattr(g, "ignore_imports", False))
+    if ignore_imports:
+        return frozenset()
+    version = getattr(g, "_version", None)
+    read = _read_key(g) if version is not None else None
+    if read is None:
+        return frozenset(resolve_or_raise(g, loader, False, view=view, malformed=malformed, loader_name=loader_name))
+    key = (read, id(loader) if loader is not None else None)
+    cache = _cache_of(version)
+    with cache.lock:
+        stamp = version.stamp()  # before the loader runs: a write that lands during it leaves the result stale
+        hit = cache.entries.get(key)
+        if hit is not None and hit[0] == stamp:
+            cache.entries.move_to_end(key)
+            return hit[2]
+        result = frozenset(resolve_or_raise(g, loader, False, view=view, malformed=malformed, loader_name=loader_name))
+        cache.entries[key] = (stamp, loader, result)  # the loader is held, so its ``id`` in the key is not reused
+        cache.entries.move_to_end(key)
+        while len(cache.entries) > MAX_CACHED:
+            cache.entries.popitem(last=False)
+        return result
+
+
 def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None, mode: str = "full", target_graph: Any = None,
-                    ignore_imports: bool = False) -> Any:
+                    ignore_imports: bool | None = None) -> Any:
     """Follow the graph's ``owl:imports`` transitively and merge the result. ``mode`` is "full" (a new graph: self plus the
     imports), "delta" (a new graph with only the triples self lacks) or "in-place" (add the delta to self). Cycles and a
     versioned/unversioned pair of the same module are fetched once.
 
     Every declared import must be resolved or the call raises (``resolve_or_raise``): ``ExecutionError`` kind ``"import"`` for an import
     that is not a subject of the graph after loading (no ``loader``, one that returns ``None`` or a graph without it, with the IRIs on
-    ``error.unresolved``), the same kind wrapping a loader's own exception; ``ignore_imports=True`` returns the graph's own triples as they are."""
+    ``error.unresolved``), the same kind wrapping a loader's own exception; ``ignore_imports=True`` returns the graph's own triples as they are.
+    ``loader`` and ``ignore_imports`` override the graph's own ``imports_loader`` / ``ignore_imports`` for this call (``graph_imports``)."""
     if mode not in VALID_MODES:
         raise ValueError(f"mode must be one of {sorted(VALID_MODES)}, got {mode!r}")
     if mode == "in-place" and target_graph is not None:
         raise ValueError("target_graph is meaningless with mode='in-place' - it mutates self directly.")
 
-    all_imported = resolve_or_raise(g, loader, ignore_imports)
+    all_imported = graph_imports(g, loader, ignore_imports)
 
-    delta = all_imported - set(g.triples())
+    delta = set(all_imported) - set(g.triples())
     if mode == "in-place":
         g.extend(delta)
         return g
@@ -219,7 +325,7 @@ def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None
     if target_graph is None:
         from starlayer.graph.core import StarLayerGraph
 
-        target_graph = StarLayerGraph(prefixes=dict(g.prefixes))
+        target_graph = StarLayerGraph(prefixes=dict(g.prefixes), imports_loader=g.imports_loader, ignore_imports=g.ignore_imports)
     elif not (hasattr(target_graph, "extend") and hasattr(target_graph, "store")):
         raise TypeError(f"resolve_imports() target_graph must be an StarLayerGraph or StarLayerDataset, not {type(target_graph).__name__}.")
     target_graph.extend(list(g.triples()) + list(delta))

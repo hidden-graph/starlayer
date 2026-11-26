@@ -30,13 +30,13 @@ def _need_graph(target: Any, what: str) -> None:
 
 def empty_like(g: Any) -> Any:
     """A new, empty, in-memory graph of the same kind (``StarLayerGraph`` -> ``StarLayerGraph``, ``StarLayerDataset`` -> ``StarLayerDataset`` with the same
-    ``default_union``) with a copy of the namespace bindings."""
+    ``default_union``) with a copy of the namespace bindings and the same import settings."""
     from starlayer.graph.core import StarLayerDataset, StarLayerGraph
 
     prefixes = dict(g.prefixes)
     if isinstance(g, StarLayerDataset):
-        return StarLayerDataset(default_union=g.default_union, prefixes=prefixes)
-    return StarLayerGraph(prefixes=prefixes)
+        return StarLayerDataset(default_union=g.default_union, prefixes=prefixes, imports_loader=g.imports_loader, ignore_imports=g.ignore_imports)
+    return StarLayerGraph(prefixes=prefixes, imports_loader=g.imports_loader, ignore_imports=g.ignore_imports)
 
 
 def _new_graph_like(g: Any) -> Any:
