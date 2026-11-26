@@ -19,7 +19,7 @@ The tree::
 
 ``ExecutionError`` is one class; its ``kind`` (one of ``ExecutionError.KINDS``) says what failed:
 
-* ``"rule"``: a rule failed while running, ``max_iterations`` or ``max_triples`` was exceeded, or the rule set failed as a whole (an SRL
+* ``"rule"``: a rule failed while running, or the rule set failed as a whole (an SRL
   rule set whose rules cannot be ordered, §4.4.1).
 * ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
 * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
@@ -37,7 +37,8 @@ The tree::
   serializer meeting a term, literal or axiom that Manchester syntax has no form for, or a query-time entailment rewrite that has
   no exact form for the query.
 * ``"limit"``: a size or complexity cap of the library was reached, as against a bug (``"internal"``) or a depth limit
-  (``"nesting"``): RDFC-1.0's defence against a highly symmetric blank-node structure (§7.1).
+  (``"nesting"``): RDFC-1.0's defence against a highly symmetric blank-node structure (§7.1), and the SHACL rule caps ``max_iterations``
+  and ``max_triples``.
 
 ``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
 update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"``, ``"term"``, ``"manchester"``, ``"owl"``. A position

@@ -170,10 +170,10 @@ def test_max_iterations_constructor_and_call() -> None:
     assert linear_shapes() is not None
     StarShaclProcessor(linear_shapes()).apply_rules(data)  # built-in 1000
     p = StarShaclProcessor(linear_shapes(), max_iterations=3)
-    with raises_kind("rule", match="fixpoint"):
+    with raises_kind("limit", match="fixpoint"):
         p.apply_rules(data)
     p.apply_rules(data, max_iterations=50)  # the call beats the constructor
-    with raises_kind("rule", match="fixpoint"):
+    with raises_kind("limit", match="fixpoint"):
         StarShaclProcessor(linear_shapes()).apply_rules(data, max_iterations=3)
 
 

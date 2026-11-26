@@ -16,12 +16,13 @@ below:
 ``ExecutionError``: the shapes graph is fine and running it failed. Not a ``ShapeError``, so that an ``except ShapeError`` for a wrong
 shapes graph does not catch it. One class; its ``kind`` attribute says what failed:
 
-* ``"rule"``: a rule failed while running, ``max_iterations`` or ``max_triples`` was exceeded, or the rule set failed as a whole.
+* ``"rule"``: a rule failed while running, or the rule set failed as a whole.
 * ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
 * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
 * ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
+* ``"limit"``: ``max_iterations`` or ``max_triples`` of the rules was exceeded (a size cap of the library, as the RDFC-1.0 cap).
 
 The kinds ``"timeout"``, ``"inconsistent"`` and ``"inference"`` belong to OWL-DL reasoning (``starlayer-reasoning``, see
 ``starlayer/errors.py``). They are never raised by the engine's own rules and validation, but an entailment regime run before

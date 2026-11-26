@@ -617,5 +617,5 @@ class TestInputsAndHelpers:
             "WHERE { $this <http://example.org/next> ?o }' ."
         )
         data = self._graph("@prefix ex: <http://example.org/> . ex:a ex:next ex:b . ex:b ex:next ex:c . ex:c ex:next ex:d .")
-        with raises_kind("rule", match="fixpoint"):
+        with raises_kind("limit", match="fixpoint"):
             apply_rules(data, shapes, max_iterations=1)

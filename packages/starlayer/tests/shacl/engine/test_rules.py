@@ -91,7 +91,7 @@ def test_iterates_to_fixpoint() -> None:
 
 def test_non_terminating_rule_fails() -> None:
     data = g(CHAIN.replace("$this ex:p 1", "$this ex:p _:fresh"))
-    with raises_kind("rule"):
+    with raises_kind("limit"):
         apply_rules(data, max_iterations=5)
     res = apply_rules(data, max_iterations=5, raise_on_failure=False)
     assert not res.ok and res.failures

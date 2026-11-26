@@ -218,8 +218,8 @@ def apply_rules(
             to match over, together with the shapes graph's own ``sh:entailment``), ``engine``, ``timeout``, ``recompute``,
             ``subclass_of_in_shapes_graph`` (also for the rules' class targets), ``meta_shacl`` and the named ``meta_shapes_extra``,
             ``ignore_imports``, ``shapes_graph_loader`` (how the shapes graph is read and checked), and the rule limits
-            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise an ``ExecutionError`` of kind ``"rule"``)
-            and ``max_triples`` (default 5,000,000: more inferred triples than that raise an ``ExecutionError`` of kind ``"rule"``;
+            ``max_iterations`` (default 1000: more iterations than that without reaching a fixpoint raise an ``ExecutionError`` of kind ``"limit"``)
+            and ``max_triples`` (default 5,000,000: more inferred triples than that raise an ``ExecutionError`` of kind ``"limit"``;
             an inferred triple costs about 1.3-1.9 KB, so a million is about 1.3 GB; ``None`` removes the cap; a non-int or negative value is refused).
             An option that only describes a validation (``allow_warnings``, ``allow_infos``, ``abort_on_first``,
             ``include_used_configuration``, ``rules``, ...) is a ``TypeError`` naming ``validate()``.

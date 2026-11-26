@@ -122,7 +122,7 @@ def test_rule_iteration_raises_when_exceeding_iteration_limit() -> None:
     from tests.support.errors import raises_kind
 
     data = _build_linear_chain(10)
-    with raises_kind("rule", match="fixpoint"):
+    with raises_kind("limit", match="fixpoint"):
         _linear_rules(data, max_iterations=3)
 
 
@@ -130,7 +130,7 @@ def test_engine_triple_cap_raises_rule_error_and_no_cap_is_the_default() -> None
     from tests.support.errors import raises_kind
 
     data = _build_linear_chain(10)
-    with raises_kind("rule", match="triples inferred"):
+    with raises_kind("limit", match="triples inferred"):
         _linear_rules(data, max_triples=5)
     assert len(_linear_rules(data).inferred) > 5  # no cap by default
     assert len(_linear_rules(data, max_triples=1000).inferred) > 5

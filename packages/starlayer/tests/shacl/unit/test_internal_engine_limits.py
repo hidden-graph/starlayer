@@ -107,9 +107,9 @@ def test_max_iterations_stays_public_with_default_1000() -> None:
     data = linear_chain(10)  # one hop per iteration
     assert inspect.signature(StarShaclProcessor).parameters["max_iterations"].default is None
     assert len(apply_rules(data, linear_shapes()).inferred_graph) > 0  # built-in 1000, converges
-    with raises_kind("rule", match="fixpoint"):
+    with raises_kind("limit", match="fixpoint"):
         apply_rules(data, linear_shapes(), max_iterations=3)
-    with raises_kind("rule", match="fixpoint"):
+    with raises_kind("limit", match="fixpoint"):
         StarShaclProcessor(linear_shapes(), max_iterations=3).apply_rules(data)
 
 
@@ -124,9 +124,9 @@ def test_max_triples_is_public_with_default_5_million() -> None:
 
 def test_max_triples_caps_the_public_apply_rules_and_none_removes_the_cap() -> None:
     data = linear_chain(10)
-    with raises_kind("rule", match="more than 5 triples inferred: raise max_triples= or pass None"):
+    with raises_kind("limit", match="more than 5 triples inferred: raise max_triples= or pass None"):
         apply_rules(data, linear_shapes(), max_triples=5)
-    with raises_kind("rule", match="more than 5 triples inferred"):
+    with raises_kind("limit", match="more than 5 triples inferred"):
         StarShaclProcessor(linear_shapes()).apply_rules(data, max_triples=5)
     assert len(apply_rules(data, linear_shapes(), max_triples=None).inferred_graph) > 5
     assert len(apply_rules(data, linear_shapes(), max_triples=1000).inferred_graph) > 5
@@ -135,13 +135,13 @@ def test_max_triples_caps_the_public_apply_rules_and_none_removes_the_cap() -> N
 def test_max_triples_processor_default_and_call_override() -> None:
     data = linear_chain(10)
     p = StarShaclProcessor(linear_shapes(), max_triples=5)
-    with raises_kind("rule", match="more than 5 triples"):
+    with raises_kind("limit", match="more than 5 triples"):
         p.apply_rules(data)
     assert len(p.apply_rules(data, max_triples=1000).inferred_graph) > 5  # the call beats the constructor
     assert len(p.apply_rules(data, max_triples=None).inferred_graph) > 5
     unlimited = StarShaclProcessor(linear_shapes(), max_triples=None)  # None at construction is a real value: no cap
     assert len(unlimited.apply_rules(data).inferred_graph) > 5
-    with raises_kind("rule", match="more than 5 triples"):
+    with raises_kind("limit", match="more than 5 triples"):
         unlimited.apply_rules(data, max_triples=5)
 
 

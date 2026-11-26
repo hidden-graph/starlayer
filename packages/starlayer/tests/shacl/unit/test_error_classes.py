@@ -292,17 +292,17 @@ def test_a_malformed_rule_is_a_shape_compile_error():
         apply_rules(g("ex:a ex:p 1 ."), g(shapes))
 
 
-def test_exceeding_max_iterations_and_max_triples_are_of_kind_rule():
+def test_exceeding_max_iterations_and_max_triples_are_of_kind_limit():
     shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:TripleRule ; sh:subject [ shnex:var 'focusNode' ] ; sh:predicate ex:q ; sh:object 1 ] .")
     from starlayer.shacl.engine.rules import apply_rules as engine_apply_rules
 
-    with raises_kind("rule", match="triples inferred"):
+    with raises_kind("limit", match="triples inferred"):
         engine_apply_rules(g("ex:a ex:p 1 ."), shapes, max_triples=0)
     chain = g(
         "ex:R a sh:NodeShape ; sh:targetClass ex:N ; sh:rule [ a sh:SPARQLRule ; "
         "sh:construct 'CONSTRUCT { ?s <http://example.org/next> [ a <http://example.org/N> ] } WHERE { $this a <http://example.org/N> . BIND($this AS ?s) }' ] ."
     )
-    with raises_kind("rule", match="fixpoint"):
+    with raises_kind("limit", match="fixpoint"):
         apply_rules(g("ex:a a ex:N ."), chain, max_iterations=3)
 
 
