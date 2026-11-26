@@ -1418,5 +1418,5 @@ class Materialization:
 
     def _open(self) -> _Evaluation:
         if self._evaluation is None:
-            raise ExecutionError("this Materialization is closed; refresh() runs the rules again", kind="rule", context="Materialization")
+            raise ValueError("this Materialization is closed; refresh() runs the rules again")
         return self._evaluation

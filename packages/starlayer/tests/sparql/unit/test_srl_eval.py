@@ -712,9 +712,8 @@ class TestMaterialize:
     def test_close_drops_what_was_kept(self):
         kept = parse_ruleset(self.RULES).materialize(self._base())
         kept.close()
-        with pytest.raises(ExecutionError, match="closed") as caught:
+        with pytest.raises(ValueError, match="closed"):  # an object in a state the call refuses, not a StarLayerError
             kept.query("?x ex:anc ?y")
-        assert caught.value.kind == "rule"
         kept.refresh()
         assert kept.query("?x ex:anc ?y")
 
