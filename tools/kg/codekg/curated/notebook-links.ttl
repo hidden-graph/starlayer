@@ -229,8 +229,8 @@ nl:06.01-da3100e0 a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.starontology.__init__.get_ontology_graph" .
 
-nl:06.05-2957fd17 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06.05-shacl-library-registry.ipynb" ;
+nl:06.06-2957fd17 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.06-shacl-library-registry.ipynb" ;
     slkg:cellId "2957fd17" ;
     slkg:cellHash "e768675e75541c26" ;
     slkg:reviewedOn "2026-11-03"^^xsd:date ;
@@ -573,8 +573,8 @@ nl:03.02-f6a58c6a a slkg:NotebookExample ;
     slkg:demonstratesIdentifier
         "starlayer.graph.execution.run.query" .
 
-nl:06.02-f58f1639 a slkg:NotebookExample ;
-    slkg:notebookPath "docs/guides/06.02-manchester-syntax.ipynb" ;
+nl:06.05-f58f1639 a slkg:NotebookExample ;
+    slkg:notebookPath "docs/guides/06.05-manchester-syntax-as-rdf.ipynb" ;
     slkg:cellId "f58f1639" ;
     slkg:cellHash "2e6c535696e0deac" ;
     slkg:reviewedOn "2026-11-25"^^xsd:date ;
