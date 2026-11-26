@@ -17,11 +17,11 @@ import shutil
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.entailment.infer import ENTAILMENT
 from starlayer.graph.execution import union
 from starlayer.sparql.sqe.entailment import (
-    EntailmentRewriteError,
     rewrite_for_entailment,
 )
 from starlayer.sparql.star_query import StarQuery
@@ -74,11 +74,11 @@ def _alice() -> list[str]:
 # ---- per-query, not per-graph -----------------------------------------------------------------------------------------
 class TestEntailmentIsPerQueryNotPerGraph:
     def test_unsupported_entailment_raises(self):
-        with pytest.raises(NotImplementedError, match="entailment must be one of"):
+        with pytest.raises(ValueError, match="entailment must be one of"):
             _graph().query(_QUERY, entailment="owl")
 
     def test_d_entailment_raises(self):
-        with pytest.raises(NotImplementedError):
+        with pytest.raises(ValueError):
             _graph().query(_QUERY, entailment=ENTAILMENT.D)
 
     def test_one_graph_answers_different_entailment_per_call(self):
@@ -228,8 +228,9 @@ class TestQueryShapes:
         assert [v.value for v in res.vars] == ["s", "n", "c"]
 
     def test_select_star_without_variables_raises(self):
-        with pytest.raises(EntailmentRewriteError):
+        with pytest.raises(ExecutionError) as caught:
             self._g().query(_PREFIXES + "SELECT * WHERE { ex:a a ex:D }", entailment=ENTAILMENT.RDFS)
+        assert caught.value.kind == "unsupported"
 
     def test_ask(self):
         g = self._g()
@@ -279,7 +280,7 @@ class TestQueryShapes:
         assert rewrite_for_entailment(once, ENTAILMENT.RDFS) == once
 
     def test_an_update_is_not_a_query(self):
-        with pytest.raises(Exception):  # noqa: B017  (a syntax error or EntailmentRewriteError)
+        with pytest.raises(Exception):  # noqa: B017  (a FormatError of kind sparql)
             rewrite_for_entailment("INSERT DATA { <a> <b> <c> }", ENTAILMENT.RDFS)
 
     def test_zero_length_path_on_a_constant_absent_from_the_data(self):

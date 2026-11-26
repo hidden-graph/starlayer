@@ -146,7 +146,7 @@ def _engine_problem(text: str, prefixes: Mapping[str, str] | None, functions: di
     except ExecutionError as error:  # the engine's RuntimeError, wrapped at the boundary; any other kind is not a problem of the query
         only_kind(error, "query")
         return QueryProblem("engine", "error", " ".join(str(error).split()))
-    except (ValueError, NotImplementedError) as error:  # what the wrapper reports
+    except (ValueError, NotImplementedError) as error:  # a bad argument or a refusal of the wrapper
         return QueryProblem("engine", "error", " ".join(str(error).split()))
     return None
 

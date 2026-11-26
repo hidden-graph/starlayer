@@ -10,10 +10,7 @@ from starlayer.errors import FormatError
 from starlayer.shacl.errors import ExecutionError, ShapeError
 from starlayer.sparql import check
 from starlayer.sparql.sqe import entailment, rewrite
-from starlayer.sparql.sqe.entailment import (
-    EntailmentRewriteError,
-    rewrite_for_entailment,
-)
+from starlayer.sparql.sqe.entailment import rewrite_for_entailment
 
 EXISTS_QUERY = "SELECT ?p WHERE { ?p <urn:a> ?a . FILTER EXISTS { ?p <urn:b> ?q . ?q <urn:a> ?b . FILTER(?b > ?a) } }"
 RDFS = "http://www.w3.org/ns/entailment/RDFS"
@@ -26,7 +23,7 @@ def test_the_exists_rewrite_changes_the_text_when_it_can():
     assert rewrite.rewrite_exists_text(EXISTS_QUERY) != EXISTS_QUERY
 
 
-@pytest.mark.parametrize("exc", [NotImplementedError("no text for this node"), ValueError("bad tree"), RecursionError()])
+@pytest.mark.parametrize("exc", [ExecutionError("no text for this node", kind="unsupported"), ExecutionError("deep", kind="nesting"), ValueError("bad tree"), RecursionError()])
 def test_the_exists_rewrite_keeps_the_text_when_the_tree_cannot_be_rewritten(monkeypatch, exc):
     def fail(*_a, **_k):
         raise exc
@@ -58,9 +55,10 @@ def _break_writing_out(monkeypatch, exc):
 
 
 def test_the_entailment_rewrite_reports_a_tree_it_cannot_write_out(monkeypatch):
-    _break_writing_out(monkeypatch, NotImplementedError("no text for this node"))
-    with pytest.raises(EntailmentRewriteError, match="could not be written out"):
+    _break_writing_out(monkeypatch, ExecutionError("no text for this node", kind="unsupported"))
+    with pytest.raises(ExecutionError, match="could not be written out") as caught:
         rewrite_for_entailment(ENTAIL_QUERY, RDFS)
+    assert caught.value.kind == "unsupported"
     entailment._rewrite_cached.cache_clear()
 
 

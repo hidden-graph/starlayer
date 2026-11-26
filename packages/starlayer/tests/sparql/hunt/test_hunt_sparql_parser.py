@@ -115,16 +115,16 @@ def test_star_query_run_rejects_an_unknown_override():
         q.run(StarLayerGraph(), procesor="x")
 
 
-def test_entailment_rewrite_of_very_deep_nesting_is_a_rewrite_error():
+def test_entailment_rewrite_of_very_deep_nesting_is_a_nesting_error():
     from starlayer.graph import StarLayerGraph
     from starlayer.graph.entailment import ENTAILMENT
-    from starlayer.sparql.sqe.entailment import EntailmentRewriteError
+    from starlayer.errors import ExecutionError
 
     depth = 400
     text = "SELECT * WHERE { " + "{ " * depth + "?s a ?c" + " }" * depth + " }"
     try:
         StarLayerGraph().query(text, entailment=ENTAILMENT["RDFS"])
-    except EntailmentRewriteError:
-        pass
+    except ExecutionError as e:
+        assert e.kind == "nesting"
     except Exception as e:  # a parse-depth limit is an acceptable clean error too
         assert not isinstance(e, RecursionError)

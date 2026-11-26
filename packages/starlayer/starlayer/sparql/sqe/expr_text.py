@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError
 from starlayer.graph.ordinals import ordered_items
 
 from .. import _oxterms as T
@@ -38,6 +39,11 @@ _LIST_ARG = {"CONCAT", "COALESCE"}
 _AGGREGATES = {"COUNT", "SUM", "MIN", "MAX", "AVG", "SAMPLE", "GROUP_CONCAT"}
 _BUILTIN_FAMILIES = {"ZeroArg", "OneArg", "OptionalOneArg", "TwoArg", "ThreeArg", "VariadicArg", "StrLangDir", "Regex", "Replace", "Substr"}
 _BUILTINS = {name for name, family in _EXPR_NODE_FAMILY.items() if family in _BUILTIN_FAMILIES}
+
+
+def _no_text(message: str) -> ExecutionError:
+    """The tree is well-formed RDF but holds a node, term or operation that SPARQL text has no rendering for here."""
+    return ExecutionError(message, kind="unsupported", context="sqe: tree to text")
 
 
 def _local(uri) -> str:
@@ -149,7 +155,7 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
     if isinstance(node, ox.NamedNode):
         return _abbreviate(T.iri_text(node), prefixes)
     if not isinstance(node, ox.BlankNode):
-        raise NotImplementedError(f"sqe: cannot render expression node {node!r}")
+        raise _no_text(f"sqe: cannot render expression node {node!r}")
 
     props = _props(node, graph)
     names = _type_names(node, graph)
@@ -246,4 +252,4 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
             return _call("STRLANGDIR", [sub("lex"), sub("lang"), sub("direction")])
         return _call(base, [sub("arg")])
 
-    raise NotImplementedError(f"sqe: cannot render expression node of type {sorted(names)}")
+    raise _no_text(f"sqe: cannot render expression node of type {sorted(names)}")

@@ -1974,7 +1974,7 @@ class _Encoder:
         elif k == "SubSelect":
             return self.sub_select(el)
         else:
-            raise NotImplementedError(f"starlayer.sparql.sqe: WHERE-clause element {k!r} not modeled yet")
+            raise ExecutionError(f"starlayer.sparql.sqe: WHERE-clause element {k!r} not modeled yet", kind="unsupported", context="sqe: tree encoding")
         return b
 
     def values(self, el: Node):

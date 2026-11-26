@@ -28,7 +28,7 @@ the ``starlayer-reasoning`` package provides -
 a single name and IRI for a single regime, used uniformly by both methods.
 
 ``None`` (simple entailment / no entailment) deliberately has no IRI and is not a regime. ``query()`` accepts no other
-value than ``None`` and the four regime IRIs; anything else raises ``NotImplementedError``.
+value than ``None`` and the four regime IRIs; anything else raises ``ValueError``.
 
 ``KNOWN_REGIMES`` and ``SUPPORTED_REGIMES`` are sets of IRI text (``str``).
 """

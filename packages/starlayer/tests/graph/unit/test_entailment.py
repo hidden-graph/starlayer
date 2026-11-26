@@ -63,7 +63,7 @@ def _graph() -> StarLayerGraph:
 
 class TestEntailmentIsPerQueryNotPerGraph:
     def test_unsupported_entailment_raises(self):
-        with pytest.raises(NotImplementedError, match="entailment must be one of"):
+        with pytest.raises(ValueError, match="entailment must be one of"):
             _graph().query(_QUERY, entailment="owl")
 
 

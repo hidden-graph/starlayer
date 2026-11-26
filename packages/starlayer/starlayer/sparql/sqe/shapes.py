@@ -21,7 +21,7 @@ import functools
 from typing import TYPE_CHECKING, Any
 
 from starlayer import starontology
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError, only_kind
 
 from .._oxterms import RDF
 from ..expr_validation import rdfs_entailed_copy, rdfs_schema
@@ -100,7 +100,7 @@ def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
     )
 
     from ._memtree import as_engine_graph
-    from .to_text import SqeTextTooDeepError, sqe_tree_to_text
+    from .to_text import sqe_tree_to_text
     from .vocab import QUERY
 
     graph, _ = as_engine_graph(tree_graph)
@@ -108,7 +108,11 @@ def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
     for root in sorted(set(graph.subjects(RDF_TYPE, QUERY)), key=str):
         try:
             text = sqe_tree_to_text(graph, root)
-        except (SqeTextTooDeepError, ValueError, FormatError) as error:
+        except (ValueError, FormatError) as error:
+            found.append((root, f"The query cannot be written out as SPARQL text: {' '.join(str(error).split())}"))
+            continue
+        except ExecutionError as error:  # nested too deeply, or a node with no text form; any other kind is a real failure
+            only_kind(error, "nesting", "unsupported")
             found.append((root, f"The query cannot be written out as SPARQL text: {' '.join(str(error).split())}"))
             continue
         ast, _, error = _parse(text, None)

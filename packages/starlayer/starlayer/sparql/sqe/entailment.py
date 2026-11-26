@@ -33,7 +33,7 @@ triple term inside a pattern are not widened.
 What changes in the query text besides the patterns: blank nodes in the WHERE clause become variables (a label cannot be
 written in two groups, and in a pattern it is a variable anyway), ``SELECT *`` and ``DESCRIBE *`` become explicit lists of the
 variables the original query had (the rewrite adds variables of its own), and ``CONSTRUCT WHERE`` gets its template written out.
-What cannot be rewritten exactly raises :class:`EntailmentRewriteError`; nothing is ever sent unrewritten.
+What cannot be rewritten exactly raises :class:`~starlayer.errors.ExecutionError` of kind ``"unsupported"``; nothing is ever sent unrewritten.
 
 Rows are a bag, as in the rdflib version: a fact derivable in two ways (an asserted type and a domain) is one row per way.
 """
@@ -60,7 +60,7 @@ from ._memtree import TreeIndex
 
 BNode, Literal, URIRef, Variable = ox.BlankNode, ox.Literal, ox.NamedNode, ox.Variable
 
-__all__ = ["EntailmentRewriteError", "RDF_REGIME", "RDFS_REGIME", "rewrite_for_entailment"]
+__all__ = ["RDF_REGIME", "RDFS_REGIME", "rewrite_for_entailment"]
 
 RDF_REGIME = "http://www.w3.org/ns/entailment/RDF"
 RDFS_REGIME = "http://www.w3.org/ns/entailment/RDFS"
@@ -92,8 +92,9 @@ _PREFIX = "_sl_ent"
 _QUERY_KINDS = ("SelectQuery", "AskQuery", "ConstructQuery", "DescribeQuery")
 
 
-class EntailmentRewriteError(NotImplementedError):
-    """The query cannot be evaluated under the requested entailment regime by this rewrite."""
+def _unsupported(message: str) -> ExecutionError:
+    """The query is well-formed but cannot be evaluated exactly under the requested regime by this rewrite."""
+    return ExecutionError(message, kind="unsupported", context="entailment rewrite")
 
 
 def regime_iri(regime: Any) -> str:
@@ -114,13 +115,13 @@ def rewrite_for_entailment(text: str, regime: Any, *, prefixes: Any = None, base
         The rewritten query text; ``text`` itself when no pattern is widened.
 
     Raises:
-        NotImplementedError: ``regime`` is neither RDF nor RDFS (OWL regimes need ``infer()``).
-        EntailmentRewriteError: The query cannot be rewritten exactly.
+        ValueError: ``regime`` is neither RDF nor RDFS (OWL regimes need ``infer()``).
+        ExecutionError: (kind ``"unsupported"``) The query cannot be rewritten exactly; (kind ``"nesting"``) it nests too deeply.
         FormatError: (kind "sparql") ``text`` is not a query.
     """
     iri = regime_iri(regime)
     if iri not in (RDF_REGIME, RDFS_REGIME):
-        raise NotImplementedError(
+        raise ValueError(
             f"query-time entailment supports ENTAILMENT.RDF and ENTAILMENT.RDFS, not {iri!r} "
             "(use infer() for a materialized closure of the OWL regimes)"
         )
@@ -133,25 +134,25 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
     head = "".join(f"PREFIX {k}: <{v}>\n" for k, v in prefixes)
     tree = parse_sparql(head + text, base)
     if tree.kind not in _QUERY_KINDS:
-        raise EntailmentRewriteError(f"query-time entailment needs a query, not a {tree.kind}")
+        raise FormatError(f"query-time entailment needs a query, not a {tree.kind}", kind="sparql", context="entailment rewrite")
     rw = _Rewriter(iri == RDFS_REGIME, tree)
     try:
         if rw.rewritten or not rw.widens(tree):
             return text
         rw.query(tree)
     except RecursionError as e:
-        raise EntailmentRewriteError("the query is nested too deeply for the entailment rewrite") from e
+        raise ExecutionError("the query is nested too deeply for the entailment rewrite", kind="nesting", context="entailment rewrite") from e
     try:
         from .to_text import sqe_tree_to_text
 
         triples, root = ast_to_triples(tree)
         out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
-    except (FormatError, ValueError, NotImplementedError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
-        raise EntailmentRewriteError(f"the rewritten query could not be written out as SPARQL: {e}") from e
-    except ExecutionError as e:  # nested too deeply to parse or encode; any other kind is a real failure
-        only_kind(e, "nesting")
-        raise EntailmentRewriteError(f"the rewritten query could not be written out as SPARQL: {e}") from e
+    except (FormatError, ValueError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
+        raise _unsupported(f"the rewritten query could not be written out as SPARQL: {e}") from e
+    except ExecutionError as e:  # nested too deeply to parse or encode, or a tree node with no text form; any other kind is a real failure
+        only_kind(e, "nesting", "unsupported")
+        raise _unsupported(f"the rewritten query could not be written out as SPARQL: {e}") from e
     return out
 
 
@@ -241,12 +242,12 @@ class _Rewriter:
         if q.kind in ("SelectQuery", "SubSelect") and q.f["projection"] is None:
             names = _ordered_vars(where, q)
             if not names:
-                raise EntailmentRewriteError("SELECT * with no variable in the pattern cannot be rewritten (the rewrite adds variables)")
+                raise _unsupported("SELECT * with no variable in the pattern cannot be rewritten (the rewrite adds variables)")
             q.f["projection"] = [Node("ProjectVar", var=v) for v in names]
         if q.kind == "DescribeQuery" and q.f.get("targets") is None:
             names = _ordered_vars(where, q)
             if not names:
-                raise EntailmentRewriteError("DESCRIBE * with no variable in the pattern cannot be rewritten")
+                raise _unsupported("DESCRIBE * with no variable in the pattern cannot be rewritten")
             q.f["targets"] = names
         if q.kind == "ConstructQuery" and q.f.get("template") is None:
             q.f["template"] = list(where)  # CONSTRUCT WHERE: the template is the original pattern

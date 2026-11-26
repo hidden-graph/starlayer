@@ -25,12 +25,13 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError
 from starlayer.graph.ordinals import ordered_items as _children
 
 from .. import _oxterms as T
 from .._oxterms import RDF
 from ..vocab import SPEXPR, VARIABLE_DATATYPE
-from .expr_text import _abbreviate, _literal_text, expr_text
+from .expr_text import _abbreviate, _literal_text, _no_text, expr_text
 from .vocab import (
     ADD,
     ALIAS,
@@ -125,10 +126,6 @@ _KEYWORD_BY_ROOT_TYPE = {
 }
 
 
-class SqeTextTooDeepError(ValueError):
-    """The tree is nested more deeply than the renderer can follow within Python's stack."""
-
-
 def sqe_tree_to_text(tree_graph: Any, root) -> str:
     """Render ``root`` (as produced by ``to_rdf.sqe_parse_to_tree``) back
     into SPARQL query text, re-abbreviating terms using the ``PREFIX``
@@ -142,7 +139,7 @@ def sqe_tree_to_text(tree_graph: Any, root) -> str:
         The rendered SPARQL query text.
 
     Raises:
-        SqeTextTooDeepError: the tree nests too deeply to render within the Python stack.
+        ExecutionError: kind ``"nesting"``, the tree nests too deeply to render within the Python stack; kind ``"unsupported"``, it holds a node, term or operation with no text form.
         FormatError: (kind ``"rdf"``) an ordered child has no ``tree:ord`` or one that is not a non-negative integer, two children of one
             parent and property share an ordinal, or a named node, literal or variable is a child without its ``tree:Item``
             (``graph/ordinals.py``): the tree has no order to write.
@@ -154,7 +151,7 @@ def sqe_tree_to_text(tree_graph: Any, root) -> str:
     try:
         return run_with_deeper_stack(_tree_to_text, graph, root)
     except RecursionError:
-        raise SqeTextTooDeepError("the sqe tree is nested too deeply to render as SPARQL text") from None
+        raise ExecutionError("the sqe tree is nested too deeply to render as SPARQL text", kind="nesting", context="sqe: tree to text") from None
 
 
 def _tree_to_text(graph: Any, root) -> str:
@@ -205,7 +202,7 @@ def _graph_ref_text(node, graph: Any, prefixes: dict) -> str:
     for kind, word in ((DEFAULT_GRAPH, "DEFAULT"), (NAMED_GRAPHS, "NAMED"), (ALL_GRAPHS, "ALL")):
         if (node, RDF.type, kind) in graph:
             return word
-    raise NotImplementedError(f"starlayer.sparql.sqe: {node!r} is not a recognized graph reference")
+    raise _no_text(f"starlayer.sparql.sqe: {node!r} is not a recognized graph reference")
 
 
 def _quads_text(parent, prop, graph: Any, prefixes: dict) -> str:
@@ -255,7 +252,7 @@ def _operation_text(graph: Any, op, prefixes: dict) -> str:
     for kind, word in ((ADD, "ADD"), (MOVE, "MOVE"), (COPY, "COPY")):
         if (op, RDF.type, kind) in graph:
             return f"{word}{silent} {ref(UPDATE_FROM)} TO {ref(UPDATE_TO)}"
-    raise NotImplementedError(f"starlayer.sparql.sqe: {op!r} is not a recognized update operation")
+    raise _no_text(f"starlayer.sparql.sqe: {op!r} is not a recognized update operation")
 
 
 def _query_lines(graph: Any, root, prefixes: dict) -> list:
@@ -356,7 +353,7 @@ def _keyword_for_root(graph: Any, root) -> str:
     for root_type, keyword in _KEYWORD_BY_ROOT_TYPE.items():
         if (root, RDF.type, root_type) in graph:
             return keyword
-    raise NotImplementedError(f"starlayer.sparql.sqe: {root!r} has no recognized sqe: query-form type")
+    raise _no_text(f"starlayer.sparql.sqe: {root!r} has no recognized sqe: query-form type")
 
 
 def _prefix_map(graph: Any, root) -> dict:
@@ -402,7 +399,7 @@ def _where_element_text(node, graph: Any, prefixes: dict) -> str:
     if (node, RDF.type, UNION) in graph:
         alts = [_where_group_text(alt, graph, prefixes) for alt in _children(graph, node, UNION_ALTERNATIVES)]
         return " UNION ".join(alts)
-    raise NotImplementedError(
+    raise _no_text(
         f"starlayer.sparql.sqe: cannot render WHERE-clause element {node!r} - "
         "not a recognized sqe: node type"
     )
@@ -485,6 +482,6 @@ def _term_text(value, prefixes: dict, graph: Any | None = None) -> str:
         return _literal_text(value)
     if isinstance(value, ox.BlankNode):
         return "_:" + T.bnode_label(value)
-    raise NotImplementedError(f"starlayer.sparql.sqe: cannot render term {value!r} as text")
+    raise _no_text(f"starlayer.sparql.sqe: cannot render term {value!r} as text")
 
 

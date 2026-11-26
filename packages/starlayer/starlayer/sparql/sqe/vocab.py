@@ -95,7 +95,7 @@ order), ``sqe:Modify`` (``sqe:with``, ``sqe:delete``, ``sqe:insert``, ``sqe:usin
 ``sqe:NamedGraphs``, ``sqe:AllGraphs``). Each operation carries the prologue written in front of it.
 
 **Running a tree:** run the text from ``sqe_tree_to_text`` with ``StarLayerGraph.query()`` / ``update()``. Anything the tree
-cannot represent raises ``NotImplementedError`` instead of being silently dropped. ``sqe_parse_to_tree`` reads queries and
+cannot represent raises ``ExecutionError`` of kind ``"unsupported"`` instead of being silently dropped. ``sqe_parse_to_tree`` reads queries and
 updates with the StarLayer-owned parser.
 """
 

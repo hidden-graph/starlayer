@@ -176,7 +176,7 @@ def test_no_timeout_still_detects_a_dead_child():  # bug 14
 def test_native_is_not_promised_by_the_regime_docs():  # bug 11
     from starlayer.graph import entailment as entailment_regimes
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         StarLayerGraph().query("ASK {}", entailment="native")
     assert '"native"' not in (entailment_regimes.__doc__ or "")
 

@@ -714,7 +714,7 @@ class _Base:
         may then be out of date, data included). A write to another store does not count.
         ``clear_entailment_cache()`` drops the copies. ``engine`` /
         ``timeout`` (``"hermit"`` / ``"rustdl"``, seconds) apply to ``OWL-Direct`` only and raise ``ValueError`` otherwise.
-        Anything else raises ``NotImplementedError``.
+        Any other regime raises ``ValueError``.
 
         ``custom_functions`` maps a function IRI (a ``NamedNode`` or its text) to a Python callable that takes pyoxigraph terms and
         returns a term or ``None``; the query can then call ``<iri>(?x)``. ``custom_aggregate_functions`` maps an IRI to a factory of
@@ -723,7 +723,7 @@ class _Base:
         from starlayer.graph.entailment import infer as ent
 
         if regime is not None and regime not in (ent.RDF_REGIME, ent.RDFS_REGIME, ent.OWL_RL_REGIME, ent.OWL_DIRECT_REGIME):
-            raise NotImplementedError(
+            raise ValueError(
                 f"entailment must be one of ENTAILMENT.RDF, RDFS, ['OWL-RDF-Based'], ['OWL-Direct'], got {entailment!r}."
             )
         if regime != ent.OWL_DIRECT_REGIME:

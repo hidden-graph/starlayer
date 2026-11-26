@@ -67,12 +67,12 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
         out = sqe_tree_to_text(TreeIndex(triples), root)
         parse_sparql(out, base)  # what is sent must itself be well-formed
         return out
-    except (FormatError, ValueError, NotImplementedError, RecursionError):
+    except (FormatError, ValueError, RecursionError):
         # the text or its tree cannot be rewritten or written out; a KeyError, TypeError, AttributeError or ImportError is a bug
         # in the rewrite and is not turned into a slower query
         return text
-    except ExecutionError as error:  # nested too deeply to parse or encode: the text goes as it is; any other kind is a real failure
-        only_kind(error, "nesting")
+    except ExecutionError as error:  # nested too deeply to parse or encode, or a node with no text form: the text goes as it is; any other kind is a real failure
+        only_kind(error, "nesting", "unsupported")
         return text
 
 
