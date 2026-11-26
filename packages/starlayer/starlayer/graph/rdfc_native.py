@@ -11,7 +11,7 @@
 Dataset poisoning (RDFC-1.0 section 7.1, the W3C poison test074): Oxigraph's canonicaliser has no denial-of-service defence,
 and a highly symmetric dataset (a clique of 10 blank nodes, a 6 x 6 torus of blank nodes) does not finish, nor does a path or
 cycle of hundreds of identical blank nodes in reasonable time. Before every canonicalisation :func:`check_complexity` runs a cheap colour refinement and raises
-:class:`CanonicalizationComplexityError` for such a structure. It is a heuristic, not a proof of termination (see its docstring).
+:class:`~starlayer.errors.ExecutionError` of kind ``"limit"`` for such a structure. It is a heuristic, not a proof of termination (see its docstring).
 """
 
 from __future__ import annotations
@@ -20,9 +20,10 @@ import hashlib
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError
 from starlayer.graph.interop import to_basic
 
-__all__ = ["isomorphic", "canonical_quads", "canonical_nquads", "canonical_hash", "check_complexity", "CanonicalizationComplexityError"]
+__all__ = ["isomorphic", "canonical_quads", "canonical_nquads", "canonical_hash", "check_complexity"]
 
 # The largest cyclomatic number (edges - nodes + 1) that a connected group of mutually indistinguishable blank nodes may have.
 # Measured on pyoxigraph 0.5.13 (RDFC-1.0 time): a 7-blank-node clique (15) 1.3 s, a 5 x 5 complete bipartite graph (16) 3 s,
@@ -34,9 +35,10 @@ MAX_SYMMETRIC_CYCLE_RANK = 18
 MAX_TIED_NODES = 200
 
 
-class CanonicalizationComplexityError(RuntimeError):
+def _too_complex(message: str) -> ExecutionError:
     """The dataset has a highly symmetric blank-node structure that RDFC-1.0 would take exponential time on (RDFC-1.0
     section 7.1, "Dataset Poisoning": implementations MUST terminate early with an exception)."""
+    return ExecutionError(message, kind="limit", context="RDFC-1.0 canonicalisation")
 
 _ALGORITHMS = {
     "sha256": ox.CanonicalizationAlgorithm.RDFC_1_0,
@@ -86,7 +88,7 @@ def _bnode_in_triple_term(quads: list[ox.Quad]) -> bool:
 
 
 def check_complexity(quads: list[ox.Quad], *, max_cycle_rank: int = MAX_SYMMETRIC_CYCLE_RANK, max_tied_nodes: int = MAX_TIED_NODES) -> None:
-    """Raise :class:`CanonicalizationComplexityError` if ``quads`` hold a blank-node structure that canonicalisation would not
+    """Raise :class:`~starlayer.errors.ExecutionError` (kind ``"limit"``) if ``quads`` hold a blank-node structure that canonicalisation would not
     finish: colour refinement (every blank node is coloured by its quads, neighbours by their colours, until stable), then
     the blank nodes still sharing a colour are linked by the quads that join two of them; a connected group of them with
     more than ``max_cycle_rank`` independent cycles (edges - nodes + 1) is the symmetric, densely tied structure the
@@ -172,14 +174,14 @@ def check_complexity(quads: list[ox.Quad], *, max_cycle_rank: int = MAX_SYMMETRI
 
     for n, _ in tied_groups(first):
         if n > max_tied_nodes:
-            raise CanonicalizationComplexityError(
+            raise _too_complex(
                 f"canonicalisation refused: {n} blank nodes that the quads around them cannot tell apart are linked to each "
                 f"other (more than {max_tied_nodes}); RDFC-1.0 takes about the cube of that many steps on a chain, cycle or tree"
             )
     for n, e in tied_groups(color):
         rank = e - n + 1
         if rank > max_cycle_rank:
-            raise CanonicalizationComplexityError(
+            raise _too_complex(
                 f"canonicalisation refused: {n} indistinguishable blank nodes are tied together by {e} "
                 f"statements (cycle rank {rank} > {max_cycle_rank}); RDFC-1.0 takes exponential time on such a structure"
             )

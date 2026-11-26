@@ -152,7 +152,8 @@ def test_widget_selection_runs_without_rdflib():
 def test_canonical_hashing_and_isomorphism_run_without_rdflib():
     out = ok("""
         from starlayer import StarLayerGraph
-        from starlayer.graph.rdfc import rdfc10_hash, to_canonical_nquads, CanonicalizationComplexityError
+        from starlayer.errors import ExecutionError
+        from starlayer.graph.rdfc import rdfc10_hash, to_canonical_nquads
         from starlayer.graph import isomorphic
 
         a, b = StarLayerGraph(), StarLayerGraph()
@@ -163,7 +164,7 @@ def test_canonical_hashing_and_isomorphism_run_without_rdflib():
         ring.parse(format="turtle", data="".join(f"_:b{i} <http://e/p> _:b{j} . " for i in range(10) for j in range(10) if i != j))
         try:
             to_canonical_nquads(ring)
-        except CanonicalizationComplexityError:
+        except ExecutionError:
             print("refused")
     """)
     assert "refused" in out

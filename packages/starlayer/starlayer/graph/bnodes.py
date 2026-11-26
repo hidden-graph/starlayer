@@ -15,6 +15,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError, only_kind
 from starlayer.graph import rdfc_native
 
 _CANONICAL = re.compile(r"c14n(\d+)")
@@ -58,7 +59,8 @@ def short_bnode_labels(items: Iterable[Any], prefix: str = "b") -> list[Any]:
     if not rdfc_native._bnode_in_triple_term(as_quads):
         try:
             canonical = rdfc_native._canonicalize(as_quads, "sha256")
-        except rdfc_native.CanonicalizationComplexityError:
+        except ExecutionError as error:
+            only_kind(error, "limit")
             canonical = None
         if canonical is not None:
             renamed = [_rename_item(q, lambda value: prefix + _CANONICAL.fullmatch(value).group(1)) for q in canonical]

@@ -40,8 +40,8 @@ def isomorphic(graph1: Any, graph2: Any) -> bool:
     graph.
 
     Raises:
-        starlayer.graph.rdfc_native.CanonicalizationComplexityError: a highly symmetric blank-node structure that the
-            canonicaliser could not finish (see ``rdfc_native``).
+        ExecutionError: kind ``"limit"``, a highly symmetric blank-node structure that the canonicaliser could not
+            finish (see ``rdfc_native``).
     """
     from starlayer.graph import rdfc_native
 

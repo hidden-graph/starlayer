@@ -6,7 +6,7 @@ RDFC-1.0 has no triple-term rule, so a triple term is rewritten first with the R
 (``starlayer.graph.interop.to_basic``); the result is RDFC-1.0 of that RDF 1.1-shaped dataset. A graph without triple terms
 gets the plain RDFC-1.0 form and hash that any other implementation computes.
 
-``CanonicalizationComplexityError`` is raised, before canonicalising, for a highly symmetric blank-node structure (the "dataset
+``ExecutionError`` of kind ``"limit"`` is raised, before canonicalising, for a highly symmetric blank-node structure (the "dataset
 poisoning" case of RDFC-1.0 section 7.1), which Oxigraph's canonicaliser would not finish.
 """
 
@@ -16,9 +16,8 @@ from typing import Any
 
 from starlayer.graph import rdfc_native
 from starlayer.graph.compare import as_quads
-from starlayer.graph.rdfc_native import CanonicalizationComplexityError
 
-__all__ = ["to_canonical_nquads", "rdfc10_hash", "CanonicalizationComplexityError"]
+__all__ = ["to_canonical_nquads", "rdfc10_hash"]
 
 
 def to_canonical_nquads(graph: Any, hash_algorithm: str = "sha256") -> str:
@@ -28,7 +27,7 @@ def to_canonical_nquads(graph: Any, hash_algorithm: str = "sha256") -> str:
 
     Raises:
         ValueError: another hash algorithm.
-        CanonicalizationComplexityError: a highly symmetric blank-node structure.
+        ExecutionError: kind ``"limit"``, a highly symmetric blank-node structure.
     """
     return rdfc_native.canonical_nquads(as_quads(graph), algorithm=hash_algorithm)
 
@@ -38,6 +37,6 @@ def rdfc10_hash(graph: Any, hash_algorithm: str = "sha256") -> str:
 
     Raises:
         ValueError: a hash algorithm other than ``"sha256"`` or ``"sha384"``.
-        CanonicalizationComplexityError: a highly symmetric blank-node structure.
+        ExecutionError: kind ``"limit"``, a highly symmetric blank-node structure.
     """
     return rdfc_native.canonical_hash(as_quads(graph), algorithm=hash_algorithm)

@@ -6,9 +6,9 @@ from __future__ import annotations
 import hashlib
 
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerDataset, StarLayerGraph
 from starlayer.graph.rdfc import (
-    CanonicalizationComplexityError,
     rdfc10_hash,
     to_canonical_nquads,
 )
@@ -52,7 +52,8 @@ def test_a_dataset_hash_counts_graph_names():
 def test_a_symmetric_blank_node_graph_raises_the_complexity_error():
     ring = "".join(f"_:b{i} ex:p _:b{j} . " for i in range(10) for j in range(10) if i != j)
     g = _graph(ring)
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError) as caught:
         to_canonical_nquads(g)
-    with pytest.raises(CanonicalizationComplexityError):
+    assert caught.value.kind == "limit"
+    with pytest.raises(ExecutionError):
         rdfc10_hash(g)

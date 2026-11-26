@@ -9,9 +9,9 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from starlayer.errors import ExecutionError
 from starlayer.graph.interop import to_basic
 from starlayer.graph.rdfc_native import (
-    CanonicalizationComplexityError,
     canonical_hash,
     canonical_nquads,
     canonical_quads,
@@ -84,7 +84,7 @@ def test_w3c_poison_negative():
     manifest = (SUITE / "manifest.ttl").read_text(encoding="utf-8")
     assert "test074c a rdfc:RDFC10NegativeEvalTest" in manifest
     quads = parse_nq((SUITE / "rdfc10/test074-in.nq").read_text(encoding="utf-8"))
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         canonical_nquads(quads)
 
 
@@ -102,11 +102,11 @@ def _torus(n):
 
 @pytest.mark.parametrize("data", [_clique(10), _clique(8), _torus(6)], ids=["clique-10", "clique-8", "torus-6x6"])
 def test_symmetric_blank_node_structures_raise_instead_of_hanging(data):
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         canonical_nquads(data)
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         isomorphic(data, data)
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         isomorphic(data, data, basic=True)
 
 
@@ -114,7 +114,7 @@ def test_a_symmetric_structure_inside_triple_terms_raises_too():
     p = ox.NamedNode("http://e/p")
     b = [B(f"b{i}") for i in range(10)]
     data = [q(iri("s"), p, tt(b[i], p, b[j])) for i in range(10) for j in range(10) if i != j]
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         canonical_nquads(data)
 
 
@@ -143,15 +143,15 @@ def _tree(depth):
 
 @pytest.mark.parametrize("data", [_chain(300), _chain(400, closed=True), _tree(9)], ids=["path-300", "cycle-300", "tree-511-in-two-groups-of-255"])
 def test_a_long_group_of_identical_blank_nodes_is_refused_before_it_takes_cubic_time(data):
-    with pytest.raises(CanonicalizationComplexityError, match="cube"):
+    with pytest.raises(ExecutionError, match="cube"):
         check_complexity(data)
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         canonical_nquads(data)
 
 
 def test_the_size_limit_is_a_parameter_and_counts_nodes_the_quads_cannot_tell_apart():
     assert check_complexity(_chain(150)) is None
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         check_complexity(_chain(150), max_tied_nodes=100)
     # a long chain whose links differ is not a group of identical nodes, whatever its length
     v = ox.NamedNode("http://e/v")

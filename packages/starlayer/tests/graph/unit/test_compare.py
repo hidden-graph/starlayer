@@ -194,10 +194,10 @@ def test_isomorphic_still_treats_a_simple_literal_and_xsd_string_as_equal():
 
 def test_isomorphic_raises_instead_of_hanging_on_a_symmetric_blank_node_graph():
     import pytest
-    from starlayer.graph.rdfc_native import CanonicalizationComplexityError
+    from starlayer.errors import ExecutionError
 
     ring = "".join(f"_:b{i} ex:p _:b{j} . " for i in range(10) for j in range(10) if i != j)
     g = _graph("@prefix ex: <http://example.org/> . " + ring)
-    with pytest.raises(CanonicalizationComplexityError):
+    with pytest.raises(ExecutionError):
         isomorphic(g, g)
 
