@@ -37,7 +37,7 @@ KINDS = ("rule", "expression", "recursion", "constraint-query", "internal", "tim
 def test_execution_error_is_one_class_with_a_kind_and_the_message_as_its_text():
     error = ExecutionError("the message", kind="rule")
     assert error.kind == "rule" and str(error) == "the message"
-    assert ExecutionError.KINDS == KINDS
+    assert tuple(ExecutionError.KINDS) == KINDS
     assert not issubclass(ExecutionError, ShapeError)
     assert not issubclass(ExecutionError, ValueError)  # an ``except ValueError`` must not swallow a run-time failure
     assert ExecutionError.__subclasses__() == []  # no subclass per kind

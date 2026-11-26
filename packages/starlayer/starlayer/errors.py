@@ -17,21 +17,18 @@ The tree::
      `- EndpointError(StarLayerError, OSError)   a SPARQL endpoint could not be reached or answered with an error status; has ``status``
                                     (``starlayer.graph.endpoint``; it stays an ``OSError`` because a network failure is an I/O error)
 
-``ExecutionError`` is one class; its ``kind`` (one of ``ExecutionError.KINDS``) says what failed:
+``ExecutionError`` is one class; its ``kind`` (a key of ``ExecutionError.KINDS``, which maps each kind to a one-line meaning and is the
+one list of the kinds) says what failed, and ``FormatError`` is one class too, its ``kind`` a key of ``FormatError.KINDS``. Notes the
+one-liners cannot carry:
 
-* ``"rule"``: a rule failed while running, or the rule set failed as a whole (an SRL
-  rule set whose rules cannot be ordered, §4.4.1).
-* ``"expression"``: a node expression cannot be evaluated (SHACL 1.2 Node Expressions 3.2), an error and not an empty result.
-* ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
-* ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
-* ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported. The message of this kind
-  always starts "internal error (a bug in StarLayer, please report it at <ISSUES_URL>): " (added once, in ``ExecutionError``, never
-  at a raise site) and ``report_url`` is that URL (``None`` for every other kind).
-* ``"timeout"``: an OWL-DL reasoning call (either engine) did not finish within its wall-clock budget and was killed.
-* ``"inconsistent"``: the OWL-DL reasoner found the data logically inconsistent under OWL 2 DL semantics.
-* ``"query"``: the SPARQL engine (Oxigraph) failed while evaluating a query or update (its ``RuntimeError``), for text that parsed.
-* ``"inference"``: the reasoner could not run or died: a Java runtime that is missing or broken, an owlready2 Java error, or a
-  reasoning subprocess that exited without a result (a crash, not a timeout).
+* ``"internal"``: the message always starts "internal error (a bug in StarLayer, please report it at <ISSUES_URL>): " (added once, in
+  ``ExecutionError``, never at a raise site) and ``report_url`` is that URL (``None`` for every other kind).
+* ``"unsupported"`` and ``"internal"`` differ in who asked: ``"unsupported"`` is the user asking for something StarLayer cannot do
+  (the user can see the limit and choose differently: a name that is not a registered entailment regime, in a call or in a shapes
+  graph's ``sh:entailment``; a format that cannot hold what was given, such as a named graph for Turtle; a term Manchester syntax has
+  no form for; ``relevant_subgraph`` given a ``DESCRIBE`` or ``SERVICE`` query; a blank node that came from an endpoint being written
+  back; a base-direction literal under the ``"error"`` policy of the RDF 1.1 export); ``"internal"`` is StarLayer asking itself for something it cannot do (an OWL regime reaching the query rewrite), a
+  bug the user cannot fix.
 * ``"import"``: a declared import is not resolved, on every path that resolves imports (an RDF or OWL graph's ``owl:imports``, a shapes
   graph's, an ontology graph's, an SRL rule set's ``IMPORTS``). An import is satisfied when its IRI is a subject in the graph after
   resolution (or is a built-in ontology of the ``starontology`` registry; for SRL, when the loader produced a rule set for it); one that
@@ -40,20 +37,12 @@ The tree::
   ``ignore_imports=True`` skips the whole step. An imported SRL text that is not a valid rule set is a ``FormatError`` of kind ``"srl"``
   instead, and a malformed declaration (an ``owl:imports`` object that is not an IRI) is a ``FormatError`` of kind ``"owl"`` for a graph
   and a ``ShapeCompileError`` for a shapes graph.
-* ``"unsupported"``: valid input the library or the target notation cannot handle, nobody's mistake, as against malformed input (a
-  ``FormatError``) and a bad argument (a ``ValueError``): the Manchester serializer meeting a term, literal or axiom that Manchester
-  syntax has no form for, a query-time entailment rewrite that has no exact form for the query, a name that is not a registered
-  entailment regime, ``relevant_subgraph`` given a ``DESCRIBE`` or ``SERVICE`` query, a blank node that came from an endpoint being
-  written back, and a base-direction literal under the ``"error"`` policy of the RDF 1.1 export.
-* ``"limit"``: a size or complexity cap of the library was reached, as against a bug (``"internal"``): a depth limit (a query, tree or
-  class expression nested past the stack, the validation path or node expressions nested past ``max_validation_depth`` or the expression
-  depth; ``context`` says what was too deep), RDFC-1.0's defence against a highly symmetric blank-node structure (§7.1), and the SHACL rule caps ``max_iterations``
-  and ``max_triples``.
-
-``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
-update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"`` (an RDF document, a list, an encoding or a term: a term is the smallest piece of RDF text, ``context`` says which), ``"manchester"``, ``"owl"``. ``"srl"`` covers SRL text, an ``srl:`` tree, a rule set built or edited by hand that holds something
-that is not a rule body element, and a goal pattern whose predicate SRL does not allow. A position
-(``line`` and ``col`` 1-based, ``pos`` a 0-based offset) is set only by code that knows it, never parsed out of an engine message.
+* ``"limit"``: a depth limit's ``context`` says what was too deep (a query, tree or class expression nested past the stack, the
+  validation path or node expressions nested past ``max_validation_depth`` or the expression depth).
+* ``FormatError`` kind ``"rdf"`` covers an RDF document, a list, an encoding and a term (the smallest piece of RDF text; ``context``
+  says which), ``"srl"`` SRL text, an ``srl:`` tree, a rule set built or edited by hand that holds something that is not a rule body
+  element, and a goal pattern whose predicate SRL does not allow. A position (``line`` and ``col`` 1-based, ``pos`` a 0-based offset)
+  is set only by code that knows it, never parsed out of an engine message.
 
 The class and the ``kind`` name the cause and never change with the path an error travels. Where it happened is ``context`` (a short
 string such as ``"sh:rule ex:R1"``, ``None`` when nothing narrows it), repeated in the message; a handler that knows the place sets it
@@ -120,7 +109,7 @@ class ExecutionError(StarLayerError):
     the data inconsistent or could not run. Not a ``ShapeError`` and not a ``ValueError``: a handler for a wrong shapes graph (or a
     bad argument) must not swallow it.
 
-    One class; ``kind`` says what failed (a plain string, one of ``KINDS``, listed in the module docstring). ``kind`` names the cause
+    One class; ``kind`` says what failed (a plain string, one of ``KINDS``: the mapping of every kind to its meaning). ``kind`` names the cause
     and never changes with the path the error travels: an expression that cannot be evaluated is ``"expression"`` whether
     ``validate()`` or a rule met it, and ``"rule"`` is only for a failure that is about the rule itself. Where it happened (which
     rule, shape, focus node or call) is ``context`` (a short string, default ``None``) and is also in the message, so ``str(error)``
@@ -131,7 +120,21 @@ class ExecutionError(StarLayerError):
 
     Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
 
-    KINDS = ("rule", "expression", "recursion", "constraint-query", "internal", "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
+    #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
+    KINDS = {
+        "rule": "a rule failed while running, or the rule set failed as a whole (an SRL rule set that cannot be ordered)",
+        "expression": "a node expression cannot be evaluated, an error and not an empty result",
+        "recursion": "a shape reaches itself on a focus node through sh:not (a cycle in the data)",
+        "constraint-query": "a sh:sparql constraint query reported ?failure true",
+        "internal": "StarLayer asked itself for something it cannot do: a bug in StarLayer, to be reported (report_url)",
+        "timeout": "an OWL-DL reasoning call did not finish within its time budget and was killed",
+        "inconsistent": "the OWL-DL reasoner found the data logically inconsistent",
+        "inference": "the reasoner could not run or died: Java missing or broken, or a reasoning subprocess that exited without a result",
+        "query": "the SPARQL engine failed while evaluating a query or update whose text parsed",
+        "import": "a declared import (owl:imports, an SRL IMPORTS) is not resolved",
+        "unsupported": "valid input that the library or the target notation cannot handle: the user asked for something StarLayer cannot do and can choose differently",
+        "limit": "a size or complexity cap of the library was reached (a depth limit, RDFC-1.0's symmetry defence, max_iterations, max_triples)",
+    }
 
     def __init__(self, message: str, *, kind: str, context: str | None = None, unresolved: tuple[Any, ...] = ()) -> None:
         if kind not in self.KINDS:
@@ -165,7 +168,14 @@ class FormatError(StarLayerError):
     ``col`` (1-based) and ``pos`` (a 0-based offset) are ``None`` unless the code that raised it knew them: they are never read out of
     an engine's message. ``message`` defaults to ``why``."""
 
-    KINDS = ("sparql", "srl", "rdf", "manchester", "owl")
+    #: Every kind and what is malformed (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
+    KINDS = {
+        "sparql": "SPARQL query or update text, an sqe: tree, a VERSION declaration",
+        "srl": "SRL text, an srl: tree, a rule set built with something that is not a rule body element, a bad DATA block, a rule set that breaks the SRL rules",
+        "rdf": "an RDF document that cannot be parsed, the text of a term (an IRI, a language tag, a lexical form), a list that is not well formed, a name that has no prefixed form",
+        "manchester": "Manchester Syntax text, a manch: tree, a SWRL Rule: frame",
+        "owl": "RDF that is not valid OWL when it is written as Manchester Syntax, or a malformed owl:imports declaration",
+    }
 
     def __init__(self, message: str | None = None, *, kind: str, context: str | None = None, why: str | None = None,
                  line: int | None = None, col: int | None = None, pos: int | None = None) -> None:

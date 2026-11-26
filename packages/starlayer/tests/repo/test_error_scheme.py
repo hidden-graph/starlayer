@@ -58,8 +58,8 @@ def test_a_shape_error_is_not_a_value_error_so_an_except_value_error_misses_it()
 
 def test_the_execution_kinds_are_the_six_of_step_c_and_the_three_of_owl_dl_reasoning():
     assert "nesting" not in ExecutionError.KINDS  # merged into "limit" (2026-11-26)
-    assert ExecutionError.KINDS == ("rule", "expression", "recursion", "constraint-query", "internal",
-                                    "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
+    assert tuple(ExecutionError.KINDS) == ("rule", "expression", "recursion", "constraint-query", "internal",
+                                           "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
     with pytest.raises(ValueError, match="unknown ExecutionError kind"):
         ExecutionError("x", kind="nope")
 
@@ -158,7 +158,7 @@ def test_a_meta_error_keeps_its_attributes_through_pickle_and_copy():
 
 
 def test_the_format_kinds_and_the_required_valid_kind():
-    assert FormatError.KINDS == ("sparql", "srl", "rdf", "manchester", "owl")
+    assert tuple(FormatError.KINDS) == ("sparql", "srl", "rdf", "manchester", "owl")
     with pytest.raises(TypeError):
         FormatError("no kind")  # type: ignore[call-arg]
     with pytest.raises(ValueError, match="unknown FormatError kind"):
@@ -228,6 +228,24 @@ def _error_call_kinds():
             elif name == "only_kind":
                 for arg in node.args[1:]:
                     yield path.relative_to(REPO).as_posix(), node.lineno, "only_kind", arg.value if isinstance(arg, ast.Constant) else None
+
+
+@pytest.mark.parametrize("registry", [ExecutionError.KINDS, FormatError.KINDS], ids=["ExecutionError", "FormatError"])
+def test_every_kind_has_a_one_line_meaning(registry):
+    """``KINDS`` is the one registry: kind -> meaning, plain strings, so iteration, ``in`` and ``', '.join`` read the names."""
+    assert isinstance(registry, dict) and registry
+    for kind, meaning in registry.items():
+        assert isinstance(kind, str) and isinstance(meaning, str) and meaning.strip() and "\n" not in meaning, kind
+    assert ", ".join(registry) == ", ".join(list(registry))
+    assert all(k in registry for k in registry)
+
+
+def test_a_kind_stays_a_plain_string_and_the_error_round_trips():
+    for cls in (ExecutionError, FormatError):
+        for kind in cls.KINDS:
+            error = cls("m", kind=kind)
+            assert type(error.kind) is str and error.kind == kind
+            assert all(again.kind == kind for again in _roundtrips(error))
 
 
 def test_every_kind_in_use_at_a_raise_site_is_declared():
