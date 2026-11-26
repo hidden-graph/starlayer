@@ -584,7 +584,7 @@ def _render_class_expr_bare(ctx, expr):
         if filler is not None:
             text += f' {_render_class_expr(ctx, filler, "primary")}'
         return text, tag
-    raise AssertionError(f'unhandled class-expression tag {tag!r}')
+    raise ExecutionError(f'unhandled class-expression tag {tag!r}', kind="internal")
 
 
 def _render_data_range(ctx, dr, context='or'):
@@ -608,7 +608,7 @@ def _render_data_range_bare(ctx, dr):
         _, datatype, facets = dr
         parts = ', '.join(f'{_DATA_FACET_KEYWORDS[f]} {_render_literal(ctx, v)}' for f, v in facets)
         return f'{_render_name(ctx, datatype)}[{parts}]', tag
-    raise AssertionError(f'unhandled data-range tag {tag!r}')
+    raise ExecutionError(f'unhandled data-range tag {tag!r}', kind="internal")
 
 
 # ---------------------------------------------------------------------------

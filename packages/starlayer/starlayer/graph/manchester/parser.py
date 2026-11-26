@@ -1004,7 +1004,7 @@ def _expr_node(cur, expr):
         return node
     if tag == 'Inverse':
         return _prop_node(cur, expr)
-    raise AssertionError(f'unhandled class-expression tag {tag!r}')
+    raise ExecutionError(f'unhandled class-expression tag {tag!r}', kind="internal")
 
 
 def _build_list(cur, items):
@@ -1133,7 +1133,7 @@ def _data_range_node(cur, dr):
             facet_nodes.append(fn)
         t.append((node, OWL.withRestrictions, _build_list(cur, facet_nodes)))
         return node
-    raise AssertionError(f'unhandled data-range tag {tag!r}')
+    raise ExecutionError(f'unhandled data-range tag {tag!r}', kind="internal")
 
 
 # ---------------------------------------------------------------------------

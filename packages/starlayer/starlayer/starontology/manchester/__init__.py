@@ -383,7 +383,7 @@ def _encode_class_expr(g, expr):
             encode_filler = _encode_data_range if tag.startswith('D') else _encode_class_expr
             g.add((node, MANCH.filler, encode_filler(g, filler)))
         return node
-    raise AssertionError(f'unhandled class-expression tag {tag!r}')
+    raise ExecutionError(f'unhandled class-expression tag {tag!r}', kind="internal")
 
 
 def _encode_data_range(g, dr):
@@ -419,7 +419,7 @@ def _encode_data_range(g, dr):
             facet_nodes.append(fn)
         _write_seq(g, node, MANCH.facets, facet_nodes)
         return node
-    raise AssertionError(f'unhandled data-range tag {dr[0]!r}')
+    raise ExecutionError(f'unhandled data-range tag {dr[0]!r}', kind="internal")
 
 
 # Which encoder a clause's own item values need, keyed by the clause class -
@@ -475,7 +475,7 @@ def _encode_value(g, kind, value):
         return _encode_data_range(g, value)
     if kind in ('name', 'characteristic'):
         return _enc_term(value)
-    raise AssertionError(f'unhandled value kind {kind!r}')
+    raise ExecutionError(f'unhandled value kind {kind!r}', kind="internal")
 
 
 def _encode_annotation(g, ann):
@@ -800,7 +800,7 @@ def _decode_value(g, kind, node):
         return _decode_data_range(g, node)
     if kind in ('name', 'characteristic'):
         return _dec_term(node)
-    raise AssertionError(f'unhandled value kind {kind!r}')
+    raise ExecutionError(f'unhandled value kind {kind!r}', kind="internal")
 
 
 class _Ann(tuple):
@@ -979,7 +979,7 @@ def _render_class_expr(expr, top: bool = True) -> str:
             render_filler = _render_data_range if tag.startswith('D') else _render_class_expr
             inner += f' {render_filler(filler, top=False)}'
         return _paren(inner, not top)
-    raise AssertionError(f'unhandled class-expression tag {tag!r}')
+    raise ExecutionError(f'unhandled class-expression tag {tag!r}', kind="internal")
 
 
 def _render_data_range(dr, top: bool = True) -> str:
@@ -1001,7 +1001,7 @@ def _render_data_range(dr, top: bool = True) -> str:
         _, data_facets_inv = _inverse_characteristic_maps()
         facet_strs = [f'{data_facets_inv[facet_uri]} {_render_value(lit)}' for facet_uri, lit in facets]
         return f'{_render_name(datatype)}[' + ', '.join(facet_strs) + ']'
-    raise AssertionError(f'unhandled data-range tag {tag!r}')
+    raise ExecutionError(f'unhandled data-range tag {tag!r}', kind="internal")
 
 
 def _render_annotation_list(anns) -> str:
