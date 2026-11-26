@@ -466,7 +466,7 @@ def test_query_graph_view_sees_its_graph_as_default_dataset_sees_the_union():
 
 
 def test_query_rejects_unbuilt_features(g):
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ValueError):
         g.query("ASK {}", entailment="rdfs")
     with pytest.raises(NotImplementedError):
         g.query(object())
