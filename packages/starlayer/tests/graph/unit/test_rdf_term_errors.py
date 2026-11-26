@@ -179,3 +179,16 @@ def _rdflib_graph(rdflib, subject):
     graph = rdflib.Graph()
     graph.add((rdflib.URIRef(subject), rdflib.URIRef("http://e/p"), rdflib.URIRef("http://e/o")))
     return graph
+
+
+def test_json_ld_cannot_hold_a_triple_term_and_that_is_unsupported_not_an_os_error(tmp_path):
+    """Review decision Q8 (2026-11-26): valid data the chosen format cannot represent is ``unsupported``; real I/O errors stay ``OSError``."""
+    from starlayer.errors import ExecutionError
+
+    g = StarLayerGraph()
+    g.add((ox.NamedNode("http://a"), ox.NamedNode("http://b"), ox.Triple(ox.NamedNode("http://x"), ox.NamedNode("http://y"), ox.NamedNode("http://z"))))
+    with pytest.raises(ExecutionError) as info:
+        g.serialize(format="json-ld")
+    assert info.value.kind == "unsupported" and info.value.context == "JSON-LD serialize" and not isinstance(info.value, OSError)
+    with pytest.raises(OSError):  # an unwritable path is still an I/O error
+        g.serialize(str(tmp_path / "no" / "such" / "dir" / "x.nt"), format="nt")

@@ -14,7 +14,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import config, formats, lexical, ntversion, terms
 from starlayer.graph._detached import detached
 from starlayer.graph._versions import require_supported_pyoxigraph
@@ -574,7 +574,10 @@ class _Base:
 
         ``bnode_labels="short"`` writes the blank nodes as ``_:b0``, ``_:b1``, ... instead of their long ids (see ``bnodes.py``; the graph
         keeps its ids, and the labels and the order of the statements are the same every time for the same graph). The default
-        ``None`` writes the ids as they are."""
+        ``None`` writes the ids as they are.
+
+        JSON-LD cannot hold a triple term: that raises ``ExecutionError`` of kind ``"unsupported"`` (context ``"JSON-LD serialize"``),
+        as valid data the chosen format cannot represent; any other ``OSError`` (a path that cannot be written) is left as it is."""
         if bnode_labels not in (None, "short"):
             raise ValueError(f"bnode_labels must be None or 'short', not {bnode_labels!r}")
         if formats.is_manchester(format):
@@ -616,7 +619,17 @@ class _Base:
 
             raw = interop.export_rdf11(items, fmt, None, pfx or None, base, bnode_labels=bnode_labels)
         else:
-            raw = ox.serialize(items, None, fmt, prefixes=pfx or None, base_iri=base)
+            try:
+                raw = ox.serialize(items, None, fmt, prefixes=pfx or None, base_iri=base)
+            except OSError as exc:
+                # Oxigraph's JSON-LD writer refuses a triple term: valid data the format cannot hold, not an I/O failure. Only that
+                # refusal is converted; every other OSError is left alone.
+                if fmt == ox.RdfFormat.JSON_LD and "does not support RDF 1.2" in str(exc):
+                    raise ExecutionError(
+                        f"{exc}: choose a format that holds triple terms (Turtle, TriG, N-Triples, N-Quads)",
+                        kind="unsupported", context="JSON-LD serialize",
+                    ) from exc
+                raise
         if only_used and fmt in _TURTLE_LIKE and pfx:
             raw = _strip_unused_prefixes(raw.decode("utf-8")).encode("utf-8")
         line = _VERSION_LINE.get(fmt)
