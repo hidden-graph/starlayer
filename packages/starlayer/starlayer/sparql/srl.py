@@ -87,13 +87,10 @@ sibling files:
   runnable `RuleSet`, and running it inherently needs a second input (the
   base graph) that has nothing to do with this module's own encode/decode/
   validation concerns.
-- ``srl_semantic_checks.py`` - cross-referential well-formedness checks
-  (an unbound head/filter/assignment variable, a ``SET(...)`` reusing an
-  already-bound variable) - deliberately kept out of SHACL (see
-  ``srl_validate()``'s own docstring for why structural-only is the line), so
-  this is a separate, plain-Python check, not part of this module as a
-  *file* - but ``srl_validate()`` calls into it (its own
-  ``_check_ruleset``), and so does running a rule set.
+- ``srl_semantic_checks.py`` - the §4.2 well-formedness checks (an unbound head/filter/assignment variable, a ``SET(...)``
+  reusing an already-bound variable) as a plain-Python function over the decoded rule set. Running a rule set calls it. The same
+  conditions are SHACL shapes in ``srl_shapes.ttl``, and ``srl_validate()`` reports those (a result per offending element); the
+  two are kept equal by a test, because a SPARQL constraint per element is too slow to run on every ``infer()``.
 """
 
 from __future__ import annotations
@@ -116,7 +113,6 @@ from ._srl_ast import (  # noqa: F401 - re-exported, see module docstring
     TriplePattern,
 )
 from .parse_sparql import _Encoder, _list, _Sink
-from .srl_semantic_checks import _check_ruleset, _problem_text
 from .triple_term import TripleTermNode
 from .vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
 
@@ -768,30 +764,34 @@ def _validation_graphs() -> tuple[Any, Any, Any]:
     return _validation_graphs_cache
 
 
-def srl_validate(tree_graph: Any) -> ValidationReport:
-    """Validate ``tree_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
-    or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
-    shapes.
+# The shapes of ``srl_shapes.ttl`` that state the spec's §4.2 well-formedness conditions, one per condition. A result of one of
+# these is a rule-set problem (the tree decodes and means what it says, but the rule set is not well-formed); a result of any
+# other shape means the tree itself is malformed.
+_WELL_FORMEDNESS_SHAPES = frozenset(
+    SRL[name].value
+    for name in (
+        "TripleTermSubjectShape",
+        "TripleTermPredicateShape",
+        "VariableInDataShape",
+        "AggregateInExpressionShape",
+        "UnboundHeadVariableShape",
+        "UnboundFilterVariableShape",
+        "UnboundAssignmentExpressionVariableShape",
+        "ReusedAssignmentVariableShape",
+        "VariableInUseShape",
+        "GroupKeyUnboundShape",
+        "AggregationVariableInScopeShape",
+        "DuplicateAggregationVariableShape",
+        "UnboundAggregationArgumentShape",
+        "UnsupportedVariableNameShape",
+    )
+)
 
-    Goes through ``starlayer.shacl.validate()``, never bare ``pyshacl`` -
-    same rule every other shapes module in this stack follows, since a
-    caller-supplied graph may carry genuine RDF 1.2 content (a triple term
-    as a ``srl:subject``/``srl:object``) that only ``starlayer.shacl``
-    understands correctly.
 
-    When the shapes conform, the tree is also decoded and checked for what shapes cannot say: the §4.2 well-formedness
-    conditions (``srl_semantic_checks``) and that the rules can be ordered (§4.4, a ``StratificationError`` when running). Each
-    finding is an ``sh:Violation`` in the report, with the ``srl:RuleSet`` node as its focus node, and the report then does not
-    conform. A tree that cannot be decoded is left to the shapes.
-
-    Args:
-        tree_graph: The ``srl:`` tree-RDF graph to validate.
-
-    Returns:
-        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives, with those findings added; it is not iterable, so read
-        ``conforms``, ``report_text`` and the rest by name.
-    """
-
+def _validate_against_shapes(tree_graph: Any) -> ValidationReport:
+    """The report of checking ``tree_graph`` against the ``srl:`` shapes (with ``spexpr:`` and ``sqe:``), the one place both
+    ``srl_validate`` and a run (``_require_well_formed``) get the §4.2 results from. A ``sh:Warning`` result does not make it
+    non-conforming."""
     from starlayer.shacl._adapter import (  # lazy: avoids a circular-import deadlock at module load time
         shared_plans,
         validate_bounded,
@@ -803,14 +803,69 @@ def srl_validate(tree_graph: Any) -> ValidationReport:
     shapes, _ontology, schema = _validation_graphs()
     tree_graph, _ = as_engine_graph(tree_graph)
     with shared_plans(_validation_plans):
-        result = validate_bounded(
+        return validate_bounded(
             rdfs_entailed_copy(tree_graph, schema),  # the RDFS closure the shapes rely on, done natively
             shapes,
             max_validation_depth=100,
+            allow_warnings=True,
         )
-    if not result.conforms:
-        return result
-    problems = _rule_set_problems(tree_graph)
+
+
+def _results_of(report: ValidationReport) -> list[tuple[str | None, Any, str]]:
+    """``(source shape IRI, focus node, message)`` of each ``sh:Violation`` result in ``report``."""
+    from starlayer.shacl.engine.terms import SH
+
+    graph = report.report_graph
+    out = []
+    for result in graph.subjects(SH.resultSeverity, SH.Violation):
+        shape = next(iter(graph.objects(result, SH.sourceShape)), None)
+        focus = next(iter(graph.objects(result, SH.focusNode)), None)
+        message = next(iter(graph.objects(result, SH.resultMessage)), None)
+        out.append((getattr(shape, "value", None), focus, getattr(message, "value", "")))
+    return out
+
+
+def srl_validate(tree_graph: Any) -> ValidationReport:
+    """Validate ``tree_graph`` (e.g. straight out of ``srl_parse_to_tree()``,
+    or an LLM-authored ``srl:`` graph not yet decoded) against the ``srl:``
+    shapes.
+
+    Goes through ``starlayer.shacl.validate()``, never bare ``pyshacl`` -
+    same rule every other shapes module in this stack follows, since a
+    caller-supplied graph may carry genuine RDF 1.2 content (a triple term
+    as a ``srl:subject``/``srl:object``) that only ``starlayer.shacl``
+    understands correctly.
+
+    The shapes cover the tree's structure and the spec's §4.2 well-formedness conditions (``srl_shapes.ttl``: a
+    triple term as a subject or predicate, a variable in ``DATA``, an aggregate or ``EXISTS`` in an expression, a head, filter or
+    assignment variable that is not bound, a ``SET`` or aggregation variable that is already bound or in use, a variable that
+    is in use, a group key or aggregation argument that is not bound, a repeated aggregation variable, a variable name
+    above U+FFFF). Each is an ``sh:Violation`` whose focus node is the offending element (a triple pattern, FILTER, SET, group
+    or aggregation), so an editor can point at it. Running a rule set checks the same conditions in Python
+    (``srl_semantic_checks``, a ``FormatError``): a SPARQL constraint per element costs too much to run on every ``infer()``
+    (a 40-rule set takes about half a second), and ``test_srl_wellformedness_agreement.py`` keeps the two the same.
+
+    Two things shapes cannot say are added when the structure conforms: that the rules can be ordered (§4.4, a
+    ``StratificationError`` when running) is an ``sh:Violation`` with the ``srl:RuleSet`` node as its focus node; and an
+    ``IMPORTS`` entry that is not resolved is an ``sh:Warning`` (``srl:UnresolvedImportsShape``, one result per import IRI, focus
+    node the ``srl:RuleSet``), which does not make the report non-conforming: the ordering check covers only the rules in the
+    document, and an imported rule can add a dependency that makes them unorderable. A tree that cannot be decoded is left to the
+    shapes.
+
+    Args:
+        tree_graph: The ``srl:`` tree-RDF graph to validate.
+
+    Returns:
+        The ``ValidationReport`` ``starlayer.shacl.validate()`` gives, with the ordering findings added; it is not iterable, so
+        read ``conforms``, ``report_text`` and the rest by name.
+    """
+    from .sqe._memtree import as_engine_graph
+
+    engine_graph, _ = as_engine_graph(tree_graph)
+    result = _validate_against_shapes(engine_graph)
+    if any(shape not in _WELL_FORMEDNESS_SHAPES for shape, _focus, _message in _results_of(result)):
+        return result  # the tree itself is malformed: it may not decode, so there is nothing to order
+    problems = _ordering_problems(engine_graph)
     if not problems:
         return result
     from .sqe.shapes import _with_violations
@@ -818,8 +873,8 @@ def srl_validate(tree_graph: Any) -> ValidationReport:
     return _with_violations(result, problems)
 
 
-def _rule_set_problems(tree_graph: Any) -> list[tuple[Any, str]]:
-    """``(srl:RuleSet node, message)`` for each §4.2 condition and ordering problem of the rule set a conforming tree holds."""
+def _ordering_problems(tree_graph: Any) -> list[tuple[Any, str]]:
+    """``(srl:RuleSet node, message)`` for each rule set of a structurally sound tree whose rules cannot be ordered (§4.4)."""
     from .srl_eval import StratificationError, _stratify
 
     problems: list[tuple[Any, str]] = []
@@ -828,9 +883,6 @@ def _rule_set_problems(tree_graph: Any) -> list[tuple[Any, str]]:
             ruleset = tree_to_ruleset(tree_graph, root)
         except SRLError:
             continue
-        issues = _check_ruleset(ruleset)
-        if issues:
-            problems.append((root, _problem_text(issues)))
         try:
             _stratify(ruleset)
         except StratificationError as error:

@@ -339,7 +339,7 @@ srl:AggregationShape a sh:NodeShape ;
     sh:targetClass srl:Aggregation .
 
 srl:ShapesGraph a sh:ShapesGraph ;
-    rdfs:member srl:GroupElementShape, srl:GroupKeysListShape, srl:GroupPatternListShape, srl:AggregationListShape, srl:AggregationShape, srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:SubjectOrVariableShape, srl:NegationElementShape, srl:RuleShape ;
+    rdfs:member srl:GroupElementShape, srl:GroupKeysListShape, srl:GroupPatternListShape, srl:AggregationListShape, srl:AggregationShape, srl:TripleListShape, srl:TriplePatternShape, srl:DataShape, srl:BodyListShape, srl:AssignmentElementShape, srl:ImportsListShape, srl:RuleSetShape, srl:PredicateOrVariableShape, srl:FilterElementShape, srl:DataListShape, srl:RuleListShape, srl:NegationInnerListShape, srl:TermOrVariableShape, srl:SubjectOrVariableShape, srl:NegationElementShape, srl:RuleShape, srl:TripleTermSubjectShape, srl:TripleTermPredicateShape, srl:VariableInDataShape, srl:AggregateInExpressionShape, srl:UnboundHeadVariableShape, srl:UnboundFilterVariableShape, srl:UnboundAssignmentExpressionVariableShape, srl:ReusedAssignmentVariableShape, srl:VariableInUseShape, srl:GroupKeyUnboundShape, srl:AggregationVariableInScopeShape, srl:DuplicateAggregationVariableShape, srl:UnboundAggregationArgumentShape, srl:UnsupportedVariableNameShape, srl:UnresolvedImportsShape ;
     owl:imports spexpr:ShapesGraph .
 
 srl:TermOrVariableShape a sh:NodeShape ;
@@ -404,3 +404,293 @@ srl:TriplePatternShape a sh:NodeShape ;
         sh:path srl:subject
     ] ;
     sh:targetClass srl:TriplePattern .
+
+# SRL §4.2 well-formedness conditions, one SPARQL constraint per condition. A result's focus node is the offending element
+# (a triple pattern, FILTER, SET, group or aggregation); the unresolved-imports warning's is the srl:RuleSet. "In scope" and "in use"
+# follow the spec: an element sees what the elements before it in its own list bind (a negation sees what is bound before it, a
+# group pattern the group keys that are bound before it); a variable is in use when an earlier negation or group pattern used it and it
+# is not bound outside.
+
+# §4.2: a triple term is the subject of this triple pattern or of a triple term nested in its object.
+srl:TripleTermSubjectShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "A triple term cannot be the subject of a triple (RDF 1.2); it can only be an object. Term: {?value}" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                { $this srl:subject ?value } UNION { $this srl:object/sqe:object* ?tt . ?tt sqe:subject ?value } . ?value a sqe:TripleTerm
+            }
+        """
+    ] ;
+    sh:targetClass srl:TriplePattern .
+
+# §4.2: a triple term is the predicate of this triple pattern or of a triple term nested in its object.
+srl:TripleTermPredicateShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "A triple term cannot be the predicate of a triple (RDF 1.2); it can only be an object. Term: {?value}" ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                { $this srl:predicate ?value } UNION { $this srl:object/sqe:object* ?tt . ?tt sqe:predicate ?value } . ?value a sqe:TripleTerm
+            }
+        """
+    ] ;
+    sh:targetClass srl:TriplePattern .
+
+# §7.6: a variable in a triple of a DATA block.
+srl:VariableInDataShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "A DATA block holds ground facts, so it cannot contain the variable {?v}." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                ?data srl:triples/rdf:rest*/rdf:first $this . $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+            }
+        """
+    ] ;
+    sh:targetClass srl:TriplePattern .
+
+# §4.2: an aggregate or EXISTS inside the expression of a FILTER or a SET.
+srl:AggregateInExpressionShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "A FILTER or SET expression cannot contain an aggregate (COUNT, SUM, ...) or EXISTS / NOT EXISTS; use a GROUP element or a NOT { } negation." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?value
+            WHERE {
+                $this srl:expr/(!rdf:type)* ?value . ?value a ?type .
+                FILTER ( ?type IN ( spexpr:Builtin_EXISTS, spexpr:Builtin_NOTEXISTS ) || STRSTARTS(STR(?type), "https://github.com/hidden-graph/starlayer/ns/sparql/expr#Aggregate_") )
+            }
+        """
+    ] ;
+    sh:targetClass srl:FilterElement, srl:AssignmentElement .
+
+# §4.2: a head variable that no element of the body binds (the body's final inScope).
+srl:UnboundHeadVariableShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The rule head uses the variable {?v}, which the rule body never binds." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                ?rule srl:head/rdf:rest*/rdf:first $this . ?rule srl:body ?body . $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+                FILTER NOT EXISTS { ?body rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
+            }
+        """
+    ] ;
+    sh:targetClass srl:TriplePattern .
+
+# §4.2: a FILTER variable that is not in scope at the filter (bound by an element before it, in order).
+srl:UnboundFilterVariableShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The FILTER uses the variable {?v}, which no earlier element of the rule body binds." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                $this srl:expr/(!rdf:type)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+                FILTER NOT EXISTS { { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?nf . ?nf ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?gf . ?gf srl:keys/rdf:rest*/rdf:first ?v . ?gf ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } }
+            }
+        """
+    ] ;
+    sh:targetClass srl:FilterElement .
+
+# §4.2: a SET expression variable that is not in scope at the assignment.
+srl:UnboundAssignmentExpressionVariableShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The SET expression uses the variable {?v}, which no earlier element of the rule body binds." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                $this srl:expr/(!rdf:type)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+                FILTER NOT EXISTS { { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?na . ?na ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ga . ?ga srl:keys/rdf:rest*/rdf:first ?v . ?ga ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } }
+            }
+        """
+    ] ;
+    sh:targetClass srl:AssignmentElement .
+
+# §4.2: the SET variable is in scope or in use (inScope / inUse) where the SET is.
+srl:ReusedAssignmentVariableShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "SET assigns the variable {?v}, which is already bound or already in use earlier in the rule; a SET variable must be new." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                $this srl:var ?v .
+                { { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?nr . ?nr ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?gr . ?gr srl:keys/rdf:rest*/rdf:first ?v . ?gr ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { { $this ^rdf:first/^rdf:rest+/rdf:first ?uera . ?uera srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uera ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest+/rdf:first ?uera . ?uera srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uera ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uera (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unr . ?unr ^rdf:first/^rdf:rest+/rdf:first ?uerb . ?uerb srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uerb ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unr . ?unr ^rdf:first/^rdf:rest+/rdf:first ?uerb . ?uerb srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uerb ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uerb (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugr . ?ugr ^rdf:first/^rdf:rest+/rdf:first ?uerc . ?uerc srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uerc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugr . ?ugr ^rdf:first/^rdf:rest+/rdf:first ?uerc . ?uerc srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uerc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uerc (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugr . ?ugr ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . FILTER NOT EXISTS { ?ugr srl:keys/rdf:rest*/rdf:first ?v . } } }
+            }
+        """
+    ] ;
+    sh:targetClass srl:AssignmentElement .
+
+# §4.2: a variable already in use (seen inside a negation or group pattern, not in scope outside it) appears in a triple pattern.
+srl:VariableInUseShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The triple pattern uses the variable {?v}, which is in use: it appears inside a NOT { } or GROUP pattern earlier in the rule and is not bound outside it." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable )
+                { $this ^rdf:first/^rdf:rest+/rdf:first ?ueua . ?ueua srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?ueua ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest+/rdf:first ?ueua . ?ueua srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?ueua ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?ueua (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unu . ?unu ^rdf:first/^rdf:rest+/rdf:first ?ueub . ?ueub srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?ueub ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:inner ?unu . ?unu ^rdf:first/^rdf:rest+/rdf:first ?ueub . ?ueub srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?ueub ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?ueub (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugu . ?ugu ^rdf:first/^rdf:rest+/rdf:first ?ueuc . ?ueuc srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?ueuc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugu . ?ugu ^rdf:first/^rdf:rest+/rdf:first ?ueuc . ?ueuc srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?ueuc ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?ueuc (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { $this ^rdf:first/^rdf:rest*/^srl:pattern ?ugu . ?ugu ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . FILTER NOT EXISTS { ?ugu srl:keys/rdf:rest*/rdf:first ?v . } }
+            }
+        """
+    ] ;
+    sh:targetClass srl:TriplePattern .
+
+# §4.2: a group key that is neither bound earlier in the rule nor bound by the group pattern.
+srl:GroupKeyUnboundShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The GROUP key {?k} is not bound before the group or by the group's own pattern." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?k
+            WHERE {
+                $this srl:keys/rdf:rest*/rdf:first ?k .
+                FILTER NOT EXISTS { $this ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?k . }
+                FILTER NOT EXISTS { $this srl:pattern/rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?k . }
+            }
+        """
+    ] ;
+    sh:targetClass srl:GroupElement .
+
+# §4.2: an aggregation variable that is in scope or in use before the group, or bound by the pattern.
+srl:AggregationVariableInScopeShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The aggregation variable {?v} is already bound or in use in this rule, or bound by the group pattern; an aggregation variable must be new." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                ?group srl:aggregations/rdf:rest*/rdf:first $this . $this srl:var ?v .
+                { ?group ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } UNION { { ?group ^rdf:first/^rdf:rest+/rdf:first ?uei . ?uei srl:inner/rdf:rest*/rdf:first/(srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER NOT EXISTS { ?uei ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } UNION { ?group ^rdf:first/^rdf:rest+/rdf:first ?uei . ?uei srl:pattern/rdf:rest*/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var) ?v . FILTER NOT EXISTS { ?uei ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } FILTER NOT EXISTS { ?uei (srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . } } } UNION { ?group srl:pattern/rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
+            }
+        """
+    ] ;
+    sh:targetClass srl:Aggregation .
+
+# §4.2: a second aggregation of a group with the same variable as an earlier one.
+srl:DuplicateAggregationVariableShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The aggregation variable {?v} is assigned more than once in the same GROUP." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                ?group srl:aggregations/rdf:rest*/rdf:first ?first . ?group srl:aggregations/rdf:rest*/rdf:first $this .
+                ?cell1 rdf:first ?first . ?cell1 rdf:rest+ ?cell2 . ?cell2 rdf:first $this . ?first srl:var ?v . $this srl:var ?v
+            }
+        """
+    ] ;
+    sh:targetClass srl:Aggregation .
+
+# §4.2: an aggregation argument that is not in scope in the group pattern.
+srl:UnboundAggregationArgumentShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The aggregation argument {?v} is not bound by the group pattern or a group key bound before the group." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                ?group srl:aggregations/rdf:rest*/rdf:first $this . $this srl:argument ?v .
+                FILTER NOT EXISTS { ?group srl:keys/rdf:rest*/rdf:first ?v . ?group ^rdf:first/^rdf:rest+/rdf:first/((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
+                FILTER NOT EXISTS { ?group srl:pattern/rdf:rest*/rdf:first ?e0 . ?e0 ((srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)*|srl:var|srl:keys/rdf:rest*/rdf:first|srl:aggregations/rdf:rest*/rdf:first/srl:var) ?v . }
+            }
+        """
+    ] ;
+    sh:targetClass srl:Aggregation .
+
+# The grammar allows U+10000 to U+EFFFF in a variable name, but Oxigraph's SPARQL text does not.
+srl:UnsupportedVariableNameShape a sh:NodeShape ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The variable {?v} has a character above U+FFFF in its name, which the engine the rules run on does not accept." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?v
+            WHERE {
+                { $this (srl:subject|srl:predicate|srl:object)/(sqe:subject|sqe:predicate|sqe:object)* ?v . FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable ) } UNION { $this srl:expr/(!rdf:type)* ?v } UNION { $this srl:var ?v } UNION { $this srl:argument ?v } UNION { $this srl:keys/rdf:rest*/rdf:first ?v }
+                FILTER ( isLiteral(?v) && datatype(?v) = spexpr:Variable && REGEX(STR(?v), "[\\\\x{10000}-\\\\x{10FFFF}]") )
+            }
+        """
+    ] ;
+    sh:targetClass srl:TriplePattern, srl:FilterElement, srl:AssignmentElement, srl:GroupElement, srl:Aggregation .
+
+# An IMPORTS entry the document still holds as an IRI (it has not been resolved).
+srl:UnresolvedImportsShape a sh:NodeShape ;
+    sh:severity sh:Warning ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "The rule set has an IMPORTS entry {?import} that is not resolved, so the check that the rules can be ordered covers only the rules in this document; an imported rule can add a dependency that makes them unorderable. Resolve the imports (srl.resolve_imports(), or imports_loader=) and validate again." ;
+        sh:select """
+            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
+            PREFIX sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#>
+            PREFIX srl: <https://github.com/hidden-graph/starlayer/ns/sparql/srl#>
+            SELECT DISTINCT $this ?import
+            WHERE {
+                $this srl:imports/rdf:rest*/rdf:first ?import
+            }
+        """
+    ] ;
+    sh:targetClass srl:RuleSet .

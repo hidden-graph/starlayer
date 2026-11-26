@@ -1,15 +1,18 @@
 """SRL §4.2 "Well-formedness Conditions" - e.g. ``SET(...)`` must
 not reuse an already-bound variable, and every filter/assignment/head
-variable must be bound. These conditions are cross-referential and
-sequence-position-dependent (whether a variable is "already bound" depends
-on every element before it in the same rule body), which SHACL's own
-per-node shape model structurally can't express - so this lives here as a
-function over the decoded ``srl_ast`` tree, not a SHACL shape.
+variable must be bound - as a function over the decoded ``srl_ast`` tree.
 
-Private: ``srl.parse_ruleset()`` does not run these checks (a rule set with a problem still loads, so it can be fixed).
-``srl_validate`` reports each issue as a violation, and running or planning a rule set (``_require_well_formed``) raises a
-``FormatError`` (kind ``"srl"``) for one - without that, a ruleset violating the "SET(...) must not reuse an already-bound
-variable" condition would evaluate with zero error, just silently rebinding the variable to the wrong value.
+This is the check that *runs* a rule set: running or planning one (``_require_well_formed``) raises a ``FormatError`` (kind
+``"srl"``) for a breach - without that, a rule set violating the "SET(...) must not reuse an already-bound variable" condition
+would evaluate with zero error, just silently rebinding the variable to the wrong value. ``parse_ruleset()`` does not run it (a
+rule set with a problem still loads, so it can be fixed).
+
+The same conditions are also SHACL shapes in ``starontology/srl/srl_shapes.ttl`` (``srl:UnboundHeadVariableShape`` and the
+rest, one per ``kind`` below), and ``srl_validate`` reports those: each result's focus node is the offending element, which
+this function cannot give (it names a rule). Both are kept on purpose. A SPARQL constraint costs about 0.5 to 5 ms per element
+(a 40-rule set took about 0.5 s to check; this function takes under a millisecond), which is too much to pay on every
+``infer()``. ``tests/sparql/unit/test_srl_wellformedness_agreement.py`` proves the two agree (every §4.2 negative case of the
+conformance suite and a seeded set of random rule sets); change one and the other.
 
 Implements the spec's own formalism directly and verbatim (not an
 approximation): for a sequence of rule elements given initial variables V0

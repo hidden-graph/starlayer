@@ -140,23 +140,12 @@ def test_body_list_rejects_a_non_body_element_member():
 _AGGREGATE_IN_SET = "PREFIX : <http://example.org/>\nRULE { ?x :n ?n } WHERE { ?x :p ?y . SET(?n := COUNT(?y)) }"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "srl_validate() now validates against srl: + spexpr: + sqe: only (no salg:), so that the srl: shapes can "
-        "be published without it. The old salg: expression shape rejected an aggregate (COUNT) inside SET; the "
-        "shared spexpr: shapes accept aggregates because sqe: needs them. parse_ruleset() still rejects it through "
-        "the Python well-formedness check (aggregate_in_expression). To close the gap srl_shapes.ttl needs its own "
-        "constraint: no spexpr aggregate under srl:expr. srl_shapes.ttl lives in starontology/, which is not being "
-        "edited yet."
-    ),
-)
-def test_the_shapes_alone_reject_the_rule_set(monkeypatch):
-    """The Python well-formedness check normally catches an aggregate in SET, so switch it off to reach the shapes alone."""
+def test_the_shapes_reject_an_aggregate_in_set():
+    """The shapes alone state it (``srl:AggregateInExpressionShape``); the run-time check in Python does not take part in ``srl_validate``."""
     from starlayer.sparql import srl
 
-    monkeypatch.setattr(srl, "_check_ruleset", lambda ruleset: [])
-    assert not srl.srl_validate(srl.ruleset_to_tree(srl.parse_ruleset(_AGGREGATE_IN_SET))[0]).conforms
+    report = srl.srl_validate(srl.ruleset_to_tree(srl.parse_ruleset(_AGGREGATE_IN_SET))[0])
+    assert not report.conforms and "AggregateInExpressionShape" in report.report_text
 
 
 def test_a_rule_set_that_breaks_the_conditions_loads_and_validate_reports_it():
@@ -165,7 +154,7 @@ def test_a_rule_set_that_breaks_the_conditions_loads_and_validate_reports_it():
     ruleset = srl.parse_ruleset(_AGGREGATE_IN_SET)
     assert len(ruleset.rules) == 1
     report = srl.srl_validate(srl.ruleset_to_tree(ruleset)[0])
-    assert not report.conforms and "aggregate_in_expression" in report.report_text
+    assert not report.conforms and "cannot contain an aggregate" in report.report_text
 
 
 def test_a_valid_rule_set_passes_the_shape_check():
