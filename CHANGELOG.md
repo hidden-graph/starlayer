@@ -17,8 +17,15 @@ Changes from the error-scheme review of 2026-11-26. Several of them change what 
 - **One import rule on every path.** A graph, shapes graph or rule set that declares imports must resolve them or raise `ExecutionError` kind `import` (`error.unresolved` lists the IRIs). An import is satisfied when its IRI is a subject of the graph after resolution (present, a built-in registry ontology, loaded, or the `owl:versionIRI` of a present ontology; for SRL, when the loader produced a rule set). `StarLayerGraph.resolve_imports()` no longer skips an import with no loader or one the loader returns `None` for, and a loader that raises is wrapped (the original is `__cause__`); SHACL raises `ExecutionError` kind `import` (it was `ShapeCompileError`), no longer skips an import the loader returns `None` for, and also resolves `ont_graph`; `infer()` and `query(entailment=)` with an OWL regime raise for unresolved imports; `RuleSet.plan()` without a loader raises for a rule set with `IMPORTS`. `ignore_imports=True` (new on `resolve_imports()`, `infer()`, `query()`, `parse_ruleset()` and the `RuleSet` methods) loads and checks nothing.
 - **An `internal` error says so.** Its message starts "internal error (a bug in StarLayer, please report it at <address>)", and `error.report_url` holds the address.
 
+- **A shapes graph's `sh:entailment` naming an unregistered regime** (a typo, D-Entailment) is `ExecutionError` kind `unsupported`, context `entailment regime`, with the message of `infer()` (it was `ShapeCompileError`).
+- **`export_rdf11` of named graphs to Turtle, N-Triples or RDF/XML** is `ExecutionError` kind `unsupported` (it was `ValueError`); the message is the same.
+- **`compute_qname()` / `qname()` of an IRI that cannot be written as a prefixed name** is `FormatError` kind `rdf`, context `prefixed name` (it was `ValueError`). `compute_qname(generate=False)` with no bound prefix is still a `KeyError`.
+- **An OWL regime reaching the RDF/RDFS query rewrite** is `ExecutionError` kind `internal` (it was `ValueError`); `query()` answers the OWL regimes through the entailed copy, so only a bug in StarLayer gets there.
+- **`.rows`, `.bindings` or `.triples` of a result of the wrong query form** (rows of an ASK, triples of a SELECT) is `ValueError` (it was `TypeError`).
+
 ### Added
 
+- `ExecutionError.KINDS` and `FormatError.KINDS` map each kind to a one-line meaning (iterating them still gives the kind names).
 - `ISSUES_URL` and `ExecutionError.report_url` in `starlayer.errors`.
 - `starlayer.graph.unresolved_imports(graph)`, `ExecutionError.unresolved`, `imports_loader=` on `infer()` and `query()`.
 
