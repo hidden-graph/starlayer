@@ -502,3 +502,11 @@ One scheme now covers the library (`starlayer/errors.py`, rules in `AGENTS.md`, 
 - **`RuleResult.failures`** is still a `list[str]`, not structured.
 - **Guides and the workbench** still name removed classes or catch builtin classes around changed calls (the lists are in the summary).
 - **Strings that stay.** `core.py` still matches Oxigraph's message text for "the document has named graphs" (a pre-check by format would remove it); the `initBindings` text scan is a heuristic.
+
+## SRL as an entailment regime (2026-11-26)
+
+An SRL rule set could be offered as a custom entailment regime for `infer()`, `query()` and a shapes graph's `sh:entailment`, the way the SPARQL 1.2 Entailment Regimes specification offers RIF Core entailment.
+
+- **What the specs say.** Neither specification defines this. The Entailment Regimes spec (`sparql12-entailment`) has a RIF Core regime, `http://www.w3.org/ns/entailment/RIF` (Section 8): a rule set is attached to the queried graph with `rif:usedWithProfile`, and RDFS and OWL 2 RL are given as rule sets (8.2). Section 1.4 says each regime is defined by a table (name, IRI, legal graphs and queries, entailment, inconsistency, query answers); it describes no mechanism for third-party regimes. The SRL spec (`sparql12-rl`) does not mention entailment regimes; its one mention of entailment is "This is related to the entailment extension point" (4.2.3, a feature at risk), and its query operation (infer, then match a goal against the base and inferred graphs, 4.1) is already what `RuleSet.infer()` and `.query()` do. Only the first half of each spec was read.
+- **Design points.** A regime is an IRI of our own, registered with StarLayer. How the rule set is attached is open: an argument, or a reference in the data graph as RIF does. SRL's "infer, then match" is the entailment relation; the regime table's inconsistency and query-answer rows need to be written for it.
+- **Errors.** An entailment name that is not a registered regime is `ExecutionError` kind `unsupported` (decision of 2026-11-26, error scheme review Q3), so adding the registry changes no error behaviour. The names are an open vocabulary of IRIs.
