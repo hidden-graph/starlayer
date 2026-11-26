@@ -7,7 +7,8 @@ caller's data is not changed. Both used to be refused as unsupported entailment 
 
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeCompileError, StarShaclProcessor
+from starlayer.errors import ExecutionError
+from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.engine.terms import text
 from tests.support.terms import Namespace
 
@@ -90,8 +91,9 @@ def test_rules_entailment_combines_with_an_entailment_regime() -> None:
 
 
 def test_an_iri_that_is_neither_a_regime_nor_a_rule_set_is_still_refused() -> None:
-    with pytest.raises(ShapeCompileError, match="Unsupported entailment"):
+    with pytest.raises(ExecutionError, match="Unsupported entailment") as info:
         _validate("ex:NotARuleSet")
+    assert (info.value.kind, info.value.context) == ("unsupported", "entailment regime")
 
 
 def test_apply_rules_on_such_a_shapes_graph_does_not_run_the_rules_twice_over() -> None:

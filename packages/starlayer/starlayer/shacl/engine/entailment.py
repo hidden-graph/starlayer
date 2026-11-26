@@ -26,7 +26,6 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import ShapeCompileError
 from starlayer.graph.entailment.cache import (
     RECOMPUTE,
     entailed_store_view,
@@ -111,15 +110,17 @@ def entailed_view(
 
 def declared_regimes(shapes: Any) -> frozenset:
     """The entailment regime IRIs named by ``sh:entailment`` in ``shapes`` (rules entailment and rule sets excluded). An IRI
-    that is neither a regime nor ``sh:RulesEntailment`` nor a ``sh:RuleSet`` raises ``ShapeCompileError``, as does a known but
-    unsupported regime (D-entailment)."""
+    that is neither a regime nor ``sh:RulesEntailment`` nor a ``sh:RuleSet`` raises ``ExecutionError`` of kind ``"unsupported"``
+    (context ``"entailment regime"``, the message of ``unsupported_regimes``), as does a known but unsupported regime (D-entailment)
+    and as ``infer()`` does for a name that is not registered."""
     out = set()
     shapes = engine_view(shapes)
     for _s, _p, o in shapes.triples((None, SH.entailment, None)):
         if o == SH.RulesEntailment or (o, RDF.type, SH.RuleSet) in shapes:
             continue
-        if text(o) not in SUPPORTED_REGIMES:
-            raise ShapeCompileError(f"Unsupported entailment regime {text(o)!r}")
+        error = unsupported_regimes([text(o)])
+        if error is not None:
+            raise error
         out.add(o)
     return frozenset(out)
 
