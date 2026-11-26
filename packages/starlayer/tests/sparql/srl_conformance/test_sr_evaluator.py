@@ -101,9 +101,9 @@ def eval_elements(body, seq, g, gd):
                 except Err:
                     pass
         elif kind == "not":
-            _, inner, evaldata = element
+            _, inner, evalground = element
             for mu in seq:
-                neg = eval_elements(inner, [mu], g if evaldata else gd, gd)
+                neg = eval_elements(inner, [mu], g if evalground else gd, gd)
                 if not neg:
                     out.append(mu)
         elif kind == "set":
@@ -118,8 +118,8 @@ def eval_elements(body, seq, g, gd):
 
 def eval_rule(rule, g, gd):
     """evalRule(R, G, GD): the head triples produced by one rule."""
-    head, body, evaldata = rule
-    seq = eval_elements(body, [{}], g if evaldata else gd, gd)
+    head, body, evalground = rule
+    seq = eval_elements(body, [{}], g if evalground else gd, gd)
     out = set()
     for mu in seq:
         for tpl in head:
@@ -208,8 +208,8 @@ def _run(rule_list, base, data=()):
     return oracle, actual
 
 
-def _rule(head_pred, head, body, evaldata=True):
-    return Rule(head_pred, head, tuple(body), evaldata)
+def _rule(head_pred, head, body, evalground=True):
+    return Rule(head_pred, head, tuple(body), evalground)
 
 
 def test_recursion_runs_to_a_fixpoint():
@@ -228,7 +228,7 @@ def test_where_data_sees_only_the_base_graph():
     """Draft 6.5 passes G0 for WHERE GROUND, so a rule that matches a *derived* predicate with it finds nothing."""
     base = {("a", "b0", "b")}
     derive = _rule("p0", ("x", "y"), [("tp", _tp("?x", "b0", "?y"))])
-    from_data = _rule("p1", ("x", "y"), [("tp", _tp("?x", "p0", "?y"))], evaldata=False)
+    from_data = _rule("p1", ("x", "y"), [("tp", _tp("?x", "p0", "?y"))], evalground=False)
     oracle, actual = _run([derive, from_data], base)
     assert oracle == actual == {("a", "p0", "b")}
 
@@ -270,7 +270,7 @@ class Rule:
     head_pred: str
     head: tuple  # (subject_var, object_var)
     body: tuple  # oracle elements
-    evaldata: bool
+    evalground: bool
 
     def srl(self) -> str:
         def slot(k, v):
@@ -295,11 +295,11 @@ class Rule:
             return f"NOT {'' if el[2] else 'GROUND '}{{ {inner} }}"
 
         head = f"?{self.head[0]} :{self.head_pred} ?{self.head[1]} ."
-        return f"RULE {{ {head} }} WHERE {'' if self.evaldata else 'GROUND '}{{ {' '.join(element(e) for e in self.body)} }}"
+        return f"RULE {{ {head} }} WHERE {'' if self.evalground else 'GROUND '}{{ {' '.join(element(e) for e in self.body)} }}"
 
     def oracle(self):
         head = [(("v", self.head[0]), ("c", self.head_pred), ("v", self.head[1]))]
-        return head, list(self.body), self.evaldata
+        return head, list(self.body), self.evalground
 
 
 def _term_slot(draw_var, node):
@@ -316,7 +316,7 @@ def rules(draw):
     k = draw(st.integers(0, len(DERIVED) - 1))
     positive_preds = BASE_PREDS + DERIVED[: k + 1]
     negative_preds = BASE_PREDS + DERIVED[:k]
-    evaldata = draw(st.sampled_from([True, True, True, False]))
+    evalground = draw(st.sampled_from([True, True, True, False]))
     # First pattern: two variables, so the body binds at least one subject variable.
     first_s, first_o = draw(st.sampled_from(VARS)), draw(st.sampled_from(VARS))
     body: list = [("tp", (("v", first_s), ("c", draw(st.sampled_from(positive_preds))), ("v", first_o)))]
@@ -342,7 +342,7 @@ def rules(draw):
         names = [*names, "w"]
     # The head subject is a variable bound in a subject position, so it is never a number (a literal subject is not RDF).
     head = (draw(st.sampled_from(sorted(subject_vars))), draw(st.sampled_from(names)))
-    return Rule(DERIVED[k], head, tuple(body), evaldata)
+    return Rule(DERIVED[k], head, tuple(body), evalground)
 
 
 @st.composite

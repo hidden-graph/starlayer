@@ -34,7 +34,7 @@ def _srl(broken=False):
 
         # no rules at all is a valid (empty) rule set, so break a rule instead: drop its required evaluation flag
         rule = next(tree.objects(root, SRL_NS["rules"]))
-        tree.remove((rule, SRL_NS["ruleEvaldata"], None))
+        tree.remove((rule, SRL_NS["ruleEvalground"], None))
     return tree
 
 

@@ -170,14 +170,14 @@ def _build_dependency_graph(ruleset: srl_ast.RuleSet) -> list[_DependencyEdge]:
 
     for r1 in ruleset.rules:
         # A rule that matches only the base graph (WHERE GROUND) has no dependencies
-        # (SRL 2026-10-14 §4.3.1: ``evaldata`` false).
-        if not r1.evaldata:
+        # (SRL 2026-10-14 §4.3.1: ``evalground`` false).
+        if not r1.evalground:
             continue
         body_dependencies: list[tuple[srl_ast.TriplePattern, str]] = []
         for elt in r1.body:
             if isinstance(elt, srl_ast._NegationElement):
                 # NOT GROUND matches only the base graph, so it adds no dependency either.
-                if not elt.evaldata:
+                if not elt.evalground:
                     continue
                 for inner in elt.inner:
                     if isinstance(inner, srl_ast.TriplePattern):
@@ -480,7 +480,7 @@ def _blank_nodes_to_vars(
         if isinstance(e, srl_ast.TriplePattern):
             return _sub_triple(e)
         if isinstance(e, srl_ast._NegationElement):
-            return srl_ast._NegationElement(inner=[_sub_element(x) for x in e.inner], evaldata=e.evaldata)
+            return srl_ast._NegationElement(inner=[_sub_element(x) for x in e.inner], evalground=e.evalground)
         if isinstance(e, srl_ast._GroupElement):
             return srl_ast._GroupElement(keys=e.keys, pattern=[_sub_element(x) for x in e.pattern], aggregations=e.aggregations)
         return e  # FilterElement/AssignmentElement: no raw BNode terms to substitute
@@ -700,7 +700,7 @@ def _eval_rule_elements(
             seq = new_seq
             i += 1
         elif isinstance(elt, srl_ast._NegationElement):
-            inner_g = g if elt.evaldata else gd
+            inner_g = g if elt.evalground else gd
             new_seq = []
             for mu in seq:
                 neg = _eval_rule_elements(elt.inner, [mu], inner_g, gd)
@@ -767,7 +767,7 @@ def _eval_rule(rule: srl_ast._Rule, g, gd, delta_index: int | None = None) -> se
     matches the delta graph (see ``_evaluate_ruleset_at_one_instant``)."""
     used_vars = _collect_variables(rule)
     body = _blank_nodes_to_vars(rule.body, used_vars)
-    if rule.evaldata:
+    if rule.evalground:
         seq = _eval_rule_elements(body, [{}], g, gd, delta_index)
     else:
         seq = _eval_rule_elements(body, [{}], gd, gd)
@@ -898,7 +898,7 @@ def _delta_positions(rule: srl_ast._Rule, heads: list[srl_ast.TriplePattern]) ->
     """The indexes in ``rule.body`` of the triple patterns that can match a triple one of ``heads`` derives. Only a top-level
     triple pattern can: a negation or group is a closed dependency, so stratification puts what it reads in a lower stratum, and a
     ``DATA`` rule reads the base graph only."""
-    if not rule.evaldata:
+    if not rule.evalground:
         return []
     return [
         i
@@ -988,7 +988,7 @@ def _store_plan(rule: srl_ast._Rule) -> _StorePlan | None:
     assignment before it binds (a negation's variables that nothing else binds are its own). Only triple patterns, filters,
     assignments and negations of plain triple patterns are handled, for a rule that reads the evaluation graph (not ``WHERE
     DATA``). An assignment whose expression is an error drops the solution, as it does in the element-by-element evaluation."""
-    if not rule.evaldata:
+    if not rule.evalground:
         return None
     body = _blank_nodes_to_vars(rule.body, _collect_variables(rule))
     in_patterns = {v for e in body if isinstance(e, srl_ast.TriplePattern) for term in (e.subject, e.predicate, e.object) for v in _term_variables(term)}
@@ -1012,7 +1012,7 @@ def _store_plan(rule: srl_ast._Rule) -> _StorePlan | None:
             parts.append(("bind", index, f"BIND({text} AS ?{element.var.value}) FILTER(BOUND(?{element.var.value}))"))
             bound.add(element.var)
         elif isinstance(element, srl_ast._NegationElement):
-            if not element.evaldata or not all(isinstance(i, srl_ast.TriplePattern) for i in element.inner) or not element.inner:
+            if not element.evalground or not all(isinstance(i, srl_ast.TriplePattern) for i in element.inner) or not element.inner:
                 return None
             inner_vars = {v for i in element.inner for t in (i.subject, i.predicate, i.object) for v in _term_variables(t)}
             if not (inner_vars & in_patterns) <= bound:
@@ -1210,7 +1210,7 @@ def _closure_of(rules: list[srl_ast._Rule], positions: dict) -> tuple[srl_ast._R
     if len(repeating) != 1:
         return None
     (rule,) = repeating
-    if not rule.evaldata or len(rule.head) != 1 or len(rule.body) != 2 or not all(isinstance(e, srl_ast.TriplePattern) for e in rule.body):
+    if not rule.evalground or len(rule.head) != 1 or len(rule.body) != 2 or not all(isinstance(e, srl_ast.TriplePattern) for e in rule.body):
         return None
     head = rule.head[0]
     q = head.predicate

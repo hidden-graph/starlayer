@@ -71,7 +71,7 @@ def _rule(g, root, *, body=(), head=(), flag=True, at=0):
     rule = ox.BlankNode()
     g.add((rule, RDF.type, SRL.Rule))
     if flag is not None:
-        g.add((rule, SRL.ruleEvaldata, lit(flag)))
+        g.add((rule, SRL.ruleEvalground, lit(flag)))
     write_ordered(g, rule, SRL.body, body)
     write_ordered(g, rule, SRL.head, head)
     g.add((root, SRL.rules, rule))
@@ -97,12 +97,12 @@ def test_a_hand_built_rule_set_with_ordinals_conforms():
 
 
 def test_rule_missing_body_is_rejected():
-    """A hand-broken srl:Rule missing its required srl:ruleEvaldata flag is rejected: the shape enforces required properties, and the
+    """A hand-broken srl:Rule missing its required srl:ruleEvalground flag is rejected: the shape enforces required properties, and the
     sequences (an empty one is no triples at all) are not what makes a rule incomplete."""
     g, root = _minimal_ruleset_graph()
     _rule(g, root, flag=None)
     outcome = srl_validate(g)
-    assert outcome.conforms is False and "ruleEvaldata" in outcome.report_text
+    assert outcome.conforms is False and "ruleEvalground" in outcome.report_text
 
 
 def test_triple_pattern_with_literal_predicate_is_rejected():

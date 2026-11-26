@@ -119,7 +119,7 @@ def _stored(value):
     if isinstance(value, _AssignmentElement):
         return _AssignmentElement(var=value.var, expr=_stored(value.expr))
     if isinstance(value, _NegationElement):
-        return _NegationElement(inner=_stored(value.inner), evaldata=value.evaldata)
+        return _NegationElement(inner=_stored(value.inner), evalground=value.evalground)
     return value
 
 
@@ -130,7 +130,7 @@ def as_stored(ruleset):
 
     from starlayer.sparql._srl_ast import _Data, _Rule
 
-    rules = [_Rule(head=_stored(r.head), body=_stored(r.body), evaldata=r.evaldata, id=r.id) for r in ruleset.rules]
+    rules = [_Rule(head=_stored(r.head), body=_stored(r.body), evalground=r.evalground, id=r.id) for r in ruleset.rules]
     data = [_Data(triples=_stored(d.triples)) for d in ruleset.data]
     return replace(ruleset, rules=rules, data=data)
 

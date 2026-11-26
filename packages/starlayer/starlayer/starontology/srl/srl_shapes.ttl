@@ -45,9 +45,9 @@ srl:NegationElementShape a sh:NodeShape ;
     sh:property [
         sh:datatype xsd:boolean ;
         sh:maxCount 1 ;
-        sh:message "srl:NegationElement must have exactly one boolean srl:negationEvaldata" ;
+        sh:message "srl:NegationElement must have exactly one boolean srl:negationEvalground" ;
         sh:minCount 1 ;
-        sh:path srl:negationEvaldata
+        sh:path srl:negationEvalground
     ], [
         sh:class srl:NegationBodyElement ;
         sh:message "srl:inner holds triple patterns and filters only" ;
@@ -104,9 +104,9 @@ srl:RuleShape a sh:NodeShape ;
     ], [
         sh:datatype xsd:boolean ;
         sh:maxCount 1 ;
-        sh:message "srl:Rule must have exactly one boolean srl:ruleEvaldata" ;
+        sh:message "srl:Rule must have exactly one boolean srl:ruleEvalground" ;
         sh:minCount 1 ;
-        sh:path srl:ruleEvaldata
+        sh:path srl:ruleEvalground
     ] ;
     sh:targetClass srl:Rule .
 

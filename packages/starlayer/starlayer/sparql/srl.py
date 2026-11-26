@@ -154,16 +154,16 @@ _BODY = SRL["body"]
 _INNER = SRL["inner"]
 _TRIPLES = SRL["triples"]
 
-# The spec reuses the name "evaldata" for two components (rule.evaldata and
-# negation.evaldata), and "data" for a third (ruleset.data) - each gets its own
+# The spec reuses the name "evalground" for two components (rule.evalground and
+# negation.evalground), and "data" for a third (ruleset.data) - each gets its own
 # predicate URI to avoid a same-URI-different-shape collision within one shared
 # graph. The flag is the spec's own: true = match the evaluation graph (plain
 # WHERE / NOT), false = match the base graph only (WHERE GROUND / NOT GROUND).
-_RULE_EVALDATA_FLAG = SRL["ruleEvaldata"]
+_RULE_EVALGROUND_FLAG = SRL["ruleEvalground"]
 _RULE_ID = SRL["id"]
 _EXPR = SRL["expr"]
 _VAR = SRL["var"]
-_NEGATION_EVALDATA_FLAG = SRL["negationEvaldata"]
+_NEGATION_EVALGROUND_FLAG = SRL["negationEvalground"]
 # a group element (§4.1: group.keys, group.pattern, group.aggregations) and its aggregation assignments (aggregation.variable is srl:var;
 # aggfunc.name, aggfunc.argument and aggfunc.distinct are srl:function, srl:argument, srl:distinct; no srl:argument is ``*``)
 _GROUP_KEYS = SRL["keys"]
@@ -315,7 +315,7 @@ class _Writer:
         elif isinstance(element, srl_ast._NegationElement):
             g.add((node, RDF.type, _NEGATION_ELEMENT))
             self.sequence(node, _INNER, [self.body_element(e) for e in element.inner])
-            g.add((node, _NEGATION_EVALDATA_FLAG, self.node(element.evaldata)))
+            g.add((node, _NEGATION_EVALGROUND_FLAG, self.node(element.evalground)))
         elif isinstance(element, srl_ast._GroupElement):
             g.add((node, RDF.type, _GROUP_ELEMENT))
             self.sequence(node, _GROUP_KEYS, [self.node(k) for k in element.keys])
@@ -340,7 +340,7 @@ class _Writer:
         g.add((node, RDF.type, _RULE))
         self.sequence(node, _HEAD, [self.triple(t) for t in rule.head])
         self.sequence(node, _BODY, [self.body_element(e) for e in rule.body])
-        g.add((node, _RULE_EVALDATA_FLAG, self.node(rule.evaldata)))
+        g.add((node, _RULE_EVALGROUND_FLAG, self.node(rule.evalground)))
         if rule.id is not None:
             g.add((node, _RULE_ID, rule.id))
         return node
@@ -445,7 +445,7 @@ def _decode_body_element(node, graph, path: tuple = ()) -> srl_ast.BodyElement:
         )
     if t == _NEGATION_ELEMENT:
         inner = [_decode_body_element(n, graph, path) for n in _children(graph, node, _INNER)]
-        return srl_ast._NegationElement(inner=inner, evaldata=_is_true(graph.value(node, _NEGATION_EVALDATA_FLAG)))
+        return srl_ast._NegationElement(inner=inner, evalground=_is_true(graph.value(node, _NEGATION_EVALGROUND_FLAG)))
     if t == _GROUP_ELEMENT:
         return srl_ast._GroupElement(
             keys=[_decode_term(n, graph) for n in _children(graph, node, _GROUP_KEYS)],
@@ -471,8 +471,8 @@ def _decode_aggregation(node, graph) -> srl_ast._Aggregation:
 def _decode_rule(node, graph) -> srl_ast._Rule:
     head = [_decode_triple(n, graph) for n in _children(graph, node, _HEAD)]
     body = [_decode_body_element(n, graph) for n in _children(graph, node, _BODY)]
-    evaldata = _is_true(graph.value(node, _RULE_EVALDATA_FLAG))
-    return srl_ast._Rule(head=head, body=body, evaldata=evaldata, id=graph.value(node, _RULE_ID))
+    evalground = _is_true(graph.value(node, _RULE_EVALGROUND_FLAG))
+    return srl_ast._Rule(head=head, body=body, evalground=evalground, id=graph.value(node, _RULE_ID))
 
 
 def _decode_data(node, graph) -> srl_ast._Data:
@@ -584,7 +584,7 @@ def _body_element_text(element: srl_ast.BodyElement, prefixes: dict) -> str:
         return f"SET ({_term_text(element.var, prefixes)} := {_expr_text(element.expr, prefixes)})"
     if isinstance(element, srl_ast._NegationElement):
         inner = " ".join(_body_element_text(e, prefixes) for e in element.inner)
-        ground = "" if element.evaldata else "GROUND "
+        ground = "" if element.evalground else "GROUND "
         return f"NOT {ground}{{ {inner} }}"
     if isinstance(element, srl_ast._GroupElement):
         keys = "BY " + " ".join(_term_text(k, prefixes) for k in element.keys) + " " if element.keys else ""
@@ -608,7 +608,7 @@ def _rule_text(rule: srl_ast._Rule, prefixes: dict) -> str:
     rule_id = f"{_term_text(rule.id, prefixes)} " if rule.id is not None else ""
     head = _block_text(rule.head, prefixes)
     body = " ".join(_body_element_text(e, prefixes) for e in rule.body)
-    ground = "" if rule.evaldata else "GROUND "
+    ground = "" if rule.evalground else "GROUND "
     return f"RULE {rule_id}{{ {head} }} WHERE {ground}{{ {body} }}"
 
 

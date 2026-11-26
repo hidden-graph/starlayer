@@ -169,7 +169,7 @@ class _SrlParser(_Parser):
                 self._group(pending, True)
         inner.extend(_triples(pending))
         self.expect_p("}")
-        return srl_ast._NegationElement(inner=inner, evaldata=not ground)
+        return srl_ast._NegationElement(inner=inner, evalground=not ground)
 
     def _assign_op(self) -> None:
         """``:=``, one token in the grammar: nothing (whitespace, a comment) between the ':' and the '='."""
@@ -277,7 +277,7 @@ class _SrlParser(_Parser):
         self.expect_kw("WHERE")
         ground = self._ground()
         body = self._body()
-        return srl_ast._Rule(head=head, body=body, evaldata=not ground, id=rule_id)
+        return srl_ast._Rule(head=head, body=body, evalground=not ground, id=rule_id)
 
     def parse_ruleset(self) -> srl_ast.RuleSet:
         imports: list[ox.NamedNode] = []

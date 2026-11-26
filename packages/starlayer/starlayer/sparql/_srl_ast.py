@@ -183,23 +183,23 @@ NegationBodyElement = TriplePattern | _FilterElement
 
 @dataclass(frozen=True)
 class _NegationElement:
-    """§4.1 "Negation element" - ``NOT GROUND? { ... }``. ``evaldata`` is the
-    spec's own flag (``negation.evaldata``): true (a plain ``NOT { }``) matches
+    """§4.1 "Negation element" - ``NOT GROUND? { ... }``. ``evalground`` is the
+    spec's own flag (``negation.evalground``): true (a plain ``NOT { }``) matches
     the negated pattern against the evaluation graph, false (``NOT GROUND { }``)
     against the base graph only, per §6.4's ``evalRuleElements`` pseudocode
-    (``if N.evaldata: ... G, GD else ... GD, GD``).
+    (``if N.evalground: ... G, GD else ... GD, GD``).
 
     Private - see ``_FilterElement`` above.
 
     Attributes:
         inner: The negated body elements (triple patterns and filters only
             - see ``NegationBodyElement``).
-        evaldata: True to match ``inner`` against the evaluation graph (a
+        evalground: True to match ``inner`` against the evaluation graph (a
             plain ``NOT``); False to match only the base graph (``NOT GROUND``).
     """
 
     inner: list[NegationBodyElement] = field(default_factory=list)
-    evaldata: bool = True
+    evalground: bool = True
 
 
 @dataclass(frozen=True)
@@ -256,7 +256,7 @@ def _triple_term_has_variable(term: Any) -> bool:
 @dataclass(frozen=True)
 class _Rule:
     """§4.1 "Rule" - ``head`` + ``body``, optional ``id`` (an IRI naming the
-    rule), and ``evaldata`` (the spec's own ``rule.evaldata``: true matches the
+    rule), and ``evalground`` (the spec's own ``rule.evalground``: true matches the
     body's triple patterns against the evaluation graph; false matches the base
     graph only - the grammar's ``WHERE GROUND { ... }``).
 
@@ -273,7 +273,7 @@ class _Rule:
 
     head: list[TripleTemplate] = field(default_factory=list)
     body: list[BodyElement] = field(default_factory=list)
-    evaldata: bool = True
+    evalground: bool = True
     id: ox.NamedNode | None = None
 
     @property

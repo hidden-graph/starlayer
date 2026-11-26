@@ -8,7 +8,7 @@ metadata: `dawgt:Proposed` markers, GSP base URI, a Service Description model, a
 
 | Date | Change | Done |
 |---|---|---|
-| 2026-11-19 | `WHERE DATA` is `WHERE GROUND` and `NOT DATA` is `NOT GROUND`; a `DATA { }` block is unchanged. The spec's flag is `evalground` (was `evaldata`). | `parse_srl.py` reads `GROUND` only; `DATA` after `WHERE` or `NOT` is an error that names `GROUND`. The renderer writes `GROUND`. The Python field and the `srl:ruleEvaldata` / `srl:negationEvaldata` properties keep the old name (renaming the RDF terms would break stored trees; a separate decision). |
+| 2026-11-19 | `WHERE DATA` is `WHERE GROUND` and `NOT DATA` is `NOT GROUND`; a `DATA { }` block is unchanged. The spec's flag is `evalground` (was `evaldata`). | `parse_srl.py` reads `GROUND` only; `DATA` after `WHERE` or `NOT` is an error that names `GROUND`. The renderer writes `GROUND`. The Python field and the RDF properties were renamed on 2026-11-25 to `evalground`, `srl:ruleEvalground` and `srl:negationEvalground`, with no alias (a tree stored with `srl:ruleEvaldata` no longer decodes). |
 | 2026-11-10 | New well-formedness condition: variable names are not reused in a rule (`inScope`, `inUse`; GH-690). Tests added 2026-11-18 (GH-1444). | `srl_semantic_checks._check_sequence` / `_check_group` follow the spec's definitions; new issue kind `variable_in_use`. |
 | 2026-10-20 | `GROUP` and aggregation (`COUNT`, `MIN`, `MAX`, `SUM`); empty-group results (GH-1377), `COUNT(*)` is 0 for a bound key with no match, tests `eval-group-25` to `30` (2026-11-12). | Already supported; the new tests pass. |
 | 2026-11-23 | BNF markup fix for `UCHAR`; eight-digit escape summary. | Vendored production table updated by hand (productions 11, 18, 127). |
