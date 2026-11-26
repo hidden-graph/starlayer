@@ -207,8 +207,9 @@ class TestExportRdf11:
         assert b"http://e/g" in out
 
     def test_named_graph_is_refused_for_a_triple_format(self):
-        with pytest.raises(ValueError, match="named graphs"):
+        with pytest.raises(ExecutionError, match="named graphs") as info:
             export_rdf11([q(iri("a"), iri("p"), iri("o"), iri("g"))], "turtle")
+        assert info.value.kind == "unsupported" and info.value.context.endswith(" serialize")
 
     def test_export_is_semantically_the_basic_encoding(self):
         out = export_rdf11(self.DATA, "nquads")

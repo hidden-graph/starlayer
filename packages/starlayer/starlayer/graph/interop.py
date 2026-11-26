@@ -415,7 +415,8 @@ def export_rdf11(
     """Serialise as RDF 1.1: apply :func:`to_basic`, then the base-direction policy
     (:func:`encode_directions`), assert that no triple term and no directional literal remains, and write
     with pyoxigraph. ``format`` is a ``pyoxigraph.RdfFormat`` or a name (turtle, trig, ntriples, nquads,
-    rdfxml). Turtle, N-Triples and RDF/XML hold one graph: a dataset with named graphs is refused. Returns
+    rdfxml). Turtle, N-Triples and RDF/XML hold one graph: a dataset with named graphs is refused (``ExecutionError`` of kind
+    ``"unsupported"``, context ``"<format> serialize"``: valid data the format cannot hold; choose TriG or N-Quads). Returns
     the bytes when ``destination`` is None. The output is valid RDF 1.1 but, as the draft warns, not
     semantically equivalent to the RDF 1.2 input when it had triple terms. ``bnode_labels="short"`` writes the blank nodes, those of
     the basic encoding included, as ``_:b0``, ``_:b1``, ... (see ``bnodes.py``)."""
@@ -429,7 +430,7 @@ def export_rdf11(
         quads = short_bnode_labels(quads)
     if fmt in _TRIPLE_FORMATS:
         if any(not isinstance(q.graph_name, ox.DefaultGraph) for q in quads):
-            raise ValueError(f"{fmt} cannot hold named graphs; use TriG or N-Quads")
+            raise ExecutionError(f"{fmt} cannot hold named graphs; use TriG or N-Quads", kind="unsupported", context=f"{fmt} serialize")
         items = [ox.Triple(q.subject, q.predicate, q.object) for q in quads]
     else:
         items = quads
