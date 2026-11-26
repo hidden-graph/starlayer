@@ -6,6 +6,7 @@ from __future__ import annotations
 import ast
 import copy
 import pickle
+import re
 import sys
 from pathlib import Path
 
@@ -57,7 +58,7 @@ def test_a_shape_error_is_not_a_value_error_so_an_except_value_error_misses_it()
 
 def test_the_execution_kinds_are_the_six_of_step_c_and_the_three_of_owl_dl_reasoning():
     assert ExecutionError.KINDS == ("rule", "expression", "nesting", "recursion", "constraint-query", "internal",
-                                    "timeout", "inconsistent", "inference", "query", "import", "unsupported")
+                                    "timeout", "inconsistent", "inference", "query", "import", "unsupported", "limit")
     with pytest.raises(ValueError, match="unknown ExecutionError kind"):
         ExecutionError("x", kind="nope")
 
@@ -163,3 +164,72 @@ def test_a_format_error_survives_pickle_and_copy(kind):
     for again in _roundtrips(error):
         assert type(again) is FormatError
         assert (str(again), again.kind, again.context, again.why, again.line, again.col, again.pos) == ("at 2:3: bad", kind, "query", "bad", 2, 3, 9)
+
+
+# ---- the classes the scheme removed, and the kinds in use --------------------------------------------------------------------------
+
+REPO = PACKAGE.parents[2]
+SOURCE_ROOTS = [PACKAGE, REPO / "packages" / "starlayer-reasoning" / "starlayer_reasoning", REPO / "tools"]
+
+#: every error class removed across stages 1 to 6 of the scheme (no alias is left for any); a name here must not come back.
+REMOVED_CLASSES = (
+    "ReasoningTimeoutError", "InconsistentOntologyError",  # stage 1: OWL-DL reasoning
+    "SparqlSyntaxError", "SQEError", "SQEValidationError", "SPARQL12ConformanceError",  # stage 2: SPARQL
+    "SRLError", "SRLParseError", "SRLDecodeError", "SRLImportError", "SRLEvalError", "StratificationError", "SRLImportsNotSupportedError",  # stage 3
+    "BasicEncodingError", "InvalidTripleTermError",  # stage 4: RDF documents and terms
+    "ManchesterSyntaxError",  # stage 5
+    "CanonicalizationComplexityError", "EntailmentRewriteError", "SqeTextTooDeepError",  # stage 6
+)
+
+
+def _source_files(suffixes=(".py", ".ttl")):
+    for root in SOURCE_ROOTS:
+        if root.is_dir():
+            yield from (p for p in sorted(root.rglob("*")) if p.suffix in suffixes and "__pycache__" not in p.parts and ".venv" not in p.parts)
+
+
+def test_a_removed_error_class_does_not_come_back_in_the_package_source():
+    pattern = re.compile(r"\b(" + "|".join(REMOVED_CLASSES) + r")\b")
+    found = [f"{path.relative_to(REPO)}:{number}: {match.group(1)}"
+             for path in _source_files() for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+             for match in pattern.finditer(line)]
+    assert not found, "\n".join(found)
+
+
+def _error_call_kinds():
+    """(file, line, class name, kind literal or None) for each ``ExecutionError(...)`` / ``FormatError(...)`` call, and
+    ``(file, line, "only_kind", literal)`` for each kind name given to ``only_kind``."""
+    for path in _source_files((".py",)):
+        if path == ERRORS_PY:
+            continue
+        for node in ast.walk(ast.parse(path.read_text(encoding="utf-8"))):
+            if not isinstance(node, ast.Call):
+                continue
+            name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", None)
+            if name in ("ExecutionError", "FormatError"):
+                kind = next((k.value for k in node.keywords if k.arg == "kind"), None)
+                literal = kind.value if isinstance(kind, ast.Constant) and isinstance(kind.value, str) else None
+                yield path.relative_to(REPO).as_posix(), node.lineno, name, literal
+            elif name == "only_kind":
+                for arg in node.args[1:]:
+                    yield path.relative_to(REPO).as_posix(), node.lineno, "only_kind", arg.value if isinstance(arg, ast.Constant) else None
+
+
+def test_every_kind_in_use_at_a_raise_site_is_declared():
+    declared = {"ExecutionError": ExecutionError.KINDS, "FormatError": FormatError.KINDS, "only_kind": ExecutionError.KINDS}
+    bad = [f"{path}:{line}: {name} kind {kind!r}" for path, line, name, kind in _error_call_kinds() if kind not in declared[name]]
+    assert not bad, "\n".join(bad)
+
+
+def test_every_declared_kind_is_used_somewhere():
+    used = {(name, kind) for _path, _line, name, kind in _error_call_kinds() if name != "only_kind"}
+    unused = [(name, kind) for name, kinds in (("ExecutionError", ExecutionError.KINDS), ("FormatError", FormatError.KINDS))
+              for kind in kinds if (name, kind) not in used]
+    assert not unused, f"declared but never raised: {unused}"
+
+
+def test_endpoint_error_is_the_one_library_error_that_stays_an_os_error():
+    from starlayer.graph import EndpointError
+
+    assert EndpointError.__bases__ == (StarLayerError, OSError)
+    assert EndpointError("down", 503).status == 503

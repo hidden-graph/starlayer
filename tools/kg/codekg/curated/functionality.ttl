@@ -92,7 +92,6 @@ cur:cap-rdf-graph-7 a slkg:Capability ;
     slkg:implementsSpecification tr:rdf-canon ;
     rdfs:comment "RDFC-1.0 canonicalization and hashing of RDF 1.2 graphs." ;
     slkg:implementedByIdentifier 
-        "starlayer.graph.rdfc_native.CanonicalizationComplexityError",
         "starlayer.graph.rdfc.rdfc10_hash",
         "starlayer.graph.rdfc.to_canonical_nquads" .
 

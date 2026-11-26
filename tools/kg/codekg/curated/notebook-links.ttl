@@ -71,7 +71,7 @@ nl:02.07-b87b0ce5 a slkg:NotebookExample ;
     slkg:cellId "b87b0ce5" ;
     slkg:cellHash "7a0cfd78f15b8f0b" ;
     slkg:reviewedOn "2026-11-14"^^xsd:date ;
-    rdfs:comment "Shows the OWL-Direct (OWL-DL) regime raising InconsistentOntologyError for a contradiction that the rule-based OWL-RDF-Based regime does not report." ;
+    rdfs:comment "Shows the OWL-Direct (OWL-DL) regime raising ExecutionError of kind inconsistent for a contradiction that the rule-based OWL-RDF-Based regime does not report." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.entailment.infer.infer" .
 
@@ -261,7 +261,7 @@ nl:04.02-c0a10006 a slkg:NotebookExample ;
     slkg:cellId "c0a10006" ;
     slkg:cellHash "d4369e795a570ef7" ;
     slkg:reviewedOn "2026-11-18"^^xsd:date ;
-    rdfs:comment "Shows the StratificationError from srl_eval that plan() raises for rule sets with no valid evaluation order." ;
+    rdfs:comment "Shows the ExecutionError (kind rule, context stratification) from srl_eval that plan() raises for rule sets with no valid evaluation order." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl_eval" .
 
