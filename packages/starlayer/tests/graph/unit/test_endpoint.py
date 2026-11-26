@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import Endpoint, EndpointError, StarLayerGraph
 
 EX = "http://example.org/"
@@ -208,8 +209,9 @@ def test_a_blank_node_that_came_from_the_endpoint_cannot_be_written(mock) -> Non
     g = StarLayerGraph(endpoint=mock.endpoint, identifier=name)
     (pulled,) = {t[0] for t in g}
     assert isinstance(pulled, ox.BlankNode)
-    with pytest.raises(ValueError, match="came from the endpoint"):
+    with pytest.raises(ExecutionError, match="came from the endpoint") as info:
         g.add((pulled, _n("w"), _n("c")))
+    assert info.value.kind == "unsupported"
     assert len(g) == 1  # reading it is fine
 
 

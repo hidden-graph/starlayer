@@ -8,7 +8,7 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph.interop import (
     DIRLANG_NS,
     RDF_PROPOSITION_FORM,
@@ -254,8 +254,9 @@ class TestBaseDirectionPolicy:
         assert set(decode_directions(encode_directions(data))) == set(data)
 
     def test_error_policy(self):
-        with pytest.raises(ValueError, match="no RDF 1.1 form"):
+        with pytest.raises(ExecutionError, match="no RDF 1.1 form") as info:
             export_rdf11([q(iri("a"), iri("p"), self.L)], "ntriples", direction_policy="error")
+        assert info.value.kind == "unsupported"
 
     def test_drop_policy_keeps_the_language(self):
         out = export_rdf11([q(iri("a"), iri("p"), self.L)], "ntriples", direction_policy="drop").decode()

@@ -8,6 +8,7 @@ import warnings
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import ENTAILMENT, StarLayerDataset, StarLayerGraph
 from starlayer_reasoning import _timeout
 from tests.support.errors import raises_kind
@@ -176,7 +177,7 @@ def test_no_timeout_still_detects_a_dead_child():  # bug 14
 def test_native_is_not_promised_by_the_regime_docs():  # bug 11
     from starlayer.graph import entailment as entailment_regimes
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ExecutionError):
         StarLayerGraph().query("ASK {}", entailment="native")
     assert '"native"' not in (entailment_regimes.__doc__ or "")
 

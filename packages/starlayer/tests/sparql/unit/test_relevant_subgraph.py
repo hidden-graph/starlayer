@@ -15,6 +15,7 @@ import pyoxigraph as ox
 import pytest
 from hypothesis import HealthCheck, given, settings
 from hypothesis import strategies as st
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
 from starlayer.sparql.relevant import (
     relevant_quads,
@@ -190,8 +191,9 @@ def test_service_is_refused_because_the_answer_depends_on_a_remote_graph() -> No
         "SELECT ?s WHERE { ?s :p ?o OPTIONAL { SERVICE SILENT <http://example.org/sparql> { ?s :q ?x } } }",
         "SELECT ?s WHERE { { SELECT ?s WHERE { SERVICE <http://example.org/sparql> { ?s :p ?o } } } }",
     ):
-        with pytest.raises(ValueError, match="SERVICE"):
+        with pytest.raises(ExecutionError, match="SERVICE") as info:
             relevant_subgraph(DATA, PROLOGUE + query)
+        assert info.value.kind == "unsupported"
 
 
 TRIG = """@prefix : <http://e/> .
@@ -324,17 +326,19 @@ def test_a_negation_inside_a_graph_block_is_read_in_that_graph() -> None:
 
 def test_a_dataset_refuses_what_a_graph_refuses() -> None:
     dataset = _dataset(True)
-    with pytest.raises(ValueError, match="SELECT, ASK or CONSTRUCT"):
+    with pytest.raises(ExecutionError, match="DESCRIBE") as info:
         dataset.relevant_subgraph(PROLOGUE + "DESCRIBE :a")
-    with pytest.raises(ValueError, match="SERVICE"):
+    assert info.value.kind == "unsupported"
+    with pytest.raises(ExecutionError, match="SERVICE"):
         dataset.relevant_subgraph(PROLOGUE + "SELECT ?s WHERE { SERVICE <http://example.org/sparql> { ?s :p ?o } }")
     assert len(relevant_subgraph(dataset.to_graph(), PROLOGUE + "SELECT ?o WHERE { ?s ?p ?o }")) == 4
     assert len(relevant_subgraph(dataset.default_graph, PROLOGUE + "SELECT ?o WHERE { ?s ?p ?o }")) == 2
 
 
-def test_an_update_is_refused() -> None:
-    with pytest.raises(ValueError):
+def test_a_describe_query_is_unsupported() -> None:
+    with pytest.raises(ExecutionError, match="DESCRIBE") as info:
         relevant_subgraph(DATA, PROLOGUE + "DESCRIBE :a")
+    assert info.value.kind == "unsupported" and info.value.context == "relevant_subgraph"
 
 
 # ------------------------------------------------------------------------------------------ random queries, random graphs

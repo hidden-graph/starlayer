@@ -46,7 +46,7 @@ from typing import Literal as _Lit
 
 import pyoxigraph as ox
 
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError
 
 __all__ = [
     "RDF_PROPOSITION_FORM",
@@ -335,7 +335,7 @@ def encode_directions(quads: Iterable, policy: _Lit["datatype", "error", "drop"]
     * ``"datatype"`` (default): ``"x"@en--ltr`` becomes ``"x"^^<DIRLANG_NS#en--ltr>``, the datatype-IRI
       form that ``starlayer.graph.model.encoding.encode_dirlang_datatype`` uses (lossless; reversed by
       :func:`decode_directions`). Lexical form unchanged.
-    * ``"error"``: raise ``ValueError``.
+    * ``"error"``: raise ``ExecutionError`` (kind ``"unsupported"``); an unknown policy name is a ``ValueError``.
     * ``"drop"``: keep the language tag, discard the direction (lossy, still valid RDF 1.1).
     """
     if policy not in ("datatype", "error", "drop"):
@@ -344,7 +344,7 @@ def encode_directions(quads: Iterable, policy: _Lit["datatype", "error", "drop"]
     def f(t):
         if isinstance(t, ox.Literal) and t.direction is not None:
             if policy == "error":
-                raise ValueError(f"base-direction literal has no RDF 1.1 form: {t}")
+                raise ExecutionError(f"base-direction literal has no RDF 1.1 form: {t}", kind="unsupported", context="base-direction policy 'error'")
             if policy == "drop":
                 return ox.Literal(t.value, language=t.language)
             return ox.Literal(t.value, datatype=_dirlang_datatype(t.language, str(t.direction)))

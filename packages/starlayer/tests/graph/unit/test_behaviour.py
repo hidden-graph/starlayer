@@ -6,7 +6,7 @@ import io
 
 import pyoxigraph as ox
 import pytest
-from starlayer.errors import FormatError
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import (
     StarLayerDataset,
     StarLayerGraph,
@@ -466,8 +466,9 @@ def test_query_graph_view_sees_its_graph_as_default_dataset_sees_the_union():
 
 
 def test_query_rejects_unbuilt_features(g):
-    with pytest.raises(ValueError):
+    with pytest.raises(ExecutionError) as info:
         g.query("ASK {}", entailment="rdfs")
+    assert info.value.kind == "unsupported"
     with pytest.raises(NotImplementedError):
         g.query(object())
 

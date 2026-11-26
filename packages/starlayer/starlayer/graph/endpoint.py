@@ -18,7 +18,7 @@ of its graphs), and keeps a **full local copy**:
 **Blank nodes.** The endpoint gives a blank node it receives a new identifier, so the copy and the endpoint could not agree on which
 is which. A blank node in a write is therefore skolemized (``starlayer.graph.rewrite.skolem_iri``, the IRI
 ``graph.skolemize()`` makes) before it is sent, and the copy gets the same IRI. A blank node that came *from* the endpoint (it is in
-the copy) cannot be addressed there: writing it is a ``ValueError``. The copy is a ``pyoxigraph.Store``, which normalises literal
+the copy) cannot be addressed there: writing it is an ``ExecutionError`` of kind ``"unsupported"``. The copy is a ``pyoxigraph.Store``, which normalises literal
 lexical forms (starlayer #190); an endpoint that keeps them as written (Fuseki) can differ in spelling. A dataset is pulled with a
 SELECT over ``GRAPH ?g``, so a named graph with no triples is not seen. A pull that fails part way leaves an on-disk copy incomplete;
 it is marked stale and the next read pulls again.
@@ -241,9 +241,10 @@ class BackedStore:
                 next(self._copy.quads_for_pattern(term, None, None, None), None) is not None
                 or next(self._copy.quads_for_pattern(None, None, term, None), None) is not None
             ):
-                raise ValueError(
+                raise ExecutionError(
                     f"the blank node {term} came from the endpoint and cannot be addressed there (the endpoint would give it a new "
-                    "identifier); give the node an IRI, or write it as a new blank node"
+                    "identifier); give the node an IRI, or write it as a new blank node",
+                    kind="unsupported", context="endpoint write",
                 )
             self._skolem[term] = skolem_iri(term)
         return self._skolem[term]

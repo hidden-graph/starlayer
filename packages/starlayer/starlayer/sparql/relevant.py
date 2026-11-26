@@ -46,6 +46,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
+from starlayer.errors import ExecutionError
 from starlayer.sparql.parse_sparql import (
     Node,
     Tok,
@@ -73,8 +74,9 @@ def relevant_subgraph(
     Every derivation is kept and nothing is chosen between them (see the module docstring). ``init_ns`` (prefix to namespace)
     declares prefixes the query text does not, as ``StarLayerGraph.query(initNs=...)`` does.
 
-    Raises ``FormatError`` (kind ``"sparql"``) for text that is not a query, and ``ValueError`` for an update, a ``DESCRIBE`` or a ``SERVICE`` (the answer
-    depends on a remote graph, so it cannot be reproduced from a subgraph of this one)."""
+    Raises ``FormatError`` (kind ``"sparql"``) for text that is not a query, and ``ValueError`` for an update, and ``ExecutionError`` (kind ``"unsupported"``) for a ``DESCRIBE`` or
+    a ``SERVICE`` (valid queries the function cannot answer: a ``SERVICE`` depends on a remote graph, so it cannot be reproduced from a
+    subgraph of this one)."""
     from starlayer.graph import StarLayerDataset, StarLayerGraph
 
     bindings = dict(init_bindings or {})
@@ -116,10 +118,14 @@ def _is_dataset(target: Any) -> bool:
 def _parse_checked(query: str) -> Node:
     """The parsed query, which has to be a SELECT, ASK or CONSTRUCT without ``SERVICE``."""
     ast = parse_sparql(query)
+    if ast.kind == "DescribeQuery":
+        raise ExecutionError("relevant_subgraph does not support DESCRIBE: what a DESCRIBE returns is chosen by the store, not by the patterns of the query",
+                             kind="unsupported", context="relevant_subgraph")
     if ast.kind not in ("SelectQuery", "AskQuery", "ConstructQuery"):
         raise ValueError(f"relevant_subgraph needs a SELECT, ASK or CONSTRUCT query, not {ast.kind}")
     if any(_word(t) == "SERVICE" for t in tokenize(query)):
-        raise ValueError("relevant_subgraph does not support SERVICE: the answer depends on a remote graph that no subgraph of this one holds")
+        raise ExecutionError("relevant_subgraph does not support SERVICE: the answer depends on a remote graph that no subgraph of this one holds",
+                             kind="unsupported", context="relevant_subgraph")
     return ast
 
 
