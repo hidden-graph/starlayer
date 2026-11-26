@@ -70,6 +70,14 @@ def test_the_entailment_rewrite_does_not_report_a_bug_as_an_unsupported_query(mo
     entailment._rewrite_cached.cache_clear()
 
 
+def test_an_owl_regime_reaching_the_rewrite_is_an_internal_error():
+    from starlayer.graph.entailment import ENTAILMENT
+
+    with pytest.raises(ExecutionError, match="an OWL regime reached the query rewrite") as caught:
+        rewrite_for_entailment(ENTAIL_QUERY, ENTAILMENT["OWL-RDF-Based"])
+    assert caught.value.kind == "internal" and caught.value.report_url is not None
+
+
 # --- sparql/check.py --------------------------------------------------------------------------------------------------
 
 def test_check_query_reports_what_the_engine_refuses():

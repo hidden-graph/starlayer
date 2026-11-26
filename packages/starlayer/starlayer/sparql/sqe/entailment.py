@@ -115,8 +115,9 @@ def rewrite_for_entailment(text: str, regime: Any, *, prefixes: Any = None, base
         The rewritten query text; ``text`` itself when no pattern is widened.
 
     Raises:
-        ValueError: ``regime`` is a registered regime but neither RDF nor RDFS (OWL regimes need ``infer()``).
-        ExecutionError: (kind ``"unsupported"``) ``regime`` is not a registered regime at all, or the query cannot be rewritten exactly; (kind ``"limit"``) it nests too deeply.
+        ExecutionError: (kind ``"unsupported"``) ``regime`` is not a registered regime at all, or the query cannot be rewritten exactly;
+            (kind ``"limit"``) it nests too deeply; (kind ``"internal"``) ``regime`` is a registered OWL regime, which
+            ``StarLayerGraph.query`` answers through the entailed copy and never sends here, so it is a bug in StarLayer.
         FormatError: (kind "sparql") ``text`` is not a query.
     """
     iri = regime_iri(regime)
@@ -126,9 +127,9 @@ def rewrite_for_entailment(text: str, regime: Any, *, prefixes: Any = None, base
         error = unsupported_regimes([iri])
         if error is not None:  # not a registered regime at all
             raise error
-        raise ValueError(
-            f"query-time entailment supports ENTAILMENT.RDF and ENTAILMENT.RDFS, not {iri!r} "
-            "(use infer() for a materialized closure of the OWL regimes)"
+        raise ExecutionError(
+            f"an OWL regime reached the query rewrite: OWL regimes are answered through the entailed copy ({iri!r})",
+            kind="internal", context="entailment rewrite",
         )
     pfx = tuple(sorted((str(k), str(getattr(v, "value", v))) for k, v in (prefixes.items() if hasattr(prefixes, "items") else prefixes or ())))
     return _rewrite_cached(text, iri, pfx, base)
