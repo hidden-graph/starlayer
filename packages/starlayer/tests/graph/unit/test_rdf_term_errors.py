@@ -136,6 +136,21 @@ def test_invalid_iri_and_language_text_is_kind_term_but_a_wrong_argument_combina
         literal("x", direction="ltr")
 
 
+def test_a_chosen_direction_is_a_value_error_and_the_same_text_in_a_parsed_value_is_a_format_error():
+    """Review decision Q2 (2026-11-26): a parsed value is ``FormatError``, a chosen or combined one is ``ValueError``."""
+    with pytest.raises(ValueError, match="direction"):
+        literal("x", lang="sv", direction="up")
+    with pytest.raises(FormatError) as info:
+        StarLayerGraph().parse(data='<http://a> <http://b> "x"@sv--up .', format="turtle")
+    assert info.value.kind == "rdf"
+    with pytest.raises(FormatError) as info:
+        parse_term('"x"@sv--up')
+    assert info.value.kind == "term"
+    with pytest.raises(FormatError) as info:
+        literal("x", lang="not a tag!")
+    assert info.value.kind == "term"
+
+
 def test_a_curie_that_is_not_one_is_kind_term():
     with pytest.raises(FormatError):
         qnames.expand_curie({}, "nocolon")
