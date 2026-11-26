@@ -79,7 +79,7 @@ repository errors are elsewhere).
   expose), and 1 negative test.
 - **Poison test074** (10-node clique, must raise): pyoxigraph **does not finish** (killed after 20 s). It has no
   denial-of-service defence, which RDFC-1.0 section 7.1 requires. Do not canonicalise untrusted input without an outer limit;
-  `rdfc.py` raises `CanonicalizationComplexityError` here.
+  `rdfc.py` raises `ExecutionError` (kind `"limit"`) here.
 - **Isomorphism verdicts**, three methods plus a brute-force oracle (all blank-node bijections), 2,500 random datasets
   (default and named graphs, blank-node graph names, triple terms nested two deep, directional literals, 35 percent relabelled,
   45 percent one-quad mutations, 20 percent unrelated; 932 truly isomorphic): native, native-after-basic-encoding and
