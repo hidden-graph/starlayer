@@ -53,7 +53,6 @@ def test_catalog_rule_violated_by_other_node_does_not_veto_single_path():
         ex:IsInt a sh:NodeShape ; sh:property [ sh:path sh:datatype ; sh:hasValue xsd:integer ] .
         ex:Rule sh:targetClass sh:PropertyShape ; sh:property [ sh:path sh:path ; sh:hasValue ex:a ] ."""
     )
-    scoring.ignore_imports = True  # select_widgets() resolves the scoring graph's owl:imports like any other graph's (or raises)
     kw = {"shapes_graph": shapes, "scoring_graph": scoring, "role": "editor"}
     assert select_widget(shape_node=EX.p1, **kw) == SHUI.NumberFieldEditor
     assert select_widgets(shape_node=EX.S, **kw)[EX.p1] == SHUI.NumberFieldEditor
@@ -105,6 +104,7 @@ def test_catalog_with_owl_imports_does_not_crash():
         ex:s2 a shui:WidgetScore ; shui:widget shui:NumberFieldEditor ; shui:score 5 ; shui:shapesGraphShape ex:IsInt .
         ex:IsInt a sh:NodeShape ; sh:property [ sh:path sh:datatype ; sh:hasValue xsd:integer ] ."""
     )
+    scoring.ignore_imports = True  # select_widgets() resolves the scoring graph's owl:imports like any other graph's (or raises)
     kw = {"shapes_graph": shapes, "scoring_graph": scoring, "role": "editor"}
     assert select_widget(shape_node=EX.p1, **kw) == SHUI.NumberFieldEditor
     assert select_widgets(shape_node=EX.S, **kw)[EX.p1] == SHUI.NumberFieldEditor
