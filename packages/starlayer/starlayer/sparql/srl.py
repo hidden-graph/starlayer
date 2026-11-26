@@ -481,7 +481,9 @@ def tree_to_ruleset(graph: Any, root) -> srl_ast.RuleSet:
         rules = [_decode_rule(n, graph) for n in _children(graph, root, _RULES)]
         data = [_decode_data(n, graph) for n in _children(graph, root, _DATA)]
         imports = _children(graph, root, _IMPORTS)
-    except FormatError:
+    except FormatError as exc:
+        if exc.kind == "term":  # a triple term the tree holds in a position it cannot have: a damaged tree
+            raise _tree_error(f"srl: the tree cannot be read as a rule set: {exc}") from exc
         raise
     except (ValueError, KeyError, TypeError, AttributeError) as exc:
         # a damaged tree (a missing part, a triple term that is not one) is the one error
