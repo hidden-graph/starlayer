@@ -9,7 +9,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.manchester._ox_terms import OWL
-from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.errors import FormatError
 from starlayer.graph.manchester.parser import parse_manchester
 from starlayer.graph.manchester.serializer import serialize_manchester
 
@@ -39,7 +39,7 @@ def _assert_round_trip(text, prefix=P):
 def test_huge_integer_is_a_literal_or_a_syntax_error(body):
     try:
         parse_manchester('Prefix: : <http://e/>\nClass: A\n SubClassOf: ' + body)
-    except ManchesterSyntaxError:
+    except FormatError:
         pass
 
 
@@ -56,19 +56,19 @@ def test_integer_lexical_form_is_canonical(word, lexical):
 
 @pytest.mark.parametrize('digit', ['²', '³', '٣'])
 def test_non_ascii_digit_cardinality_is_a_syntax_error(digit):
-    with pytest.raises(ManchesterSyntaxError):
+    with pytest.raises(FormatError):
         parse_manchester(f'Prefix: : <http://e/>\nClass: :A SubClassOf: :p min {digit} :B\n')
 
 
 def test_error_line_after_multiline_string():
-    with pytest.raises(ManchesterSyntaxError) as exc:
+    with pytest.raises(FormatError) as exc:
         parse_manchester('Prefix: : <http://e/>\nClass: A\n SubClassOf: p value "a\nb\nc"\n Foo: C')
     assert exc.value.line == 6
 
 
 def test_name_resolution_error_reports_the_offending_line():
     src = 'Prefix: : <http://ex.org/>\nClass: A\n    SubClassOf: nope:B\nClass: C\n'
-    with pytest.raises(ManchesterSyntaxError) as exc:
+    with pytest.raises(FormatError) as exc:
         parse_manchester(src)
     assert exc.value.line == 3
     assert 'nope:B' in str(exc.value)

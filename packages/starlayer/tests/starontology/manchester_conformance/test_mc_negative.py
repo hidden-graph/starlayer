@@ -1,4 +1,4 @@
-"""Negative corpus (N in the plan's P/T/R/O/V/N): malformed input must raise ``ManchesterSyntaxError``,
+"""Negative corpus (N in the plan's P/T/R/O/V/N): malformed input must raise ``FormatError``,
 never mis-parse silently.
 
 The most dangerous failure for a parser is not rejecting good input but quietly accepting bad input and
@@ -8,7 +8,7 @@ dropping or reinterpreting part of the document. The ``truncation`` group target
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.errors import FormatError
 from starlayer.graph.manchester.parser import parse_manchester
 
 from .corpus import PRELUDE
@@ -65,7 +65,7 @@ def test_malformed_input_raises(case_id, text, request):
     if case_id in NEGATIVE_FAILURES:
         request.applymarker(pytest.mark.xfail(reason=NEGATIVE_FAILURES[case_id], strict=True))
     full = (PRELUDE + text) if case_id in _WITH_PRELUDE else _PREFIXES + text
-    with pytest.raises(ManchesterSyntaxError):
+    with pytest.raises(FormatError):
         parse_manchester(full)
 
 
@@ -89,7 +89,7 @@ STRICT_BY_GRAMMAR: list[tuple[str, str]] = [
 @pytest.mark.manchester_conformance
 @pytest.mark.parametrize(("case_id", "text"), STRICT_BY_GRAMMAR, ids=[c[0] for c in STRICT_BY_GRAMMAR])
 def test_rejected_where_the_grammar_rejects(case_id, text):
-    with pytest.raises(ManchesterSyntaxError):
+    with pytest.raises(FormatError):
         parse_manchester(_PREFIXES + text)
 
 

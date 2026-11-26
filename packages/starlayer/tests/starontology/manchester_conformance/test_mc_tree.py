@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import pytest
 from starlayer.graph.compare import isomorphic
-from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.errors import FormatError
 from starlayer.starontology.manchester import (
     manchester_parse_to_tree,
     manchester_tree_to_owl,
@@ -36,7 +36,7 @@ def _prepare(case, check: str, request):
         request.applymarker(pytest.mark.xfail(reason=TREE_FAILURES[key], strict=True))
     try:
         direct = parse_to_graph(case.text)
-    except ManchesterSyntaxError:
+    except FormatError:
         pytest.skip("direct parse fails; owned by test_mc_differential")
     return direct
 

@@ -57,7 +57,7 @@ def test_a_shape_error_is_not_a_value_error_so_an_except_value_error_misses_it()
 
 def test_the_execution_kinds_are_the_six_of_step_c_and_the_three_of_owl_dl_reasoning():
     assert ExecutionError.KINDS == ("rule", "expression", "nesting", "recursion", "constraint-query", "internal",
-                                    "timeout", "inconsistent", "inference", "query", "import")
+                                    "timeout", "inconsistent", "inference", "query", "import", "unsupported")
     with pytest.raises(ValueError, match="unknown ExecutionError kind"):
         ExecutionError("x", kind="nope")
 

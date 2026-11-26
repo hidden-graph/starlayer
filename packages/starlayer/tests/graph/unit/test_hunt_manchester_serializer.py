@@ -6,6 +6,7 @@ The oracle for the serializer is its own documented bar: ``parse_manchester`` ou
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.manchester._ox_terms import OWL, RDF, URIRef
@@ -166,18 +167,18 @@ def test_direction_tagged_literal_is_not_written_as_a_plain_language_literal():
     g.add((a, RDF.type, OWL.Class))
     g.add((a, ox.NamedNode('http://www.w3.org/2000/01/rdf-schema#label'),
            ox.Literal('x', language='en', direction=ox.BaseDirection.LTR)))
-    with pytest.raises(ValueError, match='direction'):
+    with pytest.raises(ExecutionError, match='direction'):
         serialize_manchester(g)
 
 
-def test_triple_term_value_raises_value_error():
+def test_triple_term_value_is_an_unsupported_execution_error():
     a = ox.NamedNode('http://ex.org/A')
     ap = ox.NamedNode('http://ex.org/ap')
     g = StarLayerGraph()
     g.add((a, RDF.type, OWL.Class))
     g.add((ap, RDF.type, OWL.AnnotationProperty))
     g.add((a, ap, ox.Triple(a, ap, a)))
-    with pytest.raises(ValueError, match='Triple'):
+    with pytest.raises(ExecutionError, match='Triple'):
         serialize_manchester(g)
 
 

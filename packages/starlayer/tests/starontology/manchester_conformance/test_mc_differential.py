@@ -9,7 +9,7 @@ not, so a rejection is a *finding to classify*, never a silent skip.
 from __future__ import annotations
 
 import pytest
-from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.errors import FormatError
 
 from .corpus import CASES
 from .helpers import load_golden, owlapi_graph_from_golden, parse_to_graph, same_owl
@@ -42,7 +42,7 @@ def test_matches_owlapi(case, request):
         return
 
     if case.id in DIFFERENTIAL_FAILURES:
-        request.applymarker(pytest.mark.xfail(reason=DIFFERENTIAL_FAILURES[case.id], strict=True, raises=(AssertionError, ManchesterSyntaxError)))
+        request.applymarker(pytest.mark.xfail(reason=DIFFERENTIAL_FAILURES[case.id], strict=True, raises=(AssertionError, FormatError)))
 
     ours = parse_to_graph(case.text)
     theirs = owlapi_graph_from_golden(golden)

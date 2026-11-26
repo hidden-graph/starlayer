@@ -101,7 +101,21 @@ from starlayer.graph.manchester._ox_terms import (
     lexical,
 )
 from starlayer.graph.manchester._ox_terms import is_valid_langtag as _is_valid_langtag
-from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.errors import ExecutionError, FormatError
+
+def _syntax_error(why, text, pos=0, line=None, *, doc_offset=False, context=None):
+    """The ``FormatError`` (kind ``"manchester"``) for malformed Manchester text, with rdflib-``BadSyntax`` styling: the line and a ``^``
+    pointer into ``text``. ``pos`` indexes ``text``; it is also the error's ``pos`` and gives ``col`` only when ``doc_offset`` says
+    ``text`` is the whole document (a token's own text is not), so the attributes never claim a position that is not known."""
+    pre = '...' if pos > 60 else ''
+    before = text[max(0, pos - 60):pos]
+    after = text[pos:pos + 60]
+    post = '...' if len(text) - pos > 60 else ''
+    where = f'at line {line}' if line is not None else 'at end of input'
+    message = f'{where}:\nBad syntax ({why}) at ^ in:\n"{pre}{before}^{after}{post}"'
+    col = pos - (text.rfind('\n', 0, pos) + 1) + 1 if doc_offset else None
+    return FormatError(message, kind='manchester', context=context, why=why, line=line, col=col, pos=pos if doc_offset else None)
+
 
 _DEFAULT_PREFIXES = {
     'owl': 'http://www.w3.org/2002/07/owl#',
@@ -292,7 +306,7 @@ def _tokenize(text):
     i, n, line = 0, len(text), 1
 
     def err(why, pos):
-        raise ManchesterSyntaxError(why, text, pos=pos, line=line)
+        raise _syntax_error(why, text, pos=pos, line=line, doc_offset=True)
 
     while i < n:
         c = text[i]
@@ -524,12 +538,12 @@ class _Cursor:
             self.error(f'expected {ch!r}, got {got!r}')
         return self.advance()
 
-    def error(self, why, pos=0, tok=None):
-        """Raise a ManchesterSyntaxError at ``tok`` (the offending token), or at the next token to be read."""
+    def error(self, why, pos=0, tok=None, context=None):
+        """Raise a ``FormatError`` (kind ``"manchester"``) at ``tok`` (the offending token), or at the next token to be read."""
         tok = tok if tok is not None else self.peek()
         line = tok['line'] if tok else None
         text = tok['text'] if tok else ''
-        raise ManchesterSyntaxError(why, text, pos=pos or 0, line=line)
+        raise _syntax_error(why, text, pos=pos or 0, line=line, context=context)
 
     # -- name resolution ---------------------------------------------------
 
@@ -639,7 +653,7 @@ class _Cursor:
         if tok['kind'] == 'IRI':
             try:
                 return self.resolve_iri(tok['text'])
-            except ManchesterSyntaxError:
+            except FormatError:  # only ever kind "manchester", from resolve_iri
                 return None
         if tok['kind'] != 'WORD' or tok['text'].endswith(':'):
             return None
@@ -1682,18 +1696,18 @@ def _run_top_level(cur):
             _parse_misc(cur, word)
         elif word == 'Rule:':
             cur.error("SWRL rules ('Rule:') are not supported by StarLayer: the W3C Manchester Syntax has no rules, they are an extension of some tools "
-                      "(Protege, the OWL API). Remove the rule, or use SRL (SPARQL Rules) for rules")
+                      "(Protege, the OWL API). Remove the rule, or use SRL (SPARQL Rules) for rules", context="SWRL Rule: unsupported")
         else:
             cur.error(f'expected a Prefix:/Ontology:/frame/Misc-axiom keyword, got {word!r}')
 
 
 def run_guarded(fn, *args):
-    """Run ``fn``, turning the RecursionError of a pathologically deep class expression into a
-    ManchesterSyntaxError (the grammar nests without limit; Python's stack does not)."""
+    """Run ``fn``, turning the RecursionError of a pathologically deep class expression into an ``ExecutionError`` of kind ``"nesting"``
+    (the grammar nests without limit; Python's stack does not)."""
     try:
         return fn(*args)
     except RecursionError:
-        raise ManchesterSyntaxError('class expression nested too deeply to parse', '', pos=0) from None
+        raise ExecutionError('class expression nested too deeply to parse', kind='nesting', context='Manchester syntax parse') from None
 
 
 def parse_manchester(text: str, base: str = None) -> list:
@@ -1709,6 +1723,11 @@ def parse_manchester(text: str, base: str = None) -> list:
     Returns:
         A list of (s, p, o) triples (pyoxigraph terms -
         NamedNode/BlankNode/Literal).
+
+    Raises:
+        FormatError: (kind "manchester") For text outside the supported grammar, with ``why`` and ``line`` (``col`` and ``pos`` where the
+            tokenizer knows them); a SWRL ``Rule:`` is one too, with ``context`` saying so.
+        ExecutionError: (kind "nesting") A class expression nested too deeply for Python's stack.
     """
     cur = _Cursor(_tokenize(text), base)
     run_guarded(_run_top_level, cur)

@@ -16,7 +16,7 @@ deviation in `known_failures.py` and breaks loudly if its status changes.
 | `test_mc_differential.py` | `parse_manchester` output is OWL-equivalent to OWL API 5.1.20 | committed goldens (`goldens/`), no JVM at test time |
 | `test_mc_note_only.py` | constructs the Note allows but OWL API rejects produce the structure the Note implies | the Note |
 | `test_mc_tree.py` | tree validates; tree→OWL ≅ direct parse; render re-parses; second pass stable | the parser itself |
-| `test_mc_negative.py` | malformed input raises `ManchesterSyntaxError` (incl. truncation probes) | OWL API for the "genuine defect" ones |
+| `test_mc_negative.py` | malformed input raises `FormatError` (incl. truncation probes) | OWL API for the "genuine defect" ones |
 | `test_mc_introspection.py` | ontology, encoder and shapes agree; snapshots match live files | structural |
 | `test_mc_shapes_mutation.py` | the shapes REJECT damaged trees; anything that validates must decode | mutation |
 | `test_mc_generated.py` | Hypothesis: random valid documents hold the tree invariants | the parser itself |

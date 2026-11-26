@@ -18,6 +18,7 @@ docstring for why those specific reconstructions aren't attempted.
 """
 
 import pytest
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.compare import isomorphic
 from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, URIRef
@@ -313,5 +314,5 @@ class TestErrors:
         g.add((subject, RDFS.subClassOf, blank))
         # `blank` matches no recognizable class-expression shape (no
         # intersectionOf/unionOf/complementOf/oneOf/Restriction predicate).
-        with pytest.raises(ValueError):
+        with pytest.raises(FormatError):
             serialize_manchester(g)

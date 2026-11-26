@@ -29,9 +29,8 @@ construct coverage in reverse):
     own parse_manchester() output - the one shape guaranteed well-formed
     by construction. Arbitrary foreign RDF (hand-written Turtle, Protege
     output, ...) is a best-effort target, not a guarantee: a blank node
-    this module can't recognize any pattern for raises ValueError rather
-    than being silently dropped or mis-rendered (matching every other
-    serializer in this package - see rdfxml12.py).
+    this module can't recognize any pattern for raises a ``FormatError`` of kind
+    ``"owl"`` rather than being silently dropped or mis-rendered.
   - `SuperClassOf:`/`SuperPropertyOf:` are surface sugar with no RDF-level
     trace (they produce the exact same triple as the reversed
     `SubClassOf:`/`SubPropertyOf:` spelling) - this module always emits
@@ -55,7 +54,7 @@ construct coverage in reverse):
   - A blank node that is the subject of a triple and part of no class
     expression, data range, list or reification block is an anonymous
     individual (`Individual: _:b`).
-  - Not representable, so a ValueError rather than a rewritten term: a
+  - Not representable, so an ``ExecutionError`` of kind ``"unsupported"`` rather than a rewritten term: a
     literal with a base direction, a triple term, a version IRI on an
     anonymous ontology, a subclass axiom with a class expression on both
     sides.
@@ -82,6 +81,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 
+from starlayer.errors import ExecutionError, FormatError
 from starlayer.graph.manchester._ox_terms import (
     OWL,
     RDF,
@@ -308,15 +308,25 @@ class _Ctx:
 # Names and literals
 # ---------------------------------------------------------------------------
 
+def _owl_error(message, node=None):
+    """The ``FormatError`` (kind ``"owl"``) for RDF that is not a valid OWL 2 class expression, data range, property expression or list."""
+    return FormatError(message, kind='owl', context=f'Manchester serialize {node!r}' if node is not None else 'Manchester serialize')
+
+
+def _unsupported(message, context='Manchester serialize'):
+    """The ``ExecutionError`` (kind ``"unsupported"``) for a well-formed graph that Manchester syntax has no way to write."""
+    return ExecutionError(message, kind='unsupported', context=context)
+
+
 def _render_name(ctx, node):
     if isinstance(node, BNode):
-        raise ValueError(
+        raise _owl_error(
             f'cannot render blank node {node!r} as a Manchester name - it '
             f'matched no recognizable class-expression/data-range/property '
-            f'pattern (see this module\'s docstring for what is recognized)'
+            f'pattern (see this module\'s docstring for what is recognized)', node
         )
     if not isinstance(node, URIRef):
-        raise ValueError(f'cannot render {node!r} as a Manchester name - Manchester syntax has no form for a {type(node).__name__} term')
+        raise _unsupported(f'cannot render {node!r} as a Manchester name - Manchester syntax has no form for a {type(node).__name__} term')
     iri = node.value
     for ns_iri, prefix in ctx._ns_by_length:
         if iri.startswith(ns_iri) and ns_iri:
@@ -342,7 +352,7 @@ def _is_safe_local_name(local):
 def _render_literal(ctx, lit):
     text = lit.value.replace('\\', '\\\\').replace('"', '\\"')
     if getattr(lit, 'direction', None) is not None:
-        raise ValueError(
+        raise _unsupported(
             f'cannot render {lit!r}: Manchester syntax has no base direction for a language-tagged literal'
         )
     if lit.language:
@@ -375,11 +385,11 @@ def _read_list(graph, node):
     seen = set()
     while node is not None and node != RDF.nil:
         if node in seen:
-            raise ValueError(f'cyclic rdf:List at {node!r}')
+            raise _owl_error(f'cyclic rdf:List at {node!r}', node)
         seen.add(node)
         first = graph.value(node, RDF.first)
         if first is None:
-            raise ValueError(f'malformed rdf:List at {node!r} - missing rdf:first')
+            raise _owl_error(f'malformed rdf:List at {node!r} - missing rdf:first', node)
         items.append(first)
         node = graph.value(node, RDF.rest)
     return items
@@ -396,7 +406,7 @@ def _node_to_prop_expr(ctx, node):
     inv = ctx.graph.value(node, OWL.inverseOf)
     if inv is not None and isinstance(inv, URIRef):
         return ('Inverse', inv)
-    raise ValueError(f'cannot recognize {node!r} as a property expression')
+    raise _owl_error(f'cannot recognize {node!r} as a property expression', node)
 
 
 def _node_to_class_expr(ctx, node):
@@ -423,7 +433,7 @@ def _node_to_class_expr(ctx, node):
     if (node, RDF.type, OWL.Restriction) in g:
         prop_node = g.value(node, OWL.onProperty)
         if prop_node is None:
-            raise ValueError(f'owl:Restriction {node!r} has no owl:onProperty')
+            raise _owl_error(f'owl:Restriction {node!r} has no owl:onProperty', node)
         prop = _node_to_prop_expr(ctx, prop_node)
 
         some = g.value(node, OWL.someValuesFrom)
@@ -452,14 +462,14 @@ def _node_to_class_expr(ctx, node):
                 if on_class is None:
                     on_range = g.value(node, OWL.onDataRange)
                     if on_range is None:
-                        raise ValueError(f'qualified cardinality {node!r} has no owl:onClass or owl:onDataRange')
+                        raise _owl_error(f'qualified cardinality {node!r} has no owl:onClass or owl:onDataRange', node)
                     return (tag, int(n.value), prop, _node_to_data_range(ctx, on_range))
                 return (tag, int(n.value), prop, _node_to_class_expr(ctx, on_class))
-        raise ValueError(f'owl:Restriction {node!r} matched no known restriction shape')
+        raise _owl_error(f'owl:Restriction {node!r} matched no known restriction shape', node)
 
-    raise ValueError(
+    raise _owl_error(
         f'cannot recognize blank node {node!r} as a class expression - no '
-        f'intersectionOf/unionOf/complementOf/oneOf/Restriction shape found'
+        f'intersectionOf/unionOf/complementOf/oneOf/Restriction shape found', node
     )
 
 
@@ -504,13 +514,13 @@ def _node_to_data_range(ctx, node):
         for fn in (_read_list(g, facet_list) if facet_list is not None else []):
             pairs = [(p, o) for p, o in g.predicate_objects(fn) if p in _DATA_FACET_KEYWORDS]
             if not pairs:
-                raise ValueError(f'facet node {fn!r} has no recognized xsd: facet predicate')
+                raise _owl_error(f'facet node {fn!r} has no recognized xsd: facet predicate', fn)
             facets.append(pairs[0])
         return ('DRestriction', datatype, facets)
 
-    raise ValueError(
+    raise _owl_error(
         f'cannot recognize blank node {node!r} as a data range - no '
-        f'intersectionOf/unionOf/datatypeComplementOf/oneOf/onDatatype shape found'
+        f'intersectionOf/unionOf/datatypeComplementOf/oneOf/onDatatype shape found', node
     )
 
 
@@ -845,7 +855,7 @@ def _render_frameless_axioms(ctx):
         elif isinstance(s, URIRef):
             head, clause, text = s, 'SubClassOf', class_expr(o)
         else:
-            raise ValueError(
+            raise _unsupported(
                 f'cannot write the subclass axiom between {s!r} and {o!r}: Manchester syntax needs a named class '
                 f'on one side'
             )
@@ -869,7 +879,7 @@ def _render_ontology_header(ctx):
         if version is not None:
             head += f' <{_iri_text(version)}>'
     elif version is not None:
-        raise ValueError(f'cannot write a version IRI for the anonymous ontology {node!r}: Manchester syntax needs an ontology IRI')
+        raise _unsupported(f'cannot write a version IRI for the anonymous ontology {node!r}: Manchester syntax needs an ontology IRI')
     else:
         head = 'Ontology:'
     lines = [head]
@@ -890,6 +900,11 @@ def serialize_manchester(graph) -> str:
 
     Returns:
         The Manchester Syntax serialization of graph.
+
+    Raises:
+        FormatError: (kind "owl") A node that is not a valid OWL 2 class expression, data range, property expression or list.
+        ExecutionError: (kind "unsupported") A well-formed graph Manchester syntax cannot write (a base-direction literal, a triple
+            term, a subclass axiom between two class expressions, a version IRI on an anonymous ontology).
     """
     from starlayer.graph.inputs import as_oxigraph
 

@@ -50,7 +50,10 @@ sits in a ``tree:Item`` (``tree:value``) and may be shared. An empty sequence is
 ``manch:values`` (where ``manch:value`` was a nested list). ``graph.ordinals.append`` / ``insert_at`` / ``remove_at`` / ``replace_at``
 edit a sequence and ``renumber_dense`` closes gaps (run it before hashing). The decoders raise ``FormatError`` (kind ``"rdf"``) for a
 tie or a missing or non-integer ordinal; ``manchester_validate`` reports the same as shape violations. The errors of the Manchester
-parser (``ManchesterSyntaxError``) are unchanged.
+parser are ``FormatError`` (kind ``"manchester"``) too, with ``why``, ``line`` and a position; a class expression nested too deeply to parse or
+render is an ``ExecutionError`` (kind ``"nesting"``), and a node of the tree that no ``manch:`` type describes is a ``FormatError`` (kind
+``"manchester"``, context ``manch: tree``). ``ValueError`` stays for a graph argument that holds no ``manch:Document``, or already holds
+one.
 
 **Editing is meant to happen on the tree-RDF itself (plain graph surgery -
 ``graph.add()``/``.remove()``), not on a Python object.** ``_tree_to_document()``/
@@ -115,6 +118,8 @@ from __future__ import annotations
 
 from collections import namedtuple
 from typing import TYPE_CHECKING, Any
+
+from starlayer.errors import ExecutionError, FormatError
 
 from starlayer.graph.manchester._ox_terms import (
     OWL,
@@ -714,7 +719,7 @@ def _decode_prop_expr(g, node):
         return node
     if (node, RDF.type, MANCH.Inverse) in g:
         return ('Inverse', g.value(node, MANCH.operand))
-    raise ValueError(f'unrecognized property-expression node {node!r}')
+    raise FormatError(f'unrecognized property-expression node {node!r}', kind='manchester', context='manch: tree')
 
 
 def _node_types(g, node):
@@ -751,7 +756,7 @@ def _decode_class_expr(g, node):
             filler_node = g.value(node, MANCH.filler)
             decode_filler = _decode_data_range if tag.startswith('D') else _decode_class_expr
             return (tag, n, prop, decode_filler(g, filler_node) if filler_node is not None else None)
-    raise ValueError(f'unrecognized class-expression node {node!r} (types: {types})')
+    raise FormatError(f'unrecognized class-expression node {node!r} (types: {types})', kind='manchester', context='manch: tree')
 
 
 def _decode_data_range(g, node):
@@ -772,7 +777,7 @@ def _decode_data_range(g, node):
         for fn in _read_seq(g, node, MANCH.facets):
             facets.append((g.value(fn, MANCH.facetPredicate), g.value(fn, MANCH.facetValue)))
         return ('DRestriction', datatype, facets)
-    raise ValueError(f'unrecognized data-range node {node!r} (types: {types})')
+    raise FormatError(f'unrecognized data-range node {node!r} (types: {types})', kind='manchester', context='manch: tree')
 
 
 def _decode_value(g, kind, node):
@@ -1118,8 +1123,7 @@ def manchester_tree_to_text(tree_graph: Graph) -> str:
     try:
         return _document_to_text(_tree_to_document(graph, root))
     except RecursionError:
-        from starlayer.graph.manchester.errors import ManchesterSyntaxError
-        raise ManchesterSyntaxError('class expression nested too deeply to render', '', pos=0) from None
+        raise ExecutionError('class expression nested too deeply to render', kind='nesting', context='Manchester syntax render') from None
 
 
 def manchester_tree_to_owl(tree_graph: Any) -> Any:

@@ -2,7 +2,7 @@
 
 Grouped by construct: frames, each class-expression form, each Misc axiom,
 and the constructs this parser deliberately doesn't support yet (must raise
-ManchesterSyntaxError, not silently mis-parse). RDF-mapping correctness for
+FormatError, not silently mis-parse). RDF-mapping correctness for
 the bulk of these cases was cross-checked during development against the
 real OWL API's ManchesterOWLSyntaxOntologyParser (an external, uncommitted
 oracle - see the module docstring) via starlayer.graph.compare.isomorphic();
@@ -13,7 +13,7 @@ import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.manchester._ox_terms import OWL, RDF, RDFS, XSD, URIRef
 from starlayer.graph.manchester._ox_terms import lexical as Literal
-from starlayer.graph.manchester.errors import ManchesterSyntaxError
+from starlayer.errors import FormatError
 from starlayer.graph.manchester.parser import parse_manchester
 
 EX = 'http://example.org/'
@@ -263,7 +263,7 @@ class TestPropertyClauses:
         assert (ex('hasSpouse'), RDF.type, OWL.FunctionalProperty) in t
 
     def test_unknown_characteristic_raises(self):
-        with pytest.raises(ManchesterSyntaxError):
+        with pytest.raises(FormatError):
             parse('ObjectProperty: p\n    Characteristics: Bogus\n')
 
     def test_inverseof(self):
@@ -523,30 +523,30 @@ class TestInlineAxiomAnnotations:
 
 class TestUnsupported:
     def test_swrl_rule_not_supported(self):
-        with pytest.raises(ManchesterSyntaxError, match="SWRL rules .* are not supported by StarLayer"):
+        with pytest.raises(FormatError, match="SWRL rules .* are not supported by StarLayer"):
             parse('Rule: DifferentFrom(?x, ?y)\n')
 
     def test_valuepartition_not_supported(self):
         # Reserved in the OWL API's own keyword enum but every
         # frame/section/axiom/quantifier/connective flag on it is false -
         # not actually wired up as parseable even by the oracle itself.
-        with pytest.raises(ManchesterSyntaxError):
+        with pytest.raises(FormatError):
             parse('ValuePartition: Speed\n')
 
     def test_undeclared_default_prefix(self):
-        with pytest.raises(ManchesterSyntaxError):
+        with pytest.raises(FormatError):
             parse_manchester('Class: A\n')
 
     def test_unknown_prefix(self):
-        with pytest.raises(ManchesterSyntaxError):
+        with pytest.raises(FormatError):
             parse('Class: foo:A\n')
 
     def test_unterminated_iri(self):
-        with pytest.raises(ManchesterSyntaxError):
+        with pytest.raises(FormatError):
             parse_manchester('Prefix: : <http://example.org/\nClass: A\n')
 
     def test_unterminated_string(self):
-        with pytest.raises(ManchesterSyntaxError):
+        with pytest.raises(FormatError):
             parse('DataProperty: p\nIndividual: a\n    Facts: p "unterminated\n')
 
 
