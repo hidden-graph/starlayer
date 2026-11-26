@@ -712,8 +712,9 @@ class TestMaterialize:
     def test_close_drops_what_was_kept(self):
         kept = parse_ruleset(self.RULES).materialize(self._base())
         kept.close()
-        with pytest.raises(ValueError, match="closed"):
+        with pytest.raises(ExecutionError, match="closed") as caught:
             kept.query("?x ex:anc ?y")
+        assert caught.value.kind == "rule"
         kept.refresh()
         assert kept.query("?x ex:anc ?y")
 

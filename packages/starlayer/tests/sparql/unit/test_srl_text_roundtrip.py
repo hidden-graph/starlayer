@@ -3,6 +3,7 @@ unary minus, function calls by IRI, IF, BNODE and the RDF 1.2 builtins."""
 
 import pyoxigraph as ox
 import pytest
+from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.sparql.expr_text import render_expression
 from starlayer.sparql.srl import parse_ruleset, ruleset_to_text
@@ -73,8 +74,9 @@ def test_filter_text_has_no_placeholders_and_re_parses(expr):
 def test_render_expression_refuses_what_it_cannot_render():
     from rdflib.plugins.sparql.parserutils import CompValue
 
-    with pytest.raises(NotImplementedError):
+    with pytest.raises(ExecutionError) as caught:
         render_expression(CompValue("Exists"))
+    assert caught.value.kind == "unsupported"
 
 
 def test_replace_flags_are_kept_in_the_text():

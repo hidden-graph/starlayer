@@ -694,7 +694,7 @@ def _eval_rule_elements(
             seq = _eval_group(elt, seq, g, gd)
             i += 1
         else:  # pragma: no cover - srl_ast.BodyElement is exhaustive
-            raise TypeError(f"unrecognized rule body element: {elt!r}")
+            raise ExecutionError(f"unrecognized rule body element: {elt!r}", kind="internal", context="srl: evaluation")
     return seq
 
 
@@ -1418,5 +1418,5 @@ class Materialization:
 
     def _open(self) -> _Evaluation:
         if self._evaluation is None:
-            raise ValueError("this Materialization is closed; refresh() runs the rules again")
+            raise ExecutionError("this Materialization is closed; refresh() runs the rules again", kind="rule", context="Materialization")
         return self._evaluation

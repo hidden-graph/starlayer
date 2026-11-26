@@ -306,7 +306,7 @@ class _Writer:
             self.sequence(node, _GROUP_PATTERN, [self.body_element(e) for e in element.pattern])
             self.sequence(node, _GROUP_AGGREGATIONS, [self.aggregation(a) for a in element.aggregations])
         else:  # pragma: no cover
-            raise NotImplementedError(f"starlayer.sparql.srl: no encoding for body element {element!r}")
+            raise ExecutionError(f"starlayer.sparql.srl: no encoding for body element {element!r}", kind="unsupported", context="srl: tree encoding")
         return node
 
     def aggregation(self, agg: srl_ast._Aggregation):
@@ -544,7 +544,7 @@ def _term_text(term, prefixes: dict) -> str:
     if isinstance(term, TripleTermNode):
         s, p, o = (_term_text(term.get(part), prefixes) for part in ("subject", "predicate", "object"))
         return f"<<( {s} {p} {o} )>>"
-    raise NotImplementedError(f"starlayer.sparql.srl: no text rendering for term {term!r}")
+    raise ExecutionError(f"starlayer.sparql.srl: no text rendering for term {term!r}", kind="unsupported", context="srl: text rendering")
 
 
 def _triple_text(triple: srl_ast.TriplePattern, prefixes: dict) -> str:
@@ -578,7 +578,7 @@ def _body_element_text(element: srl_ast.BodyElement, prefixes: dict) -> str:
         inner = " ".join(_body_element_text(e, prefixes) for e in element.pattern)
         aggregations = ", ".join(_aggregation_text(a, prefixes) for a in element.aggregations)
         return f"GROUP {keys}{{ {inner} }} [ {aggregations} ]" if aggregations else f"GROUP {keys}{{ {inner} }} []"
-    raise NotImplementedError(f"starlayer.sparql.srl: no text rendering yet for body element {element!r}")
+    raise ExecutionError(f"starlayer.sparql.srl: no text rendering yet for body element {element!r}", kind="unsupported", context="srl: text rendering")
 
 
 def _aggregation_text(agg: srl_ast._Aggregation, prefixes: dict) -> str:
