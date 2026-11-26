@@ -693,8 +693,8 @@ def _eval_rule_elements(
         elif isinstance(elt, srl_ast._GroupElement):
             seq = _eval_group(elt, seq, g, gd)
             i += 1
-        else:  # pragma: no cover - srl_ast.BodyElement is exhaustive
-            raise ExecutionError(f"unrecognized rule body element: {elt!r}", kind="internal", context="srl: evaluation")
+        else:  # a hand-built rule set holds something that is not a body element; the parser cannot produce one
+            raise FormatError(f"not a rule body element: {elt!r}", kind="srl", context="rule body element")
     return seq
 
 

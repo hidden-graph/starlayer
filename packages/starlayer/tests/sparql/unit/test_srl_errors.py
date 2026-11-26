@@ -33,6 +33,21 @@ def test_a_tree_with_an_unknown_body_element_is_a_format_error_of_kind_srl():
     assert isinstance(caught.value, StarLayerError) and not isinstance(caught.value, ValueError)
 
 
+def test_a_hand_built_rule_set_with_something_that_is_not_a_body_element_is_a_format_error_of_kind_srl():
+    """Review decision Q5 (2026-11-26): the parser cannot produce one, so a rule set that holds one was built or edited by hand."""
+    import dataclasses
+
+    from starlayer.sparql import srl_eval
+
+    parsed = parse_ruleset(P + "RULE { ?x :p ?y } WHERE { ?x :q ?y }")
+    bad = dataclasses.replace(parsed, rules=[dataclasses.replace(parsed.rules[0], body=[object()])])
+    for call in (lambda: srl.ruleset_to_tree(bad), lambda: srl.ruleset_to_text(bad), lambda: bad.plan(), lambda: bad.infer(StarLayerGraph()),
+                 lambda: srl_eval._eval_rule_elements(bad.rules[0].body, [{}], StarLayerGraph(), StarLayerGraph())):
+        with pytest.raises(FormatError) as caught:
+            call()
+        assert caught.value.kind == "srl" and caught.value.context == "rule body element"
+
+
 def test_a_tree_with_a_tied_ordinal_is_a_format_error_of_kind_rdf():
     rs = parse_ruleset(P + "RULE { ?x :p ?y } WHERE { ?x :q ?y . ?y :q ?x }")
     g, root = srl.ruleset_to_tree(rs)

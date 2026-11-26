@@ -301,7 +301,7 @@ class _Writer:
             self.sequence(node, _GROUP_PATTERN, [self.body_element(e) for e in element.pattern])
             self.sequence(node, _GROUP_AGGREGATIONS, [self.aggregation(a) for a in element.aggregations])
         else:  # pragma: no cover
-            raise ExecutionError(f"starlayer.sparql.srl: no encoding for body element {element!r}", kind="unsupported", context="srl: tree encoding")
+            raise FormatError(f"not a rule body element: {element!r}", kind="srl", context="rule body element")
         return node
 
     def aggregation(self, agg: srl_ast._Aggregation):
@@ -573,7 +573,7 @@ def _body_element_text(element: srl_ast.BodyElement, prefixes: dict) -> str:
         inner = " ".join(_body_element_text(e, prefixes) for e in element.pattern)
         aggregations = ", ".join(_aggregation_text(a, prefixes) for a in element.aggregations)
         return f"GROUP {keys}{{ {inner} }} [ {aggregations} ]" if aggregations else f"GROUP {keys}{{ {inner} }} []"
-    raise ExecutionError(f"starlayer.sparql.srl: no text rendering yet for body element {element!r}", kind="unsupported", context="srl: text rendering")
+    raise FormatError(f"not a rule body element: {element!r}", kind="srl", context="rule body element")
 
 
 def _aggregation_text(agg: srl_ast._Aggregation, prefixes: dict) -> str:

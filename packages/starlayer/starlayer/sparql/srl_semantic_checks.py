@@ -33,7 +33,7 @@ from dataclasses import dataclass
 
 import pyoxigraph as ox
 
-from starlayer.errors import ExecutionError, FormatError
+from starlayer.errors import FormatError
 
 from . import _srl_ast as srl_ast
 from .expr_text import expr_nodes, expr_variables
@@ -135,8 +135,8 @@ def _check_sequence(
             use = use | ((inner_scope | inner_use) - scope)
         elif isinstance(elt, srl_ast._GroupElement):
             scope, use = _check_group(elt, scope, use, rule, issues)
-        else:  # pragma: no cover - srl_ast.BodyElement is exhaustive
-            raise ExecutionError(f"unrecognized rule body element: {elt!r}", kind="internal", context="srl: well-formedness check")
+        else:  # a hand-built rule set holds something that is not a body element; the parser cannot produce one
+            raise FormatError(f"not a rule body element: {elt!r}", kind="srl", context="rule body element")
     return scope, use
 
 
