@@ -45,7 +45,7 @@ The tree::
   and ``max_triples``.
 
 ``FormatError`` is one class too; its ``kind`` (one of ``FormatError.KINDS``) says what is malformed: ``"sparql"`` (SPARQL query or
-update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"``, ``"term"``, ``"manchester"``, ``"owl"``. ``"srl"`` covers SRL text, an ``srl:`` tree, a rule set built or edited by hand that holds something
+update text, an ``sqe:`` tree, a ``VERSION`` declaration), ``"srl"``, ``"rdf"`` (an RDF document, a list, an encoding or a term: a term is the smallest piece of RDF text, ``context`` says which), ``"manchester"``, ``"owl"``. ``"srl"`` covers SRL text, an ``srl:`` tree, a rule set built or edited by hand that holds something
 that is not a rule body element, and a goal pattern whose predicate SRL does not allow. A position
 (``line`` and ``col`` 1-based, ``pos`` a 0-based offset) is set only by code that knows it, never parsed out of an engine message.
 
@@ -155,7 +155,7 @@ class FormatError(StarLayerError):
     ``col`` (1-based) and ``pos`` (a 0-based offset) are ``None`` unless the code that raised it knew them: they are never read out of
     an engine's message. ``message`` defaults to ``why``."""
 
-    KINDS = ("sparql", "srl", "rdf", "term", "manchester", "owl")
+    KINDS = ("sparql", "srl", "rdf", "manchester", "owl")
 
     def __init__(self, message: str | None = None, *, kind: str, context: str | None = None, why: str | None = None,
                  line: int | None = None, col: int | None = None, pos: int | None = None) -> None:

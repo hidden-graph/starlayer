@@ -247,13 +247,13 @@ def show(term: Any) -> str:
 def foreign_to_engine(term: Any) -> Any:
     """rdflib / StarLayer term (or a 3-tuple, a triple term) -> pyoxigraph term; a pyoxigraph term is returned as it is.
     ``shacl.engine.terms.to_engine`` calls this for the StarLayer value classes. A term pyoxigraph rejects (a relative IRI, a
-    blank node id or language tag it does not accept) raises a ``FormatError`` (kind ``"term"``)."""
+    blank node id or language tag it does not accept) raises a ``FormatError`` (kind ``"rdf"``, context says it is a term)."""
     if isinstance(term, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)):
         return term
     try:
         return _foreign_to_engine(term)
     except ValueError as error:
-        raise FormatError(f"{show(term)} is not an RDF term: {error}", kind="term", why=str(error), context="rdflib term") from error
+        raise FormatError(f"{show(term)} is not an RDF term: {error}", kind="rdf", why=str(error), context="rdflib term") from error
 
 
 def _foreign_to_engine(term: Any) -> Any:
@@ -371,7 +371,7 @@ def keep_used_prefixes(graph: Any) -> None:
 def graph_from_rdflib(value: Any, *, restore_directions: bool = False) -> Any:
     """A new ``StarLayerGraph`` from an rdflib ``Graph``, with the prefixes its data uses and, when it has an IRI identifier, that identifier.
 
-    A term that is not an RDF term (a relative IRI ...) raises a ``FormatError`` (kind ``"term"``); a generalized triple (a literal subject, a predicate
+    A term that is not an RDF term (a relative IRI ...) raises a ``FormatError`` (kind ``"rdf"``, context says it is a term); a generalized triple (a literal subject, a predicate
     that is not an IRI, as owlrl makes) is left out. Oxigraph normalises some literals on insert (``"04"^^xsd:integer`` becomes
     ``"4"``). ``restore_directions=True`` turns a directional literal written in its datatype-IRI form (``interop.encode_directions``)
     back into a real one."""

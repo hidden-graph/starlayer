@@ -58,7 +58,7 @@ class TripleTermNode(ExprNode):
         return self.f.get(name, default)
 
     def validate(self) -> TripleTermNode:
-        """Raise a ``FormatError`` (kind ``"term"``) if this node's own subject or predicate is itself a triple term. RDF 1.2's grammar
+        """Raise a ``FormatError`` (kind ``"rdf"``, context says it is a term) if this node's own subject or predicate is itself a triple term. RDF 1.2's grammar
         (https://www.w3.org/TR/rdf12-turtle/#grammar-production-tripleTerm) has ``ttSubject ::= iri | BlankNode``: a triple term nests
         only in object position. (A whole triple term as the subject of an ordinary triple is never legal either, RDF 1.2 Concepts; for
         rule sets that is the ``triple_term_in_subject`` / ``triple_term_in_predicate`` well-formedness issue of ``srl_semantic_checks``.)
@@ -70,5 +70,5 @@ class TripleTermNode(ExprNode):
             if isinstance(self.f.get(slot), TripleTermNode):
                 message = (f"RDF 1.2: a triple term's {slot} may never itself be a triple term "
                            f"(nesting a triple term is legal only in object position), got {self.f.get(slot)!r} as the {slot} of {self!r}")
-                raise FormatError(message, kind="term", why=message, context="triple term")
+                raise FormatError(message, kind="rdf", why=message, context="triple term")
         return self

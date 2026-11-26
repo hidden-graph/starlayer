@@ -146,7 +146,7 @@ def test_a_meta_error_keeps_its_attributes_through_pickle_and_copy():
 
 
 def test_the_format_kinds_and_the_required_valid_kind():
-    assert FormatError.KINDS == ("sparql", "srl", "rdf", "term", "manchester", "owl")
+    assert FormatError.KINDS == ("sparql", "srl", "rdf", "manchester", "owl")
     with pytest.raises(TypeError):
         FormatError("no kind")  # type: ignore[call-arg]
     with pytest.raises(ValueError, match="unknown FormatError kind"):

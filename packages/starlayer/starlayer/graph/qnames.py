@@ -61,7 +61,7 @@ def qname(prefixes: dict[str, str], uri: Any) -> str:
 
 def expand_curie(prefixes: dict[str, str], curie: str) -> ox.NamedNode:
     """The IRI of ``prefix:local``; an absolute IRI in angle brackets or with a scheme the dict does not bind is taken as is.
-    Text that is not a CURIE, or that expands to an invalid IRI, is a ``FormatError`` (kind ``"term"``)."""
+    Text that is not a CURIE, or that expands to an invalid IRI, is a ``FormatError`` (kind ``"rdf"``, context says it is a term)."""
     if not isinstance(curie, str):
         raise TypeError("expand_curie() needs a str")
     if curie.startswith("<") and curie.endswith(">"):
@@ -71,7 +71,7 @@ def expand_curie(prefixes: dict[str, str], curie: str) -> ox.NamedNode:
         return terms.to_iri(str(prefixes[prefix]) + local, "CURIE")
     if sep:
         return terms.to_iri(curie, "CURIE")
-    raise FormatError(f"{curie!r} is not a CURIE", kind="term", context="CURIE")
+    raise FormatError(f"{curie!r} is not a CURIE", kind="rdf", context="CURIE")
 
 
 _XSD_STRING = "http://www.w3.org/2001/XMLSchema#string"

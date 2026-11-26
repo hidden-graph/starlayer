@@ -1,4 +1,4 @@
-"""Error scheme stage 4: a malformed RDF document is ``FormatError`` kind ``"rdf"`` and invalid term text is kind ``"term"``;
+"""Error scheme stage 4: a malformed RDF document is ``FormatError`` kind ``"rdf"`` and invalid term text is kind ``"rdf"`` too (context names the term);
 a bad argument stays ``ValueError`` / ``TypeError`` and an unreadable file stays ``OSError``."""
 
 from __future__ import annotations
@@ -101,7 +101,7 @@ def test_a_lexical_form_that_is_not_valid_for_its_datatype_is_kind_term():
     for datatype, text in (("integer", "abc"), ("boolean", "yes"), ("dateTime", "nope")):
         with pytest.raises(FormatError) as info:
             to_python(ox.Literal(text, datatype=ox.NamedNode(XSD + datatype)))
-        assert info.value.kind == "term" and not isinstance(info.value, ValueError)
+        assert info.value.kind == "rdf" and not isinstance(info.value, ValueError)
     with pytest.raises(TypeError):
         to_python(ox.NamedNode("urn:x"))
 
@@ -110,7 +110,7 @@ def test_a_lexical_form_that_is_not_valid_for_its_datatype_is_kind_term():
 def test_text_that_is_not_one_term_is_kind_term(text):
     with pytest.raises(FormatError) as info:
         parse_term(text)
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
 
 
 def test_parse_term_wants_text():
@@ -121,13 +121,13 @@ def test_parse_term_wants_text():
 def test_invalid_iri_and_language_text_is_kind_term_but_a_wrong_argument_combination_is_not():
     with pytest.raises(FormatError) as info:
         literal("x", "not an iri")
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
     with pytest.raises(FormatError) as info:
         literal("x", lang="!!")
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
     with pytest.raises(FormatError) as info:
         terms.graph_name("a b")
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
     with pytest.raises(ValueError, match="not both"):
         literal("x", XSD + "integer", lang="en")
     with pytest.raises(ValueError, match="direction"):
@@ -145,10 +145,10 @@ def test_a_chosen_direction_is_a_value_error_and_the_same_text_in_a_parsed_value
     assert info.value.kind == "rdf"
     with pytest.raises(FormatError) as info:
         parse_term('"x"@sv--up')
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
     with pytest.raises(FormatError) as info:
         literal("x", lang="not a tag!")
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
 
 
 def test_a_curie_that_is_not_one_is_kind_term():
@@ -165,14 +165,14 @@ def test_a_triple_term_nested_in_subject_position_is_kind_term():
     TripleTermNode("TripleTerm", subject=ox.NamedNode("urn:s"), predicate=ox.NamedNode("urn:p"), object=inner).validate()  # object position is legal
     with pytest.raises(FormatError) as info:
         TripleTermNode("TripleTerm", subject=inner, predicate=ox.NamedNode("urn:p"), object=ox.NamedNode("urn:o")).validate()
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
 
 
 def test_an_rdflib_term_that_rdf_rejects_is_kind_term():
     rdflib = pytest.importorskip("rdflib")
     with pytest.raises(FormatError) as info:
         StarLayerGraph.from_rdflib(_rdflib_graph(rdflib, "not an iri"))
-    assert info.value.kind == "term"
+    assert info.value.kind == "rdf"
 
 
 def _rdflib_graph(rdflib, subject):
