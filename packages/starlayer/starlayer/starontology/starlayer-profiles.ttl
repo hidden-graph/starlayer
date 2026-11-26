@@ -111,6 +111,18 @@ slp:SparqlQuery a prof:Profile ;
         rdfs:label "spexpr_shacl" ;
         prof:hasArtifact starontology:spexpr\/spexpr_shapes.ttl ;
         prof:hasRole role:validation
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "The structure vocabulary the syntax trees share for ordered children (tree:): an ordinal on each child and a wrapper for a literal, named node or nested sequence, in place of an rdf:List - imported by srl: (and later sqe:, manch:)." ;
+        rdfs:label "tree_owl" ;
+        prof:hasArtifact starontology:tree\/tree-ontology.ttl ;
+        prof:hasRole role:schema
+    ], [
+        a prof:ResourceDescriptor ;
+        rdfs:comment "SHACL shapes for ordered children, written once (a single non-negative integer ordinal, no tie, a blank node child with one parent only) - imported by the tree vocabularies via owl:imports." ;
+        rdfs:label "tree_shacl" ;
+        prof:hasArtifact starontology:tree\/tree_shapes.ttl ;
+        prof:hasRole role:validation
     ] ;
     prof:isProfileOf tr:sparql12-query .
 

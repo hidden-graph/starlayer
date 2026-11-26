@@ -40,6 +40,7 @@ class TestGetOntologyList:
             "sqe_owl", "sqe_shacl",
             "srl_owl", "srl_shacl",
             "spexpr_owl", "spexpr_shacl",
+            "tree_owl", "tree_shacl",
             "shacl_shacl", "shacl_vocabulary", "shacl_shacl_ui", "shacl_ui_baseline", "shacl_shacl_ui_scores", "shacl_shacl_rules",
         }
 
@@ -60,7 +61,7 @@ class TestGetOntologyList:
         shacl_names = {info.name for info in starontology.get_ontology_list() if info.type == "shacl"}
         assert shacl_names == {
             "manchester_shacl", "skos_shacl", "sqe_shacl", "srl_shacl",
-            "spexpr_shacl", "shacl_shacl", "shacl_shacl_ui", "shacl_shacl_rules",
+            "spexpr_shacl", "tree_shacl", "shacl_shacl", "shacl_shacl_ui", "shacl_shacl_rules",
         }
         # the scoring catalog is not a shapes graph
         assert {info.name for info in starontology.get_ontology_list() if info.type == "scoring-catalog"} == {
@@ -78,7 +79,7 @@ class TestGetOntologyList:
         syntax_tree_graph_names = {
             info.name for info in starontology.get_ontology_list() if info.type == "syntax-tree-graph"
         }
-        assert syntax_tree_graph_names == {"manchester_owl", "sqe_owl", "srl_owl", "spexpr_owl"}
+        assert syntax_tree_graph_names == {"manchester_owl", "sqe_owl", "srl_owl", "spexpr_owl", "tree_owl"}
 
     def test_the_retired_salg_pair_is_gone(self):
         names = {info.name for info in starontology.get_ontology_list()}
@@ -94,6 +95,7 @@ class TestGetOntologyGraph:
         "manchester_owl", "manchester_shacl",
         "skos_owl", "skos_shacl",
         "srl_owl", "srl_shacl",
+        "tree_owl", "tree_shacl",
         "shacl_shacl",
     ])
     def test_every_registered_name_loads_and_parses(self, name):
@@ -122,7 +124,7 @@ _SLP = "https://github.com/hidden-graph/starlayer/ns/profile#"
 _EXPECTED_PROFILES = {
     "Manchester": ({"https://www.w3.org/TR/owl2-manchester-syntax"}, ["manchester_shacl"], ["manchester_owl"]),
     "Skos": ({"https://www.w3.org/TR/skos-reference"}, ["skos_shacl"], ["skos_owl"]),
-    "SparqlQuery": ({"https://www.w3.org/TR/sparql12-query"}, ["sqe_shacl", "spexpr_shacl"], ["sqe_owl", "spexpr_owl"]),
+    "SparqlQuery": ({"https://www.w3.org/TR/sparql12-query"}, ["sqe_shacl", "spexpr_shacl", "tree_shacl"], ["sqe_owl", "spexpr_owl", "tree_owl"]),
     "SparqlRL": ({"https://www.w3.org/TR/sparql12-rl"}, ["srl_shacl"], ["srl_owl"]),
     "Shacl": (
         {

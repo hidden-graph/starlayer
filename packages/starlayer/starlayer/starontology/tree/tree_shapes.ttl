@@ -1,0 +1,71 @@
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix tree: <https://github.com/hidden-graph/starlayer/ns/tree#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+# The shapes for ordered children, written once. A tree vocabulary says which of its properties are ordered and what class the children
+# are (sh:class on its own property shape) and adds sh:node tree:OrdShape (a typed node child) or sh:node tree:ItemShape (a wrapped
+# child) there; nothing about order is repeated per vocabulary. Gaps in the ordinals are allowed.
+
+# The ordinal of a child reached through an ordered property: one non-negative integer.
+tree:OrdShape a sh:NodeShape ;
+    rdfs:isDefinedBy tree:ShapesGraph ;
+    sh:property [
+        sh:datatype xsd:integer ;
+        sh:maxCount 1 ;
+        sh:message "an ordered child has exactly one tree:ord, a non-negative xsd:integer" ;
+        sh:minCount 1 ;
+        sh:minInclusive 0 ;
+        sh:path tree:ord
+    ] .
+
+# A wrapper (a literal, a named node or a nested sequence as an ordered child): an ordinal and exactly one value.
+tree:ItemShape a sh:NodeShape ;
+    rdfs:isDefinedBy tree:ShapesGraph ;
+    sh:node tree:OrdShape ;
+    sh:property [
+        sh:maxCount 1 ;
+        sh:message "a tree:Item has exactly one tree:value" ;
+        sh:minCount 1 ;
+        sh:path tree:value
+    ] ;
+    sh:targetClass tree:Item .
+
+# What can make an order ambiguous, checked on every node that carries an ordinal. Order is ascending ordinal, so two children of
+# one parent and property with the same ordinal have no order; a typed blank node child carries its ordinal itself, so it may have one
+# parent and property only; a named node is shared by design and so never carries an ordinal itself (it sits in a tree:Item).
+tree:OrderedNodeShape a sh:NodeShape ;
+    rdfs:isDefinedBy tree:ShapesGraph ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "Two children of the same parent and property have the same tree:ord {?ord}, so their order is not defined." ;
+        sh:select """
+            PREFIX tree: <https://github.com/hidden-graph/starlayer/ns/tree#>
+            SELECT DISTINCT $this ?ord
+            WHERE {
+                ?parent ?p $this . ?parent ?p ?other . FILTER ( $this != ?other )
+                $this tree:ord ?ord . ?other tree:ord ?ord2 . FILTER ( ?ord = ?ord2 )
+            }
+        """
+    ], [
+        a sh:SPARQLConstraint ;
+        sh:message "A blank node that carries tree:ord is the child of more than one parent or property, so its position is ambiguous; give each parent its own node, or hold it through a tree:Item." ;
+        sh:select """
+            SELECT DISTINCT $this
+            WHERE {
+                FILTER isBlank($this)
+                ?a ?p $this . ?b ?q $this . FILTER ( ?a != ?b || ?p != ?q )
+            }
+        """
+    ], [
+        a sh:SPARQLConstraint ;
+        sh:message "A named node cannot carry tree:ord itself (another parent may hold it at another position); hold it through a tree:Item." ;
+        sh:select """
+            SELECT DISTINCT $this WHERE { FILTER isIRI($this) }
+        """
+    ] ;
+    sh:targetSubjectsOf tree:ord .
+
+tree:ShapesGraph a sh:ShapesGraph ;
+    rdfs:member tree:OrdShape, tree:ItemShape, tree:OrderedNodeShape .

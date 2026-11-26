@@ -1,0 +1,16 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix tree: <https://github.com/hidden-graph/starlayer/ns/tree#> .
+
+tree:ord a rdf:Property ;
+    rdfs:comment "The position of a child among the children its parent holds for one property: one non-negative xsd:integer on the child node (or on its tree:Item). Order is ascending ordinal; gaps are allowed, equal ordinals under one parent and property are an error. Shared by sqe:, srl: and manch: trees in place of an rdf:List." ;
+    rdfs:label "ordinal" .
+
+tree:Item a rdfs:Class ;
+    rdfs:comment "A wrapper for an ordered child that cannot carry tree:ord itself: a literal, a named node (an IRI, which may be held by several parents) or a nested sequence. It has exactly one tree:ord and exactly one tree:value; a typed blank node child carries tree:ord directly and has no Item." ;
+    rdfs:label "ordered item" .
+
+tree:value a rdf:Property ;
+    rdfs:comment "The child a tree:Item wraps." ;
+    rdfs:domain tree:Item ;
+    rdfs:label "value" .

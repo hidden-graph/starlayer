@@ -91,7 +91,13 @@ suffix of its ``get_resource_iri()`` IRI):
   ``owl:imports`` rather than defining it separately. Type
   ``"syntax-tree-graph"``.
 
-Every shapes file (all six) is type ``"shacl"``, regardless of which of
+- ``tree:`` (``tree-ontology.ttl`` / ``tree_shapes.ttl``) - the structure vocabulary the syntax trees share for ordered
+  children (``tree:ord`` on each child, ``tree:Item`` for a child that is a literal, a named node or a nested sequence) and the
+  shapes that check it once (one non-negative integer ordinal, no two children of one parent and property with the same ordinal,
+  a blank node child with one parent only). ``srl:`` imports it via ``owl:imports``; ``sqe:`` and ``manch:`` still use ``rdf:List``.
+  Type ``"syntax-tree-graph"``.
+
+Every shapes file (all seven) is type ``"shacl"``, regardless of which of
 the above its own target ontology is.
 
 The further entry, ``shacl_shacl`` (also type ``"shacl"``), is the SHACL
@@ -112,7 +118,7 @@ while the stored copy and a fresh build disagree.
 The build code is not part of the installed library.
 
 **One Turtle file per entry, grouped by vocabulary.** Every registered
-entry is one ``.ttl`` file in a folder per vocabulary (``manchester/``, ``skos/``, ``sqe/``, ``srl/``, ``spexpr/``,
+entry is one ``.ttl`` file in a folder per vocabulary (``manchester/``, ``skos/``, ``sqe/``, ``srl/``, ``spexpr/``, ``tree/``,
 ``shacl/``: the ontology and its shapes together), and the profiles document (see below) is ``starlayer-profiles.ttl``
 in this directory. Those files are the source; ``_sources/`` holds what the generated ones are built from (not shipped). ``get_ontology_graph()`` parses
 only the file it is asked for, once, and caches it (``_file_graph()``);
@@ -206,6 +212,7 @@ _PREFIXES: dict[str, str] = {
     "srl": "https://github.com/hidden-graph/starlayer/ns/sparql/srl#",
     "starontology": "https://github.com/hidden-graph/starlayer/blob/main/packages/starlayer/starlayer/starontology/",
     "stsh": "https://github.com/hidden-graph/starlayer/ns/shacl#",
+    "tree": "https://github.com/hidden-graph/starlayer/ns/tree#",
     "tr": "https://www.w3.org/TR/",
     "xsd": "http://www.w3.org/2001/XMLSchema#",
 }
@@ -224,6 +231,8 @@ _FILENAME_BY_NAME: dict[str, str] = {
     "srl_shacl": "srl/srl_shapes.ttl",
     "spexpr_owl": "spexpr/spexpr-ontology.ttl",
     "spexpr_shacl": "spexpr/spexpr_shapes.ttl",
+    "tree_owl": "tree/tree-ontology.ttl",
+    "tree_shacl": "tree/tree_shapes.ttl",
     # shacl_shacl gets a real resource IRI too (used by
     # starlayer-profiles.ttl's own prof:isProfileOf entry for it -
     # see get_conformance_profiles()'s docstring) - a generated .ttl at this
@@ -372,6 +381,29 @@ _REGISTRY: dict[str, tuple[OntologyInfo, Callable[[], Any]]] = {
             type="shacl",
         ),
         lambda: _load("spexpr_shacl"),
+    ),
+    "tree_owl": (
+        OntologyInfo(
+            name="tree_owl",
+            description=(
+                "The structure vocabulary the syntax trees share for ordered children (tree:): an ordinal (tree:ord) on "
+                "each child and a wrapper (tree:Item, tree:value) for a literal, named node or nested sequence, in place of an rdf:List."
+            ),
+            type="syntax-tree-graph",
+        ),
+        lambda: _load("tree_owl"),
+    ),
+    "tree_shacl": (
+        OntologyInfo(
+            name="tree_shacl",
+            description=(
+                "SHACL shapes for ordered children, written once: one non-negative integer ordinal, no two children of a "
+                "parent and property with the same ordinal, a blank node child with one parent only - imported by the tree "
+                "vocabularies (owl:imports)."
+            ),
+            type="shacl",
+        ),
+        lambda: _load("tree_shacl"),
     ),
     "shacl_shacl": (
         OntologyInfo(
@@ -591,6 +623,7 @@ _SHACL_ENTRIES_WITH_ONTOLOGY_COUNTERPART = (
     "sqe_shacl",
     "srl_shacl",
     "spexpr_shacl",
+    "tree_shacl",
 )
 
 # Same "GitHub blob URL as a resource identity" convention
