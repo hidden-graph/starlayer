@@ -331,15 +331,18 @@ def validate(
     )
 
 
-def validate_bounded(data_graph: Any, shacl_graph: Any, *, ont_graph: Any = None, inference: Any = None, max_validation_depth: int) -> Any:
+def validate_bounded(
+    data_graph: Any, shacl_graph: Any, *, ont_graph: Any = None, inference: Any = None, max_validation_depth: int, allow_warnings: bool = False
+) -> Any:
     """:func:`validate` with an explicit shape-nesting bound, for the package's own checks of its fixed shapes (``sqe:``, SRL,
-    Manchester syntax), which the public ``starlayer.shacl.validate()`` no longer lets a caller set."""
+    Manchester syntax), which the public ``starlayer.shacl.validate()`` no longer lets a caller set. With ``allow_warnings`` a
+    result of ``sh:Warning`` severity is reported but does not make the report non-conforming (a note for the reader, not a fault)."""
     return validate(
         data_graph=data_graph,
         shacl_graph=shacl_graph,
         ont_graph=ont_graph,
         inference=inference,
-        options={},
+        options={"allow_warnings": True} if allow_warnings else {},
         engine_limits={"max_validation_depth": max_validation_depth},
     )
 

@@ -151,9 +151,10 @@ def sqe_validate(tree_graph: Any) -> ValidationReport:
     return _with_violations(report, problems)
 
 
-def _with_violations(report: ValidationReport, problems: list[tuple[Any, str]]) -> ValidationReport:
-    """``report`` with one ``sh:Violation`` result added per ``(focus node, message)`` of ``problems``; the report then does not
-    conform. For a finding a check outside the shapes makes (Oxigraph's rejection of a query, an SRL well-formedness condition)."""
+def _with_violations(report: ValidationReport, problems: list[tuple[Any, str]], *, severity: str = "Violation") -> ValidationReport:
+    """``report`` with one result of ``severity`` (``"Violation"``, or ``"Warning"``) added per ``(focus node, message)`` of
+    ``problems``, for a finding a check outside the shapes makes (Oxigraph's rejection of a query, an SRL ordering problem). A
+    ``Violation`` makes the report non-conforming; a ``Warning`` does not. The report's own results and text are kept."""
     import pyoxigraph as ox
 
     from starlayer.shacl.engine.terms import SH
@@ -161,9 +162,12 @@ def _with_violations(report: ValidationReport, problems: list[tuple[Any, str]]) 
 
     graph = report.report_graph
     top = next(iter(graph.subjects(SH.conforms, None)))
-    graph.remove((top, SH.conforms, None))
-    graph.add((top, SH.conforms, ox.Literal("false", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))))
-    lines = ["Validation Report", "Conforms: False", f"Results ({len(problems)}):"]
+    kind = SH.Violation if severity == "Violation" else SH.Warning
+    conforms = report.conforms and severity != "Violation"
+    if report.conforms != conforms:
+        graph.remove((top, SH.conforms, None))
+        graph.add((top, SH.conforms, ox.Literal("false", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#boolean"))))
+    blocks = []
     for root, message in problems:
         result = ox.BlankNode()
         graph.extend(
@@ -171,10 +175,15 @@ def _with_violations(report: ValidationReport, problems: list[tuple[Any, str]]) 
                 (top, SH.result, result),
                 (result, RDF_TYPE, SH.ValidationResult),
                 (result, SH.focusNode, root),
-                (result, SH.resultSeverity, SH.Violation),
+                (result, SH.resultSeverity, kind),
                 (result, SH.sourceConstraintComponent, SH.SPARQLConstraintComponent),
                 (result, SH.resultMessage, ox.Literal(message)),
             ]
         )
-        lines += ["Constraint Violation in the engine check:", "\tSeverity: sh:Violation", f"\tFocus Node: {root}", f"\tMessage: {message}"]
-    return ValidationReport(False, graph, "\n".join(lines), diagnostics=report.diagnostics)
+        label = "Constraint Violation" if severity == "Violation" else "Validation Result"
+        blocks.append(f"{label} in the engine check:\n\tSeverity: sh:{severity}\n\tFocus Node: {root}\n\tMessage: {message}")
+    earlier = report.report_text.split("\n")
+    kept = earlier[3:] if len(earlier) > 3 and earlier[2].startswith("Results (") else []  # the report's own result blocks
+    total = len(list(graph.objects(top, SH.result)))
+    text = "\n".join(["Validation Report", f"Conforms: {conforms}", f"Results ({total}):", *kept, *blocks])
+    return ValidationReport(conforms, graph, text, diagnostics=report.diagnostics)
