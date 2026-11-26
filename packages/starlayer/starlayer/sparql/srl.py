@@ -4,7 +4,7 @@ SRL (SPARQL Rules; spec `WD-sparql12-rl-20260919 <https://www.w3.org/TR/sparql12
 - a Datalog-style rules language built on SPARQL triple patterns and filter
 expressions. This module provides SRL text, its tree-RDF encoding (``srl:``; the ordered children of a node, such as a rule's body
 or a rule set's rules, are written with the shared ``tree:`` vocabulary: ``tree:ord`` on each child, ``tree:Item`` for a variable or
-an IRI, no ``rdf:List`` - an expression's argument list is the one place a list remains, see ``Interim`` below),
+an IRI, no ``rdf:List``; the argument lists inside an expression are ordinals too, written by the shared ``spexpr:`` encoder),
 and SHACL validation of that encoding: parsing SRL text to a ``RuleSet``
 syntax tree and back, encoding/decoding that syntax tree to/from RDF, and
 validating an ``srl:``-encoded ruleset against SHACL shapes.
@@ -19,9 +19,8 @@ module could: the term and expression encoder of ``parse_sparql`` is reused
 directly below, not reimplemented - moving this module out of
 ``starlayer.sparql`` would mean forking that machinery.
 
-**Interim:** an expression (``srl:expr``, the ``SET`` and ``FILTER`` operand) is written by the ``spexpr:`` encoder it shares with ``sqe:``
-(``parse_sparql._Encoder``, whose one list function is ``parse_sparql._list``), so its argument lists are still ``rdf:List`` until ``sqe:``
-moves to ordinals too. Only the ordered children of the ``srl:`` nodes themselves are ordinals.
+An expression (``srl:expr``, the ``SET`` and ``FILTER`` operand) is written by the ``spexpr:`` encoder it shares with ``sqe:``
+(``parse_sparql._Encoder``), so the argument and operand lists of an expression (``spexpr:args``, ``other``, ``op``) are ordinals too.
 
 Six entry points, forming two independent round trips (text<->tree-RDF,
 text<->RuleSet) plus a third already covered by the first two composed
@@ -290,7 +289,7 @@ class _Writer:
 
     def sequence(self, parent, prop, members) -> None:
         """The ordered children of ``parent`` for ``prop``: each fresh blank node carries ``tree:ord`` itself, an IRI or a variable sits in a
-        ``tree:Item``. (Only the expression leaves, written by the shared ``_Encoder``, still hold their argument lists as ``rdf:List``.)"""
+        ``tree:Item``."""
         ordinals.write_ordered(self.g, parent, prop, members)
 
     def triple(self, triple: srl_ast.TriplePattern):

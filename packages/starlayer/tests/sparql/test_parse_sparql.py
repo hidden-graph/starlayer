@@ -27,7 +27,6 @@ from starlayer.sparql.parse_sparql import (
 from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
 from starlayer.sparql.sqe._memtree import TreeIndex
 from tests.sparql.parse_sparql_support import (
-    canonical_graph,
     entry_key,
     w3c11_entries,
     w3c_entries,
@@ -89,7 +88,7 @@ def test_tree_text_fixpoint(entry):
 
     tree = sparql_to_tree(entry.read(entry.query_file))
     again = sparql_to_tree(sqe_tree_to_text(*tree))
-    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
+    assert isomorphic(tree[0], again[0])
 
 
 @pytest.mark.skipif(not _POSITIVE11, reason="W3C SPARQL 1.1 test data not fetched")
@@ -99,7 +98,7 @@ def test_w3c11_tree_text_fixpoint(entry):
 
     tree = sparql_to_tree(entry.read())
     again = sparql_to_tree(sqe_tree_to_text(*tree))
-    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
+    assert isomorphic(tree[0], again[0])
 
 
 # ---------------------------------------------------------------------------
@@ -251,7 +250,7 @@ def _round_trip(text: str) -> str:
     from starlayer.graph import isomorphic
 
     again = sparql_to_tree(rendered)
-    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
+    assert isomorphic(tree[0], again[0])
     return rendered
 
 

@@ -3,7 +3,7 @@
 @prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
 @prefix sqe: <https://github.com/hidden-graph/starlayer/ns/sparql/query-edit#> .
 
-sqe:AskQuery rdfs:comment "An ASK query's root. sqe:where -> the flat pattern list; no projection." ;
+sqe:AskQuery rdfs:comment "An ASK query's root. sqe:where -> the pattern elements, ordered; no projection." ;
     rdfs:subClassOf sqe:Query .
 
 sqe:Bind a rdfs:Class ;
@@ -11,23 +11,23 @@ sqe:Bind a rdfs:Class ;
 
 sqe:DescribeQuery a rdfs:Class ;
     rdfs:subClassOf sqe:Query ;
-    rdfs:comment "A DESCRIBE query's root. sqe:describe -> rdf:List of IRIs and variables, or sqe:describeAll true for DESCRIBE *; an optional sqe:where; optionally sqe:dataset, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." .
+    rdfs:comment "A DESCRIBE query's root. sqe:describe -> the IRIs and variables, ordered, or sqe:describeAll true for DESCRIBE *; an optional sqe:where; optionally sqe:dataset, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." .
 
-sqe:ConstructQuery rdfs:comment "A CONSTRUCT query's root. sqe:template -> rdf:List of sqe:TriplePattern; sqe:where -> the flat pattern list." ;
+sqe:ConstructQuery rdfs:comment "A CONSTRUCT query's root. sqe:template -> the sqe:TriplePattern nodes, ordered; sqe:where -> the pattern elements, ordered." ;
     rdfs:subClassOf sqe:Query .
 
 sqe:Filter a rdfs:Class ;
     rdfs:comment "A FILTER(...) element - sqe:expr -> an expression tree (the shared spexpr: vocabulary, not re-modeled here)." .
 
 sqe:Optional a rdfs:Class ;
-    rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own nested flat pattern list." .
+    rdfs:comment "An OPTIONAL { ... } block - sqe:where -> its own pattern elements, ordered." .
 
 sqe:OrderCondition a rdfs:Class ;
     rdfs:comment "One ORDER BY condition - sqe:expr -> a variable or expression; sqe:descending true for DESC(...), absent for ascending." .
 
 sqe:Query rdfs:comment "The root of any encoded sqe: query, of any form - also typed sqe:Query regardless of query form, see to_rdf.query_to_sqe_rdf." .
 
-sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> rdf:List of variables and sqe:Alias nodes (or sqe:selectAll true for SELECT *); sqe:where -> the flat pattern list; optionally sqe:distinct/reduced, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." ;
+sqe:SelectQuery rdfs:comment "A SELECT query's root. sqe:projection -> the variables and sqe:Alias nodes, ordered (or sqe:selectAll true for SELECT *); sqe:where -> the pattern elements, ordered; optionally sqe:distinct/reduced, sqe:groupBy, sqe:having, sqe:orderBy, sqe:limit, sqe:offset and a trailing sqe:values." ;
     rdfs:subClassOf sqe:Query .
 
 sqe:TriplePattern a rdfs:Class ;
@@ -37,7 +37,7 @@ sqe:TripleTerm a rdfs:Class ;
     rdfs:comment "An RDF 1.2 triple term <<( s p o )>> in a pattern's object position (or nested as another triple term's object) - sqe:subject/sqe:predicate/sqe:object, each a term or variable. Reified-triple and annotation shorthand is written out as its expansion: a rdf:reifies triple plus ordinary triples." .
 
 sqe:Union a rdfs:Class ;
-    rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> rdf:List of nested flat pattern lists, one per alternative." .
+    rdfs:comment "A { ... } UNION { ... } [UNION { ... }]* block - sqe:alternatives -> the alternatives, ordered: one sqe:GroupGraphPattern node each, holding its pattern elements in sqe:where." .
 
 sqe:alternatives a rdf:Property ;
     rdfs:domain sqe:Union .
@@ -64,7 +64,7 @@ sqe:var a rdf:Property ;
     rdfs:comment "Shared by several node types (sqe:Bind, Alias); deliberately no rdfs:domain, which would give each of them the wrong extra type under RDFS inference." .
 
 sqe:where a rdf:Property ;
-    rdfs:comment "A flat, ordered rdf:List of sibling pattern elements (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not a resolved algebra's nested LeftJoin/Filter wrapping." .
+    rdfs:comment "The flat, ordered sibling pattern elements (a tree:ord ordinal on each child) (sqe:TriplePattern/Optional/Union/Minus/Graph/Service/Filter/Bind/Values/SubSelect) - mirrors the raw parse tree's own already-flat GroupGraphPatternSub.part shape, not a resolved algebra's nested LeftJoin/Filter wrapping." .
 
 sqe:selectAll a rdf:Property ;
     rdfs:domain sqe:SelectQuery ;
@@ -79,7 +79,7 @@ sqe:reduced a rdf:Property ;
     rdfs:comment "true for SELECT REDUCED." .
 
 sqe:orderBy a rdf:Property ;
-    rdfs:comment "ORDER BY: a flat rdf:List of sqe:OrderCondition, on a SELECT or CONSTRUCT root." .
+    rdfs:comment "ORDER BY: the sqe:OrderCondition nodes, ordered, on a SELECT or CONSTRUCT root." .
 
 sqe:descending a rdf:Property ;
     rdfs:domain sqe:OrderCondition .
@@ -94,11 +94,11 @@ sqe:TripleTerm rdfs:subClassOf spexpr:Expression .
 
 sqe:Exists a rdfs:Class ;
     rdfs:subClassOf spexpr:Expression ;
-    rdfs:comment "EXISTS { ... } inside an expression (grammar: ExistsFunc) - sqe:where -> its own flat pattern list." .
+    rdfs:comment "EXISTS { ... } inside an expression (grammar: ExistsFunc) - sqe:where -> its own pattern elements, ordered." .
 
 sqe:NotExists a rdfs:Class ;
     rdfs:subClassOf spexpr:Expression ;
-    rdfs:comment "NOT EXISTS { ... } inside an expression (grammar: NotExistsFunc) - sqe:where -> its own flat pattern list." .
+    rdfs:comment "NOT EXISTS { ... } inside an expression (grammar: NotExistsFunc) - sqe:where -> its own pattern elements, ordered." .
 
 sqe:Alias a rdfs:Class ;
     rdfs:comment "Modelling helper (the grammar has no name for it): (expr AS ?var) in a projection or GROUP BY - sqe:expr the expression, sqe:var the variable it binds." .
@@ -110,13 +110,13 @@ sqe:having a rdf:Property ;
     rdfs:comment "HAVING on a SELECT, ASK, CONSTRUCT or DESCRIBE root (no rdfs:domain: a domain would type the other forms as SELECT)." .
 
 sqe:Minus a rdfs:Class ;
-    rdfs:comment "A MINUS { ... } block - sqe:where -> its own flat pattern list." .
+    rdfs:comment "A MINUS { ... } block - sqe:where -> its own pattern elements, ordered." .
 
 sqe:Graph a rdfs:Class ;
-    rdfs:comment "A GRAPH ?g { ... } block - sqe:graph the graph IRI or variable, sqe:where the flat pattern list." .
+    rdfs:comment "A GRAPH ?g { ... } block - sqe:graph the graph IRI or variable, sqe:where the pattern elements, ordered." .
 
 sqe:Values a rdfs:Class ;
-    rdfs:comment "A VALUES block, as a pattern or as a query's trailing sqe:values - sqe:vars the variables, sqe:rows an rdf:List of rows (rdf:List of terms, or sqe:undef)." .
+    rdfs:comment "A VALUES block, as a pattern or as a query's trailing sqe:values - sqe:vars the variables, sqe:rows the rows, ordered: one sqe:Row node each, holding its terms (or sqe:undef) in sqe:cells." .
 
 sqe:SubSelect a rdfs:Class ;
     rdfs:subClassOf sqe:SelectQuery ;
@@ -136,7 +136,7 @@ sqe:values a rdf:Property ;
 
 sqe:describe a rdf:Property ;
     rdfs:domain sqe:DescribeQuery ;
-    rdfs:comment "DESCRIBE targets: an rdf:List of IRIs and variables." .
+    rdfs:comment "DESCRIBE targets: the IRIs and variables, ordered." .
 
 sqe:describeAll a rdf:Property ;
     rdfs:domain sqe:DescribeQuery ;
@@ -146,7 +146,7 @@ sqe:DatasetClause a rdfs:Class ;
     rdfs:comment "One FROM <iri> or FROM NAMED <iri> clause - sqe:source the graph IRI, sqe:named true for FROM NAMED." .
 
 sqe:dataset a rdf:Property ;
-    rdfs:comment "A query's FROM / FROM NAMED clauses: an rdf:List of sqe:DatasetClause in source order, on a SELECT, ASK, CONSTRUCT or DESCRIBE root." .
+    rdfs:comment "A query's FROM / FROM NAMED clauses: the sqe:DatasetClause nodes in source order, ordered, on a SELECT, ASK, CONSTRUCT or DESCRIBE root." .
 
 sqe:source a rdf:Property ;
     rdfs:domain sqe:DatasetClause .
@@ -155,7 +155,7 @@ sqe:named a rdf:Property ;
     rdfs:domain sqe:DatasetClause .
 
 sqe:Service a rdfs:Class ;
-    rdfs:comment "A SERVICE [SILENT] <iri-or-variable> { ... } block - sqe:service the endpoint, sqe:silent true for SILENT, sqe:where the flat pattern list." .
+    rdfs:comment "A SERVICE [SILENT] <iri-or-variable> { ... } block - sqe:service the endpoint, sqe:silent true for SILENT, sqe:where the pattern elements, ordered." .
 
 sqe:service a rdf:Property ;
     rdfs:domain sqe:Service .
@@ -167,7 +167,7 @@ sqe:version a rdf:Property ;
     rdfs:comment "A VERSION \"x\" declaration of the query prologue (a plain string) on a query root; may repeat." .
 
 sqe:UpdateRequest a rdfs:Class ;
-    rdfs:comment "The root of an encoded SPARQL Update request. sqe:operations -> the rdf:List of operations in source order (empty for an empty request); a prologue written after the last operation is stored on the root (sqe:base, sqe:prefixDecl, sqe:version)." .
+    rdfs:comment "The root of an encoded SPARQL Update request. sqe:operations -> the operations in source order, ordered (none for an empty request); a prologue written after the last operation is stored on the root (sqe:base, sqe:prefixDecl, sqe:version)." .
 
 sqe:UpdateOperation a rdfs:Class ;
     rdfs:comment "One operation of an update request (modelling helper: superclass of the eleven operations; the grammar calls the alternatives Update1). Carries the prologue (sqe:base, sqe:prefixDecl, sqe:version) written in front of it; the prefixes of earlier operations stay in force for later ones." .
@@ -189,7 +189,7 @@ sqe:DeleteWhere a rdfs:Class ;
 
 sqe:Modify a rdfs:Class ;
     rdfs:subClassOf sqe:UpdateOperation ;
-    rdfs:comment "[WITH iri] ( DELETE {..} [INSERT {..}] | INSERT {..} ) [USING [NAMED] iri]* WHERE {..} - sqe:with, sqe:delete (no blank nodes), sqe:insert, sqe:using (rdf:List of sqe:DatasetClause), sqe:where." .
+    rdfs:comment "[WITH iri] ( DELETE {..} [INSERT {..}] | INSERT {..} ) [USING [NAMED] iri]* WHERE {..} - sqe:with, sqe:delete (no blank nodes), sqe:insert, sqe:using (ordered sqe:DatasetClause nodes), sqe:where." .
 
 sqe:Load a rdfs:Class ;
     rdfs:subClassOf sqe:UpdateOperation ;
@@ -220,15 +220,15 @@ sqe:Copy a rdfs:Class ;
     rdfs:comment "COPY [SILENT] from TO to - sqe:from and sqe:to, each a sqe:GraphRef or sqe:DefaultGraph." .
 
 sqe:quads a rdf:Property ;
-    rdfs:comment "An rdf:List of sqe:TriplePattern (default graph) and sqe:QuadGraph, in written order: the quads of INSERT DATA, DELETE DATA and DELETE WHERE. Shared by three classes, so no rdfs:domain." .
+    rdfs:comment "The sqe:TriplePattern (default graph) and sqe:QuadGraph nodes, ordered as written: the quads of INSERT DATA, DELETE DATA and DELETE WHERE. Shared by three classes, so no rdfs:domain." .
 
 sqe:delete a rdf:Property ;
     rdfs:domain sqe:Modify ;
-    rdfs:comment "The DELETE template of a Modify: an rdf:List of sqe:TriplePattern and sqe:QuadGraph (may be empty)." .
+    rdfs:comment "The DELETE template of a Modify: the sqe:TriplePattern and sqe:QuadGraph nodes, ordered (none for an empty template; an empty DELETE and an absent one are the same tree)." .
 
 sqe:insert a rdf:Property ;
     rdfs:domain sqe:Modify ;
-    rdfs:comment "The INSERT template of a Modify: an rdf:List of sqe:TriplePattern and sqe:QuadGraph (may be empty)." .
+    rdfs:comment "The INSERT template of a Modify: the sqe:TriplePattern and sqe:QuadGraph nodes, ordered (none for an empty template; an empty DELETE and an absent one are the same tree)." .
 
 sqe:with a rdf:Property ;
     rdfs:domain sqe:Modify ;
@@ -236,10 +236,10 @@ sqe:with a rdf:Property ;
 
 sqe:using a rdf:Property ;
     rdfs:domain sqe:Modify ;
-    rdfs:comment "The USING / USING NAMED clauses of a Modify: an rdf:List of sqe:DatasetClause." .
+    rdfs:comment "The USING / USING NAMED clauses of a Modify: ordered sqe:DatasetClause nodes." .
 
 sqe:QuadGraph a rdfs:Class ;
-    rdfs:comment "GRAPH iri-or-variable { triples } inside a quad list (grammar: QuadsNotTriples; sqe:Graph is the graph pattern) - sqe:graphName, sqe:triples (an rdf:List of sqe:TriplePattern, may be empty)." .
+    rdfs:comment "GRAPH iri-or-variable { triples } inside a quad list (grammar: QuadsNotTriples; sqe:Graph is the graph pattern) - sqe:graphName, sqe:triples (the sqe:TriplePattern nodes, ordered; none for an empty block)." .
 
 sqe:graphName a rdf:Property ;
     rdfs:domain sqe:QuadGraph .
@@ -298,3 +298,13 @@ sqe:base a rdf:Property ;
 
 sqe:undef a rdfs:Resource ;
     rdfs:comment "The UNDEF marker in a row of a VALUES block: a constant IRI used as a cell value, neither a class nor a property." .
+
+sqe:GroupGraphPattern a rdfs:Class ;
+    rdfs:comment "One { ... } group that is an alternative of a UNION (grammar: GroupGraphPattern); a UNION holds one per alternative in sqe:alternatives, each with its pattern elements in sqe:where. A bare { ... } outside a UNION has no node: it is a one-alternative sqe:Union." .
+
+sqe:Row a rdfs:Class ;
+    rdfs:comment "One row of a VALUES block - its terms, or sqe:undef for UNDEF, in sqe:cells, one per variable." .
+
+sqe:cells a rdf:Property ;
+    rdfs:domain sqe:Row ;
+    rdfs:comment "The terms of one sqe:Row, ordered (a tree:ord ordinal on each; an IRI or literal in a tree:Item)." .

@@ -152,6 +152,7 @@ def test_every_built_in_class_is_declared_in_the_ontology():
 OLD_NAMES = re.compile(
     r"Builtin_|Aggregate_|PrefixBinding|prologuePrefix|\bSequencePath|\bAlternativePath|\bInvPath|\bMulPath|\bNegatedPath"
     r"|FunctionExpression|TrueFilter|ExistsExpression|spexpr:Function\b|spexpr:vars|sqe:negated|\bNEGATED\b|PREFIX_BINDING"
+    r"|\w+ListShape|\b_list\(|\.items\(g"
 )
 
 

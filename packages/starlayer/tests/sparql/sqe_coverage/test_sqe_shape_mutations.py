@@ -14,6 +14,7 @@ Opt-in (``pytest --sqe-coverage``); about 5 minutes.
 import pyoxigraph as ox
 import pytest
 from starlayer.sparql.sqe import sqe_parse_to_tree, sqe_validate
+from starlayer.sparql.sqe.vocab import ORDERED_PROPERTIES
 
 pytestmark = pytest.mark.sqe_coverage
 
@@ -79,7 +80,7 @@ def test_corruption_is_noticed_unless_it_is_legitimately_valid(index, subject, p
         corrupted.add((subject, predicate, Literal("EXTRA")))
     name = _local(predicate)
     allowed = (
-        (mutation == "remove" and name in OPTIONAL_PROPERTIES)
+        (mutation == "remove" and (name in OPTIONAL_PROPERTIES or predicate in ORDERED_PROPERTIES))  # a child less leaves a gap, or an empty sequence
         or (mutation == "junk" and name in LITERAL_OK)
         or (mutation == "duplicate" and name in REPEATABLE)
     )

@@ -10,7 +10,8 @@ No public ``ontology_graph()``/``shapes_graph()`` of its own - same choice
 ``srl.py`` already made ("to avoid two paths to the same two graphs"; see
 that module's own comment) and the same reason Manchester doesn't have
 them either (`starontology.get_ontology_graph("sqe_owl")`/`"sqe_shacl"`
-is the one real path to those graphs). ``sqe_validate()`` combines them
+is the one real path to those graphs). The shapes for the ordered children (``tree:ord``) are the shared ``tree:`` ones, merged in by
+``..expr_validation``. ``sqe_validate()`` combines them
 privately below, then adds the engine check: each query in a conforming tree must also be accepted by Oxigraph.
 """
 
@@ -20,6 +21,7 @@ import functools
 from typing import TYPE_CHECKING, Any
 
 from starlayer import starontology
+from starlayer.errors import FormatError
 
 from .._oxterms import RDF
 from ..expr_validation import rdfs_entailed_copy, rdfs_schema
@@ -106,7 +108,7 @@ def _engine_problems(tree_graph: Any) -> list[tuple[Any, str]]:
     for root in sorted(set(graph.subjects(RDF_TYPE, QUERY)), key=str):
         try:
             text = sqe_tree_to_text(graph, root)
-        except (SqeTextTooDeepError, ValueError) as error:
+        except (SqeTextTooDeepError, ValueError, FormatError) as error:
             found.append((root, f"The query cannot be written out as SPARQL text: {' '.join(str(error).split())}"))
             continue
         ast, _, error = _parse(text, None)

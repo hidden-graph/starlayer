@@ -2,39 +2,19 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 @prefix spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#> .
+@prefix tree: <https://github.com/hidden-graph/starlayer/ns/tree#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 spexpr:PathAlternativeShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "spexpr:PathAlternative must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
+        sh:message "spexpr:PathAlternative holds its members in spexpr:args, in order (tree:ord), at least one" ;
         sh:minCount 1 ;
-        sh:node spexpr:PathArgsListShape ;
+        sh:node spexpr:OrderedPathShape ;
         sh:path spexpr:args
     ] ;
     sh:targetClass spexpr:PathAlternative .
 
-spexpr:ExpressionListShape a sh:NodeShape ;
-    rdfs:isDefinedBy spexpr:ShapesGraph ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of expression values" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest+ ?tail .
-                    FILTER ( ?tail != rdf:nil )
-                    FILTER NOT EXISTS { ?tail rdf:first ?tailHead }
-                }
-            }
-        """
-    ] .
 
 spexpr:ExpressionShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
@@ -79,56 +59,13 @@ spexpr:PathEltShape a sh:NodeShape ;
 spexpr:PathNegatedPropertySetShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "spexpr:PathNegatedPropertySet must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
-        sh:minCount 1 ;
-        sh:node spexpr:PathArgsListShape ;
+        sh:message "spexpr:PathNegatedPropertySet holds its members in spexpr:args, in order (tree:ord); none for the empty set !()" ;
+        sh:node spexpr:OrderedPathShape ;
         sh:path spexpr:args
     ] ;
     sh:targetClass spexpr:PathNegatedPropertySet .
 
-spexpr:OperatorStringListShape a sh:NodeShape ;
-    rdfs:isDefinedBy spexpr:ShapesGraph ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of spexpr:PlainString-tagged operator strings, each one of the real Arithmetic operators (+/-/*//), shared by AdditiveExpression and MultiplicativeExpression alike" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            PREFIX spexpr: <https://github.com/hidden-graph/starlayer/ns/sparql/expr#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest*/rdf:first ?item .
-                    FILTER ( !isLiteral(?item) || datatype(?item) != spexpr:PlainString ||
-                              ( str(?item) != "+" && str(?item) != "-" && str(?item) != "*" && str(?item) != "/" ) )
-                }
-            }
-        """
-    ] .
 
-spexpr:PathArgsListShape a sh:NodeShape ;
-    rdfs:isDefinedBy spexpr:ShapesGraph ;
-    sh:sparql [
-        a sh:SPARQLConstraint ;
-        sh:message "expected a well-formed rdf:List of path/IRI values" ;
-        sh:select """
-            PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
-            SELECT $this
-            WHERE {
-                {
-                    FILTER ( $this != rdf:nil )
-                    FILTER NOT EXISTS { $this rdf:first ?head }
-                } UNION {
-                    $this rdf:rest+ ?tail .
-                    FILTER ( ?tail != rdf:nil )
-                    FILTER NOT EXISTS { ?tail rdf:first ?tailHead }
-                }
-            }
-        """
-    ] .
 
 spexpr:PathOrIriShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
@@ -144,13 +81,52 @@ spexpr:PathShape a sh:NodeShape ;
 spexpr:PathSequenceShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "spexpr:PathSequence must have exactly one spexpr:args, a well-formed rdf:List of path/IRI values" ;
+        sh:message "spexpr:PathSequence holds its members in spexpr:args, in order (tree:ord), at least one" ;
         sh:minCount 1 ;
-        sh:node spexpr:PathArgsListShape ;
+        sh:node spexpr:OrderedPathShape ;
         sh:path spexpr:args
     ] ;
     sh:targetClass spexpr:PathSequence .
+
+# ---- The ordered children (tree:ord) of an expression: a blank node member carries its own ordinal, a term or a variable is the
+# tree:value of a tree:Item (starontology/tree/tree_shapes.ttl). A named node or a literal directly under the property is not accepted.
+
+spexpr:OrderedExpressionShape a sh:NodeShape ;
+    rdfs:isDefinedBy spexpr:ShapesGraph ;
+    sh:or ( [
+        sh:node spexpr:ExpressionShape, tree:OrdShape ;
+        sh:nodeKind sh:BlankNode
+    ] [
+        sh:node tree:ItemShape ;
+        sh:property [
+            sh:node spexpr:ExpressionShape ;
+            sh:path tree:value
+        ]
+    ] ) .
+
+spexpr:OrderedOperatorShape a sh:NodeShape ;
+    rdfs:isDefinedBy spexpr:ShapesGraph ;
+    sh:node tree:ItemShape ;
+    sh:property [
+        sh:datatype spexpr:PlainString ;
+        sh:in ( "+"^^spexpr:PlainString "-"^^spexpr:PlainString "*"^^spexpr:PlainString "/"^^spexpr:PlainString ) ;
+        sh:message "an operator is one of + - * /, spexpr:PlainString-tagged" ;
+        sh:path tree:value
+    ] .
+
+spexpr:OrderedPathShape a sh:NodeShape ;
+    rdfs:isDefinedBy spexpr:ShapesGraph ;
+    sh:or ( [
+        sh:class spexpr:Path ;
+        sh:node tree:OrdShape ;
+        sh:nodeKind sh:BlankNode
+    ] [
+        sh:node tree:ItemShape ;
+        sh:property [
+            sh:nodeKind sh:IRI ;
+            sh:path tree:value
+        ]
+    ] ) .
 
 spexpr:ShapesGraph a sh:ShapesGraph .
 
@@ -162,10 +138,9 @@ spexpr:VariableShape a sh:NodeShape ;
 spexpr:_ArithmeticExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "expected exactly one spexpr:other, a well-formed rdf:List of expressions" ;
+        sh:message "expected at least one spexpr:other, the operands after the first, in order (tree:ord)" ;
         sh:minCount 1 ;
-        sh:node spexpr:ExpressionListShape ;
+        sh:node spexpr:OrderedExpressionShape ;
         sh:path spexpr:other
     ], [
         sh:maxCount 1 ;
@@ -174,10 +149,9 @@ spexpr:_ArithmeticExprBodyShape a sh:NodeShape ;
         sh:node spexpr:ExpressionShape ;
         sh:path spexpr:expr
     ], [
-        sh:maxCount 1 ;
-        sh:message "expected exactly one spexpr:op, a well-formed rdf:List of spexpr:PlainString-tagged operator strings" ;
+        sh:message "expected at least one spexpr:op, the operators in order (tree:ord), spexpr:PlainString-tagged" ;
         sh:minCount 1 ;
-        sh:node spexpr:OperatorStringListShape ;
+        sh:node spexpr:OrderedOperatorShape ;
         sh:path spexpr:op
     ] .
 
@@ -190,9 +164,8 @@ spexpr:_ConditionalExprBodyShape a sh:NodeShape ;
         sh:node spexpr:ExpressionShape ;
         sh:path spexpr:expr
     ], [
-        sh:maxCount 1 ;
-        sh:message "spexpr:other is optional (absent means a single-condition expression) but a well-formed rdf:List of expressions when present" ;
-        sh:node spexpr:ExpressionListShape ;
+        sh:message "spexpr:other is optional (absent means a single-condition expression); its operands are in order (tree:ord)" ;
+        sh:node spexpr:OrderedExpressionShape ;
         sh:path spexpr:other
     ] .
 
@@ -211,9 +184,8 @@ spexpr:_FunctionCallExprBodyShape a sh:NodeShape ;
         sh:message "spexpr:distinct of a function call is true when DISTINCT was written, and absent otherwise" ;
         sh:path spexpr:distinct
     ], [
-        sh:maxCount 1 ;
-        sh:message "spexpr:args of a function call is a well-formed rdf:List of call arguments (absent for a call with none)" ;
-        sh:node spexpr:ExpressionListShape ;
+        sh:message "spexpr:args of a function call holds the call arguments in order (tree:ord); none for a call with none" ;
+        sh:node spexpr:OrderedExpressionShape ;
         sh:path spexpr:args
     ] .
 
@@ -261,14 +233,6 @@ spexpr:_RelationalExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
         sh:maxCount 1 ;
-        sh:message "expected exactly one spexpr:other, an expression or (for IN/NOT IN) a well-formed rdf:List of expressions" ;
-        sh:minCount 1 ;
-        sh:node [
-            sh:or ( spexpr:ExpressionShape spexpr:ExpressionListShape )
-        ] ;
-        sh:path spexpr:other
-    ], [
-        sh:maxCount 1 ;
         sh:message "expected exactly one spexpr:expr" ;
         sh:minCount 1 ;
         sh:node spexpr:ExpressionShape ;
@@ -281,7 +245,27 @@ spexpr:_RelationalExprBodyShape a sh:NodeShape ;
         sh:minCount 1 ;
         sh:nodeKind sh:Literal ;
         sh:path spexpr:op
-    ] .
+    ] ;
+    sh:message "spexpr:other is one expression for a comparison, and for IN / NOT IN the value list in order (tree:ord)" ;
+    sh:or ( [
+        sh:property [
+            sh:in ( "IN"^^spexpr:PlainString "NOT IN"^^spexpr:PlainString ) ;
+            sh:path spexpr:op
+        ], [
+            sh:node spexpr:OrderedExpressionShape ;
+            sh:path spexpr:other
+        ]
+    ] [
+        sh:property [
+            sh:in ( "="^^spexpr:PlainString "!="^^spexpr:PlainString "<"^^spexpr:PlainString ">"^^spexpr:PlainString "<="^^spexpr:PlainString ">="^^spexpr:PlainString ) ;
+            sh:path spexpr:op
+        ], [
+            sh:maxCount 1 ;
+            sh:minCount 1 ;
+            sh:node spexpr:ExpressionShape ;
+            sh:path spexpr:other
+        ]
+    ] ) .
 
 spexpr:_ReplaceExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
@@ -382,10 +366,8 @@ spexpr:_UnaryExprBodyShape a sh:NodeShape ;
 spexpr:_VariadicArgExprBodyShape a sh:NodeShape ;
     rdfs:isDefinedBy spexpr:ShapesGraph ;
     sh:property [
-        sh:maxCount 1 ;
-        sh:message "expected exactly one spexpr:args, a well-formed rdf:List of expression values" ;
-        sh:minCount 1 ;
-        sh:node spexpr:ExpressionListShape ;
+        sh:message "spexpr:args holds the arguments in order (tree:ord); none for CONCAT() or COALESCE()" ;
+        sh:node spexpr:OrderedExpressionShape ;
         sh:path spexpr:args
     ] .
 

@@ -15,6 +15,12 @@ substrate to hand-edit. Skipping it keeps the parse tree's own already-flat
 Design choices, each reusing an existing, already-proven convention rather
 than inventing a new one:
 
+- **Ordered children are ``tree:ord`` ordinals, not ``rdf:List``** (2026-11-25, ``graph/ordinals.py``, shapes in ``starontology/tree/``): a
+  parent holds each child under the property and the child carries ``tree:ord n``; a blank node child carries it itself and has one
+  parent, a variable, IRI or literal child (and a named node shared by several queries) sits in a ``tree:Item`` with ``tree:value``.
+  The ordered properties are ``ORDERED_PROPERTIES`` below. An empty sequence is no triple. A nested sequence is a node of its own:
+  a UNION alternative is a ``sqe:GroupGraphPattern`` holding its elements in ``sqe:where``, a VALUES row is a ``sqe:Row`` holding its
+  terms in ``sqe:cells``.
 - **Flat, ordered ``WHERE``-clause list** (``sqe:where``), not nested
   operators — mirrors the raw parse tree's own
   ``GroupGraphPatternSub.part`` shape directly, the same technique
@@ -81,7 +87,7 @@ Added with the StarLayer-owned parser (``parse_sparql.py``), additively:
 modifiers on ``ASK``/``CONSTRUCT``/``DESCRIBE`` (the 1.2 grammar allows them).
 Trees of queries that use none of these are unchanged.
 
-Update (``parse_sparql.parse_sparql_update``), additively: ``sqe:UpdateRequest`` (``sqe:operations``, an ordered list of
+Update (``parse_sparql.parse_sparql_update``), additively: ``sqe:UpdateRequest`` (``sqe:operations``, the ordered
 ``sqe:InsertData``/``DeleteData``/``DeleteWhere`` (``sqe:quads``: ``sqe:TriplePattern`` and ``sqe:QuadGraph`` in written
 order), ``sqe:Modify`` (``sqe:with``, ``sqe:delete``, ``sqe:insert``, ``sqe:using``, ``sqe:where``), ``sqe:Load``
 (``sqe:loadFrom``, ``sqe:into``), ``sqe:Clear``/``Drop``/``Create`` (``sqe:target``), ``sqe:Add``/``Move``/``Copy``
@@ -97,6 +103,7 @@ from __future__ import annotations
 
 from ..vocab import (  # noqa: F401 - reused as-is, not re-minted
     PY_STR_DATATYPE,
+    SPEXPR,
     SQE,
     VARIABLE_DATATYPE,
 )
@@ -112,15 +119,15 @@ ASK_QUERY = SQE.AskQuery
 CONSTRUCT_QUERY = SQE.ConstructQuery
 DESCRIBE_QUERY = SQE.DescribeQuery  # added with the owned parser: DESCRIBE (targets or *), optional WHERE
 
-PROJECTION = SQE.projection  # SelectQuery only - rdf:List of sqe:Variable-tagged Literals
-TEMPLATE = SQE.template  # ConstructQuery only - flat rdf:List of TriplePattern nodes
-WHERE = SQE.where  # flat, ordered rdf:List of pattern elements
+PROJECTION = SQE.projection  # SelectQuery only - ordered: variables (in a tree:Item) and sqe:Alias nodes
+TEMPLATE = SQE.template  # ConstructQuery only - ordered TriplePattern nodes
+WHERE = SQE.where  # the flat, ordered pattern elements of a group (tree:ord on each child)
 
 # Solution modifiers (SELECT/CONSTRUCT roots; ASK has none)
 SELECT_ALL = SQE.selectAll  # SELECT * - boolean true; replaces sqe:projection
 DISTINCT = SQE.distinct  # boolean true on a SelectQuery
 REDUCED = SQE.reduced  # boolean true on a SelectQuery
-ORDER_BY = SQE.orderBy  # flat rdf:List of sqe:OrderCondition nodes
+ORDER_BY = SQE.orderBy  # ordered sqe:OrderCondition nodes
 ORDER_CONDITION = SQE.OrderCondition  # .expr -> expression/variable, optional .descending
 ORDER_DESCENDING = SQE.descending  # boolean true for DESC(...)
 LIMIT = SQE.limit  # xsd:integer
@@ -140,22 +147,24 @@ BIND_VAR = SQE.var
 EXISTS = SQE.Exists  # EXISTS { ... } inside an expression - .where
 NOT_EXISTS = SQE.NotExists  # NOT EXISTS { ... } inside an expression - .where
 ALIAS = SQE.Alias  # (expr AS ?var) in a projection or GROUP BY - .expr, .var
-GROUP_BY = SQE.groupBy  # rdf:List of variables / expressions / sqe:Alias
-HAVING = SQE.having  # rdf:List of expressions
+GROUP_BY = SQE.groupBy  # ordered: variables, expressions and sqe:Alias nodes
+HAVING = SQE.having  # ordered expressions
 SUB_SELECT = SQE.SubSelect  # a nested SELECT in a pattern list - same properties as sqe:SelectQuery
-VALUES = SQE.Values  # VALUES block - .vars list, .rows list of lists
+VALUES = SQE.Values  # VALUES block - .vars (ordered variables), .rows (ordered sqe:Row nodes)
 VALUES_VARS = SQE.vars
 VALUES_ROWS = SQE.rows
-VALUES_UNDEF = SQE.undef  # the UNDEF marker inside a VALUES row
+VALUES_ROW = SQE.Row  # one row of a VALUES block: .cells, the terms of the row in order
+ROW_CELLS = SQE.cells
+VALUES_UNDEF = SQE.undef  # the UNDEF marker: a cell value of a VALUES row
 QUERY_VALUES = SQE.values  # a query's trailing VALUES clause -> sqe:Values
 MINUS = SQE.Minus  # MINUS { ... } - .where
 GRAPH_PATTERN = SQE.Graph  # GRAPH ?g { ... } - .graph, .where
 GRAPH_TERM = SQE.graph
 
 # --- Added with the StarLayer-owned parser (parse_sparql.py): additive, existing trees are unchanged ------------
-DESCRIBE = SQE.describe  # DescribeQuery: rdf:List of IRIs / variables
+DESCRIBE = SQE.describe  # DescribeQuery: ordered IRIs / variables
 DESCRIBE_ALL = SQE.describeAll  # DescribeQuery: boolean true for DESCRIBE *
-DATASET = SQE.dataset  # any query form: rdf:List of sqe:DatasetClause, in source order (FROM / FROM NAMED)
+DATASET = SQE.dataset  # any query form: ordered sqe:DatasetClause nodes, in source order (FROM / FROM NAMED)
 DATASET_CLAUSE = SQE.DatasetClause  # .source the graph IRI, optional .named true for FROM NAMED
 DATASET_SOURCE = SQE.source
 DATASET_NAMED = SQE.named
@@ -166,8 +175,9 @@ VERSION = SQE.version  # a VERSION "x" declaration on the query root (a plain st
 
 TRIPLE_TERM = SQE.TripleTerm  # <<( s p o )>> - .subject/.predicate/.object, recursively
 
-UNION = SQE.Union  # .alternatives -> rdf:List of nested flat lists
+UNION = SQE.Union  # .alternatives -> ordered sqe:GroupGraphPattern nodes, one per alternative
 UNION_ALTERNATIVES = SQE.alternatives
+GROUP_GRAPH_PATTERN = SQE.GroupGraphPattern  # one alternative of a UNION: its pattern elements are .where
 
 EXPR = SQE.expr  # the salg:-boundary property shared by Filter/Bind
 
@@ -182,7 +192,7 @@ PREFIX_NAMESPACE = SQE.namespace
 # --- SPARQL Update (parse_sparql.parse_sparql_update): additive; no query tree changes ------------------------
 UPDATE_REQUEST = SQE.UpdateRequest  # root of an update request: .operations, plus any trailing prologue
 UPDATE_OPERATION = SQE.UpdateOperation  # superclass of the operation classes below
-OPERATIONS = SQE.operations  # rdf:List of operations, in source order (the ';'-separated sequence)
+OPERATIONS = SQE.operations  # ordered operations, in source order (the ';'-separated sequence)
 INSERT_DATA = SQE.InsertData  # INSERT DATA { quads }
 DELETE_DATA = SQE.DeleteData  # DELETE DATA { quads }
 DELETE_WHERE = SQE.DeleteWhere  # DELETE WHERE { quads }
@@ -194,14 +204,14 @@ CREATE = SQE.Create
 ADD = SQE.Add
 MOVE = SQE.Move
 COPY = SQE.Copy
-QUADS = SQE.quads  # rdf:List of sqe:TriplePattern (default graph) and sqe:QuadGraph, in written order
+QUADS = SQE.quads  # ordered sqe:TriplePattern (default graph) and sqe:QuadGraph nodes, in written order
 QUAD_GRAPH = SQE.QuadGraph  # GRAPH <iri>|?v { triples } inside a quad list
 QUAD_GRAPH_NAME = SQE.graphName
-QUAD_TRIPLES = SQE.triples  # rdf:List of sqe:TriplePattern (may be empty)
+QUAD_TRIPLES = SQE.triples  # ordered sqe:TriplePattern nodes (none for an empty block)
 MODIFY_WITH = SQE["with"]  # the WITH graph IRI of a Modify
-MODIFY_DELETE = SQE.delete  # rdf:List of quads (a DELETE template); may be empty
-MODIFY_INSERT = SQE.insert  # rdf:List of quads (an INSERT template); may be empty
-MODIFY_USING = SQE.using  # rdf:List of sqe:DatasetClause (USING / USING NAMED)
+MODIFY_DELETE = SQE.delete  # ordered quads (a DELETE template); none for an empty one
+MODIFY_INSERT = SQE.insert  # ordered quads (an INSERT template); none for an empty one
+MODIFY_USING = SQE.using  # ordered sqe:DatasetClause nodes (USING / USING NAMED)
 LOAD_FROM = SQE.loadFrom  # the IRI a LOAD reads
 LOAD_INTO = SQE.into  # the sqe:GraphRef a LOAD writes to (absent: the default graph)
 GRAPH_TARGET = SQE.target  # CLEAR / DROP / CREATE: a graph reference
@@ -213,3 +223,13 @@ DEFAULT_GRAPH = SQE.DefaultGraph  # DEFAULT
 NAMED_GRAPHS = SQE.NamedGraphs  # NAMED (every named graph)
 ALL_GRAPHS = SQE.AllGraphs  # ALL
 # SILENT reuses SERVICE_SILENT (sqe:silent), NAMED in USING NAMED reuses DATASET_NAMED
+
+# Every property whose children are ordered (a ``tree:ord`` ordinal on each child, see ``graph/ordinals.py``): the ``sqe:`` ones and the
+# ``spexpr:`` operand / argument ones. Everything else holds one value.
+ORDERED_PROPERTIES = frozenset(
+    {
+        WHERE, UNION_ALTERNATIVES, PROJECTION, TEMPLATE, DESCRIBE, DATASET, GROUP_BY, HAVING, ORDER_BY, VALUES_VARS, VALUES_ROWS, ROW_CELLS,
+        OPERATIONS, QUADS, QUAD_TRIPLES, MODIFY_DELETE, MODIFY_INSERT, MODIFY_USING,
+        SPEXPR.args, SPEXPR.other, SPEXPR.op,
+    }
+)  # fmt: skip

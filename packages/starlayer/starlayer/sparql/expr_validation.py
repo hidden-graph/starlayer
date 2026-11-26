@@ -54,19 +54,22 @@ def expression_shapes_turtle() -> str:
 
 def shapes_graph() -> Any:
     """A fresh ``StarLayerGraph`` of the ``spexpr:`` shapes: the stored ``spexpr_shacl`` plus the generated per-builtin
-    shapes. Callers get their own copy, because a shapes graph may be modified while validating."""
+    shapes and the shared ``tree:`` shapes for ordered children. Callers get their own copy, because a shapes graph may be modified while validating."""
     from starlayer.graph.core import StarLayerGraph
 
     graph = StarLayerGraph(prefixes={})
     graph.parse(data=expression_shapes_turtle(), format="turtle")
     _merge_into(graph, starontology.get_ontology_graph("spexpr_shacl"))
+    _merge_into(graph, starontology.get_ontology_graph("tree_shacl"))  # the shapes of the ordered children (``tree:ord``) the expression shapes use
     return graph
 
 
 def ontology_graph() -> Any:
     """A fresh ``StarLayerGraph`` of the ``spexpr:`` RDFS ontology (the subclass axioms behind ``sh:class spexpr:Expression``
     and the variable and path classes)."""
-    return starontology.get_ontology_graph("spexpr_owl")
+    graph = starontology.get_ontology_graph("spexpr_owl")
+    _merge_into(graph, starontology.get_ontology_graph("tree_owl"))
+    return graph
 
 
 _RDFS = "http://www.w3.org/2000/01/rdf-schema#"

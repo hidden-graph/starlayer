@@ -1846,30 +1846,25 @@ class _Sink(list):
         self.append(triple)
 
 
-def _list(graph: _Sink, nodes: list):
-    """The RDF list of ``nodes`` (its triples go to ``graph``); ``rdf:nil`` for no nodes."""
-    if not nodes:
-        return RDF.nil
-    head = cur = ox.BlankNode()
-    for i, item in enumerate(nodes):
-        graph.add((cur, RDF.first, item))
-        nxt = RDF.nil if i == len(nodes) - 1 else ox.BlankNode()
-        graph.add((cur, RDF.rest, nxt))
-        cur = nxt
-    return head
-
-
 class _Encoder:
     def __init__(self, graph: _Sink, triple_order=None):
+        from starlayer.graph import ordinals  # not at module level: starlayer.graph imports this package
+
         from .sqe import vocab as v
         from .vocab import PY_STR_DATATYPE, SPEXPR, VARIABLE_DATATYPE
 
+        self.ordinals = ordinals
         self.g = graph
         self.v = v
         self.SPEXPR = SPEXPR
         self.PY = PY_STR_DATATYPE
         self.VAR = VARIABLE_DATATYPE
         self.triple_order = triple_order
+
+    def ordered(self, parent, prop, members: list) -> None:
+        """The ordered children of ``parent`` for ``prop`` (``graph/ordinals.py``): a blank node member carries ``tree:ord`` itself, any
+        other term sits in a ``tree:Item``; nothing is written for no members."""
+        self.ordinals.write_ordered(self.g, parent, prop, members)
 
     # terms and expressions ----------------------------------------------------
     def term(self, t):
@@ -1888,7 +1883,7 @@ class _Encoder:
         if n.kind in _EXISTS_KINDS:
             b = ox.BlankNode()
             g.add((b, RDF.type, v.EXISTS if n.kind == "Exists" else v.NOT_EXISTS))
-            g.add((b, v.WHERE, self.where(n.f["where"])))
+            self.where(b, n.f["where"])
             return b
         if n.kind in ("PathInverse", "PathSequence", "PathAlternative", "PathElt", "PathNegatedPropertySet"):
             return self.path(n)
@@ -1897,7 +1892,7 @@ class _Encoder:
         g.add((b, RDF.type, ns[n.kind]))
         for k, val in n.f.items():
             if isinstance(val, list):
-                g.add((b, ns[k], _list(g, [self.term(x) for x in val])))
+                self.ordered(b, ns[k], [self.term(x) for x in val])
             else:
                 g.add((b, ns[k], self.term(val)))
         return b
@@ -1912,7 +1907,7 @@ class _Encoder:
             g.add((b, S.path, self.term(n.f["path"])))
             g.add((b, S.mod, T.plain_literal(n.f["mod"])))
         else:
-            g.add((b, S.args, _list(g, [self.term(x) for x in n.f["args"]])))
+            self.ordered(b, S.args, [self.term(x) for x in n.f["args"]])
         return b
 
     # patterns -------------------------------------------------------------------
@@ -1924,12 +1919,15 @@ class _Encoder:
         g.add((b, v.TRIPLE_PATTERN_OBJECT, self.term(el.f["o"])))
         return b
 
-    def where(self, parts: list):
+    def where(self, parent, parts: list) -> None:
+        """The elements of a group, as the ordered ``sqe:where`` children of ``parent``."""
         if len(parts) == 1 and parts[0].kind == "SubSelect":
-            return _list(self.g, [self.sub_select(parts[0])])
-        if self.triple_order is not None:
-            parts = self.triple_order(parts)
-        return _list(self.g, [self.element(p) for p in parts])
+            members = [self.sub_select(parts[0])]
+        else:
+            if self.triple_order is not None:
+                parts = self.triple_order(parts)
+            members = [self.element(p) for p in parts]
+        self.ordered(parent, self.v.WHERE, members)
 
     def element(self, el: Node):
         v, g = self.v, self.g
@@ -1939,13 +1937,13 @@ class _Encoder:
         b = ox.BlankNode()
         if k in ("Optional", "Minus"):
             g.add((b, RDF.type, v.OPTIONAL if k == "Optional" else v.MINUS))
-            g.add((b, v.WHERE, self.where(el.f["where"])))
+            self.where(b, el.f["where"])
         elif k == "Service":
             g.add((b, RDF.type, v.SERVICE))
             g.add((b, v.SERVICE_TERM, self.term(el.f["term"])))
             if el.f["silent"]:
                 g.add((b, v.SERVICE_SILENT, T.boolean()))
-            g.add((b, v.WHERE, self.where(el.f["where"])))
+            self.where(b, el.f["where"])
         elif k == "Filter":
             g.add((b, RDF.type, v.FILTER))
             g.add((b, v.EXPR, self.term(el.f["expr"])))
@@ -1956,7 +1954,7 @@ class _Encoder:
         elif k == "Graph":
             g.add((b, RDF.type, v.GRAPH_PATTERN))
             g.add((b, v.GRAPH_TERM, self.term(el.f["term"])))
-            g.add((b, v.WHERE, self.where(el.f["where"])))
+            self.where(b, el.f["where"])
         elif k == "Values":
             return self.values(el)
         elif k == "Union":
@@ -1964,7 +1962,13 @@ class _Encoder:
             if len(alts) == 1 and len(alts[0]) == 1 and alts[0][0].kind == "SubSelect":
                 return self.sub_select(alts[0][0])
             g.add((b, RDF.type, v.UNION))
-            g.add((b, v.UNION_ALTERNATIVES, _list(g, [self.where(a) for a in alts])))
+            groups = []
+            for alt in alts:
+                group = ox.BlankNode()
+                g.add((group, RDF.type, v.GROUP_GRAPH_PATTERN))
+                self.where(group, alt)
+                groups.append(group)
+            self.ordered(b, v.UNION_ALTERNATIVES, groups)
         elif k == "SubSelect":
             return self.sub_select(el)
         else:
@@ -1975,11 +1979,14 @@ class _Encoder:
         v, g = self.v, self.g
         b = ox.BlankNode()
         g.add((b, RDF.type, v.VALUES))
-        g.add((b, v.VALUES_VARS, _list(g, [self.term(x) for x in el.f["vars"]])))
+        self.ordered(b, v.VALUES_VARS, [self.term(x) for x in el.f["vars"]])
         rows = []
-        for row in el.f["rows"]:
-            rows.append(_list(g, [v.VALUES_UNDEF if c == "UNDEF" else self.term(c) for c in row]))
-        g.add((b, v.VALUES_ROWS, _list(g, rows)))
+        for cells in el.f["rows"]:
+            row = ox.BlankNode()
+            g.add((row, RDF.type, v.VALUES_ROW))
+            self.ordered(row, v.ROW_CELLS, [v.VALUES_UNDEF if c == "UNDEF" else self.term(c) for c in cells])
+            rows.append(row)
+        self.ordered(b, v.VALUES_ROWS, rows)
         return b
 
     def sub_select(self, q: Node):
@@ -2004,7 +2011,7 @@ class _Encoder:
                     self.alias(p.f["expr"], p.f["var"]) if p.kind == "ProjectExpr" else self.term(p.f["var"])
                     for p in q.f["projection"]
                 ]
-                g.add((root, v.PROJECTION, _list(g, items)))
+                self.ordered(root, v.PROJECTION, items)
             else:
                 g.add((root, v.SELECT_ALL, T.boolean()))
             if q.f["modifier"] == "DISTINCT":
@@ -2015,12 +2022,12 @@ class _Encoder:
             template = q.f["template"] if q.f["template"] is not None else q.f["where"]
             if self.triple_order is not None:
                 template = self.triple_order(template)
-            g.add((root, v.TEMPLATE, _list(g, [self.triple(t) for t in template])))
+            self.ordered(root, v.TEMPLATE, [self.triple(t) for t in template])
         elif kind == "DescribeQuery":
             if q.f["targets"] is None:
                 g.add((root, v.DESCRIBE_ALL, T.boolean()))
             else:
-                g.add((root, v.DESCRIBE, _list(g, [self.term(t) for t in q.f["targets"]])))
+                self.ordered(root, v.DESCRIBE, [self.term(t) for t in q.f["targets"]])
         if q.f.get("datasets"):
             clauses = []
             for named, iri in q.f["datasets"]:
@@ -2030,17 +2037,17 @@ class _Encoder:
                 if named:
                     g.add((c, v.DATASET_NAMED, T.boolean()))
                 clauses.append(c)
-            g.add((root, v.DATASET, _list(g, clauses)))
+            self.ordered(root, v.DATASET, clauses)
         if q.f["where"] is not None:
-            g.add((root, v.WHERE, self.where(q.f["where"])))
+            self.where(root, q.f["where"])
         if q.f["group_by"]:
             items = [
                 self.alias(c.f["expr"], c.f["var"]) if isinstance(c, Node) and c.kind == "GroupAs" else self.term(c)
                 for c in q.f["group_by"]
             ]
-            g.add((root, v.GROUP_BY, _list(g, items)))
+            self.ordered(root, v.GROUP_BY, items)
         if q.f["having"]:
-            g.add((root, v.HAVING, _list(g, [self.term(c) for c in q.f["having"]])))
+            self.ordered(root, v.HAVING, [self.term(c) for c in q.f["having"]])
         if q.f["order_by"]:
             conds = []
             for c in q.f["order_by"]:
@@ -2050,7 +2057,7 @@ class _Encoder:
                 if c.f["desc"]:
                     g.add((b, v.ORDER_DESCENDING, T.boolean()))
                 conds.append(b)
-            g.add((root, v.ORDER_BY, _list(g, conds)))
+            self.ordered(root, v.ORDER_BY, conds)
         if q.f["limit"] is not None:
             g.add((root, v.LIMIT, q.f["limit"]))
         if q.f["offset"] is not None:
@@ -2094,7 +2101,7 @@ class _Encoder:
     def update(self, u: Node, root):
         v, g = self.v, self.g
         g.add((root, RDF.type, v.UPDATE_REQUEST))
-        g.add((root, v.OPERATIONS, _list(g, [self.operation(o) for o in u.f["operations"]])))
+        self.ordered(root, v.OPERATIONS, [self.operation(o) for o in u.f["operations"]])
         self.prologue(root, u.f["prologue"])
 
     def graph_ref(self, n: Node):
@@ -2107,7 +2114,8 @@ class _Encoder:
             g.add((b, RDF.type, {"DefaultGraph": v.DEFAULT_GRAPH, "NamedGraphs": v.NAMED_GRAPHS, "AllGraphs": v.ALL_GRAPHS}[n.kind]))
         return b
 
-    def quads(self, items: list):
+    def quads(self, parent, prop, items: list) -> None:
+        """The quads of an INSERT DATA / DELETE DATA / DELETE WHERE or a template, as the ordered ``prop`` children of ``parent``."""
         v, g = self.v, self.g
         out = []
         for item in items:
@@ -2115,11 +2123,11 @@ class _Encoder:
                 b = ox.BlankNode()
                 g.add((b, RDF.type, v.QUAD_GRAPH))
                 g.add((b, v.QUAD_GRAPH_NAME, self.term(item.f["term"])))
-                g.add((b, v.QUAD_TRIPLES, _list(g, [self.triple(t) for t in item.f["triples"]])))
+                self.ordered(b, v.QUAD_TRIPLES, [self.triple(t) for t in item.f["triples"]])
                 out.append(b)
             else:
                 out.append(self.triple(item))
-        return _list(g, out)
+        self.ordered(parent, prop, out)
 
     def operation(self, o: Node):
         v, g = self.v, self.g
@@ -2133,14 +2141,14 @@ class _Encoder:
         if o.f.get("silent"):
             g.add((b, v.SERVICE_SILENT, T.boolean()))
         if k in ("InsertData", "DeleteData", "DeleteWhere"):
-            g.add((b, v.QUADS, self.quads(o.f["quads"])))
+            self.quads(b, v.QUADS, o.f["quads"])
         elif k == "Modify":
             if o.f["with_"] is not None:
                 g.add((b, v.MODIFY_WITH, o.f["with_"]))
             if o.f["delete"] is not None:
-                g.add((b, v.MODIFY_DELETE, self.quads(o.f["delete"])))
+                self.quads(b, v.MODIFY_DELETE, o.f["delete"])
             if o.f["insert"] is not None:
-                g.add((b, v.MODIFY_INSERT, self.quads(o.f["insert"])))
+                self.quads(b, v.MODIFY_INSERT, o.f["insert"])
             if o.f["using"]:
                 clauses = []
                 for named, iri in o.f["using"]:
@@ -2150,8 +2158,8 @@ class _Encoder:
                     if named:
                         g.add((c, v.DATASET_NAMED, T.boolean()))
                     clauses.append(c)
-                g.add((b, v.MODIFY_USING, _list(g, clauses)))
-            g.add((b, v.WHERE, self.where(o.f["where"])))
+                self.ordered(b, v.MODIFY_USING, clauses)
+            self.where(b, o.f["where"])
         elif k == "Load":
             g.add((b, v.LOAD_FROM, o.f["source"]))
             if o.f["into"] is not None:

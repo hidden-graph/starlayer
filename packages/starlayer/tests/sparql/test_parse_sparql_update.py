@@ -22,10 +22,10 @@ from starlayer.sparql.parse_sparql import (
     parse_sparql_update,
     sparql_update_to_tree,
 )
+from starlayer.graph.ordinals import ORD, ordered_items
 from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
 from starlayer.sparql.sqe.vocab import SQE
 from tests.sparql.parse_sparql_support import (
-    canonical_graph,
     w3c11_entries,
     w3c_entries,
 )
@@ -77,7 +77,7 @@ def test_update_tree_text_fixpoint(key, text):
     assert len(tree[0]) == len(again[0])
     assert sqe_tree_to_text(*again) == rendered  # the text is a fixpoint
     if len(tree[0]) < 500:  # rdflib's isomorphism check is quadratic on the 5,000-triple W3C stress request
-        assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0])), rendered
+        assert isomorphic(tree[0], again[0]), rendered
 
 
 # SHACL costs 1-3 s per tree (more for the large ones), so validating every W3C tree is opt-in, as for queries:
@@ -204,7 +204,7 @@ INVALID = [
 def test_valid_requests_parse_and_round_trip(text):
     tree = sparql_update_to_tree(text)
     again = sparql_update_to_tree(sqe_tree_to_text(*tree))
-    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
+    assert isomorphic(tree[0], again[0])
 
 
 @pytest.mark.parametrize("text,why", INVALID, ids=[t[:70] for t, _ in INVALID])
@@ -251,9 +251,9 @@ def test_tree_of_a_request_is_typed_and_ordered():
     g, root = sparql_update_to_tree(P + "INSERT DATA { :s :p :o GRAPH :g { :a :b :c } } ; DROP ALL")
     assert (root, RDF.type, SQE.UpdateRequest) in g
 
-    ops = list(g.items(g.value(root, SQE.operations)))
+    ops = ordered_items(g, root, SQE.operations)
     assert [g.value(o, RDF.type) for o in ops] == [SQE.InsertData, SQE.Drop]
-    quads = list(g.items(g.value(ops[0], SQE.quads)))
+    quads = ordered_items(g, ops[0], SQE.quads)
     assert (quads[0], RDF.type, SQE.TriplePattern) in g and (quads[1], RDF.type, SQE.QuadGraph) in g
     assert (g.value(ops[1], SQE.target), RDF.type, SQE.AllGraphs) in g
 
@@ -290,7 +290,7 @@ def _mutate(text: str, edit):
 
 def _first_op(g, root):
 
-    return next(iter(g.items(g.value(root, SQE.operations))))
+    return ordered_items(g, root, SQE.operations)[0]
 
 
 def test_shapes_accept_the_untouched_trees():
@@ -301,7 +301,7 @@ def test_shapes_reject_a_variable_in_insert_data():
     def edit(g, root):
         from starlayer.sparql.vocab import VARIABLE_DATATYPE
 
-        pat = next(iter(g.items(g.value(_first_op(g, root), SQE.quads))))
+        pat = ordered_items(g, _first_op(g, root), SQE.quads)[0]
         _set(g, pat, SQE.object, ox.Literal("o", datatype=VARIABLE_DATATYPE))
 
     assert not _mutate(P + "INSERT DATA { :s :p :o }", edit)
@@ -310,18 +310,18 @@ def test_shapes_reject_a_variable_in_insert_data():
 def test_shapes_reject_a_blank_node_in_delete_data_and_in_delete_template():
 
     def edit_data(g, root):
-        pat = next(iter(g.items(g.value(_first_op(g, root), SQE.quads))))
+        pat = ordered_items(g, _first_op(g, root), SQE.quads)[0]
         _set(g, pat, SQE.subject, ox.BlankNode())
 
     def edit_template(g, root):
-        pat = next(iter(g.items(g.value(_first_op(g, root), SQE.delete))))
+        pat = ordered_items(g, _first_op(g, root), SQE.delete)[0]
         _set(g, pat, SQE.object, ox.BlankNode())
 
     assert not _mutate(P + "DELETE DATA { :s :p :o }", edit_data)
     assert not _mutate(P + "DELETE { ?s :p ?o } WHERE { ?s :p ?o }", edit_template)
     # the same edit is fine in an INSERT template
     assert _mutate(P + "INSERT { ?s :p ?o } WHERE { ?s :p ?o }", lambda g, r: _set(
-        g, next(iter(g.items(g.value(_first_op(g, r), SQE.insert)))), SQE.object, ox.BlankNode()))
+        g, ordered_items(g, _first_op(g, r), SQE.insert)[0], SQE.object, ox.BlankNode()))
 
 
 def _target(g, r, p=None):
@@ -336,12 +336,15 @@ def _retype(g, node, old, new):
 
 def _drop_quad_graph_name(g, r):
 
-    qg = next(iter(g.items(g.value(_first_op(g, r), SQE.quads))))
+    qg = ordered_items(g, _first_op(g, r), SQE.quads)[0]
     g.remove((qg, SQE.graphName, None))
 
 
 MALFORMED = {
-    "missing operations list": (P + "CLEAR ALL", lambda g, r: g.remove((r, SQE.operations, None))),
+    "an operation without an ordinal": (P + "CLEAR ALL", lambda g, r: g.remove((_first_op(g, r), ORD, None))),
+    "two operations with the same ordinal": (
+        P + "CLEAR ALL ; DROP ALL", lambda g, r: _set(g, ordered_items(g, r, SQE.operations)[1], ORD, ox.Literal("0", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer")))
+    ),
     "a clear without a target": (P + "CLEAR ALL", lambda g, r: g.remove((_first_op(g, r), SQE.target, None))),
     "create of ALL": (
         P + "CREATE GRAPH <g>", lambda g, r: _retype(g, _target(g, r), SQE.GraphRef, SQE.AllGraphs)
@@ -351,12 +354,6 @@ MALFORMED = {
     ),
     "a graph reference without an IRI": (
         P + "CREATE GRAPH <g>", lambda g, r: g.remove((_target(g, r), SQE.graphIri, None))
-    ),
-    "a modify with no template": (
-        P + "DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }", lambda g, r: g.remove((_first_op(g, r), SQE.delete, None))
-    ),
-    "a modify without where": (
-        P + "DELETE { ?s ?p ?o } WHERE { ?s ?p ?o }", lambda g, r: g.remove((_first_op(g, r), SQE.where, None))
     ),
     "a load without a source": (P + "LOAD <a>", lambda g, r: g.remove((_first_op(g, r), SQE.loadFrom, None))),
     "a non-boolean silent": (P + "LOAD <a>", lambda g, r: _set(g, _first_op(g, r), SQE.silent, ox.Literal("yes"))),

@@ -152,9 +152,7 @@ def test_every_builtin_call_alternative_parses_and_round_trips(name):
     tree = sparql_to_tree(text)
     again = sparql_to_tree(sqe_tree_to_text(*tree))
     from starlayer.graph import isomorphic
-    from tests.sparql.parse_sparql_support import canonical_graph
-
-    assert isomorphic(canonical_graph(tree[0]), canonical_graph(again[0]))
+    assert isomorphic(tree[0], again[0])
 
 
 def test_builtin_table_matches_the_grammar():

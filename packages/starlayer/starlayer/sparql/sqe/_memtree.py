@@ -1,7 +1,7 @@
-"""``TreeIndex``: the read side of a graph (``value``, ``objects``, ``predicate_objects``, ``in``, ``items``) over a list of
+"""``TreeIndex``: the read side of a graph (``value``, ``objects``, ``predicate_objects``, ``in``) over a list of
 triples held in memory.
 
-``sqe_tree_to_text`` reads a tree through those graph methods. The query rewrites (``rewrite.py``, ``entailment.py``) render a
+``sqe_tree_to_text`` reads a tree through those graph methods (``ordered_items`` of ``graph/ordinals.py`` reads the ordered children through ``objects`` and ``in``). The query rewrites (``rewrite.py``, ``entailment.py``) render a
 tree they have just built from a parsed query; going through a ``StarLayerGraph`` would cost a store write per triple and an
 Oxigraph store rewrites some literal lexical forms, which a query that is about to be run must not suffer. A ``TreeIndex``
 answers the same calls from a dict and changes nothing.
@@ -12,8 +12,6 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable, Iterator
 from typing import Any
-
-from starlayer.sparql._oxterms import RDF
 
 
 class TreeIndex:
@@ -49,12 +47,6 @@ class TreeIndex:
         """Whether a triple matches; a ``None`` predicate or object is a wildcard, a ``None`` subject matches nothing."""
         s, p, o = triple
         return any((p is None or q == p) and (o is None or o == x) for q, x in self._by_subject.get(s, ()))
-
-    def items(self, head: Any) -> Iterator[Any]:
-        """Yield the members of the RDF list starting at ``head``, in order."""
-        while head != RDF.nil:
-            yield self.value(head, RDF.first)
-            head = self.value(head, RDF.rest)
 
 
 def as_engine_graph(graph: Any, root: Any = None) -> tuple[Any, Any]:

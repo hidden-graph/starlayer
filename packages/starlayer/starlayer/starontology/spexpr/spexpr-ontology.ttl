@@ -3,10 +3,10 @@
 
 spexpr:AdditiveExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
-spexpr:PathAlternative rdfs:comment "path1|path2 (alternative) - spexpr:args, same list shape as PathSequence." ;
+spexpr:PathAlternative rdfs:comment "path1|path2 (alternative) - spexpr:args the alternatives, ordered." ;
     rdfs:subClassOf spexpr:Path .
 
-spexpr:ArithmeticExpression rdfs:comment "Modelling helper (the grammar has AdditiveExpression and MultiplicativeExpression only): the superclass of the two chains, which share one shape. +/-/*// chains - spexpr:expr, spexpr:op, spexpr:other (always a list)." ;
+spexpr:ArithmeticExpression rdfs:comment "Modelling helper (the grammar has AdditiveExpression and MultiplicativeExpression only): the superclass of the two chains, which share one shape. +/-/*// chains - spexpr:expr the first operand, spexpr:op the operators and spexpr:other the further operands, both ordered." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ABS rdfs:subClassOf spexpr:OneArgExpression .
@@ -115,7 +115,7 @@ spexpr:sameTerm rdfs:subClassOf spexpr:TwoArgExpression .
 
 spexpr:ConditionalAndExpression rdfs:subClassOf spexpr:ConditionalExpression .
 
-spexpr:ConditionalExpression rdfs:comment "Modelling helper (the grammar has ConditionalOrExpression and ConditionalAndExpression only): the superclass of the two chains, which share one shape. &&/|| chains - spexpr:expr plus an optional spexpr:other list." ;
+spexpr:ConditionalExpression rdfs:comment "Modelling helper (the grammar has ConditionalOrExpression and ConditionalAndExpression only): the superclass of the two chains, which share one shape. &&/|| chains - spexpr:expr the first operand plus the further operands in spexpr:other, ordered." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ConditionalOrExpression rdfs:subClassOf spexpr:ConditionalExpression .
@@ -134,7 +134,7 @@ spexpr:PathElt rdfs:comment "path* / path+ / path? (grammar: PathElt with a Path
 
 spexpr:MultiplicativeExpression rdfs:subClassOf spexpr:ArithmeticExpression .
 
-spexpr:PathNegatedPropertySet rdfs:comment "!path / !(path1|path2) (negated property set; always stored with its members, even for one) - spexpr:args, same list shape as PathSequence/PathAlternative." ;
+spexpr:PathNegatedPropertySet rdfs:comment "!path / !(path1|path2) (negated property set; always stored with its members, even for one) - spexpr:args the members, ordered." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:OneArgExpression rdfs:comment "Exactly one required argument (spexpr:arg)." ;
@@ -151,13 +151,13 @@ spexpr:PlainString a rdfs:Datatype ;
 spexpr:RegexExpression rdfs:comment "REGEX(text, pattern[, flags]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN." ;
+spexpr:RelationalExpression rdfs:comment "=, !=, <, >, <=, >=, IN, NOT IN - spexpr:expr, spexpr:op, spexpr:other (one operand, or for IN / NOT IN the value list, ordered)." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ReplaceExpression rdfs:comment "REPLACE(arg, pattern, replacement[, flags]) - unique key names." ;
     rdfs:subClassOf spexpr:Expression .
 
-spexpr:PathSequence rdfs:comment "path1/path2 (sequence) - spexpr:args a well-formed rdf:List of the sequenced paths/IRIs." ;
+spexpr:PathSequence rdfs:comment "path1/path2 (sequence) - spexpr:args the sequenced paths/IRIs, ordered." ;
     rdfs:subClassOf spexpr:Path .
 
 spexpr:SubstrExpression rdfs:comment "SUBSTR(arg, start[, length]) - unique key names." ;
@@ -178,7 +178,7 @@ spexpr:UnaryNot rdfs:subClassOf spexpr:UnaryExpression .
 
 spexpr:UnaryPlus rdfs:subClassOf spexpr:UnaryExpression .
 
-spexpr:VariadicArgExpression rdfs:comment "spexpr:arg is itself a list of arguments - CONCAT/COALESCE only." ;
+spexpr:VariadicArgExpression rdfs:comment "spexpr:args holds the arguments, ordered - CONCAT/COALESCE only." ;
     rdfs:subClassOf spexpr:Expression .
 
 spexpr:ZeroArgExpression rdfs:comment "No arguments (NOW/UUID/STRUUID/RAND)." ;

@@ -1,11 +1,7 @@
-"""Helpers shared by the parse_sparql tests: corpus collection and the tree comparison."""
+"""Helpers shared by the parse_sparql tests: corpus collection."""
 
 from __future__ import annotations
 
-import pyoxigraph as ox
-from starlayer.graph import StarLayerGraph
-from starlayer.sparql._oxterms import RDF
-from starlayer.sparql.sqe.vocab import TRIPLE_PATTERN
 from tests.sparql.w3c_sparql12.harness import load_index
 
 
@@ -15,53 +11,6 @@ def w3c_entries(*types: str):
 
 def entry_key(entry) -> str:
     return entry.category + "/" + entry.test_iri.rsplit("#", 1)[-1]
-
-
-_RUN = ox.NamedNode("urn:test:run")
-_MEMBER = ox.NamedNode("urn:test:member")
-
-
-def canonical_graph(g) -> StarLayerGraph:
-    """Copy of ``g`` in which each run of adjacent triple patterns in a list becomes one unordered set.
-
-    The old path ordered the patterns of a block with rdflib's selectivity heuristic (``reorderTriples``), breaking ties on
-    random blank-node ids; the parser keeps the order written. Only that order differs, so each run is replaced by a node
-    with one ``urn:test:member`` edge per pattern (graph isomorphism then treats the run as a set but still follows the
-    blank nodes the patterns share).
-    """
-    out = StarLayerGraph(prefixes={})
-    out.extend(list(g))
-    heads = [s for s in set(g.subjects(RDF.first)) if not list(g.subjects(RDF.rest, s))]
-    for head in heads:
-        items = list(g.items(head))
-        if not any((i, RDF.type, TRIPLE_PATTERN) in g for i in items):
-            continue
-        new, run = [], []
-        for item in [*items, None]:
-            if item is not None and (item, RDF.type, TRIPLE_PATTERN) in g:
-                run.append(item)
-                continue
-            if run:
-                node = ox.BlankNode()
-                out.add((node, RDF.type, _RUN))
-                for member in run:
-                    out.add((node, _MEMBER, member))
-                new.append(node)
-                run = []
-            if item is not None:
-                new.append(item)
-        node = head
-        while node != RDF.nil:  # unlink the old chain, then lay the new one on the same head
-            nxt = out.value(node, RDF.rest)
-            out.remove((node, None, None))
-            node = nxt
-        cur = head
-        for k, item in enumerate(new):
-            nxt = RDF.nil if k == len(new) - 1 else ox.BlankNode()
-            out.add((cur, RDF.first, item))
-            out.add((cur, RDF.rest, nxt))
-            cur = nxt
-    return out
 
 
 # ---------------------------------------------------------------------------

@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 import pyoxigraph as ox
+from starlayer.graph.ordinals import ordered_items as _children
 
 from .. import _oxterms as T
 from .._oxterms import RDF
@@ -107,6 +108,7 @@ from .vocab import (
     UPDATE_REQUEST,
     UPDATE_TO,
     VALUES,
+    ROW_CELLS,
     VALUES_ROWS,
     VALUES_UNDEF,
     VALUES_VARS,
@@ -140,6 +142,9 @@ def sqe_tree_to_text(tree_graph: Any, root) -> str:
 
     Raises:
         SqeTextTooDeepError: the tree nests too deeply to render within the Python stack.
+        FormatError: (kind ``"rdf"``) an ordered child has no ``tree:ord`` or one that is not a non-negative integer, two children of one
+            parent and property share an ordinal, or a named node, literal or variable is a child without its ``tree:Item``
+            (``graph/ordinals.py``): the tree has no order to write.
     """
     from ..parse_sparql import run_with_deeper_stack
     from ._memtree import as_engine_graph
@@ -181,7 +186,7 @@ def _update_text(graph: Any, root) -> str:
     it carries; the prefixes declared by earlier operations stay in force for the terms of later ones."""
     in_force: dict = {}
     chunks: list = []
-    for op in graph.items(graph.value(root, OPERATIONS)):
+    for op in _children(graph, root, OPERATIONS):
         own = _prefix_map(graph, op)
         in_force.update(own)
         chunks.append("\n".join([*_prologue_lines(graph, op, own), _operation_text(graph, op, in_force)]))
@@ -202,12 +207,12 @@ def _graph_ref_text(node, graph: Any, prefixes: dict) -> str:
     raise NotImplementedError(f"starlayer.sparql.sqe: {node!r} is not a recognized graph reference")
 
 
-def _quads_text(list_node, graph: Any, prefixes: dict) -> str:
+def _quads_text(parent, prop, graph: Any, prefixes: dict) -> str:
     parts = []
-    for item in graph.items(list_node) if list_node is not None else []:
+    for item in _children(graph, parent, prop):
         if (item, RDF.type, QUAD_GRAPH) in graph:
             name = _term_text(graph.value(item, QUAD_GRAPH_NAME), prefixes)
-            triples = [_triple_pattern_text(t, graph, prefixes) + " ." for t in graph.items(graph.value(item, QUAD_TRIPLES))]
+            triples = [_triple_pattern_text(t, graph, prefixes) + " ." for t in _children(graph, item, QUAD_TRIPLES)]
             parts.append(f"GRAPH {name} {{ {' '.join(triples)} }}" if triples else f"GRAPH {name} {{ }}")
         else:
             parts.append(_triple_pattern_text(item, graph, prefixes) + " .")
@@ -218,24 +223,23 @@ def _operation_text(graph: Any, op, prefixes: dict) -> str:
     silent = " SILENT" if graph.value(op, SERVICE_SILENT) is not None else ""
     ref = lambda p: _graph_ref_text(graph.value(op, p), graph, prefixes)  # noqa: E731
     if (op, RDF.type, INSERT_DATA) in graph:
-        return "INSERT DATA " + _quads_text(graph.value(op, QUADS), graph, prefixes)
+        return "INSERT DATA " + _quads_text(op, QUADS, graph, prefixes)
     if (op, RDF.type, DELETE_DATA) in graph:
-        return "DELETE DATA " + _quads_text(graph.value(op, QUADS), graph, prefixes)
+        return "DELETE DATA " + _quads_text(op, QUADS, graph, prefixes)
     if (op, RDF.type, DELETE_WHERE) in graph:
-        return "DELETE WHERE " + _quads_text(graph.value(op, QUADS), graph, prefixes)
+        return "DELETE WHERE " + _quads_text(op, QUADS, graph, prefixes)
     if (op, RDF.type, MODIFY) in graph:
         lines = []
         with_ = graph.value(op, MODIFY_WITH)
         if with_ is not None:
             lines.append("WITH " + _term_text(with_, prefixes))
-        for pred, word in ((MODIFY_DELETE, "DELETE"), (MODIFY_INSERT, "INSERT")):
-            if (op, pred, None) in graph:
-                lines.append(f"{word} " + _quads_text(graph.value(op, pred), graph, prefixes))
-        using = graph.value(op, MODIFY_USING)
-        for clause in graph.items(using) if using is not None else []:
+        templates = [(pred, word) for pred, word in ((MODIFY_DELETE, "DELETE"), (MODIFY_INSERT, "INSERT")) if _children(graph, op, pred)]
+        for pred, word in templates or [(MODIFY_DELETE, "DELETE")]:  # a Modify needs one template; both empty is written as an empty DELETE
+            lines.append(f"{word} " + _quads_text(op, pred, graph, prefixes))
+        for clause in _children(graph, op, MODIFY_USING):
             named = "NAMED " if graph.value(clause, DATASET_NAMED) is not None else ""
             lines.append(f"USING {named}{_term_text(graph.value(clause, DATASET_SOURCE), prefixes)}")
-        lines.append(f"WHERE {_where_group_text(graph.value(op, WHERE), graph, prefixes)}")
+        lines.append(f"WHERE {_where_group_text(op, graph, prefixes)}")
         return "\n".join(lines)
     if (op, RDF.type, LOAD) in graph:
         into = graph.value(op, LOAD_INTO)
@@ -267,31 +271,28 @@ def _query_lines(graph: Any, root, prefixes: dict) -> list:
         if graph.value(root, SELECT_ALL) is not None:
             lines.append(f"SELECT {modifier}*")
         else:
-            items = [_alias_or_var_text(v, graph, prefixes) for v in graph.items(graph.value(root, PROJECTION))]
+            items = [_alias_or_var_text(v, graph, prefixes) for v in _children(graph, root, PROJECTION)]
             lines.append(f"SELECT {modifier}{' '.join(items)}")
     elif keyword == "CONSTRUCT":
-        template_list = graph.value(root, TEMPLATE)
-        template_nodes = list(graph.items(template_list)) if template_list is not None else []
+        template_nodes = _children(graph, root, TEMPLATE)
         template_text = " . ".join(_triple_pattern_text(n, graph, prefixes) for n in template_nodes)
         lines.append(f"CONSTRUCT {{ {template_text} }}")
     elif keyword == "DESCRIBE":
         if graph.value(root, DESCRIBE_ALL) is not None:
             lines.append("DESCRIBE *")
         else:
-            targets = [_term_text(t, prefixes) for t in graph.items(graph.value(root, DESCRIBE))]
+            targets = [_term_text(t, prefixes) for t in _children(graph, root, DESCRIBE)]
             lines.append("DESCRIBE " + " ".join(targets))
     else:  # ASK
         lines.append("ASK")
 
-    dataset = graph.value(root, DATASET)
-    if dataset is not None:
-        for clause in graph.items(dataset):
-            named = "NAMED " if graph.value(clause, DATASET_NAMED) is not None else ""
-            lines.append(f"FROM {named}{_term_text(graph.value(clause, DATASET_SOURCE), prefixes)}")
+    for clause in _children(graph, root, DATASET):
+        named = "NAMED " if graph.value(clause, DATASET_NAMED) is not None else ""
+        lines.append(f"FROM {named}{_term_text(graph.value(clause, DATASET_SOURCE), prefixes)}")
 
-    where = graph.value(root, WHERE)
-    if where is not None or keyword != "DESCRIBE":
-        lines.append(f"WHERE {_where_group_text(where, graph, prefixes)}")
+    # an empty group and no group are the same tree; DESCRIBE has no WHERE to write for it, the other forms write { }
+    if keyword != "DESCRIBE" or _children(graph, root, WHERE):
+        lines.append(f"WHERE {_where_group_text(root, graph, prefixes)}")
     lines.extend(_solution_modifier_lines(graph, root, prefixes))
     values_node = graph.value(root, QUERY_VALUES)
     if values_node is not None:
@@ -300,10 +301,10 @@ def _query_lines(graph: Any, root, prefixes: dict) -> list:
 
 
 def _values_text(node, graph: Any, prefixes: dict) -> str:
-    variables = ["?" + v.value for v in graph.items(graph.value(node, VALUES_VARS))]
+    variables = ["?" + v.value for v in _children(graph, node, VALUES_VARS)]
     rows = []
-    for row_node in graph.items(graph.value(node, VALUES_ROWS)):
-        cells = ["UNDEF" if cell == VALUES_UNDEF else expr_text(cell, graph, prefixes) for cell in graph.items(row_node)]
+    for row_node in _children(graph, node, VALUES_ROWS):
+        cells = ["UNDEF" if cell == VALUES_UNDEF else expr_text(cell, graph, prefixes) for cell in _children(graph, row_node, ROW_CELLS)]
         rows.append(cells[0] if len(variables) == 1 else "(" + " ".join(cells) + ")")
     head = variables[0] if len(variables) == 1 else "(" + " ".join(variables) + ")"
     return f"VALUES {head} {{ {' '.join(rows)} }}"
@@ -319,16 +320,16 @@ def _alias_or_var_text(item, graph: Any, prefixes: dict) -> str:
 
 def _solution_modifier_lines(graph: Any, root, prefixes: dict) -> list:
     lines = []
-    group_list = graph.value(root, GROUP_BY)
-    if group_list is not None:
-        lines.append("GROUP BY " + " ".join(_alias_or_var_text(i, graph, prefixes) for i in graph.items(group_list)))
-    having_list = graph.value(root, HAVING)
-    if having_list is not None:
-        lines.append("HAVING " + " ".join(f"({expr_text(c, graph, prefixes)})" for c in graph.items(having_list)))
-    order_list = graph.value(root, ORDER_BY)
-    if order_list is not None:
+    group_by = _children(graph, root, GROUP_BY)
+    if group_by:
+        lines.append("GROUP BY " + " ".join(_alias_or_var_text(i, graph, prefixes) for i in group_by))
+    having = _children(graph, root, HAVING)
+    if having:
+        lines.append("HAVING " + " ".join(f"({expr_text(c, graph, prefixes)})" for c in having))
+    order_by = _children(graph, root, ORDER_BY)
+    if order_by:
         parts = []
-        for node in graph.items(order_list):
+        for node in order_by:
             expr_node = graph.value(node, EXPR)
             text = expr_text(expr_node, graph, prefixes)
             if graph.value(node, ORDER_DESCENDING) is not None:
@@ -366,8 +367,9 @@ def _prefix_map(graph: Any, root) -> dict:
     return prefixes
 
 
-def _where_group_text(list_node, graph: Any, prefixes: dict) -> str:
-    nodes = list(graph.items(list_node)) if list_node is not None else []
+def _where_group_text(parent, graph: Any, prefixes: dict) -> str:
+    """``{ ... }`` for the ``sqe:where`` children of ``parent`` (a query, a pattern block or a UNION alternative)."""
+    nodes = _children(graph, parent, WHERE)
     parts = [_where_element_text(node, graph, prefixes) for node in nodes]
     return "{ " + " ".join(parts) + " }"
 
@@ -376,7 +378,7 @@ def _where_element_text(node, graph: Any, prefixes: dict) -> str:
     if (node, RDF.type, TRIPLE_PATTERN) in graph:
         return _triple_pattern_text(node, graph, prefixes) + " ."
     if (node, RDF.type, OPTIONAL) in graph:
-        inner = _where_group_text(graph.value(node, WHERE), graph, prefixes)
+        inner = _where_group_text(node, graph, prefixes)
         return f"OPTIONAL {inner}"
     if (node, RDF.type, FILTER) in graph:
         return f"FILTER({expr_text(graph.value(node, EXPR), graph, prefixes)})"
@@ -386,19 +388,18 @@ def _where_element_text(node, graph: Any, prefixes: dict) -> str:
     if (node, RDF.type, SERVICE) in graph:
         silent = "SILENT " if graph.value(node, SERVICE_SILENT) is not None else ""
         term = _term_text(graph.value(node, SERVICE_TERM), prefixes)
-        return f"SERVICE {silent}{term} {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+        return f"SERVICE {silent}{term} {_where_group_text(node, graph, prefixes)}"
     if (node, RDF.type, MINUS) in graph:
-        return f"MINUS {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+        return f"MINUS {_where_group_text(node, graph, prefixes)}"
     if (node, RDF.type, GRAPH_PATTERN) in graph:
         term = expr_text(graph.value(node, GRAPH_TERM), graph, prefixes)
-        return f"GRAPH {term} {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+        return f"GRAPH {term} {_where_group_text(node, graph, prefixes)}"
     if (node, RDF.type, VALUES) in graph:
         return _values_text(node, graph, prefixes)
     if (node, RDF.type, SUB_SELECT) in graph:
         return "{ " + " ".join(_query_lines(graph, node, prefixes)) + " }"
     if (node, RDF.type, UNION) in graph:
-        alt_list = graph.value(node, UNION_ALTERNATIVES)
-        alts = [_where_group_text(alt, graph, prefixes) for alt in graph.items(alt_list)]
+        alts = [_where_group_text(alt, graph, prefixes) for alt in _children(graph, node, UNION_ALTERNATIVES)]
         return " UNION ".join(alts)
     raise NotImplementedError(
         f"starlayer.sparql.sqe: cannot render WHERE-clause element {node!r} - "
@@ -439,7 +440,7 @@ def _is_multi(node, graph) -> bool:
 
 
 def _args(node, graph) -> list:
-    return list(graph.items(graph.value(node, SPEXPR.args)))
+    return _children(graph, node, SPEXPR.args)
 
 
 def _path_text(node, graph: Any, prefixes: dict) -> str:

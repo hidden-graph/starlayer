@@ -9,12 +9,13 @@ had no rendering for aggregates, EXISTS bodies, the SPARQL 1.2 builtins or unary
 from __future__ import annotations
 
 import pyoxigraph as ox
+from starlayer.graph.ordinals import ordered_items
 
 from .. import _oxterms as T
 from .._oxterms import RDF
-from ..vocab import PY_STR_DATATYPE, VARIABLE_DATATYPE
+from ..vocab import PY_STR_DATATYPE, SPEXPR, VARIABLE_DATATYPE
 from ..expr_families import _EXPR_NODE_FAMILY
-from .vocab import TRIPLE_TERM, WHERE
+from .vocab import TRIPLE_TERM
 from .vocab import TRIPLE_PATTERN_OBJECT as SQE_OBJECT
 from .vocab import TRIPLE_PATTERN_PREDICATE as SQE_PREDICATE
 from .vocab import TRIPLE_PATTERN_SUBJECT as SQE_SUBJECT
@@ -55,10 +56,9 @@ def _type_names(node, graph) -> set:
     return {_local(t) for t in graph.objects(node, RDF.type)}
 
 
-def _list_items(node, graph) -> list:
-    if node is None or node == RDF.nil:
-        return []
-    return list(graph.items(node))
+def _children(node, graph, prop) -> list:
+    """The ordered children of ``node`` for ``prop`` (``graph/ordinals.py``): none is an empty list, a tie or a missing ordinal a ``FormatError``."""
+    return ordered_items(graph, node, SPEXPR[prop])
 
 
 def _is_plain_string(value) -> bool:
@@ -173,7 +173,7 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
         from .to_text import _where_group_text
 
         keyword = "NOT EXISTS" if "NotExists" in names else "EXISTS"
-        return f"{keyword} {_where_group_text(graph.value(node, WHERE), graph, prefixes)}"
+        return f"{keyword} {_where_group_text(node, graph, prefixes)}"
 
     # a blank node used directly as a term (no recognized expression type)
     if not names or names <= {"Resource"}:
@@ -181,18 +181,18 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
 
     if "ConditionalOrExpression" in names or "ConditionalAndExpression" in names:
         joiner = " || " if "ConditionalOrExpression" in names else " && "
-        return joiner.join([sub("expr")] + [_wrapped(o, graph, prefixes) for o in _list_items(props.get("other"), graph)])
+        return joiner.join([sub("expr")] + [_wrapped(o, graph, prefixes) for o in _children(node, graph, "other")])
     if "RelationalExpression" in names:
         op = props["op"].value
         if op in ("IN", "NOT IN"):
-            right = "(" + ", ".join(expr_text(o, graph, prefixes) for o in _list_items(props.get("other"), graph)) + ")"
+            right = "(" + ", ".join(expr_text(o, graph, prefixes) for o in _children(node, graph, "other")) + ")"
         else:
             right = sub("other")
         return f"{sub('expr')} {op} {right}"
     if "AdditiveExpression" in names or "MultiplicativeExpression" in names:
         text = sub("expr")
-        ops = _list_items(props.get("op"), graph)
-        others = _list_items(props.get("other"), graph)
+        ops = _children(node, graph, "op")
+        others = _children(node, graph, "other")
         for op, other in zip(ops, others, strict=False):
             text += f" {op.value} {_wrapped(other, graph, prefixes)}"
         return text
@@ -213,7 +213,7 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
 
     if "FunctionCall" in names:
         distinct = "DISTINCT " if "distinct" in props else ""
-        args = ", ".join(expr_text(a, graph, prefixes) for a in _list_items(props.get("args"), graph))
+        args = ", ".join(expr_text(a, graph, prefixes) for a in _children(node, graph, "args"))
         return f"{_abbreviate(T.iri_text(props['iri']), prefixes)}({distinct}{args})"
 
     for keyword in names & _AGGREGATES:
@@ -230,7 +230,7 @@ def expr_text(node, graph, prefixes: dict | None = None) -> str:
         if base == "BNODE":
             return _call("BNODE", [opt("arg")])
         if base in _LIST_ARG:
-            return _call(base, [expr_text(a, graph, prefixes) for a in _list_items(props.get("args"), graph)])
+            return _call(base, [expr_text(a, graph, prefixes) for a in _children(node, graph, "args")])
         if base in _TWO_ARG:
             return _call(base, [sub("arg1"), sub("arg2")])
         if base == "IF":
