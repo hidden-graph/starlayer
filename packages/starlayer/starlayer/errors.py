@@ -25,7 +25,9 @@ The tree::
 * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
-* ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
+* ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported. The message of this kind
+  always starts "internal error (a bug in StarLayer, please report it at <ISSUES_URL>): " (added once, in ``ExecutionError``, never
+  at a raise site) and ``report_url`` is that URL (``None`` for every other kind).
 * ``"timeout"``: an OWL-DL reasoning call (either engine) did not finish within its wall-clock budget and was killed.
 * ``"inconsistent"``: the OWL-DL reasoner found the data logically inconsistent under OWL 2 DL semantics.
 * ``"query"``: the SPARQL engine (Oxigraph) failed while evaluating a query or update (its ``RuntimeError``), for text that parsed.
@@ -60,6 +62,10 @@ object does not have.
 from __future__ import annotations
 
 from typing import Any
+
+#: Where a bug in StarLayer is reported; ``ExecutionError.report_url`` is this for kind ``"internal"``, so an application built on StarLayer can show it.
+ISSUES_URL = "https://github.com/hidden-graph/starlayer/issues"
+_INTERNAL_MARK = f"internal error (a bug in StarLayer, please report it at {ISSUES_URL}): "
 
 
 class StarLayerError(Exception):
@@ -121,9 +127,16 @@ class ExecutionError(StarLayerError):
     def __init__(self, message: str, *, kind: str, context: str | None = None) -> None:
         if kind not in self.KINDS:
             raise ValueError(f"unknown ExecutionError kind {kind!r}; one of {', '.join(self.KINDS)}")
+        if kind == "internal" and _INTERNAL_MARK not in message:  # once: a re-raised or rebuilt error already has it somewhere in its text
+            message = _INTERNAL_MARK + message
         super().__init__(message)
         self.kind = kind
         self.context = context
+
+    @property
+    def report_url(self) -> str | None:
+        """``ISSUES_URL`` for kind ``"internal"`` (a bug in StarLayer: the message says so and an application can show the link), else ``None``."""
+        return ISSUES_URL if self.kind == "internal" else None
 
     def __reduce__(self) -> Any:  # the keyword-only ``kind`` and ``context`` must survive pickle and copy
         return (_rebuild_execution_error, (self.args[0] if self.args else "", self.kind, self.context))

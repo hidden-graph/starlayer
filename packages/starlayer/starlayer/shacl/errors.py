@@ -21,7 +21,7 @@ shapes graph does not catch it. One class; its ``kind`` attribute says what fail
 * ``"nesting"``: the validation path or node expressions nest deeper than the limit (a cyclic expression, a recursive function).
 * ``"recursion"``: a shape reaches itself on a focus node through ``sh:not`` (a cycle in the data).
 * ``"constraint-query"``: a ``sh:sparql`` constraint query reported ``?failure true``.
-* ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.
+* ``"internal"``: the engine failed an assertion about its own result, a bug in StarLayer to be reported.  The message starts "internal error (a bug in StarLayer, please report it at ...)" and ``report_url`` is the issues URL.
 * ``"limit"``: ``max_iterations`` or ``max_triples`` of the rules was exceeded (a size cap of the library, as the RDFC-1.0 cap).
 
 The kinds ``"timeout"``, ``"inconsistent"`` and ``"inference"`` belong to OWL-DL reasoning (``starlayer-reasoning``, see

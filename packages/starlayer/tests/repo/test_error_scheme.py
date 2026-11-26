@@ -119,7 +119,8 @@ def test_an_execution_error_survives_pickle_and_copy(kind):
     error = ExecutionError("it failed", kind=kind, context="sh:rule ex:R1")
     for again in _roundtrips(error):
         assert type(again) is ExecutionError
-        assert (str(again), again.kind, again.context) == ("it failed", kind, "sh:rule ex:R1")
+        assert (str(again), again.kind, again.context) == (str(error), kind, "sh:rule ex:R1")
+        assert again.args == error.args and again.report_url == error.report_url
     assert _roundtrips(ExecutionError("no place", kind=kind))[0].context is None
 
 
@@ -234,3 +235,18 @@ def test_endpoint_error_is_the_one_library_error_that_stays_an_os_error():
 
     assert EndpointError.__bases__ == (StarLayerError, OSError)
     assert EndpointError("down", 503).status == 503
+
+
+def test_an_internal_error_says_it_is_a_bug_and_where_to_report_it_once():
+    from starlayer.errors import ISSUES_URL
+
+    assert ISSUES_URL == "https://github.com/hidden-graph/starlayer/issues"
+    error = ExecutionError("the invariant broke", kind="internal", context="x")
+    assert str(error) == f"internal error (a bug in StarLayer, please report it at {ISSUES_URL}): the invariant broke"
+    assert error.args == (str(error),) and error.report_url == ISSUES_URL
+    assert str(ExecutionError(str(error), kind="internal")) == str(error)  # no double prefix when wrapped or rebuilt
+    for again in _roundtrips(error):
+        assert str(again) == str(error) and again.report_url == ISSUES_URL
+    other = ExecutionError("a rule failed", kind="rule")
+    assert str(other) == "a rule failed" and other.report_url is None
+    assert all(ExecutionError("m", kind=k).report_url is None for k in ExecutionError.KINDS if k != "internal")
