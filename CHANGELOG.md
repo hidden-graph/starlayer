@@ -14,11 +14,13 @@ Changes from the error-scheme review of 2026-11-26. Several of them change what 
 - **Valid input the library cannot handle is `unsupported`** (it was `ValueError`): `relevant_subgraph` given a `DESCRIBE` or a `SERVICE` query, writing a blank node that came from an endpoint, the `to_rdf11` direction policy `"error"`, and a triple term written as JSON-LD (it was an `OSError`).
 - **A malformed rule body element** (a `RuleSet` built by hand) is `FormatError` kind `srl`.
 - **A call on a closed `Materialization`** is `ValueError`.
+- **One import rule on every path.** A graph, shapes graph or rule set that declares imports must resolve them or raise `ExecutionError` kind `import` (`error.unresolved` lists the IRIs). An import is satisfied when its IRI is a subject of the graph after resolution (present, a built-in registry ontology, loaded, or the `owl:versionIRI` of a present ontology; for SRL, when the loader produced a rule set). `StarLayerGraph.resolve_imports()` no longer skips an import with no loader or one the loader returns `None` for, and a loader that raises is wrapped (the original is `__cause__`); SHACL raises `ExecutionError` kind `import` (it was `ShapeCompileError`), no longer skips an import the loader returns `None` for, and also resolves `ont_graph`; `infer()` and `query(entailment=)` with an OWL regime raise for unresolved imports; `RuleSet.plan()` without a loader raises for a rule set with `IMPORTS`. `ignore_imports=True` (new on `resolve_imports()`, `infer()`, `query()`, `parse_ruleset()` and the `RuleSet` methods) loads and checks nothing.
 - **An `internal` error says so.** Its message starts "internal error (a bug in StarLayer, please report it at <address>)", and `error.report_url` holds the address.
 
 ### Added
 
 - `ISSUES_URL` and `ExecutionError.report_url` in `starlayer.errors`.
+- `starlayer.graph.unresolved_imports(graph)`, `ExecutionError.unresolved`, `imports_loader=` on `infer()` and `query()`.
 
 ## 0.2.0
 

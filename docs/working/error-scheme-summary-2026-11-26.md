@@ -21,34 +21,36 @@ One class and a `kind`, never a class per case. The class and kind name the caus
 | `FormatError` kind | the malformed thing |
 |---|---|
 | `sparql` | SPARQL query or update text, an `sqe:` tree, a `VERSION` declaration (also a query handed to the entailment rewrite that is not a query) |
-| `srl` | SRL text, an `srl:` tree, a bad `DATA` block, an imported text that is not a rule set, a §4.2 breach found when running |
+| `srl` | SRL text, an `srl:` tree, a bad `DATA` block, an imported text that is not a rule set, a §4.2 breach found when running, a hand-built rule set holding something that is not a body element, a goal pattern whose predicate SRL does not allow |
 | `rdf` | an RDF document (`parse()`: `line`, `col` from the parser), an `rdf:List`, the PropositionForm encoding, an ordinal tie in a `tree:ord` tree |
-| `term` | term text: IRI, language tag, CURIE, a lexical form for its datatype, `parse_term`, a nested triple term, an rdflib term Oxigraph rejects |
+(`term` was merged into `rdf` on 2026-11-26 (Q10): the `rdf` row also covers term text: IRI, language tag, CURIE, a lexical form for its datatype, `parse_term`, a nested triple term, an rdflib term Oxigraph rejects; `context` says it is a term.)
 | `manchester` | Manchester Syntax text, a `manch:` tree, a SWRL `Rule:` frame |
 | `owl` | RDF that is not valid OWL when written as Manchester |
 
 | `ExecutionError` kind | what failed |
 |---|---|
-| `rule` | a rule failed or the rule set as a whole (unorderable; `max_iterations`, `max_triples`); also a call on a closed `Materialization` |
+| `rule` | a rule failed or the rule set as a whole (unorderable, a foreign exception out of a rule's query) |
 | `expression` | a node expression cannot be evaluated |
-| `nesting` | a depth limit (path, expressions, query text, tree, Manchester, entailment rewrite) |
+(`nesting` was merged into `limit` on 2026-11-26 (Q9): a depth limit of the path, expressions, query text, tree, Manchester or entailment rewrite is `limit`, `context` says what was too deep.)
 | `recursion` | a shape reaches itself through `sh:not` |
 | `constraint-query` | a `sh:sparql` query reported `?failure true` |
-| `internal` | an impossible state: a bug in StarLayer, to be reported |
+| `internal` | an impossible state: a bug in StarLayer, to be reported; the message starts "internal error (a bug in StarLayer, please report it at https://github.com/hidden-graph/starlayer/issues)" and `error.report_url` is that URL (Q7) |
 | `timeout`, `inconsistent`, `inference` | OWL-DL reasoning: wall-clock budget; data inconsistent under OWL 2 DL; the reasoner could not run or died |
 | `query` | Oxigraph failed to evaluate a query or update whose text parsed |
-| `import` | an SRL `IMPORTS` document could not be loaded, or the imports were never resolved |
-| `unsupported` | well-formed input the library cannot represent, render or rewrite (Manchester serializer, `sqe:`/SRL text rendering, entailment rewrite, `initBindings` text scan) |
-| `limit` | a size or complexity cap of the library (RDFC-1.0 symmetric blank-node structure) |
+| `import` | a declared import is not resolved, on every path (`owl:imports` of a graph, shapes graph or ontology graph, SRL `IMPORTS`): no loader, a loader that returned nothing or a graph without the IRI, or a loader that raised (wrapped); `error.unresolved` lists the IRIs |
+| `unsupported` | valid input the library or the target notation cannot handle, nobody's mistake (Manchester serializer, `sqe:`/SRL text rendering, entailment rewrite, `initBindings` text scan, an entailment name that is not a registered regime, `relevant_subgraph` with DESCRIBE or SERVICE, an endpoint-origin blank node, direction policy `"error"`) |
+| `limit` | a size or complexity cap of the library (RDFC-1.0 symmetric blank-node structure; the SHACL `max_iterations` and `max_triples`) |
 
-When to use which:
+When to use which (the ladder the maintainer decided on 2026-11-26): (1) the wrong Python type is `TypeError`; (2) a thing in a defined format (text, document, tree, term, rule set) whose content cannot be read is `FormatError`, even when it is an argument; a parsed value is `FormatError`, a chosen or combined one `ValueError` (a bad direction passed to `literal()` is `ValueError`, the same text in a parsed document is `FormatError`); (3) a parameter or object the call cannot use as it stands (a value outside the choices the call defines, contradictory options, a wrong target, an object in a state the call refuses such as a closed `Materialization`) is `ValueError`; otherwise the arguments are fine and the work could not be done: `ExecutionError` by cause (`unsupported`: valid input nobody did wrong; `internal`: the library's own bug; `limit`: a cap).
 
-- A bad argument at the entry of a public call (value, type, combination, a graph or term this object refuses): plain `ValueError` / `TypeError`. Test: it is fixed by changing the argument.
+- A bad argument at the entry of a public call (value, combination, a graph or term this object refuses): plain `ValueError`; a wrong Python type: `TypeError`. Test: it is fixed by changing the argument.
 - A missing optional package: `ImportError`. A wrapper method the object does not have: `NotImplementedError`.
 - A document, text, tree or term that is malformed: `FormatError`. A shapes graph that is wrong: `ShapeError`.
 - Everything that failed while running, or well-formed input the library cannot handle: `ExecutionError`, kind by cause.
 - An engine exception (pyoxigraph `SyntaxError`, `RuntimeError`) is converted once, at `parse()`, `query()` and `update()`.
 - A catch clause names what it guards against; an `except ExecutionError` that handles some kinds calls `only_kind(error, ...)` first.
+
+**Later decisions of 2026-11-26 (Q7 to Q10, see the decisions log):** Q7 internal errors say they are a bug and give `report_url`; Q8 the JSON-LD writer's `OSError` for a triple term is `ExecutionError` kind `unsupported`, context `JSON-LD serialize` (other file and OS errors unchanged); Q9 `nesting` is merged into `limit`; Q10 `term` is merged into `rdf`.
 
 ## (b) Every old class
 
@@ -82,7 +84,7 @@ Stage 0 (de21b3a7): `StarLayerError` is new. `ShapeError`, `ShapeCompileError`, 
 | `StarLayerFidelityWarning`, `_NotComputable`, `_InvalidInstance` | - | kept | A warning, and private control flow caught in its module. |
 | 23 other raise sites (render gaps, internal states, a closed object) | 6 | see (b2) | By cause. |
 
-(b2) Stage 6 builtin raises converted: 7 `NotImplementedError` render gaps in `sqe/to_text.py`, `sqe/expr_text.py` and the unmodelled WHERE element in `parse_sparql.py`, plus 3 in `srl.py`, all `ExecutionError` kind `unsupported`; the unrecognised rule body element (`srl_eval.py`, `srl_semantic_checks.py`, `TypeError`) and two impossible states (`pretty.py` `AssertionError`, `endpoint._term` `ValueError`), all kind `internal`; `ValueError("this Materialization is closed")` kind `rule`; "could not find the query's WHERE group" kind `unsupported`; an unknown entailment regime `NotImplementedError` to `ValueError`.
+(b2) Stage 6 builtin raises converted: 7 `NotImplementedError` render gaps in `sqe/to_text.py`, `sqe/expr_text.py` and the unmodelled WHERE element in `parse_sparql.py`, plus 3 in `srl.py`, all `ExecutionError` kind `unsupported`; the unrecognised rule body element (`srl_eval.py`, `srl_semantic_checks.py`, `TypeError`) and two impossible states (`pretty.py` `AssertionError`, `endpoint._term` `ValueError`), all kind `internal`; `ValueError("this Materialization is closed")` kind `rule`. (Review of 2026-11-26 changed three of these: the five body-element sites, the three render gaps in `srl.py` and the two `internal` ones, are now `FormatError` kind `srl`, context `rule body element`; the closed `Materialization` is a plain `ValueError` again; see "Review decisions Q1-Q6" in the decisions log.) "could not find the query's WHERE group" kind `unsupported`; an unknown entailment regime `NotImplementedError` to `ValueError`.
 
 Still to convert (not done, the files belong to the concurrent Manchester vocabulary work): 10 `AssertionError("unhandled ... tag/kind")` in `graph/manchester/parser.py` (2), `graph/manchester/serializer.py` (2), `starontology/manchester/__init__.py` (6): kind `internal`, one mechanical edit (a `re.sub` of `raise AssertionError(f'unhandled ...')` to `raise ExecutionError(f'unhandled ...', kind="internal", context="Manchester parser")`; the three files already import `ExecutionError`).
 
@@ -91,7 +93,7 @@ Still to convert (not done, the files belong to the concurrent Manchester vocabu
 The audit (an `ast` walk of the package, the reasoning package and `tools/`) leaves 127 `ValueError`, 53 `TypeError`, 18 `AttributeError`, 7 `KeyError`, 11 `NotImplementedError`, 6 `ImportError`, 2 `StopIteration` and the 10 Manchester `AssertionError`. Each group:
 
 - **A bad argument at a public entry** (the large majority): unknown `format` / `rdf_version` / `bnode_labels` / `mode` / `recompute` / `role` / `per` / `engine` / `timeout` combinations, `parse()` with no or two sources, wrong-typed graphs (`TypeError` naming `from_rdflib`), `literal()` with `lang` and a datatype or a `direction` without `lang`, `bind()` / pretty-printer prefix checks, `derive_shape` / `candidate_values` / `select_widgets` / `form_model` arguments, `align_blank_nodes`, `rdfc` algorithm names, `OrderedItems` index, codekg `queries.py`, `notebook_links.py`, `symbol_index.py`. Fixed by changing the argument.
-- **A call refused by this object**, also fixed by changing what you pass: `StarLayerGraph` writing a quad of another graph, `update()` naming another graph or scoped to a blank-node graph (`update_scope.py`), `EndpointBackedStore` clear/add of another graph, writing a blank node that came from the endpoint, `relevant_subgraph` given a DESCRIBE or a SERVICE query, `to_rdf11` direction policy `"error"`, a named-graph dataset into a one-graph format, `pretty` of a dataset, `value()` finding more than one match (step C), "the document has named graphs; parse it into a StarLayerDataset" (string-matched on Oxigraph's message, `core.py`), "the graph holds no / already holds a `manch:OntologyDocument`", `value_check` literal on an inverse path, unknown entailment regime.
+- **A call refused by this object**, also fixed by changing what you pass: `StarLayerGraph` writing a quad of another graph, `update()` naming another graph or scoped to a blank-node graph (`update_scope.py`), `EndpointBackedStore` clear/add of another graph, a call on a closed `Materialization`, a named-graph dataset into a one-graph format, `pretty` of a dataset, `value()` finding more than one match (step C), "the document has named graphs; parse it into a StarLayerDataset" (string-matched on Oxigraph's message, `core.py`), "the graph holds no / already holds a `manch:OntologyDocument`", `value_check` literal on an inverse path. (Moved to `unsupported` on 2026-11-26: writing a blank node that came from the endpoint, `relevant_subgraph` given a DESCRIBE or a SERVICE query, `to_rdf11` direction policy `"error"`, an unregistered entailment name.)
 - **`NotImplementedError` (11)**: the wrapper methods that do not exist on this object: `endpoint.py` 3, `execution/run.py` 4 (a prepared query object, initBindings with a blank node), `core.py` 4 (`Graph` protocol stubs). `check.py` catches them with `ValueError` for the engine check.
 - **`ImportError` (6)**: missing `rdflib`, `owlready2`, rustdl, `starlayer-reasoning`, an old pyoxigraph.
 - **`AttributeError`, `KeyError`, `StopIteration`**: `__getattr__` of modules and lazy objects, `Result.__getitem__`, `qnames.compute_qname(generate=False)` ("no prefix is bound"), the ontology registry lookup, `TreeIndex` and detached iterators, `codekg` lookups.
@@ -106,26 +108,26 @@ The audit (an `ast` walk of the package, the reasoning package and `tools/`) lea
 4. OWL-DL reasoning: `ExecutionError` kinds `inconsistent`, `timeout`, `inference`; a missing `owlready2` is `ImportError`, not `RuntimeError`; a crashed reasoner is no longer reported as a timeout.
 5. SRL: an unorderable rule set is `ExecutionError` kind `rule`; an unresolved or unloadable import is kind `import`; text, tree, `DATA` and §4.2 problems are `FormatError` kind `srl`; `parse_ruleset` does not validate (earlier change).
 6. Manchester: `FormatError` kind `manchester` / `owl`; the module `starlayer.graph.manchester.errors` is gone; a graph Manchester cannot write is `ExecutionError` kind `unsupported`.
-7. Unknown `entailment=` value: `ValueError` (was `NotImplementedError`). A query-time entailment with no exact rewrite: `ExecutionError` kind `unsupported`.
+7. An `entailment=` name that is not a registered regime (text or IRI; D-Entailment included): `ExecutionError` kind `unsupported`, context `entailment regime`, the message lists the regimes and the closest name (was `NotImplementedError`); a value that is neither text nor an IRI is `TypeError`; `ValueError` stays for an empty collection, OWL-Direct combined with another regime, `engine=`/`timeout=` without OWL-Direct, a bad `recompute` or `engine`. A query-time entailment with no exact rewrite: `ExecutionError` kind `unsupported`.
 8. RDFC-1.0 symmetric structure: `ExecutionError` kind `limit` (was `RuntimeError`); `rdfc.CanonicalizationComplexityError` is no longer importable.
 9. `sqe_tree_to_text` and the SRL renderers raise `ExecutionError` kind `unsupported` where they raised `NotImplementedError`; `sqe_validate()` now reports such a tree instead of raising.
-10. A call on a closed `Materialization`: `ExecutionError` kind `rule` (was `ValueError`).
+10. A call on a closed `Materialization`: `ValueError`, as before the scheme. `max_iterations` and `max_triples` failures: `ExecutionError` kind `limit` (was `rule`). `relevant_subgraph` with DESCRIBE or SERVICE, an endpoint-origin blank node written back, and `export_rdf11(direction_policy="error")`: `ExecutionError` kind `unsupported` (were `ValueError`). A hand-built rule set with something that is not a body element, and a goal pattern whose predicate is a literal, blank node or triple term: `FormatError` kind `srl`.
 11. `EndpointError` is also a `StarLayerError`.
 12. Earlier, outside the stages (bd2fd7c0): `meta_validate`, `sqe_validate`, `srl_validate`, `manchester_validate` return a `ValidationReport`, not a tuple.
 13. `except StarLayerError` is available as one catch-all.
 
 ## (e) Open questions and judgment calls to review
 
-1. **SHACL caps.** `max_iterations` / `max_triples` failures stay kind `rule`; the RDFC-1.0 cap is `limit`. The plan proposed moving the SHACL two to `limit` (same cause, one kind). Cost: about 12 SHACL assertions, guides 05.02 and 05.06, the `errors.py` docstring.
-2. **Term text as an argument** (stage 4): `literal()` / `graph_name()` / `expand_curie` with an invalid IRI or tag are `FormatError` kind `term`, not `ValueError`, so code that takes text from a person catches one class. Alternative: `ValueError` for every argument.
-3. **Unknown entailment regime as `ValueError`** (stage 6): it is an argument value fixed by changing the argument; the 03.04 guide called it "recognized but not implemented" (`NotImplementedError`). Alternative: `ExecutionError` `unsupported`.
-4. **The test "fixed by changing the argument"** decides `ValueError` (refused for this object) against `unsupported` (inside a document or tree). A reviewer may prefer `unsupported` for `relevant_subgraph` (DESCRIBE, SERVICE), the endpoint blank-node refusal and `interop` direction policy `"error"`; I kept `ValueError` for them.
-5. **`unsupported` versus `internal`** for `srl.py` "no encoding for body element": I followed the plan (`unsupported`); `internal` is arguable because `BodyElement` is exhaustive.
-6. **`Materialization` closed = kind `rule`.** No new kind for one site; "rule" is the closest. Alternative: `ValueError` kept.
+1. **SHACL caps.** DECIDED 2026-11-26 (Q1): `max_iterations` / `max_triples` failures are kind `limit`, as the RDFC-1.0 cap; `timeout` stays its own kind.
+2. **Term text as an argument** (stage 4). DECIDED 2026-11-26 (Q2): term text given as an argument stays `FormatError` kind `term`; a choice (a direction) stays `ValueError`; pinned by a test.
+3. **Unknown entailment regime.** DECIDED 2026-11-26 (Q3): `ExecutionError` kind `unsupported`. Open: a `sh:entailment` in a shapes graph that names no registered regime is still `ShapeCompileError` (`declared_regimes`), because the shapes graph is the wrong thing; say if it should be `unsupported` too.
+4. **The test "fixed by changing the argument".** DECIDED 2026-11-26 (Q4): valid input the library cannot handle is `unsupported`; a value outside a closed choice, contradictory options or a wrong target stay `ValueError`. Changed: `relevant_subgraph` (DESCRIBE, SERVICE), the endpoint blank-node refusal, `interop` direction policy `"error"`. Kept: `update()` naming another graph, blank-node-graph scoping, a quad of another graph, `EndpointBackedStore` clear/add of another graph.
+5. **An unrecognised rule body element.** DECIDED 2026-11-26 (Q5): `FormatError` kind `srl`, context `rule body element` (a rule set built or edited by hand; the parser cannot produce one), at all five sites.
+6. **`Materialization` closed.** DECIDED 2026-11-26 (Q6): plain `ValueError`.
 7. **`internal` for guard states** (pretty writer, endpoint skolemization): reported as a bug in StarLayer; no `assert`.
 8. **`FileNotFoundError` and Oxigraph's serialize `OSError`** are not wrapped.
 9. **Deep nesting is `ExecutionError` `nesting`, not `FormatError`** (plan question 9): a caller who catches `FormatError` for a hostile query misses it.
-10. **Kinds `manchester` / `owl`, `rdf` / `term`, `import`**: could merge; `import` has three sites.
+10. **Kinds `manchester` / `owl`, `rdf` / `term`, `import`**: could merge; `import` now serves every import path (see section (h)).
 11. **`EndpointError` has two bases**; the alternative was `ExecutionError` kind `endpoint` plus a `status`.
 12. **Free-text `context`.** Context strings are not a registry; a reader can only match on text.
 13. **Generated API docs** (`docs/generated/api-*.generated.md`) still name `CanonicalizationComplexityError`; regenerate with `scripts/generate_api_docs.py` in its own commit (AGENTS.md: generated files separately). I did not.
@@ -197,3 +199,14 @@ All in `src/graph_workbench/_starlayer.py` unless stated:
 5. **`edits.py` ~183, `nodeexpr.py` ~291, `web/app.py` ~1466 and ~1795** (`except ValueError` around `sl.parse_term(...)`): no change once item 4 is made, because `sl.parse_term` is the workbench's own wrapper and keeps raising `ValueError`. (They break only if the wrapper is changed to let `FormatError` through.) The same holds for `edits.py` ~168 (`sl.expand_name`, the workbench's own `ValueError`) and `evaluation.py` ~119 (`sl.walk_path`, the workbench's own `NotImplementedError`).
 6. **`tests/test_paths.py` line 83**: `with pytest.raises(ValueError):` (comment "a ShapeError, which is a ValueError") becomes `with pytest.raises(sl.ShapeError):` with the comment "StarLayer refuses with a ShapeError, which is not a ValueError".
 7. **Nothing else found.** No workbench file names a removed class (grepped for all 20 names); the `except Exception` clauses with a stated reason (about 25) work unchanged with `FormatError` / `ExecutionError` (they show `str(error)`); no `except SyntaxError` or `except RuntimeError` exists; `tests/test_shapes_tab.py:5055` and `tests/test_forms.py` catch the workbench's own `ValueError`.
+
+## (h) Imports: one rule on every path (2026-11-26, maintainer decision)
+
+A graph, shapes graph or rule set that declares imports must resolve them or raise `ExecutionError` kind `import` (`error.unresolved`: the IRIs; `context` `owl:imports <iri>`). An import is satisfied when its IRI is a subject of the graph after resolution (present, a built-in registry ontology, or loaded; the `owl:versionIRI` of a present ontology counts; for SRL, when the loader produced a rule set). No loader, a loader that returns `None` or a graph without the IRI: the error (no silent skip). A loader that raises: wrapped, the original is `__cause__`. `ignore_imports=True` loads and checks nothing. One implementation, `graph/imports.py::resolve_or_raise`; `starlayer.graph.unresolved_imports(graph)` lets an application load what is missing and call again.
+
+Applied to: `StarLayerGraph.resolve_imports()` (`loader=`, new `ignore_imports=`), SHACL `validate()`, `validate_each()`, `apply_rules()` and `StarShaclProcessor` for the shapes graph and `ont_graph` (`shapes_graph_loader=`; was `ShapeCompileError` with no loader and a skip for `None`), SRL `resolve_imports()`, `parse_ruleset()`, `infer()`, `query()`, `plan()`, `materialize()` (`imports_loader=`, new `ignore_imports=`), and `infer()` / `query(entailment=)` for the OWL regimes (new `imports_loader=`, `ignore_imports=`). Not applied (listed in the decisions log): the data graph of `validate()`, `evaluate()`, `target_nodes()`, `extract_subgraph()`, `derive_shape()`, `meta_validate()`, `parse_ruleset()` without a loader. A non-IRI `owl:imports` object is `FormatError` kind `owl` for a graph and `ShapeCompileError` for a shapes graph.
+
+Open questions: the loader parameter has four names (`loader=`, `shapes_graph_loader=`, `imports_loader=`, SRL's positional `loader`); whether the other shapes-graph readers listed above should take a loader and resolve too; whether `plan()` without a loader should keep raising.
+
+Guide cells that describe the old import behaviour (not edited): 02.05 `eefe3036` ("An import that is already present, or that the loader cannot retrieve, is skipped": now an error; a document with no header is unresolved, not "fetched each time"); 02.05 `f1925477` (no change: the loader's graph has the header); 04.02 `a6b6c601` / `a6b6c602` (the unresolved rule set still cannot run; add that a loader that returns `None` is the same error and that `ignore_imports=True` runs the document's own rules), `a8b8c801` (add `materialize()` and `ignore_imports=`), `d9a10026` ("`plan(imports_loader=...)`": `plan()` without a loader now raises); 05.02 `e9020010` ("raises a `ShapeCompileError`" becomes `ExecutionError` kind `"import"`; a loader that returns `None` is no longer skipped; the imported graph must have the IRI as a subject) and `e9020011` (`from starlayer.shacl import ShapeCompileError` and `except ShapeCompileError` become `ExecutionError`, from `starlayer.errors`, test `error.kind == "import"`); 05.02 `c0f90001` (the settings table row for `ignore_imports`, `shapes_graph_loader`); appendix-d `a3ebda5c` and `8b73eda0` already describe the rule.
+
