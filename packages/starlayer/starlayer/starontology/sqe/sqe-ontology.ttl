@@ -303,8 +303,8 @@ sqe:GroupGraphPattern a rdfs:Class ;
     rdfs:comment "One { ... } group that is an alternative of a UNION (grammar: GroupGraphPattern); a UNION holds one per alternative in sqe:alternatives, each with its pattern elements in sqe:where. A bare { ... } outside a UNION has no node: it is a one-alternative sqe:Union." .
 
 sqe:Row a rdfs:Class ;
-    rdfs:comment "One row of a VALUES block - its terms, or sqe:undef for UNDEF, in sqe:cells, one per variable." .
+    rdfs:comment "Modelling helper (the grammar has no node for a row): one row of a VALUES block - its terms, or sqe:undef for UNDEF, in sqe:cells, one per variable." .
 
 sqe:cells a rdf:Property ;
     rdfs:domain sqe:Row ;
-    rdfs:comment "The terms of one sqe:Row, ordered (a tree:ord ordinal on each; an IRI or literal in a tree:Item)." .
+    rdfs:comment "Modelling helper: the terms of one sqe:Row, ordered (a tree:ord ordinal on each; an IRI or literal in a tree:Item)." .

@@ -371,3 +371,14 @@ def test_a_comparison_without_its_other_is_rejected():
     graph.remove((rel, SPEXPR.other, None))
     assert not _validate_shapes(graph).conforms
 
+
+
+def test_describe_with_an_empty_where_and_without_one_are_the_same_tree_and_an_empty_delete_is_no_delete():
+    a, root_a = _tree(P + "DESCRIBE ex:x WHERE { }")
+    b, root_b = _tree(P + "DESCRIBE ex:x")
+    assert sqe_tree_to_text(a, root_a) == sqe_tree_to_text(b, root_b)
+    assert rdfc10_hash(a) == rdfc10_hash(b)
+    c, root_c = _tree(P + "DELETE { } INSERT { ex:s ex:p ex:o } WHERE { ?s ex:q ?o }", update=True)
+    d, root_d = _tree(P + "INSERT { ex:s ex:p ex:o } WHERE { ?s ex:q ?o }", update=True)
+    assert rdfc10_hash(c) == rdfc10_hash(d)
+    assert sqe_tree_to_text(c, root_c) == sqe_tree_to_text(d, root_d)
