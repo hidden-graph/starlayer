@@ -486,13 +486,19 @@ An opt-in is consistent with how the report records its configuration (`include_
 3. **Decide the scope** with the rest of the report annotations: the data-graph and shapes-graph names, the configuration and the `sh:conformsToShapesGraph` link are all opt-in or conditional today, so the time should follow the same pattern.
 
 
-## Error handling in SHACL, and uniformity across StarLayer (2026-11-25)
+## Error handling in SHACL, and uniformity across StarLayer (2026-11-25, updated 2026-11-26)
 
-The SHACL errors are now classified by cause (`shacl/errors.py`): `ShapeError` (with `ShapeCompileError` and `MetaShaclError`) for a wrong shapes graph, one `ExecutionError` with a `kind` for a failed run, and a plain `ValueError` or `TypeError` only for a bad call. The rest of StarLayer has not been looked at the same way, and the two should read as one scheme.
+One scheme now covers the library (`starlayer/errors.py`, rules in `AGENTS.md`, pinned by `tests/repo/test_error_scheme.py`): the base `StarLayerError`; `ShapeError` (`ShapeCompileError`, `MetaShaclError`) for a wrong shapes graph; `FormatError` with a `kind` (`sparql`, `srl`, `rdf`, `term`, `manchester`, `owl`) for malformed text or data; `ExecutionError` with a `kind` for a failed run or input the library cannot handle; `EndpointError` (also an `OSError`) for a network failure. A plain `ValueError` or `TypeError` is only a bad argument at the entry of a public call. Classes removed by stages 1 to 6 have no alias; the summary of the whole change is `docs/working/error-scheme-summary-2026-11-26.md`.
+
+**Done**
+- Audit of the raises outside `starlayer/shacl`, and the scheme for the other subsystems (one library base, one class with a `kind` per family), written down once in `AGENTS.md` and the subsystem `CLAUDE.md` files.
+- Staged migration, each stage its own commit: the leaf module and the SHACL move (stage 0), OWL-DL reasoning (1), SPARQL text and the query/update boundary (2), SRL (3), RDF documents and terms (4), Manchester and OWL (5), the leftovers (6: RDFC-1.0 limit, entailment rewrite, `sqe:` text rendering, SRL render gaps, internal states, `EndpointError`).
+- The catch clauses outside SHACL name the failure they guard against; `only_kind` guards the clauses that take one kind of `ExecutionError`.
+- A test fails if a removed class name returns, or if a `kind` used at a raise site is not declared (or a declared kind is never raised).
 
 **To do**
-- **Audit the raises outside `starlayer/shacl`.** About 100 `ValueError` raises in `graph/`, `sparql/` and `starontology/` were left out of the SHACL audit (2026-11-25). Sort each into: a bad argument (stays a plain `ValueError` or `TypeError`), a bad document or data format (parse and format errors), or a failure while running (a query, an inference, an entailment).
-- **Decide the scheme for the other subsystems.** Whether SPARQL, the graph layer and the reasoner get their own error base (as SHACL has `ShapeError` and `ExecutionError`), or share one, and whether the `kind` idea of `ExecutionError` carries over (one class with a `kind` that a caller reads, instead of a class per case).
-- **Write down the rule once.** A plain `ValueError` is only a bad argument value at the entry of a public call. A problem found while compiling or running is a library error with a cause. The same wording in each subsystem's `CLAUDE.md` and in the guides.
-- **Align the SHACL leftovers.** `max_iterations` is not validated for type or sign, as `max_triples` now is, and its error message does not name the option, as the `max_triples` message does. `apply_rules()` options are checked in the adapter.
-- **Check the catch clauses.** The engine's `except` clauses by kind (`plan.only_kind`) are the pattern for catching a kind; the other subsystems should not catch a broad class and swallow a failure the same way (the custom-function wrapper in `sparql_support.py` did, 2026-11-25).
+- **Manchester internal states.** Ten `AssertionError("unhandled ... tag")` raises remain in `graph/manchester/parser.py` (2), `graph/manchester/serializer.py` (2) and `starontology/manchester/__init__.py` (6); by the scheme they are `ExecutionError` kind `"internal"` (left for the owner of the Manchester vocabulary work).
+- **Align the SHACL leftovers.** `max_iterations` is not validated for type or sign, as `max_triples` is, and its message does not name the option. `max_iterations` and `max_triples` failures are kind `"rule"`; the RDFC-1.0 cap is kind `"limit"`: decide whether the two SHACL caps move to `"limit"` (the same cause, two kinds today; SHACL tests and guide 05.02 / 05.06 text would change).
+- **`RuleResult.failures`** is still a `list[str]`, not structured.
+- **Guides and the workbench** still name removed classes or catch builtin classes around changed calls (the lists are in the summary).
+- **Strings that stay.** `core.py` still matches Oxigraph's message text for "the document has named graphs" (a pre-check by format would remove it); the `initBindings` text scan is a heuristic.
