@@ -1848,7 +1848,9 @@ class _Sink(list):
 
 class _Encoder:
     def __init__(self, graph: _Sink, triple_order=None):
-        from starlayer.graph import ordinals  # not at module level: starlayer.graph imports this package
+        from starlayer.graph import (
+            ordinals,  # not at module level: starlayer.graph imports this package
+        )
 
         from .sqe import vocab as v
         from .vocab import PY_STR_DATATYPE, SPEXPR, VARIABLE_DATATYPE

@@ -14,15 +14,15 @@ from __future__ import annotations
 
 import pyoxigraph as ox
 import pytest
-from starlayer.graph import isomorphic
-from starlayer.sparql._oxterms import RDF
 from starlayer.errors import FormatError
+from starlayer.graph import isomorphic
+from starlayer.graph.ordinals import ORD, ordered_items
+from starlayer.sparql._oxterms import RDF
 from starlayer.sparql.parse_sparql import (
     Node,
     parse_sparql_update,
     sparql_update_to_tree,
 )
-from starlayer.graph.ordinals import ORD, ordered_items
 from starlayer.sparql.sqe import sqe_tree_to_text, sqe_validate
 from starlayer.sparql.sqe.vocab import SQE
 from tests.sparql.parse_sparql_support import (

@@ -9,16 +9,17 @@ had no rendering for aggregates, EXISTS bodies, the SPARQL 1.2 builtins or unary
 from __future__ import annotations
 
 import pyoxigraph as ox
+
 from starlayer.graph.ordinals import ordered_items
 
 from .. import _oxterms as T
 from .._oxterms import RDF
-from ..vocab import PY_STR_DATATYPE, SPEXPR, VARIABLE_DATATYPE
 from ..expr_families import _EXPR_NODE_FAMILY
-from .vocab import TRIPLE_TERM
+from ..vocab import PY_STR_DATATYPE, SPEXPR, VARIABLE_DATATYPE
 from .vocab import TRIPLE_PATTERN_OBJECT as SQE_OBJECT
 from .vocab import TRIPLE_PATTERN_PREDICATE as SQE_PREDICATE
 from .vocab import TRIPLE_PATTERN_SUBJECT as SQE_SUBJECT
+from .vocab import TRIPLE_TERM
 
 _COMPOUND = {
     "ConditionalOrExpression",

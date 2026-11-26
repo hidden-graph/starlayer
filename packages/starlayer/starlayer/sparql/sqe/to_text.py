@@ -24,6 +24,7 @@ from __future__ import annotations
 from typing import Any
 
 import pyoxigraph as ox
+
 from starlayer.graph.ordinals import ordered_items as _children
 
 from .. import _oxterms as T
@@ -90,6 +91,7 @@ from .vocab import (
     QUADS,
     QUERY_VALUES,
     REDUCED,
+    ROW_CELLS,
     SELECT_ALL,
     SELECT_QUERY,
     SERVICE,
@@ -108,7 +110,6 @@ from .vocab import (
     UPDATE_REQUEST,
     UPDATE_TO,
     VALUES,
-    ROW_CELLS,
     VALUES_ROWS,
     VALUES_UNDEF,
     VALUES_VARS,

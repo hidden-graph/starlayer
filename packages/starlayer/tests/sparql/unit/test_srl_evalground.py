@@ -6,7 +6,12 @@ import re
 import warnings
 from pathlib import Path
 
-from starlayer.sparql.srl import parse_ruleset, ruleset_to_tree, srl_validate, tree_to_ruleset
+from starlayer.sparql.srl import (
+    parse_ruleset,
+    ruleset_to_tree,
+    srl_validate,
+    tree_to_ruleset,
+)
 from starlayer.sparql.vocab import SQE  # noqa: F401 - the package is importable
 
 PACKAGE = Path(__file__).resolve().parents[3] / "starlayer"
