@@ -349,3 +349,22 @@ Two things the checks found:
 - **The `sh:shape` target.** Every shape gets a `sh:shape` target in the plan; treating it as unknown made every rule read anything, and the first benchmark showed no gain. It reads the one predicate `sh:shape`.
 
 Checks: `tests/shacl/engine/test_rule_skipping.py` (31 tests: what a query reads, 6 cases of reading anything, the volatile functions, the template blank node; a rule run once, run every iteration when switched off, dependent rules, a class target made bigger by another rule, a subjects-of target made bigger, a recursive rule, a rule that reads anything, a condition, a rule that never terminates, a run-once rule, the source-rule records; mutations of the target reads, the conditions and the change record are caught; the `volatile` guard in `_unchanged` is never the deciding one, since in a loop that continues something has always changed since a rule last ran, and is kept as intent); the whole-tree differential `skip_check.py` (every `apply_rules` of the tests run with and without skipping: 407 calls, 794 iterations, 62 with an error: the same inferred triples modulo blank nodes, iterations, `sh:sourceRule` records and errors; the one difference was two `NOW()` timestamps of runs made at different moments).
+
+
+## Stage 5d result: shapes reached through references (2026-11-27)
+
+What was built: `executor._prefetch` is a worklist over all the top-level shapes. A node shape's property shapes get its focus nodes; a shape's `sh:node`, `sh:not`, `sh:qualifiedValueShape`, `sh:and` and `sh:xone` targets get its value nodes (the focus node itself for a node shape, the path values for a property shape); a shape reached from several places is told the union of its nodes; the `prefetch` hooks are then called once per shape. `sh:or` is not followed: it stops at the first member a value node conforms to, so the others may never be asked. A reference is followed only if `_worth_reading_ahead` says the shape it leads to, or something it leads to, has a component with a `prefetch`, so the value nodes are not worked out for nothing (a test counts `value_nodes` calls).
+
+`nested_bench.py` (a `sh:sparql` "has a street" on an address shape, 10% failing):
+
+| Where the constraint is | Before | Now |
+|---|---|---|
+| the address shape has its own target (top level) | 6.2 µs an address | 6.6 µs |
+| the address shape is reached through `sh:node`, 20,000 persons | 55.0 µs | 20.0 µs |
+| same, 100,000 persons | | 21.2 µs |
+
+The rest of the gap to the top-level figure is the work of reaching the address through the person and its property shape, and the second query for the details of a failing value node (a failing node is checked for `conforms` and then again for its `sh:detail` results; a batched node is answered from the rows both times, a node that is not batched is queried twice, as before).
+
+Checks: `tests/shacl/engine/test_sparql_nested_batching.py` (17 tests: each reference kind, `sh:or` not followed, the results of the one-by-one run, a shape reached from two parents told 13 nodes in one batch, a value shared by several nodes asked once, a shape that refers to itself, nothing worked out when there is nothing to batch, a deactivated shape, blank-node values; five mutations are caught); the whole-tree comparison (`batch_check2.py`: 5,234 batched SELECT runs, 85,922 nodes, 881 ASK pairs, no difference); the SHACL, SPARQL, ontology and graph trees pass (16,203 tests).
+
+**A correction to the `substitutions` finding of Stage 5.** It said Oxigraph's `substitutions` was 48 times faster than the `VALUES` row for an aggregate sub-select. That was for a sub-select that projects `?this`. For the usual one that does not depend on `?this` (an aggregate over all the data, joined to the node), measured in the engine (`agg_bench.py`, 3,000 nodes) the engine's per-node cost is 701 µs and `substitutions` 615 µs: the cost is computing the aggregate again for every node, which a different way of binding does not remove. Such a query cannot be batched either (a `VALUES` block with several rows inside the sub-select multiplies its counts). So there is no general gain here, and this follow-up is closed.
