@@ -558,7 +558,7 @@ class StarShaclProcessor:
       the shapes graph as well as the data graph (``rdf:type`` from the data graph only).
     - ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``: how the shapes graph is read, for ``validate()`` and
       ``apply_rules()``. On a call, ``shapes_graph_loader=None`` drops a constructor loader.
-    - ``max_iterations``: ``apply_rules()`` only (built-in: 1000).
+    - ``max_iterations``: ``apply_rules()`` only (built-in: 1000; an ``int``, not negative, zero allowed; ``None`` in the constructor is the default, ``None`` on a call is a ``TypeError``).
     - ``max_triples``: ``apply_rules()`` only (built-in: 5,000,000 inferred triples; ``None`` removes the cap).
 
     ``target_nodes()`` takes ``subclass_of_in_shapes_graph`` (its default is the constructor's value, a keyword overrides it), since
@@ -634,6 +634,8 @@ class StarShaclProcessor:
         self.meta_shapes_extra = None if meta_shapes_extra is None else tuple(meta_shapes_extra)
         self.ignore_imports = ignore_imports
         self.shapes_graph_loader = shapes_graph_loader
+        if max_iterations is not None:  # None: use the default (1000)
+            _adapter.check_max_iterations(max_iterations)
         self.max_iterations = max_iterations
         if max_triples is not _UNSET:
             _adapter.check_max_triples(max_triples)

@@ -107,7 +107,7 @@ def test_max_iterations_stays_public_with_default_1000() -> None:
     data = linear_chain(10)  # one hop per iteration
     assert inspect.signature(StarShaclProcessor).parameters["max_iterations"].default is None
     assert len(apply_rules(data, linear_shapes()).inferred_graph) > 0  # built-in 1000, converges
-    with raises_kind("limit", match="fixpoint"):
+    with raises_kind("limit", match="fixpoint within 3 iterations: raise max_iterations="):
         apply_rules(data, linear_shapes(), max_iterations=3)
     with raises_kind("limit", match="fixpoint"):
         StarShaclProcessor(linear_shapes(), max_iterations=3).apply_rules(data)
@@ -167,3 +167,29 @@ def test_max_triples_is_not_a_validate_option() -> None:
         validate(g(DATA), g(SHAPES), max_triples=5)
     with pytest.raises(TypeError, match="max_triples"):
         StarShaclProcessor(g(SHAPES)).validate(g(DATA), max_triples=5)
+
+
+@pytest.mark.parametrize("bad", ["3", 2.5, True, None])
+def test_max_iterations_must_be_an_int(bad) -> None:
+    data = linear_chain(2)
+    with pytest.raises(TypeError, match="max_iterations must be an int, not"):
+        apply_rules(data, linear_shapes(), max_iterations=bad)  # None on a call is not "unlimited"
+    with pytest.raises(TypeError, match="max_iterations must be an int, not"):
+        StarShaclProcessor(linear_shapes()).apply_rules(data, max_iterations=bad)
+    if bad is not None:
+        with pytest.raises(TypeError, match="max_iterations must be an int, not"):
+            StarShaclProcessor(linear_shapes(), max_iterations=bad)
+
+
+def test_max_iterations_negative_is_a_value_error_and_zero_is_allowed() -> None:
+    data = linear_chain(2)
+    with pytest.raises(ValueError, match="max_iterations must not be negative, not -1"):
+        apply_rules(data, linear_shapes(), max_iterations=-1)
+    with pytest.raises(ValueError, match="max_iterations must not be negative, not -1"):
+        StarShaclProcessor(linear_shapes(), max_iterations=-1)
+    with raises_kind("limit", match="fixpoint within 0 iterations"):
+        apply_rules(data, linear_shapes(), max_iterations=0)
+
+
+def test_max_iterations_none_in_the_constructor_is_the_default() -> None:
+    assert len(StarShaclProcessor(linear_shapes(), max_iterations=None).apply_rules(linear_chain(10)).inferred_graph) > 0

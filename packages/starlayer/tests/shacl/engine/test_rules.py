@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
-from starlayer.errors import ShapeError
+from starlayer.errors import ExecutionError, ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.rules import (
     InferredView,
@@ -95,6 +95,7 @@ def test_non_terminating_rule_fails() -> None:
         apply_rules(data, max_iterations=5)
     res = apply_rules(data, max_iterations=5, raise_on_failure=False)
     assert not res.ok and res.failures
+    assert all(isinstance(f, ExecutionError) and f.kind == "limit" for f in res.failures)
 
 
 def test_layers_run_in_order() -> None:

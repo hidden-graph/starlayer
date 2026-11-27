@@ -131,6 +131,15 @@ def check_max_triples(value: Any) -> None:
         raise ValueError(f"max_triples must not be negative, not {value!r}")
 
 
+def check_max_iterations(value: Any) -> None:
+    """``TypeError`` unless ``max_iterations`` is an ``int`` (``None`` is not "unlimited"; the constructor reads it as "use the
+    default"); ``ValueError`` for a negative one. Zero is allowed."""
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"max_iterations must be an int, not {value!r}")
+    if value < 0:
+        raise ValueError(f"max_iterations must not be negative, not {value!r}")
+
+
 def reject_unknown_options(kwargs: dict[str, Any]) -> None:
     """``TypeError`` for an option nobody knows (a typo, or a keyword of the validator this one replaced)."""
     _reject_internal_limits(kwargs)
@@ -433,6 +442,8 @@ def apply_rules(
 
     reject_options_for_rules(options)
     rule_limits = {name: options[name] for name in ("max_iterations", "max_triples") if name in options}
+    if "max_iterations" in rule_limits:
+        check_max_iterations(rule_limits["max_iterations"])
     if "max_triples" in rule_limits:
         check_max_triples(rule_limits["max_triples"])
     data, shapes, ont = _normalise(

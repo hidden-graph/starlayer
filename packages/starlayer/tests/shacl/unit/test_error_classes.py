@@ -6,7 +6,7 @@ check found it)."""
 from __future__ import annotations
 
 import pytest
-from starlayer.errors import StarLayerError
+from starlayer.errors import ExecutionError, StarLayerError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
     ExecutionError,
@@ -178,7 +178,8 @@ def test_a_rule_failure_recorded_without_raising_names_the_cause_in_its_message(
     from starlayer.shacl.engine.rules import apply_rules as engine_apply_rules
 
     result = engine_apply_rules(g("ex:a ex:p 1 ."), shapes, raise_on_failure=False)
-    assert not result.ok and all(isinstance(f, str) for f in result.failures) and "node expression" in result.failures[0]
+    assert not result.ok and all(isinstance(f, ExecutionError) for f in result.failures)
+    assert "node expression" in str(result.failures[0]) and result.failures[0].kind and result.failures[0].context
 
 
 def test_a_sh_values_expression_that_fails_in_a_rule_raises_like_validate():

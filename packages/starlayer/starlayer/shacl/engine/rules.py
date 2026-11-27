@@ -246,11 +246,11 @@ class Rule:
 @dataclass
 class RuleResult:
     """``inferred``: the inferred triples that remain (temporary triples removed). ``view``: data graph + ``inferred``.
-    ``failures``: the messages of failed rules (empty on success). ``iterations``: iterating passes taken."""
+    ``failures``: the errors of failed rules (``ExecutionError``, with kind and context; empty on success). ``iterations``: iterating passes taken."""
 
     inferred: frozenset[Triple]
     view: InferredView
-    failures: list[str] = field(default_factory=list)
+    failures: list[Exception] = field(default_factory=list)
     iterations: int = 0
     source_rules: tuple[tuple[Triple, Term], ...] = ()  # ``(inferred triple, rule node)``, when asked for (``sh:sourceRule``, Rules 9)
 
@@ -696,7 +696,7 @@ def apply_rules(
     run = _Run(view, plan, max_iterations, max_triples)
     if source_rules:
         run.source_rules = []
-    failures: list[str] = []
+    failures: list[Exception] = []
     try:
         nodes = all_rule_nodes(shapes) if rule_sets is None else rule_set_members(shapes, rule_sets)
         rules = [r for n in nodes if not _boolean(shapes, n, SH.deactivated) for r in [read_rule(shapes, n)]]
@@ -714,7 +714,7 @@ def apply_rules(
             while changed:
                 run.iterations += 1
                 if run.iterations > max_iterations:
-                    raise ExecutionError(f"rules did not reach a fixpoint within {max_iterations} iterations", kind="limit", context="max_iterations")
+                    raise ExecutionError(f"rules did not reach a fixpoint within {max_iterations} iterations: raise max_iterations=", kind="limit", context="max_iterations")
                 changed = False
                 for group in _groups(iterating):
                     ctx = Context(data=view, plan=plan, subclass_of_in_shapes_graph=subclass_of_in_shapes_graph)
@@ -727,7 +727,7 @@ def apply_rules(
         context = locate(shapes, exc.context) if getattr(exc, "context", None) else None
         if raise_on_failure:
             raise _renamed(exc, message, context)  # same class and kind: ShapeError for a wrong rules graph, an ExecutionError when running failed
-        failures.append(message)
+        failures.append(_renamed(exc, message, context))  # the error itself, with its kind and context
     kept = set(view.inferred)  # temporary triples are gone: a rule's record follows its triple
     recorded = tuple(dict.fromkeys((t, rule) for t, rule in (run.source_rules or ()) if t in kept))
     return RuleResult(

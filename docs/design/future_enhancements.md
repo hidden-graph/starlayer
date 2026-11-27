@@ -504,7 +504,7 @@ One scheme now covers the library (`starlayer/errors.py`, rules in `AGENTS.md`, 
 
 **To do**
 - **Manchester internal states.** Ten `AssertionError("unhandled ... tag")` raises remain in `graph/manchester/parser.py` (2), `graph/manchester/serializer.py` (2) and `starontology/manchester/__init__.py` (6); by the scheme they are `ExecutionError` kind `"internal"` (left for the owner of the Manchester vocabulary work).
-- **Align the SHACL leftovers.** `max_iterations` is not validated for type or sign, as `max_triples` is, and its message does not name the option. (The kind question is decided: `max_iterations` and `max_triples` failures are kind `"limit"` since 2026-11-26; guide 05.02 / 05.06 text still says `"rule"`.)
+- **Align the SHACL leftovers.** *Done 2026-11-26 (decision 22): `max_iterations` is validated like `max_triples` and its message names the option; decision 23: `RuleResult.failures` holds the `ExecutionError` objects.* (The kind question is decided: `max_iterations` and `max_triples` failures are kind `"limit"` since 2026-11-26; guide 05.02 / 05.06 text still says `"rule"`.)
 - **`RuleResult.failures`** is still a `list[str]`, not structured.
 - **Guides and the workbench** still name removed classes or catch builtin classes around changed calls (the lists are in the summary).
 - **Strings that stay.** `core.py` still matches Oxigraph's message text for "the document has named graphs" (a pre-check by format would remove it); the `initBindings` text scan is a heuristic.
