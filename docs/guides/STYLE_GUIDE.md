@@ -70,7 +70,12 @@ Do not use "Further Reading" as a closing-section name going forward - it was do
 
 ## 7. Tone
 
-Baseline voice is impersonal third person: "`X` does `Y`," "This covers...," "A `sh:TripleRule` builds..." — this is already the dominant voice across 20 of 21 guides and stays the house style. Second person ("you can...") is fine for a direct instruction or a warning, used sparingly, not as the dominant register of a whole guide. First-person plural ("we'll show," "we introduce") is not used — `05.04-shacl-node-expressions.ipynb` is the one current outlier using it and should be brought in line, not the model to extend.
+All documentation is written in the impersonal third person: "`X` does `Y`," "This covers...," "A `sh:TripleRule` builds...," "A caller that wants Z passes `W`." (decided 2026-11-27)
+
+- No second person: not "you," "your" or "yours," and not the imperative addressed to a reader where a statement works ("Pass `x`" in a how-to step list is fine; "you can pass `x`" is not). Name the subject instead: "the application," "a caller," "the user of the graph," "the maintainer," or the object itself.
+- No first person, singular or plural: not "I," "we," "we'll," "let's," "our."
+- This covers every guide and appendix, the `README` files, `CLAUDE.md` and `AGENTS.md`, design notes, docstrings and error messages. A quoted message or an example string that is an application's own text is not covered.
+- Warnings use the same voice: "Calling `x` before `y` raises ...," not "do not call ...".
 
 ## 8. Naming and code formatting: StarLayer, StarLayerGraph, and other identifiers
 

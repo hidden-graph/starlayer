@@ -39,6 +39,7 @@ Do not read large files into context: `tools/kg/codekg/codekg.trig` (6 MB, built
 ## Working agreements
 - Do not push, merge, publish or delete branches without being asked. Confirm before any outward-facing action.
 - Do not edit a guide notebook unless asked; describe the change and wait. If a file may be open with unsaved changes, ask the user to save first.
+- Voice (decided 2026-11-27): all documentation, comments and docstrings are impersonal third person. No "you", "your", "I", "we" or "let's"; name the subject (the caller, the application, the graph). Details in `docs/guides/STYLE_GUIDE.md` section 7.
 - Docs say what a reader needs (inputs, outputs, errors), not interesting side facts. No notes to the reader about how the doc was produced.
 - Docstrings give the "why". Do not restate what the signature, calls or overrides already show; the code KG records those.
 - Test discipline: before calling a fix done, check the new test fails without it. For SHACL behaviour the oracle is the SHACL 1.2 draft and the W3C suite (`tests/shacl/w3c_shacl12/`); for SPARQL, Oxigraph or rdflib.

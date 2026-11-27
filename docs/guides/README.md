@@ -4,7 +4,7 @@
 
 This is the single master index for every guide notebook - every notebook's own "How to run this notebook" cell links back here, rather than repeating this list in-body (see [`STYLE_GUIDE.md`](STYLE_GUIDE.md)). Update this file when a guide is added, renamed, or reordered; no other file needs to change.
 
-**Reading order**: if you're new to the project, start at the top and work down. If you already know what you're doing, jump straight to the topic you need.
+**Reading order**: a reader new to the project starts at the top and works down; a reader who already knows the project jumps straight to the topic needed.
 
 ## The guides
 
@@ -19,7 +19,7 @@ This is the single master index for every guide notebook - every notebook's own 
    - **02.08 [OWL 2 Manchester Syntax](02.08-manchester-syntax.ipynb)** - OWL 2 Manchester Syntax's English-readable notation for ontologies, via `parse()`/`serialize()` with `format="manchester"`.
 3. **[SPARQL](03.01-sparql.ipynb)** - running a query and reading its result, prefixes, `DESCRIBE`, writing results as JSON, XML, CSV, TSV or RDF (`Result.serialize`), and SPARQL Update on a graph and on a dataset.
    - **03.02 [SPARQL 1.2 in queries](03.02-sparql-12-queries.ipynb)** - triple functions (`TRIPLE`, `SUBJECT`, `isTRIPLE`), triple-term and annotation syntax in queries, language and direction functions, and the `VERSION` directive.
-   - **03.03 [Preparing, extending and checking queries](03.03-preparing-extending-checking-queries.ipynb)** - the triples an answer depends on (`relevant_subgraph`), a query prepared once (`StarQuery`), your own Python functions and aggregates (`custom_functions`), and `check_query`.
+   - **03.03 [Preparing, extending and checking queries](03.03-preparing-extending-checking-queries.ipynb)** - the triples an answer depends on (`relevant_subgraph`), a query prepared once (`StarQuery`), custom Python functions and aggregates (`custom_functions`), and `check_query`.
    - **03.04 [SPARQL entailment](03.04-sparql-entailment.ipynb)** - what's specific to `query(entailment=...)` beyond what [02.06](02.06-graphs-inferencing.ipynb) already covers per regime: caching behavior (`recompute=`) and detecting an inconsistency via `ASK`.
 4. **[SRL (SPARQL Rules)](04.01-srl-sparql-rules.ipynb)** - a Datalog-style rules language independent of SHACL: a first rule, matching several patterns, rules that build on each other, `FILTER`, negation (`NOT`), computing values (`SET`), creating nodes, and asking a question of a rule set (`query()`).
    - **04.02 [SRL: how a rule set runs](04.02-srl-running-rule-sets.ipynb)** - the evaluation plan, run-once rules, cycles and rejected rule sets, validation errors, running a rule set again, `DATA` blocks and `IMPORTS`.
@@ -42,7 +42,7 @@ This is the single master index for every guide notebook - every notebook's own 
    - **06.04 [The SHACL library registry](06.04-shacl-library-registry.ipynb)** - loading the bundled ontologies and shapes by name, validating data against them, the StarLayer profiles that tie each shapes graph to its specification, and fetching each file directly from GitHub.
 7. **Other**
    - **07.01 [Serialization formats](07.01-serialization-formats.ipynb)** - all eight RDF 1.2 formats `parse()`/`serialize()` support.
-   - **07.02 [Choosing where your data lives](07.02-backend-graph-databases.ipynb)** - an on-disk Oxigraph store, and reading a remote SPARQL endpoint from a query with `SERVICE`.
+   - **07.02 [Choosing where the data lives](07.02-backend-graph-databases.ipynb)** - an on-disk Oxigraph store, and reading a remote SPARQL endpoint from a query with `SERVICE`.
    - **07.03 [Canonical hashing and graph comparison](07.03-canonical-hashing.ipynb)** - RDFC-1.0 canonicalization/hashing and graph isomorphism.
 
 ## Appendices
