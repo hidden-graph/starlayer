@@ -38,22 +38,12 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import ExecutionError, StarLayerError
+from starlayer.errors import EndpointError, ExecutionError
 
 _RESULTS = "application/sparql-results+json"
 _ACCEPT = f"{_RESULTS}, application/n-triples;q=0.9, text/turtle;q=0.8"
 _RDF_FORMATS = {"application/n-triples": ox.RdfFormat.N_TRIPLES, "text/turtle": ox.RdfFormat.TURTLE}
 _CHUNK = 2000  # triples per INSERT DATA / DELETE DATA request
-
-
-class EndpointError(StarLayerError, OSError):
-    """The endpoint could not be reached or answered with an error status (``status`` is the HTTP status, ``None`` if there was
-    no answer)."""
-
-    def __init__(self, message: str, status: int | None = None) -> None:
-        """Carry the HTTP status of the failed request next to the message."""
-        super().__init__(message)
-        self.status = status
 
 
 class Endpoint:
@@ -90,9 +80,9 @@ class Endpoint:
             response = urllib.request.urlopen(request, timeout=self.timeout)
         except urllib.error.HTTPError as exc:
             detail = exc.read()[:200].decode(errors="replace").strip()
-            raise EndpointError(f"{url} answered HTTP {exc.code}: {detail}", exc.code) from exc
+            raise EndpointError(f"{url} answered HTTP {exc.code}: {detail}", exc.code, kind="http", context=url) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
-            raise EndpointError(f"cannot reach {url}: {getattr(exc, 'reason', exc)}") from exc
+            raise EndpointError(f"cannot reach {url}: {getattr(exc, 'reason', exc)}", kind="unreachable", context=url) from exc
         with response:
             yield response.headers.get("Content-Type", "").split(";")[0].strip(), response
 
@@ -110,7 +100,7 @@ class Endpoint:
             elif mime in _RDF_FORMATS:
                 yield (ox.Triple(q.subject, q.predicate, q.object) for q in ox.parse(stream, _RDF_FORMATS[mime]))
             else:
-                raise EndpointError(f"{self.query_url} answered with the unsupported content type {mime!r}")
+                raise EndpointError(f"{self.query_url} answered with the unsupported content type {mime!r}", kind="content-type", context=self.query_url)
 
     def query(self, text: str) -> Any:
         """Run a query: ``QuerySolutions`` for SELECT, ``QueryBoolean`` for ASK, a list of ``Triple`` for CONSTRUCT / DESCRIBE (the
@@ -119,7 +109,7 @@ class Endpoint:
         if mime == _RESULTS:
             return ox.parse_query_results(io.BytesIO(body), ox.QueryResultsFormat.JSON)
         if mime not in _RDF_FORMATS:
-            raise EndpointError(f"{self.query_url} answered with the unsupported content type {mime!r}")
+            raise EndpointError(f"{self.query_url} answered with the unsupported content type {mime!r}", kind="content-type", context=self.query_url)
         return [ox.Triple(q.subject, q.predicate, q.object) for q in ox.parse(io.BytesIO(body), _RDF_FORMATS[mime])]
 
     def ask(self, text: str) -> bool:
@@ -127,9 +117,9 @@ class Endpoint:
         return bool(self.query(text))
 
     def update(self, text: str) -> None:
-        """Run a SPARQL Update on the endpoint; a read-only endpoint (no ``update_url``) raises ``EndpointError``."""
+        """Run a SPARQL Update on the endpoint; a read-only endpoint (no ``update_url``) raises ``ValueError``."""
         if self.update_url is None:
-            raise EndpointError("this endpoint has no update URL (it is read-only)")
+            raise ValueError("this endpoint has no update URL (it is read-only)")
         self._post(self.update_url, "application/sparql-update", "*/*", text)
 
     def pull(self, graph: Any = None) -> list[ox.Triple]:

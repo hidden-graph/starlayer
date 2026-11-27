@@ -161,7 +161,8 @@ def test_the_shape_kinds_and_the_required_valid_kind():
 
 
 def test_only_kind_works_on_the_three_classes():
-    for error in (ExecutionError("x", kind="rule"), FormatError("x", kind="sparql"), ShapeError("x", kind="compile")):
+    for error in (ExecutionError("x", kind="rule"), FormatError("x", kind="sparql"), ShapeError("x", kind="compile"),
+                  errors.EndpointError("x", kind="http")):
         only_kind(error, error.kind)
         with pytest.raises(type(error)) as caught:
             only_kind(error, "meta")
@@ -233,7 +234,7 @@ def _error_call_kinds():
             if not isinstance(node, ast.Call):
                 continue
             name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", None)
-            if name in ("ExecutionError", "FormatError", "ShapeError"):
+            if name in ("ExecutionError", "FormatError", "ShapeError", "EndpointError"):
                 kind = next((k.value for k in node.keywords if k.arg == "kind"), None)
                 literal = kind.value if isinstance(kind, ast.Constant) and isinstance(kind.value, str) else None
                 yield path.relative_to(REPO).as_posix(), node.lineno, name, literal
@@ -242,7 +243,8 @@ def _error_call_kinds():
                     yield path.relative_to(REPO).as_posix(), node.lineno, "only_kind", arg.value if isinstance(arg, ast.Constant) else None
 
 
-@pytest.mark.parametrize("registry", [ExecutionError.KINDS, FormatError.KINDS, ShapeError.KINDS], ids=["ExecutionError", "FormatError", "ShapeError"])
+@pytest.mark.parametrize("registry", [ExecutionError.KINDS, FormatError.KINDS, ShapeError.KINDS, errors.EndpointError.KINDS],
+                         ids=["ExecutionError", "FormatError", "ShapeError", "EndpointError"])
 def test_every_kind_has_a_one_line_meaning(registry):
     """``KINDS`` is the one registry: kind -> meaning, plain strings, so iteration, ``in`` and ``', '.join`` read the names."""
     assert isinstance(registry, dict) and registry
@@ -253,7 +255,7 @@ def test_every_kind_has_a_one_line_meaning(registry):
 
 
 def test_a_kind_stays_a_plain_string_and_the_error_round_trips():
-    for cls in (ExecutionError, FormatError, ShapeError):
+    for cls in (ExecutionError, FormatError, ShapeError, errors.EndpointError):
         for kind in cls.KINDS:
             error = cls("m", kind=kind)
             assert type(error.kind) is str and error.kind == kind
@@ -262,23 +264,47 @@ def test_a_kind_stays_a_plain_string_and_the_error_round_trips():
 
 def test_every_kind_in_use_at_a_raise_site_is_declared():
     declared = {"ExecutionError": ExecutionError.KINDS, "FormatError": FormatError.KINDS, "ShapeError": ShapeError.KINDS,
-                "only_kind": {**ExecutionError.KINDS, **FormatError.KINDS, **ShapeError.KINDS}}
+                "EndpointError": errors.EndpointError.KINDS,
+                "only_kind": {**ExecutionError.KINDS, **FormatError.KINDS, **ShapeError.KINDS, **errors.EndpointError.KINDS}}
     bad = [f"{path}:{line}: {name} kind {kind!r}" for path, line, name, kind in _error_call_kinds() if kind not in declared[name]]
     assert not bad, "\n".join(bad)
 
 
 def test_every_declared_kind_is_used_somewhere():
     used = {(name, kind) for _path, _line, name, kind in _error_call_kinds() if name != "only_kind"}
-    unused = [(name, kind) for name, kinds in (("ExecutionError", ExecutionError.KINDS), ("FormatError", FormatError.KINDS), ("ShapeError", ShapeError.KINDS))
+    unused = [(name, kind) for name, kinds in (("ExecutionError", ExecutionError.KINDS), ("FormatError", FormatError.KINDS), ("ShapeError", ShapeError.KINDS),
+                                    ("EndpointError", errors.EndpointError.KINDS))
               for kind in kinds if (name, kind) not in used]
     assert not unused, f"declared but never raised: {unused}"
 
 
 def test_endpoint_error_is_the_one_library_error_that_stays_an_os_error():
     from starlayer.graph import EndpointError
+    from starlayer.graph.endpoint import EndpointError as same
 
+    assert EndpointError is same is errors.EndpointError
     assert EndpointError.__bases__ == (StarLayerError, OSError)
-    assert EndpointError("down", 503).status == 503
+    assert EndpointError("down", 503, kind="http").status == 503
+    assert not issubclass(EndpointError, ValueError) and issubclass(EndpointError, OSError)
+
+
+def test_the_endpoint_kinds_and_the_required_valid_kind():
+    assert tuple(errors.EndpointError.KINDS) == ("http", "unreachable", "content-type")
+    with pytest.raises(TypeError):
+        errors.EndpointError("no kind")  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="unknown EndpointError kind"):
+        errors.EndpointError("x", kind="nope")
+    plain = errors.EndpointError("x", kind="unreachable")
+    assert (plain.status, plain.context, plain.kind) == (None, None, "unreachable")
+
+
+@pytest.mark.parametrize("kind", errors.EndpointError.KINDS)
+def test_an_endpoint_error_survives_pickle_and_copy(kind):
+    error = errors.EndpointError("down", 503, kind=kind, context="http://example.org/q")
+    for again in _roundtrips(error):
+        assert type(again) is errors.EndpointError and isinstance(again, OSError)
+        assert (str(again), again.status, again.kind, again.context) == ("down", 503, kind, "http://example.org/q")
+    assert _roundtrips(errors.EndpointError("x", kind=kind))[0].status is None
 
 
 def test_an_internal_error_says_it_is_a_bug_and_where_to_report_it_once():

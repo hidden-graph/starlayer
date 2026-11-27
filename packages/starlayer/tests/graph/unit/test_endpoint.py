@@ -132,17 +132,19 @@ def test_the_client_returns_pyoxigraph_results(endpoint, graph_name) -> None:
 def test_a_bad_query_is_an_endpoint_error_with_the_status(endpoint) -> None:
     with pytest.raises(EndpointError) as caught:
         endpoint.query("SELEKT nonsense")
-    assert caught.value.status == 400
+    assert caught.value.status == 400 and caught.value.kind == "http" and caught.value.context == endpoint.query_url
 
 
 def test_an_unreachable_endpoint_is_an_endpoint_error() -> None:
-    with pytest.raises(EndpointError, match="cannot reach"):
+    with pytest.raises(EndpointError, match="cannot reach") as caught:
         Endpoint("http://127.0.0.1:9/query", timeout=1).query("ASK {}")
+    assert caught.value.kind == "unreachable" and caught.value.status is None and caught.value.context == "http://127.0.0.1:9/query"
 
 
-def test_a_read_only_endpoint_refuses_an_update(mock) -> None:
-    with pytest.raises(EndpointError, match="read-only"):
+def test_a_read_only_endpoint_refuses_an_update_with_a_value_error(mock) -> None:
+    with pytest.raises(ValueError, match="read-only") as caught:
         Endpoint(mock.endpoint.query_url).update("CLEAR DEFAULT")
+    assert not isinstance(caught.value, EndpointError)
 
 
 def test_basic_auth_and_headers_are_sent(mock) -> None:
@@ -379,7 +381,7 @@ def test_a_pull_that_fails_part_way_marks_the_on_disk_copy_stale_and_the_next_re
 
             def partial():
                 yield next(quads)
-                raise EndpointError("the connection dropped")
+                raise EndpointError("the connection dropped", kind="unreachable")
 
             return partial()
 
@@ -392,3 +394,11 @@ def test_a_pull_that_fails_part_way_marks_the_on_disk_copy_stale_and_the_next_re
     assert g.store._stale
     g.store.endpoint.pull_quads = real  # the endpoint is back
     assert len(g) == 2 and not g.store._stale  # the next read pulled again
+
+
+def test_an_answer_in_an_unreadable_content_type_is_an_endpoint_error_of_kind_content_type(monkeypatch) -> None:
+    client = Endpoint("http://example.org/query")
+    monkeypatch.setattr(Endpoint, "_post", lambda self, *a, **k: ("text/html", b"<html/>"))
+    with pytest.raises(EndpointError, match="unsupported content type") as caught:
+        client.query("ASK {}")
+    assert caught.value.kind == "content-type" and caught.value.context == "http://example.org/query" and caught.value.status is None

@@ -14,12 +14,12 @@ The tree::
      |                              ``report_text``, ``report_graph``, ``scope``) and ``context``
      |- ExecutionError              running failed (SHACL with a fine shapes graph, a query the engine could not evaluate, OWL-DL reasoning); has ``kind`` and ``context``
      |- FormatError                 text or data that is malformed; has ``kind``, ``context`` and the optional ``why``, ``line``, ``col``, ``pos``
-     `- EndpointError(StarLayerError, OSError)   a SPARQL endpoint could not be reached or answered with an error status; has ``status``
-                                    (``starlayer.graph.endpoint``; it stays an ``OSError`` because a network failure is an I/O error)
+     `- EndpointError(StarLayerError, OSError)   a SPARQL endpoint failed; has ``kind``, ``context`` and ``status`` (also importable from
+                                    ``starlayer.graph``; it stays an ``OSError`` because a network failure is an I/O error)
 
 ``ExecutionError`` is one class; its ``kind`` (a key of ``ExecutionError.KINDS``, which maps each kind to a one-line meaning and is the
-one list of the kinds) says what failed, and ``FormatError`` and ``ShapeError`` are one class each too, their ``kind`` a key of
-``FormatError.KINDS`` and ``ShapeError.KINDS``. Notes the
+one list of the kinds) says what failed, and ``FormatError``, ``ShapeError`` and ``EndpointError`` are one class each too, their ``kind`` a key of
+``FormatError.KINDS``, ``ShapeError.KINDS`` and ``EndpointError.KINDS``. Notes the
 one-liners cannot carry:
 
 * ``"internal"``: the message always starts "internal error (a bug in StarLayer, please report it at <ISSUES_URL>): " (added once, in
@@ -211,8 +211,39 @@ def _rebuild_format_error(message: str, kind: str, context: str | None, why: str
     return FormatError(message, kind=kind, context=context, why=why, line=line, col=col, pos=pos)
 
 
-def only_kind(error: ExecutionError | FormatError | ShapeError, *kinds: str) -> None:
-    """For an ``except ExecutionError as error`` (or ``FormatError``, ``ShapeError``) clause that handles only some kinds: returns when ``error.kind`` is one of ``kinds``
+class EndpointError(StarLayerError, OSError):
+    """A SPARQL endpoint failed: it could not be reached, answered with an error status or answered in a form StarLayer cannot read.
+    Still an ``OSError`` (a network failure is an I/O error), so ``except OSError`` keeps working; one class, like the others.
+
+    ``kind`` says what failed (a plain string, one of ``KINDS``: the mapping of every kind to its meaning). ``status`` (second
+    positional argument, default ``None``) is the HTTP status, set for kind ``"http"``. ``context`` (default ``None``) is the URL
+    involved, also in the message. Catch ``EndpointError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
+
+    #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
+    KINDS = {
+        "http": "the endpoint answered with an error status: status is the HTTP status",
+        "unreachable": "the host cannot be reached: the connection failed or timed out (status is None)",
+        "content-type": "the endpoint answered in a content type StarLayer cannot read",
+    }
+
+    def __init__(self, message: str = "", status: int | None = None, *, kind: str, context: str | None = None) -> None:
+        if kind not in self.KINDS:
+            raise ValueError(f"unknown EndpointError kind {kind!r}; one of {', '.join(self.KINDS)}")
+        super().__init__(message)
+        self.status = status
+        self.kind = kind
+        self.context = context
+
+    def __reduce__(self) -> Any:  # the keyword-only fields must survive pickle and copy
+        return (_rebuild_endpoint_error, (self.args[0] if self.args else "", self.status, self.kind, self.context))
+
+
+def _rebuild_endpoint_error(message: str, status: int | None, kind: str, context: str | None) -> EndpointError:
+    return EndpointError(message, status, kind=kind, context=context)
+
+
+def only_kind(error: ExecutionError | FormatError | ShapeError | EndpointError, *kinds: str) -> None:
+    """For an ``except ExecutionError as error`` (or ``FormatError``, ``ShapeError``, ``EndpointError``) clause that handles only some kinds: returns when ``error.kind`` is one of ``kinds``
     and raises ``error`` again otherwise, so a clause that means "no value" cannot swallow a rule, limit or recursion failure."""
     if error.kind not in kinds:
         raise error
