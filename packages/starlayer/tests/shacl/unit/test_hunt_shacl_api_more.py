@@ -56,8 +56,8 @@ def test_validate_without_shapes_graph_resolves_imports_with_loader():
     imported = "<http://e/imp> a owl:Ontology . ex:T a sh:NodeShape ; sh:targetNode ex:a ; sh:nodeKind sh:Literal ."
     data = g("ex:a ex:p 1 . <http://e/onto> a owl:Ontology ; owl:imports <http://e/imp> .")
     loader = lambda iri: g(imported)  # noqa: E731
-    assert validate(data, shapes_graph_loader=loader).conforms is False
-    assert validate(data, data, shapes_graph_loader=loader).conforms is False
+    assert validate(data, imports_loader=loader).conforms is False
+    assert validate(data, data, imports_loader=loader).conforms is False
 
 
 def test_validate_without_shapes_graph_unresolved_import_raises():
@@ -75,7 +75,7 @@ def test_used_shapes_graph_kept_when_imports_resolved_with_loader():
     loader = lambda iri: g("<http://e/imp> a owl:Ontology . ex:T a sh:NodeShape ; sh:targetNode ex:a ; sh:minCount 1 .")  # noqa: E731
     data = g("ex:a ex:p 1 .")
     used = ox.NamedNode("http://www.w3.org/ns/shacl#usedShapesGraph")
-    r = validate(data, shapes, shapes_graph_loader=loader)
+    r = validate(data, shapes, imports_loader=loader)
     assert [o for _, _, o in r.report_graph.triples((None, used, None))] == [ox.NamedNode("http://e/shapesG")]
 
 
@@ -111,11 +111,11 @@ def test_apply_rules_runs_rules_of_imported_shapes():
 
     main = g("<http://e/main> a owl:Ontology ; owl:imports <http://e/lib> .")
     d = g("ex:n a ex:C .")
-    r = apply_rules(d, main, shapes_graph_loader=lambda iri: g(_RULE))
+    r = apply_rules(d, main, imports_loader=lambda iri: g(_RULE))
     assert len(r.inferred_graph) == 1
     # the rules-then-validate path reads the imported rules too: the shape's minCount holds only because the rule ran
-    assert validate(d, main, rules=True, shapes_graph_loader=lambda iri: g(_RULE)).conforms is True
-    assert validate(d, main, rules=False, shapes_graph_loader=lambda iri: g(_RULE)).conforms is False
+    assert validate(d, main, rules=True, imports_loader=lambda iri: g(_RULE)).conforms is True
+    assert validate(d, main, rules=False, imports_loader=lambda iri: g(_RULE)).conforms is False
 
 
 # --- extract_shapes_graph(include_referenced=True) copies every shape the members name

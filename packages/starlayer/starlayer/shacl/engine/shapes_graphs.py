@@ -253,8 +253,8 @@ def _property_shape_predicates(graph: Any, prop: Any) -> set:
     return found
 
 
-def close_shape(shapes_graph: Any, shape: Any, *, shapes_graph_loader: Any = None, ignore_imports: bool | None = None) -> Any:
-    """A copy of ``shapes_graph`` (with its ``owl:imports`` resolved: its own settings, overridden for the call by ``shapes_graph_loader`` /
+def close_shape(shapes_graph: Any, shape: Any, *, imports_loader: Any = None, ignore_imports: bool | None = None) -> Any:
+    """A copy of ``shapes_graph`` (with its ``owl:imports`` resolved: its own settings, overridden for the call by ``imports_loader`` /
     ``ignore_imports``; the copy then holds the imported shapes too) in which ``shape`` and the shapes it reaches through ``sh:node``,
     ``sh:qualifiedValueShape`` and the members of ``sh:and`` / ``sh:or`` / ``sh:xone`` are ``sh:closed true`` with no
     ``sh:ignoredProperties`` of their own, except what ``extract_subgraph`` adds: ``rdf:type`` where a class target,
@@ -266,7 +266,7 @@ def close_shape(shapes_graph: Any, shape: Any, *, shapes_graph_loader: Any = Non
         raise ValueError("close_shape() needs a bound shapes graph")
     from starlayer.shacl.engine.imports import resolve_imports
 
-    shapes_graph = resolve_imports(engine_view(shapes_graph, "shapes graph"), shapes_graph_loader, ignore_imports)
+    shapes_graph = resolve_imports(engine_view(shapes_graph, "shapes graph"), imports_loader, ignore_imports)
     shape = to_engine(shape)
     result = new_graph(shapes_graph)
     result.imports_loader, result.ignore_imports = getattr(shapes_graph, "imports_loader", None), getattr(shapes_graph, "ignore_imports", False)

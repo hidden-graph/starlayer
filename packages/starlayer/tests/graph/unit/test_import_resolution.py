@@ -61,7 +61,7 @@ def test_an_import_that_is_a_subject_of_the_graph_is_satisfied_and_the_loader_is
     g = importing(n("a"))
     g.add((n("a"), RDF_TYPE, ONTOLOGY))
     loader = Loader({})
-    assert set(g.resolve_imports(loader=loader)) == set(g)
+    assert set(g.resolve_imports(imports_loader=loader)) == set(g)
     assert loader.calls == []
     assert g.resolve_imports() is not None  # no loader needed either
     assert unresolved_imports(g) == ()
@@ -72,7 +72,7 @@ def test_a_built_in_registry_import_is_satisfied_without_a_loader_and_adds_nothi
         g = importing(ox.NamedNode(iri))
         assert is_builtin_import(ox.NamedNode(iri))
         loader = Loader({})
-        assert set(g.resolve_imports(loader=loader)) == set(g)
+        assert set(g.resolve_imports(imports_loader=loader)) == set(g)
         assert loader.calls == []
         assert unresolved_imports(g) == ()
 
@@ -80,7 +80,7 @@ def test_a_built_in_registry_import_is_satisfied_without_a_loader_and_adds_nothi
 def test_an_import_satisfied_by_a_loader():
     g = importing(n("a"))
     loader = Loader({n("a"): ontology(n("a"), (n("x"), n("p"), n("y")))})
-    result = g.resolve_imports(loader=loader)
+    result = g.resolve_imports(imports_loader=loader)
     assert (n("x"), n("p"), n("y")) in result
     assert loader.calls == [n("a")]
 
@@ -88,8 +88,8 @@ def test_an_import_satisfied_by_a_loader():
 def test_a_version_iri_of_a_present_ontology_satisfies_the_import_of_that_version():
     g = importing(n("v2"))
     loader = Loader({n("v2"): ontology(n("base"), (n("base"), VERSION_IRI, n("v2")))})
-    assert g.resolve_imports(loader=loader) is not None
-    resolved = g.resolve_imports(loader=loader)
+    assert g.resolve_imports(imports_loader=loader) is not None
+    resolved = g.resolve_imports(imports_loader=loader)
     assert unresolved_imports(resolved) == ()  # the merged graph holds the version declaration
 
 
@@ -109,7 +109,7 @@ def test_no_loader_is_an_error_naming_the_iri():
 def test_a_loader_that_returns_none_is_the_error_not_a_skip():
     g = importing(n("a"))
     with pytest.raises(ExecutionError) as caught:
-        g.resolve_imports(loader=lambda iri: None)
+        g.resolve_imports(imports_loader=lambda iri: None)
     assert caught.value.kind == "import" and caught.value.unresolved == (n("a"),)
 
 
@@ -118,7 +118,7 @@ def test_a_loader_that_returns_a_graph_without_the_iri_as_a_subject_is_the_error
     other = StarLayerGraph()
     other.add((n("x"), n("p"), n("y")))
     with pytest.raises(ExecutionError) as caught:
-        g.resolve_imports(loader=lambda iri: other)
+        g.resolve_imports(imports_loader=lambda iri: other)
     assert caught.value.unresolved == (n("a"),)
     assert unresolved_imports(g) == (n("a"),)  # the helper says the same without loading anything
 
@@ -127,7 +127,7 @@ def test_two_imports_one_missing_names_only_the_missing_one():
     g = importing(n("a"), n("b"))
     loader = Loader({n("a"): ontology(n("a"))})
     with pytest.raises(ExecutionError) as caught:
-        g.resolve_imports(loader=loader)
+        g.resolve_imports(imports_loader=loader)
     assert caught.value.unresolved == (n("b"),)
     assert "http://example.org/b" in str(caught.value) and "http://example.org/a>" not in str(caught.value)
 
@@ -144,7 +144,7 @@ def test_an_import_found_by_an_imported_graph_that_is_itself_missing_is_reported
     g = importing(n("a"))
     loader = Loader({n("a"): ontology(n("a"), (n("a"), IMPORTS, n("deeper")))})
     with pytest.raises(ExecutionError) as caught:
-        g.resolve_imports(loader=loader)
+        g.resolve_imports(imports_loader=loader)
     assert caught.value.unresolved == (n("deeper"),)
 
 
@@ -168,7 +168,7 @@ def test_a_loader_that_raises_is_wrapped_with_the_original_as_cause():
         raise OSError("no such file")
 
     with pytest.raises(ExecutionError, match="no such file") as caught:
-        importing(n("a")).resolve_imports(loader=broken)
+        importing(n("a")).resolve_imports(imports_loader=broken)
     assert caught.value.kind == "import"
     assert caught.value.context == "owl:imports <http://example.org/a>"
     assert isinstance(caught.value.__cause__, OSError)
@@ -181,7 +181,7 @@ def test_a_loader_that_raises_is_wrapped_with_the_original_as_cause():
 def test_ignore_imports_loads_nothing_and_checks_nothing():
     g = importing(n("a"))
     loader = Loader({})
-    result = g.resolve_imports(loader=loader, ignore_imports=True)
+    result = g.resolve_imports(imports_loader=loader, ignore_imports=True)
     assert set(result) == set(g) and loader.calls == []
     assert g.resolve_imports(ignore_imports=True) is not None
     assert set(g.resolve_imports(mode="delta", ignore_imports=True)) == set()
@@ -194,11 +194,11 @@ def test_the_application_reads_unresolved_imports_and_calls_again_with_a_loader_
     g = importing(n("a"), n("b"))
     first = Loader({n("a"): ontology(n("a"))})
     with pytest.raises(ExecutionError) as caught:
-        g.resolve_imports(loader=first)
+        g.resolve_imports(imports_loader=first)
     assert caught.value.unresolved == (n("b"),)
     assert unresolved_imports(g) == (n("a"), n("b"))  # nothing was loaded into g itself
     second = Loader({n("a"): ontology(n("a")), n("b"): ontology(n("b"), (n("b"), n("p"), n("q")))})
-    result = g.resolve_imports(loader=second)
+    result = g.resolve_imports(imports_loader=second)
     assert (n("b"), n("p"), n("q")) in result
     assert unresolved_imports(result) == ()
 
@@ -208,7 +208,7 @@ def test_a_graph_is_fetched_once_in_one_resolution():
     a = ontology(n("a"), (n("a"), IMPORTS, n("b")))
     b = ontology(n("b"), (n("b"), IMPORTS, n("a")))
     loader = Loader({n("a"): a, n("b"): b})
-    root.resolve_imports(loader=loader)
+    root.resolve_imports(imports_loader=loader)
     assert sorted(loader.calls, key=str) == [n("a"), n("b")]
 
 
@@ -216,7 +216,7 @@ def test_a_cycle_terminates():
     root = importing(n("a"))
     a = ontology(n("a"), (n("a"), IMPORTS, n("b")))
     b = ontology(n("b"), (n("b"), IMPORTS, n("a")))
-    result = root.resolve_imports(loader=Loader({n("a"): a, n("b"): b}))
+    result = root.resolve_imports(imports_loader=Loader({n("a"): a, n("b"): b}))
     assert (n("b"), RDF_TYPE, ONTOLOGY) in result
 
 

@@ -593,7 +593,7 @@ def select_widgets(
     per: Literal["node", "shape"] = "node",
     implemented: Any | None = None,
     on_report: Any | None = None,
-    shapes_graph_loader: Any = None,
+    imports_loader: Any = None,
     ignore_imports: bool | None = None,
 ) -> dict[Any, Any]:
     """Batch sibling of :func:`select_widget` - walks ``shape_node``'s own
@@ -626,7 +626,7 @@ def select_widgets(
 
     **Imports.** The ``owl:imports`` of the shapes graph and of the scoring graph are resolved (the imported triples count as part of
     each graph) and those of ``data_graph`` are checked, as for ``validate()``: each graph's own ``imports_loader`` / ``ignore_imports``,
-    which ``shapes_graph_loader`` and ``ignore_imports`` override for this call; an import that is not resolved raises ``ExecutionError``
+    which ``imports_loader`` and ``ignore_imports`` override for this call; an import that is not resolved raises ``ExecutionError``
     kind ``"import"``.
     """
     if per not in ("node", "shape"):
@@ -636,10 +636,10 @@ def select_widgets(
     b = _Boundary(shape_node, focus_node, shapes_graph, scoring_graph)
     from starlayer.shacl.engine.imports import resolve_imports, with_data_imports
 
-    shapes = resolve_imports(b.shapes_graph, shapes_graph_loader, ignore_imports)
-    scoring = shapes if b.scoring_graph is b.shapes_graph else resolve_imports(b.scoring_graph, shapes_graph_loader, ignore_imports)
+    shapes = resolve_imports(b.shapes_graph, imports_loader, ignore_imports)
+    scoring = shapes if b.scoring_graph is b.shapes_graph else resolve_imports(b.scoring_graph, imports_loader, ignore_imports)
     if data_graph is not None:
-        with_data_imports(None, _as_ox_graph(data_graph), shapes_graph_loader, ignore_imports)  # raises when the data graph's imports are not resolved
+        with_data_imports(None, _as_ox_graph(data_graph), imports_loader, ignore_imports)  # raises when the data graph's imports are not resolved
     if (b.shape_node, None, None) not in shapes:
         raise ValueError(f"shape_node {shape_node!r} is not a subject in the shapes graph")
     if per == "shape" and (focus_node is not None or data_graph is not None):

@@ -216,7 +216,7 @@ class TestTranslation:
         assert caught.value.kind == "import"
         assert validate(g(GOOD), shapes, ignore_imports=True).conforms is True
 
-    def test_shapes_graph_loader_is_used(self):
+    def test_imports_loader_is_used(self):
         shapes = g(SHAPES + " <http://example.org/onto> <http://www.w3.org/2002/07/owl#imports> <http://example.org/mod> .")
         calls = []
 
@@ -224,7 +224,7 @@ class TestTranslation:
             calls.append(iri)
             return g("<http://example.org/mod> a <http://www.w3.org/2002/07/owl#Ontology> . ex:Extra a sh:NodeShape ; sh:targetClass ex:T ; sh:property [ sh:path ex:q ; sh:minCount 1 ] .")
 
-        result = validate(g(GOOD), shapes, shapes_graph_loader=loader)
+        result = validate(g(GOOD), shapes, imports_loader=loader)
         assert calls and result.conforms is False  # the imported shape demands ex:q
 
     def test_meta_shacl_preflight_rejects_a_bad_shapes_graph(self):

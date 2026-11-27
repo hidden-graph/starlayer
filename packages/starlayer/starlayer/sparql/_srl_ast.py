@@ -513,7 +513,7 @@ class RuleSet:
                 feeds inference" relationship SHACL's own
                 ``sh:entailment``-before-rules already has. ``None``
                 (default) runs against ``base_graph`` unchanged.
-            imports_loader: ``loader(iri) -> str | RuleSet``, used to read the
+            imports_loader: ``imports_loader(iri) -> str | RuleSet``, used to read the
                 documents named by this rule set's ``IMPORTS`` (see
                 :func:`starlayer.sparql.srl.resolve_imports`). There is no default
                 loader, because reading a document has security implications; without

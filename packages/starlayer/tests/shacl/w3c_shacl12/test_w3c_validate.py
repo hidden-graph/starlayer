@@ -119,7 +119,7 @@ def _check_validate(entry: ManifestEntry, new_graph, known_failures, strict_bugs
     # (e.g. tests/sparql/component/validator-001, .../node/prefixes-001)
     # declare owl:imports against real external vocabularies
     # (http://datashapes.org/dash) that this harness has never resolved -
-    # no shapes_graph_loader was ever wired up here, before or after
+    # no imports_loader was ever wired up here, before or after
     # validate() started raising by default on an unresolved import. This
     # restores exactly the pre-existing, already-correct behavior (import
     # left unresolved, same expected conforms/report outcome) rather than

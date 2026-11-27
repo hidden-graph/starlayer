@@ -92,7 +92,7 @@ def test_loader_must_be_callable():
 def test_per_call_override_of_loader_and_flag():
     own, other = lib(), Loader({n("lib"): ontology(n("lib"), (n("c"), n("p"), n("d")))})
     g = importing(n("lib"), imports_loader=own)
-    assert (n("c"), n("p"), n("d")) in g.resolved_imports(loader=other)
+    assert (n("c"), n("p"), n("d")) in g.resolved_imports(imports_loader=other)
     assert not own.calls[1:] and len(other.calls) == 1
     g.ignore_imports = True
     assert g.resolved_imports() == frozenset()
@@ -266,7 +266,7 @@ def test_resolve_imports_uses_the_graph_setting_and_the_call_overrides():
     assert FACT in set(g.resolve_imports().triples((None, None, None)))
     assert g.resolve_imports(ignore_imports=True) is not None
     other = Loader({n("lib"): ontology(n("lib"), (n("c"), n("p"), n("d")))})
-    assert (n("c"), n("p"), n("d")) in set(g.resolve_imports(loader=other).triples((None, None, None)))
+    assert (n("c"), n("p"), n("d")) in set(g.resolve_imports(imports_loader=other).triples((None, None, None)))
     full = g.resolve_imports()
     assert full.imports_loader is loader
 

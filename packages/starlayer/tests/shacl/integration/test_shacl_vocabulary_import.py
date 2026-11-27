@@ -26,7 +26,7 @@ def test_the_import_of_the_shacl_vocabulary_is_satisfied_without_a_loader():
 
 def test_the_loader_is_not_asked_for_the_shacl_vocabulary():
     asked = []
-    StarShaclProcessor(shacl_graph=_graph(SHAPES), shapes_graph_loader=lambda iri: asked.append(iri.value)).validate(data_graph=_graph(DATA))
+    StarShaclProcessor(shacl_graph=_graph(SHAPES), imports_loader=lambda iri: asked.append(iri.value)).validate(data_graph=_graph(DATA))
     assert asked == []
 
 
@@ -86,7 +86,7 @@ def test_a_built_in_import_needs_no_loader(iri):
 def test_a_loader_is_not_asked_for_a_built_in_import(iri):
     asked = []
     shapes = _importing(iri)
-    result = StarShaclProcessor(shacl_graph=shapes, shapes_graph_loader=lambda i: asked.append(i.value)).validate(data_graph=_graph(DATA))
+    result = StarShaclProcessor(shacl_graph=shapes, imports_loader=lambda i: asked.append(i.value)).validate(data_graph=_graph(DATA))
     assert asked == []
     assert result.conforms is False
     assert len(shapes) == len(_importing(iri))  # nothing merged into the caller's graph

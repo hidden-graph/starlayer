@@ -87,7 +87,7 @@ def test_the_options_rule_execution_uses_are_accepted() -> None:
         meta_shacl=False,
         meta_shapes_extra=(),
         ignore_imports=False,
-        shapes_graph_loader=None,
+        imports_loader=None,
         max_iterations=10,
     )
     assert len(result.inferred_graph) == 1

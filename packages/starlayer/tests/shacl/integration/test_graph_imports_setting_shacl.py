@@ -1,6 +1,6 @@
 """SHACL consumers read ``owl:imports`` from the graph (maintainer decision 2026-11-26): the loader and flag a graph carries
 (``StarLayerGraph(imports_loader=..., ignore_imports=...)``) decide for the data, shapes and ontology graphs of ``validate()`` and of the
-other readers of the shapes graph; ``shapes_graph_loader=`` / ``ignore_imports=`` on a call override them."""
+other readers of the shapes graph; ``imports_loader=`` / ``ignore_imports=`` on a call override them."""
 
 from __future__ import annotations
 
@@ -58,7 +58,7 @@ def data(**kw) -> StarLayerGraph:
     return graph("ex:alice a ex:Person .", **kw)  # no ex:name: the imported shape is violated
 
 
-def test_shapes_graph_loader_on_the_graph_is_used():
+def test_imports_loader_on_the_graph_is_used():
     loader = lib_shapes()
     report = validate(data(), shapes_importing(imports_loader=loader))
     assert not report.conforms and loader.calls == [LIB]
@@ -74,7 +74,7 @@ def test_shapes_graph_without_loader_raises_and_flag_skips():
 def test_call_overrides_the_graph_setting():
     own, other = lib_shapes(), lib_shapes()
     shapes = shapes_importing(imports_loader=own)
-    assert not validate(data(), shapes, shapes_graph_loader=other).conforms
+    assert not validate(data(), shapes, imports_loader=other).conforms
     assert other.calls == [LIB] and own.calls == []
     assert validate(data(), shapes, ignore_imports=True).conforms  # the call's flag beats a graph with a loader
     skipping = shapes_importing(ignore_imports=True, imports_loader=own)
@@ -118,8 +118,8 @@ def test_processor_uses_the_graph_setting_and_constructor_and_call_override():
     assert not processor.validate(data()).conforms
     bare = shapes_importing()
     p2 = StarShaclProcessor(bare)  # built without a loader: a call may still bring one (as before)
-    assert not p2.validate(data(), shapes_graph_loader=lib_shapes()).conforms
-    p3 = StarShaclProcessor(bare, shapes_graph_loader=lib_shapes())
+    assert not p2.validate(data(), imports_loader=lib_shapes()).conforms
+    p3 = StarShaclProcessor(bare, imports_loader=lib_shapes())
     assert not p3.validate(data()).conforms
     assert p3.validate(data(), ignore_imports=True).conforms
 
@@ -132,7 +132,7 @@ def test_target_nodes_and_target_shapes_resolve_the_shapes_graph():
     assert target_shapes(data_graph=data(), shacl_graph=shapes, node=EX.alice) == (EX.PersonShape,)
     with pytest.raises(ExecutionError):
         target_nodes(data_graph=data(), shacl_graph=shapes_importing(), shape_node=EX.PersonShape)
-    got = target_nodes(data_graph=data(), shacl_graph=shapes_importing(), shape_node=EX.PersonShape, shapes_graph_loader=lib_shapes())
+    got = target_nodes(data_graph=data(), shacl_graph=shapes_importing(), shape_node=EX.PersonShape, imports_loader=lib_shapes())
     assert got == (EX.alice,)
     # with the imports ignored the shape is not in the graph: it has no focus nodes
     assert target_nodes(data_graph=data(), shacl_graph=shapes_importing(), shape_node=EX.PersonShape, ignore_imports=True) == ()
@@ -146,7 +146,7 @@ def test_evaluate_resolves_the_shapes_graph():
     with pytest.raises(ExecutionError):
         evaluate(data(), shapes_importing())
     assert not list(evaluate(data(), shapes_importing(), ignore_imports=True).triples((None, None, None)))
-    assert list(evaluate(data(), shapes_importing(), shapes_graph_loader=lib).triples((None, None, None)))
+    assert list(evaluate(data(), shapes_importing(), imports_loader=lib).triples((None, None, None)))
 
 
 def test_extract_subgraph_resolves_the_shapes_graph():
@@ -155,7 +155,7 @@ def test_extract_subgraph_resolves_the_shapes_graph():
     assert len(extract_subgraph(d, shapes)) > 0
     with pytest.raises(ExecutionError):
         extract_subgraph(d, shapes_importing())
-    assert len(extract_subgraph(d, shapes_importing(), shapes_graph_loader=lib_shapes())) > 0
+    assert len(extract_subgraph(d, shapes_importing(), imports_loader=lib_shapes())) > 0
     assert len(extract_subgraph(d, shapes_importing(), ignore_imports=True)) == 0
 
 
@@ -164,7 +164,7 @@ def test_close_shape_resolves_the_shapes_graph_and_holds_the_imported_shapes():
     assert (EX.PersonShape, SH.closed, None) in closed or any(True for _ in closed.triples((EX.PersonShape, SH.closed, None)))
     with pytest.raises(ExecutionError):
         close_shape(shapes_importing(), EX.PersonShape)
-    assert any(True for _ in close_shape(shapes_importing(), EX.PersonShape, shapes_graph_loader=lib_shapes()).triples((EX.PersonShape, SH.closed, None)))
+    assert any(True for _ in close_shape(shapes_importing(), EX.PersonShape, imports_loader=lib_shapes()).triples((EX.PersonShape, SH.closed, None)))
     processor = StarShaclProcessor(shapes_importing(imports_loader=lib_shapes()))
     assert any(True for _ in processor.close_shape(EX.PersonShape).triples((EX.PersonShape, SH.closed, None)))
 
@@ -176,7 +176,7 @@ def test_select_widgets_resolves_the_shapes_graph():
     assert set(select_widgets(shape_node=EX.S, shapes_graph=shapes, role="editor")) == {EX.p1}
     with pytest.raises(ExecutionError):
         select_widgets(shape_node=EX.S, shapes_graph=shapes_importing(), role="editor")
-    got = select_widgets(shape_node=EX.S, shapes_graph=shapes_importing(), role="editor", shapes_graph_loader=lib)
+    got = select_widgets(shape_node=EX.S, shapes_graph=shapes_importing(), role="editor", imports_loader=lib)
     assert set(got) == {EX.p1}
     processor = StarShaclProcessor(shapes_importing(imports_loader=lib))
     assert set(processor.select_widgets(shape_node=EX.S, role="editor")) == {EX.p1}

@@ -255,16 +255,16 @@ class _Base:
     def ignore_imports(self, value: bool) -> None:
         self._ignore_imports = bool(value)
 
-    def resolved_imports(self, *, loader: Callable[[Any], Any] | None = None, ignore_imports: bool | None = None) -> frozenset:
+    def resolved_imports(self, *, imports_loader: Callable[[Any], Any] | None = None, ignore_imports: bool | None = None) -> frozenset:
         """The triples this graph's ``owl:imports`` closure loads, as the one rule of ``starlayer.graph.imports`` resolves them: every
         import must be a subject of the graph, built in or loaded, or ``ExecutionError`` kind ``"import"`` is raised (``error.unresolved``
         lists the IRIs; a loader that raises is wrapped). The imported triples are not added to the graph; ``frozenset()`` when there are
-        none or ``ignore_imports`` is set. ``loader=`` / ``ignore_imports=`` override the graph's own settings for this call. The result is
+        none or ``ignore_imports`` is set. ``imports_loader=`` / ``ignore_imports=`` override the graph's own settings for this call. The result is
         kept until the store is written to (``parse``, ``add``, ``remove``, ``clear`` ...) or the loader or flag changes; see
         ``graph_imports``. ``unresolved_imports(graph)`` says what is missing without raising."""
         from starlayer.graph import imports
 
-        return imports.graph_imports(self, loader, ignore_imports)
+        return imports.graph_imports(self, imports_loader, ignore_imports)
 
     def clear_imports_cache(self) -> Any:
         """Forget the resolved imports kept for this graph's store, so the next consumer loads them again (a loader whose answers changed).
@@ -814,7 +814,7 @@ class _Base:
                 raise ValueError(f"recompute must be one of ['always', 'never', 'onChange'], got {recompute!r}")
             from starlayer.graph.entailment import cache
 
-            imported = self.resolved_imports(loader=imports_loader, ignore_imports=ignore_imports)
+            imported = self.resolved_imports(imports_loader=imports_loader, ignore_imports=ignore_imports)
             copy = cache.entailed_store_view(self, [regime], engine=engine, timeout=timeout, recompute=recompute,
                                              ont_graph=list(imported) if imported else None)
             return copy.query(text, initNs=initNs, initBindings=initBindings, base=base,

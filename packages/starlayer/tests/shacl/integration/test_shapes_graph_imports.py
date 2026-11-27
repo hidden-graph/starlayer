@@ -115,7 +115,7 @@ def test_transitive_import_closure_with_version_iri_redirect_enforces_imported_c
     result = validator.validate(
         data_graph=data,
         meta_shacl=False,
-        shapes_graph_loader=_loader,
+        imports_loader=_loader,
     )
 
     # ex:Acme is missing ex:name (required by the imported CompanyShape, two
@@ -184,7 +184,7 @@ def test_pre_resolved_imports_are_satisfied_without_a_loader() -> None:
     """The two-call pattern: the caller resolves the imports into the shapes graph first. The ``owl:imports`` triples stay in the
     graph (a true fact about the document), but each imported IRI is now a subject (or the ``owl:versionIRI`` of a present ontology), so
     ``validate()`` has nothing left to resolve and needs neither a loader nor ``ignore_imports``."""
-    pre_resolved = _myapp_shapes().resolve_imports(loader=_loader, mode="full")
+    pre_resolved = _myapp_shapes().resolve_imports(imports_loader=_loader, mode="full")
     assert COMPANY_V2 in {i for i in pre_resolved.owl_imports()}
 
     data = StarLayerGraph()
@@ -223,7 +223,7 @@ def test_unresolvable_import_raises_even_with_a_loader() -> None:
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person .", format="turtle")
 
     with pytest.raises(ExecutionError) as caught:  # a loader that returns None: not satisfied (the processor says so when it is built)
-        StarShaclProcessor(shacl_graph=shapes, shapes_graph_loader=lambda iri: None)
+        StarShaclProcessor(shacl_graph=shapes, imports_loader=lambda iri: None)
     assert caught.value.kind == "import"
     assert [i.value for i in caught.value.unresolved] == ["http://example.com/shapes/does-not-exist"]
     # ignore_imports=True: nothing is loaded or checked, Bob is still missing ex:name per the local shape
@@ -263,7 +263,7 @@ def test_self_importing_graph_does_not_infinite_loop() -> None:
     data.parse(data="@prefix ex: <http://example.org/> .\nex:Bob a ex:Person ; ex:name \"Bob\" .", format="turtle")
 
     validator = StarShaclProcessor(shacl_graph=shapes)
-    result = validator.validate(data_graph=data, meta_shacl=False, shapes_graph_loader=loader)
+    result = validator.validate(data_graph=data, meta_shacl=False, imports_loader=loader)
 
     assert result.conforms is True
 
@@ -331,7 +331,7 @@ def test_multi_hop_import_chain_without_any_version_iri_redirect() -> None:
 
     validator = StarShaclProcessor(shacl_graph=shapes)
     result = validator.validate(
-        data_graph=data, meta_shacl=False, shapes_graph_loader=loader
+        data_graph=data, meta_shacl=False, imports_loader=loader
     )
 
     # ex:Acme already satisfies mid's own CompanyShape (has ex:name) - the
@@ -379,7 +379,7 @@ def test_imports_already_co_located_in_shacl_graph_need_no_loader_and_do_not_rai
     )
 
     validator = StarShaclProcessor(shacl_graph=shapes)
-    # No shapes_graph_loader, no ignore_imports - must not raise, since
+    # No imports_loader, no ignore_imports - must not raise, since
     # ModuleB's own content is already right here in shapes.
     result = validator.validate(data_graph=data, meta_shacl=False)
 
@@ -403,7 +403,7 @@ def test_a_loader_that_raises_is_wrapped_with_the_original_as_cause() -> None:
         raise OSError("no such file")
 
     with pytest.raises(ExecutionError, match="no such file") as caught:
-        StarShaclProcessor(shacl_graph=_myapp_shapes()).validate(data_graph=_data(), meta_shacl=False, shapes_graph_loader=broken)
+        StarShaclProcessor(shacl_graph=_myapp_shapes()).validate(data_graph=_data(), meta_shacl=False, imports_loader=broken)
     assert caught.value.kind == "import" and isinstance(caught.value.__cause__, OSError)
     assert caught.value.unresolved == (COMPANY_V2,)
 
@@ -415,7 +415,7 @@ def test_the_application_reads_unresolved_imports_and_validates_again_with_a_loa
     with pytest.raises(ExecutionError) as caught:
         StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False)
     assert caught.value.unresolved == unresolved_imports(shapes) == (COMPANY_V2,)
-    assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False, shapes_graph_loader=_loader).conforms
+    assert StarShaclProcessor(shacl_graph=shapes).validate(data_graph=_data(), meta_shacl=False, imports_loader=_loader).conforms
 
 
 def test_the_imports_of_the_ontology_graph_are_resolved_or_raise() -> None:

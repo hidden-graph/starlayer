@@ -13,7 +13,7 @@ is fetched at most once in one resolution and cycles end.
 **On the graph.** A graph carries its own import settings (``StarLayerGraph(imports_loader=..., ignore_imports=...)``, the ``imports_loader`` and
 ``ignore_imports`` properties), and every consumer asks the graph, once, through ``graph.resolved_imports()`` (``graph_imports`` for any graph
 object): the triples its ``owl:imports`` closure loads, cached per store and kept until the store is written to or the loader or flag
-changes. A per-call ``loader=`` / ``shapes_graph_loader=`` / ``imports_loader=`` / ``ignore_imports=`` overrides the graph's setting for that
+changes. A per-call ``imports_loader=`` / ``ignore_imports=`` overrides the graph's setting for that
 call. Resolution is lazy: nothing is loaded until an operation that reads imports asks, and a loader is called at most once per cached
 result. A cached result is not kept when resolution raises. The imports of a graph are not copied into it (a graph holds only what was
 added to it).
@@ -76,9 +76,9 @@ def is_builtin_import(iri: Any) -> bool:
     return isinstance(iri, ox.NamedNode) and _import_key(iri.value) in builtin_import_keys()
 
 
-def can_resolve_import(iri: Any, *, loader: Callable[[Any], Any | None]) -> bool:
-    """Whether ``loader(iri)`` returns a graph (it is called once; there is no cheaper way to ask)."""
-    return loader(iri) is not None
+def can_resolve_import(iri: Any, *, imports_loader: Callable[[Any], Any | None]) -> bool:
+    """Whether ``imports_loader(iri)`` returns a graph (it is called once; there is no cheaper way to ask)."""
+    return imports_loader(iri) is not None
 
 
 def owl_imports(g: Any) -> tuple[Any, ...]:
@@ -136,10 +136,10 @@ def _unresolved_error(iris: tuple[Any, ...], why: str, loader_name: str) -> Exec
     )
 
 
-def resolve_or_raise(g: Any, loader: Callable[[Any], Any | None] | None = None, ignore_imports: bool = False, *,
+def resolve_or_raise(g: Any, imports_loader: Callable[[Any], Any | None] | None = None, ignore_imports: bool = False, *,
                      view: Callable[[Any], Any] | None = None, malformed: Callable[[Any], Exception] | None = None,
-                     loader_name: str = "loader") -> set[tuple[Any, Any, Any]]:
-    """The one resolution every path calls: follow ``g``'s ``owl:imports`` transitively with ``loader`` and return the triples that were
+                     loader_name: str = "imports_loader") -> set[tuple[Any, Any, Any]]:
+    """The one resolution every path calls: follow ``g``'s ``owl:imports`` transitively with ``imports_loader`` and return the triples that were
     loaded (the caller merges them as it needs), or raise ``ExecutionError`` kind ``"import"`` (see the module docstring). ``g`` is not changed.
 
     An import that is already satisfied (a subject of ``g`` or of what was loaded so far, a built-in ontology, a ``owl:versionIRI`` of a
@@ -161,10 +161,10 @@ def resolve_or_raise(g: Any, loader: Callable[[Any], Any | None] | None = None, 
         if iri in fetched:
             continue
         fetched.add(iri)
-        if loader is None or _satisfied(g, iri, subjects, versions):
+        if imports_loader is None or _satisfied(g, iri, subjects, versions):
             continue
         try:
-            result = loader(iri)
+            result = imports_loader(iri)
         except Exception as exc:
             raise ExecutionError(
                 f"owl:imports <{iri.value}> cannot be loaded: {type(exc).__name__}: {exc}",
@@ -192,7 +192,7 @@ def resolve_or_raise(g: Any, loader: Callable[[Any], Any | None] | None = None, 
                     pending.append(o)
     missing = tuple(sorted((iri for iri in declared if not _satisfied(g, iri, subjects, versions)), key=lambda i: i.value))
     if missing:
-        why = (f"no loader was given (neither {loader_name}= nor the graph's imports_loader)" if loader is None
+        why = (f"no loader was given (neither {loader_name}= nor the graph's imports_loader)" if imports_loader is None
                else f"{loader_name} returned no graph that has {'it' if len(missing) == 1 else 'them'} as a subject")
         raise _unresolved_error(missing, why, loader_name)
     return imported
@@ -252,12 +252,12 @@ def clear_cached_imports(g: Any) -> None:
         version.imports.clear()
 
 
-def graph_imports(g: Any, loader: Callable[[Any], Any | None] | None = None, ignore_imports: bool | None = None, *,
+def graph_imports(g: Any, imports_loader: Callable[[Any], Any | None] | None = None, ignore_imports: bool | None = None, *,
                   view: Callable[[Any], Any] | None = None, malformed: Callable[[Any], Exception] | None = None,
                   loader_name: str = "imports_loader") -> frozenset[tuple[Any, Any, Any]]:
     """The one accessor every consumer of ``g``'s ``owl:imports`` calls: the triples its import closure loads (``frozenset``, empty
     when nothing is imported; ``g`` itself is not changed and does not hold them), or ``ExecutionError`` kind ``"import"`` (see the
-    module docstring). ``loader`` and ``ignore_imports`` override ``g.imports_loader`` / ``g.ignore_imports`` for this call (``None``:
+    module docstring). ``imports_loader`` and ``ignore_imports`` override ``g.imports_loader`` / ``g.ignore_imports`` for this call (``None``:
     the graph's own setting; a graph object that has none, for instance an engine view, has no loader and does not ignore).
 
     A graph of a store (``StarLayerGraph``, ``StarLayerDataset``, an engine view) keeps the result per store, keyed by what it reads
@@ -266,8 +266,8 @@ def graph_imports(g: Any, loader: Callable[[Any], Any | None] | None = None, ign
     raw store reference does not (``union.touch()`` after it). A loader that returns different graphs later is not seen until then or
     ``clear_cached_imports``. ``view`` and ``malformed`` are the consumer's way of reading a loader's graph and of naming a malformed
     ``owl:imports`` object; they are not part of the key."""
-    if loader is None:
-        loader = getattr(g, "imports_loader", None)
+    if imports_loader is None:
+        imports_loader = getattr(g, "imports_loader", None)
     if ignore_imports is None:
         ignore_imports = bool(getattr(g, "ignore_imports", False))
     if ignore_imports:
@@ -275,8 +275,8 @@ def graph_imports(g: Any, loader: Callable[[Any], Any | None] | None = None, ign
     version = getattr(g, "_version", None)
     read = _read_key(g) if version is not None else None
     if read is None:
-        return frozenset(resolve_or_raise(g, loader, False, view=view, malformed=malformed, loader_name=loader_name))
-    key = (read, id(loader) if loader is not None else None)
+        return frozenset(resolve_or_raise(g, imports_loader, False, view=view, malformed=malformed, loader_name=loader_name))
+    key = (read, id(imports_loader) if imports_loader is not None else None)
     cache = _cache_of(version)
     with cache.lock:
         stamp = version.stamp()  # before the loader runs: a write that lands during it leaves the result stale
@@ -284,30 +284,30 @@ def graph_imports(g: Any, loader: Callable[[Any], Any | None] | None = None, ign
         if hit is not None and hit[0] == stamp:
             cache.entries.move_to_end(key)
             return hit[2]
-        result = frozenset(resolve_or_raise(g, loader, False, view=view, malformed=malformed, loader_name=loader_name))
-        cache.entries[key] = (stamp, loader, result)  # the loader is held, so its ``id`` in the key is not reused
+        result = frozenset(resolve_or_raise(g, imports_loader, False, view=view, malformed=malformed, loader_name=loader_name))
+        cache.entries[key] = (stamp, imports_loader, result)  # the loader is held, so its ``id`` in the key is not reused
         cache.entries.move_to_end(key)
         while len(cache.entries) > MAX_CACHED:
             cache.entries.popitem(last=False)
         return result
 
 
-def resolve_imports(g: Any, *, loader: Callable[[Any], Any | None] | None = None, mode: str = "full", target_graph: Any = None,
+def resolve_imports(g: Any, *, imports_loader: Callable[[Any], Any | None] | None = None, mode: str = "full", target_graph: Any = None,
                     ignore_imports: bool | None = None) -> Any:
     """Follow the graph's ``owl:imports`` transitively and merge the result. ``mode`` is "full" (a new graph: self plus the
     imports), "delta" (a new graph with only the triples self lacks) or "in-place" (add the delta to self). Cycles and a
     versioned/unversioned pair of the same module are fetched once.
 
     Every declared import must be resolved or the call raises (``resolve_or_raise``): ``ExecutionError`` kind ``"import"`` for an import
-    that is not a subject of the graph after loading (no ``loader``, one that returns ``None`` or a graph without it, with the IRIs on
+    that is not a subject of the graph after loading (no ``imports_loader``, one that returns ``None`` or a graph without it, with the IRIs on
     ``error.unresolved``), the same kind wrapping a loader's own exception; ``ignore_imports=True`` returns the graph's own triples as they are.
-    ``loader`` and ``ignore_imports`` override the graph's own ``imports_loader`` / ``ignore_imports`` for this call (``graph_imports``)."""
+    ``imports_loader`` and ``ignore_imports`` override the graph's own ``imports_loader`` / ``ignore_imports`` for this call (``graph_imports``)."""
     if mode not in VALID_MODES:
         raise ValueError(f"mode must be one of {sorted(VALID_MODES)}, got {mode!r}")
     if mode == "in-place" and target_graph is not None:
         raise ValueError("target_graph is meaningless with mode='in-place' - it mutates self directly.")
 
-    all_imported = graph_imports(g, loader, ignore_imports)
+    all_imported = graph_imports(g, imports_loader, ignore_imports)
 
     delta = set(all_imported) - set(g.triples())
     if mode == "in-place":

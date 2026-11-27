@@ -46,7 +46,7 @@ def evaluate(
     rules_entailment: bool = False,
     validate: bool = False,
     plan: Plan | None = None,
-    shapes_graph_loader: Any = None,
+    imports_loader: Any = None,
     ignore_imports: bool | None = None,
 ) -> Any:
     """Evaluate ``sh:values`` / ``sh:defaultValue`` of ``shapes_graph`` (default: ``data_graph``) over ``data_graph``.
@@ -57,13 +57,13 @@ def evaluate(
     shapes' targets are still resolved over the whole data graph); ``properties`` to property shapes whose ``sh:path`` is one
     of those predicates. ``validate`` makes the evaluation conformance-gated (module docstring). Returns a new graph (an
     ``StarLayerGraph``) with the data graph's prefixes. The ``owl:imports`` of the data, shapes and ontology graphs are resolved as for ``validate()`` (each graph's own settings;
-    ``shapes_graph_loader`` and ``ignore_imports`` override them for this call).
+    ``imports_loader`` and ``ignore_imports`` override them for this call).
     """
     from starlayer.shacl.engine.entailment import resolve_data_view
     from starlayer.shacl.engine.imports import resolve_inputs
 
     data_graph = engine_view(data_graph, "data graph")
-    shapes, ont_graph = resolve_inputs(data_graph, shapes_graph, ont_graph, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports)
+    shapes, ont_graph = resolve_inputs(data_graph, shapes_graph, ont_graph, imports_loader=imports_loader, ignore_imports=ignore_imports)
     shapes = shapes if shapes is not None else data_graph
     view = resolve_data_view(
         data_graph, shapes, inference=inference, ont_graph=ont_graph, engine=engine, timeout=timeout, recompute=recompute

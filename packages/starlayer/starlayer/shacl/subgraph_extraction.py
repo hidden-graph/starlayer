@@ -120,7 +120,7 @@ def extract_subgraph(
     focus_node: Any | None = None,
     inference: Any | None = None,
     include_targets: bool = True,
-    shapes_graph_loader: Any | None = None,
+    imports_loader: Any | None = None,
     ignore_imports: bool | None = None,
 ) -> Any:
     """Returns the subgraph covered by one shape+focus_node pair, or by
@@ -154,7 +154,7 @@ def extract_subgraph(
         focus_node: Restrict to this one focus node. Omit to discover
             every real target of each candidate shape (declared and implicit targets).
         inference: An ``ENTAILMENT.*`` regime IRI, or an iterable of them.
-        shapes_graph_loader, ignore_imports: The ``owl:imports`` of the data, shapes and ontology graphs are resolved as for ``validate()``
+        imports_loader, ignore_imports: The ``owl:imports`` of the data, shapes and ontology graphs are resolved as for ``validate()``
             (or ``ExecutionError`` kind ``"import"``): each graph's own ``imports_loader`` / ``ignore_imports``, which these override for the call.
         include_targets: Also return the triples that make each focus node a target of its shape
             (``sh:targetClass``: its ``rdf:type`` and ``rdfs:subClassOf`` triples; ``sh:targetSubjectsOf`` /
@@ -179,6 +179,6 @@ def extract_subgraph(
         focus_node=focus_node,
         inference=inference,
         include_targets=include_targets,
-        shapes_graph_loader=shapes_graph_loader,
+        imports_loader=imports_loader,
         ignore_imports=ignore_imports,
     )

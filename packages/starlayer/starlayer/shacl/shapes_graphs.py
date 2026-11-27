@@ -49,7 +49,7 @@ def module_nodes(graph: Any, shapes_graph: Any) -> set[Any]:
 
     Raises ``ValueError`` when an ``owl:imports`` target is not typed as a ``sh:Graph`` in ``graph``: a shapes graph that
     imports another is asserting a dependency, so a missing one is an error, not something to skip. Fetch it first with
-    ``resolve_imports(loader=...)``."""
+    ``resolve_imports(imports_loader=...)``."""
     return _engine.module_nodes(engine_view(graph, "graph"), to_engine(shapes_graph))
 
 
@@ -85,18 +85,18 @@ def rule_dependencies(graph: Any, starting_points: Any) -> set[Any]:
     return _engine.rule_dependencies(engine_view(graph, "graph"), [to_engine(n) for n in starting_points])
 
 
-def close_shape(shapes_graph: Any, shape: Any, *, shapes_graph_loader: Any | None = None, ignore_imports: bool | None = None) -> Any:
+def close_shape(shapes_graph: Any, shape: Any, *, imports_loader: Any | None = None, ignore_imports: bool | None = None) -> Any:
     """A copy of the whole ``shapes_graph`` in which ``shape`` and the shapes it reaches as a value node's complete description
     (``sh:node``, ``sh:qualifiedValueShape``, the members of ``sh:and`` / ``sh:or`` / ``sh:xone``) are ``sh:closed true``: the strict form
     an ``extract_subgraph`` fragment is checked against. Shapes that are not reached stay as they are; nothing is removed. The method of the
     same name of ``StarShaclProcessor`` does this on its bound shapes graph. The shapes graph's ``owl:imports`` are resolved first (its own
-    ``imports_loader`` / ``ignore_imports``, overridden for the call by ``shapes_graph_loader`` / ``ignore_imports``), so the copy holds the
+    ``imports_loader`` / ``ignore_imports``, overridden for the call by ``imports_loader`` / ``ignore_imports``), so the copy holds the
     imported shapes too; an import that is not resolved raises ``ExecutionError`` kind ``"import"``."""
     from starlayer.shacl import _adapter
     from starlayer.shacl.normalization import normalize_to_starlayer_graph
 
     return _adapter.close_shape(
-        normalize_to_starlayer_graph(shapes_graph, name="shapes_graph"), shape, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports
+        normalize_to_starlayer_graph(shapes_graph, name="shapes_graph"), shape, imports_loader=imports_loader, ignore_imports=ignore_imports
     )
 
 

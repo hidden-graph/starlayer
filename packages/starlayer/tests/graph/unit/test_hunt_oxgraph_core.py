@@ -250,7 +250,7 @@ def test_resolve_imports_delta_fills_target_graph():
     other = StarLayerGraph()
     other.add((N("http://x/other"), N("http://x/p"), N("http://x/o")))
     target = StarLayerGraph()
-    res = main.resolve_imports(loader=lambda iri: other, mode="delta", target_graph=target)
+    res = main.resolve_imports(imports_loader=lambda iri: other, mode="delta", target_graph=target)
     assert res is target
     assert (N("http://x/other"), N("http://x/p"), N("http://x/o")) in target
 

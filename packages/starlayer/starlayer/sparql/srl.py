@@ -188,7 +188,7 @@ def parse_ruleset(text: str, base: str | None = None, *, imports_loader: Any | N
     Args:
         text: The SRL rule-set text to parse.
         base: Base IRI for resolving relative IRIs, if any.
-        imports_loader: ``loader(iri) -> str | RuleSet``, as for :func:`resolve_imports`. Without
+        imports_loader: ``imports_loader(iri) -> str | RuleSet``, as for :func:`resolve_imports`. Without
             one, a rule set with ``IMPORTS`` is returned with them unresolved (parsing text is not resolving it: running it raises, and
             ``validate_sparql_tree`` reports them); with one, every import must be resolved or this raises.
         ignore_imports: Resolve nothing, even with a loader: the rule set is returned as parsed.
@@ -610,14 +610,14 @@ def _rename_blank_nodes(term, mapping: dict):
     return term
 
 
-def resolve_imports(ruleset: srl_ast.RuleSet, loader=None, *, location: str | None = None, ignore_imports: bool = False) -> srl_ast.RuleSet:
+def resolve_imports(ruleset: srl_ast.RuleSet, imports_loader=None, *, location: str | None = None, ignore_imports: bool = False) -> srl_ast.RuleSet:
     """Return the *resolved* rule set (§4.5): ``ruleset`` with every ``IMPORTS``
     document read, recursively, and its rules and ``DATA`` merged in. The result
     has no imports left. ``ruleset`` itself is not changed.
 
     Every import must be resolved or the call raises, as for ``owl:imports`` (``starlayer.graph.imports``): an import is satisfied when
     the loader produced a rule set for its IRI. Reading a document from the web has security implications, so nothing is read
-    unless the caller supplies ``loader`` - there is no default; with none (or a loader that returns ``None`` for an import) the rule
+    unless the caller supplies ``imports_loader`` - there is no default; with none (or a loader that returns ``None`` for an import) the rule
     set cannot be resolved and the call raises. The loader decides where documents come from: a directory, a verified copy, a dictionary.
 
     Each document is imported only once (§3.7), so a diamond or a cycle among the
@@ -628,7 +628,7 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader=None, *, location: str | No
 
     Args:
         ruleset: The rule set whose imports are resolved.
-        loader: ``loader(iri) -> str | RuleSet | None``: given an import IRI (a string),
+        imports_loader: ``imports_loader(iri) -> str | RuleSet | None``: given an import IRI (a string),
             returns the document's SRL text (parsed with ``base=iri``) or an already
             parsed ``RuleSet``; ``None`` says it has none (the import is then unresolved). It may raise to say the document cannot be
             read (wrapped, see below).
@@ -645,10 +645,10 @@ def resolve_imports(ruleset: srl_ast.RuleSet, loader=None, *, location: str | No
         FormatError: (kind ``"srl"``) If the loader returns text that is not a valid rule set.
         ExecutionError: (kind ``"rule"``) If the rules of the combined rule set cannot be ordered.
     """
-    return _resolve_imports(ruleset, loader, location=location, check=True, ignore_imports=ignore_imports)
+    return _resolve_imports(ruleset, imports_loader, location=location, check=True, ignore_imports=ignore_imports)
 
 
-def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, check: bool, ignore_imports: bool = False) -> srl_ast.RuleSet:
+def _resolve_imports(ruleset: srl_ast.RuleSet, imports_loader, *, location: str | None, check: bool, ignore_imports: bool = False) -> srl_ast.RuleSet:
     """``resolve_imports``; ``check=False`` leaves the stratification of the combined rule set unchecked (``parse_ruleset`` does not check it)."""
     if ignore_imports or not ruleset.imports:
         return ruleset
@@ -678,11 +678,11 @@ def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, 
             if _T.iri_text(import_iri) in visited:
                 continue
             visited.add(_T.iri_text(import_iri))
-            if loader is None:
+            if imports_loader is None:
                 unresolved.append(import_iri)
                 continue
             try:
-                loaded = loader(_T.iri_text(import_iri))
+                loaded = imports_loader(_T.iri_text(import_iri))
             except Exception as exc:
                 reason = "not found" if isinstance(exc, KeyError) else f"{type(exc).__name__}: {exc}"
                 message = f"SRL: cannot read the import <{import_iri}>: {reason}"
@@ -703,7 +703,7 @@ def _resolve_imports(ruleset: srl_ast.RuleSet, loader, *, location: str | None, 
 
     rules, data = _merge(ruleset, renamed=False)
     if unresolved:
-        raise unresolved_imports_error(tuple(unresolved), "no imports_loader was given" if loader is None else "imports_loader returned no rule set for it")
+        raise unresolved_imports_error(tuple(unresolved), "no imports_loader was given" if imports_loader is None else "imports_loader returned no rule set for it")
     resolved = srl_ast.RuleSet(rules=rules, data=data, imports=[], prefixes=dict(ruleset.prefixes))
     if check:
         _check_stratification(resolved)  # now the whole rule set: an import can add a dependency the text alone does not have

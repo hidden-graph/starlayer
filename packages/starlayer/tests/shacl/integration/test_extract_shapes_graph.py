@@ -181,7 +181,7 @@ def test_does_not_mutate_the_original_shacl_graph() -> None:
 
 
 def test_owl_imports_to_a_module_absent_entirely_raises() -> None:
-    """extract_shapes_graph() takes no loader= and only ever chases an
+    """extract_shapes_graph() takes no imports_loader= and only ever chases an
     import that's already a sh:ShapesGraph node co-located in the same
     shacl_graph (see the owl:imports-transitive-membership tests below) -
     but unlike the dangling-member case elsewhere in this file, an
@@ -189,7 +189,7 @@ def test_owl_imports_to_a_module_absent_entirely_raises() -> None:
     not silently skipped: a sh:ShapesGraph declaring owl:imports is
     asserting a real dependency on another packaging module. An import
     target with zero triples describing it anywhere in shacl_graph raises -
-    call resolve_imports(loader=...) first if it genuinely needs fetching
+    call resolve_imports(imports_loader=...) first if it genuinely needs fetching
     from elsewhere."""
     from tests.support.terms import OWL
 

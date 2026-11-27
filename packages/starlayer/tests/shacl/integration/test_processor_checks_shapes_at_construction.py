@@ -241,7 +241,7 @@ def test_unresolved_imports_do_not_raise_at_construction_but_at_validate() -> No
         loaded.append(iri)
         return g(IMPORTED_SHAPES)
 
-    assert isinstance(processor.validate(g(DATA), shapes_graph_loader=loader), ValidationReport)
+    assert isinstance(processor.validate(g(DATA), imports_loader=loader), ValidationReport)
     assert loaded
     assert isinstance(processor.validate(g(DATA), ignore_imports=True), ValidationReport)
 
@@ -249,10 +249,10 @@ def test_unresolved_imports_do_not_raise_at_construction_but_at_validate() -> No
 def test_with_a_constructor_loader_the_resolved_graph_is_checked() -> None:
     broken_import = g("<http://example.org/imported> a owl:Ontology . ex:T a sh:NodeShape ; sh:path ex:p .")
     with pytest.raises(ShapeError):
-        StarShaclProcessor(shacl_graph=g(IMPORTING), shapes_graph_loader=lambda iri: broken_import)
+        StarShaclProcessor(shacl_graph=g(IMPORTING), imports_loader=lambda iri: broken_import)
     with pytest.raises(ShapeError):  # a shape is bad whether or not the imports are ignored
         StarShaclProcessor(shacl_graph=g(IMPORTING + " ex:U a sh:NodeShape ; sh:path ex:p ."), ignore_imports=True)
-    ok = StarShaclProcessor(shacl_graph=g(IMPORTING), shapes_graph_loader=lambda iri: g(IMPORTED_SHAPES))
+    ok = StarShaclProcessor(shacl_graph=g(IMPORTING), imports_loader=lambda iri: g(IMPORTED_SHAPES))
     assert ok.validate(g(DATA)).conforms is not None
     assert StarShaclProcessor(shacl_graph=g(IMPORTING), ignore_imports=True).validate(g(DATA)).conforms
 

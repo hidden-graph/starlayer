@@ -133,7 +133,7 @@ def validate(
     max_validation_depth: int | None = DEFAULT_MAX_VALIDATION_DEPTH,
     inplace: bool = False,
     meta_shacl: Any = None,
-    shapes_graph_loader: Any = None,
+    imports_loader: Any = None,
     ignore_imports: bool | None = None,
     imports_resolved: bool = False,
     meta_shapes_extra: Any = (),
@@ -169,9 +169,9 @@ def validate(
     shape nesting; exceeding it raises ``ShapeError`` (the old validator raises too; its default is 500). ``None``
     removes the bound. Recursive shapes: see ``Context.conforms``.
 
-    ``meta_shacl``, ``shapes_graph_loader``, ``ignore_imports`` and ``meta_shapes_extra`` are the seam for
+    ``meta_shacl``, ``imports_loader``, ``ignore_imports`` and ``meta_shapes_extra`` are the seam for
     ``shacl.engine.meta`` and ``shacl.engine.imports`` (see the wiring comment in the body). Every graph's ``owl:imports`` are read
-    from the graph itself (its ``imports_loader`` / ``ignore_imports``); ``shapes_graph_loader`` and ``ignore_imports`` override those for
+    from the graph itself (its ``imports_loader`` / ``ignore_imports``); ``imports_loader`` and ``ignore_imports`` override those for
     this call (``ignore_imports=None``: each graph's own). ``imports_resolved=True`` says the shapes and ontology graphs were resolved
     already (``validate_each``): only the data graph's imports are read.
 
@@ -215,9 +215,9 @@ def validate(
     from starlayer.shacl.engine.imports import ignoring, resolve_inputs, with_data_imports
 
     if imports_resolved:  # the shapes and ontology graphs were resolved by the caller; the data graph's imports are this item's own
-        ont_graph = with_data_imports(ont_graph, data_graph, shapes_graph_loader, ignore_imports)
+        ont_graph = with_data_imports(ont_graph, data_graph, imports_loader, ignore_imports)
     else:
-        shapes_resolved, ont_graph = resolve_inputs(data_graph, shapes, ont_graph, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports)
+        shapes_resolved, ont_graph = resolve_inputs(data_graph, shapes, ont_graph, imports_loader=imports_loader, ignore_imports=ignore_imports)
         shapes = shapes_resolved
     if meta_shacl:
         try:
@@ -333,16 +333,16 @@ def validate_each(
     ont_graph = engine_view(ont_graph, "ontology graph")
     shapes_iri = kwargs.pop("shapes_graph_iri", None)
     shapes_identity = _identity_of(shapes)
-    loader, ignore_imports = kwargs.pop("shapes_graph_loader", None), kwargs.pop("ignore_imports", None)
+    imports_loader, ignore_imports = kwargs.pop("imports_loader", None), kwargs.pop("ignore_imports", None)
     meta_shacl, extra = kwargs.pop("meta_shacl", None), kwargs.pop("meta_shapes_extra", ())
     resource = kwargs.pop("shapes_graph_resource", None)
     from starlayer.shacl.engine.imports import resolve_imports
 
-    shapes = resolve_imports(shapes, shapes_graph_loader=loader, ignore_imports=ignore_imports)  # resolves or raises, once for the batch
+    shapes = resolve_imports(shapes, imports_loader=imports_loader, ignore_imports=ignore_imports)  # resolves or raises, once for the batch
     if ont_graph is not None:
-        ont_graph = resolve_imports(ont_graph, shapes_graph_loader=loader, ignore_imports=ignore_imports)
+        ont_graph = resolve_imports(ont_graph, imports_loader=imports_loader, ignore_imports=ignore_imports)
     kwargs["imports_resolved"] = True  # the shapes and ontology graphs are resolved here, not again per item (each data graph reads its own)
-    kwargs["ignore_imports"], kwargs["shapes_graph_loader"] = ignore_imports, loader
+    kwargs["ignore_imports"], kwargs["imports_loader"] = ignore_imports, imports_loader
     if meta_shacl:
         from starlayer.shacl.engine.meta import meta_validate
 
@@ -372,21 +372,21 @@ def target_nodes(
     timeout: Any = None,
     recompute: str = "onChange",
     subclass_of_in_shapes_graph: bool = False,
-    shapes_graph_loader: Any = None,
+    imports_loader: Any = None,
     ignore_imports: bool | None = None,
 ) -> list:
     """The focus nodes ``shape_node`` targets in ``data_graph`` (the nodes ``validate`` reports on for that shape), in target
     order and without duplicates, as engine (pyoxigraph) terms. ``shapes_graph=None`` reads the shapes from ``data_graph``. The entailment of ``inference`` and
     of the shapes graph's own ``sh:entailment`` is applied first, over the data and ``ont_graph``, without changing either.
     ``subclass_of_in_shapes_graph`` reads ``rdfs:subClassOf`` for ``sh:targetClass`` (and implicit class targets) from the shapes graph too.
-    The ``owl:imports`` of the data, shapes and ontology graphs are resolved as for :func:`validate` (``shapes_graph_loader`` and ``ignore_imports``
+    The ``owl:imports`` of the data, shapes and ontology graphs are resolved as for :func:`validate` (``imports_loader`` and ``ignore_imports``
     override the graphs' own settings for the call)."""
     from starlayer.shacl.engine.entailment import resolve_data_view
 
     from starlayer.shacl.engine.imports import resolve_inputs
 
     data_graph = engine_view(data_graph, "data graph")
-    shapes, ont_graph = resolve_inputs(data_graph, shapes_graph, ont_graph, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports)
+    shapes, ont_graph = resolve_inputs(data_graph, shapes_graph, ont_graph, imports_loader=imports_loader, ignore_imports=ignore_imports)
     shapes = shapes if shapes is not None else data_graph
     data = resolve_data_view(
         data_graph, shapes, inference=inference, ont_graph=ont_graph, engine=engine, timeout=timeout, recompute=recompute
@@ -407,7 +407,7 @@ def target_shapes(
     timeout: Any = None,
     recompute: str = "onChange",
     subclass_of_in_shapes_graph: bool = False,
-    shapes_graph_loader: Any = None,
+    imports_loader: Any = None,
     ignore_imports: bool | None = None,
 ) -> list:
     """The shapes that target ``node`` in ``data_graph``: the shapes ``validate`` checks the node against, the reverse of
@@ -418,7 +418,7 @@ def target_shapes(
     from starlayer.shacl.engine.imports import resolve_inputs
 
     data_graph = engine_view(data_graph, "data graph")
-    shapes, ont_graph = resolve_inputs(data_graph, shapes_graph, ont_graph, shapes_graph_loader=shapes_graph_loader, ignore_imports=ignore_imports)
+    shapes, ont_graph = resolve_inputs(data_graph, shapes_graph, ont_graph, imports_loader=imports_loader, ignore_imports=ignore_imports)
     shapes = shapes if shapes is not None else data_graph
     data = resolve_data_view(
         data_graph, shapes, inference=inference, ont_graph=ont_graph, engine=engine, timeout=timeout, recompute=recompute

@@ -59,17 +59,17 @@ class TestOwlImports:
         fetches, never merges. Confirmed by never supplying one at all."""
         g = StarLayerGraph()
         g.add((EX.this, OWL.imports, EX.other))
-        # No TypeError about a missing loader= - owl_imports() takes none.
+        # No TypeError about a missing imports_loader= - owl_imports() takes none.
         assert g.owl_imports() == (EX.other,)
 
 
 class TestCanResolveImport:
     def test_true_when_loader_returns_a_graph(self) -> None:
         other = StarLayerGraph()
-        assert can_resolve_import(EX.other, loader=lambda iri: other if iri == EX.other else None) is True
+        assert can_resolve_import(EX.other, imports_loader=lambda iri: other if iri == EX.other else None) is True
 
     def test_false_when_loader_returns_none(self) -> None:
-        assert can_resolve_import(EX.unknown, loader=lambda iri: None) is False
+        assert can_resolve_import(EX.unknown, imports_loader=lambda iri: None) is False
 
     def test_calls_the_loader_exactly_once(self) -> None:
         calls = []
@@ -78,7 +78,7 @@ class TestCanResolveImport:
             calls.append(iri)
             return StarLayerGraph()
 
-        can_resolve_import(EX.other, loader=loader)
+        can_resolve_import(EX.other, imports_loader=loader)
         assert calls == [EX.other]
 
 
@@ -95,7 +95,7 @@ class TestResolveImportsFullMode:
 
     def test_full_mode_contains_self_plus_imported(self) -> None:
         g, imported = self._setup()
-        result = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="full")
+        result = g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None, mode="full")
 
         assert (EX.fido, RDF.type, EX.Dog) in result
         assert (EX.Dog, RDFS.subClassOf, EX.Animal) in result
@@ -103,19 +103,19 @@ class TestResolveImportsFullMode:
     def test_full_mode_never_mutates_self(self) -> None:
         g, imported = self._setup()
         before = set(g)
-        g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="full")
+        g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None, mode="full")
         assert set(g) == before
 
     def test_full_mode_never_mutates_the_imported_graph(self) -> None:
         g, imported = self._setup()
         before = set(imported)
-        g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="full")
+        g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None, mode="full")
         assert set(imported) == before
 
     def test_default_mode_is_full(self) -> None:
         g, imported = self._setup()
-        default_result = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None)
-        explicit_result = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="full")
+        default_result = g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None)
+        explicit_result = g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None, mode="full")
         assert set(default_result) == set(explicit_result)
 
     def test_unresolvable_import_is_an_error(self) -> None:
@@ -124,7 +124,7 @@ class TestResolveImportsFullMode:
         g.add((EX.fido, RDF.type, EX.Dog))
 
         with pytest.raises(ExecutionError) as caught:
-            g.resolve_imports(loader=lambda iri: None, mode="full")
+            g.resolve_imports(imports_loader=lambda iri: None, mode="full")
 
         assert caught.value.kind == "import"
         assert caught.value.unresolved == (EX.unreachable,)
@@ -140,7 +140,7 @@ class TestResolveImportsDeltaMode:
         g.add((EX.this, OWL.imports, EX.other))
         g.add((EX.fido, RDF.type, EX.Dog))
 
-        delta = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="delta")
+        delta = g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None, mode="delta")
 
         assert set(delta) == {(EX.other, RDF.type, OWL.Ontology), (EX.Dog, RDFS.subClassOf, EX.Animal)}
 
@@ -157,7 +157,7 @@ class TestResolveImportsDeltaMode:
         g.add((EX.this, OWL.imports, EX.other))
         g.add((EX.fido, RDF.type, EX.Dog))
 
-        delta = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="delta")
+        delta = g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None, mode="delta")
 
         assert set(delta) == {(EX.other, RDF.type, OWL.Ontology), (EX.Dog, RDFS.subClassOf, EX.Animal)}
 
@@ -171,7 +171,7 @@ class TestResolveImportsInPlaceMode:
         g = StarLayerGraph()
         g.add((EX.this, OWL.imports, EX.other))
 
-        result = g.resolve_imports(loader=lambda iri: imported if iri == EX.other else None, mode="in-place")
+        result = g.resolve_imports(imports_loader=lambda iri: imported if iri == EX.other else None, mode="in-place")
 
         assert result is g
         assert (EX.Dog, RDFS.subClassOf, EX.Animal) in g
@@ -179,14 +179,14 @@ class TestResolveImportsInPlaceMode:
     def test_in_place_rejects_target_graph(self) -> None:
         g = StarLayerGraph()
         with pytest.raises(ValueError, match="target_graph"):
-            g.resolve_imports(loader=lambda iri: None, mode="in-place", target_graph=StarLayerGraph())
+            g.resolve_imports(imports_loader=lambda iri: None, mode="in-place", target_graph=StarLayerGraph())
 
 
 class TestResolveImportsValidation:
     def test_unknown_mode_raises(self) -> None:
         g = StarLayerGraph()
         with pytest.raises(ValueError, match="mode must be one of"):
-            g.resolve_imports(loader=lambda iri: None, mode="bogus")
+            g.resolve_imports(imports_loader=lambda iri: None, mode="bogus")
 
 
 class TestResolveImportsTransitiveClosure:
@@ -206,7 +206,7 @@ class TestResolveImportsTransitiveClosure:
         a = StarLayerGraph()
         a.add((EX.a, OWL.imports, EX.b))
 
-        result = a.resolve_imports(loader=lambda iri: registry.get(iri), mode="full")
+        result = a.resolve_imports(imports_loader=lambda iri: registry.get(iri), mode="full")
 
         assert (EX.bFact, RDF.type, EX.BThing) in result
         assert (EX.cFact, RDF.type, EX.CThing) in result
@@ -223,7 +223,7 @@ class TestResolveImportsTransitiveClosure:
 
         registry = {EX.a: a, EX.b: b}
 
-        result = a.resolve_imports(loader=lambda iri: registry.get(iri), mode="full")
+        result = a.resolve_imports(imports_loader=lambda iri: registry.get(iri), mode="full")
 
         assert (EX.bFact, RDF.type, EX.BThing) in result
 
@@ -247,7 +247,7 @@ class TestResolveImportsTransitiveClosure:
         g = StarLayerGraph()
         g.add((EX.this, OWL.imports, EX.versionedOntology))
 
-        result = g.resolve_imports(loader=lambda iri: registry.get(iri), mode="full")
+        result = g.resolve_imports(imports_loader=lambda iri: registry.get(iri), mode="full")
 
         assert (EX.versionedFact, RDF.type, EX.Thing) in result
         # The chained import from the *base* IRI (not the version IRI)
@@ -293,7 +293,7 @@ class TestResolveImportsSameGraphCoLocation:
             calls.append(iri)
             return None
 
-        result = g.resolve_imports(loader=loader, mode="full")
+        result = g.resolve_imports(imports_loader=loader, mode="full")
 
         assert calls == []
         assert set(result) == set(g)
@@ -321,7 +321,7 @@ class TestResolveImportsSameGraphCoLocation:
             calls.append(iri)
             return None
 
-        result = g.resolve_imports(loader=loader, mode="full")
+        result = g.resolve_imports(imports_loader=loader, mode="full")
 
         assert calls == []
         assert set(result) == set(g)
@@ -345,7 +345,7 @@ class TestResolveImportsSameGraphCoLocation:
             calls.append(iri)
             return external if iri == EX.ExternalModule else None
 
-        result = g.resolve_imports(loader=loader, mode="full")
+        result = g.resolve_imports(imports_loader=loader, mode="full")
 
         assert calls == [EX.ExternalModule]
         assert (EX.ExternalFact, RDF.type, EX.ExternalThing) in result

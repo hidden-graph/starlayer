@@ -724,7 +724,7 @@ The nodes ``shape_node`` targets in ``data_graph`` (default: the bound one), as 
 ### `StarShaclSchema.validate`  _(method)_
 
 ```python
-def validate(self, data_graph: Any | None=None, *, mode: str | ValidationMode | None=None, shapes_graph_loader: Callable[[Any], Any | None] | None=None, ignore_imports: bool=False, meta_shapes_extra: Iterable[Any]=(), data_graph_iri: Any | None=None, shapes_graph_resource: Any | None=None, shapes_graph_iri: Any | None=None, specification_graph: Any | None=None, include_used_configuration: bool=False, **kwargs: Any) -> ValidationResult
+def validate(self, data_graph: Any | None=None, *, mode: str | ValidationMode | None=None, imports_loader: Callable[[Any], Any | None] | None=None, ignore_imports: bool=False, meta_shapes_extra: Iterable[Any]=(), data_graph_iri: Any | None=None, shapes_graph_resource: Any | None=None, shapes_graph_iri: Any | None=None, specification_graph: Any | None=None, include_used_configuration: bool=False, **kwargs: Any) -> ValidationResult
 ```
 
 Validates ``data_graph`` (default: the bound data graph) against the bound shapes graph; see :func:`validate`.
@@ -736,7 +736,7 @@ named ``sh:ShapesGraph`` module of the bound shapes graph.
 
 - `data_graph: Any | None = None`
 - `mode: str | ValidationMode | None = None`
-- `shapes_graph_loader: Callable[[Any], Any | None] | None = None`
+- `imports_loader: Callable[[Any], Any | None] | None = None`
 - `ignore_imports: bool = False`
 - `meta_shapes_extra: Iterable[Any] = ()`
 - `data_graph_iri: Any | None = None`
@@ -2655,7 +2655,7 @@ either.
 ### `validate`  _(function)_
 
 ```python
-def validate(data_graph: Any, shacl_graph: Any | None=None, ont_graph: Any | None=None, *, mode: str | ValidationMode | None=None, shapes_graph_loader: Callable[[Any], Any | None] | None=None, ignore_imports: bool=False, meta_shapes_extra: Iterable[Any]=(), data_graph_iri: Any | None=None, shapes_graph_resource: Any | None=None, shapes_graph_iri: Any | None=None, specification_graph: Any | None=None, include_used_configuration: bool=False, **kwargs: Any) -> ValidationResult
+def validate(data_graph: Any, shacl_graph: Any | None=None, ont_graph: Any | None=None, *, mode: str | ValidationMode | None=None, imports_loader: Callable[[Any], Any | None] | None=None, ignore_imports: bool=False, meta_shapes_extra: Iterable[Any]=(), data_graph_iri: Any | None=None, shapes_graph_resource: Any | None=None, shapes_graph_iri: Any | None=None, specification_graph: Any | None=None, include_used_configuration: bool=False, **kwargs: Any) -> ValidationResult
 ```
 
 Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``ValidationResult``.
@@ -2666,7 +2666,7 @@ Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``V
 - `shacl_graph: Any | None = None` - The shapes graph. ``None`` reads the shapes from ``data_graph`` itself.
 - `ont_graph: Any | None = None` - An optional ontology graph. Its axioms (``rdfs:domain``, ``rdfs:subClassOf`` ...) are visible to entailment, but its triples are never copied into ``data_graph``.
 - `mode: str | ValidationMode | None = None` - A named preset of options (``"validation"``, ``"rules"`` or ``"debug"``); any of its options can be overridden per call through ``**kwargs``.
-- `shapes_graph_loader: Callable[[Any], Any | None] | None = None` - Resolves the shapes graph's ``owl:imports``. With no loader, an import that is not already in the graph raises ``ValueError`` unless ``ignore_imports=True``.
+- `imports_loader: Callable[[Any], Any | None] | None = None` - Resolves the shapes graph's ``owl:imports``. With no loader, an import that is not already in the graph raises ``ValueError`` unless ``ignore_imports=True``.
 - `ignore_imports: bool = False` - Do not complain about imports that cannot be resolved.
 - `meta_shapes_extra: Iterable[Any] = ()` - Extra graphs for the shapes-about-shapes check when ``meta_shacl=True``. to the graph's own identifier when that is an IRI.
 - `data_graph_iri: Any | None = None`

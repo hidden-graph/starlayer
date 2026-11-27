@@ -436,7 +436,7 @@ class TestLocalLoader:
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
         sqe_alone = starontology.get_ontology_graph("sqe_shacl")
-        merged = sqe_alone.resolve_imports(loader=starontology.local_loader, mode="full")
+        merged = sqe_alone.resolve_imports(imports_loader=starontology.local_loader, mode="full")
 
         assert (SPEXPR.ExpressionShape, RDF.type, SH.NodeShape) in merged
         assert len(merged) > len(sqe_alone)
@@ -448,7 +448,7 @@ class TestLocalLoader:
         SPEXPR = RdfNamespace("https://github.com/hidden-graph/starlayer/ns/sparql/expr#")
 
         srl_alone = starontology.get_ontology_graph("srl_shacl")
-        merged = srl_alone.resolve_imports(loader=starontology.local_loader, mode="full")
+        merged = srl_alone.resolve_imports(imports_loader=starontology.local_loader, mode="full")
 
         assert (SPEXPR.ExpressionShape, RDF.type, SH.NodeShape) in merged
 
@@ -456,7 +456,7 @@ class TestLocalLoader:
         """skos_shacl declares no owl:imports at all - resolve_imports()
         with local_loader must be a safe no-op, not an error."""
         skos_alone = starontology.get_ontology_graph("skos_shacl")
-        merged = skos_alone.resolve_imports(loader=starontology.local_loader, mode="full")
+        merged = skos_alone.resolve_imports(imports_loader=starontology.local_loader, mode="full")
         assert set(merged) == set(skos_alone)
 
 

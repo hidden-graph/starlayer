@@ -800,7 +800,7 @@ def derive_shape(
     ignored_properties: Any = None,
     use_default_ignored_properties: bool = True,
     include_subclasses: bool = True,
-    shapes_graph_loader: Any = None,
+    imports_loader: Any = None,
     ignore_imports: bool | None = None,
 ) -> Any:
     """Derive one closed ``sh:NodeShape`` from the data: a StarLayer feature, not part of SHACL. It exists so that a shape can be
@@ -853,7 +853,7 @@ def derive_shape(
     those that have other properties.
 
     The ``owl:imports`` of ``template_graph`` (the shapes graph here) are resolved, so a template shape may reference shapes it imports, and
-    those of ``graph`` are checked, as for ``validate()`` (each graph's own ``imports_loader`` / ``ignore_imports``; ``shapes_graph_loader`` and
+    those of ``graph`` are checked, as for ``validate()`` (each graph's own ``imports_loader`` / ``ignore_imports``; ``imports_loader`` and
     ``ignore_imports`` override them for this call). The data graph's imported triples are not part of the data the shape is derived from.
 
     Raises:
@@ -866,7 +866,7 @@ def derive_shape(
     data = engine_view(normalize_to_starlayer_graph(graph, name="graph"), "graph")
     from starlayer.shacl.engine.imports import resolve_imports, with_data_imports
 
-    with_data_imports(None, data, shapes_graph_loader, ignore_imports)  # raises when the data graph's imports are not resolved
+    with_data_imports(None, data, imports_loader, ignore_imports)  # raises when the data graph's imports are not resolved
     shape_term = None if shape is None else _as_term(shape, "shape", allowed=(ox.NamedNode,))
     template = None
     if template_graph is not None:
@@ -878,7 +878,7 @@ def derive_shape(
         if shape_term is None:
             raise ValueError("derive_shape() with template_graph= needs shape=, the IRI of the shape in template_graph to update")
         template = resolve_imports(
-            engine_view(normalize_to_starlayer_graph(template_graph, name="template_graph"), "template_graph"), shapes_graph_loader, ignore_imports
+            engine_view(normalize_to_starlayer_graph(template_graph, name="template_graph"), "template_graph"), imports_loader, ignore_imports
         )
         target = _template_target(template, shape_term, include_subclasses)
     else:

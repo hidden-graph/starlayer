@@ -1,5 +1,5 @@
 """``StarShaclProcessor`` constructor defaults for the options that describe the shapes graph or are safety limits:
-``meta_shacl``, ``meta_shapes_extra``, ``ignore_imports``, ``shapes_graph_loader``, ``max_iterations``, ``max_triples``. Precedence, lowest first: built-in default, constructor, ``mode=`` preset, call keyword."""
+``meta_shacl``, ``meta_shapes_extra``, ``ignore_imports``, ``imports_loader``, ``max_iterations``, ``max_triples``. Precedence, lowest first: built-in default, constructor, ``mode=`` preset, call keyword."""
 
 from __future__ import annotations
 
@@ -99,7 +99,7 @@ def test_meta_shacl_in_apply_rules() -> None:
     StarShaclProcessor(g(PLAIN_SHAPES)).apply_rules(g(DATA))
 
 
-# --- ignore_imports, shapes_graph_loader ------------------------------------------------------------------------------------
+# --- ignore_imports, imports_loader ------------------------------------------------------------------------------------
 
 IMPORTED = "http://example.org/imported"
 IMPORTING = "<http://example.org/importing> owl:imports <http://example.org/imported> . ex:S a sh:NodeShape ; sh:targetClass ex:T ."
@@ -118,7 +118,7 @@ def test_unset_imports_behaviour_is_unchanged() -> None:
     with pytest.raises(ExecutionError, match="owl:imports"):
         importing().validate(g(DATA))
     assert importing().validate(g(DATA), ignore_imports=True).conforms
-    assert not importing().validate(g(DATA), shapes_graph_loader=loader).conforms
+    assert not importing().validate(g(DATA), imports_loader=loader).conforms
 
 
 def test_constructor_ignore_imports() -> None:
@@ -132,20 +132,20 @@ def test_constructor_ignore_imports() -> None:
 
 
 def test_constructor_loader() -> None:
-    p = importing(shapes_graph_loader=loader)
+    p = importing(imports_loader=loader)
     assert not p.validate(g(DATA)).conforms  # the imported shape applies
     assert len(p.apply_rules(g(DATA)).inferred_graph) == 0  # the constructor's loader resolves the imports for the rules too
     with pytest.raises(ExecutionError, match="owl:imports"):
-        p.apply_rules(g(DATA), shapes_graph_loader=None)
+        p.apply_rules(g(DATA), imports_loader=None)
     with pytest.raises(ExecutionError, match="owl:imports"):
-        p.validate(g(DATA), shapes_graph_loader=None)  # None on the call drops the constructor's loader
+        p.validate(g(DATA), imports_loader=None)  # None on the call drops the constructor's loader
     with pytest.raises(ExecutionError, match="owl:imports"):  # another loader replaces it (and returns nothing: unresolved)
-        p.validate(g(DATA), shapes_graph_loader=lambda iri: None)
-    assert p.validate(g(DATA), ignore_imports=True, shapes_graph_loader=None).conforms
+        p.validate(g(DATA), imports_loader=lambda iri: None)
+    assert p.validate(g(DATA), ignore_imports=True, imports_loader=None).conforms
 
 
 def test_constructor_loader_and_ignore_imports_in_validate_each() -> None:
-    results = importing(shapes_graph_loader=loader).validate_each(dataset_of([g(DATA), g(DATA)]))
+    results = importing(imports_loader=loader).validate_each(dataset_of([g(DATA), g(DATA)]))
     assert [r.conforms for r in results.values()] == [False, False]
     assert all(r.conforms for r in importing(ignore_imports=True).validate_each(dataset_of([g(DATA)])).values())
 

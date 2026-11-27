@@ -134,9 +134,9 @@ def test_resolve_imports_follows_imports_declared_on_a_different_ontology_iri():
             return h
         return None
 
-    r = a.resolve_imports(loader=loader)
+    r = a.resolve_imports(imports_loader=loader)
     assert (E("z"), E("p"), E("w")) in r
-    assert set(r.resolve_imports(loader=loader)) == set(r)
+    assert set(r.resolve_imports(imports_loader=loader)) == set(r)
 
 
 def test_infer_rdf_is_a_closure():
