@@ -278,6 +278,15 @@ def test_every_kind_in_use_at_a_raise_site_is_declared():
     assert not bad, "\n".join(bad)
 
 
+def test_a_kind_name_is_used_by_one_class_only():
+    """``reraise_unless`` tests the kind string alone, so no kind may be declared in two registries."""
+    owner: dict[str, str] = {}
+    for cls in (ExecutionError, FormatError, ShapeError, errors.EndpointError):
+        for kind in cls.KINDS:
+            assert kind not in owner, f"kind {kind!r} is declared in both {owner[kind]} and {cls.__name__}"
+            owner[kind] = cls.__name__
+
+
 def test_every_declared_kind_is_used_somewhere():
     used = {(name, kind) for _path, _line, name, kind in _error_call_kinds() if name != "reraise_unless"}
     unused = [(name, kind) for name, kinds in (("ExecutionError", ExecutionError.KINDS), ("FormatError", FormatError.KINDS), ("ShapeError", ShapeError.KINDS),
@@ -297,7 +306,7 @@ def test_endpoint_error_is_the_one_library_error_that_stays_an_os_error():
 
 
 def test_the_endpoint_kinds_and_the_required_valid_kind():
-    assert tuple(errors.EndpointError.KINDS) == ("http", "unreachable", "content-type")
+    assert tuple(errors.EndpointError.KINDS) == ("http", "unreachable", "content-type", "read-only")
     with pytest.raises(TypeError):
         errors.EndpointError("no kind")  # type: ignore[call-arg]
     with pytest.raises(ValueError, match="unknown EndpointError kind"):

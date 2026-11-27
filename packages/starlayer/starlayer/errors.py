@@ -216,7 +216,8 @@ class EndpointError(StarLayerError, OSError):
     Still an ``OSError`` (a network failure is an I/O error), so ``except OSError`` keeps working; one class, like the others.
 
     ``kind`` says what failed (a plain string, one of ``KINDS``: the mapping of every kind to its meaning). ``status`` (second
-    positional argument, default ``None``) is the HTTP status, set for kind ``"http"``. ``context`` (default ``None``) is the URL
+    positional argument, default ``None``) is the HTTP status, set for kind ``"http"`` (kind ``"read-only"`` is refused before anything is sent, so it has none; a read-only
+    server that refuses an update is kind ``"http"`` with its 403 or 405). ``context`` (default ``None``) is the URL
     involved, also in the message. Catch ``EndpointError`` and test ``error.kind``; ``reraise_unless`` does the test inside a clause."""
 
     #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
@@ -224,6 +225,7 @@ class EndpointError(StarLayerError, OSError):
         "http": "Error status answered by the endpoint (status holds it)",
         "unreachable": "Host that cannot be reached: the connection failed or timed out",
         "content-type": "Answer in a content type StarLayer cannot read",
+        "read-only": "Update sent to an endpoint that has no update URL (a read-only endpoint)",
     }
 
     def __init__(self, message: str = "", status: int | None = None, *, kind: str, context: str | None = None) -> None:

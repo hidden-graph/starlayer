@@ -117,9 +117,9 @@ class Endpoint:
         return bool(self.query(text))
 
     def update(self, text: str) -> None:
-        """Run a SPARQL Update on the endpoint; a read-only endpoint (no ``update_url``) raises ``ValueError``."""
+        """Run a SPARQL Update on the endpoint; a read-only endpoint (no ``update_url``) raises ``EndpointError`` kind ``"read-only"`` before sending anything."""
         if self.update_url is None:
-            raise ValueError("this endpoint has no update URL (it is read-only)")
+            raise EndpointError("this endpoint has no update URL (it is read-only)", kind="read-only", context=self.query_url)
         self._post(self.update_url, "application/sparql-update", "*/*", text)
 
     def pull(self, graph: Any = None) -> list[ox.Triple]:

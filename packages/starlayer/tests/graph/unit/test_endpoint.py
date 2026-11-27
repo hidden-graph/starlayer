@@ -141,10 +141,10 @@ def test_an_unreachable_endpoint_is_an_endpoint_error() -> None:
     assert caught.value.kind == "unreachable" and caught.value.status is None and caught.value.context == "http://127.0.0.1:9/query"
 
 
-def test_a_read_only_endpoint_refuses_an_update_with_a_value_error(mock) -> None:
-    with pytest.raises(ValueError, match="read-only") as caught:
+def test_a_read_only_endpoint_refuses_an_update_with_an_endpoint_error(mock) -> None:
+    with pytest.raises(EndpointError, match="read-only") as caught:
         Endpoint(mock.endpoint.query_url).update("CLEAR DEFAULT")
-    assert not isinstance(caught.value, EndpointError)
+    assert caught.value.kind == "read-only" and caught.value.status is None and caught.value.context == mock.endpoint.query_url
 
 
 def test_basic_auth_and_headers_are_sent(mock) -> None:
