@@ -53,8 +53,8 @@ def one_by_one(monkeypatch) -> None:
 
 def test_a_rule_is_run_once_for_all_its_focus_nodes(calls) -> None:
     result = apply_rules(people(10), shapes())
-    # (two iterations: the second finds nothing new)
-    assert calls["single"] == 0 and calls["batch"] == 2 and calls["sizes"] == [10, 10]
+    # (two iterations, but the rule reads nothing the first one inferred, so it is run once: see test_rule_skipping.py)
+    assert result.iterations == 2 and calls["single"] == 0 and calls["batch"] == 1 and calls["sizes"] == [10]
     assert len(result.inferred) == 7
 
 
@@ -101,7 +101,7 @@ def test_a_blank_node_focus_node_is_run_by_itself(calls, monkeypatch) -> None:
     d = graph("ex:a a ex:Person ; ex:age 30 . ex:b a ex:Person ; ex:age 40 . [ a ex:Person ; ex:age 50 ] . [ a ex:Person ; ex:age 60 ] .")
     s = shapes()
     batched = apply_rules(d, s)
-    assert calls["batch"] == 2 and calls["sizes"] == [2, 2] and calls["single"] == 4  # (two iterations; the two blank nodes alone in each)
+    assert calls["batch"] == 1 and calls["sizes"] == [2] and calls["single"] == 2  # (the rule is run once; the two blank nodes alone)
     assert len(batched.inferred) == 4
 
 
@@ -113,7 +113,7 @@ def test_one_focus_node_is_run_by_itself(calls) -> None:
 def test_a_query_that_cannot_be_batched_is_run_for_each_node(calls) -> None:
     limited = "CONSTRUCT { $this ex:isAdult true } WHERE { $this ex:age ?a FILTER (?a >= 18) } LIMIT 100"
     apply_rules(people(6), shapes(limited))
-    assert calls["batch"] == 0 and calls["single"] == 12
+    assert calls["batch"] == 0 and calls["single"] == 6  # (one run for each of the six nodes: the second iteration is skipped)
 
 
 def test_a_global_rule_has_no_focus_nodes_to_batch(calls) -> None:
