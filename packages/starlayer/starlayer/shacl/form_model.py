@@ -463,7 +463,7 @@ class _Builder:
         return computed, default
 
     def expression_values(self, props: list[Any]) -> set:
-        from starlayer.errors import ExecutionError, only_kind
+        from starlayer.errors import ExecutionError, reraise_unless
         from starlayer.shacl.engine import expressions
 
         found: set = set()
@@ -472,7 +472,7 @@ class _Builder:
                 try:
                     found |= set(expressions.evaluate_expression(self.ctx, expr, self.node, {}))
                 except ExecutionError as error:
-                    only_kind(error, "expression")
+                    reraise_unless(error, "expression")
                     continue
         return found
 

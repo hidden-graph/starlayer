@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from starlayer.errors import ExecutionError, FormatError, only_kind
+from starlayer.errors import ExecutionError, FormatError, reraise_unless
 
 __all__ = ["QueryCheck", "QueryProblem", "check_query"]
 
@@ -74,7 +74,7 @@ def _parse_once(text: str, prefixes: Mapping[str, str]) -> tuple[Any, QueryProbl
     try:
         return parse_sparql(text, prefixes=dict(prefixes) or None), None
     except ExecutionError as error:  # nested too deeply to parse: a problem of the text, at its start
-        only_kind(error, "limit")
+        reraise_unless(error, "limit")
         return None, QueryProblem("syntax", "error", str(error), 1, 1)
     except FormatError as query_error:
         # the update parser takes no prefixes, so they go in front as PREFIX lines
@@ -82,7 +82,7 @@ def _parse_once(text: str, prefixes: Mapping[str, str]) -> tuple[Any, QueryProbl
         try:
             return parse_sparql_update(head + text), None
         except ExecutionError as error:
-            only_kind(error, "limit")
+            reraise_unless(error, "limit")
             return None, QueryProblem("syntax", "error", str(error), 1, 1)
         except FormatError as update_error:
             # the text is meant as whichever grammar read further before failing: a query typo is far in, a non-query fails at the start
@@ -144,7 +144,7 @@ def _engine_problem(text: str, prefixes: Mapping[str, str] | None, functions: di
             return None  # reported as a version problem
         return QueryProblem("engine", "error", " ".join(str(error).split()))
     except ExecutionError as error:  # the engine's RuntimeError, wrapped at the boundary; any other kind is not a problem of the query
-        only_kind(error, "query")
+        reraise_unless(error, "query")
         return QueryProblem("engine", "error", " ".join(str(error).split()))
     except (ValueError, NotImplementedError) as error:  # a bad argument or a refusal of the wrapper
         return QueryProblem("engine", "error", " ".join(str(error).split()))

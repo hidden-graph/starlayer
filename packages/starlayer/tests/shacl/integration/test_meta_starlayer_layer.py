@@ -2,7 +2,7 @@
 private layer ``shacl_shacl_starlayer``, kept out of ``shacl_shacl`` so that stays standard SHACL and SPARQL."""
 
 import pyoxigraph as ox
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer import starontology
 from starlayer.errors import ShapeError
@@ -38,7 +38,7 @@ def meta_report(shapes: Graph, extra=()):
     try:
         return meta_validate(shapes, meta_shapes_extra=extra).report_graph
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return error.report_graph
 
 
@@ -141,7 +141,7 @@ def query_problems(body: str) -> list[str]:
     try:
         meta_validate(graph(body))
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return [line for line in error.problems if "sh:select" in line or "sh:ask" in line or "sh:construct" in line]
     return []
 
@@ -217,7 +217,7 @@ def meta_lines(body: str) -> list[str]:
     try:
         meta_validate(Graph().parse(data=HEAD + body, format="turtle"))
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return list(error.problems)
     return []
 

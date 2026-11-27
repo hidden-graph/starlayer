@@ -45,7 +45,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import ExecutionError, FormatError, only_kind
+from starlayer.errors import ExecutionError, FormatError, reraise_unless
 from starlayer.graph.namespaces import RDFS  # noqa: E402,F401
 
 from .._oxterms import RDF
@@ -157,7 +157,7 @@ def _rewrite_cached(text: str, iri: str, prefixes: tuple, base: str | None) -> s
     except (FormatError, ValueError, RecursionError) as e:  # (a KeyError, TypeError or AttributeError is a bug: it propagates)
         raise _unsupported(f"the rewritten query could not be written out as SPARQL: {e}") from e
     except ExecutionError as e:  # nested too deeply to parse or encode, or a tree node with no text form; any other kind is a real failure
-        only_kind(e, "limit", "unsupported")
+        reraise_unless(e, "limit", "unsupported")
         raise _unsupported(f"the rewritten query could not be written out as SPARQL: {e}") from e
     return out
 

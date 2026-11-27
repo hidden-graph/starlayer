@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from starlayer.errors import ExecutionError, ShapeError, only_kind
+from starlayer.errors import ExecutionError, ShapeError, reraise_unless
 from starlayer.shacl.engine.deactivation import any_true, deactivated_at
 from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.naming import add_where
@@ -181,7 +181,7 @@ class Context:
             try:
                 out.extend(evaluate_expression(self, expr, focus))
             except ExecutionError as error:
-                only_kind(error, "expression")
+                reraise_unless(error, "expression")
         return out
 
     def target_expression(self, expr: Term, shape_node: Term) -> list[Term]:

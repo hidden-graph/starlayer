@@ -5,7 +5,7 @@ accept a node expression as the value of ``sh:targetNode``, and a rule condition
 
 from __future__ import annotations
 
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclProcessor, apply_rules, target_nodes, validate
@@ -91,7 +91,7 @@ class TestMetaShapesAcceptTargetNodeExpression:
         try:
             meta_validate(g(shapes_text))
         except ShapeError as error:
-            only_kind(error, "meta")
+            reraise_unless(error, "meta")
             return False
         return True
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import inspect
 
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
@@ -38,7 +38,7 @@ def meta_fails(p: StarShaclProcessor, **kw) -> bool:
     try:
         p.validate(g(DATA), **kw)
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return True
     return False
 

@@ -1,7 +1,7 @@
 """What a tool can say about a rule that is wrong: each defect of a rule, a template or a query is a result of its own, with a message that names it
 (GitHub: the workbench audit of rule validation)."""
 
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import ShapeError
@@ -26,7 +26,7 @@ def messages(turtle: str) -> list[str]:
         outcome = meta_validate(shapes, meta_shapes_extra=[parameter_value_shapes(shapes)])
         text = outcome.report_text
     except ShapeError as exc:  # a violation makes the shapes graph invalid; the report is in the message
-        only_kind(exc, "meta")
+        reraise_unless(exc, "meta")
         text = exc.report_text
     # the defects of the embedded SPARQL are results of the same check now; these tests are about the shapes of shapes
     kept, in_sparql = [], False

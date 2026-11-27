@@ -12,7 +12,7 @@ pySHACL's still-SHACL-1.0/1.1-era bundled meta-shapes, under starShacl's
 own default ``meta_shacl=True``.
 """
 
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 
 # The meta-shapes build is a build-time tool, not part of the library: it lives
@@ -1539,7 +1539,7 @@ class TestShapesGraphFormCoverage:
         try:
             return meta_validate(shapes).conforms
         except ShapeError as error:
-            only_kind(error, "meta")
+            reraise_unless(error, "meta")
             return False
 
     def test_is_defined_by_takes_an_iri_or_blank_node_not_a_literal(self) -> None:
@@ -1953,7 +1953,7 @@ def _warnings(body: str) -> list[str]:
         report_graph = outcome.report_graph
         assert conforms is True
     except ShapeError as error:  # a Warning result makes the shapes graph invalid; the report is in the error
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         report_graph = error.report_graph
     violation = NamedNode("http://www.w3.org/ns/shacl#Violation")
     assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), violation) not in report_graph, "only advice"
@@ -2104,7 +2104,7 @@ def _template_results(instances: str):
         conforms = outcome.conforms
         report = outcome.report_graph
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return False, re.findall(r"^(Violation|Warning|Info) in ", error.report_text, re.MULTILINE)
     report = report
     return conforms, [report.value(r, sh.resultSeverity).value.rsplit("#", 1)[-1] for r in report.subjects(RDF.type, sh.ValidationResult)]
@@ -2200,7 +2200,7 @@ def _meta_sources(body: str) -> set[str]:
     try:
         meta_validate(shapes)
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return {s.value.rsplit("#", 1)[-1] for s in error.report_graph.objects(None, SH.sourceShape)}
     return set()
 

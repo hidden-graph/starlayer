@@ -4,7 +4,7 @@ and the checks on ``shui:timeZone`` (its form, in ``shacl_shacl_ui``, and whethe
 import zoneinfo
 
 import pyoxigraph as ox
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
@@ -39,7 +39,7 @@ def problems(body: str) -> str:
     try:
         ui_check(body)
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return error.report_text
     return ""
 

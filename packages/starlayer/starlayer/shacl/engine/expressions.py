@@ -24,7 +24,7 @@ from decimal import Decimal
 from functools import cmp_to_key
 from typing import Any
 
-from starlayer.errors import ExecutionError, ShapeError, only_kind
+from starlayer.errors import ExecutionError, ShapeError, reraise_unless
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.components.core_shape_based import shacl_list
 from starlayer.shacl.engine.paths import eval_path, parse_path
@@ -642,7 +642,7 @@ def _arg_state(ctx, arg, focus, scope) -> tuple[str, Term | None]:
     try:
         out = _eval(ctx, arg, focus, scope)
     except ExecutionError as error:
-        only_kind(error, "expression")
+        reraise_unless(error, "expression")
         return (_ERROR, None)
     if len(out) > 1:
         return (_ERROR, None)

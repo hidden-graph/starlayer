@@ -7,7 +7,7 @@ property shape, ``$PATH`` is replaced by the shape's path. One result per soluti
 
 from __future__ import annotations
 
-from starlayer.errors import ExecutionError, ShapeError, only_kind
+from starlayer.errors import ExecutionError, ShapeError, reraise_unless
 from starlayer.shacl.engine.components.registry import Violation, component
 from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.plan import SH
@@ -56,7 +56,7 @@ def _deactivated_at(ctx, exprs, focus) -> bool:
             if evaluate_expression(ctx, expr, focus) == [TRUE]:
                 return True
         except ExecutionError as error:
-            only_kind(error, "expression")
+            reraise_unless(error, "expression")
             continue
     return False
 

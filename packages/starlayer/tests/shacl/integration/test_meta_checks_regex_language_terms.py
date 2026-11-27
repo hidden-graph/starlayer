@@ -6,7 +6,7 @@ The ``sh:pattern`` check is the engine's own compile, not a shape: see ``test_me
 import re
 
 import pyoxigraph as ox
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
@@ -39,7 +39,7 @@ def _problems(shapes: Graph, **kwargs) -> tuple[str, ...]:
     try:
         meta_validate(shapes, **kwargs)
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return error.problems
     return ()
 
@@ -49,7 +49,7 @@ def _results(shapes: Graph, **kwargs):
     try:
         report = meta_validate(shapes, **kwargs).report_graph
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         report = error.report_graph
     rdf_type = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
 

@@ -3,7 +3,7 @@ once per process, not on every call (a call used to rebuild about 160 shapes, 50
 
 from __future__ import annotations
 
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ShapeError, validate
@@ -71,7 +71,7 @@ def test_the_shared_meta_shapes_are_not_changed_by_use():
         try:
             validate(DATA, shapes, meta_shacl=True)
         except ShapeError as error:
-            only_kind(error, "meta")
+            reraise_unless(error, "meta")
             pass
     assert set(meta._static_meta_graph().triples((None, None, None))) == before
 

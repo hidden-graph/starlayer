@@ -13,7 +13,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import ExecutionError, only_kind
+from starlayer.errors import ExecutionError, reraise_unless
 from starlayer.shacl import _adapter
 from starlayer.shacl.candidates import Candidates
 from starlayer.shacl.engine.terms import RDF, SH, BlankNode, n3
@@ -672,7 +672,7 @@ class StarShaclProcessor:
         except ExecutionError as error:  # unresolved owl:imports and no loader to resolve them with: a call may bring one
             if loader is not None or getattr(shapes, "imports_loader", None) is not None:
                 raise
-            only_kind(error, "import")
+            reraise_unless(error, "import")
             return
         checked = _adapter.CheckedShapes()
         if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ``ShapeError`` of kind ``"compile"``

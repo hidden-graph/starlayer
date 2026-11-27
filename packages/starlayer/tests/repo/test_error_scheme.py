@@ -19,7 +19,7 @@ from starlayer.errors import (
     FormatError,
     ShapeError,
     StarLayerError,
-    only_kind,
+    reraise_unless,
 )
 
 PACKAGE = Path(errors.__file__).resolve().parent
@@ -59,11 +59,11 @@ def test_the_execution_kinds_are_the_six_of_step_c_and_the_three_of_owl_dl_reaso
         ExecutionError("x", kind="nope")
 
 
-def test_only_kind_returns_for_a_listed_kind_and_reraises_otherwise():
+def test_reraise_unless_returns_for_a_listed_kind_and_reraises_otherwise():
     error = ExecutionError("x", kind="rule")
-    only_kind(error, "rule", "expression")
+    reraise_unless(error, "rule", "expression")
     with pytest.raises(ExecutionError) as caught:
-        only_kind(error, "expression")
+        reraise_unless(error, "expression")
     assert caught.value is error
 
 
@@ -92,7 +92,7 @@ def test_the_old_homes_leave_no_shim_behind():
     from starlayer.shacl.engine import meta, plan
 
     for module in (plan, meta):
-        for name in ("ExecutionError", "only_kind", "_rebuild_execution_error"):
+        for name in ("ExecutionError", "reraise_unless", "_rebuild_execution_error"):
             assert not hasattr(module, name), (module.__name__, name)
         assert not set(getattr(module, "__all__", ())) & set(NAMES)
 
@@ -160,13 +160,20 @@ def test_the_shape_kinds_and_the_required_valid_kind():
         ShapeError("x", kind="nope")
 
 
-def test_only_kind_works_on_the_three_classes():
+def test_reraise_unless_works_on_the_four_classes_with_a_kind():
     for error in (ExecutionError("x", kind="rule"), FormatError("x", kind="sparql"), ShapeError("x", kind="compile"),
                   errors.EndpointError("x", kind="http")):
-        only_kind(error, error.kind)
+        assert reraise_unless(error, error.kind) is None
+        assert reraise_unless(error, "no-such-kind", error.kind) is None
         with pytest.raises(type(error)) as caught:
-            only_kind(error, "meta")
+            reraise_unless(error, "no-such-kind")
         assert caught.value is error
+
+
+def test_only_kind_is_removed_and_not_importable():
+    assert not hasattr(errors, "only_kind")
+    with pytest.raises(ImportError):
+        exec("from starlayer.errors import only_kind")
 
 
 def test_the_format_kinds_and_the_required_valid_kind():
@@ -207,6 +214,7 @@ REMOVED_CLASSES = (
     "SRLUnresolvedImportsWarning",  # removed with the parse that validates (a sh:Warning of validate_sparql_tree says it now)
     "CanonicalizationComplexityError", "EntailmentRewriteError", "SqeTextTooDeepError",  # stage 6
     "ShapeCompileError", "MetaShaclError",  # decision 26: one ShapeError with a kind ("compile", "meta")
+    "only_kind",  # decision 28: a function, renamed reraise_unless (not a class, but it must not come back either)
 )
 
 
@@ -226,7 +234,7 @@ def test_a_removed_error_class_does_not_come_back_in_the_package_source():
 
 def _error_call_kinds():
     """(file, line, class name, kind literal or None) for each ``ExecutionError(...)`` / ``FormatError(...)`` / ``ShapeError(...)`` call, and
-    ``(file, line, "only_kind", literal)`` for each kind name given to ``only_kind``."""
+    ``(file, line, "reraise_unless", literal)`` for each kind name given to ``reraise_unless``."""
     for path in _source_files((".py",)):
         if path == ERRORS_PY:
             continue
@@ -238,9 +246,9 @@ def _error_call_kinds():
                 kind = next((k.value for k in node.keywords if k.arg == "kind"), None)
                 literal = kind.value if isinstance(kind, ast.Constant) and isinstance(kind.value, str) else None
                 yield path.relative_to(REPO).as_posix(), node.lineno, name, literal
-            elif name == "only_kind":
+            elif name == "reraise_unless":
                 for arg in node.args[1:]:
-                    yield path.relative_to(REPO).as_posix(), node.lineno, "only_kind", arg.value if isinstance(arg, ast.Constant) else None
+                    yield path.relative_to(REPO).as_posix(), node.lineno, "reraise_unless", arg.value if isinstance(arg, ast.Constant) else None
 
 
 @pytest.mark.parametrize("registry", [ExecutionError.KINDS, FormatError.KINDS, ShapeError.KINDS, errors.EndpointError.KINDS],
@@ -265,13 +273,13 @@ def test_a_kind_stays_a_plain_string_and_the_error_round_trips():
 def test_every_kind_in_use_at_a_raise_site_is_declared():
     declared = {"ExecutionError": ExecutionError.KINDS, "FormatError": FormatError.KINDS, "ShapeError": ShapeError.KINDS,
                 "EndpointError": errors.EndpointError.KINDS,
-                "only_kind": {**ExecutionError.KINDS, **FormatError.KINDS, **ShapeError.KINDS, **errors.EndpointError.KINDS}}
+                "reraise_unless": {**ExecutionError.KINDS, **FormatError.KINDS, **ShapeError.KINDS, **errors.EndpointError.KINDS}}
     bad = [f"{path}:{line}: {name} kind {kind!r}" for path, line, name, kind in _error_call_kinds() if kind not in declared[name]]
     assert not bad, "\n".join(bad)
 
 
 def test_every_declared_kind_is_used_somewhere():
-    used = {(name, kind) for _path, _line, name, kind in _error_call_kinds() if name != "only_kind"}
+    used = {(name, kind) for _path, _line, name, kind in _error_call_kinds() if name != "reraise_unless"}
     unused = [(name, kind) for name, kinds in (("ExecutionError", ExecutionError.KINDS), ("FormatError", FormatError.KINDS), ("ShapeError", ShapeError.KINDS),
                                     ("EndpointError", errors.EndpointError.KINDS))
               for kind in kinds if (name, kind) not in used]

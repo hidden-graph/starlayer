@@ -84,7 +84,7 @@ class ShapeError(StarLayerError):
     check used (``None`` for an error raised elsewhere), so a caller can tell a narrow check from a full one. For kind ``"compile"``
     these keep their defaults (``()``, ``""``, ``None``, ``None``).
 
-    Catch ``ShapeError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
+    Catch ``ShapeError`` and test ``error.kind``; ``reraise_unless`` does the test inside a clause."""
 
     #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
     KINDS = {
@@ -129,7 +129,7 @@ class ExecutionError(StarLayerError):
     ``unresolved`` (default ``()``, keyword-only) is the tuple of import IRIs (``NamedNode``) that were not resolved: set for kind ``"import"``
     only, so an application can load them and call again (``starlayer.graph.unresolved_imports`` asks the same of a graph).
 
-    Catch ``ExecutionError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
+    Catch ``ExecutionError`` and test ``error.kind``; ``reraise_unless`` does the test inside a clause."""
 
     #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
     KINDS = {
@@ -217,7 +217,7 @@ class EndpointError(StarLayerError, OSError):
 
     ``kind`` says what failed (a plain string, one of ``KINDS``: the mapping of every kind to its meaning). ``status`` (second
     positional argument, default ``None``) is the HTTP status, set for kind ``"http"``. ``context`` (default ``None``) is the URL
-    involved, also in the message. Catch ``EndpointError`` and test ``error.kind``; ``only_kind`` does the test inside a clause."""
+    involved, also in the message. Catch ``EndpointError`` and test ``error.kind``; ``reraise_unless`` does the test inside a clause."""
 
     #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
     KINDS = {
@@ -242,7 +242,7 @@ def _rebuild_endpoint_error(message: str, status: int | None, kind: str, context
     return EndpointError(message, status, kind=kind, context=context)
 
 
-def only_kind(error: ExecutionError | FormatError | ShapeError | EndpointError, *kinds: str) -> None:
+def reraise_unless(error: ExecutionError | FormatError | ShapeError | EndpointError, *kinds: str) -> None:
     """For an ``except ExecutionError as error`` (or ``FormatError``, ``ShapeError``, ``EndpointError``) clause that handles only some kinds: returns when ``error.kind`` is one of ``kinds``
     and raises ``error`` again otherwise, so a clause that means "no value" cannot swallow a rule, limit or recursion failure."""
     if error.kind not in kinds:

@@ -4,7 +4,7 @@ form's fields, generated at build time from the overlay and checked for complete
 The build is a build-time tool, not part of the library: it lives in scripts/, which pytest puts on sys.path.
 """
 
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from build_meta_shapes import build_meta_shapes_graph
 from build_shacl_ui import (
@@ -274,7 +274,7 @@ def test_every_field_set_to_a_value_its_constraints_allow_still_validates(ui, fo
             try:
                 meta_validate(graph)
             except ShapeError as error:
-                only_kind(error, "meta")
+                reraise_unless(error, "meta")
                 bad.append((predicate, value, str(error).splitlines()[0][:100]))
         checked += 1
     assert not bad, f"{form}: " + "; ".join(str(b) for b in bad[:6])

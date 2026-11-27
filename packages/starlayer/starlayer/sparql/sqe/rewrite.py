@@ -34,7 +34,7 @@ import re
 
 import pyoxigraph as ox
 
-from starlayer.errors import ExecutionError, FormatError, only_kind
+from starlayer.errors import ExecutionError, FormatError, reraise_unless
 
 from ..parse_sparql import Node, ast_to_triples, parse_sparql
 from ._memtree import TreeIndex
@@ -72,7 +72,7 @@ def rewrite_exists_text(text: str, *, prefixes=None, base: str | None = None) ->
         # in the rewrite and is not turned into a slower query
         return text
     except ExecutionError as error:  # nested too deeply to parse or encode, or a node with no text form: the text goes as it is; any other kind is a real failure
-        only_kind(error, "limit", "unsupported")
+        reraise_unless(error, "limit", "unsupported")
         return text
 
 

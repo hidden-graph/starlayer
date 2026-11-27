@@ -4,7 +4,7 @@ engine raises ``ShapeError``. SPARQL's REGEX disagrees with the engine on valid 
 asks a function instead."""
 
 import pyoxigraph as ox
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import ShapeError, StarShaclProcessor
@@ -47,7 +47,7 @@ def _error(shapes: Graph) -> ShapeError | None:
     try:
         meta_validate(shapes)
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return error
     return None
 

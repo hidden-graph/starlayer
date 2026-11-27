@@ -98,7 +98,7 @@ from typing import TYPE_CHECKING, Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import ExecutionError, FormatError, only_kind
+from starlayer.errors import ExecutionError, FormatError, reraise_unless
 from starlayer.graph import ordinals
 
 from . import _oxterms as _T
@@ -904,7 +904,7 @@ def _ordering_problems(tree_graph: Any) -> list[tuple[Any, str]]:
         try:
             _stratify(ruleset)
         except ExecutionError as error:
-            only_kind(error, "rule")
+            reraise_unless(error, "rule")
             problems.append((root, str(error)))
     return problems
 

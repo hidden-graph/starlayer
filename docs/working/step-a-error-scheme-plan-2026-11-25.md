@@ -46,7 +46,7 @@ StarLayerError(Exception)                     never raised bare; no ValueError, 
  |- ShapeError                                 as today: context
  |   |- ShapeCompileError
  |   `- MetaShaclError                         problems, report_text, report_graph, scope (unchanged)
- |- ExecutionError                             kind, context (and KINDS, __reduce__, only_kind helper as today)
+ |- ExecutionError                             kind, context (and KINDS, __reduce__, reraise_unless helper as today)
  |- FormatError                                kind, context, why, line, col, pos
  `- EndpointError(StarLayerError, OSError)     status (graph/endpoint.py, exported from starlayer.graph as today)
 ```
@@ -132,7 +132,7 @@ Every stage ends green on its slice and on `tests/packaging` and `tests/repo`, d
 
 ### Stage 0: the module and the move (no behaviour change)
 
-- New `starlayer/errors.py` with `StarLayerError`, `ShapeError`, `ShapeCompileError`, `MetaShaclError`, `ExecutionError` (+ `only_kind`, `_rebuild_execution_error`), `FormatError`, `KINDS` for `FormatError` empty until stage 2 (or the first kind added with its first user). `ShapeError` is still `ValueError` here, so the commit is a pure move plus the new base.
+- New `starlayer/errors.py` with `StarLayerError`, `ShapeError`, `ShapeCompileError`, `MetaShaclError`, `ExecutionError` (+ `reraise_unless`, `_rebuild_execution_error`), `FormatError`, `KINDS` for `FormatError` empty until stage 2 (or the first kind added with its first user). `ShapeError` is still `ValueError` here, so the commit is a pure move plus the new base.
 - Edit `shacl/engine/plan.py`, `shacl/engine/meta.py` (definitions removed), `shacl/errors.py` and `shacl/__init__.py` (re-export from `starlayer.errors`), and the 40 files that import from `plan` / `meta` (37 name an error class). `shacl/errors.py` docstring says the classes now live in `starlayer.errors`.
 - Tests: 22 test files import from `shacl.engine.plan` / `meta` (19 an error class): imports change only. New: `tests/repo/test_error_scheme.py` (class tree, `errors.py` imports only the standard library, kind tables).
 - Docs: `AGENTS.md:45` (the "Outside shacl/ not yet uniform" sentence is updated at stage 6, not here), `shacl/CLAUDE.md` (where the classes live). No guide changes.

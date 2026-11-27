@@ -401,7 +401,7 @@ def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str
     SERVICE, a MINUS, a VALUES or an assignment of a variable that is pre-bound there, a SELECT that does not project ``?this``. The last group is the engine's own
     check (``engine/sparql_support.restriction_problem``). This is the verdict of ``stsh:sparqlProblem`` (``engine/builtin_functions.py``) and of
     ``sparql_query_problems``, so the shapes of ``shacl_shacl_starlayer`` and a tool that lists problems cannot disagree."""
-    from starlayer.errors import ExecutionError, FormatError, only_kind
+    from starlayer.errors import ExecutionError, FormatError, reraise_unless
     from starlayer.sparql.parse_sparql import ast_to_triples
     from starlayer.sparql.sqe.shapes import _validate_shapes
 
@@ -411,7 +411,7 @@ def sparql_text_problem(predicate: Any, query_text: str, prefixes: dict[str, str
     except (FormatError, ValueError) as exc:
         return f"{name} value is not valid SPARQL: {exc}"
     except ExecutionError as exc:  # nested too deeply to parse
-        only_kind(exc, "limit")
+        reraise_unless(exc, "limit")
         return f"{name} value is not valid SPARQL: {exc}"
     algebra_name, form = _QUERY_FORMS[predicate]
     if query.kind != algebra_name:

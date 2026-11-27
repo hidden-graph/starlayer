@@ -271,8 +271,8 @@ def test_the_meta_check_raises_a_shape_error_of_kind_meta_with_its_report():
     assert str(error).startswith("The shapes graph is not valid SHACL") and all(line in str(error) for line in error.problems)
 
 
-def test_except_shape_error_catches_both_kinds_and_only_kind_tells_them_apart():
-    from starlayer.errors import only_kind
+def test_except_shape_error_catches_both_kinds_and_reraise_unless_tells_them_apart():
+    from starlayer.errors import reraise_unless
 
     kinds = []
     for kwargs in ({}, {"meta_shacl": True}):
@@ -281,9 +281,9 @@ def test_except_shape_error_catches_both_kinds_and_only_kind_tells_them_apart():
         except ShapeError as error:
             kinds.append(error.kind)
             with pytest.raises(ShapeError) as other:
-                only_kind(error, "meta" if error.kind == "compile" else "compile")
+                reraise_unless(error, "meta" if error.kind == "compile" else "compile")
             assert other.value is error
-            only_kind(error, error.kind)
+            reraise_unless(error, error.kind)
         else:
             raise AssertionError("no error raised")
     assert kinds == ["compile", "meta"]

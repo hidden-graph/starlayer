@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.errors import ExecutionError, only_kind
+from starlayer.errors import ExecutionError, reraise_unless
 from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.plan import Shape, Term
 from starlayer.shacl.engine.terms import TRUE
@@ -19,7 +19,7 @@ def any_true(ctx: Any, exprs: Any, focus: Term) -> bool:
             if evaluate_expression(ctx, expr, focus) == [TRUE]:
                 return True
         except ExecutionError as error:
-            only_kind(error, "expression")
+            reraise_unless(error, "expression")
             continue  # no result for this focus node: not deactivated
     return False
 

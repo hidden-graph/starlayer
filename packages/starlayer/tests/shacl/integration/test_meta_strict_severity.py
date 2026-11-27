@@ -5,7 +5,7 @@ pySHACL's meta check give one answer. The graphs: a warning only, an info note o
 
 from __future__ import annotations
 
-from starlayer.errors import only_kind
+from starlayer.errors import reraise_unless
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import ShapeError, StarShaclProcessor, meta_validate, validate
@@ -31,7 +31,7 @@ def meta_answer(name: str) -> bool:
     try:
         return bool(meta_validate(shapes(name)).conforms)
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return False
 
 
@@ -39,7 +39,7 @@ def processor_answer(name: str, **options) -> bool:
     try:
         StarShaclProcessor(shacl_graph=shapes(name), meta_shacl=True, ignore_imports=True, **options)
     except ShapeError as error:
-        only_kind(error, "meta")
+        reraise_unless(error, "meta")
         return False
     return True
 
