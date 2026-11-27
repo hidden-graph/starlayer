@@ -1,6 +1,6 @@
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeCompileError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from tests.support.terms import Namespace
 
 from ._rdflib_view import rd
@@ -128,7 +128,7 @@ def test_unique_members_string_literal_false_is_rejected_not_silently_enabled() 
     of checking the literal's datatype - bool("false") is True in Python
     regardless of the string's content, so sh:uniqueMembers "false" was
     silently *enabling* the check instead of disabling it. Now raises a
-    clean ShapeCompileError instead.
+    clean ShapeError instead.
     """
     shapes = StarLayerGraph()
     shapes.parse(
@@ -149,5 +149,5 @@ def test_unique_members_string_literal_false_is_rejected_not_silently_enabled() 
         format="turtle",
     )
 
-    with pytest.raises(ShapeCompileError, match="xsd:boolean literal"):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "compile", match="xsd:boolean literal"):
         StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=False)

@@ -2,11 +2,12 @@
 private layer ``shacl_shacl_starlayer``, kept out of ``shacl_shacl`` so that stays standard SHACL and SPARQL."""
 
 import pyoxigraph as ox
+from starlayer.errors import only_kind
 import pytest
 from starlayer import starontology
 from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import ExecutionError, MetaShaclError, StarShaclProcessor
+from starlayer.shacl import ExecutionError, ShapeError, StarShaclProcessor
 from starlayer.shacl.engine.api import validate as engine_validate
 from starlayer.shacl.engine.builtin_functions import (
     ARGUMENT_COUNT_PROBLEM,
@@ -36,7 +37,8 @@ def sources(report) -> set:
 def meta_report(shapes: Graph, extra=()):
     try:
         return meta_validate(shapes, meta_shapes_extra=extra).report_graph
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return error.report_graph
 
 
@@ -138,7 +140,8 @@ def test_a_function_with_a_non_string_argument_gives_no_value():
 def query_problems(body: str) -> list[str]:
     try:
         meta_validate(graph(body))
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return [line for line in error.problems if "sh:select" in line or "sh:ask" in line or "sh:construct" in line]
     return []
 
@@ -213,7 +216,8 @@ def engine_text(body: str) -> str | None:
 def meta_lines(body: str) -> list[str]:
     try:
         meta_validate(Graph().parse(data=HEAD + body, format="turtle"))
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return list(error.problems)
     return []
 

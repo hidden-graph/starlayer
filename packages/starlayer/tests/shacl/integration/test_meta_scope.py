@@ -8,7 +8,7 @@ import time
 import pyoxigraph as ox
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaScope, MetaShaclError, meta_scope, meta_validate
+from starlayer.shacl import MetaScope, ShapeError, meta_scope, meta_validate
 from starlayer.shacl.engine.terms import SH, to_engine
 
 SHNS = str(SH)
@@ -42,8 +42,8 @@ def generated(n: int, extra: str = "") -> Graph:
     return graph("\n".join(lines) + extra)
 
 
-def refused(g, **kwargs) -> MetaShaclError:
-    with pytest.raises(MetaShaclError) as raised:
+def refused(g, **kwargs) -> ShapeError:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(g, **kwargs)
     return raised.value
 

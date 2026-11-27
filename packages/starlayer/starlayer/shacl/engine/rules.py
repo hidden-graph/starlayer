@@ -33,7 +33,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from starlayer.errors import ExecutionError, ShapeCompileError, ShapeError
+from starlayer.errors import ExecutionError, ShapeError
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.interface import Solutions, Term
@@ -201,7 +201,7 @@ class InferredView:
 
         raw = self.materialised().engine_view()._run(text, dict(init_bindings or {}), None, None)
         if not isinstance(raw, ox.QueryTriples):
-            raise ShapeCompileError("sh:construct must be a CONSTRUCT query")
+            raise ShapeError("sh:construct must be a CONSTRUCT query", kind="compile")
         return [(t.subject, t.predicate, t.object) for t in raw]
 
 
@@ -263,20 +263,20 @@ class RuleResult:
 def _number(graph: Any, node: Term, pred: Term, default: float = 0) -> float:
     values = list(graph.objects(node, pred))
     if len(values) > 1:
-        raise ShapeCompileError(f"{node!r}: more than one {text(pred)}")
+        raise ShapeError(f"{node!r}: more than one {text(pred)}", kind="compile")
     if not values:
         return default
     v = values[0]
     n = xv.numeric(v)
     if n is None:
-        raise ShapeCompileError(f"{node!r}: {text(pred)} must be a numeric literal")
+        raise ShapeError(f"{node!r}: {text(pred)} must be a numeric literal", kind="compile")
     return float(n)
 
 
 def _boolean(graph: Any, node: Term, pred: Term) -> bool:
     values = list(graph.objects(node, pred))
     if len(values) > 1:
-        raise ShapeCompileError(f"{node!r}: more than one {text(pred)}")
+        raise ShapeError(f"{node!r}: more than one {text(pred)}", kind="compile")
     return bool(values) and is_true(values[0])
 
 
@@ -320,7 +320,7 @@ def rule_set_members(graph: Any, rule_sets: Iterable[Term]) -> list[Term]:
     members: dict = {}
     for s in sets:
         if (s, SH.ruleProcessor, None) in graph:  # a rule set that names a processor needs it, and none is available
-            raise ShapeCompileError(f"{s!r}: sh:ruleProcessor is declared and no custom rule processor is available")
+            raise ShapeError(f"{s!r}: sh:ruleProcessor is declared and no custom rule processor is available", kind="compile")
         for r in graph.objects(s, SH.hasRule):
             members.setdefault(r, None)
     return list(members)
@@ -347,7 +347,7 @@ def read_rule(graph: Any, node: Term) -> Rule:
     classes = _rule_classes(graph)
     types = tuple(t for t in graph.objects(node, RDF.type) if t in classes)
     if not types:
-        raise ShapeCompileError(f"{node!r}: a rule needs an rdf:type that is a subclass of sh:Rule")
+        raise ShapeError(f"{node!r}: a rule needs an rdf:type that is a subclass of sh:Rule", kind="compile")
     # "A rules engine that encounters rules or rule sets with a value for sh:ruleProcessor that they are unable to handle MUST report
     # a failure" (SHACL 1.2 Inference Rules): a rule that runs is asked about itself and its types, and about every rule set that
     # contains it and every rule set those include ("the values of sh:ruleProcessor from an included rule set also apply to the
@@ -356,7 +356,7 @@ def read_rule(graph: Any, node: Term) -> Rule:
     containing = _closure(graph, graph.subjects(SH.hasRule, node), lambda rs: graph.objects(rs, SH.includesRuleSet))
     for holder in (node, *types, *containing):
         if (holder, SH.ruleProcessor, None) in graph:
-            raise ShapeCompileError(f"{holder!r}: sh:ruleProcessor is declared and no custom rule processor is available")
+            raise ShapeError(f"{holder!r}: sh:ruleProcessor is declared and no custom rule processor is available", kind="compile")
     return Rule(
         node=node,
         types=types,
@@ -506,9 +506,9 @@ class _Run:
             constructs = list(g.objects(template, SH.construct))
             bindings.update(self._template_bindings(rule, template))
         if SH.SPARQLRule not in rule.types and template is None:
-            raise ShapeCompileError(f"{rule.node!r}: unsupported rule type {sorted(text(t) for t in rule.types)}")
+            raise ShapeError(f"{rule.node!r}: unsupported rule type {sorted(text(t) for t in rule.types)}", kind="compile")
         if len(constructs) != 1 or not isinstance(constructs[0], Literal):
-            raise ShapeCompileError(f"{rule.node!r}: exactly one string sh:construct is required")
+            raise ShapeError(f"{rule.node!r}: exactly one string sh:construct is required", kind="compile")
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
         text = _fix_now(with_prefixes(self.plan, prefix_holder, constructs[0].value), self.now)
         # the same forbidden constructs as for sh:select and sh:ask (SHACL 1.2 SPARQL Extensions, "Pre-binding of Variables"):
@@ -540,11 +540,11 @@ class _Run:
         for pred, name, optional in _parameters(self.shapes, template, allow_all_optional=True):
             values = list(self.shapes.objects(rule.node, pred))
             if len(values) > 1:
-                raise ShapeCompileError(f"{rule.node!r}: more than one value for template parameter {text(pred)}")
+                raise ShapeError(f"{rule.node!r}: more than one value for template parameter {text(pred)}", kind="compile")
             if values:
                 out[name] = values[0]
             elif not optional:
-                raise ShapeCompileError(f"{rule.node!r}: missing value for template parameter {text(pred)}")
+                raise ShapeError(f"{rule.node!r}: missing value for template parameter {text(pred)}", kind="compile")
         return out
 
     def _triple_rule(self, ctx: Context, rule: Rule, focus: Term | None) -> list[Triple]:
@@ -553,7 +553,7 @@ class _Run:
         for pred in (SH.subject, SH.predicate, SH.object):
             exprs = list(self.shapes.objects(rule.node, pred))
             if len(exprs) > 1:
-                raise ShapeCompileError(f"{rule.node!r}: more than one {text(pred)}")
+                raise ShapeError(f"{rule.node!r}: more than one {text(pred)}", kind="compile")
             if exprs:
                 try:
                     parts.append(list(evaluate(ctx, exprs[0], focus, None)))

@@ -13,7 +13,7 @@ from pyoxigraph import BlankNode as BNode
 from pyoxigraph import Literal
 from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import ShapeCompileError
+from starlayer.shacl import ShapeError
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.component_table import component_table
 from starlayer.shacl.engine.components.registry import REGISTRY
@@ -223,7 +223,7 @@ def test_from_json_with_given_graph_and_version_check():
     obj = plan_to_json(plan)
     back = plan_from_json(obj, shapes_graph=plan.shapes_graph)
     assert back.shapes_graph is plan.shapes_graph
-    with pytest.raises(ShapeCompileError, match="format_version"):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "compile", match="format_version"):
         plan_from_json({**obj, "format_version": 999})
 
 

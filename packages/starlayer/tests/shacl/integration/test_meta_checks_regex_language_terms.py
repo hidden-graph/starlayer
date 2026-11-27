@@ -6,10 +6,11 @@ The ``sh:pattern`` check is the engine's own compile, not a shape: see ``test_me
 import re
 
 import pyoxigraph as ox
+from starlayer.errors import only_kind
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError
+from starlayer.shacl import ShapeError
 from starlayer.shacl.meta_shapes import meta_validate
 
 SH = "http://www.w3.org/ns/shacl#"
@@ -37,7 +38,8 @@ def _deactivate(shape_iri: str) -> Graph:
 def _problems(shapes: Graph, **kwargs) -> tuple[str, ...]:
     try:
         meta_validate(shapes, **kwargs)
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return error.problems
     return ()
 
@@ -46,7 +48,8 @@ def _results(shapes: Graph, **kwargs):
     """The (severity, focus, value, message) of every result of the check, from the report graph."""
     try:
         report = meta_validate(shapes, **kwargs).report_graph
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         report = error.report_graph
     rdf_type = ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type")
 
@@ -86,7 +89,7 @@ def test_language_range_check_is_what_rejects_it():
 
 
 def test_language_range_violation_is_in_the_report_text():
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(_lang_shapes('"e n"'))
     assert RANGE_MESSAGE in raised.value.report_text
     assert "Violation" in raised.value.report_text
@@ -153,7 +156,7 @@ def test_a_subject_in_the_shacl_namespace_is_not_checked():
 
 def test_unknown_term_is_a_warning_and_a_warning_makes_the_shapes_graph_invalid():
     shapes = _graph("ex:S a sh:NodeShape ; sh:minCountt 1 .")
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         meta_validate(shapes)
     assert _problems(shapes) == ("Warning: ex:S: sh:minCountt is not a term of the SHACL vocabulary",)
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine.components.registry import all_param_predicates
 from starlayer.shacl.engine.plan import SH, Path, Shape, Term, most_severe
 from starlayer.shacl.engine.targets import (  # noqa: F401  (re-exported)
@@ -56,10 +56,10 @@ def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
     """
     path_values = list(graph.objects(node, SH.path))
     if len(path_values) > 1:
-        raise ShapeCompileError(f"{text(node)}: more than one sh:path")
+        raise ShapeError(f"{text(node)}: more than one sh:path", kind="compile")
     path = build_path(graph, path_values[0]) if path_values else None
     if path is not None and (node, RDF.type, SH.NodeShape) in graph:
-        raise ShapeCompileError(f"{text(node)}: a sh:NodeShape cannot be the subject of sh:path")  # Core 3.2: a node shape is not the subject of sh:path
+        raise ShapeError(f"{text(node)}: a sh:NodeShape cannot be the subject of sh:path", kind="compile")  # Core 3.2: a node shape is not the subject of sh:path
     params: dict[NamedNode, tuple[Term, ...]] = {}
     for pred in set(all_param_predicates()) | set(extra_predicates):
         values = tuple(graph.objects(node, pred))
@@ -67,7 +67,7 @@ def build_shape(graph: Any, node: Term, extra_predicates: Any = ()) -> Shape:
             params[pred] = values
     for prop in graph.objects(node, SH.property):
         if (prop, SH.path, None) not in graph:
-            raise ShapeCompileError(f"{text(node)}: the sh:property value {text(prop)} has no sh:path")  # Core 3.3: a property shape has one sh:path
+            raise ShapeError(f"{text(node)}: the sh:property value {text(prop)} has no sh:path", kind="compile")  # Core 3.3: a property shape has one sh:path
     severities = list(graph.objects(node, SH.severity))
     deact = [v for v in graph.objects(node, SH.deactivated)]
     is_prop = path is not None or (node, RDF.type, SH.PropertyShape) in graph

@@ -3,9 +3,10 @@ single IRI (GitHub issue #204). Any other path used to derive nothing, silently.
 
 from __future__ import annotations
 
+from starlayer.errors import only_kind
 import pytest
 from starlayer import StarLayerGraph
-from starlayer.shacl import MetaShaclError
+from starlayer.shacl import ShapeError
 from starlayer.shacl.meta_shapes import meta_validate
 
 PREFIXES = """
@@ -34,7 +35,8 @@ def _meta(path: str, predicate: str) -> tuple[bool, str]:
         outcome = meta_validate(shapes)
         conforms = outcome.conforms
         text = outcome.report_text
-    except MetaShaclError as error:  # meta_validate raises when the shapes graph is not well formed
+    except ShapeError as error:  # meta_validate raises when the shapes graph is not well formed
+        only_kind(error, "meta")
         return False, f"{error}\n{error.report_text}"
     return conforms, text
 

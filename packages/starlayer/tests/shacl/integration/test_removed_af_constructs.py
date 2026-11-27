@@ -54,9 +54,9 @@ def test_the_vocabulary_that_still_lists_the_terms_is_not_refused() -> None:
 
 @pytest.mark.parametrize("case", CASES)
 def test_the_meta_shapes_reject_a_removed_construct(case: str) -> None:
-    from starlayer.shacl import MetaShaclError
+    from starlayer.shacl import ShapeError
 
-    with pytest.raises(MetaShaclError, match="SHACL 1.2 does not define"):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta", match="SHACL 1.2 does not define"):
         validate(_g(DATA), _g(CASES[case]), meta_shacl=True)
 
 

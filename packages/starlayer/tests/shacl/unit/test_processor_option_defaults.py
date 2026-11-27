@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import inspect
 
+from starlayer.errors import only_kind
 import pytest
 from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import MetaShaclError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from tests.shacl.integration._shape_loader import load_shape
 from tests.support.datasets import dataset_of
 from tests.support.errors import raises_kind
@@ -36,7 +37,8 @@ LABEL_RULE = "[] a sh:NodeShape ; sh:targetClass sh:NodeShape ; sh:property [ sh
 def meta_fails(p: StarShaclProcessor, **kw) -> bool:
     try:
         p.validate(g(DATA), **kw)
-    except MetaShaclError:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return True
     return False
 
@@ -47,7 +49,7 @@ def meta_fails(p: StarShaclProcessor, **kw) -> bool:
 def test_meta_shacl_constructor_and_call() -> None:
     extra = [g(LABEL_RULE)]
     assert not meta_fails(StarShaclProcessor(g(PLAIN_SHAPES)), meta_shapes_extra=extra)  # off by default: the extra is not applied
-    with pytest.raises(MetaShaclError):  # meta_shacl bound at construction checks the shapes there
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):  # meta_shacl bound at construction checks the shapes there
         StarShaclProcessor(g(PLAIN_SHAPES), meta_shacl=True, meta_shapes_extra=extra)
     p = StarShaclProcessor(g(PLAIN_SHAPES), meta_shacl=True)  # passes; the extras are bound afterwards, as a default of the calls
     p.meta_shapes_extra = tuple(extra)
@@ -66,7 +68,7 @@ def test_meta_shapes_extra_constructor_and_call() -> None:
 
 
 def test_meta_shapes_extra_generator_is_read_once() -> None:
-    with pytest.raises(MetaShaclError):  # the constructor reads the generator once, and checks with it
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):  # the constructor reads the generator once, and checks with it
         StarShaclProcessor(g(PLAIN_SHAPES), meta_shacl=True, meta_shapes_extra=(x for x in [g(LABEL_RULE)]))
     p = StarShaclProcessor(g(PLAIN_SHAPES), meta_shapes_extra=(x for x in [g(LABEL_RULE)]))
     assert meta_fails(p, meta_shacl=True)
@@ -92,7 +94,7 @@ def test_presets_name_only_what_they_change() -> None:
 def test_meta_shacl_in_apply_rules() -> None:
     p = StarShaclProcessor(g(PLAIN_SHAPES), meta_shacl=True)  # passes at construction; the extras are bound afterwards
     p.meta_shapes_extra = (g(LABEL_RULE),)
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         p.apply_rules(g(DATA))
     p.apply_rules(g(DATA), meta_shacl=False)
     p.apply_rules(g(DATA), meta_shapes_extra=())  # () beats the constructor's extras: the check passes

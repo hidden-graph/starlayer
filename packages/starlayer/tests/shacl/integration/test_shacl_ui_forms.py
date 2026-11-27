@@ -4,6 +4,7 @@ form's fields, generated at build time from the overlay and checked for complete
 The build is a build-time tool, not part of the library: it lives in scripts/, which pytest puts on sys.path.
 """
 
+from starlayer.errors import only_kind
 import pytest
 from build_meta_shapes import build_meta_shapes_graph
 from build_shacl_ui import (
@@ -148,7 +149,7 @@ def test_sh_expression_is_a_field_of_both_shape_forms_with_the_details_editor(ui
 
 
 def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
-    from starlayer.shacl import MetaShaclError as ReportableRuntimeError
+    from starlayer.shacl import ShapeError
     from starlayer.shacl.meta_shapes import meta_validate
 
     bad, good = Graph(), Graph()
@@ -156,7 +157,7 @@ def test_the_forms_change_nothing_about_what_validates(ui, shacl_shacl) -> None:
     good.parse(data=prefixes + "ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount 1 ] .", format="turtle")
     bad.parse(data=prefixes + 'ex:S a sh:NodeShape ; sh:property [ sh:path ex:p ; sh:minCount "x" ] .', format="turtle")
     assert meta_validate(good, meta_shapes_extra=[ui]).conforms
-    with pytest.raises(ReportableRuntimeError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         meta_validate(bad, meta_shapes_extra=[ui])
 
 
@@ -256,7 +257,7 @@ def _samples(ui: Graph, field) -> list[str]:
 def test_every_field_set_to_a_value_its_constraints_allow_still_validates(ui, form, base, subject) -> None:
     """The honesty check: one field at a time, on a minimal valid shape of that kind. A field that makes the graph invalid is a
     predicate that should not be on that form (or a constraint the form is missing)."""
-    from starlayer.shacl import MetaShaclError as ReportableRuntimeError
+    from starlayer.shacl import ShapeError
     from starlayer.shacl.meta_shapes import meta_validate
 
     checked, bad = 0, []
@@ -272,7 +273,8 @@ def test_every_field_set_to_a_value_its_constraints_allow_still_validates(ui, fo
             graph.parse(data=_PREFIXES + f"{base} {EXTRA.get(predicate, '')} {subject} {predicate} {value} .", format="turtle")
             try:
                 meta_validate(graph)
-            except ReportableRuntimeError as error:
+            except ShapeError as error:
+                only_kind(error, "meta")
                 bad.append((predicate, value, str(error).splitlines()[0][:100]))
         checked += 1
     assert not bad, f"{form}: " + "; ".join(str(b) for b in bad[:6])

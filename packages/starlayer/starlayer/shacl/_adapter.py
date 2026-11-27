@@ -186,7 +186,7 @@ class CheckedShapes:
 
     Both are tied to a fingerprint of the shapes graph's triples (``graph.entailment.cache.content_fingerprint``: a count and a hash of the set),
     taken again on each ``validate()``: a shapes graph the caller changed after construction is compiled and checked again, at
-    that call (a ``ShapeError`` or ``MetaShaclError`` then comes from ``validate()``)."""
+    that call (a ``ShapeError`` then comes from ``validate()``)."""
 
     def __init__(self) -> None:
         self.fingerprint: Any = None

@@ -101,12 +101,12 @@ def test_the_other_helpers_are_importable_and_callable():
 
 
 def test_the_meta_check_is_the_one_call_for_what_is_wrong_with_a_shapes_graph():
-    """An editor shows each problem beside its node from ``MetaShaclError.report_graph``; the two helpers behind it are not public."""
+    """An editor shows each problem beside its node from ``ShapeError.report_graph`` (kind ``meta``); the two helpers behind it are not public."""
     import starlayer.shacl as shacl
-    from starlayer.shacl import MetaShaclError, meta_validate
+    from starlayer.shacl import ShapeError, meta_validate
 
     assert not hasattr(shacl, "sparql_query_problems") and not hasattr(shacl, "parameter_value_shapes")
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(graph('ex:S sh:select "not sparql" .'))
     report = raised.value.report_graph
     results = [(r, next(iter(report.objects(r, SH.focusNode)), None), next(iter(report.objects(r, SH.resultPath)), None))

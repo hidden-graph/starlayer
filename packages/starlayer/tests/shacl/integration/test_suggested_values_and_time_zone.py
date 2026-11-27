@@ -4,10 +4,11 @@ and the checks on ``shui:timeZone`` (its form, in ``shacl_shacl_ui``, and whethe
 import zoneinfo
 
 import pyoxigraph as ox
+from starlayer.errors import only_kind
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, form_model
+from starlayer.shacl import ShapeError, form_model
 from starlayer.shacl.engine.builtin_functions import (
     BUILTIN_FUNCTIONS,
     TIME_ZONE_PROBLEM,
@@ -37,7 +38,8 @@ def problems(body: str) -> str:
     """The report text of the strict meta check (a warning or info result counts), "" when the graph is valid."""
     try:
         ui_check(body)
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return error.report_text
     return ""
 
@@ -87,7 +89,7 @@ def test_a_node_kind_of_the_set_passes(value):
 
 @pytest.mark.parametrize("value", ["ex:Weird", "sh:Violation", "'IRI'", "( sh:IRI ex:Weird )"])
 def test_a_node_kind_outside_the_set_is_reported(value):
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         meta_validate(graph("ex:S a sh:NodeShape ; sh:nodeKind " + value + " ."))
 
 
@@ -116,7 +118,7 @@ def test_a_malformed_zone_is_reported_by_the_pattern(zone):
 
 
 def test_a_malformed_zone_is_a_warning_and_a_warning_makes_the_shapes_graph_invalid():
-    with pytest.raises(MetaShaclError) as error:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as error:
         ui_check('ex:G shui:timeZone "Europe Vienna" .')
     assert "Europe Vienna" in error.value.report_text
     assert (None, SH.resultSeverity, SH.Warning) in error.value.report_graph

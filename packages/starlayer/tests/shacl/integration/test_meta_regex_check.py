@@ -4,9 +4,10 @@ engine raises ``ShapeError``. SPARQL's REGEX disagrees with the engine on valid 
 asks a function instead."""
 
 import pyoxigraph as ox
+from starlayer.errors import only_kind
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, ShapeError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from starlayer.shacl.meta_shapes import meta_validate
 
 SH = "http://www.w3.org/ns/shacl#"
@@ -42,10 +43,11 @@ def _engine_rejects(shapes: Graph) -> bool:
     return False
 
 
-def _error(shapes: Graph) -> MetaShaclError | None:
+def _error(shapes: Graph) -> ShapeError | None:
     try:
         meta_validate(shapes)
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return error
     return None
 
@@ -132,5 +134,5 @@ def test_a_pattern_in_a_nested_shape_is_found(body):
 
 
 def test_meta_shacl_on_a_processor_raises_meta_shacl_error():
-    with pytest.raises(MetaShaclError, match="invalid sh:pattern '\\('"):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta", match="invalid sh:pattern '\\('"):
         StarShaclProcessor(shacl_graph=_one("("), meta_shacl=True)

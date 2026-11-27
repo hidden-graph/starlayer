@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
-    MetaShaclError,
+    ShapeError,
     ReportDiff,
     ReportResult,
     diff_reports,
@@ -192,7 +192,7 @@ def test_diff_reports_counts_a_repeated_result_once():
 
 def test_report_results_of_a_meta_shacl_error_and_of_meta_validate_with_two_datatypes():
     shapes = graph('ex:S sh:select "not sparql" . ex:T sh:path ex:p ; sh:datatype xsd:integer, xsd:string .')
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(shapes)
     results = report_results(raised.value.report_graph)
     assert results and (to_engine(EX.S), to_engine(SH.select)) in [(r.focus, r.path) for r in results]

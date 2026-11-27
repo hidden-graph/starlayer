@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from pyoxigraph import NamedNode as URIRef
-from starlayer.errors import ExecutionError, MetaShaclError, ShapeCompileError
+from starlayer.errors import ExecutionError, ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl.engine.imports import declared_imports, resolve_imports
 from starlayer.shacl.engine.meta import META_ERROR_PREFIX, meta_validate
@@ -43,7 +43,7 @@ def test_well_formed_shapes_graph_conforms(ttl):
 def test_ill_formed_shapes_graph_raises_with_the_old_message(ttl):
     result = meta_validate(_g(ttl))
     assert not result.conforms
-    with pytest.raises(MetaShaclError, match="MetaSHACL") as exc:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta", match="MetaSHACL") as exc:
         result.raise_if_invalid()
     assert str(exc.value).startswith(META_ERROR_PREFIX)
 
@@ -110,7 +110,7 @@ def test_no_loader_unresolved_import_raises_unless_ignored():
 
 def test_a_non_iri_import_is_a_malformed_shapes_graph():
     g = _g('ex:A owl:imports "not an iri" .')
-    with pytest.raises(ShapeCompileError, match="needs an IRI"):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "compile", match="needs an IRI"):
         resolve_imports(g)
     assert resolve_imports(g, ignore_imports=True) is g
 
@@ -183,7 +183,7 @@ def test_the_error_names_the_shape_and_property_of_each_problem():
         ex:S a sh:NodeShape ; sh:targetClass ex:Person ; sh:property [ sh:path ex:name ; sh:datatype xsd:string, xsd:integer ] .""",
         format="turtle",
     )
-    with pytest.raises(MetaShaclError) as exc:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as exc:
         meta_validate(shapes, meta_shacl=True)
     assert exc.value.problems == ("the property shape of ex:S for ex:name, sh:datatype: Allows at most 1 value, found 2",)
     assert str(exc.value).splitlines()[1] == "- " + exc.value.problems[0]

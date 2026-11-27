@@ -6,7 +6,7 @@ import time
 
 import pyoxigraph as ox
 import pytest
-from starlayer.errors import MetaShaclError
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl.engine.meta import meta_scope
 from starlayer.shacl.engine.meta import meta_validate as engine_meta_validate
@@ -91,7 +91,7 @@ def _stable(term):
 
 
 def problem_report(g, **kwargs):
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(g, **kwargs)
     return raised.value
 
@@ -335,7 +335,7 @@ def test_the_proposed_edit_is_not_applied_to_the_callers_graph():
     before = set(g.triples((None, None, None)))
     count = len(g)
     prop = next(p for p in g.objects(iri("S3"), to_engine(SH.property)) if (p, to_engine(SH.path), iri("a")) in g)
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         meta_validate(g, add=[(prop, to_engine(SH.datatype), ox.NamedNode(XSD + "integer"))])
     assert len(g) == count and set(g.triples((None, None, None))) == before
 

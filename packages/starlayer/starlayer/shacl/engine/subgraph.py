@@ -23,7 +23,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine import (
     components,  # noqa: F401  (registers the constraint components)
 )
@@ -153,7 +153,7 @@ def _walk(data: Any, path: Path, focus: Term) -> tuple[frozenset, set[_Triple]]:
             frontier = nxt
         # every edge of every step, including those leaving the focus of a oneOrMore path (it is not itself reached)
         return frozenset(reachable), triples
-    raise ShapeCompileError(f"unknown path kind {k}")
+    raise ShapeError(f"unknown path kind {k}", kind="compile")
 
 
 def _type_paths(graph: Any, node: Term, cls: Term | None = None) -> set[_Triple]:

@@ -4,13 +4,13 @@ the library's leaf error module; this module and ``starlayer.shacl`` re-export t
 Each derives from ``StarLayerError`` and from nothing else, so none is a ``ValueError``: a plain ``ValueError`` or ``TypeError`` is
 only a bad argument at the entry of a public call, and ``except ValueError`` never catches one of these.
 
-``ShapeError``: the base of the shapes-graph errors. The shapes graph (a shape, a rule, a rules graph) or its setup (an ``owl:imports``
-declaration that is not an IRI; an import that is merely not resolved is ``ExecutionError`` kind ``"import"``) is wrong or asks for something unsupported, found by anyone. Never raised bare, so ``except ShapeError`` catches either kind
-below:
+``ShapeError``: the shapes graph (a shape, a rule, a rules graph) or its setup (an ``owl:imports`` declaration that is not an IRI; an
+import that is merely not resolved is ``ExecutionError`` kind ``"import"``) is wrong or asks for something unsupported, found by anyone.
+One class; its ``kind`` (a key of ``ShapeError.KINDS``) says who found it:
 
-* ``ShapeCompileError``: the engine itself cannot read or compile the shapes graph, its rules or its setup, whenever it finds out (when a
+* ``"compile"``: the engine itself cannot read or compile the shapes graph, its rules or its setup, whenever it finds out (when a
   processor is built, or later in a run).
-* ``MetaShaclError``: the meta check (the shapes-about-shapes, ``meta_shacl=True``) found it. Carries ``problems``, ``report_text``,
+* ``"meta"``: the meta check (the shapes-about-shapes, ``meta_shacl=True``) found it. Carries ``problems``, ``report_text``,
   ``report_graph`` and ``scope``.
 
 ``ExecutionError``: the shapes graph is fine and running it failed. Not a ``ShapeError``, so that an ``except ShapeError`` for a wrong
@@ -42,15 +42,11 @@ from __future__ import annotations
 from starlayer.errors import (
     ExecutionError,
     FormatError,
-    MetaShaclError,
-    ShapeCompileError,
     ShapeError,
 )
 
 __all__ = [
     "ExecutionError",
     "FormatError",
-    "MetaShaclError",
-    "ShapeCompileError",
     "ShapeError",
 ]

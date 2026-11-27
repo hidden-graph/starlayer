@@ -9,7 +9,7 @@ from rdflib.collection import Collection
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError as ReportableRuntimeError
+from starlayer.shacl import ShapeError
 from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.meta_shapes import meta_validate
 from starlayer.shacl.ui import widget_selection as uws
@@ -70,7 +70,7 @@ def test_loading_the_overlay_never_changes_what_validates(overlay) -> None:
         warnings.simplefilter("ignore")
         assert meta_validate(good).conforms and meta_validate(good, meta_shapes_extra=[overlay]).conforms
         for extra in ((), (overlay,)):
-            with pytest.raises(ReportableRuntimeError):
+            with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
                 meta_validate(bad, meta_shapes_extra=extra)
 
 

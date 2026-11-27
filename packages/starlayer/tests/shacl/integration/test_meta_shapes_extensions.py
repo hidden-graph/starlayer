@@ -12,6 +12,7 @@ pySHACL's still-SHACL-1.0/1.1-era bundled meta-shapes, under starShacl's
 own default ``meta_shacl=True``.
 """
 
+from starlayer.errors import only_kind
 import pytest
 
 # The meta-shapes build is a build-time tool, not part of the library: it lives
@@ -23,7 +24,7 @@ from build_meta_shapes import (
     load_wg_shapes,
 )
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, ShapeError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from starlayer.shacl.meta_shapes import (
     load_meta_shapes_graph,
     meta_validate,
@@ -593,7 +594,7 @@ def test_genuinely_malformed_shacl_11_shape_still_caught() -> None:
 
 
 def test_meta_shacl_false_still_skips_preflight_entirely() -> None:
-    """With meta_shacl=False the preflight does not run (no MetaShaclError); the engine's own plan step still rejects the shape."""
+    """With meta_shacl=False the preflight does not run (no meta error); the engine's own plan step still rejects the shape."""
     with pytest.raises(ShapeError) as exc_info:
         _validate(
             _TRIVIAL_DATA,
@@ -603,7 +604,7 @@ def test_meta_shacl_false_still_skips_preflight_entirely() -> None:
             """,
             meta_shacl=False,
         )
-    assert not isinstance(exc_info.value, MetaShaclError)
+    assert exc_info.value.kind == "compile"
 
 
 # ---------------------------------------------------------------------------
@@ -705,7 +706,7 @@ def test_meta_validate_raises_meta_shacl_error_with_expected_message() -> None:
         """,
         format="turtle",
     )
-    with pytest.raises(MetaShaclError) as exc_info:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as exc_info:
         meta_validate(shapes)
     assert "does not validate against the SHACL shapes for shapes (MetaSHACL)" in str(exc_info.value)
     assert exc_info.value.problems == ("the property shape of ex:S: violates sh:xone", "the property shape of ex:S, sh:path: Needs at least 1 value, found 0")
@@ -716,8 +717,8 @@ def test_meta_validate_raises_meta_shacl_error_with_expected_message() -> None:
 # (sh:sparql, sh:rule, sh:condition, sh:ConstraintComponent) - previously
 # had zero meta-shacl coverage at all, so a malformed use crashed with a
 # raw exception (e.g. ConstraintLoadError/RuleLoadError) instead of a clean
-# meta-shacl report. meta_validate() raises MetaShaclError.
-# MetaShaclError on rejection (see the test above), not a returned
+# meta-shacl report. meta_validate() raises ShapeError of kind meta.
+# ShapeError of kind meta on rejection (see the test above), not a returned
 # conforms=False - every "malformed" case below asserts that raise.
 # ---------------------------------------------------------------------------
 
@@ -750,7 +751,7 @@ class TestSparqlWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
 
@@ -792,7 +793,7 @@ class TestRuleWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
     def test_valid_sparql_rule_passes(self) -> None:
@@ -819,7 +820,7 @@ class TestRuleWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
 
@@ -923,7 +924,7 @@ class TestNodeExpressionWellFormedness:
     def test_malformed_node_expression_forms_are_rejected(self, label, obj_expr) -> None:
         shapes = Graph()
         shapes.parse(data=_triple_rule_shape(obj_expr), format="turtle")
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
     def test_real_function_call_fixture_still_works_end_to_end(self) -> None:
@@ -1075,7 +1076,7 @@ class TestConstraintComponentWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
     def test_validator_missing_ask_is_rejected(self) -> None:
@@ -1089,7 +1090,7 @@ class TestConstraintComponentWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
     def test_component_with_no_validator_form_at_all_is_rejected(self) -> None:
@@ -1108,7 +1109,7 @@ class TestConstraintComponentWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
     def test_component_with_node_validator_only_still_passes(self) -> None:
@@ -1171,7 +1172,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
     def test_valid_shui_property_role_passes(self) -> None:
@@ -1198,7 +1199,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
     def test_valid_shui_widget_score_passes(self) -> None:
@@ -1228,7 +1229,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
     def test_shui_widget_score_missing_widget_is_rejected(self) -> None:
@@ -1240,7 +1241,7 @@ class TestShuiWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes, meta_shapes_extra=[_shui_ui_graph()])
 
 
@@ -1282,7 +1283,7 @@ class TestSparqlPrefixesWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
     def test_declare_prefix_wrong_datatype_is_rejected(self) -> None:
@@ -1297,7 +1298,7 @@ class TestSparqlPrefixesWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
 
@@ -1381,7 +1382,7 @@ class TestSparqlQueryTextValidation:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError, match="sh:ask"):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta", match="sh:ask"):
             StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
 
 
@@ -1503,7 +1504,7 @@ class TestSparqlQueryStructureValidation:
         data = Graph()
         data.parse(data=_RULES_PREFIX + "ex:alice ex:email ex:bob .", format="turtle")
         shapes = self._shapes_with_sparql_constraint(self._UNBOUND_VAR_SELECT)
-        with pytest.raises(MetaShaclError, match="sh:select"):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta", match="sh:select"):
             StarShaclProcessor(shacl_graph=shapes).validate(data_graph=data, meta_shacl=True)
 
     def test_meta_shacl_is_off_by_default(self) -> None:
@@ -1537,7 +1538,8 @@ class TestShapesGraphFormCoverage:
         shapes.parse(data=self._PREFIX + body, format="turtle")
         try:
             return meta_validate(shapes).conforms
-        except MetaShaclError:
+        except ShapeError as error:
+            only_kind(error, "meta")
             return False
 
     def test_is_defined_by_takes_an_iri_or_blank_node_not_a_literal(self) -> None:
@@ -1558,7 +1560,7 @@ class TestShapesGraphFormCoverage:
         """GitHub issue #18: advice, a Warning result; like any result of SHACL's default set it makes the shapes graph invalid, and the report names the problem."""
         shapes = Graph()
         shapes.parse(data=self._PREFIX + "ex:S a sh:NodeShape ; rdfs:isDefinedBy ex:G1, ex:G2 .", format="turtle")
-        with pytest.raises(MetaShaclError) as error:
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as error:
             meta_validate(shapes)
         assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), NamedNode("http://www.w3.org/ns/shacl#Warning")) in error.value.report_graph
 
@@ -1753,7 +1755,7 @@ def test_well_formed_configuration_and_data_graph_links_pass(ttl) -> None:
     ],
 )
 def test_malformed_configuration_and_data_graph_links_are_caught(ttl) -> None:
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         _ui_check(ttl)
 
 
@@ -1797,7 +1799,7 @@ def test_malformed_rule_settings_target_where_and_code_hints_are_caught(ttl) -> 
 
 
 def test_a_target_where_shape_that_is_not_well_formed_is_refused() -> None:
-    with pytest.raises((ShapeError, MetaShaclError)):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
+    with pytest.raises(ShapeError):  # (the engine reports the bad sh:minCount itself, or the meta-shapes do)
         _validate(_TRIVIAL_DATA, _PREFIXES + "ex:S a sh:NodeShape ; sh:targetWhere [ sh:path ex:p ; sh:minCount 'x' ] .")
 
 
@@ -1950,7 +1952,8 @@ def _warnings(body: str) -> list[str]:
         conforms = outcome.conforms
         report_graph = outcome.report_graph
         assert conforms is True
-    except MetaShaclError as error:  # a Warning result makes the shapes graph invalid; the report is in the error
+    except ShapeError as error:  # a Warning result makes the shapes graph invalid; the report is in the error
+        only_kind(error, "meta")
         report_graph = error.report_graph
     violation = NamedNode("http://www.w3.org/ns/shacl#Violation")
     assert (None, NamedNode("http://www.w3.org/ns/shacl#resultSeverity"), violation) not in report_graph, "only advice"
@@ -2051,7 +2054,7 @@ def test_a_source_rule_that_is_not_an_iri_is_a_warning_not_an_error() -> None:
     from tests.support.terms import RDF, Namespace
 
     sh = Namespace("http://www.w3.org/ns/shacl#")
-    with pytest.raises(MetaShaclError) as error:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as error:
         meta_validate(shapes)
     report = error.value.report_graph
     assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
@@ -2066,7 +2069,7 @@ def test_a_rule_that_names_a_rule_processor_is_a_warning_because_this_engine_pro
     shapes = Graph()
     shapes.parse(data=_APPENDIX_A_PREFIXES + "ex:R a sh:TripleRule ; sh:ruleProcessor 'SRL 1.2' .", format="turtle")
 
-    with pytest.raises(MetaShaclError) as error:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as error:
         meta_validate(shapes)
     report = error.value.report_graph
     assert len(list(report.subjects(RDF.type, sh.ValidationResult))) == 1
@@ -2100,7 +2103,8 @@ def _template_results(instances: str):
         outcome = meta_validate(shapes)
         conforms = outcome.conforms
         report = outcome.report_graph
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return False, re.findall(r"^(Violation|Warning|Info) in ", error.report_text, re.MULTILINE)
     report = report
     return conforms, [report.value(r, sh.resultSeverity).value.rsplit("#", 1)[-1] for r in report.subjects(RDF.type, sh.ValidationResult)]
@@ -2149,11 +2153,11 @@ def test_sh_this_as_a_node_expression_is_a_warning(body) -> None:
 
 
 def test_sh_this_warning_blocks_whatever_allow_warnings_says() -> None:
-    """With meta_shacl=True a warning raises MetaShaclError from validate(), and the processor's allow_warnings (an option of the data validation) does not change that."""
+    """With meta_shacl=True a warning raises ShapeError of kind meta from validate(), and the processor's allow_warnings (an option of the data validation) does not change that."""
     shapes = _THIS_SHAPE % "sh:values sh:this"
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         _validate(_TRIVIAL_DATA, shapes)
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         _validate(_TRIVIAL_DATA, shapes, allow_warnings=True)
 
 
@@ -2195,7 +2199,8 @@ def _meta_sources(body: str) -> set[str]:
     shapes.parse(data=_ENGINE_PREFIXES + body, format="turtle")
     try:
         meta_validate(shapes)
-    except MetaShaclError as error:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return {s.value.rsplit("#", 1)[-1] for s in error.report_graph.objects(None, SH.sourceShape)}
     return set()
 
@@ -2238,7 +2243,7 @@ def test_a_shape_reference_to_a_literal_is_left_alone_when_the_engine_never_chec
 def test_the_message_of_a_literal_shape_reference_names_the_predicate() -> None:
     shapes = Graph()
     shapes.parse(data=_ENGINE_PREFIXES + "ex:S a sh:NodeShape ; sh:not 7 .", format="turtle")
-    with pytest.raises(MetaShaclError, match=r"shacl#not refers to a shape, an IRI or a blank node, but 7 is a literal"):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta", match=r"shacl#not refers to a shape, an IRI or a blank node, but 7 is a literal"):
         meta_validate(shapes)
 
 

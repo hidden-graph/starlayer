@@ -391,7 +391,7 @@ cur:cap-shacl-3 a slkg:Capability ;
     slkg:appRole "validate" ;
     slkg:implementsSpecification tr:shacl12-core ;
     rdfs:comment "SHACL 1.2 meta-shapes for checking shapes graphs." ;
-    slkg:implementedByIdentifier "starlayer.shacl.engine.meta.MetaShaclError" .
+    slkg:implementedByIdentifier "starlayer.shacl.meta_shapes.meta_validate" .
 
 cur:cap-shacl-4 a slkg:Capability ;
     slkg:inCapabilityArea cur:area-shacl ;

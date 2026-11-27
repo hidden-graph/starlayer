@@ -10,8 +10,6 @@ from starlayer.shacl.engine.terms import SH
 from starlayer.shacl.errors import (
     ExecutionError,
     FormatError,
-    MetaShaclError,
-    ShapeCompileError,
     ShapeError,
 )
 from starlayer.shacl.form_model import (
@@ -149,9 +147,7 @@ __all__ = [
     "rule_dependencies",
     "path_values",
     "is_inverse",
-    "ShapeCompileError",
     "ShapeError",
     "ExecutionError",
     "FormatError",
-    "MetaShaclError",
 ]

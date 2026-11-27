@@ -55,7 +55,7 @@ def validate(
             graph, or the call raises ``ExecutionError`` kind ``"import"`` (``error.unresolved`` lists the IRIs): no loader, a loader that
             returns ``None`` or a graph without the IRI, and a loader that raises (wrapped, the exception as ``__cause__``) are all
             that error. An import of an ontology StarLayer has built in (a registered ``starontology`` ontology, ``sh:`` among them) needs
-            no loader and is never passed to one. An ``owl:imports`` object that is not an IRI is a ``ShapeCompileError``. The shapes graph
+            no loader and is never passed to one. An ``owl:imports`` object that is not an IRI is a ``ShapeError`` (kind ``"compile"``). The shapes graph
             and ontology graph are extended with what they import; the data graph's imports are visible to entailment only (like
             ``ont_graph``) and are never added to the data.
         ignore_imports: ``True``: load nothing and check nothing, the graphs are used as they are; ``False``: resolve, even for a graph that
@@ -540,7 +540,7 @@ class StarShaclProcessor:
 
     **A bad shapes graph is refused when the processor is built.** With a ``shacl_graph``, the constructor reads and compiles the
     shapes (every ``ShapeError`` that reading them can raise, constraint parameters included) and, with ``meta_shacl=True``, runs the
-    meta-SHACL check (``MetaShaclError``); ``validate()`` reuses the compiled plan and the check's result. See ``__init__`` for what
+    meta-SHACL check (``ShapeError`` of kind ``"meta"``); ``validate()`` reuses the compiled plan and the check's result. See ``__init__`` for what
     is still found only at evaluation time, for ``owl:imports``, and for a shapes graph that changes afterwards. A processor with no
     shapes graph is not checked. This applies to every use of the processor (``evaluate()``, ``apply_rules()`` and
     ``select_widgets()`` included); the module-level ``validate()`` and ``apply_rules()`` still check per call.
@@ -608,7 +608,7 @@ class StarShaclProcessor:
         the shapes is raised by the constructor (a node shape with ``sh:path``, a ``sh:property`` value without ``sh:path``, a
         removed SHACL-AF construct, a malformed list, regex or flag, a constraint parameter of the wrong kind such as
         ``sh:minCount "many"``, whether or not any data has a focus node for it). With ``meta_shacl=True`` the meta-SHACL check
-        also runs here (``MetaShaclError``), once; ``validate()`` does not repeat it. The constructor's ``imports_loader`` /
+        also runs here (``ShapeError`` of kind ``"meta"``), once; ``validate()`` does not repeat it. The constructor's ``imports_loader`` /
         ``ignore_imports`` are used: ``owl:imports`` the shapes graph declares that are not in it, with neither given, do
         not raise here (a call may still pass a loader), the shapes are then read at the first ``validate()`` as before. A
         call's ``meta_shacl=True`` on a processor built without it runs the check at that call (and is remembered).
@@ -648,7 +648,7 @@ class StarShaclProcessor:
 
     def _check_shapes_graph(self) -> None:
         """Read and compile the bound shapes graph (``ShapeError``), and run the meta-SHACL check when ``meta_shacl`` is bound
-        (``MetaShaclError``, before the compile), so a bad shapes graph is refused when it is bound; ``validate()`` reuses both results.
+        (``ShapeError`` of kind ``"meta"``, before the compile), so a bad shapes graph is refused when it is bound; ``validate()`` reuses both results.
 
         The constructor's ``imports_loader`` / ``ignore_imports``, else the shapes graph's own ``imports_loader`` / ``ignore_imports``,
         decide the imports. Unsatisfied ``owl:imports`` with no loader from either skip the check (a call may still bring a loader): the
@@ -668,7 +668,7 @@ class StarShaclProcessor:
             only_kind(error, "import")
             return
         checked = _adapter.CheckedShapes()
-        if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ShapeCompileError
+        if self.meta_shacl:  # first, as in validate(): a malformed shapes graph gets the meta-shapes' report, not a bare ``ShapeError`` of kind ``"compile"``
             checked.check_meta(shapes, self.meta_shapes_extra or ())
         checked.compile(shapes, resolved)
         self._checked = checked

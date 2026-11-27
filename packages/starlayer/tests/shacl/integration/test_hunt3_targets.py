@@ -5,6 +5,7 @@ accept a node expression as the value of ``sh:targetNode``, and a rule condition
 
 from __future__ import annotations
 
+from starlayer.errors import only_kind
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import StarShaclProcessor, apply_rules, target_nodes, validate
@@ -84,12 +85,13 @@ def test_one_shapes_dynamic_targets_do_not_leak_into_another() -> None:
 
 class TestMetaShapesAcceptTargetNodeExpression:
     def _meta_errors(self, shapes_text: str) -> bool:
-        from starlayer.shacl import MetaShaclError
+        from starlayer.shacl import ShapeError
         from starlayer.shacl.meta_shapes import meta_validate
 
         try:
             meta_validate(g(shapes_text))
-        except MetaShaclError:
+        except ShapeError as error:
+            only_kind(error, "meta")
             return False
         return True
 

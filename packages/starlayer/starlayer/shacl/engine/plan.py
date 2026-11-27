@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from starlayer.errors import ShapeCompileError, ShapeError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine.naming import add_where
 from starlayer.shacl.engine.terms import RDF, SH, NamedNode, engine_view, text
 
@@ -28,10 +28,10 @@ def reject_removed_constructs(graph: Any) -> None:
         found += [f"{text(s)} is a {name}" for s in graph.subjects(RDF.type, cls)]
     if found:
         shown = "; ".join(found[:5]) + (f"; and {len(found) - 5} more" if len(found) > 5 else "")
-        raise ShapeCompileError(
+        raise ShapeError(
             "the shapes graph uses SHACL Advanced Features constructs that SHACL 1.2 no longer defines (SHACL SPARQL-Related Features, "
             f"Appendix F): {shown}. Use sh:targetNode with a node expression, for example sh:targetNode [ sh:select \"...\" ] (section 6.1), "
-            "and sh:ListParameterExpressionFunction for a function (section 7)"
+            "and sh:ListParameterExpressionFunction for a function (section 7)", kind="compile"
         )
 
 

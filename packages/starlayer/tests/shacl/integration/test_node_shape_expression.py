@@ -4,10 +4,11 @@ A shape with sh:expression and no sh:path is a node shape (Core: a node shape is
 sh:path). The meta-shapes used to forbid sh:expression on a node shape; the W3C test suite's own
 node-expr/constraints/expression-001 uses `sh:expression false` on a node shape."""
 
+from starlayer.errors import only_kind
 import pytest
 from starlayer import starontology
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError as ReportableRuntimeError
+from starlayer.shacl import ShapeError
 from starlayer.shacl import StarShaclProcessor
 from starlayer.shacl.meta_shapes import meta_validate
 from tests.support.terms import Namespace
@@ -46,7 +47,8 @@ def _meta(shapes_ttl: str) -> tuple[bool, str]:
         outcome = meta_validate(_graph(shapes_ttl))
         conforms = outcome.conforms
         text = outcome.report_text
-    except ReportableRuntimeError as error:  # meta_validate raises when the shapes graph does not conform
+    except ShapeError as error:  # meta_validate raises when the shapes graph does not conform
+        only_kind(error, "meta")
         return False, str(error)
     return conforms, text
 

@@ -19,7 +19,7 @@ from typing import Any
 
 import pyoxigraph as ox
 
-from starlayer.errors import MetaShaclError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine.naming import describe, short
 from starlayer.shacl.engine.terms import (
     SH,
@@ -45,11 +45,12 @@ class MetaResult:
     diagnostics: Any = None  # the engine's ExecutionDiagnostics for the run
 
     def raise_if_invalid(self) -> None:
-        """Raise ``MetaShaclError`` naming each problem when the shapes graph did not conform."""
+        """Raise ``ShapeError`` (kind ``"meta"``) naming each problem when the shapes graph did not conform."""
         if not self.conforms:
             n = len(self.problems)
             lines = "\n".join("- " + line for line in self.problems)
-            raise MetaShaclError(f"{META_ERROR_PREFIX} {n} problem{'' if n == 1 else 's'}:\n{lines}", self.problems, self.report_text, self.report_graph, self.scope)
+            raise ShapeError(f"{META_ERROR_PREFIX} {n} problem{'' if n == 1 else 's'}:\n{lines}", kind="meta", problems=self.problems,
+                             report_text=self.report_text, report_graph=self.report_graph, scope=self.scope)
 
 
 def _problems(shapes_graph: Any, results: list, prefixes: dict[str, str]) -> tuple[str, ...]:
@@ -188,7 +189,7 @@ def meta_validate(
 
     ``allow_warnings`` / ``allow_infos`` choose which severities are tolerated (default: none, as in SHACL 1.2 Core's disallowed set); no public path sets them.
     ``meta_shapes_extra`` is an alias of ``extra`` and ``meta_shacl`` the validate-option spelling: when ``meta_shacl`` is
-    truthy the call raises ``MetaShaclError`` on an invalid shapes graph (the preflight form ``api.validate`` uses).
+    truthy the call raises ``ShapeError`` of kind ``"meta"`` on an invalid shapes graph (the preflight form ``api.validate`` uses).
     The meta-shapes include the layer ``shacl_shacl_starlayer``, whose shapes find the SPARQL text the shapes graph embeds that is not valid and the
     ``sh:pattern`` / ``sh:flags`` values the engine cannot compile; they are results like any other, so one error reports them all.
 

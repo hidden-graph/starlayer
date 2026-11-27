@@ -11,7 +11,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine import xsd_values as xv
 from starlayer.shacl.engine.plan import SH, Term
 from starlayer.shacl.engine.terms import OWL, RDF, RDFS, XSD, BlankNode, Literal, text
@@ -49,7 +49,7 @@ def shape_targets(graph: Any, node: Term) -> list[tuple[URIRef, Term]]:
     for pred in _TARGET_PREDICATES:
         for v in graph.objects(node, pred):
             if pred == SH.targetWhere and isinstance(v, Literal):
-                raise ShapeCompileError(f"{text(node)}: the value of sh:targetWhere must be a shape, not a literal")
+                raise ShapeError(f"{text(node)}: the value of sh:targetWhere must be a shape, not a literal", kind="compile")
             out.append((pred, v))
     if _is_implicit_class_target(graph, node) and (SH.targetClass, node) not in out:
         out.append((SH.targetClass, node))

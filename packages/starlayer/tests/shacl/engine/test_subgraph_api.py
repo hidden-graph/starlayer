@@ -17,7 +17,7 @@ from pyoxigraph import NamedNode as URIRef
 from starlayer.graph import StarLayerGraph
 from starlayer.graph.entailment import ENTAILMENT
 from starlayer.graph.rdflib_bridge import engine_to_foreign as from_engine
-from starlayer.shacl import ShapeCompileError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from starlayer.shacl import extract_subgraph as old_extract
 from starlayer.shacl.engine import validate
 from starlayer.shacl.engine.shapes_graphs import close_shape, extract_shapes_graph
@@ -360,9 +360,9 @@ def test_extract_shapes_graph_closure_and_validation() -> None:
 def test_extract_shapes_graph_unresolvable_imports_raise_like_old(target) -> None:
     ttl = OWL_PRE + "ex:M a sh:ShapesGraph ; owl:imports ex:N . " + ("ex:N a ex:Other ." if target == "untyped" else "")
     graph = _g(ttl)
-    with pytest.raises(ShapeCompileError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "compile"):
         StarShaclProcessor(shacl_graph=graph).extract_shapes_graph(EX.M)
-    with pytest.raises(ShapeCompileError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "compile"):
         extract_shapes_graph(graph, EX.M)
 
 

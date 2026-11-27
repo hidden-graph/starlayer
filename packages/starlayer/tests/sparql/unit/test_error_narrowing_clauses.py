@@ -99,7 +99,7 @@ def test_the_engine_problem_is_reported_for_the_engines_own_failures(monkeypatch
     assert problem is not None and problem.message
 
 
-@pytest.mark.parametrize("exc", [KeyError("x"), AttributeError("x"), RuntimeError("raw"), SyntaxError("raw"), ExecutionError("a user function failed", kind="expression"), ShapeError("bad shapes")])
+@pytest.mark.parametrize("exc", [KeyError("x"), AttributeError("x"), RuntimeError("raw"), SyntaxError("raw"), ExecutionError("a user function failed", kind="expression"), ShapeError("bad shapes", kind="compile")])
 def test_the_engine_problem_does_not_turn_a_bug_or_a_shacl_error_into_a_query_problem(monkeypatch, exc):
     _query_raises(monkeypatch, exc)
     with pytest.raises(type(exc)):

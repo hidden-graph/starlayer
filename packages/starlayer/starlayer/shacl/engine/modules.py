@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine.graphs import copy_cbd, new_graph
 from starlayer.shacl.engine.terms import (
     OWL,
@@ -52,7 +52,7 @@ def _module_nodes(graph: Any, module: Any) -> set:
             if imported in nodes:
                 continue
             if not _is_graph_node(graph, imported):
-                raise ShapeCompileError(f"{text(current)} declares owl:imports {text(imported)}, which is not a sh:Graph in this graph")
+                raise ShapeError(f"{text(current)} declares owl:imports {text(imported)}, which is not a sh:Graph in this graph", kind="compile")
             nodes.add(imported)
             pending.append(imported)
     return nodes

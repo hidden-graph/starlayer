@@ -1,7 +1,7 @@
 import pytest
 from starlayer.graph import StarLayerGraph
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, ShapeError, StarShaclProcessor
+from starlayer.shacl import ShapeError, StarShaclProcessor
 from starlayer.shacl.meta_shapes import meta_validate
 from tests.support.terms import Namespace
 
@@ -350,7 +350,7 @@ class TestCustomFunctionMetaShaclWellFormedness:
             """,
             format="turtle",
         )
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             meta_validate(shapes)
 
 

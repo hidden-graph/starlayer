@@ -83,7 +83,7 @@ def test_used_shapes_graph_kept_when_imports_resolved_with_loader():
 
 
 def test_apply_rules_meta_shacl_checks_sparql_text_like_validate():
-    from starlayer.shacl import MetaShaclError, apply_rules
+    from starlayer.shacl import ShapeError, apply_rules
 
     def shapes():
         return g(
@@ -94,9 +94,9 @@ def test_apply_rules_meta_shacl_checks_sparql_text_like_validate():
         )
 
     d = g("ex:a ex:p 1 .")
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         validate(d, shapes(), meta_shacl=True)
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         apply_rules(d, shapes(), meta_shacl=True)
 
 

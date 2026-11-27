@@ -24,7 +24,7 @@ from __future__ import annotations
 
 from typing import Any, NamedTuple
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerDataset
 from starlayer.shacl.engine.components.core_shape_based import _lists, _roots
 from starlayer.shacl.engine.components.core_value import alternatives, rdf_list
@@ -116,7 +116,7 @@ class _Reader:
         for head in params.get(SH["in"], ()):
             members = rdf_list(self.shapes, head) if not isinstance(head, Literal) else None
             if members is None:
-                raise ShapeCompileError(f"sh:in needs an rdf:list, got {text(head)}")
+                raise ShapeError(f"sh:in needs an rdf:list, got {text(head)}", kind="compile")
             found.append(_Found(frozenset(members), True))
         if params.get(SH.hasValue):
             found.append(_Found(frozenset(params[SH.hasValue]), True))

@@ -5,9 +5,10 @@ pySHACL's meta check give one answer. The graphs: a warning only, an info note o
 
 from __future__ import annotations
 
+from starlayer.errors import only_kind
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError, StarShaclProcessor, meta_validate, validate
+from starlayer.shacl import ShapeError, StarShaclProcessor, meta_validate, validate
 
 SH_RESULT_SEVERITY = "http://www.w3.org/ns/shacl#resultSeverity"
 PRE = "@prefix ex: <http://example.org/> . @prefix sh: <http://www.w3.org/ns/shacl#> . @prefix owl: <http://www.w3.org/2002/07/owl#> . "
@@ -29,14 +30,16 @@ def shapes(name: str) -> Graph:
 def meta_answer(name: str) -> bool:
     try:
         return bool(meta_validate(shapes(name)).conforms)
-    except MetaShaclError:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return False
 
 
 def processor_answer(name: str, **options) -> bool:
     try:
         StarShaclProcessor(shacl_graph=shapes(name), meta_shacl=True, ignore_imports=True, **options)
-    except MetaShaclError:
+    except ShapeError as error:
+        only_kind(error, "meta")
         return False
     return True
 
@@ -57,14 +60,14 @@ def test_a_call_option_does_not_relax_the_check_either(name) -> None:
     if name == "valid":
         run()  # the meta check passes (the data itself is another question)
     else:
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             run()
 
 
 @pytest.mark.parametrize("name", INVALID)
 def test_a_warning_or_info_raises_with_the_prefixed_problem_and_the_result_in_the_report(name) -> None:
     severity = INVALID[name]
-    with pytest.raises(MetaShaclError) as error:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as error:
         meta_validate(shapes(name))
     assert error.value.problems and all(p.startswith(f"{severity}: ") for p in error.value.problems)
     import pyoxigraph as ox
@@ -74,7 +77,7 @@ def test_a_warning_or_info_raises_with_the_prefixed_problem_and_the_result_in_th
 
 
 def test_the_warning_names_the_unknown_term() -> None:
-    with pytest.raises(MetaShaclError) as error:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as error:
         meta_validate(shapes("warning only"))
     assert error.value.problems == ("Warning: ex:S: sh:minCountt is not a term of the SHACL vocabulary",)
 
@@ -102,5 +105,5 @@ def test_the_scoped_form_is_strict_too() -> None:
     s = ox.NamedNode("http://example.org/S")
     bad = (s, ox.NamedNode("http://www.w3.org/ns/shacl#minCountt"), ox.Literal("1", datatype=ox.NamedNode("http://www.w3.org/2001/XMLSchema#integer")))
     assert isinstance(base, StarLayerGraph)
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         meta_validate(base, add=[bad])

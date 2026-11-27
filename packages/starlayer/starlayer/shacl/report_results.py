@@ -1,7 +1,7 @@
 """Reading a validation report: ``ReportResult``, ``report_results()`` and ``diff_reports()``.
 
 An application shows each problem beside the node and field it is about; this module is the one place that reads the
-``sh:ValidationResult`` nodes of a report graph (the ``report_graph`` of a ``ValidationReport``, of a ``MetaShaclError``, or any
+``sh:ValidationResult`` nodes of a report graph (the ``report_graph`` of a ``ValidationReport``, of a ``ShapeError`` of kind ``"meta"``, or any
 graph holding ``sh:ValidationReport`` nodes), so the application does not re-read the vocabulary itself.
 """
 

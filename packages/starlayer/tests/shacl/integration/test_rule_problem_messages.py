@@ -1,9 +1,10 @@
 """What a tool can say about a rule that is wrong: each defect of a rule, a template or a query is a result of its own, with a message that names it
 (GitHub: the workbench audit of rule validation)."""
 
+from starlayer.errors import only_kind
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError
+from starlayer.shacl import ShapeError
 from starlayer.shacl.engine.terms import text
 from starlayer.shacl.meta_shapes import (
     meta_validate,
@@ -24,7 +25,8 @@ def messages(turtle: str) -> list[str]:
     try:
         outcome = meta_validate(shapes, meta_shapes_extra=[parameter_value_shapes(shapes)])
         text = outcome.report_text
-    except MetaShaclError as exc:  # a violation makes the shapes graph invalid; the report is in the message
+    except ShapeError as exc:  # a violation makes the shapes graph invalid; the report is in the message
+        only_kind(exc, "meta")
         text = exc.report_text
     # the defects of the embedded SPARQL are results of the same check now; these tests are about the shapes of shapes
     kept, in_sparql = [], False
@@ -109,7 +111,7 @@ def test_an_entailment_nothing_provides_is_a_warning_and_the_regimes_it_provides
     assert about_entailment("ex:Set a sh:RuleSet .\nex:G a sh:ShapesGraph ; sh:entailment ex:Set .") == []
 
 
-# One MetaShaclError for everything wrong with a shapes graph: the shapes-of-shapes violations and the defects of its embedded SPARQL.
+# One meta ShapeError for everything wrong with a shapes graph: the shapes-of-shapes violations and the defects of its embedded SPARQL.
 XSD_PRE = "@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n"
 TWO_DEFECTS_AND_A_VIOLATION = XSD_PRE + """
 ex:T a sh:NodeShape ; sh:targetClass ex:C ;
@@ -123,7 +125,7 @@ def shapes_of(turtle: str) -> Graph:
 
 
 def test_every_sparql_defect_and_every_meta_shape_violation_is_in_one_error():
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(shapes_of(TWO_DEFECTS_AND_A_VIOLATION))
     problems_found = raised.value.problems
     assert len(problems_found) == 3, problems_found
@@ -135,7 +137,7 @@ def test_every_sparql_defect_and_every_meta_shape_violation_is_in_one_error():
 
 
 def test_the_sparql_problems_name_the_node_and_the_predicate_like_the_others():
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(shapes_of(TWO_DEFECTS_AND_A_VIOLATION))
     lines = [line for line in raised.value.problems if "SPARQL" in line or "CONSTRUCT" in line]
     assert any(line.startswith("the sh:sparql of the property shape of ex:T for ex:p, sh:select: ") for line in lines), lines
@@ -145,7 +147,7 @@ def test_the_sparql_problems_name_the_node_and_the_predicate_like_the_others():
 
 def test_a_shapes_graph_with_only_sparql_defects_is_a_meta_shacl_error():
     shapes = shapes_of('ex:C sh:select "SELECT WHERE {{{" .\nex:D sh:ask "not sparql at all" .')
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(shapes)
     assert len(raised.value.problems) == 2
     assert sorted(line.split(": ")[0] for line in raised.value.problems) == ["ex:C, sh:select", "ex:D, sh:ask"]
@@ -158,7 +160,7 @@ def test_a_shapes_graph_with_only_sparql_defects_is_a_meta_shacl_error():
     ('@prefix shui: <http://www.w3.org/ns/shacl-ui/> .\nex:P sh:path ex:p ; shui:searchQuery "SELECT WHERE {" .', "shui:searchQuery value is not valid SPARQL"),
 ])
 def test_ask_construct_and_search_query_defects_are_reported_too(turtle, fragment):
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(shapes_of(turtle))
     assert any(fragment in line for line in raised.value.problems), raised.value.problems
 
@@ -166,14 +168,14 @@ def test_ask_construct_and_search_query_defects_are_reported_too(turtle, fragmen
 def test_a_processor_with_meta_shacl_rejects_a_sparql_only_defect_at_creation():
     from starlayer.shacl import StarShaclProcessor
 
-    with pytest.raises(MetaShaclError, match="sh:select value is not valid SPARQL"):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta", match="sh:select value is not valid SPARQL"):
         StarShaclProcessor(shacl_graph=shapes_of('ex:C sh:select "SELECT WHERE {{{" .'), meta_shacl=True)
 
 
 def test_validate_with_meta_shacl_reports_the_sparql_defects_with_the_other_problems():
     from starlayer.shacl import validate
 
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         validate(Graph(), shacl_graph=shapes_of(TWO_DEFECTS_AND_A_VIOLATION), meta_shacl=True)
     assert len(raised.value.problems) == 3
 
@@ -195,9 +197,9 @@ BAD_SELECT = 'ex:S sh:select "SELECT ?this WHERE { ?this ?" .'
 TWO_DATATYPES = 'ex:S sh:property [ sh:path ex:a ; sh:datatype "x" ], [ sh:path ex:b ; sh:datatype "y" ] .'
 
 
-def _failure(turtle: str) -> MetaShaclError:
+def _failure(turtle: str) -> ShapeError:
     shapes = Graph().parse(data=PRE_S + turtle, format="turtle")
-    with pytest.raises(MetaShaclError) as caught:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as caught:
         meta_validate(shapes)
     return caught.value
 
@@ -248,7 +250,7 @@ def test_the_error_carries_the_report_graph_the_engine_built():
 
     shapes = Graph().parse(data=PRE_S + BAD_SELECT, format="turtle")
     outcome = engine_meta_validate(shapes)
-    with pytest.raises(MetaShaclError) as caught:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as caught:
         outcome.raise_if_invalid()
     assert caught.value.report_graph is outcome.report_graph
     assert len(_results(outcome.report_graph)) == 1

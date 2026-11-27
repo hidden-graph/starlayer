@@ -206,7 +206,7 @@ def meta_validate(
     """Validate ``shapes_graph`` against the meta-shapes graph (see ``load_meta_shapes_graph``) with the engine.
 
     Returns a conforming ``ValidationReport`` (the object ``validate()`` returns, not iterable: read ``conforms``, ``report_graph``,
-    ``report_text`` by name) and raises ``MetaShaclError`` (message starting "The shapes graph is not valid SHACL",
+    ``report_text`` by name) and raises ``ShapeError`` (kind ``"meta"``) (message starting "The shapes graph is not valid SHACL",
     then one line per problem naming the shape, the property and what is wrong; ``problems``, ``report_text`` and ``scope`` hold the same) when the
     shapes graph does not conform. There is no way to tolerate a warning or an info result: the meta check is strict, whatever a
     processor's ``allow_warnings`` / ``allow_infos`` say (those are for the data validation), because SHACL 1.2 Core's default set

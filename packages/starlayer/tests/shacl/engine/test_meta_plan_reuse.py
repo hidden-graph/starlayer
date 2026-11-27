@@ -3,9 +3,10 @@ once per process, not on every call (a call used to rebuild about 160 shapes, 50
 
 from __future__ import annotations
 
+from starlayer.errors import only_kind
 import pytest
 from starlayer.graph import StarLayerGraph
-from starlayer.shacl import MetaShaclError, validate
+from starlayer.shacl import ShapeError, validate
 from starlayer.shacl.engine import builder, meta
 from starlayer.sparql import sparql_to_tree, sqe, srl
 
@@ -58,7 +59,7 @@ def test_the_count_notices_a_rebuild(built, monkeypatch):
 
 def test_an_invalid_shapes_graph_is_still_refused_every_time():
     for _ in range(3):
-        with pytest.raises(MetaShaclError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
             validate(DATA, BAD, meta_shacl=True)
         validate(DATA, GOOD, meta_shacl=True)  # and a valid one in between is accepted
 
@@ -69,7 +70,8 @@ def test_the_shared_meta_shapes_are_not_changed_by_use():
     for shapes in (GOOD, BAD):
         try:
             validate(DATA, shapes, meta_shacl=True)
-        except MetaShaclError:
+        except ShapeError as error:
+            only_kind(error, "meta")
             pass
     assert set(meta._static_meta_graph().triples((None, None, None))) == before
 

@@ -15,7 +15,7 @@ from collections.abc import Iterable, Mapping
 from functools import lru_cache
 from typing import Any
 
-from starlayer.errors import ExecutionError, ShapeCompileError, ShapeError
+from starlayer.errors import ExecutionError, ShapeError
 from starlayer.shacl.engine.builtin_functions import BUILTIN_FUNCTIONS
 from starlayer.shacl.engine.components.registry import Violation
 from starlayer.shacl.engine.interface import Solutions
@@ -37,9 +37,9 @@ def _declarations(graph: Any, holders: Iterable[Term]) -> dict[str, str]:
             prefixes = [text_of(p) for p in graph.objects(decl, SH.prefix)]
             namespaces = [text_of(n) for n in graph.objects(decl, SH.namespace)]
             if len(prefixes) != 1 or len(namespaces) != 1:
-                raise ShapeCompileError(f"{decl!r}: a prefix declaration needs exactly one sh:prefix and one sh:namespace")
+                raise ShapeError(f"{decl!r}: a prefix declaration needs exactly one sh:prefix and one sh:namespace", kind="compile")
             if found.setdefault(prefixes[0], namespaces[0]) != namespaces[0]:
-                raise ShapeCompileError(f"prefix {prefixes[0]!r} is declared with two different namespaces")
+                raise ShapeError(f"prefix {prefixes[0]!r} is declared with two different namespaces", kind="compile")
     return found
 
 
@@ -198,15 +198,15 @@ def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = F
     try:
         form, projected, constructs = _analyse(text)
     except Exception as exc:  # noqa: BLE001  (any parser failure means the shapes graph is ill-formed)
-        raise ShapeCompileError(f"SPARQL query does not parse: {exc}") from exc
+        raise ShapeError(f"SPARQL query does not parse: {exc}", kind="compile") from exc
     want = "ConstructQuery" if construct else "AskQuery" if ask else "SelectQuery"
     if form != want:
         if construct:
-            raise ShapeCompileError("sh:construct must be a CONSTRUCT query")
-        raise ShapeCompileError(f"expected a {want}, got {form}")  # str-ok: want is the query form name
+            raise ShapeError("sh:construct must be a CONSTRUCT query", kind="compile")
+        raise ShapeError(f"expected a {want}, got {form}", kind="compile")  # str-ok: want is the query form name
     problem = forbidden_construct(constructs, prebound, pre_binding=pre_binding)
     if problem:
-        raise ShapeCompileError(problem)
+        raise ShapeError(problem, kind="compile")
     plan.sparql_cache[key] = projected
     return projected
 
@@ -304,7 +304,7 @@ def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_thi
     """
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
-        raise ShapeCompileError(_MUST_PROJECT_THIS)
+        raise ShapeError(_MUST_PROJECT_THIS, kind="compile")
     return run_query_with_functions(ctx, text, bindings)
 
 
@@ -452,7 +452,7 @@ def result_annotations(graph: Any, source: Term, row: Mapping[str, Term]) -> tup
 def _single_string(graph: Any, node: Term, pred: Term) -> str:
     values = list(graph.objects(node, pred))
     if len(values) != 1 or not isinstance(values[0], Literal):
-        raise ShapeCompileError(f"{node!r}: exactly one string literal {text_of(pred)} is required")
+        raise ShapeError(f"{node!r}: exactly one string literal {text_of(pred)} is required", kind="compile")
     return values[0].value
 
 
@@ -493,7 +493,7 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         text = with_prefixes(plan, expr, _single_string(graph, expr, SH.select))
         projected = check_query(plan, text, bindings)
         if len(projected) != 1:
-            raise ShapeCompileError(f"{expr!r}: a select expression must project exactly one variable")
+            raise ShapeError(f"{expr!r}: a select expression must project exactly one variable", kind="compile")
         var = projected[0]
     elif (expr, SH.sparqlExpr, None) in graph:
         body = _single_string(graph, expr, SH.sparqlExpr)
@@ -502,6 +502,6 @@ def eval_node_expression(ctx: Any, expr: Term, focus: Term | None, scope: Mappin
         check_query(plan, text, bindings)
         var = _RESULT_ALIAS
     else:
-        raise ShapeCompileError(f"{expr!r}: not a SPARQL node expression")
+        raise ShapeError(f"{expr!r}: not a SPARQL node expression", kind="compile")
     rows = run_query_with_functions(ctx, text, bindings).rows
     return [row[var] for row in rows if var in row]

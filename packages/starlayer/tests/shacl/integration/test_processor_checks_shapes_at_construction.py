@@ -8,7 +8,6 @@ import pytest
 from starlayer.errors import ExecutionError
 from starlayer.graph import StarLayerGraph as Graph
 from starlayer.shacl import (
-    MetaShaclError,
     ShapeError,
     StarShaclProcessor,
     ValidationReport,
@@ -124,13 +123,13 @@ META_BAD = {
 def test_meta_shacl_at_construction_raises_from_the_constructor(name: str) -> None:
     shapes = g(META_BAD[name])
     StarShaclProcessor(shacl_graph=shapes)  # builds without the meta check
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         StarShaclProcessor(shacl_graph=shapes, meta_shacl=True)
 
 
 def test_meta_shacl_runs_before_the_compile_so_a_malformed_graph_gets_the_meta_report() -> None:
     shapes = g("ex:S a sh:NodeShape ; sh:targetClass ex:C ; sh:property [ sh:minCount 1 ] .")
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         StarShaclProcessor(shacl_graph=shapes, meta_shacl=True)
     with pytest.raises(ShapeError):
         StarShaclProcessor(shacl_graph=shapes)
@@ -191,7 +190,7 @@ def test_a_shapes_graph_edited_after_construction_is_read_again_at_validate() ->
     shapes.add((EX.S, SH.minCount, EX["many"]))
     with pytest.raises(ShapeError):
         processor.validate(data)
-    with pytest.raises(MetaShaclError):  # the meta check is run again for the changed graph too
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):  # the meta check is run again for the changed graph too
         with_meta.validate(data)
 
 
@@ -218,9 +217,9 @@ def test_per_call_meta_shacl_runs_at_that_call_and_is_remembered(monkeypatch: py
     ok.validate(g(DATA), meta_shacl=True)
     assert len(calls) == 1
     bad = StarShaclProcessor(shacl_graph=g(META_BAD["two datatypes"]))
-    with pytest.raises(MetaShaclError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         bad.validate(g(DATA), meta_shacl=True)
-    with pytest.raises(MetaShaclError):  # a failing graph is not remembered as good
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):  # a failing graph is not remembered as good
         bad.validate(g(DATA), meta_shacl=True)
 
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine.components.registry import Violation, component
 from starlayer.shacl.engine.plan import SH
 from starlayer.shacl.engine.terms import RDF
@@ -16,16 +16,16 @@ def _properties(shapes, value) -> list[URIRef]:
     items, node, seen = [], value, set()
     while node != RDF.nil:
         if node in seen:
-            raise ShapeCompileError("cyclic list in sh:uniqueValuesFor")
+            raise ShapeError("cyclic list in sh:uniqueValuesFor", kind="compile")
         seen.add(node)
         first = list(shapes.objects(node, RDF.first))
         rest = list(shapes.objects(node, RDF.rest))
         if len(first) != 1 or len(rest) != 1 or not isinstance(first[0], URIRef):
-            raise ShapeCompileError("sh:uniqueValuesFor must be an IRI or a list of IRIs")
+            raise ShapeError("sh:uniqueValuesFor must be an IRI or a list of IRIs", kind="compile")
         items.append(first[0])
         node = rest[0]
     if not items:
-        raise ShapeCompileError("sh:uniqueValuesFor list is empty")
+        raise ShapeError("sh:uniqueValuesFor list is empty", kind="compile")
     return items
 
 

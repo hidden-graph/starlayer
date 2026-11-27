@@ -9,7 +9,7 @@ The settings come from the graph itself (``StarLayerGraph.imports_loader`` / ``i
 Every declared ``owl:imports`` must be satisfied (the IRI is a subject of the resulting graph, or a built-in ontology: ``sh:``, SHACL UI,
 SHACL-SHACL, SKOS) or the call raises ``ExecutionError`` kind ``"import"`` with the IRIs on ``error.unresolved``: no loader, a loader that
 returns ``None``, or one that returns a graph without the IRI as a subject. A loader that raises is wrapped in the same error. An
-``owl:imports`` object that is not an IRI is a ``ShapeCompileError`` (the shapes graph is wrong). ``ignore_imports=True`` loads and checks
+``owl:imports`` object that is not an IRI is a ``ShapeError`` (the shapes graph is wrong). ``ignore_imports=True`` loads and checks
 nothing. A fetched graph is never fetched again (cycles end; a versioned and an unversioned name of one module are one fetch), and
 further imports are read from every ``owl:imports`` triple of a fetched graph, whatever its subject.
 """
@@ -19,7 +19,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.graph.imports import (
     SHACL_VOCABULARY,
     builtin_import_keys,
@@ -41,7 +41,7 @@ def declared_imports(graph: Any) -> tuple[Any, ...]:
 
 
 def _malformed(term: Any) -> Exception:
-    return ShapeCompileError(f"owl:imports needs an IRI, not {text(term)}", context=f"owl:imports {text(term)}")
+    return ShapeError(f"owl:imports needs an IRI, not {text(term)}", context=f"owl:imports {text(term)}", kind="compile")
 
 
 def _imports_of(graph: Any, imports_loader: Loader | None, ignore_imports: bool | None) -> frozenset:

@@ -12,7 +12,7 @@ import pickle
 
 import pyoxigraph as ox
 import pytest
-from starlayer.errors import ExecutionError, FormatError, ShapeCompileError
+from starlayer.errors import ExecutionError, FormatError, ShapeError
 from starlayer.graph import StarLayerGraph, unresolved_imports
 from starlayer.graph.imports import is_builtin_import, resolve_or_raise
 
@@ -242,5 +242,5 @@ def test_an_import_object_that_is_not_an_iri_is_a_format_error_of_kind_owl_for_a
 def test_resolve_or_raise_takes_the_error_for_a_malformed_declaration_from_the_caller():
     g = StarLayerGraph()
     g.add((n("root"), IMPORTS, ox.Literal("x")))
-    with pytest.raises(ShapeCompileError):
-        resolve_or_raise(g, None, False, malformed=lambda term: ShapeCompileError("bad"))
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "compile"):
+        resolve_or_raise(g, None, False, malformed=lambda term: ShapeError("bad", kind="compile"))

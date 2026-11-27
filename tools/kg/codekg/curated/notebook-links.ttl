@@ -425,10 +425,9 @@ nl:05.01-f41bd5ea a slkg:NotebookExample ;
     slkg:cellId "f41bd5ea" ;
     slkg:cellHash "01c949f15d24a42d" ;
     slkg:reviewedOn "2026-11-25"^^xsd:date ;
-    rdfs:comment "Shows ShapeCompileError for a misplaced sh:path and MetaShaclError from meta_shacl=True." ;
+    rdfs:comment "Shows ShapeError of kind compile for a misplaced sh:path and of kind meta from meta_shacl=True." ;
     slkg:demonstratesIdentifier
-        "starlayer.shacl.engine.plan.ShapeCompileError",
-        "starlayer.shacl.engine.meta.MetaShaclError" .
+        "starlayer.shacl.validator.StarShaclProcessor" .
 
 nl:05.01-8c133de1 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
@@ -538,7 +537,7 @@ nl:05.10-f5157b68 a slkg:NotebookExample ;
     slkg:cellId "f5157b68" ;
     slkg:cellHash "151feb2c6366f5ca" ;
     slkg:reviewedOn "2026-11-24"^^xsd:date ;
-    rdfs:comment "Checks a shapes graph that holds SPARQL that is not valid, and reads each defect from the report graph of the MetaShaclError." ;
+    rdfs:comment "Checks a shapes graph that holds SPARQL that is not valid, and reads each defect from the report graph of the ShapeError of kind meta." ;
     slkg:demonstratesIdentifier
         "starlayer.shacl.meta_shapes.meta_validate" .
 

@@ -4,7 +4,7 @@ at most one value, a decimal; sh:group names an sh:PropertyGroup. SHACL 1.2: at 
 
 import pytest
 from starlayer.graph import StarLayerGraph as Graph
-from starlayer.shacl import MetaShaclError as ReportableRuntimeError
+from starlayer.shacl import ShapeError
 from starlayer.shacl.meta_shapes import meta_validate
 
 P = (
@@ -65,5 +65,5 @@ def test_well_formed_usage_passes(ttl):
 
 @pytest.mark.parametrize("ttl", INVALID.values(), ids=INVALID.keys())
 def test_malformed_usage_is_rejected(ttl):
-    with pytest.raises(ReportableRuntimeError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta"):
         _check(ttl)

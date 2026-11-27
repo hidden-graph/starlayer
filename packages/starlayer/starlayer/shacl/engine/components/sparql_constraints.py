@@ -7,7 +7,7 @@ property shape, ``$PATH`` is replaced by the shape's path. One result per soluti
 
 from __future__ import annotations
 
-from starlayer.errors import ExecutionError, ShapeCompileError, only_kind
+from starlayer.errors import ExecutionError, ShapeError, only_kind
 from starlayer.shacl.engine.components.registry import Violation, component
 from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.plan import SH
@@ -34,7 +34,7 @@ def _prepared(ctx, shape, constraint):
     else:
         selects = list(graph.objects(constraint, SH.select))
         if len(selects) != 1:
-            raise ShapeCompileError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
+            raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select", kind="compile")
         severities = list(graph.objects(constraint, SH.severity))
         text = substitute_path(with_prefixes(ctx.plan, constraint, selects[0].value), shape)
         prepared = (
@@ -66,7 +66,7 @@ def _check_sparql(shapes, shape, params) -> None:
         if any(is_true(d) for d in shapes.objects(constraint, SH.deactivated) if isinstance(d, Literal)):
             continue
         if len(list(shapes.objects(constraint, SH.select))) != 1:
-            raise ShapeCompileError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select")
+            raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select", kind="compile")
 
 
 @component(SH.SPARQLConstraintComponent, SH.sparql, check=_check_sparql)

@@ -5,7 +5,7 @@ unpack the old ``(conforms, report_graph, report_text)`` triple.
 
 import pyoxigraph as ox
 import pytest
-from starlayer.errors import MetaShaclError
+from starlayer.errors import ShapeError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import ValidationReport, meta_validate
 from starlayer.sparql import sparql_to_tree, validate_sparql_tree
@@ -95,7 +95,7 @@ def test_meta_validate_returns_a_conforming_report_for_valid_shapes():
 
 
 def test_meta_validate_still_raises_for_invalid_shapes_with_the_same_problems():
-    with pytest.raises(MetaShaclError) as error:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as error:
         meta_validate(_shapes(SHAPES))  # sh:minCount on a node shape: a misplaced constraint
     problems = error.value.problems
     assert problems and str(error.value).startswith("The shapes graph is not valid SHACL")

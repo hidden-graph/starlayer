@@ -199,10 +199,10 @@ SHAPES_PFX = "@prefix shui: <http://www.w3.org/ns/shacl-ui/> .\n"
     ],
 )
 def test_meta_validate_rejects_a_value_that_is_not_a_list(turtle, problem):
-    from starlayer.shacl import MetaShaclError, meta_validate
+    from starlayer.shacl import ShapeError, meta_validate
 
     shapes = g(SHAPES_PFX + turtle)
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(shapes, meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
     assert problem in str(raised.value)
 
@@ -235,10 +235,10 @@ def test_default_namespace_accepts_a_literal_that_is_an_absolute_iri(value):
 
 @pytest.mark.parametrize("value", ['"not an iri"', '"http://a b/"', '""', "ex:ns"])
 def test_default_namespace_refuses_what_is_not_an_absolute_iri_literal(value):
-    from starlayer.shacl import MetaShaclError, meta_validate
+    from starlayer.shacl import ShapeError, meta_validate
 
     shapes = g(SHAPES_PFX + f"ex:C a shui:Configuration ; shui:defaultNamespace {value} .")
-    with pytest.raises(MetaShaclError) as raised:
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "meta") as raised:
         meta_validate(shapes, meta_shapes_extra=[starontology.get_ontology_graph("shacl_shacl_ui")])
     assert "shui:defaultNamespace" in str(raised.value)
 

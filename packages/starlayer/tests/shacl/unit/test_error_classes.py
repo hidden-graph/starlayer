@@ -1,6 +1,6 @@
 """Errors are classified by cause: ``ShapeError`` (the shapes graph or its setup is wrong, whenever the engine finds it) and
 ``ExecutionError`` (the shapes graph is fine and running it failed). ``ExecutionError`` is one ``StarLayerError`` class whose ``kind``
-says what failed; ``ShapeError`` is the base of ``ShapeCompileError`` (the engine cannot compile it) and ``MetaShaclError`` (the meta
+says what failed; ``ShapeError`` is one class too, its ``kind`` ``"compile"`` (the engine cannot compile it) or ``"meta"`` (the meta
 check found it)."""
 
 from __future__ import annotations
@@ -10,8 +10,6 @@ from starlayer.errors import ExecutionError, StarLayerError
 from starlayer.graph import StarLayerGraph
 from starlayer.shacl import (
     ExecutionError,
-    MetaShaclError,
-    ShapeCompileError,
     ShapeError,
     StarShaclProcessor,
     apply_rules,
@@ -70,7 +68,6 @@ def test_the_old_per_kind_classes_are_gone():
 def test_a_shape_error_is_not_an_execution_error():
     assert not issubclass(ShapeError, ValueError)
     assert not issubclass(ShapeError, ExecutionError)
-    assert not issubclass(MetaShaclError, ExecutionError)
     assert issubclass(ExecutionError, StarLayerError) and not issubclass(ExecutionError, ValueError)
 
 
@@ -164,13 +161,13 @@ def test_a_shape_error_inside_a_rule_keeps_its_class(monkeypatch):
     from starlayer.shacl.engine import rules
 
     def boom(*_a, **_k):
-        raise MetaShaclError("meta problem")
+        raise ShapeError("meta problem", kind="meta")
 
     monkeypatch.setattr(rules, "check_query", boom)
     shapes = g("ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:rule [ a sh:SPARQLRule ; sh:construct 'CONSTRUCT { $this <http://example.org/q> 1 } WHERE { }' ] .")
-    with pytest.raises(MetaShaclError) as exc:
+    with pytest.raises(ShapeError) as exc:
         apply_rules(g("ex:a ex:p 1 ."), shapes)
-    assert exc.value.context
+    assert exc.value.kind == "meta" and exc.value.context
 
 
 def test_a_rule_failure_recorded_without_raising_names_the_cause_in_its_message():
@@ -216,15 +213,15 @@ def test_context_defaults_to_none_and_survives_pickle_and_copy():
     import pickle
 
     assert ExecutionError("m", kind="rule").context is None
-    assert ShapeCompileError("m").context is None and MetaShaclError("m").context is None
+    assert ShapeError("m", kind="compile").context is None and ShapeError("m", kind="meta").context is None
     errors = [
         ExecutionError("m", kind="expression", context="sh:rule ex:R"),
-        ShapeCompileError("m", context="sh:rule ex:R"),
-        MetaShaclError("m", context="sh:rule ex:R"),
+        ShapeError("m", kind="compile", context="sh:rule ex:R"),
+        ShapeError("m", kind="meta", context="sh:rule ex:R"),
     ]
     for error in errors:
         for clone in (pickle.loads(pickle.dumps(error)), copy.copy(error), copy.deepcopy(error)):
-            assert type(clone) is type(error) and clone.context == "sh:rule ex:R" and str(clone) == "m"
+            assert type(clone) is type(error) and clone.context == "sh:rule ex:R" and str(clone) == "m" and clone.kind == error.kind
     assert pickle.loads(pickle.dumps(errors[0])).kind == "expression"
 
 
@@ -252,47 +249,58 @@ BAD_COUNT = "ex:S a sh:NodeShape ; sh:targetNode ex:a ; sh:property [ sh:path ex
 
 
 def test_the_shape_error_hierarchy():
-    for cls in (ShapeCompileError, MetaShaclError):
-        assert issubclass(cls, ShapeError) and not issubclass(cls, ValueError)
-        assert not issubclass(cls, ExecutionError)
-    assert not issubclass(ShapeCompileError, MetaShaclError) and not issubclass(MetaShaclError, ShapeCompileError)
-    assert not issubclass(ExecutionError, ShapeError)
+    assert issubclass(ShapeError, StarLayerError) and not issubclass(ShapeError, ValueError)
+    assert not issubclass(ShapeError, ExecutionError) and not issubclass(ExecutionError, ShapeError)
 
 
-def test_a_compile_error_is_a_shape_compile_error_and_not_a_meta_error():
-    with pytest.raises(ShapeCompileError) as exc:
+def test_a_compile_failure_is_a_shape_error_of_kind_compile():
+    with pytest.raises(ShapeError) as exc:
         StarShaclProcessor(shacl_graph=g(BAD_COUNT))
-    assert type(exc.value) is ShapeCompileError and not isinstance(exc.value, MetaShaclError)
+    assert type(exc.value) is ShapeError and exc.value.kind == "compile"
+    assert exc.value.problems == () and exc.value.report_text == "" and exc.value.report_graph is None and exc.value.scope is None
 
 
-def test_the_meta_check_raises_a_meta_error_that_is_a_shape_error_and_not_a_compile_error():
-    with pytest.raises(MetaShaclError) as exc:
+def test_the_meta_check_raises_a_shape_error_of_kind_meta_with_its_report():
+    with pytest.raises(ShapeError) as exc:
         StarShaclProcessor(shacl_graph=g(BAD_COUNT), meta_shacl=True)
-    assert isinstance(exc.value, ShapeError) and not isinstance(exc.value, ShapeCompileError)
+    error = exc.value
+    assert type(error) is ShapeError and error.kind == "meta"
+    assert error.problems and all(isinstance(line, str) for line in error.problems)
+    assert error.report_text and error.report_graph is not None
+    assert error.scope is not None
+    assert str(error).startswith("The shapes graph is not valid SHACL") and all(line in str(error) for line in error.problems)
 
 
-def test_except_shape_error_catches_both_kinds():
+def test_except_shape_error_catches_both_kinds_and_only_kind_tells_them_apart():
+    from starlayer.errors import only_kind
+
+    kinds = []
     for kwargs in ({}, {"meta_shacl": True}):
         try:
             StarShaclProcessor(shacl_graph=g(BAD_COUNT), **kwargs)
-        except ShapeError:
-            pass
+        except ShapeError as error:
+            kinds.append(error.kind)
+            with pytest.raises(ShapeError) as other:
+                only_kind(error, "meta" if error.kind == "compile" else "compile")
+            assert other.value is error
+            only_kind(error, error.kind)
         else:
             raise AssertionError("no error raised")
+    assert kinds == ["compile", "meta"]
 
 
-def test_an_unresolvable_import_is_an_execution_error_and_a_non_iri_import_a_shape_compile_error():
+def test_an_unresolvable_import_is_an_execution_error_and_a_non_iri_import_a_compile_shape_error():
     shapes = g("ex:SG a sh:Graph ; owl:imports <http://example.org/missing> . ex:S a sh:NodeShape ; sh:targetNode ex:a .")
     with raises_kind("import", match="http://example.org/missing"):
         validate(g("ex:a ex:p 1 ."), shapes, meta_shacl=False)
     bad = g('ex:SG a sh:Graph ; owl:imports "not an iri" . ex:S a sh:NodeShape ; sh:targetNode ex:a .')
-    with pytest.raises(ShapeCompileError, match="needs an IRI"):
+    with pytest.raises(ShapeError, match="needs an IRI", check=lambda e: e.kind == "compile"):
         validate(g("ex:a ex:p 1 ."), bad, meta_shacl=False)
 
 
-def test_a_malformed_rule_is_a_shape_compile_error():
+def test_a_malformed_rule_is_a_compile_shape_error():
     shapes = "ex:R a sh:SPARQLRule ; sh:construct 'not a query' ."
-    with pytest.raises(ShapeCompileError):
+    with pytest.raises(ShapeError, check=lambda e: e.kind == "compile"):
         apply_rules(g("ex:a ex:p 1 ."), g(shapes))
 
 
@@ -414,10 +422,10 @@ def test_the_sparql_custom_function_wrapper_gives_no_value_only_for_kind_express
         assert isinstance(pending, ExecutionError) and pending.kind == kind
 
     def wrong_shapes(*_a, **_k):
-        raise ShapeCompileError("the body is not a node expression")
+        raise ShapeError("the body is not a node expression", kind="compile")
 
     (pending,) = call(wrong_shapes)
-    assert isinstance(pending, ShapeCompileError)
+    assert isinstance(pending, ShapeError) and pending.kind == "compile"
 
 
 _FUNCTION_SHAPES = (
@@ -496,21 +504,21 @@ def test_a_sh_condition_check_that_fails_keeps_its_kind_and_names_the_rule():
 
 
 
-# ---- a ValueError raised while the shapes are compiled is a ShapeCompileError ----------------------------------------------------------
+# ---- a ValueError raised while the shapes are compiled is a ShapeError of kind compile ----------------------------------------------------------
 
 
-def test_an_invalid_xpath_regex_is_a_shape_compile_error():
+def test_an_invalid_xpath_regex_is_a_compile_shape_error():
     from starlayer.shacl.engine.xpath_regex import xpath_regex_to_python
 
     for pattern in (r"\p{NoSuchCategory}", r"\p{IsNoSuchBlock}", r"\p", r"\p{L", "[a-z-[aeiou]x]"):
-        with pytest.raises(ShapeCompileError):
+        with pytest.raises(ShapeError, check=lambda e: e.kind == "compile"):
             xpath_regex_to_python(pattern)
 
 
-def test_an_unknown_term_tag_in_a_plan_file_is_a_shape_compile_error():
+def test_an_unknown_term_tag_in_a_plan_file_is_a_compile_shape_error():
     from starlayer.shacl.engine.plan_json import term_from_json
 
-    with pytest.raises(ShapeCompileError, match="unknown term tag"):
+    with pytest.raises(ShapeError, match="unknown term tag", check=lambda e: e.kind == "compile"):
         term_from_json({"t": "nonsense"})
 
 
@@ -530,3 +538,16 @@ def test_extraction_raises_like_validate_for_a_nested_failure_and_for_a_shape_er
             extract_subgraph(data, shapes)
         assert type(a.value) is type(b.value), name
         assert getattr(a.value, "kind", None) == getattr(b.value, "kind", None), name
+
+
+def test_the_removed_shape_error_subclasses_are_gone_everywhere():
+    import starlayer.errors
+    import starlayer.shacl
+    import starlayer.shacl.errors
+
+    for module in (starlayer.errors, starlayer.shacl, starlayer.shacl.errors):
+        for name in ("ShapeCompileError", "MetaShaclError"):
+            assert not hasattr(module, name), (module.__name__, name)
+            assert name not in getattr(module, "__all__", ())
+            with pytest.raises(ImportError):
+                exec(f"from {module.__name__} import {name}")  # noqa: S102

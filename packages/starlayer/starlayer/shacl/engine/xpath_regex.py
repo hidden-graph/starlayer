@@ -14,7 +14,7 @@ the string, not before a final newline), ``.`` (without the ``s`` flag it exclud
 other category, so not ``_``).
 
 A pattern that uses none of these is returned unchanged (:func:`needs_translation` is false). Anything it cannot translate
-(an unknown category or block name, a malformed escape) raises ``ShapeCompileError`` with a message naming the feature.
+(an unknown category or block name, a malformed escape) raises ``ShapeError`` with a message naming the feature.
 """
 
 from __future__ import annotations
@@ -23,7 +23,7 @@ import re
 import sys
 import unicodedata
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 
 __all__ = ["needs_translation", "xpath_regex_to_python"]
 
@@ -107,9 +107,9 @@ def _property_ranges(name: str) -> list[tuple[int, int]]:
     if name.startswith("Is"):
         block = _BLOCKS.get(name[2:])
         if block is None:
-            raise ShapeCompileError(
+            raise ShapeError(
                 f"unknown Unicode block \\p{{{name}}} in an XPath regular expression "
-                f"(supported blocks: {', '.join('Is' + b for b in sorted(_BLOCKS))})"
+                f"(supported blocks: {', '.join('Is' + b for b in sorted(_BLOCKS))})", kind="compile"
             )
         return [block]
     categories = _categories()
@@ -118,7 +118,7 @@ def _property_ranges(name: str) -> list[tuple[int, int]]:
     else:
         found = list(categories.get(name, []))
     if not found:
-        raise ShapeCompileError(f"unknown Unicode category \\p{{{name}}} in an XPath regular expression")
+        raise ShapeError(f"unknown Unicode category \\p{{{name}}} in an XPath regular expression", kind="compile")
     return _normalise(found)
 
 
@@ -132,10 +132,10 @@ def _ranges_text(ranges: list[tuple[int, int]]) -> str:
 def _read_property_name(pattern: str, index: int) -> tuple[str, int]:
     """``index`` is just after ``\\p``/``\\P``; returns the name inside the braces and the index after ``}``."""
     if index >= len(pattern) or pattern[index] != "{":
-        raise ShapeCompileError("\\p and \\P must be followed by a braced name, such as \\p{L}")
+        raise ShapeError("\\p and \\P must be followed by a braced name, such as \\p{L}", kind="compile")
     end = pattern.find("}", index)
     if end == -1:
-        raise ShapeCompileError("unterminated \\p{...} in an XPath regular expression")
+        raise ShapeError("unterminated \\p{...} in an XPath regular expression", kind="compile")
     return pattern[index + 1 : end], end + 1
 
 
@@ -182,7 +182,7 @@ def _translate_class(pattern: str, index: int) -> tuple[str, int]:
         if char == "-" and index + 1 < len(pattern) and pattern[index + 1] == "[":
             subtraction, index = _translate_class(pattern, index + 1)
             if index >= len(pattern) or pattern[index] != "]":
-                raise ShapeCompileError("a character class subtraction must end the class: [a-z-[aeiou]]")
+                raise ShapeError("a character class subtraction must end the class: [a-z-[aeiou]]", kind="compile")
             index += 1
             break
         if char == "\\":
@@ -197,7 +197,7 @@ def _translate_class(pattern: str, index: int) -> tuple[str, int]:
         body.append(char)
         index += 1
     else:
-        raise ShapeCompileError("unterminated character class in an XPath regular expression")
+        raise ShapeError("unterminated character class in an XPath regular expression", kind="compile")
     inner = "".join(body)
     if subtraction is None:
         return f"[{'^' if negated else ''}{inner}]", index

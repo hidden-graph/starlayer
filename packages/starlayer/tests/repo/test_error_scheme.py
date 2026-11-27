@@ -17,8 +17,6 @@ import starlayer.shacl.errors as shacl_errors
 from starlayer.errors import (
     ExecutionError,
     FormatError,
-    MetaShaclError,
-    ShapeCompileError,
     ShapeError,
     StarLayerError,
     only_kind,
@@ -26,19 +24,16 @@ from starlayer.errors import (
 
 PACKAGE = Path(errors.__file__).resolve().parent
 ERRORS_PY = PACKAGE / "errors.py"
-NAMES = ("StarLayerError", "ShapeError", "ShapeCompileError", "MetaShaclError", "ExecutionError", "FormatError")
+NAMES = ("StarLayerError", "ShapeError", "ExecutionError", "FormatError")
 
 
 def test_the_class_tree():
     assert StarLayerError.__bases__ == (Exception,)
     assert ShapeError.__bases__ == (StarLayerError,)
-    assert ShapeCompileError.__bases__ == (ShapeError,)
-    assert MetaShaclError.__bases__ == (ShapeError,)
     assert ExecutionError.__bases__ == (StarLayerError,)
     assert FormatError.__bases__ == (StarLayerError,)
     assert not issubclass(FormatError, ExecutionError) and not issubclass(FormatError, ShapeError)
     assert not issubclass(ExecutionError, ShapeError)
-    assert not issubclass(ShapeCompileError, MetaShaclError) and not issubclass(MetaShaclError, ShapeCompileError)
 
 
 @pytest.mark.parametrize("cls", [getattr(errors, name) for name in NAMES])
@@ -49,11 +44,11 @@ def test_every_class_derives_from_the_library_base_and_no_builtin_but_exception(
 
 
 def test_a_shape_error_is_not_a_value_error_so_an_except_value_error_misses_it():
-    with pytest.raises(ShapeCompileError):
+    with pytest.raises(ShapeError):
         try:
-            raise ShapeCompileError("bad shape")
+            raise ShapeError("bad shape", kind="compile")
         except ValueError:  # pragma: no cover - must not catch it
-            pytest.fail("ShapeCompileError was caught as a ValueError")
+            pytest.fail("ShapeError was caught as a ValueError")
 
 
 def test_the_execution_kinds_are_the_six_of_step_c_and_the_three_of_owl_dl_reasoning():
@@ -137,24 +132,40 @@ def test_an_import_error_keeps_its_unresolved_iris_through_pickle_and_copy():
         assert (again.kind, again.context, str(again)) == ("import", "owl:imports <a>, <b>", "not resolved")
 
 
-@pytest.mark.parametrize("cls", [ShapeError, ShapeCompileError])
-def test_a_shape_error_survives_pickle_and_copy(cls):
-    error = cls("bad", context="sh:path")
+@pytest.mark.parametrize("kind", ShapeError.KINDS)
+def test_a_shape_error_survives_pickle_and_copy(kind):
+    error = ShapeError("bad", kind=kind, context="sh:path")
     for again in _roundtrips(error):
-        assert type(again) is cls
-        assert (str(again), again.context) == ("bad", "sh:path")
-    assert _roundtrips(cls("bad"))[0].context is None
+        assert type(again) is ShapeError
+        assert (str(again), again.kind, again.context) == ("bad", kind, "sh:path")
+    assert _roundtrips(ShapeError("bad", kind=kind))[0].context is None
 
 
-def test_a_meta_error_keeps_its_attributes_through_pickle_and_copy():
-    error = MetaShaclError("not valid", ("p1", "p2"), "report text", None, None, context="meta")
+def test_a_meta_shape_error_keeps_its_attributes_through_pickle_and_copy():
+    error = ShapeError("not valid", kind="meta", problems=("p1", "p2"), report_text="report text", context="meta")
     for again in _roundtrips(error):
-        assert type(again) is MetaShaclError
+        assert type(again) is ShapeError and again.kind == "meta"
         assert str(again) == "not valid"
         assert again.problems == ("p1", "p2") and again.report_text == "report text"
         assert again.report_graph is None and again.scope is None and again.context == "meta"
-    plain = _roundtrips(MetaShaclError("m"))[0]
+    plain = _roundtrips(ShapeError("m", kind="meta"))[0]
     assert plain.problems == () and plain.report_text == "" and plain.context is None
+
+
+def test_the_shape_kinds_and_the_required_valid_kind():
+    assert tuple(ShapeError.KINDS) == ("compile", "meta")
+    with pytest.raises(TypeError):
+        ShapeError("no kind")  # type: ignore[call-arg]
+    with pytest.raises(ValueError, match="unknown ShapeError kind"):
+        ShapeError("x", kind="nope")
+
+
+def test_only_kind_works_on_the_three_classes():
+    for error in (ExecutionError("x", kind="rule"), FormatError("x", kind="sparql"), ShapeError("x", kind="compile")):
+        only_kind(error, error.kind)
+        with pytest.raises(type(error)) as caught:
+            only_kind(error, "meta")
+        assert caught.value is error
 
 
 def test_the_format_kinds_and_the_required_valid_kind():
@@ -194,6 +205,7 @@ REMOVED_CLASSES = (
     "ManchesterSyntaxError",  # stage 5
     "SRLUnresolvedImportsWarning",  # removed with the parse that validates (a sh:Warning of validate_sparql_tree says it now)
     "CanonicalizationComplexityError", "EntailmentRewriteError", "SqeTextTooDeepError",  # stage 6
+    "ShapeCompileError", "MetaShaclError",  # decision 26: one ShapeError with a kind ("compile", "meta")
 )
 
 
@@ -212,7 +224,7 @@ def test_a_removed_error_class_does_not_come_back_in_the_package_source():
 
 
 def _error_call_kinds():
-    """(file, line, class name, kind literal or None) for each ``ExecutionError(...)`` / ``FormatError(...)`` call, and
+    """(file, line, class name, kind literal or None) for each ``ExecutionError(...)`` / ``FormatError(...)`` / ``ShapeError(...)`` call, and
     ``(file, line, "only_kind", literal)`` for each kind name given to ``only_kind``."""
     for path in _source_files((".py",)):
         if path == ERRORS_PY:
@@ -221,7 +233,7 @@ def _error_call_kinds():
             if not isinstance(node, ast.Call):
                 continue
             name = node.func.id if isinstance(node.func, ast.Name) else getattr(node.func, "attr", None)
-            if name in ("ExecutionError", "FormatError"):
+            if name in ("ExecutionError", "FormatError", "ShapeError"):
                 kind = next((k.value for k in node.keywords if k.arg == "kind"), None)
                 literal = kind.value if isinstance(kind, ast.Constant) and isinstance(kind.value, str) else None
                 yield path.relative_to(REPO).as_posix(), node.lineno, name, literal
@@ -230,7 +242,7 @@ def _error_call_kinds():
                     yield path.relative_to(REPO).as_posix(), node.lineno, "only_kind", arg.value if isinstance(arg, ast.Constant) else None
 
 
-@pytest.mark.parametrize("registry", [ExecutionError.KINDS, FormatError.KINDS], ids=["ExecutionError", "FormatError"])
+@pytest.mark.parametrize("registry", [ExecutionError.KINDS, FormatError.KINDS, ShapeError.KINDS], ids=["ExecutionError", "FormatError", "ShapeError"])
 def test_every_kind_has_a_one_line_meaning(registry):
     """``KINDS`` is the one registry: kind -> meaning, plain strings, so iteration, ``in`` and ``', '.join`` read the names."""
     assert isinstance(registry, dict) and registry
@@ -241,7 +253,7 @@ def test_every_kind_has_a_one_line_meaning(registry):
 
 
 def test_a_kind_stays_a_plain_string_and_the_error_round_trips():
-    for cls in (ExecutionError, FormatError):
+    for cls in (ExecutionError, FormatError, ShapeError):
         for kind in cls.KINDS:
             error = cls("m", kind=kind)
             assert type(error.kind) is str and error.kind == kind
@@ -249,14 +261,15 @@ def test_a_kind_stays_a_plain_string_and_the_error_round_trips():
 
 
 def test_every_kind_in_use_at_a_raise_site_is_declared():
-    declared = {"ExecutionError": ExecutionError.KINDS, "FormatError": FormatError.KINDS, "only_kind": ExecutionError.KINDS}
+    declared = {"ExecutionError": ExecutionError.KINDS, "FormatError": FormatError.KINDS, "ShapeError": ShapeError.KINDS,
+                "only_kind": {**ExecutionError.KINDS, **FormatError.KINDS, **ShapeError.KINDS}}
     bad = [f"{path}:{line}: {name} kind {kind!r}" for path, line, name, kind in _error_call_kinds() if kind not in declared[name]]
     assert not bad, "\n".join(bad)
 
 
 def test_every_declared_kind_is_used_somewhere():
     used = {(name, kind) for _path, _line, name, kind in _error_call_kinds() if name != "only_kind"}
-    unused = [(name, kind) for name, kinds in (("ExecutionError", ExecutionError.KINDS), ("FormatError", FormatError.KINDS))
+    unused = [(name, kind) for name, kinds in (("ExecutionError", ExecutionError.KINDS), ("FormatError", FormatError.KINDS), ("ShapeError", ShapeError.KINDS))
               for kind in kinds if (name, kind) not in used]
     assert not unused, f"declared but never raised: {unused}"
 

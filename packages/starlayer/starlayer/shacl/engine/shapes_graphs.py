@@ -6,7 +6,7 @@ members of locally present ``owl:imports`` modules). The result holds the concis
 module node and every member; references to named shapes are left dangling unless ``include_referenced`` copies them
 (the project's choice, see the old ``StarShaclProcessor.extract_shapes_graph``; Profiling 2.7 "calculating dependencies" is a
 TODO in the draft). Unlike ``modules.extract_module`` (used by ``validate(shapes_graph_resource=)``) it does not strip
-``sh:property`` links to non-member named shapes, and an unresolvable ``owl:imports`` raises ``ShapeCompileError``.
+``sh:property`` links to non-member named shapes, and an unresolvable ``owl:imports`` raises ``ShapeError``.
 
 ``close_shape(shapes, shape)``: a *copy* of the shapes graph in which ``shape`` and every shape it reaches in a way that
 describes a value node's complete property set (``sh:node``, ``sh:qualifiedValueShape``, members of ``sh:and`` /
@@ -20,7 +20,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from starlayer.errors import ShapeCompileError
+from starlayer.errors import ShapeError
 from starlayer.shacl.engine.graphs import add_list, copy_cbd, list_items, new_graph
 from starlayer.shacl.engine.terms import (
     OWL,
@@ -89,10 +89,10 @@ def module_nodes(graph: Any, shapes_graph: Any) -> set:
             if imported in nodes:
                 continue
             if not _is_graph_node(graph, imported):
-                raise ShapeCompileError(
+                raise ShapeError(
                     f"{text(current)} declares owl:imports {text(imported)}, but {text(imported)} is not typed `a sh:Graph` (or "
                     "sh:ShapesGraph, sh:DataGraph, sh:RulesGraph) in this graph: it has no triples describing it, or is not a "
-                    "packaging module (resolve the import first)."
+                    "packaging module (resolve the import first).", kind="compile"
                 )
             nodes.add(imported)
             pending.append(imported)
@@ -194,7 +194,7 @@ def rule_dependencies(graph: Any, starting_points: Any) -> set:
 def extract_shapes_graph(shapes_graph: Any, shapes_graph_iri: Any, *, include_referenced: bool = False) -> Any | None:
     """The ``sh:ShapesGraph`` module ``shapes_graph_iri`` of ``shapes_graph`` as a new standalone graph; ``None`` when the
     IRI is not typed ``sh:ShapesGraph`` there. ``include_referenced=True`` also copies the named shapes the members refer
-    to, transitively, so the result validates on its own. ``ShapeCompileError`` for an unresolvable ``owl:imports``; ``ValueError`` when
+    to, transitively, so the result validates on its own. ``ShapeError`` for an unresolvable ``owl:imports``; ``ValueError`` when
     ``shapes_graph`` is ``None``. The input is never changed."""
     if shapes_graph is None:
         raise ValueError("extract_shapes_graph() needs a shapes graph")
