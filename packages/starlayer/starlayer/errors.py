@@ -88,8 +88,8 @@ class ShapeError(StarLayerError):
 
     #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
     KINDS = {
-        "compile": "the engine cannot read or compile the shapes graph, its rules or its setup: a malformed shape, path, constraint parameter, query or rule, an unsupported construct, an owl:imports object that is not an IRI",
-        "meta": "the meta check (the shapes-about-shapes, meta_shacl=True) found the shapes graph invalid: problems, report_text, report_graph and scope say how",
+        "compile": "Malformed or unsupported shapes: a bad shape, path, constraint parameter, query or rule; an unsupported construct; an owl:imports object that is not an IRI",
+        "meta": "Shapes graph that is invalid against the SHACL-SHACL meta shapes (meta_shacl=True); problems and the report say how",
     }
 
     def __init__(self, message: str = "", *, kind: str, context: str | None = None, problems: tuple[str, ...] = (),
@@ -133,18 +133,18 @@ class ExecutionError(StarLayerError):
 
     #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
     KINDS = {
-        "rule": "a rule failed while running, or the rule set failed as a whole (an SRL rule set that cannot be ordered)",
-        "expression": "a node expression cannot be evaluated, an error and not an empty result",
-        "recursion": "a shape reaches itself on a focus node through sh:not (a cycle in the data)",
-        "constraint-query": "a sh:sparql constraint query reported ?failure true",
-        "internal": "StarLayer asked itself for something it cannot do: a bug in StarLayer, to be reported (report_url)",
-        "timeout": "an OWL-DL reasoning call did not finish within its time budget and was killed",
-        "inconsistent": "the OWL-DL reasoner found the data logically inconsistent",
-        "inference": "the reasoner could not run or died: Java missing or broken, or a reasoning subprocess that exited without a result",
-        "query": "the SPARQL engine failed while evaluating a query or update whose text parsed",
-        "import": "a declared import (owl:imports, an SRL IMPORTS) is not resolved",
-        "unsupported": "valid input that the library or the target notation cannot handle: the user asked for something StarLayer cannot do and can choose differently",
-        "limit": "a size or complexity cap of the library was reached (a depth limit, RDFC-1.0's symmetry defence, max_iterations, max_triples)",
+        "rule": "Failed rule, or a rule set that fails as a whole (for example, one that cannot be ordered)",
+        "expression": "Node expression that cannot be evaluated",
+        "recursion": "Shape that reaches itself through sh:not (a cycle in the data)",
+        "constraint-query": "sh:sparql constraint query that reported ?failure true",
+        "internal": "Bug in StarLayer (it asked itself for something it cannot do); report it (report_url)",
+        "timeout": "OWL-DL reasoning that exceeded its time budget",
+        "inconsistent": "Data found logically inconsistent by the OWL-DL reasoner",
+        "inference": "Reasoner that could not run or died (Java missing or broken, or the subprocess exited without a result)",
+        "query": "SPARQL engine failure on a query or update whose text parsed",
+        "import": "Unresolved owl:imports or SRL IMPORTS",
+        "unsupported": "Valid input that the library or the target notation cannot handle",
+        "limit": "Size or complexity cap reached (nesting depth, RDFC-1.0 symmetry, max_iterations, max_triples)",
     }
 
     def __init__(self, message: str, *, kind: str, context: str | None = None, unresolved: tuple[Any, ...] = ()) -> None:
@@ -181,11 +181,11 @@ class FormatError(StarLayerError):
 
     #: Every kind and what is malformed (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
     KINDS = {
-        "sparql": "SPARQL query or update text, an sqe: tree, a VERSION declaration",
-        "srl": "SRL text, an srl: tree, a rule set built with something that is not a rule body element, a bad DATA block, a rule set that breaks the SRL rules",
-        "rdf": "an RDF document that cannot be parsed, the text of a term (an IRI, a language tag, a lexical form), a list that is not well formed, a name that has no prefixed form",
-        "manchester": "Manchester Syntax text, a manch: tree, a SWRL Rule: frame",
-        "owl": "RDF that is not valid OWL when it is written as Manchester Syntax, or a malformed owl:imports declaration",
+        "sparql": "Malformed SPARQL text, sqe: tree or VERSION declaration",
+        "srl": "Malformed SRL text, srl: tree, DATA block or rule body element, or a rule set that breaks the SRL rules",
+        "rdf": "Malformed RDF document, term text (IRI, language tag, lexical form), list or prefixed name",
+        "manchester": "Malformed Manchester Syntax text, manch: tree or SWRL Rule: frame",
+        "owl": "Invalid OWL in RDF, or a malformed owl:imports declaration",
     }
 
     def __init__(self, message: str | None = None, *, kind: str, context: str | None = None, why: str | None = None,
@@ -221,9 +221,9 @@ class EndpointError(StarLayerError, OSError):
 
     #: Every kind and what it means (iterate it or use ``in`` for the names); ``kind`` itself is always the plain string.
     KINDS = {
-        "http": "the endpoint answered with an error status: status is the HTTP status",
-        "unreachable": "the host cannot be reached: the connection failed or timed out (status is None)",
-        "content-type": "the endpoint answered in a content type StarLayer cannot read",
+        "http": "Error status answered by the endpoint (status holds it)",
+        "unreachable": "Host that cannot be reached: the connection failed or timed out",
+        "content-type": "Answer in a content type StarLayer cannot read",
     }
 
     def __init__(self, message: str = "", status: int | None = None, *, kind: str, context: str | None = None) -> None:
