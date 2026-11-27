@@ -507,7 +507,7 @@ One scheme now covers the library (`starlayer/errors.py`, rules in `AGENTS.md`, 
 - **Align the SHACL leftovers.** *Done 2026-11-26 (decision 22): `max_iterations` is validated like `max_triples` and its message names the option; decision 23: `RuleResult.failures` holds the `ExecutionError` objects.* (The kind question is decided: `max_iterations` and `max_triples` failures are kind `"limit"` since 2026-11-26; guide 05.02 / 05.06 text still says `"rule"`.)
 - **`RuleResult.failures`** is still a `list[str]`, not structured.
 - **Guides and the workbench** still name removed classes or catch builtin classes around changed calls (the lists are in the summary).
-- **Strings that stay.** `core.py` still matches Oxigraph's message text for "the document has named graphs" (a pre-check by format would remove it); the `initBindings` text scan is a heuristic.
+- **Strings that stay.** *(The "the document has named graphs" message match is gone: done 2026-11-26, decision 24a; a quad document into a single graph is parsed whole and decided by its quads.)* The `initBindings` text scan (24b) stays: it is a heuristic.
 
 ## SRL as an entailment regime (2026-11-26)
 

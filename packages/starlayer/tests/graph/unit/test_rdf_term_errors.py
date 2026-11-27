@@ -192,3 +192,35 @@ def test_json_ld_cannot_hold_a_triple_term_and_that_is_unsupported_not_an_os_err
     assert info.value.kind == "unsupported" and info.value.context == "JSON-LD serialize" and not isinstance(info.value, OSError)
     with pytest.raises(OSError):  # an unwritable path is still an I/O error
         g.serialize(str(tmp_path / "no" / "such" / "dir" / "x.nt"), format="nt")
+
+
+QUAD_DOCS = {
+    "trig": ("<urn:a> <urn:p> <urn:o> .", "<urn:a> <urn:p> <urn:o> .\n<urn:g> { <urn:b> <urn:p> <urn:o> }", "<urn:g> { <urn:b> <urn:p> "),
+    "nquads": ("<urn:a> <urn:p> <urn:o> .\n", "<urn:a> <urn:p> <urn:o> .\n<urn:b> <urn:p> <urn:o> <urn:g> .\n", "<urn:a> <urn:p> .\n"),
+}
+
+
+@pytest.mark.parametrize("fmt", sorted(QUAD_DOCS))
+def test_a_quad_document_into_a_single_graph_is_decided_by_its_quads(fmt):
+    plain, named, broken = QUAD_DOCS[fmt]
+    graph = StarLayerGraph()
+    graph.parse(data=plain, format=fmt)  # no named graph: loads
+    assert len(graph) == 1
+    with pytest.raises(ValueError, match="the document has named graphs; parse it into a StarLayerDataset"):
+        graph.parse(data=named, format=fmt)
+    assert len(graph) == 1  # nothing of the refused document was added, not even its default-graph triple
+    with pytest.raises(FormatError) as info:
+        StarLayerGraph().parse(data=broken, format=fmt)
+    assert info.value.kind == "rdf"
+    dataset = StarLayerDataset()
+    dataset.parse(data=named, format=fmt)
+    assert len(list(dataset.named_graphs())) == 1
+
+
+def test_a_refused_quad_document_leaves_a_named_graph_view_unchanged():
+    dataset = StarLayerDataset()
+    view = dataset.graph(ox.NamedNode("urn:v"))
+    with pytest.raises(ValueError, match="named graphs"):
+        view.parse(data=QUAD_DOCS["trig"][1], format="trig")
+    assert len(view) == 0 and len(dataset) == 0
+

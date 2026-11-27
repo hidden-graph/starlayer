@@ -556,7 +556,7 @@ class _Base:
         Turtle. Blank nodes are scoped to the document (renamed per parse unless ``rename_blank_nodes=False``). The prefixes the
         document declares are copied into ``self.prefixes``. A triple format loads into the default graph of a dataset or into
         this graph; a quad format loads each quad into its graph, and into a single ``StarLayerGraph`` only if it has no named graphs
-        (otherwise ``ValueError``: parse into a ``StarLayerDataset``). A malformed document is a ``FormatError`` (kind ``"rdf"``) with
+        (otherwise ``ValueError``, decided from the parsed quads, and nothing is added: parse into a ``StarLayerDataset``). A malformed document is a ``FormatError`` (kind ``"rdf"``) with
         ``line`` and ``col`` when the parser reports them; a file that cannot be read stays an ``OSError``; an unknown ``format`` name is a ``ValueError``."""
         kw, hint = _read_input(data, source, file)
         if formats.is_manchester(format) or (format is None and hint and str(hint).lower().endswith((".omn", ".manchester"))):
@@ -564,18 +564,26 @@ class _Base:
         guessed = formats.format_from_path(hint) if hint else None
         fmt = formats.to_format(format, default=guessed or ox.RdfFormat.TURTLE)
         direct = isinstance(self._add_graph(), ox.DefaultGraph)  # quads can go to the store untouched (the fast path)
-        extra = {"without_named_graphs": True} if (direct and not isinstance(self, StarLayerDataset)) else {}
+        # a single graph holds no named graphs: a quad document is read whole first and refused before anything is added
+        # (decided by the format and the quads, never by the engine's message)
+        whole = fmt in formats.QUAD_FORMATS and not isinstance(self, StarLayerDataset)
         if base is None and publicID is None:  # the retrieval location is the base IRI (RFC 3986 5.1.3)
             if "path" in kw:
                 base = Path(kw["path"]).resolve().as_uri()
             elif hint and str(hint).lower().startswith(("http://", "https://")):
                 base = str(hint)
-        parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes, **extra,
+        parser = ox.parse(format=fmt, base_iri=base or publicID, rename_blank_nodes=rename_blank_nodes,
                           **ntversion.accept_version_directive(kw, fmt))
         rewrites = lexical.Rewrites()
         try:
+            quads = list(lexical.watch(parser, rewrites)) if whole else None
+            if quads is not None and any(not isinstance(q.graph_name, ox.DefaultGraph) for q in quads):
+                raise ValueError("the document has named graphs; parse it into a StarLayerDataset")
             try:
-                if direct:
+                if quads is not None:
+                    move = self._retarget(self._add_graph())
+                    self.store.extend(move(q) for q in quads)
+                elif direct:
                     self.store.extend(lexical.watch(parser, rewrites))
                 else:
                     move = self._retarget(self._add_graph())
@@ -586,8 +594,6 @@ class _Base:
         except SyntaxError as e:
             if type(e) is not SyntaxError:
                 raise
-            if "named graph" in str(e).lower():  # the wrong target for this document (an argument), not a malformed document
-                raise ValueError("the document has named graphs; parse it into an StarLayerDataset") from e
             raise FormatError(str(e), kind="rdf", context=str(hint) if hint else f"{fmt} document", line=e.lineno, col=e.offset) from e
         self.prefixes.update(parser.prefixes or {})
         return self
@@ -1101,8 +1107,6 @@ class StarLayerGraph(_Base):
 
     def _retarget(self, target: Any) -> Any:
         def move(q: ox.Quad) -> ox.Quad:
-            if not isinstance(q.graph_name, ox.DefaultGraph):
-                raise ValueError("the document has named graphs; parse it into an StarLayerDataset")
             return ox.Quad(q.subject, q.predicate, q.object, target)
 
         return move
