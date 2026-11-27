@@ -274,3 +274,78 @@ Checks:
 - The meta check improves by about 5% (200 shapes: 266 ms to 252 ms): its cost is not mostly SPARQL.
 
 Not done: SPARQL-based components (`sh:select` validators run per focus node and value), SPARQL node expressions, ASK validators, a property shape reached through `sh:node` and other nested shapes, and a query the rule refuses (a `LIMIT` can be batched only with a per-node `LIMIT`, which SPARQL cannot say). The harness test plan of this document applies to each.
+
+
+## Stage 5b result: the validators of SPARQL-based constraint components (2026-11-27)
+
+What was built: `ComponentSpec.prefetch` for declared components (`sparql_components._make_prefetch`). A SELECT validator runs once for all the focus nodes of each combination of parameter values (`prefetch_select(..., constants=params)`; the batch is keyed by its constants). An ASK validator runs once for all the (focus node, value node) pairs as `SELECT DISTINCT ?this ?value` over the same pattern (`prefetch_ask`; `run_ask` reads a covered pair from the set of pairs that came back). `sparql_query_batch` takes a tuple of variable names for the pairs. `batch_blocker(text, ask=True)` is the same rule for an ASK. A validator's messages and text are read once per run (`_prepared`, `_validator_of`), where each focus node had read them from the shapes graph.
+
+The profile before that last change showed most of the remaining time was those repeated reads of the shapes graph (about 100,000 lookups for 20,000 nodes), not the queries; the batching alone gave 2.3 to 2.5 times, with the reads removed 3.4 to 6.5 times.
+
+Per focus node, a parameterised component whose validator checks the length of each value (5% of values violate; `validators_bench.py`; before is the code of `main` e235db1f):
+
+| Nodes x values | ASK before | ASK now | SELECT before | SELECT now |
+|---|---|---|---|---|
+| 20,000 x 1 | 64.2 µs | 17.7 | 72.4 | 11.2 |
+| 20,000 x 3 | 138.6 | 36.1 | 79.0 | 14.6 |
+| 20,000 x 10 | 400.0 | 101.6 | 91.0 | 27.1 |
+| 200,000 x 3 | 139.3 (27.9 s) | 39.4 (7.9 s) | 77.4 (15.5 s) | 15.5 (3.1 s) |
+
+Checks: `tests/shacl/engine/test_sparql_validator_batching.py` (13 tests: one run for all pairs or nodes, parameters, each combination apart, messages, blank-node focus nodes, values and parameters, a query the rule refuses, a failing batch, the ASK rewrite, `abort_on_first`, the text read once); the whole-tree comparison with `batch_check2.py` (every batched query also run one by one: 1,078 ASK pairs, 565 of them true, 23,015 SELECT nodes, 28 batches with parameters, no difference); the SHACL, SPARQL, ontology and graph trees pass (16,138 tests).
+
+Not done: SPARQL node expressions (`sh:select`, `sh:sparqlExpr`), SPARQL rules (`sh:SPARQLRule`, CONSTRUCT per focus node, run on every iteration of the fixpoint), SPARQL targets, nested shapes. What remains of the ASK cost (about 10 µs a value) is the text of the `VALUES` block, the second reading of the value nodes for the pairs, and the violations.
+
+
+## Stage 5c result: SPARQL rules (2026-11-27)
+
+What was built: `rules._Run._construct_batch`. A `sh:SPARQLRule` with focus nodes runs its CONSTRUCT once for all of them each iteration (`InferredView.construct_batch` over `OxigraphGraph.sparql_construct_batch`; `batch_blocker(text, construct=True)`; chunks of 5,000), and the one-by-one loop runs only what is left: blank-node focus nodes, and everything when the rule is not batchable, there is one node, the overlay cannot, or anything fails. The text of a rule and the values of its template's parameters are read once per rule per run (`_sparql_text`), where each node read them again. The triples of a CONSTRUCT are a set, so the one run gives the union of the runs for the nodes; nothing is split by node.
+
+`rules_bench2.py` (`apply_rules`, one rule; before is `main`):
+
+| Case | Before | Now |
+|---|---|---|
+| one pass, 20,000 nodes (2 iterations) | 130.4 µs a node (2.61 s) | 24.5 µs (0.49 s) |
+| one pass, 100,000 nodes | 139.4 µs (13.94 s) | 25.9 µs (2.59 s) |
+| recursive, 120 nodes, 121 iterations | 2.32 s | 1.40 s |
+| recursive, 200 nodes, 201 iterations | 10.55 s | 8.02 s |
+
+The recursive case gains little for a reason the profile gives: the query takes 0.03 s of 1.65 s; the rest is reading the triples the rule derives again on every iteration (590,000 triples over 121 iterations, of which 7,260 are distinct), at about 1.4 µs each, 0.76 of it the store's own iteration. Only a rule that does not derive the same triples again helps: semi-naive evaluation, or skipping a rule whose inputs did not change (stage 3 of this plan).
+
+Checks: `tests/shacl/engine/test_sparql_rule_batching.py` (13 tests: one run for all nodes, the same inferred triples, iterations and `sh:sourceRule` records as the one-by-one run, a recursive rule, a rule template's parameters, blank-node focus nodes, one node, a query the rule refuses, a global rule, chunks, a failing batch, a rule with MINUS failing with the same words; three mutations are caught); the whole-tree comparison with `batch_check3.py` (every batched CONSTRUCT also run node by node, widened with up to 40 other nodes, compared modulo blank nodes since `BNODE()` is new in each run: 169 batches, 1,825 nodes, 4,536 triples, no difference, no refusal); the SHACL, SPARQL, ontology and graph trees pass (16,151 tests).
+
+Not done: the node expressions of a `sh:TripleRule` (a SPARQL expression runs per focus node), SPARQL node expressions elsewhere, SPARQL targets, nested shapes.
+
+
+## Stage 2 result: what the shapes graph says is read once per run (2026-11-27)
+
+What was built: the members of each list of `sh:and`, `sh:or` and `sh:xone` are read and checked once per run (`core_shape_based._run_lists`, in `ctx.cache`; only a list found well formed is kept, so a malformed one raises each time it is asked, as before), and `registry.words(ctx)` makes its `Words` once per run. The profile of the meta check (200 shapes) had `shacl_list` at 26% (3,200 calls for a handful of lists) and `Words.__init__` called 16,401 times.
+
+| Case | Before | Now |
+|---|---|---|
+| meta check, 20 shapes | 28.6 ms | 20.3 ms |
+| meta check, 200 shapes | 252 ms | 168 ms |
+| `sh:or` + `sh:xone` + `sh:and` over 30,000 nodes (`logic_bench.py`) | 149.7 µs a node | 58.1 µs |
+
+Stage 4 (trace the meta check) answered its two open guesses with the profile after this change: message text is not built for the conformance checks (`stringify_node` is not in the profile), and what remains is structural: 15 nested shape visits for each of 1,601 top-level focus nodes, 25,000 store lookups (15%), the visit itself (11%). `Namespace.__getattr__` (71,000 calls, 8%) was left alone: a public class for a small gain.
+
+Checks: `tests/shacl/engine/test_run_caches.py` (a list is read once for a run whatever the number of nodes, results per node, a malformed list still fails as `ShapeError` kind `compile`, the words made once; a mutation that turns the cache off is caught); the SHACL, SPARQL, ontology and graph trees pass (16,155 tests).
+
+
+## Stage 3 result: rules skip what did not change (2026-11-27)
+
+What was built: `rules._Run` records, for each call of `add_inferred` that adds something, a tick and the predicates added (`changes`, `any_change`), and for each rule the tick at which it last ran (`ran_at`). A rule is not run again (`_unchanged`) when no predicate it can read changed after it last ran. What a rule reads is `sparql_support.query_reads` (the WHERE part of its query: predicates of triple patterns and paths, in `EXISTS` and sub-selects too; the CONSTRUCT template is not read) plus what its focus nodes are found by (`_compute_reads`: `rdf:type` and `rdfs:subClassOf` for a class target, the predicate of subjects-of / objects-of, `sh:shape`; a node target reads nothing). When that cannot be told (a variable predicate, a negated or zero-length path, a triple term, a custom function, a `sh:condition`, `sh:targetWhere` or a node-expression target) the rule is skipped only if no triple at all was added since. A rule whose answer can differ for the same data (`BNODE()`, `RAND()`, `UUID()`, `STRUUID()`, a blank node in the template), a `sh:TripleRule` and a run-once rule are never skipped. This is the "skip a rule when nothing it reads changed" of the plan; full semi-naive evaluation is not attempted.
+
+`rules_bench2.py` (`apply_rules`, one rule; "before" is `main` before any of this work):
+
+| Case | Before | Batched | Batched and skipping |
+|---|---|---|---|
+| one pass, 100,000 nodes (2 iterations) | 13.94 s (139 µs a node) | 2.59 s | 0.80 s (8.0 µs) |
+| recursive, 200 nodes, 201 iterations | 10.55 s | 8.02 s | 8.01 s |
+
+The recursive rule gains nothing more, as expected: it reads its own output, so it is run in every iteration; only the final confirming iteration could be skipped, and that one is the loop's end. What it needs is a rule that does not derive the same triples again each iteration (semi-naive evaluation), which this does not do.
+
+Two things the checks found:
+- **A volatile template.** A blank node in the CONSTRUCT template (`_:fresh`) is a new node in every run, so such a rule never reaches a fixpoint; with skipping it did, and `test_non_terminating_rule_fails` caught it. `query_reads` now marks it volatile, and `test_a_rule_that_never_reaches_a_fixpoint_is_still_refused` pins it.
+- **The `sh:shape` target.** Every shape gets a `sh:shape` target in the plan; treating it as unknown made every rule read anything, and the first benchmark showed no gain. It reads the one predicate `sh:shape`.
+
+Checks: `tests/shacl/engine/test_rule_skipping.py` (31 tests: what a query reads, 6 cases of reading anything, the volatile functions, the template blank node; a rule run once, run every iteration when switched off, dependent rules, a class target made bigger by another rule, a subjects-of target made bigger, a recursive rule, a rule that reads anything, a condition, a rule that never terminates, a run-once rule, the source-rule records; mutations of the target reads, the conditions and the change record are caught; the `volatile` guard in `_unchanged` is never the deciding one, since in a loop that continues something has always changed since a rule last ran, and is kept as intent); the whole-tree differential `skip_check.py` (every `apply_rules` of the tests run with and without skipping: 407 calls, 794 iterations, 62 with an error: the same inferred triples modulo blank nodes, iterations, `sh:sourceRule` records and errors; the one difference was two `NOW()` timestamps of runs made at different moments).
