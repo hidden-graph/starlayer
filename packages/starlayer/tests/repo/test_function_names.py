@@ -134,8 +134,9 @@ def test_two_queries_in_one_graph_are_told_apart_by_their_roots():
     assert tree_to_sparql(graph, second).startswith("ASK")
     with pytest.raises(ValueError, match="pass root="):
         tree_to_sparql(graph)
-    with pytest.raises(ValueError, match="no root"):
+    with pytest.raises(FormatError, match="no root") as caught:
         tree_to_sparql(StarLayerGraph())
+    assert (caught.value.kind, caught.value.context) == ("sparql", "tree root")
 
 
 def test_a_rule_set_and_a_query_share_a_graph_and_take_a_root():

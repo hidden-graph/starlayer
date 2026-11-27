@@ -136,10 +136,10 @@ def tree_to_sparql(tree_graph: Any, root: Any = None) -> str:
         The text.
 
     Raises:
-        ValueError: ``root`` is left out and the graph holds no root or more than one.
+        ValueError: ``root`` is left out and the graph holds more than one root.
         ExecutionError: (kind ``"limit"``) the tree nests too deeply to write within the Python stack; (kind ``"unsupported"``) it
             holds a node, term or operation with no text form.
-        FormatError: (kind ``"rdf"``) an ordered child has no ``tree:ord`` or one that is not a non-negative integer, two children of
+        FormatError: (kind ``"sparql"``, context ``tree root``) the graph holds no root. (kind ``"rdf"``) an ordered child has no ``tree:ord`` or one that is not a non-negative integer, two children of
             one parent and property share an ordinal, or a named node, literal or variable is a child without its ``tree:Item``
             (``graph/ordinals.py``): the tree has no order to write. (kind ``"srl"``) a part of a rule set tree is missing or is
             not what a rule set needs.
@@ -151,12 +151,13 @@ def tree_to_sparql(tree_graph: Any, root: Any = None) -> str:
     graph, root = as_engine_graph(tree_graph, root)
     if root is None:
         found = [*_roots(graph)[0], *_roots(graph)[1]]
-        if len(found) != 1:
-            raise ValueError(
-                "the graph holds no root (no sqe:Query, sqe:UpdateRequest or srl:RuleSet): nothing to write"
-                if not found
-                else f"the graph holds {len(found)} roots; pass root= to say which one to write"
+        if not found:
+            raise FormatError(
+                "the graph holds no root (no sqe:Query, sqe:UpdateRequest or srl:RuleSet): nothing to write",
+                kind="sparql", context="tree root",
             )
+        if len(found) != 1:
+            raise ValueError(f"the graph holds {len(found)} roots; pass root= to say which one to write")
         root = found[0]
     if (root, ox.NamedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"), SRL.RuleSet) in graph:
         return ruleset_to_text(tree_to_ruleset(graph, root))

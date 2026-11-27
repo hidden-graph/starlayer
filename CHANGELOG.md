@@ -28,6 +28,8 @@ Changes from the error-scheme review of 2026-11-26. Several of them change what 
 - **An OWL regime reaching the RDF/RDFS query rewrite** is `ExecutionError` kind `internal` (it was `ValueError`); `query()` answers the OWL regimes through the entailed copy, so only a bug in StarLayer gets there.
 - **`.rows`, `.bindings` or `.triples` of a result of the wrong query form** (rows of an ASK, triples of a SELECT) is `ValueError` (it was `TypeError`).
 
+- **`tree_to_sparql()` of a graph with no root** (no `sqe:Query`, `sqe:UpdateRequest` or `srl:RuleSet`) is `FormatError` kind `sparql`, context `tree root` (it was `ValueError`): the graph is meant to hold a tree and does not. Several roots with no `root=` given is still `ValueError`, since the caller must choose.
+
 ### Added
 
 - `ExecutionError.KINDS` and `FormatError.KINDS` map each kind to a one-line meaning (iterating them still gives the kind names).
