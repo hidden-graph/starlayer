@@ -423,11 +423,12 @@ nl:05.01-a9353f25 a slkg:NotebookExample ;
 nl:05.01-f41bd5ea a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
     slkg:cellId "f41bd5ea" ;
-    slkg:cellHash "01c949f15d24a42d" ;
-    slkg:reviewedOn "2026-11-25"^^xsd:date ;
+    slkg:cellHash "cc6de4fc0f7e0343" ;
+    slkg:reviewedOn "2026-11-27"^^xsd:date ;
     rdfs:comment "Shows ShapeError of kind compile for a misplaced sh:path and of kind meta from meta_shacl=True." ;
     slkg:demonstratesIdentifier
-        "starlayer.shacl.validator.StarShaclProcessor" .
+        "starlayer.shacl.validator.StarShaclProcessor",
+        "starlayer.errors.ShapeError" .
 
 nl:05.01-8c133de1 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/05.01-validating-with-shacl-1.2.ipynb" ;
