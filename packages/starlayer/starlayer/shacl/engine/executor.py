@@ -16,7 +16,7 @@ from starlayer.shacl.engine.naming import add_where
 from starlayer.shacl.engine.paths import eval_path
 from starlayer.shacl.engine.plan import SH, Path, Plan, Shape, Term, most_severe
 from starlayer.shacl.engine.targets import focus_nodes
-from starlayer.shacl.engine.terms import RDFS, engine_view, unmask
+from starlayer.shacl.engine.terms import RDFS, Literal, engine_view, unmask
 
 
 @dataclass(frozen=True)
@@ -292,24 +292,74 @@ def _restated(details: tuple, shape: Shape, severity: Term, messages: tuple) -> 
     )
 
 
-def _prefetch(ctx: Context, shape: Shape, foci: list, seen: set | None = None) -> None:
-    """Tell the components of ``shape``, and of the property shapes of a node shape (they are checked at the same focus nodes), the focus nodes they
-    are about to be asked about one by one, so a component that can do the work for all of them at once does it once (``ComponentSpec.prefetch``).
-    Nothing here decides a result: a component that does nothing, or fails, is asked node by node as it always was."""
-    seen = set() if seen is None else seen
-    if len(foci) < 2 or shape.node in seen:
-        return
-    seen.add(shape.node)
+def _references(ctx: Context, shape: Shape) -> list[Term]:
+    """The shapes ``shape`` asks its value nodes to conform to, whichever of them is always asked: ``sh:node``, ``sh:not``, ``sh:qualifiedValueShape`` and the members
+    of ``sh:and`` and ``sh:xone``. ``sh:or`` is left out: it stops at the first member a value node conforms to, so the others may never be asked about it."""
+    from starlayer.shacl.engine.components.core_shape_based import _run_lists
+
+    out: list[Term] = []
+    for predicate in (SH.node, SH["not"], SH.qualifiedValueShape):
+        out.extend(shape.params.get(predicate, ()))
+    for predicate in (SH["and"], SH.xone):
+        for members in _run_lists(ctx, shape.params.get(predicate, ()), f"sh:{predicate.value.rsplit('#', 1)[-1]}"):
+            out.extend(members)
+    return [t for t in out if not isinstance(t, Literal)]
+
+
+def _worth_reading_ahead(ctx: Context, node: Term, visiting: frozenset = frozenset()) -> bool:
+    """Whether the shape ``node``, or a shape it leads to (its property shapes, the shapes it refers to), has a component that can work on many focus
+    nodes at once. Read once per shape per run; a shape that is only reached again on the way is not counted twice."""
+    key = ("prefetch-worth", node)
+    found = ctx.cache.get(key)
+    if found is not None:
+        return found
+    if node in visiting:
+        return False
+    shape = ctx.shape(node)
+    answer = any(spec.prefetch is not None for spec, *_ in _shape_components(ctx, shape))
+    if not answer:
+        inside = visiting | {node}
+        answer = any(_worth_reading_ahead(ctx, ps, inside) for ps in shape.property_shapes) or any(
+            _worth_reading_ahead(ctx, t, inside) for t in _references(ctx, shape)
+        )
+    if not visiting:  # (only a result for the shape asked about is final: below it, a shape on the way back to itself said no for want of the answer)
+        ctx.cache[key] = answer
+    return answer
+
+
+def _prefetch(ctx: Context, starts: list[tuple[Shape, list]]) -> None:
+    """Tell the components of the shapes of ``starts`` (each with its focus nodes), of their property shapes (a node shape's are checked at the same focus
+    nodes) and of the shapes their value nodes must conform to, the focus nodes they are about to be asked about one by one, so a component that can do
+    the work for all of them at once does it once (``ComponentSpec.prefetch``). A shape reached from several places is told all its nodes together. Nothing
+    here decides a result: a component that does nothing, or fails, is asked node by node as it always was."""
     try:
-        for spec, present, _severity, _messages, _exprs in _shape_components(ctx, shape):
-            if spec.prefetch is not None:
-                spec.prefetch(ctx, shape, present, foci)
-        if shape.path is None:  # (a property shape's own property shapes are checked at its value nodes, not at these)
-            for ps in shape.property_shapes:
-                link = shape.annotations.get((SH.property, ps))
-                pshape = ctx.shape(ps)
-                if not pshape.deactivated and not (link and link["deactivated"]):
-                    _prefetch(ctx, pshape, foci, seen)
+        wanted: dict[Term, dict[Term, None]] = {}
+        queue: list[tuple[Shape, list]] = [(shape, list(foci)) for shape, foci in starts]
+        while queue:
+            current, more = queue.pop()
+            have = wanted.setdefault(current.node, {})
+            fresh = [f for f in more if f not in have]
+            if not fresh:
+                continue
+            have.update(dict.fromkeys(fresh))
+            if current.path is None:  # (a property shape's own property shapes are checked at its value nodes, not at these)
+                for ps in current.property_shapes:
+                    link = current.annotations.get((SH.property, ps))
+                    pshape = ctx.shape(ps)
+                    if not pshape.deactivated and not (link and link["deactivated"]):
+                        queue.append((pshape, fresh))
+            reached = [ctx.shape(t) for t in _references(ctx, current) if _worth_reading_ahead(ctx, t)]
+            reached = [t for t in reached if not t.deactivated]
+            if reached:  # the value nodes are what the shapes it refers to are asked about
+                values = list(dict.fromkeys(v for f in fresh for v in ([f] if current.path is None else ctx.value_nodes(current, f))))
+                queue.extend((t, values) for t in reached)
+        for node, nodes in wanted.items():
+            if len(nodes) < 2:
+                continue
+            target = ctx.shape(node)
+            for spec, present, _severity, _messages, _exprs in _shape_components(ctx, target):
+                if spec.prefetch is not None:
+                    spec.prefetch(ctx, target, present, list(nodes))
     except (ShapeError, ExecutionError):
         pass  # (the node-by-node run raises it, where it applies)
 
@@ -413,13 +463,23 @@ def run(
     wanted = _UNBOUNDED_RECURSION_LIMIT if max_validation_depth is None else max_validation_depth * _FRAMES_PER_SHAPE_LEVEL + 1000
     try:
         with _recursion_room(wanted):
+            if ctx.memoize and not abort_on_first:  # (an early exit would waste what is read ahead; reads being recorded must be the node's own)
+                try:  # (a shape whose focus nodes cannot be found is reached, and fails, in the loop below, where it always did)
+                    _prefetch(
+                        ctx,
+                        [
+                            (shape, [f for f in ctx.shape_focus(shape) if focus_filter is None or f in focus_filter])
+                            for shape in (plan.shape(node) for node in plan.all_shape_nodes())
+                            if not shape.deactivated
+                        ],
+                    )
+                except (ShapeError, ExecutionError):
+                    pass
             for node in plan.all_shape_nodes():
                 shape = plan.shape(node)
                 if shape.deactivated:
                     continue
                 foci = [f for f in ctx.shape_focus(shape) if focus_filter is None or f in focus_filter]
-                if ctx.memoize and not abort_on_first:  # (an early exit would waste what is read ahead; reads being recorded must be the node's own)
-                    _prefetch(ctx, shape, foci)
                 for focus in foci:
                     results.extend(validate_shape_at(ctx, shape, focus))
                     if results and abort_on_first:
