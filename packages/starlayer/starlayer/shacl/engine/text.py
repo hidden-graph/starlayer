@@ -403,28 +403,75 @@ def _unmasked(m: Any) -> Any:
     return m
 
 
+class MessageMemo:
+    """The messages of one run, worded once for each distinct result shape instead of once for each result.
+
+    A result's messages are a function of its shape, component, path node, value (when it has one), source constraint, own messages and, for
+    a SPARQL constraint only, its focus node: the shapes graph and the data graph do not change while a report is built. Every result of a
+    shape that fails the same way on the same value therefore has the same messages, so they are worded once (the shapes graph is read and
+    the sentence built once). Use one memo for one pair of graphs: a call with another pair is answered without the memo."""
+
+    __slots__ = ("_messages", "_fixed", "_graphs")
+
+    def __init__(self) -> None:
+        self._messages: dict = {}
+        self._fixed: dict = {}  # shapes-graph term -> its text in a result block
+        self._graphs: tuple | None = None
+
+    def _same_graphs(self, shapes: Any, data: Any) -> bool:
+        if self._graphs is None:
+            self._graphs = (shapes, data)
+        return self._graphs[0] is shapes and self._graphs[1] is data
+
+    def __call__(self, r: Result, shapes: Any, data: Any) -> list:
+        """``result_messages(r, shapes, data)``, from the memo when a result like this one was worded."""
+        if not self._same_graphs(shapes, data):
+            return result_messages(r, shapes, data)
+        key = (
+            r.shape, r.component, r.path.node if r.path is not None else None, r.has_value, r.value if r.has_value else None,
+            r.source_constraint, r.messages, r.messages_stated, r.focus if r.component == SH.SPARQLConstraintComponent else None,
+        )
+        try:
+            found = self._messages.get(key)
+        except TypeError:  # (an unhashable own message: not memoised)
+            return result_messages(r, shapes, data)
+        if found is None:
+            found = self._messages[key] = result_messages(r, shapes, data)
+        return list(found)
+
+    def shape_text(self, shapes: Any, term: Any) -> str:
+        """``stringify_node(shapes, term)`` for a term of the shapes graph, written once."""
+        found = self._fixed.get(term)
+        if found is None:
+            found = self._fixed[term] = stringify_node(shapes, term)
+        return found
+
+
 def _message_text(m: Any) -> str:
     return T.text(m) if isinstance(m, (ox.NamedNode, ox.BlankNode, ox.Literal, ox.Triple)) else f"{m}"  # str-ok: a plain str
 
 
-def _result_block(r: Result, shapes: Any, data: Any) -> str:
-    """One result block; ``shapes`` and ``data`` are the ``_View`` of each graph (a nested ``sh:detail`` block gets the same)."""
+def _result_block(r: Result, shapes: Any, data: Any, memo: MessageMemo | None = None) -> str:
+    """One result block; ``shapes`` and ``data`` are the ``_View`` of each graph (a nested ``sh:detail`` block gets the same). ``memo``: the
+    messages and the lines that are fixed per shape are worded once for a run."""
+    words = memo.shape_text if memo is not None else stringify_node
+    messages = memo if memo is not None else result_messages
     kind = "Constraint Violation" if r.severity == SH.Violation else "Validation Result"
-    text = (
-        f"{kind} in {stringify_node(shapes, r.component)}:\n\tSeverity: {stringify_node(shapes, r.severity)}"
-        f"\n\tSource Shape: {stringify_node(shapes, r.shape)}\n\tFocus Node: {stringify_node(data, r.focus)}\n"
-    )
+    component_text, severity_text, shape_text = words(shapes, r.component), words(shapes, r.severity), words(shapes, r.shape)
+    text = f"{kind} in {component_text}:\n\tSeverity: {severity_text}\n\tSource Shape: {shape_text}\n\tFocus Node: {stringify_node(data, r.focus)}\n"
     if r.has_value:
         text += f"\tValue Node: {stringify_node(data, r.value)}\n"
     path: Path | None = r.path
     if path is not None and path.node is not None:
-        text += f"\tResult Path: {stringify_node(shapes, path.node)}\n"
+        path_text = words(shapes, path.node)
+        text += f"\tResult Path: {path_text}\n"
     if r.source_constraint is not None:
-        text += f"\tSource Constraint: {stringify_node(shapes, r.source_constraint)}\n"
-    for m in sorted(result_messages(r, shapes, data), key=_message_text):
+        constraint_text = words(shapes, r.source_constraint)
+        text += f"\tSource Constraint: {constraint_text}\n"
+    for m in sorted(messages(r, shapes, data), key=_message_text):
         text += f"\tMessage: {_message_text(m)}\n"  # str-ok: message text
     for detail in r.details:  # sh:detail: the nested result, indented under the result it explains
-        nested = _result_block(detail, shapes, data)
+        nested = _result_block(detail, shapes, data, memo)
         text += "\tDetail:\n" + "".join(f"\t\t{line}\n" for line in nested.splitlines())
     return text
 
@@ -479,7 +526,8 @@ def report_text(
         text += f"Results ({len(results)}):\n"
     # a term is abbreviated with the prefixes of the graph it belongs to, then of the other graph (text only: the report graph is built elsewhere)
     shapes_view, data_view = _View(shapes, data), _View(data, shapes)
-    text += "".join(sorted(_result_block(r, shapes_view, data_view) for r in results))
+    memo = MessageMemo()
+    text += "".join(sorted(_result_block(r, shapes_view, data_view, memo) for r in results))
     if report is not None:
         text += provenance_text(report, data_graph_iri, data, shapes)
     return T.unmask(text)

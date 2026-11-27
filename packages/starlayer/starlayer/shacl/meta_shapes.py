@@ -226,7 +226,7 @@ def meta_validate(
 
     result = engine_meta_validate(shapes_graph, extra=meta_shapes_extra, add=add, remove=remove, full=full)
     result.raise_if_invalid()
-    return ValidationReport(True, result.report_graph, result.report_text, diagnostics=result.diagnostics)
+    return ValidationReport(True, lambda: result.report_graph, result.report_text, diagnostics=lambda: result.diagnostics)
 
 
 def meta_scope(

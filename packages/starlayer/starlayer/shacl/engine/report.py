@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import Any
 
 import pyoxigraph as ox
@@ -123,23 +124,32 @@ def _flat(values: Any) -> Any:
             yield value
 
 
-def build_report(
+@dataclass(frozen=True)
+class ReportContent:
+    """What a report graph will hold, collected while the shapes and data graphs are as the validation read them: the triples (the closures
+    of the nodes the results name and the messages are already in them) and the prefixes of the two graphs. ``write_report`` turns it into
+    the graph, at once or later; it reads neither graph, so a graph written later is the one that would have been written then."""
+
+    triples: list
+    prefixes: list  # one list of (prefix, namespace) for each of the shapes graph and the data graph
+
+
+def collect_report(
     results: list[Result], shapes: Any, data: Any, conformance_disallows: Any = None, messages_for: Any = None
-) -> Any:
-    """The report as an ``StarLayerGraph``. ``messages_for(result)``, when given, supplies the ``sh:resultMessage`` values of a
+) -> ReportContent:
+    """The content of the report graph of ``results``. ``messages_for(result)``, when given, supplies the ``sh:resultMessage`` values of a
     result in place of its own."""
-    g = new_graph()
-    g.bind("sh", str(SH))
     # The old validator binds the data and shapes graphs' prefixes on the report so IRIs print as prefixed names.
+    prefixes: list = []
     for source in (shapes, data):
         namespaces = getattr(source, "namespaces", None)
+        found: list = []
         if namespaces is not None:
             try:
-                for prefix, namespace in namespaces():
-                    if prefix and prefix not in g.prefixes:
-                        g.bind(prefix, namespace, override=False)
+                found = list(namespaces())
             except Exception:  # noqa: BLE001  (a view without namespace support just keeps the default prefixes)
-                pass
+                found = []
+        prefixes.append(found)
     report = ox.BlankNode()
     out: list[tuple[Any, Any, Any]] = [
         (report, T.RDF.type, SH.ValidationReport),
@@ -177,5 +187,27 @@ def build_report(
 
     for r in results:
         out.append((report, SH.result, add_result(r)))
-    g.extend(out)
+    return ReportContent(out, prefixes)
+
+
+def write_report(content: ReportContent) -> Any:
+    """The report as an ``StarLayerGraph``, from what ``collect_report`` gathered."""
+    g = new_graph()
+    g.bind("sh", str(SH))
+    for found in content.prefixes:
+        try:
+            for prefix, namespace in found:
+                if prefix and prefix not in g.prefixes:
+                    g.bind(prefix, namespace, override=False)
+        except Exception:  # noqa: BLE001  (as when the prefixes were read: one that cannot be bound leaves the rest of that graph's out)
+            pass
+    g.extend(content.triples)
     return g
+
+
+def build_report(
+    results: list[Result], shapes: Any, data: Any, conformance_disallows: Any = None, messages_for: Any = None
+) -> Any:
+    """The report as an ``StarLayerGraph``. ``messages_for(result)``, when given, supplies the ``sh:resultMessage`` values of a
+    result in place of its own."""
+    return write_report(collect_report(results, shapes, data, conformance_disallows, messages_for))

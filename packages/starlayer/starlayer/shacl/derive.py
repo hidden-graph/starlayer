@@ -575,7 +575,7 @@ def _violated_values(
     for keep in values:
         probe = view.empty_like() if hasattr(view, "empty_like") else type(view)()
         probe.extend(t for t in view.triples((None, None, None)) if not (t[0] == source and t[1] == pred and t[2] != keep))
-        report = validate(data, shacl_graph=probe, ignore_imports=True).report_graph
+        report = validate(data, shacl_graph=probe, ignore_imports=True, build="graph").report_graph
         if any(v["component"] == component and v["source_shape"] == source for v in _iter_violations(report)):
             broken.append(keep)
     return broken or values
@@ -707,7 +707,7 @@ def _derive_with_template(
 
     specs = Plan(working).components()
     changes = _Changes()
-    detect = validate(data, shacl_graph=_check_view(working, data, shape_node, target), ignore_imports=True)
+    detect = validate(data, shacl_graph=_check_view(working, data, shape_node, target), ignore_imports=True, build="graph")
     seen: set[tuple[Any, Any]] = set()
     violations = sorted(
         (v for v in _iter_violations(detect.report_graph) if v["source_shape"] is not None and v["component"] is not None),

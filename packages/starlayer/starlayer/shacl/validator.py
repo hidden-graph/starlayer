@@ -38,6 +38,7 @@ def validate(
     shapes_graph_iri: Any | None = None,
     specification_graph: Any | None = None,
     include_used_configuration: bool = False,
+    build: str | None = None,
     **kwargs: Any,
 ) -> ValidationReport:
     """Validates ``data_graph`` against ``shacl_graph`` per SHACL 1.2 and returns a ``ValidationReport``.
@@ -67,6 +68,11 @@ def validate(
             ``sh:usedShapesGraph``), or, for an IRI that is not a module of it, only tag the report with that IRI.
         specification_graph: Lets Profiling derive ``dcterms:conformsTo`` from the derived ``sh:conformsToShapesGraph``.
         include_used_configuration: Also record the options in effect (``sh:usedConfiguration`` on that activity).
+        build: What to write in this call. ``None`` (the default): the results only; the report graph is written when ``report_graph`` is first
+            read, and the text when ``report_text`` is. ``"graph"``: write the graph now. ``"text"``: write the graph and the text now (the
+            text's provenance lines come from the graph). Ask for what you know you will read; the graph and the text are the same either
+            way. What the report holds is collected in this call whichever is asked for, so a graph written later never reads the shapes
+            or the data graph again.
         **kwargs: Option overrides (a ``StarShaclProcessor``'s ``allow_warnings`` / ``allow_infos`` can also be bound at construction and
             are overridden by the same keyword here): ``inference`` (an entailment regime IRI such as ``ENTAILMENT.RDFS``, or an iterable of them),
             ``inplace``, ``meta_shacl``, ``rules`` (None: run rules when the shapes declare ``sh:entailment``; True: always; False: never; ``advanced`` is deprecated for it), ``allow_warnings``, ``allow_infos``,
@@ -97,6 +103,7 @@ def validate(
         shapes_graph_resource=shapes_graph_resource,
         specification_graph=specification_graph,
         include_used_configuration=include_used_configuration,
+        build=build,
     )
 
 
@@ -967,6 +974,7 @@ class StarShaclProcessor:
         shapes_graph_iri: Any | None = None,
         specification_graph: Any | None = None,
         include_used_configuration: bool = False,
+        build: str | None = None,
         inference: Any | None = _UNSET,
         **kwargs: Any,
     ) -> ValidationReport:
@@ -1005,6 +1013,7 @@ class StarShaclProcessor:
             shapes_graph_resource=shapes_graph_resource,
             specification_graph=specification_graph,
             include_used_configuration=include_used_configuration,
+            build=build,
             checked=self._checked,
         )
 

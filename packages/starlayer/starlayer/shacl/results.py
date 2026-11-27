@@ -43,13 +43,15 @@ class ValidationReport:
 
     ``report_text`` is built on first read (it costs about as much as the validation itself on small data, and most callers only read
     ``conforms`` or the report graph); it may be passed to the constructor as a string or as a function that returns one. A lazily
-    built text describes the graphs as they are when it is first read.
+    built text describes the graphs as they are when it is first read. ``report_graph`` and ``diagnostics`` may likewise be passed as a
+    function; ``validate()`` does, and writes the graph when it is first read (or in the call, with ``build="graph"``), so a caller
+    that never reads it never pays for it. The report graph is the same either way and is written once.
     """
 
     conforms: bool
-    report_graph: Any
+    _report_graph: Any = field(repr=False)
     data_graph: Any | None = None
-    diagnostics: ExecutionDiagnostics | None = None
+    _diagnostics: Any = field(default=None, repr=False)
     _report_text: Any = field(default=None, repr=False, compare=False)
 
     def __init__(
@@ -58,21 +60,45 @@ class ValidationReport:
         report_graph: Any,
         report_text: str | Callable[[], str],
         data_graph: Any | None = None,
-        diagnostics: ExecutionDiagnostics | None = None,
+        diagnostics: ExecutionDiagnostics | Callable[[], ExecutionDiagnostics] | None = None,
     ) -> None:
         """Build a result; ``report_text`` may be a string or a function that builds it on first read.
 
         Args:
+            report_graph: the report graph, or a zero-argument function that writes and returns it on first read.
             report_text: the report text, or a zero-argument function that returns it; the result is cached after the first successful call.
+            diagnostics: the diagnostics, or a zero-argument function that returns them on first read.
         """
         for name, value in (
             ("conforms", conforms),
-            ("report_graph", report_graph),
+            ("_report_graph", report_graph),
             ("data_graph", data_graph),
-            ("diagnostics", diagnostics),
+            ("_diagnostics", diagnostics),
             ("_report_text", report_text),
         ):
             object.__setattr__(self, name, value)
+
+    @staticmethod
+    def _is_function(value: Any) -> bool:
+        return callable(value) and not hasattr(value, "triples")  # (a graph is a value, even one that can be called)
+
+    @property
+    def report_graph(self) -> Any:
+        """The ``sh:ValidationReport`` as a graph, written on first read and kept."""
+        graph = self._report_graph
+        if self._is_function(graph):
+            graph = graph()
+            object.__setattr__(self, "_report_graph", graph)
+        return graph
+
+    @property
+    def diagnostics(self) -> ExecutionDiagnostics | None:
+        """The ``ExecutionDiagnostics`` of the run (``report_triples`` counts the report graph, so reading it writes the graph)."""
+        found = self._diagnostics
+        if self._is_function(found):
+            found = found()
+            object.__setattr__(self, "_diagnostics", found)
+        return found
 
     @property
     def report_text(self) -> str:

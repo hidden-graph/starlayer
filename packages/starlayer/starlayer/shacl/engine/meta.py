@@ -32,17 +32,56 @@ from starlayer.shacl.engine.terms import (
 META_ERROR_PREFIX = "The shapes graph is not valid SHACL: it does not validate against the SHACL shapes for shapes (MetaSHACL)."
 
 
-@dataclass
+@dataclass(init=False)
 class MetaResult:
-    """Outcome of validating a shapes graph against the meta-shapes, with a printable report."""
+    """Outcome of validating a shapes graph against the meta-shapes, with a printable report.
+
+    ``report_graph`` and ``diagnostics`` may be given as a function and are then taken on first read: a shapes graph that conforms (the usual
+    case) is never asked for its report graph, so it is never written."""
 
     conforms: bool
-    report_graph: Any
+    _report_graph: Any = field(repr=False)
     report_text: str
     results: list = field(default_factory=list)
     problems: tuple[str, ...] = ()  # one line per result: the shape it is about, the property and the message
     scope: Any = None  # the MetaScope the check used
-    diagnostics: Any = None  # the engine's ExecutionDiagnostics for the run
+    _diagnostics: Any = field(default=None, repr=False)  # the engine's ExecutionDiagnostics for the run
+
+    def __init__(
+        self,
+        conforms: bool,
+        report_graph: Any,
+        report_text: str,
+        results: list | None = None,
+        problems: tuple[str, ...] = (),
+        scope: Any = None,
+        diagnostics: Any = None,
+    ) -> None:
+        self.conforms = conforms
+        self._report_graph = report_graph
+        self.report_text = report_text
+        self.results = [] if results is None else results
+        self.problems = problems
+        self.scope = scope
+        self._diagnostics = diagnostics
+
+    @staticmethod
+    def _is_function(value: Any) -> bool:
+        return callable(value) and not hasattr(value, "triples")  # (a graph is a value, even one that can be called)
+
+    @property
+    def report_graph(self) -> Any:
+        """The report as a graph, taken on first read."""
+        if self._is_function(self._report_graph):
+            self._report_graph = self._report_graph()
+        return self._report_graph
+
+    @property
+    def diagnostics(self) -> Any:
+        """The engine's ``ExecutionDiagnostics`` for the run (they count the report graph, so reading them writes it), taken on first read."""
+        if self._is_function(self._diagnostics):
+            self._diagnostics = self._diagnostics()
+        return self._diagnostics
 
     def raise_if_invalid(self) -> None:
         """Raise ``ShapeError`` (kind ``"meta"``) naming each problem when the shapes graph did not conform."""
@@ -236,12 +275,12 @@ def meta_validate(
                               meta_shacl=False, ignore_imports=True, **kwargs)
     result = MetaResult(
         conforms=outcome.conforms,
-        report_graph=outcome.report_graph,
+        report_graph=lambda: outcome.report_graph,  # (written when a caller reads it: a shapes graph that conforms never is)
         report_text=_report_text(outcome.conforms, outcome.results),
         results=outcome.results,
         problems=_problems(shapes_graph, outcome.results, prefixes),
         scope=scope,
-        diagnostics=getattr(outcome, "diagnostics", None),
+        diagnostics=lambda: getattr(outcome, "diagnostics", None),
     )
     if meta_shacl:
         result.raise_if_invalid()

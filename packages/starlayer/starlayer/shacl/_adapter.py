@@ -265,6 +265,7 @@ def validate(
     shapes_graph_resource: Any = None,
     specification_graph: Any = None,
     include_used_configuration: bool = False,
+    build: str | None = None,
     checked: CheckedShapes | None = None,
     engine_limits: dict[str, Any] | None = None,
 ) -> Any:
@@ -317,6 +318,7 @@ def validate(
         shapes_graph_resource=shapes_graph_resource,
         specification_graph=specification_graph,
         include_used_configuration=include_used_configuration,
+        build=build,
         imports_loader=imports_loader,
         ignore_imports=ignore_imports,
         meta_shapes_extra=meta_shapes_extra,
@@ -325,7 +327,8 @@ def validate(
         configuration_extra=_preflight_configuration(meta_shacl, imports_loader, meta_shapes_extra),
         **engine_kwargs,
     )
-    _annotate_conformance_disallows(outcome.report_graph, engine_kwargs.get("conformance_disallows"))
+    floor = engine_kwargs.get("conformance_disallows")
+    outcome.after_report_graph(lambda graph: _annotate_conformance_disallows(graph, floor))  # (when the graph is written: now if it was asked for)
     out_data = None
     if engine_kwargs.get("inplace"):
         out_data = original
@@ -333,10 +336,10 @@ def validate(
             api._write_back(data, original)
     return ValidationReport(
         conforms=outcome.conforms,
-        report_graph=outcome.report_graph,
+        report_graph=lambda: outcome.report_graph,
         report_text=lambda: outcome.report_text,
         data_graph=out_data,
-        diagnostics=outcome.diagnostics,
+        diagnostics=lambda: outcome.diagnostics,
     )
 
 
@@ -353,6 +356,7 @@ def validate_bounded(
         inference=inference,
         options={"allow_warnings": True} if allow_warnings else {},
         engine_limits={"max_validation_depth": max_validation_depth},
+        build="graph",  # (every one of those checks reads or adds to the report graph)
     )
 
 
@@ -403,7 +407,7 @@ RULES_OPTIONS = frozenset(
 # Keywords of ``validate()`` that ``apply_rules()`` refuses with a message that says so (the closed-set ``TypeError`` otherwise).
 _VALIDATE_ONLY = (
     VALIDATE_OPTIONS
-    | {"data_graph_iri", "shapes_graph_iri", "shapes_graph_resource", "specification_graph", "include_used_configuration"}
+    | {"data_graph_iri", "shapes_graph_iri", "shapes_graph_resource", "specification_graph", "include_used_configuration", "build"}
 ) - RULES_OPTIONS
 
 

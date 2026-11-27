@@ -16,41 +16,109 @@ from starlayer.shacl.engine import (
 from starlayer.shacl.engine.executor import Context, Result, run
 from starlayer.shacl.engine.fidelity import check_lexical_fidelity
 from starlayer.shacl.engine.plan import Plan
-from starlayer.shacl.engine.report import annotate_provenance, build_report, conforms
+from starlayer.shacl.engine.report import (
+    annotate_provenance,
+    collect_report,
+    conforms,
+    write_report,
+)
 from starlayer.shacl.engine.terms import (
     StarLayerFidelityWarning,
     engine_view,
     text,
     to_engine,
 )
-from starlayer.shacl.engine.text import result_messages
+from starlayer.shacl.engine.text import MessageMemo
 
 DEFAULT_MAX_VALIDATION_DEPTH = 500  # the removed pySHACL-era validator's default
 
 
-@dataclass
+class _Pending:
+    """A report graph that is not written yet: ``build`` writes it (and nothing before it needs the shapes or the data graph)."""
+
+    __slots__ = ("build",)
+
+    def __init__(self, build: Any) -> None:
+        self.build = build
+
+
+@dataclass(init=False)
 class Outcome:
-    """The value returned by ``validate()`` and ``validate_each()``."""
+    """The value returned by ``validate()`` and ``validate_each()``.
+
+    ``report_graph`` is written when it is first read (``validate(build="graph")`` writes it at once): what a caller does with the results
+    does not wait for a graph it never reads. The graph is the same either way, and it is written once, so edits to it stay."""
 
     conforms: bool
-    report_graph: Any
     results: list[Result]
     rule_result: Any = None
     data_graph: Any = None  # the caller's data graph with the inferred triples added, when ``inplace=True``
     recursion_revisits: int = 0  # recursive (shape, node) re-entries during the run (diagnostics)
     warnings: tuple[str, ...] = ()  # diagnostics of this run, e.g. the lexical-fidelity warning (``fidelity.py``)
+    _report_graph: Any = field(default=None, repr=False)  # the graph, or a ``_Pending`` that writes it
+    _graph_hooks: list = field(default_factory=list, repr=False, compare=False)  # what to do to the graph when it is written
     _text_inputs: Any = field(default=None, repr=False, compare=False)  # (shapes, data view, data_graph_iri) for report_text
     _report_text: str | None = field(default=None, repr=False, compare=False)
 
+    def __init__(
+        self,
+        conforms: bool,
+        report_graph: Any,
+        results: list[Result],
+        rule_result: Any = None,
+        data_graph: Any = None,
+        recursion_revisits: int = 0,
+        warnings: tuple[str, ...] = (),
+        _text_inputs: Any = None,
+        _report_text: str | None = None,
+    ) -> None:
+        self.conforms = conforms
+        self.results = results
+        self.rule_result = rule_result
+        self.data_graph = data_graph
+        self.recursion_revisits = recursion_revisits
+        self.warnings = warnings
+        self._report_graph = report_graph
+        self._graph_hooks = []
+        self._text_inputs = _text_inputs
+        self._report_text = _report_text
+
+    def write_graph(self) -> Any:
+        """Write the report graph now if it is not written yet; the graph."""
+        graph = self._report_graph
+        if isinstance(graph, _Pending):
+            graph = graph.build()
+            self._report_graph = graph
+            hooks, self._graph_hooks = self._graph_hooks, []
+            for hook in hooks:
+                hook(graph)
+        return graph
+
     @property
-    def report_text(self) -> str:
-        """The human-readable report (the old ``ValidationReport.report_text`` layout; see ``text.py``), built on first use."""
+    def report_graph(self) -> Any:
+        """The ``sh:ValidationReport`` as a graph, written on first read."""
+        return self.write_graph()
+
+    def after_report_graph(self, hook: Any) -> None:
+        """``hook(graph)`` once the report graph is written: now, if it already is."""
+        if isinstance(self._report_graph, _Pending):
+            self._graph_hooks.append(hook)
+        else:
+            hook(self._report_graph)
+
+    def write_text(self) -> str:
+        """Build the report text now if it is not built yet; the text. It reads the report graph for its provenance lines, so that is written too."""
         if self._report_text is None:
             from starlayer.shacl.engine.text import report_text
 
             shapes, data, data_iri = self._text_inputs if self._text_inputs is not None else (None, None, None)
-            self._report_text = report_text(self.results, self.conforms, shapes, data, self.report_graph, data_iri)
+            self._report_text = report_text(self.results, self.conforms, shapes, data, self.write_graph(), data_iri)
         return self._report_text
+
+    @property
+    def report_text(self) -> str:
+        """The human-readable report (the old ``ValidationReport.report_text`` layout; see ``text.py``), built on first use."""
+        return self.write_text()
 
     @property
     def diagnostics(self) -> Any:
@@ -143,6 +211,7 @@ def validate(
     subclass_of_in_shapes_graph: bool = False,
     configuration_extra: dict[str, Any] | None = None,
     focus_filter: Any = None,
+    build: str | None = None,
 ) -> Outcome:
     """Validate ``data_graph`` against ``shapes_graph`` (default: the data graph itself).
 
@@ -194,9 +263,17 @@ def validate(
     ``focus_filter``: a set of nodes; only results whose shape was reached at one of them are produced (the scoped meta check;
     see ``run``). Targets are resolved over the whole graph first.
 
+    ``build``: what to write in this call. ``None`` (the default) writes nothing but the results: the report graph is written when
+    ``Outcome.report_graph`` is first read, and the text when ``report_text`` is. ``"graph"`` writes the report graph now, ``"text"``
+    the graph and the text (the text's provenance lines come from the graph). A caller that knows it will read the graph asks for it
+    here; the graph is the same either way. What the report holds (the triples, the messages, the closures of the nodes it names, the
+    prefixes) is collected in this call whichever is asked for, so a graph written later does not read the shapes or the data graph.
+
     Not offered: the old validator's ``decode_report`` (it undoes the triple-term encoding it applies for pySHACL; this
     engine handles triple terms natively and never encodes, so there is nothing to decode) and ``iterate_rules``.
     """
+    if build not in (None, "graph", "text"):
+        raise ValueError(f"build must be None, 'graph' or 'text', not {build!r}")
     from starlayer.shacl.engine.entailment import resolve_data_view
 
     cache_key = (id(shapes_graph), shapes_graph_resource) if plan_cache is not None and shapes_graph is not None else None
@@ -277,15 +354,13 @@ def validate(
     if fidelity is not None:
         run_warnings.append(fidelity)
         warn_at_caller(fidelity, StarLayerFidelityWarning)
-    report = build_report(
-        results, shapes, data_graph, conformance_disallows, messages_for=lambda r: result_messages(r, shapes, data_graph)
-    )
-    annotate_provenance(
-        report,
-        data_graph_iri=data_graph_iri,
-        shapes_graph_iri=shapes_graph_iri,
-        include_used_configuration=include_used_configuration,
-        configuration={
+    messages = MessageMemo()
+    content = collect_report(results, shapes, data_graph, conformance_disallows, messages_for=lambda r: messages(r, shapes, data_graph))
+    provenance = {
+        "data_graph_iri": data_graph_iri,
+        "shapes_graph_iri": shapes_graph_iri,
+        "include_used_configuration": include_used_configuration,
+        "configuration": {
             "abortOnFirst": abort_on_first,
             "maxValidationDepth": max_validation_depth,
             "rules": rules,
@@ -298,13 +373,19 @@ def validate(
             **_owl_direct_options(inference, engine, timeout, recompute),
             **(configuration_extra or {}),
         },
-        specification_graph=specification_graph,
-    )
+        "specification_graph": specification_graph,
+    }
+
+    def write_graph() -> Any:
+        report = write_report(content)
+        annotate_provenance(report, **provenance)
+        return report
+
     if inplace and data_graph is not original_data:
         _write_back(data_graph, original_data)
-    return Outcome(
+    outcome = Outcome(
         conforms=conforms(results, conformance_disallows),
-        report_graph=report,
+        report_graph=_Pending(write_graph),
         results=results,
         rule_result=rule_result,
         warnings=tuple(run_warnings),
@@ -312,6 +393,11 @@ def validate(
         recursion_revisits=stats.get("recursion_revisits", 0),
         _text_inputs=(shapes, data_graph, data_graph_iri),
     )
+    if build is not None:  # what the caller said it will read is written now
+        outcome.write_graph()
+        if build == "text":
+            outcome.write_text()
+    return outcome
 
 
 def validate_each(
