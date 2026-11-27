@@ -35,6 +35,10 @@ Changes from the error-scheme review of 2026-11-26. Several of them change what 
 - `starlayer.graph.unresolved_imports(graph)`, `ExecutionError.unresolved`, `imports_loader=` on `infer()` and `query()`.
 - `StarLayerGraph(imports_loader=, ignore_imports=)` (and `StarLayerDataset`), the properties of the same names, `graph.resolved_imports()`, `graph.clear_imports_cache()`, `imports_loader=` / `ignore_imports=` on `evaluate()`, `target_nodes()`, `target_shapes()`, `extract_subgraph()`, `close_shape()`, `select_widgets()`, `derive_shape()` and the matching `StarShaclProcessor` methods.
 
+### Fixed
+
+- `shacl.infer_types()` no longer raises for a shapes graph that names an `owl:imports` it cannot resolve (it read the file as data and then resolved the imports of its own working copy, whatever the graph's `ignore_imports`); it never resolves them (#213).
+
 ## 0.2.0
 
 ### Breaking

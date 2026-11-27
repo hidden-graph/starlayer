@@ -50,7 +50,8 @@ def _copy(graph: Any) -> Any:
 def infer_types(shapes_graph: Any) -> Any:
     """The ``rdf:type`` triples ``shapes_graph``'s structure entails and it does not already state, as an ``StarLayerGraph``.
 
-    ``shapes_graph`` is read as data and left unchanged.
+    ``shapes_graph`` is read as data and left unchanged. Its ``owl:imports`` are not resolved, whatever the graph's own import settings: the types
+    of the file's own nodes do not depend on what it imports, and a file that names an import it cannot resolve is still typed.
     """
     from starlayer import starontology
     from starlayer.shacl.validator import apply_rules
@@ -80,7 +81,7 @@ def infer_types(shapes_graph: Any) -> Any:
     working = _copy(data)
     working.extend(list(entailed.triples((None, None, None))))
     rules = _copy(starontology.get_ontology_graph("shacl_shacl_rules"))
-    ruled = apply_rules(working, shacl_graph=rules).inferred_graph
+    ruled = apply_rules(working, shacl_graph=rules, ignore_imports=True).inferred_graph
 
     result = new_graph(data)
     for graph in (entailed, ruled):

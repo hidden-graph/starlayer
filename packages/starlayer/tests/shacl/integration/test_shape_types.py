@@ -94,3 +94,13 @@ def test_the_rules_cover_every_constraint_parameter_shacl_shacl_names() -> None:
     required = set(shacl_shacl.objects(SHSH.ShapeShape, SH.targetSubjectsOf))
     assert required <= by_subject, f"missing from shacl_shacl_rules: {sorted(required - by_subject)}"
     assert set(shacl_shacl.objects(SHSH.ShapeShape, SH.targetObjectsOf)) <= by_value | by_subject
+
+
+def test_an_import_the_file_cannot_resolve_has_no_part_in_the_types() -> None:
+    """An ``owl:imports`` the graph cannot resolve is not an error here: the file is read as data (GitHub issue #213)."""
+    with_import = "ex:G a sh:ShapesGraph ; owl:imports ex:Elsewhere . ex:P sh:path ex:p ; sh:minCount 1 ."
+    graph = StarLayerGraph()  # no loader, imports not ignored: a validation of this graph would raise
+    graph.parse(data=PREFIXES + "@prefix owl: <http://www.w3.org/2002/07/owl#> . " + with_import, format="turtle12")
+    types = {(s, o) for s, _, o in infer_types(graph)}
+    assert (EX.P, SH.PropertyShape) in types
+    assert types == _types("ex:G a sh:ShapesGraph . ex:P sh:path ex:p ; sh:minCount 1 .")
