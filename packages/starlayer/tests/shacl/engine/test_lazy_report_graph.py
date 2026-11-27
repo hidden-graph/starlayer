@@ -156,12 +156,12 @@ def test_a_shapes_graph_that_conforms_is_checked_without_writing_a_report_graph(
 
 
 def test_the_error_for_a_shapes_graph_that_does_not_conform_carries_its_report_graph(writes) -> None:
-    from starlayer.errors import MetaShaclError
+    from starlayer.errors import ShapeError
     from starlayer.shacl import meta_validate
 
-    with pytest.raises(MetaShaclError) as error:
+    with pytest.raises(ShapeError) as error:
         meta_validate(graph(BAD_SHAPES))
-    assert len(writes) == 1 and any(error.value.report_graph.subjects(None, SH.ValidationResult))
+    assert error.value.kind == "meta" and len(writes) == 1 and any(error.value.report_graph.subjects(None, SH.ValidationResult))
     assert error.value.problems and "Conforms: False" in error.value.report_text
 
 
