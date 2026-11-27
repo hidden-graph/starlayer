@@ -921,6 +921,10 @@ class _Base:
         """The engine's ``SparqlCapable`` hook (``custom_functions``: function IRI -> Python callable, as pyoxigraph takes them)."""
         return self._sparql_view().sparql_query(text, init_bindings, custom_functions)
 
+    def sparql_query_batch(self, text: str, name: str, nodes: list, init_bindings: Mapping[str, Any] | None = None, custom_functions: Any = None) -> Any:
+        """The engine's ``SparqlBatchCapable`` hook: one SELECT run for many values of the pre-bound variable ``name`` (see ``OxigraphGraph.sparql_query_batch``)."""
+        return self._sparql_view().sparql_query_batch(text, name, nodes, init_bindings, custom_functions)
+
     def _sparql_view(self) -> Any:
         return self.engine_view()
 

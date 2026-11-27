@@ -195,6 +195,10 @@ class InferredView:
         """Run a SPARQL query over the base plus the inferred triples, through ``materialised``."""
         return self.materialised().sparql_query(text, init_bindings, custom_functions)
 
+    def sparql_query_batch(self, text: str, name: str, nodes: list, init_bindings: Mapping[str, Term] | None = None, custom_functions: Any = None) -> Any:
+        """``SparqlBatchCapable.sparql_query_batch`` over the base plus the inferred triples, through ``materialised``."""
+        return self.materialised().sparql_query_batch(text, name, nodes, init_bindings, custom_functions)
+
     def construct(self, text: str, init_bindings: Mapping[str, Term] | None) -> list[Triple]:
         """Run a CONSTRUCT query over the base plus the inferred triples and return the triples."""
         import pyoxigraph as ox

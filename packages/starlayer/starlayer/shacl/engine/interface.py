@@ -69,3 +69,19 @@ class SparqlCapable(Protocol):
     ) -> Solutions:
         """Run a SPARQL SELECT or ASK query with variables pre-bound; the contract is in the class docstring."""
         ...
+
+
+@runtime_checkable
+class SparqlBatchCapable(Protocol):
+    """Optional capability of a data graph: run one SELECT for many values of a pre-bound variable at once.
+
+    ``sparql_query_batch(text, name, nodes, init_bindings)`` gives ``(projected variable names, {node: rows})``, each node's rows being what
+    ``sparql_query`` gives for that node pre-bound, or ``None`` when the answer cannot be given node by node (a node that cannot be written
+    in a ``VALUES`` block, such as a blank node). The caller has to know that the query's rows for one node do not depend on the other
+    nodes (``sparql_support.batch_blocker``); the engine batches only those. A graph without it is queried node by node."""
+
+    def sparql_query_batch(
+        self, text: str, name: str, nodes: list, init_bindings: Mapping[str, Term] | None = None, custom_functions: Mapping[Term, Any] | None = None
+    ) -> tuple[tuple[str, ...], dict[Term, list[dict[str, Term]]]] | None:
+        """Run a SPARQL SELECT once for ``nodes``; the contract is in the class docstring."""
+        ...

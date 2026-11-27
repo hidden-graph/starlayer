@@ -13,6 +13,7 @@ from starlayer.shacl.engine.expressions import evaluate_expression
 from starlayer.shacl.engine.plan import SH
 from starlayer.shacl.engine.sparql_support import (
     is_true,
+    prefetch_select,
     run_select,
     substitute_path,
     violations_from_solutions,
@@ -69,7 +70,15 @@ def _check_sparql(shapes, shape, params) -> None:
             raise ShapeError(f"{constraint!r}: a sh:sparql constraint needs exactly one sh:select", kind="compile")
 
 
-@component(SH.SPARQLConstraintComponent, SH.sparql, check=_check_sparql)
+def _prefetch_sparql(ctx, shape, params, foci) -> None:
+    """Run each ``sh:sparql`` query once for all the focus nodes (``sparql_support.prefetch_select``); ``sparql_constraint`` then reads each node's rows."""
+    for constraint in params[SH.sparql]:
+        prepared = _prepared(ctx, shape, constraint)
+        if prepared is not None:
+            prefetch_select(ctx, prepared[0], foci)
+
+
+@component(SH.SPARQLConstraintComponent, SH.sparql, check=_check_sparql, prefetch=_prefetch_sparql)
 def sparql_constraint(ctx, shape, params, focus, values):
     """Validate a focus node against each non-deactivated ``sh:sparql`` constraint, one violation per solution row."""
     graph = ctx.shapes

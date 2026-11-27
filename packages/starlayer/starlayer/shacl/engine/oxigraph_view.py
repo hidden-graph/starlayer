@@ -70,17 +70,22 @@ def _close_brace(text: str, k: int) -> int:
     return n
 
 
-def inject_everywhere(text: str, values: str) -> str:
+def inject_everywhere(text: str, values: str, *, skip_exists: bool = False) -> str:
     """``text`` with the ``values`` clause (``VALUES (?x) { (t) }``) put at the start of every group graph pattern, so a pre-bound
     variable is bound inside nested groups too, as SHACL 1.2 SPARQL Appendix A defines pre-binding (Oxigraph's ``substitutions``
     do not reach a group that holds only a ``FILTER``). Not in a sub-select's opening brace, a ``VALUES`` data block, a
     ``CONSTRUCT`` template or a ``{|`` annotation block. ``CONSTRUCT WHERE { P }`` is first written out as
-    ``CONSTRUCT { P } WHERE { VALUES ... P }``. Strings, IRIs and comments are skipped."""
+    ``CONSTRUCT { P } WHERE { VALUES ... P }``. Strings, IRIs and comments are skipped.
+
+    ``skip_exists``: leave the groups inside ``EXISTS { }`` and ``NOT EXISTS { }`` alone. They are evaluated with the solution they are
+    asked about substituted in, which binds the variable already, so the clause adds nothing there for one row; with a clause of many rows
+    (``sparql_query_batch``) it would be joined for each solution, and the work grows with the square of the rows."""
     from starlayer.graph.execution.run import _IRI_AT, _STRING_AT
 
     out: list[str] = []
     i, n = 0, len(text)
     after_values = construct = False
+    exists_at, exists_depth = -1, 0  # where the ``{`` that opens an EXISTS operand is; how many braces deep inside one
     while i < n:
         c = text[i]
         if c == "#":
@@ -104,6 +109,8 @@ def inject_everywhere(text: str, values: str) -> str:
             if not (before.isalnum() or before in ("?", "$", ":", "_", "-")) and not (after.isalnum() or after in ("_", "-", ":")):
                 if upper == "VALUES":
                     after_values = True
+                elif upper == "EXISTS" and skip_exists:
+                    exists_at = _BLANKS.match(text, j).end()
                 elif upper == "CONSTRUCT":
                     construct = True
                 elif upper == "WHERE" and construct:
@@ -120,6 +127,12 @@ def inject_everywhere(text: str, values: str) -> str:
             continue
         out.append(c)
         i += 1
+        if c == "}" and exists_depth:
+            exists_depth -= 1
+        if c == "{" and (exists_depth or i - 1 == exists_at):
+            exists_depth += 1  # inside an EXISTS operand: nothing is added to it or to any group nested in it
+            after_values = False
+            continue
         if c == "{":
             skip = after_values or construct or text[i : i + 1] == "|" or _SELECT_NEXT.match(text, i) is not None
             if after_values:
@@ -277,11 +290,8 @@ class OxigraphGraph:
         return sum(1 for _ in self.triples((None, None, None)))
 
     # ---- SPARQL -------------------------------------------------------------------------------------------------
-    def _run(self, text: str, init_bindings: dict[str, Any] | None, base_iri: str | None, custom_functions: Any) -> Any:
-        """The raw pyoxigraph result. Pre-bound variables use ``substitutions``; Oxigraph requires a substituted variable to
-        be projected, so for one that is not, the binding goes in as ``VALUES`` (a blank node, which cannot be written there,
-        is added to the projection and dropped again): the same fallback as ``StarLayerGraph.query``."""
-        subs = {ox.Variable(str(k).lstrip("?$")): to_ox(v) for k, v in (init_bindings or {}).items()} or None
+    def _target(self, base_iri: str | None, custom_functions: Any) -> tuple[Any, dict[str, Any]]:
+        """The store a query runs on and its keyword arguments (the graph it reads, ``base_iri``, ``custom_functions``)."""
         kwargs: dict[str, Any] = {}
         if base_iri is not None:
             kwargs["base_iri"] = base_iri
@@ -297,6 +307,14 @@ class OxigraphGraph:
                 kwargs["use_default_graph_as_union"] = True
         else:
             kwargs["default_graph"] = self._graph
+        return store, kwargs
+
+    def _run(self, text: str, init_bindings: dict[str, Any] | None, base_iri: str | None, custom_functions: Any) -> Any:
+        """The raw pyoxigraph result. Pre-bound variables use ``substitutions``; Oxigraph requires a substituted variable to
+        be projected, so for one that is not, the binding goes in as ``VALUES`` (a blank node, which cannot be written there,
+        is added to the projection and dropped again): the same fallback as ``StarLayerGraph.query``."""
+        subs = {ox.Variable(str(k).lstrip("?$")): to_ox(v) for k, v in (init_bindings or {}).items()} or None
+        store, kwargs = self._target(base_iri, custom_functions)
         from starlayer.graph.execution import run as oxrun
 
         if subs and not any(oxrun._has_blank(v) for v in subs.values()):
@@ -328,6 +346,38 @@ class OxigraphGraph:
         names = tuple(v.value for v in result.variables)
         rows = tuple({n: sol[n] for n in names if sol[n] is not None} for sol in result)
         return Solutions(variables=names, rows=rows)
+
+    def sparql_query_batch(
+        self, text: str, name: str, nodes: list, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None
+    ) -> tuple[tuple[str, ...], dict[Any, list[dict[str, Any]]]] | None:
+        """The ``SparqlBatchCapable`` hook (see ``interface.py``): the SELECT ``text`` run once for many values of the pre-bound variable ``name``.
+
+        Each node of ``nodes`` is pre-bound as ``sparql_query`` would pre-bind it (a ``VALUES`` block at the start of every group); here the
+        block has one row per node, so the store makes one pass for all of them. ``init_bindings`` are the other pre-bound variables, with the
+        same value in every row. Returns ``(projected variable names, {node: its rows})`` where a row is what ``sparql_query`` gives
+        (unbound variables absent), or ``None`` when the answer cannot be given node by node: a node that cannot be written in ``VALUES`` (a
+        blank node, a triple term holding one), a query that does not project ``name``, or a row whose ``name`` is not one of the nodes."""
+        from starlayer.graph.execution import run as oxrun
+
+        nodes = [to_ox(n) for n in nodes]
+        others = {str(k).lstrip("?$"): to_ox(v) for k, v in (init_bindings or {}).items() if str(k).lstrip("?$") != name}
+        if any(oxrun._has_blank(v) for v in (*nodes, *others.values())):
+            return None
+        store, kwargs = self._target(None, custom_functions)
+        columns = [name, *others]
+        header = " ".join("?" + c for c in columns)
+        rows = " ".join("(" + oxrun._sparql_term(n) + "".join(" " + oxrun._sparql_term(others[c]) for c in columns[1:]) + ")" for n in nodes)
+        result = store.query(inject_everywhere(text, f"VALUES ({header}) {{ {rows} }}", skip_exists=True), **kwargs)  # str-ok: SPARQL text
+        names = tuple(v.value for v in result.variables)
+        if name not in names:
+            return None
+        grouped: dict[Any, list[dict[str, Any]]] = {}
+        for sol in result:
+            row = {n: sol[n] for n in names if sol[n] is not None}
+            grouped.setdefault(row.get(name), []).append(row)
+        if not set(grouped) <= set(nodes):
+            return None  # (a node the store gives back in another form than it was given: the nodes cannot be told apart)
+        return names, grouped
 
     def query(
         self, text: str, init_bindings: dict[str, Any] | None = None, *, base_iri: str | None = None, custom_functions: Any = None

@@ -292,6 +292,28 @@ def _restated(details: tuple, shape: Shape, severity: Term, messages: tuple) -> 
     )
 
 
+def _prefetch(ctx: Context, shape: Shape, foci: list, seen: set | None = None) -> None:
+    """Tell the components of ``shape``, and of the property shapes of a node shape (they are checked at the same focus nodes), the focus nodes they
+    are about to be asked about one by one, so a component that can do the work for all of them at once does it once (``ComponentSpec.prefetch``).
+    Nothing here decides a result: a component that does nothing, or fails, is asked node by node as it always was."""
+    seen = set() if seen is None else seen
+    if len(foci) < 2 or shape.node in seen:
+        return
+    seen.add(shape.node)
+    try:
+        for spec, present, _severity, _messages, _exprs in _shape_components(ctx, shape):
+            if spec.prefetch is not None:
+                spec.prefetch(ctx, shape, present, foci)
+        if shape.path is None:  # (a property shape's own property shapes are checked at its value nodes, not at these)
+            for ps in shape.property_shapes:
+                link = shape.annotations.get((SH.property, ps))
+                pshape = ctx.shape(ps)
+                if not pshape.deactivated and not (link and link["deactivated"]):
+                    _prefetch(ctx, pshape, foci, seen)
+    except (ShapeError, ExecutionError):
+        pass  # (the node-by-node run raises it, where it applies)
+
+
 def _validate_shape_at(ctx: Context, shape: Shape, focus: Term) -> list[Result]:
     values = ctx.value_nodes(shape, focus)
     out: list[Result] = []
@@ -395,9 +417,10 @@ def run(
                 shape = plan.shape(node)
                 if shape.deactivated:
                     continue
-                for focus in ctx.shape_focus(shape):
-                    if focus_filter is not None and focus not in focus_filter:
-                        continue
+                foci = [f for f in ctx.shape_focus(shape) if focus_filter is None or f in focus_filter]
+                if ctx.memoize and not abort_on_first:  # (an early exit would waste what is read ahead; reads being recorded must be the node's own)
+                    _prefetch(ctx, shape, foci)
+                for focus in foci:
                     results.extend(validate_shape_at(ctx, shape, focus))
                     if results and abort_on_first:
                         return results

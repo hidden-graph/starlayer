@@ -47,6 +47,8 @@ class ComponentSpec:
     # components: the non-optional parameters)
     queries: Callable[..., list] | None = None  # SPARQL-based components: (ctx, shape, present, focus, values) -> the
     # (query text, pre-bound variables) pairs ``fn`` runs, for extract_subgraph to find the triples they depend on
+    prefetch: Callable[..., None] | None = None  # (ctx, shape, present, focus nodes): called with every focus node of a shape before they are
+    # checked one by one, so a component that can work on many at once (a SPARQL query) does it once. It only gets ready; ``fn`` still answers each node.
     check: Callable[..., Iterable[Term] | None] | None = None  # (shapes graph, shape, present parameters) -> shape nodes the
     # parameters refer to (or None). Reads the parameters with the helpers ``fn`` uses, so a malformed one raises the same
     # ShapeError when the plan is compiled (``Plan.compile``), not only when a focus node reaches the constraint.
@@ -62,13 +64,18 @@ def words(ctx: Any):
     return Words(ctx.data, ctx.shapes)
 
 
-def component(iri: URIRef, *predicates: URIRef, check: Callable[..., Iterable[Term] | None] | None = None):
+def component(
+    iri: URIRef,
+    *predicates: URIRef,
+    check: Callable[..., Iterable[Term] | None] | None = None,
+    prefetch: Callable[..., None] | None = None,
+):
     """Register ``fn`` under a component IRI. ``fn`` receives engine (pyoxigraph) terms. ``check`` is the optional
-    ``ComponentSpec.check`` parameter check."""
+    ``ComponentSpec.check`` parameter check, ``prefetch`` the optional ``ComponentSpec.prefetch``."""
 
     def deco(fn):
         iri_ = to_engine(iri)
-        REGISTRY[iri_] = ComponentSpec(iri_, tuple(to_engine(p) for p in predicates), fn, check=check)
+        REGISTRY[iri_] = ComponentSpec(iri_, tuple(to_engine(p) for p in predicates), fn, check=check, prefetch=prefetch)
         return fn
 
     return deco

@@ -178,6 +178,51 @@ def restriction_problem(text: str, prebound: Iterable[str], *, pre_binding: bool
     return problem
 
 
+_AGGREGATE_KINDS = frozenset({"COUNT", "SUM", "MIN", "MAX", "AVG", "SAMPLE", "GROUP_CONCAT"})
+_ACROSS_NODES_KINDS = frozenset({"SubSelect", "Minus", "Service"}) | _AGGREGATE_KINDS
+_ACROSS_NODES_MODIFIERS = ("limit", "offset", "group_by", "having")
+
+
+@lru_cache(maxsize=512)
+def batch_blocker(text: str) -> str | None:
+    """Why the SELECT ``text`` cannot be run once for many focus nodes and then split by ``?this``, or ``None`` when it can.
+
+    With ``?this`` pre-bound in every group, a query's rows for one node are a function of that node alone, so a run for many nodes gives each
+    node the rows a run for it alone gives, unless the query combines rows ACROSS nodes: ``LIMIT`` / ``OFFSET`` (taken over the whole answer),
+    ``GROUP BY`` / ``HAVING`` / an aggregate (a group can span nodes when ``?this`` is not what it groups by), a sub-select (its own limit,
+    grouping or projection can span nodes), ``MINUS`` and ``SERVICE``. It also has to project ``?this``, or the rows cannot be told apart. The
+    rule is deliberately narrow: a query it refuses is run for each node as before. ``ORDER BY`` and ``DISTINCT`` are allowed (the rows of one
+    node stay in their order, and a distinct row is distinct within its node)."""
+    try:
+        form, projected, _constructs = _analyse(text)
+    except Exception:  # noqa: BLE001  (the per-node run says what is wrong with it)
+        return "the query does not parse"
+    if form != "SelectQuery":
+        return "not a SELECT query"
+    if "this" not in projected:
+        return "it does not project ?this"
+    from starlayer.sparql.parse_sparql import Node, parse_sparql
+
+    ast = parse_sparql(text)
+    for modifier in _ACROSS_NODES_MODIFIERS:
+        if ast.f.get(modifier):
+            return f"it has {modifier.replace('_', ' ').upper()}"
+    blockers: set[str] = set()
+
+    def walk(item: Any) -> None:
+        if isinstance(item, Node):
+            if item.kind in _ACROSS_NODES_KINDS:
+                blockers.add(item.kind)
+            for value in item.f.values():
+                walk(value)
+        elif isinstance(item, (list, tuple)):
+            for value in item:
+                walk(value)
+
+    walk(ast)
+    return f"it has {', '.join(sorted(blockers))}" if blockers else None
+
+
 def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False, construct: bool = False, pre_binding: bool = True) -> tuple[str, ...]:
     """Parse ``text`` with StarLayer's own SPARQL parser and reject what the spec forbids; return the projected variable names.
 
@@ -296,15 +341,83 @@ def shacl_functions(ctx: Any) -> dict[Any, Any]:
     return functions
 
 
+class _Batch:
+    """The rows of one SELECT already run for many focus nodes (``prefetch_select``): ``covered`` are the nodes it was run for, ``rows`` the rows of
+    each node that has any."""
+
+    __slots__ = ("variables", "rows", "covered")
+
+    def __init__(self) -> None:
+        self.variables: tuple[str, ...] = ()
+        self.rows: dict[Term, list[dict[str, Term]]] = {}
+        self.covered: set[Term] = set()
+
+
+_BATCH_SIZE = 5000  # focus nodes in one run: the VALUES block is written into every group of the query, so the text grows with this
+BATCH_FALLBACKS = ("select-batch-fallbacks",)  # ctx.cache key: how many batches were refused or failed and are run node by node (tests read it)
+
+
+def prefetch_select(ctx: Any, text: str, foci: Iterable[Term]) -> None:
+    """Run the SHACL SPARQL SELECT ``text`` once for many focus nodes, so ``run_select`` answers each from the result instead of running the query
+    for each node. Only for a query whose rows for one node do not depend on the others (``batch_blocker``), on a graph that can do it
+    (``SparqlBatchCapable``), for IRI focus nodes, and not when reads are being recorded (``extract_subgraph``). Anything else, and any failure,
+    leaves the node-by-node run to do what it always did (and to raise what it raises), so this changes how fast, never what."""
+    data = ctx.data
+    if not ctx.memoize or not hasattr(data, "sparql_query_batch") or batch_blocker(text) is not None:
+        return
+    batch = ctx.cache.get(("select-batch", text))
+    if batch is None:
+        batch = ctx.cache[("select-batch", text)] = _Batch()
+    todo = [f for f in dict.fromkeys(foci) if isinstance(f, URIRef) and f not in batch.covered]
+    if len(todo) < 2:
+        return
+    try:
+        check_query(ctx.plan, text, ("this",))
+    except ShapeError:
+        return
+    for start in range(0, len(todo), _BATCH_SIZE):
+        chunk = todo[start : start + _BATCH_SIZE]
+        try:
+            found = run_query_batch_with_functions(ctx, text, chunk)
+        except Exception:  # noqa: BLE001  (the node-by-node run raises it, for the node it belongs to)
+            found = None
+        if found is None:
+            ctx.cache[BATCH_FALLBACKS] = ctx.cache.get(BATCH_FALLBACKS, 0) + 1
+            return
+        batch.variables, grouped = found
+        batch.rows.update(grouped)
+        batch.covered.update(chunk)
+
+
+def run_query_batch_with_functions(ctx: Any, text: str, nodes: list[Term]) -> tuple[tuple[str, ...], dict[Term, list[dict[str, Term]]]] | None:
+    """``run_query_with_functions`` for ``sparql_query_batch``: the shapes graph's functions, and the first failure of a function body that is not a
+    SPARQL error is raised once the query has run."""
+    outer = ctx.cache.get(_PENDING)
+    pending: list[Exception] = []
+    ctx.cache[_PENDING] = pending
+    try:
+        result = ctx.data.sparql_query_batch(text, "this", nodes, None, shacl_functions(ctx))
+    finally:
+        ctx.cache[_PENDING] = outer
+    if pending:
+        raise pending[0]
+    return result
+
+
 def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_this: bool = True) -> Solutions:
     """Check a SHACL SPARQL SELECT and run it on the data graph with ``bindings`` pre-bound.
 
     Raises ``ShapeError`` if ``check_query`` rejects the query or, unless ``require_this`` is false, it does not project
-    ``?this``.
+    ``?this``. A node the query was already run for (``prefetch_select``) is answered from that run.
     """
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
         raise ShapeError(_MUST_PROJECT_THIS, kind="compile")
+    if len(bindings) == 1:
+        batch = ctx.cache.get(("select-batch", text))
+        node = bindings.get("this")
+        if batch is not None and node in batch.covered:
+            return Solutions(variables=batch.variables, rows=tuple(batch.rows.get(node, ())))
     return run_query_with_functions(ctx, text, bindings)
 
 
