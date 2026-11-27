@@ -105,8 +105,8 @@ nl:04.01-4d30d29d a slkg:NotebookExample ;
 nl:04.02-d9a10023 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/04.02-srl-running-rule-sets.ipynb" ;
     slkg:cellId "d9a10023" ;
-    slkg:cellHash "f3b29728acf6a7a1" ;
-    slkg:reviewedOn "2026-11-18"^^xsd:date ;
+    slkg:cellHash "ed0a27d0f504f551" ;
+    slkg:reviewedOn "2026-11-27"^^xsd:date ;
     rdfs:comment "Resolves a rule set's IMPORTS through a loader, giving a rule set that needs no loader." ;
     slkg:demonstratesIdentifier
         "starlayer.sparql.srl.resolve_imports" .
@@ -480,8 +480,8 @@ nl:02.04-a2e50011 a slkg:NotebookExample ;
 nl:02.05-f1925477 a slkg:NotebookExample ;
     slkg:notebookPath "docs/guides/02.05-combining-comparing-graphs.ipynb" ;
     slkg:cellId "f1925477" ;
-    slkg:cellHash "2495d67f6a556090" ;
-    slkg:reviewedOn "2026-11-16"^^xsd:date ;
+    slkg:cellHash "957fd7e5c9f37dba" ;
+    slkg:reviewedOn "2026-11-27"^^xsd:date ;
     rdfs:comment "Lists a graph's owl:imports and resolves them with a loader you supply, merged and as a delta." ;
     slkg:demonstratesIdentifier
         "starlayer.graph.core._Base.owl_imports",
