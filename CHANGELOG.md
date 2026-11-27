@@ -2,11 +2,22 @@
 
 All notable changes to StarLayer. The packages (`starlayer`, `starlayer-reasoning`, `starlayer-kg`) are released together under one tag.
 
-## Unreleased (after the `v0.2.0` tag)
+## 0.2.0
 
-Changes from the error-scheme review of 2026-11-26. Several of them change what `v0.2.0` raises.
+The error scheme was revised after the first `v0.2.0` tag (2026-11-26 and 2026-11-27, from the error-scheme review), and the tag was moved to include the revision. Entries that say what something "was" describe the state of that first tag.
 
 ### Breaking
+
+- **One error scheme.** Everything the library raises on purpose derives from `StarLayerError`. The classes are `FormatError` (text or data is malformed), `ExecutionError` (the work could not be done), `ShapeError` (the shapes are wrong), and `EndpointError` (also an `OSError`). All four have a `kind` and an optional `context`. See Appendix D of the user guide.
+- **`ShapeError` is no longer a `ValueError`.** Code that wrote `except ValueError` around shape code must catch `ShapeError`.
+- **Removed error classes, with no aliases:** `SparqlSyntaxError`, `SQEError`, `SQEValidationError`, `SPARQL12ConformanceError`, `SRLError`, `SRLParseError`, `SRLDecodeError`, `SRLEvalError`, `SRLImportError`, `SRLImportsNotSupportedError`, `StratificationError`, `ManchesterSyntaxError`, `InvalidTripleTermError`, `BasicEncodingError`, `CanonicalizationComplexityError`, `EntailmentRewriteError`, `SqeTextTooDeepError`, `ReasoningTimeoutError` and `InconsistentOntologyError`, and the warning `SRLUnresolvedImportsWarning`. The table in section 8 of Appendix D gives what to catch instead.
+- **Engine errors are converted.** A malformed document or query from `parse()`, `query()` or `update()` is `FormatError` (it was `SyntaxError`), and an engine failure is `ExecutionError` kind `query` (it was `RuntimeError`).
+- **Parsing returns a tree and validation reports.** `sparql_to_tree()` and `parse_ruleset()` return a tree or rule set for any text the grammar accepts; problems are reported by `validate_sparql_tree()` and by running. `SQEValidationError` and the `validate=` parameters are gone.
+- **Validators return a `ValidationReport`**, not a `(conforms, report_graph, report_text)` tuple: `meta_validate`, `validate_sparql_tree` and `validate_manchester_tree`.
+- **Functions renamed**, with no aliases. `sqe_parse_to_tree` and `srl_parse_to_tree` are `sparql_to_tree`; `sqe_tree_to_text` and `srl_tree_to_text` are `tree_to_sparql`; `sqe_validate` and `srl_validate` are `validate_sparql_tree`; `manchester_parse_to_tree`, `manchester_tree_to_text`, `manchester_tree_to_owl` and `manchester_validate` are `manchester_to_tree`, `tree_to_manchester`, `tree_to_owl` and `validate_manchester_tree`. The tree functions take `tree_graph=`.
+- **Syntax trees store order with `tree:ord`**, not `rdf:List`, in a new shared `tree:` vocabulary (`tree:ord`, `tree:Item`, `tree:value`). A named node is held in a `tree:Item`; a blank node may have only one parent. Stored trees from `0.1.0` do not load. `graph.ordinals` has the helpers (`append`, `insert_at`, `remove_at`, `replace_at`, `renumber_dense`).
+- **Vocabularies renamed to the grammar names.** `spexpr:` built-ins and aggregates lose their `Builtin_` and `Aggregate_` prefixes, `spexpr:vars` is `spexpr:expr`, `sqe:PrefixBinding` is `sqe:PrefixDecl`, `Exists` and `NotExists` are two classes, `IN` values are `spexpr:args`, the `srl:` flag is `evalground`, and 44 `manch:` names are spelled out (`OntologyDocument`, `PrefixDeclaration`, and others).
+- **`SRL` rule sets are not validated at parse time.** `validate_sparql_tree()` reports the §4.2 conditions, an unorderable rule set and unresolved imports (a warning).
 
 - **`only_kind(error, *kinds)` is renamed `reraise_unless(error, *kinds)`.** Same behaviour (it returns when `error.kind` is one of `kinds` and raises the same error again otherwise); the old name says nothing about the other kinds being raised again. `from starlayer.errors import only_kind` fails; there is no alias.
 - **`EndpointError` has a `kind` and a `context`; a read-only endpoint's update is kind `read-only`.** `EndpointError(message="", status=None, *, kind, context=None)`: `kind` is required and a key of `EndpointError.KINDS`: `"http"` (the endpoint answered with an error status; `status` is set), `"unreachable"` (connection failed or timed out; `status` is `None`), `"content-type"` (the answer is in a content type StarLayer cannot read), `"read-only"` (an update sent to an endpoint that has no update URL; refused before anything is sent, so `status` is `None`; a read-only server that refuses an update stays `"http"` with its 403 or 405). `context` is the URL involved. A kind name is used by one class only (a test enforces it), because `reraise_unless` tests the kind string alone. It is still an `OSError`, `.status` and the messages are unchanged, and `reraise_unless()` takes it. `Endpoint.update()` on an endpoint with no update URL ("this endpoint has no update URL (it is read-only)") is `EndpointError` kind `"read-only"` (and so still an `OSError`), with `context` the query URL. This reverses the earlier plain `ValueError` of this entry; the message is unchanged. The class now lives in `starlayer.errors`; `starlayer.graph.EndpointError` and `starlayer.graph.endpoint.EndpointError` are the same object.
@@ -35,6 +46,11 @@ Changes from the error-scheme review of 2026-11-26. Several of them change what 
 
 ### Added
 
+- `sparql_to_tree()` reads SPARQL queries, updates and SRL rule sets.
+- `FormatError`, `ExecutionError` kinds `import`, `unsupported` and `limit`, and `reraise_unless()`.
+- `derive_shape(template_graph=)`, a public `max_triples` for rule inference, and built-in `owl:imports` for the registry's ontologies.
+- User guide changes: a new Appendix C (Manchester Syntax reference) and Appendix D (error classification), chapter 06 reorganised (06.02 SPARQL queries, updates and rules as RDF; 06.03 Manchester syntax as RDF; 06.04 the registry), and 02.08 for the Manchester notation.
+
 - `ExecutionError.KINDS` and `FormatError.KINDS` map each kind to a one-line meaning (iterating them still gives the kind names).
 - `ISSUES_URL` and `ExecutionError.report_url` in `starlayer.errors`.
 - `starlayer.graph.unresolved_imports(graph)`, `ExecutionError.unresolved`, `imports_loader=` on `infer()` and `query()`.
@@ -42,6 +58,8 @@ Changes from the error-scheme review of 2026-11-26. Several of them change what 
 - `build=None | "graph" | "text"` on `validate()` and `StarShaclProcessor.validate()` (and `engine.api.validate`): what to write in the call. `None` (the default) writes only the results; `"graph"` writes the report graph, `"text"` the graph and the text. `apply_rules()` refuses it. `ValidationReport(report_graph=..., diagnostics=...)` takes a function as well as a value, as `report_text` does.
 
 ### Changed
+
+- The `starlayer`, `starlayer-reasoning` and `starlayer-kg` packages are version 0.2.0, and `starlayer-reasoning` needs `starlayer>=0.2.0`.
 
 - **The report graph of `validate()` is written when it is first read**, not in the call (`build="graph"` writes it in the call). It is the same graph, written once and kept, so edits to it stay. What it holds (triples, messages, the closures of the nodes it names, prefixes) is collected in the call, so a graph written later never reads the shapes or the data graph again. Reading `report_text` or `diagnostics` writes the graph (the text's provenance lines and the triple count come from it). Two differences: the fidelity warning for a literal the store keeps in another form is raised when the graph is written, and an error while writing would appear at the first read. A call that never reads the graph is 3 to 6 times faster when many nodes fail; nothing changes for the nodes that conform.
 - `MetaResult` (the engine's meta check) and so `meta_validate()` take their report graph and diagnostics on first read: the report graph of a shapes graph that conforms is never written. `MetaShaclError.report_graph` is written when the error is raised.
@@ -54,29 +72,3 @@ Changes from the error-scheme review of 2026-11-26. Several of them change what 
 ### Fixed
 
 - `shacl.infer_types()` no longer raises for a shapes graph that names an `owl:imports` it cannot resolve (it read the file as data and then resolved the imports of its own working copy, whatever the graph's `ignore_imports`); it never resolves them (#213).
-
-## 0.2.0
-
-### Breaking
-
-- **One error scheme.** Everything the library raises on purpose derives from `StarLayerError`. The classes are `FormatError` (text or data is malformed), `ExecutionError` (the work could not be done), `ShapeError` (the shapes are wrong), and `EndpointError` (also an `OSError`). All four have a `kind` and an optional `context`. See Appendix D of the user guide.
-- **`ShapeError` is no longer a `ValueError`.** Code that wrote `except ValueError` around shape code must catch `ShapeError`.
-- **Removed error classes, with no aliases:** `SparqlSyntaxError`, `SQEError`, `SQEValidationError`, `SPARQL12ConformanceError`, `SRLError`, `SRLParseError`, `SRLDecodeError`, `SRLEvalError`, `SRLImportError`, `SRLImportsNotSupportedError`, `StratificationError`, `ManchesterSyntaxError`, `InvalidTripleTermError`, `BasicEncodingError`, `CanonicalizationComplexityError`, `EntailmentRewriteError`, `SqeTextTooDeepError`, `ReasoningTimeoutError` and `InconsistentOntologyError`, and the warning `SRLUnresolvedImportsWarning`. The table in section 8 of Appendix D gives what to catch instead.
-- **Engine errors are converted.** A malformed document or query from `parse()`, `query()` or `update()` is `FormatError` (it was `SyntaxError`), and an engine failure is `ExecutionError` kind `query` (it was `RuntimeError`).
-- **Parsing returns a tree and validation reports.** `sparql_to_tree()` and `parse_ruleset()` return a tree or rule set for any text the grammar accepts; problems are reported by `validate_sparql_tree()` and by running. `SQEValidationError` and the `validate=` parameters are gone.
-- **Validators return a `ValidationReport`**, not a `(conforms, report_graph, report_text)` tuple: `meta_validate`, `validate_sparql_tree` and `validate_manchester_tree`.
-- **Functions renamed**, with no aliases. `sqe_parse_to_tree` and `srl_parse_to_tree` are `sparql_to_tree`; `sqe_tree_to_text` and `srl_tree_to_text` are `tree_to_sparql`; `sqe_validate` and `srl_validate` are `validate_sparql_tree`; `manchester_parse_to_tree`, `manchester_tree_to_text`, `manchester_tree_to_owl` and `manchester_validate` are `manchester_to_tree`, `tree_to_manchester`, `tree_to_owl` and `validate_manchester_tree`. The tree functions take `tree_graph=`.
-- **Syntax trees store order with `tree:ord`**, not `rdf:List`, in a new shared `tree:` vocabulary (`tree:ord`, `tree:Item`, `tree:value`). A named node is held in a `tree:Item`; a blank node may have only one parent. Stored trees from `0.1.0` do not load. `graph.ordinals` has the helpers (`append`, `insert_at`, `remove_at`, `replace_at`, `renumber_dense`).
-- **Vocabularies renamed to the grammar names.** `spexpr:` built-ins and aggregates lose their `Builtin_` and `Aggregate_` prefixes, `spexpr:vars` is `spexpr:expr`, `sqe:PrefixBinding` is `sqe:PrefixDecl`, `Exists` and `NotExists` are two classes, `IN` values are `spexpr:args`, the `srl:` flag is `evalground`, and 44 `manch:` names are spelled out (`OntologyDocument`, `PrefixDeclaration`, and others).
-- **`SRL` rule sets are not validated at parse time.** `validate_sparql_tree()` reports the §4.2 conditions, an unorderable rule set and unresolved imports (a warning).
-
-### Added
-
-- `sparql_to_tree()` reads SPARQL queries, updates and SRL rule sets.
-- `FormatError`, `ExecutionError` kinds `import`, `unsupported` and `limit`, and `reraise_unless()`.
-- `derive_shape(template_graph=)`, a public `max_triples` for rule inference, and built-in `owl:imports` for the registry's ontologies.
-- User guide changes: a new Appendix C (Manchester Syntax reference) and Appendix D (error classification), chapter 06 reorganised (06.02 SPARQL queries, updates and rules as RDF; 06.03 Manchester syntax as RDF; 06.04 the registry), and 02.08 for the Manchester notation.
-
-### Changed
-
-- The `starlayer`, `starlayer-reasoning` and `starlayer-kg` packages are version 0.2.0, and `starlayer-reasoning` needs `starlayer>=0.2.0`.
