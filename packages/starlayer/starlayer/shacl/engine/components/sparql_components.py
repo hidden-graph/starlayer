@@ -28,6 +28,8 @@ from starlayer.shacl.engine.plan import SH, Plan, Shape, Term
 from starlayer.shacl.engine.sparql_support import (
     fill_template,
     is_true,
+    prefetch_ask,
+    prefetch_select,
     run_ask,
     run_select,
     substitute_path,
@@ -87,10 +89,34 @@ def _validator(graph: Any, comp: Term, shape: Shape) -> Term | None:
     return None
 
 
+def _validator_of(ctx, comp: Term, shape: Shape) -> Term | None:
+    """``_validator``, read once per component and kind of shape per run (the shapes graph does not change during one)."""
+    key = ("validator-of", comp, shape.is_property)
+    if key not in ctx.cache:
+        ctx.cache[key] = _validator(ctx.shapes, comp, shape)
+    return ctx.cache[key]
+
+
+def _prepared(ctx, comp: Term, validator: Term, shape: Shape) -> tuple[list, bool, str]:
+    """What a validator needs per focus node, read once per run: ``(its messages, whether it is an ASK, its query text)``. The text of a SELECT validator has
+    ``$PATH`` replaced by the path of ``shape``, so it is kept for each shape."""
+    key = ("validator-prepared", comp, validator, shape.node)
+    prepared = ctx.cache.get(key)
+    if prepared is None:
+        graph = ctx.shapes
+        messages = list(graph.objects(validator, SH.message)) or list(graph.objects(comp, SH.message))
+        asks = list(graph.objects(validator, SH.ask))
+        selects = list(graph.objects(validator, SH.select))
+        if len(asks) + len(selects) != 1:
+            raise ShapeError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select", kind="compile")
+        text = with_prefixes(ctx.plan, validator, asks[0].value) if asks else substitute_path(with_prefixes(ctx.plan, validator, selects[0].value), shape)
+        prepared = ctx.cache[key] = (messages, bool(asks), text)
+    return prepared
+
+
 def _make_fn(comp: Term, params: list[tuple[URIRef, str, bool]]):
     def fn(ctx, shape: Shape, present, focus: Term, values: tuple):
-        graph = ctx.shapes
-        validator = _validator(graph, comp, shape)
+        validator = _validator_of(ctx, comp, shape)
         if validator is None:
             return []
         choices = [list(present.get(pred, ())) or [None] for pred, _n, _o in params]
@@ -128,15 +154,30 @@ def _make_queries(comp: Term, params: list[tuple[URIRef, str, bool]]):
     return queries
 
 
+def _make_prefetch(comp: Term, params: list[tuple[URIRef, str, bool]]):
+    def prefetch(ctx, shape: Shape, present, foci: list) -> None:
+        """Run a validator's query once for all the focus nodes (a SELECT validator) or all the (focus node, value node) pairs (an ASK validator)
+        of each combination of the parameter values, as ``fn`` will ask for them; ``fn`` then reads each answer (``sparql_support.prefetch_select``,
+        ``prefetch_ask``). Whatever is wrong with the validator is for ``fn`` to raise."""
+        validator = _validator_of(ctx, comp, shape)
+        if validator is None:
+            return
+        _messages, is_ask, text = _prepared(ctx, comp, validator, shape)
+        choices = [list(present.get(pred, ())) or [None] for pred, _n, _o in params]
+        for combo in itertools.product(*choices):
+            bound = {name: v for (_p, name, _o), v in zip(params, combo, strict=True) if v is not None}
+            if is_ask:
+                prefetch_ask(ctx, text, [(focus, value) for focus in foci for value in ctx.value_nodes(shape, focus)], bound)
+            else:
+                prefetch_select(ctx, text, foci, bound)
+
+    return prefetch
+
+
 def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, values: tuple, params: dict):
     graph = ctx.shapes
-    messages = list(graph.objects(validator, SH.message)) or list(graph.objects(comp, SH.message))
-    asks = list(graph.objects(validator, SH.ask))
-    selects = list(graph.objects(validator, SH.select))
-    if len(asks) + len(selects) != 1:
-        raise ShapeError(f"{validator!r}: a validator needs exactly one sh:ask or sh:select", kind="compile")
-    if asks:
-        text = with_prefixes(ctx.plan, validator, asks[0].value)
+    messages, is_ask, text = _prepared(ctx, comp, validator, shape)
+    if is_ask:
         out = []
         for value in values:
             bindings = {"this": focus, "value": value, **params}
@@ -145,7 +186,6 @@ def _run_validator(ctx, comp: Term, validator: Term, shape: Shape, focus: Term, 
                     Violation(value=value, messages=tuple(fill_template(m, bindings) for m in messages))
                 )
         return out
-    text = substitute_path(with_prefixes(ctx.plan, validator, selects[0].value), shape)
     bindings = {"this": focus, **params}
     return violations_from_solutions(
         run_select(ctx, text, bindings),
@@ -179,5 +219,5 @@ def declared_components(plan: Plan) -> list[ComponentSpec]:
             continue
         preds = tuple(p for p, _n, _o in params)
         required = tuple(p for p, _n, opt in params if not opt)
-        specs.append(ComponentSpec(comp, preds, _make_fn(comp, params), required, _make_queries(comp, params)))
+        specs.append(ComponentSpec(comp, preds, _make_fn(comp, params), required, _make_queries(comp, params), prefetch=_make_prefetch(comp, params)))
     return specs

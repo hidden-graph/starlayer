@@ -39,9 +39,12 @@ from starlayer.shacl.engine.executor import Context
 from starlayer.shacl.engine.interface import Solutions, Term
 from starlayer.shacl.engine.naming import locate
 from starlayer.shacl.engine.plan import SH, Plan
+from starlayer.shacl.engine import sparql_support as _sparql_support
 from starlayer.shacl.engine.sparql_support import (
+    batch_blocker,
     check_query,
     is_true,
+    query_reads,
     with_prefixes,
 )
 from starlayer.shacl.engine.terms import (
@@ -198,6 +201,10 @@ class InferredView:
     def sparql_query_batch(self, text: str, name: str, nodes: list, init_bindings: Mapping[str, Term] | None = None, custom_functions: Any = None) -> Any:
         """``SparqlBatchCapable.sparql_query_batch`` over the base plus the inferred triples, through ``materialised``."""
         return self.materialised().sparql_query_batch(text, name, nodes, init_bindings, custom_functions)
+
+    def construct_batch(self, text: str, name: str, nodes: list, init_bindings: Mapping[str, Term] | None = None, custom_functions: Any = None) -> list[Triple] | None:
+        """``construct`` for many values of the pre-bound variable ``name`` at once: the triples of all of them (``OxigraphGraph.sparql_construct_batch``)."""
+        return self.materialised().engine_view().sparql_construct_batch(text, name, nodes, init_bindings, custom_functions)
 
     def construct(self, text: str, init_bindings: Mapping[str, Term] | None) -> list[Triple]:
         """Run a CONSTRUCT query over the base plus the inferred triples and return the triples."""
@@ -411,6 +418,8 @@ def _fix_now(text: str, now: str) -> str:
 
 
 class _Run:
+    skip_unchanged = True  # a rule whose inputs did not change since it last ran is not run again (``_unchanged``); False runs every rule every iteration
+
     def __init__(self, view: InferredView, plan: Plan, max_iterations: int, max_triples: int | None) -> None:
         # Inference Rules 11.1: NOW() returns the same result in all SPARQL rules during the execution of a rule set
         self.now = '"' + datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%fZ") + '"^^<http://www.w3.org/2001/XMLSchema#dateTime>'
@@ -420,6 +429,14 @@ class _Run:
         self.max_iterations = max_iterations
         self.max_triples = max_triples
         self.done_once: set = set()  # (rule, focus) of run-once rules already executed
+        self._texts: dict[Term, tuple[str, dict[str, Term]]] = {}  # rule -> (its CONSTRUCT text, its template's constants), see ``_sparql_text``
+        # What changed, for ``_unchanged``: ``tick`` counts the calls of ``add_inferred`` that added something; ``changes[p]`` is the tick of the last triple with
+        # predicate ``p`` added, ``any_change`` of the last triple at all; ``ran_at[rule]`` is the tick at which a rule last ran.
+        self.tick = 0
+        self.any_change = 0
+        self.changes: dict[Term, int] = {}
+        self.ran_at: dict[Term, int] = {}
+        self._reads: dict[Term, tuple[frozenset | None, bool]] = {}
         self.derived: set[Triple] = set()  # sh:defaultValue / sh:values triples of the current layer
         self.iterations = 0
         self.source_rules: list[tuple[Triple, Term]] | None = None  # set to a list to record which rule produced each triple
@@ -428,11 +445,65 @@ class _Run:
         """The triples the rules of ``group`` produce over ``ctx`` (every rule of a group reads the same graph)."""
         out: list[Triple] = []
         for rule in group:
+            if self._unchanged(rule):
+                continue
+            self.ran_at[rule.node] = self.tick
             produced = self.execute(ctx, rule)
             if self.source_rules is not None:
                 self.source_rules.extend((t, rule.node) for t in produced)
             out.extend(produced)
         return out
+
+    # -- skipping a rule whose inputs did not change
+    def _reads_of(self, rule: Rule) -> tuple[frozenset | None, bool]:
+        """What a rule's result depends on, as ``(predicates, volatile)`` (``sparql_support.query_reads``): the predicates its query reads and those its focus
+        nodes are found by, or ``None`` when that cannot be told (a condition, a target other than a node, a class, subjects or objects of a predicate, or a
+        query that can read anything); and whether it gives other answers to the same data. A rule that is not a SPARQL rule is volatile: it is always run."""
+        found = self._reads.get(rule.node)
+        if found is None:
+            found = self._reads[rule.node] = self._compute_reads(rule)
+        return found
+
+    def _compute_reads(self, rule: Rule) -> tuple[frozenset | None, bool]:
+        if SH.TripleRule in rule.types:
+            return None, True
+        try:
+            text, _constants = self._sparql_text(rule)
+            reads, volatile = query_reads(text)
+        except Exception:  # noqa: BLE001  (a rule that is wrong is run, and fails, as it always did)
+            return None, True
+        if volatile:
+            return None, True
+        if reads is None or rule.conditions:
+            return None, False
+        reads = set(reads)
+        for shape_node in rule.shapes:
+            for predicate, value in self.plan.shape(shape_node).targets:
+                if predicate == SH.targetClass:
+                    reads.update((RDF.type, RDFS.subClassOf))
+                elif predicate in (SH.targetSubjectsOf, SH.targetObjectsOf) and isinstance(value, URIRef):
+                    reads.add(value)
+                elif predicate == SH.shape:
+                    reads.add(SH.shape)  # (the nodes that say ``sh:shape`` of it)
+                elif predicate == SH.targetNode and not isinstance(value, BNode):
+                    continue  # (a node: its own focus node, whatever the data says)
+                else:  # sh:targetWhere, a node expression, anything else
+                    return None, False
+        return frozenset(reads), False
+
+    def _unchanged(self, rule: Rule) -> bool:
+        """Whether running ``rule`` again would give what it gave: it has run, and no triple it can read has been added since (``query_reads``; with
+        nothing known about what it reads, no triple at all). Its answer is then the triples it already added, so there is nothing to do; the fixpoint, the
+        iterations and the records of which rule gave which triple are those of running it. Never for a run-once rule, a volatile one, or when switched off."""
+        since = self.ran_at.get(rule.node)
+        if not self.skip_unchanged or since is None or rule.run_once:
+            return False
+        reads, volatile = self._reads_of(rule)
+        if volatile:
+            return False
+        if reads is None:
+            return self.any_change <= since
+        return all(self.changes.get(p, 0) <= since for p in reads)
 
     # -- focus nodes
     def _conditions(self, rule: Rule) -> list[Term]:
@@ -492,6 +563,9 @@ class _Run:
                 self.done_once.add((rule.node, None))
         runs: list[Term | None] = focus if rule.shapes else [None]
         out: list[Triple] = []
+        if SH.TripleRule not in rule.types and rule.shapes and len(runs) > 1:
+            batched, runs = self._construct_batch(rule, runs)
+            out.extend(batched)
         for f in runs:
             if SH.TripleRule in rule.types:
                 out.extend(self._triple_rule(ctx, rule, f))
@@ -499,22 +573,33 @@ class _Run:
                 out.extend(self._sparql_rule(rule, f))
         return [t for t in out if _well_formed(t)]
 
-    def _sparql_rule(self, rule: Rule, focus: Term | None) -> list[Triple]:
+    def _sparql_text(self, rule: Rule) -> tuple[str, dict[str, Term]]:
+        """The CONSTRUCT text of a SPARQL rule, with its prefixes and ``NOW()`` filled in, and the values of its template's parameters (pre-bound
+        in every run of it): read once per rule per run. Raises ``ShapeError`` for a rule that is not well formed, every time it is asked."""
+        key = rule.node
+        found = self._texts.get(key)
+        if found is not None:
+            return found
         g = self.shapes
         template = self._template_of(rule)
         holder = rule.node
-        bindings: dict[str, Term] = {} if focus is None else {"this": focus}
+        constants: dict[str, Term] = {}
         constructs = list(g.objects(rule.node, SH.construct))
         if template is not None and (template, SH.construct, None) in g:
             holder = template
             constructs = list(g.objects(template, SH.construct))
-            bindings.update(self._template_bindings(rule, template))
+            constants.update(self._template_bindings(rule, template))
         if SH.SPARQLRule not in rule.types and template is None:
             raise ShapeError(f"{rule.node!r}: unsupported rule type {sorted(text(t) for t in rule.types)}", kind="compile")
         if len(constructs) != 1 or not isinstance(constructs[0], Literal):
             raise ShapeError(f"{rule.node!r}: exactly one string sh:construct is required", kind="compile")
         prefix_holder = holder if (holder, SH.prefixes, None) in g else rule.node
-        text = _fix_now(with_prefixes(self.plan, prefix_holder, constructs[0].value), self.now)
+        found = self._texts[key] = (_fix_now(with_prefixes(self.plan, prefix_holder, constructs[0].value), self.now), constants)
+        return found
+
+    def _sparql_rule(self, rule: Rule, focus: Term | None) -> list[Triple]:
+        text, constants = self._sparql_text(rule)
+        bindings: dict[str, Term] = {**({} if focus is None else {"this": focus}), **constants}
         # the same forbidden constructs as for sh:select and sh:ask (SHACL 1.2 SPARQL Extensions, "Pre-binding of Variables"):
         # MINUS, SERVICE (which would send a request from the shapes graph), VALUES / assignment of a pre-bound variable;
         # a global rule has no pre-binding, so only SERVICE applies to it
@@ -525,6 +610,30 @@ class _Run:
             raise _prefixed(exc, f"{rule.node!r}: SPARQL rule failed: ", _rule_context(rule))  # the cause keeps its class and kind
         except Exception as exc:  # noqa: BLE001  (a foreign exception: the query does not evaluate, which fails the rule)
             raise ExecutionError(f"{rule.node!r}: SPARQL rule failed: {exc}", kind="rule", context=_rule_context(rule)) from exc
+
+    def _construct_batch(self, rule: Rule, foci: list[Term | None]) -> tuple[list[Triple], list[Term | None]]:
+        """The triples of a SPARQL rule for its IRI focus nodes, from one run of its query (``construct_batch``), and the focus nodes still to be run one
+        by one. The triples of a CONSTRUCT are a set, so the one run gives what the runs for the nodes give together, when the query's rows for a node
+        depend on that node alone (``sparql_support.batch_blocker``). Nothing is batched, and every node is left to the one-by-one run (which says what is
+        wrong with a rule that is wrong), when the graph cannot do it, the query is not one it may, there are fewer than two nodes, or anything fails."""
+        todo = [f for f in foci if isinstance(f, URIRef)]
+        if len(todo) < 2 or not hasattr(self.view, "construct_batch"):
+            return [], foci
+        try:
+            text, constants = self._sparql_text(rule)
+            if batch_blocker(text, construct=True) is not None:
+                return [], foci
+            check_query(self.plan, text, ("this", *constants), construct=True, pre_binding=True)
+            triples: list[Triple] = []
+            size = _sparql_support._BATCH_SIZE
+            for start in range(0, len(todo), size):
+                found = self.view.construct_batch(text, "this", todo[start : start + size], constants)
+                if found is None:
+                    return [], foci
+                triples.extend(found)
+        except Exception:  # noqa: BLE001  (the one-by-one run raises it, for the node it belongs to, in the words it always did)
+            return [], foci
+        return list(dict.fromkeys(triples)), [f for f in foci if not isinstance(f, URIRef)]
 
     def _template_of(self, rule: Rule) -> Term | None:
         """The rule template ``rule`` instantiates: its type, or the nearest superclass of that type (``rdfs:subClassOf``)
@@ -616,12 +725,18 @@ class _Run:
 
     def add_inferred(self, triples: Iterable[Triple]) -> bool:
         changed = False
+        tick = self.tick + 1
         for t in triples:
             if t in self.derived:  # also inferred by a rule: kept (and the rule's own triple counts as new once)
                 self.derived.discard(t)
                 changed = True
             elif self.view.add(t):
                 changed = True
+            else:
+                continue
+            self.changes[t[1]] = tick
+        if changed:
+            self.tick = self.any_change = tick
         if self.max_triples is not None and len(self.view.inferred) > self.max_triples:
             raise ExecutionError(
                 f"more than {self.max_triples} triples inferred: raise max_triples= or pass None to remove the cap", kind="limit", context="max_triples"

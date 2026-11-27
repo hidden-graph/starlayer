@@ -76,6 +76,19 @@ def _lists(shapes: Any, terms: tuple, what: str) -> Iterator[list[Any]]:
         yield members
 
 
+def _run_lists(ctx: Any, terms: tuple, what: str) -> Iterator[tuple[Any, ...]]:
+    """``_lists`` for a run: the members of each list are read from the shapes graph (and checked) once per run, not on every visit. The shapes graph
+    does not change during a run, and only a list that was read and found well formed is kept, so a malformed one raises each time it is asked, as before."""
+    cache = ctx.cache
+    for t in terms:
+        members = cache.get(("shacl-list", t))
+        if members is None:
+            found = shacl_list(ctx.shapes, t)
+            _shape_refs(tuple(found), what)
+            members = cache[("shacl-list", t)] = tuple(found)
+        yield members
+
+
 def _refs_check(pred: Any):
     def check(shapes, shape, params):
         return _shape_refs(params[pred], f"sh:{pred.value.rsplit('#', 1)[-1]}")
@@ -102,7 +115,7 @@ def not_(ctx, shape, params, focus, values):
 @component(SH.AndConstraintComponent, SH["and"], check=_lists_check(SH["and"], "sh:and"))
 def and_(ctx, shape, params, focus, values):
     """sh:and: each value node must conform to every shape in the list."""
-    for members in _lists(ctx.shapes, params[SH["and"]], "sh:and"):
+    for members in _run_lists(ctx, params[SH["and"]], "sh:and"):
         for v in values:
             if not all(ctx.conforms(m, v) for m in members):
                 yield Violation(value=v)
@@ -111,7 +124,7 @@ def and_(ctx, shape, params, focus, values):
 @component(SH.OrConstraintComponent, SH["or"], check=_lists_check(SH["or"], "sh:or"))
 def or_(ctx, shape, params, focus, values):
     """sh:or: each value node must conform to at least one shape in the list."""
-    for members in _lists(ctx.shapes, params[SH["or"]], "sh:or"):
+    for members in _run_lists(ctx, params[SH["or"]], "sh:or"):
         for v in values:
             if not any(ctx.conforms(m, v) for m in members):
                 yield Violation(value=v)
@@ -120,7 +133,7 @@ def or_(ctx, shape, params, focus, values):
 @component(SH.XoneConstraintComponent, SH.xone, check=_lists_check(SH.xone, "sh:xone"))
 def xone(ctx, shape, params, focus, values):
     """sh:xone: each value node must conform to exactly one shape in the list."""
-    for members in _lists(ctx.shapes, params[SH.xone], "sh:xone"):
+    for members in _run_lists(ctx, params[SH.xone], "sh:xone"):
         for v in values:
             if sum(1 for m in members if ctx.conforms(m, v)) != 1:
                 yield Violation(value=v)

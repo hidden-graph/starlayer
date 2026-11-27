@@ -184,8 +184,9 @@ _ACROSS_NODES_MODIFIERS = ("limit", "offset", "group_by", "having")
 
 
 @lru_cache(maxsize=512)
-def batch_blocker(text: str) -> str | None:
-    """Why the SELECT ``text`` cannot be run once for many focus nodes and then split by ``?this``, or ``None`` when it can.
+def batch_blocker(text: str, ask: bool = False, construct: bool = False) -> str | None:
+    """Why the SELECT ``text`` (or, with ``ask``, the ASK ``text``, with ``construct`` the CONSTRUCT ``text`` of a rule) cannot be run once for many focus
+    nodes and then split by ``?this``, or ``None`` when it can. A CONSTRUCT is not split: its triples are the union of the triples of each node.
 
     With ``?this`` pre-bound in every group, a query's rows for one node are a function of that node alone, so a run for many nodes gives each
     node the rows a run for it alone gives, unless the query combines rows ACROSS nodes: ``LIMIT`` / ``OFFSET`` (taken over the whole answer),
@@ -197,9 +198,9 @@ def batch_blocker(text: str) -> str | None:
         form, projected, _constructs = _analyse(text)
     except Exception:  # noqa: BLE001  (the per-node run says what is wrong with it)
         return "the query does not parse"
-    if form != "SelectQuery":
-        return "not a SELECT query"
-    if "this" not in projected:
+    if form != ("AskQuery" if ask else "ConstructQuery" if construct else "SelectQuery"):
+        return "not an ASK query" if ask else "not a CONSTRUCT query" if construct else "not a SELECT query"
+    if not ask and not construct and "this" not in projected:  # (an ASK is run as a SELECT of ?this and ?value, which it need not mention)
         return "it does not project ?this"
     from starlayer.sparql.parse_sparql import Node, parse_sparql
 
@@ -221,6 +222,73 @@ def batch_blocker(text: str) -> str | None:
 
     walk(ast)
     return f"it has {', '.join(sorted(blockers))}" if blockers else None
+
+
+_VOLATILE_KINDS = frozenset({"BNODE", "RAND", "UUID", "STRUUID"})  # a run gives different answers to the same data (NOW() is fixed for a rule run)
+
+
+@lru_cache(maxsize=512)
+def query_reads(text: str) -> tuple[frozenset | None, bool]:
+    """What the query ``text`` can read, as ``(predicates, volatile)``: the set of predicates of the triples it can match, or ``None`` when it can match a
+    triple of any predicate (a variable in predicate position, a negated property set, a path that can be of length zero: its answer depends on the
+    nodes of the data, a triple term or annotation, a function that reads the data); and whether it is ``volatile`` (``BNODE()``, ``RAND()``, ``UUID()``,
+    ``STRUUID()``, a blank node in the CONSTRUCT template: the same data gives other answers). The set is a superset: every IRI in a predicate position or path. Used to see that a rule whose
+    inputs did not change would give what it gave (``rules._Run``); anything this does not understand is ``None``, so that nothing is assumed."""
+    import pyoxigraph as ox
+
+    from starlayer.sparql.parse_sparql import Node, parse_sparql
+
+    predicates: set = set()
+    anything = False
+    volatile = False
+
+    def path(item: Any) -> None:
+        nonlocal anything
+        if isinstance(item, ox.NamedNode):
+            predicates.add(item)
+        elif isinstance(item, Node) and item.kind in ("PathInverse", "PathSequence", "PathAlternative"):
+            for value in item.f.values():
+                for part in value if isinstance(value, (list, tuple)) else (value,):
+                    path(part)
+        elif isinstance(item, Node) and item.kind == "PathElt" and item.f.get("mod") == "+":
+            path(item.f.get("path"))
+        else:  # a zero-length path (``*``, ``?``), a negated set, or a form this does not know
+            anything = True
+
+    def walk(item: Any) -> None:
+        nonlocal anything, volatile
+        if isinstance(item, Node):
+            if item.kind in _VOLATILE_KINDS:
+                volatile = True
+            elif item.kind in ("FunctionCall", "TripleTerm"):
+                anything = True
+            elif item.kind == "TriplePattern":
+                if isinstance(item.f.get("p"), ox.Variable):
+                    anything = True
+                else:
+                    path(item.f.get("p"))
+            for value in item.f.values():
+                walk(value)
+        elif isinstance(item, (list, tuple)):
+            for value in item:
+                walk(value)
+
+    def has_blank(item: Any) -> bool:
+        if isinstance(item, ox.BlankNode):
+            return True
+        if isinstance(item, Node):
+            return any(has_blank(value) for value in item.f.values())
+        if isinstance(item, (list, tuple)):
+            return any(has_blank(value) for value in item)
+        return False
+
+    ast = parse_sparql(text)
+    for name, part in ast.f.items():
+        if name != "template":  # (what a CONSTRUCT writes is not read: a rule is not made to see its own output as changed input)
+            walk(part)
+        elif has_blank(part):  # ... but a blank node in it is a new node in every run, so a run is never the same as the one before
+            volatile = True
+    return (None if anything else frozenset(predicates)), volatile
 
 
 def check_query(plan: Plan, text: str, prebound: Iterable[str], *, ask: bool = False, construct: bool = False, pre_binding: bool = True) -> tuple[str, ...]:
@@ -353,32 +421,54 @@ class _Batch:
         self.covered: set[Term] = set()
 
 
+class _AskBatch:
+    """The answers of one ASK already run for many (focus node, value node) pairs (``prefetch_ask``): ``covered`` are the pairs it was run for,
+    ``true`` those it answered true for."""
+
+    __slots__ = ("covered", "true")
+
+    def __init__(self) -> None:
+        self.covered: set[tuple[Term, Term]] = set()
+        self.true: set[tuple[Term, Term]] = set()
+
+
 _BATCH_SIZE = 5000  # focus nodes in one run: the VALUES block is written into every group of the query, so the text grows with this
 BATCH_FALLBACKS = ("select-batch-fallbacks",)  # ctx.cache key: how many batches were refused or failed and are run node by node (tests read it)
 
 
-def prefetch_select(ctx: Any, text: str, foci: Iterable[Term]) -> None:
+def _constants_key(constants: Mapping[str, Term] | None) -> tuple:
+    """The pre-bound variables other than ``?this`` / ``?value``, as part of the key of a batch: a batch is for one set of them."""
+    return tuple(sorted((constants or {}).items(), key=lambda item: item[0]))
+
+
+def _batchable(ctx: Any, text: str, *, ask: bool = False) -> bool:
+    """Whether a batch of ``text`` may be run: reads are not being recorded (``extract_subgraph``), the graph can run one, and the query allows it."""
+    return bool(ctx.memoize) and hasattr(ctx.data, "sparql_query_batch") and batch_blocker(text, ask) is None
+
+
+def prefetch_select(ctx: Any, text: str, foci: Iterable[Term], constants: Mapping[str, Term] | None = None) -> None:
     """Run the SHACL SPARQL SELECT ``text`` once for many focus nodes, so ``run_select`` answers each from the result instead of running the query
-    for each node. Only for a query whose rows for one node do not depend on the others (``batch_blocker``), on a graph that can do it
-    (``SparqlBatchCapable``), for IRI focus nodes, and not when reads are being recorded (``extract_subgraph``). Anything else, and any failure,
-    leaves the node-by-node run to do what it always did (and to raise what it raises), so this changes how fast, never what."""
-    data = ctx.data
-    if not ctx.memoize or not hasattr(data, "sparql_query_batch") or batch_blocker(text) is not None:
+    for each node. ``constants`` are the other pre-bound variables of the run (the parameters of a constraint component), the same for every node.
+    Only for a query whose rows for one node do not depend on the others (``batch_blocker``), on a graph that can do it (``SparqlBatchCapable``),
+    for IRI focus nodes, and not when reads are being recorded (``extract_subgraph``). Anything else, and any failure, leaves the node-by-node run
+    to do what it always did (and to raise what it raises), so this changes how fast, never what."""
+    if not _batchable(ctx, text):
         return
-    batch = ctx.cache.get(("select-batch", text))
+    key = ("select-batch", text, _constants_key(constants))
+    batch = ctx.cache.get(key)
     if batch is None:
-        batch = ctx.cache[("select-batch", text)] = _Batch()
+        batch = ctx.cache[key] = _Batch()
     todo = [f for f in dict.fromkeys(foci) if isinstance(f, URIRef) and f not in batch.covered]
     if len(todo) < 2:
         return
     try:
-        check_query(ctx.plan, text, ("this",))
+        check_query(ctx.plan, text, ("this", *(constants or {})))
     except ShapeError:
         return
     for start in range(0, len(todo), _BATCH_SIZE):
         chunk = todo[start : start + _BATCH_SIZE]
         try:
-            found = run_query_batch_with_functions(ctx, text, chunk)
+            found = run_query_batch_with_functions(ctx, text, "this", chunk, constants)
         except Exception:  # noqa: BLE001  (the node-by-node run raises it, for the node it belongs to)
             found = None
         if found is None:
@@ -389,14 +479,57 @@ def prefetch_select(ctx: Any, text: str, foci: Iterable[Term]) -> None:
         batch.covered.update(chunk)
 
 
-def run_query_batch_with_functions(ctx: Any, text: str, nodes: list[Term]) -> tuple[tuple[str, ...], dict[Term, list[dict[str, Term]]]] | None:
+def _ask_as_select(text: str) -> str:
+    """The ASK ``text`` as a SELECT of the pairs it holds for: the same pattern, ``SELECT DISTINCT ?this ?value`` in place of ``ASK``."""
+    from starlayer.graph.execution.run import _mask
+
+    m = re.search(r"(?i)\bASK\b", _mask(text))
+    return text[: m.start()] + "SELECT DISTINCT $this $value" + text[m.end() :]  # type: ignore[union-attr]
+
+
+def prefetch_ask(ctx: Any, text: str, pairs: Iterable[tuple[Term, Term]], constants: Mapping[str, Term] | None = None) -> None:
+    """``prefetch_select`` for an ASK validator, which is run for each (focus node, value node) pair: the pattern is run once as a SELECT of ``?this``
+    and ``?value`` over all the pairs, and a pair it gives a row for is a pair the ASK is true for. ``run_ask`` answers each covered pair from that.
+    Pairs with a blank node, and everything ``prefetch_select`` leaves alone, are run one by one."""
+    from starlayer.graph.execution.run import _has_blank
+
+    if not _batchable(ctx, text, ask=True):
+        return
+    key = ("ask-batch", text, _constants_key(constants))
+    batch = ctx.cache.get(key)
+    if batch is None:
+        batch = ctx.cache[key] = _AskBatch()
+    todo = [p for p in dict.fromkeys(pairs) if p not in batch.covered and not _has_blank(p[0]) and not _has_blank(p[1])]
+    if len(todo) < 2:
+        return
+    try:
+        check_query(ctx.plan, text, ("this", "value", *(constants or {})), ask=True)
+        select = _ask_as_select(text)
+    except ShapeError:
+        return
+    for start in range(0, len(todo), _BATCH_SIZE):
+        chunk = todo[start : start + _BATCH_SIZE]
+        try:
+            found = run_query_batch_with_functions(ctx, select, ("this", "value"), chunk, constants)
+        except Exception:  # noqa: BLE001  (the one-by-one run raises it, for the pair it belongs to)
+            found = None
+        if found is None:
+            ctx.cache[BATCH_FALLBACKS] = ctx.cache.get(BATCH_FALLBACKS, 0) + 1
+            return
+        batch.true.update(found[1])
+        batch.covered.update(chunk)
+
+
+def run_query_batch_with_functions(
+    ctx: Any, text: str, name: str | tuple[str, ...], nodes: list, constants: Mapping[str, Term] | None = None
+) -> tuple[tuple[str, ...], dict[Any, list[dict[str, Term]]]] | None:
     """``run_query_with_functions`` for ``sparql_query_batch``: the shapes graph's functions, and the first failure of a function body that is not a
     SPARQL error is raised once the query has run."""
     outer = ctx.cache.get(_PENDING)
     pending: list[Exception] = []
     ctx.cache[_PENDING] = pending
     try:
-        result = ctx.data.sparql_query_batch(text, "this", nodes, None, shacl_functions(ctx))
+        result = ctx.data.sparql_query_batch(text, name, nodes, constants, shacl_functions(ctx))
     finally:
         ctx.cache[_PENDING] = outer
     if pending:
@@ -413,9 +546,9 @@ def run_select(ctx: Any, text: str, bindings: Mapping[str, Term], *, require_thi
     projected = check_query(ctx.plan, text, bindings)
     if require_this and "this" not in projected:
         raise ShapeError(_MUST_PROJECT_THIS, kind="compile")
-    if len(bindings) == 1:
-        batch = ctx.cache.get(("select-batch", text))
-        node = bindings.get("this")
+    node = bindings.get("this")
+    if node is not None:
+        batch = ctx.cache.get(("select-batch", text, _constants_key({k: v for k, v in bindings.items() if k != "this"})))
         if batch is not None and node in batch.covered:
             return Solutions(variables=batch.variables, rows=tuple(batch.rows.get(node, ())))
     return run_query_with_functions(ctx, text, bindings)
@@ -428,6 +561,11 @@ def run_ask(ctx: Any, text: str, bindings: Mapping[str, Term]) -> bool:
     of the same pattern and any solution counts as true.
     """
     check_query(ctx.plan, text, bindings, ask=True)
+    node, value = bindings.get("this"), bindings.get("value")
+    if node is not None and value is not None:
+        batch = ctx.cache.get(("ask-batch", text, _constants_key({k: v for k, v in bindings.items() if k not in ("this", "value")})))
+        if batch is not None and (node, value) in batch.covered:
+            return (node, value) in batch.true
     from starlayer.graph.execution.run import _has_blank, _mask
 
     if any(_has_blank(v) for v in bindings.values()):

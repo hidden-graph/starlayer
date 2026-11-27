@@ -348,15 +348,49 @@ class OxigraphGraph:
         return Solutions(variables=names, rows=rows)
 
     def sparql_query_batch(
-        self, text: str, name: str, nodes: list, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None
+        self, text: str, name: str | tuple[str, ...], nodes: list, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None
     ) -> tuple[tuple[str, ...], dict[Any, list[dict[str, Any]]]] | None:
         """The ``SparqlBatchCapable`` hook (see ``interface.py``): the SELECT ``text`` run once for many values of the pre-bound variable ``name``.
 
-        Each node of ``nodes`` is pre-bound as ``sparql_query`` would pre-bind it (a ``VALUES`` block at the start of every group); here the
-        block has one row per node, so the store makes one pass for all of them. ``init_bindings`` are the other pre-bound variables, with the
-        same value in every row. Returns ``(projected variable names, {node: its rows})`` where a row is what ``sparql_query`` gives
-        (unbound variables absent), or ``None`` when the answer cannot be given node by node: a node that cannot be written in ``VALUES`` (a
-        blank node, a triple term holding one), a query that does not project ``name``, or a row whose ``name`` is not one of the nodes."""
+        Each node of ``nodes`` is pre-bound as ``sparql_query`` would pre-bind it (a ``VALUES`` block at the start of every group, but not in an
+        ``EXISTS``); here the block has one row per node, so the store makes one pass for all of them. ``name`` may be a tuple of variable names,
+        and ``nodes`` then tuples of terms (``?this`` and ``?value`` of a validator). ``init_bindings`` are the other pre-bound variables, with the
+        same value in every row. Returns ``(projected variable names, {node: its rows})`` where a row is what ``sparql_query`` gives (unbound
+        variables absent) and a node is a term, or a tuple of terms for a tuple of names; or ``None`` when the answer cannot be given node by node:
+        a node that cannot be written in ``VALUES`` (a blank node, a triple term holding one), a query that does not project the names, or a row
+        whose names are not one of the nodes."""
+        from starlayer.graph.execution import run as oxrun
+
+        columns_in = (name,) if isinstance(name, str) else tuple(name)
+        nodes = [tuple(to_ox(t) for t in (n if isinstance(name, tuple) else (n,))) for n in nodes]
+        others = {str(k).lstrip("?$"): to_ox(v) for k, v in (init_bindings or {}).items() if str(k).lstrip("?$") not in columns_in}
+        if any(oxrun._has_blank(t) for n in nodes for t in n) or any(oxrun._has_blank(v) for v in others.values()):
+            return None
+        store, kwargs = self._target(None, custom_functions)
+        columns = [*columns_in, *others]
+        header = " ".join("?" + c for c in columns)
+        tail = "".join(" " + oxrun._sparql_term(others[c]) for c in others)
+        rows = " ".join("(" + " ".join(oxrun._sparql_term(t) for t in n) + tail + ")" for n in nodes)
+        result = store.query(inject_everywhere(text, f"VALUES ({header}) {{ {rows} }}", skip_exists=True), **kwargs)  # str-ok: SPARQL text
+        names = tuple(v.value for v in result.variables)
+        if not all(c in names for c in columns_in):
+            return None
+        keys = {n if isinstance(name, tuple) else n[0] for n in nodes}
+        grouped: dict[Any, list[dict[str, Any]]] = {}
+        for sol in result:
+            row = {n: sol[n] for n in names if sol[n] is not None}
+            key = tuple(row.get(c) for c in columns_in) if isinstance(name, tuple) else row.get(name)
+            grouped.setdefault(key, []).append(row)
+        if not set(grouped) <= keys:
+            return None  # (a node the store gives back in another form than it was given: the nodes cannot be told apart)
+        return names, grouped
+
+    def sparql_construct_batch(
+        self, text: str, name: str, nodes: list, init_bindings: dict[str, Any] | None = None, custom_functions: Any = None
+    ) -> list[tuple[Any, Any, Any]] | None:
+        """The CONSTRUCT ``text`` run once for many values of the pre-bound variable ``name`` (as ``sparql_query_batch`` does for a SELECT): the triples
+        of all of them, each once, in the order the store gives them. The triples of a CONSTRUCT are a set, so these are the triples the runs for
+        the nodes one by one give together. ``None`` when a node or a binding cannot be written in ``VALUES`` (a blank node), or the text is not a CONSTRUCT."""
         from starlayer.graph.execution import run as oxrun
 
         nodes = [to_ox(n) for n in nodes]
@@ -365,19 +399,12 @@ class OxigraphGraph:
             return None
         store, kwargs = self._target(None, custom_functions)
         columns = [name, *others]
-        header = " ".join("?" + c for c in columns)
-        rows = " ".join("(" + oxrun._sparql_term(n) + "".join(" " + oxrun._sparql_term(others[c]) for c in columns[1:]) + ")" for n in nodes)
-        result = store.query(inject_everywhere(text, f"VALUES ({header}) {{ {rows} }}", skip_exists=True), **kwargs)  # str-ok: SPARQL text
-        names = tuple(v.value for v in result.variables)
-        if name not in names:
+        tail = "".join(" " + oxrun._sparql_term(others[c]) for c in others)
+        rows = " ".join("(" + oxrun._sparql_term(n) + tail + ")" for n in nodes)
+        result = store.query(inject_everywhere(text, f"VALUES ({' '.join('?' + c for c in columns)}) {{ {rows} }}", skip_exists=True), **kwargs)  # str-ok: SPARQL text
+        if not isinstance(result, ox.QueryTriples):
             return None
-        grouped: dict[Any, list[dict[str, Any]]] = {}
-        for sol in result:
-            row = {n: sol[n] for n in names if sol[n] is not None}
-            grouped.setdefault(row.get(name), []).append(row)
-        if not set(grouped) <= set(nodes):
-            return None  # (a node the store gives back in another form than it was given: the nodes cannot be told apart)
-        return names, grouped
+        return list(dict.fromkeys(map(tuple, result)))  # (a triple of the store is a sequence of its three terms)
 
     def query(
         self, text: str, init_bindings: dict[str, Any] | None = None, *, base_iri: str | None = None, custom_functions: Any = None

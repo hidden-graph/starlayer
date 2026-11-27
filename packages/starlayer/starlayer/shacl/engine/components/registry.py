@@ -57,11 +57,17 @@ class ComponentSpec:
 REGISTRY: dict[URIRef, ComponentSpec] = {}
 
 
+_WORDS = ("words",)  # ``ctx.cache`` key
+
+
 def words(ctx: Any):
     """The ``text.Words`` of this run (data and shapes terms worded for a message); imported late, ``text`` needs the executor."""
-    from starlayer.shacl.engine.text import Words
+    found = ctx.cache.get(_WORDS)
+    if found is None:
+        from starlayer.shacl.engine.text import Words
 
-    return Words(ctx.data, ctx.shapes)
+        found = ctx.cache[_WORDS] = Words(ctx.data, ctx.shapes)  # (it holds only the two graphs: one for the run)
+    return found
 
 
 def component(
